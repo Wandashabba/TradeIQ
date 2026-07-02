@@ -1,8 +1,6 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { comparePassword, issueToken } from './auth.service';
+import { authenticateUser, issueToken } from './auth.service';
 
-const prisma = new PrismaClient();
 export const authRouter = Router();
 
 authRouter.post('/login', async (req, res) => {
@@ -12,8 +10,8 @@ authRouter.post('/login', async (req, res) => {
     return;
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !(await comparePassword(password, user.passwordHash))) {
+  const user = await authenticateUser(email, password);
+  if (!user) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
