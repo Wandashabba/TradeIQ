@@ -84,6 +84,8 @@ model Sku {
   category            String
   minFacingsStandard  Int      @map("min_facings_standard")
   rrp                 Float
+  visitStock          VisitStock[]
+  visitPricing        VisitPricing[]
 
   @@map("skus")
 }
@@ -142,6 +144,7 @@ model VisitStock {
   visitId                String   @map("visit_id")
   visit                  Visit    @relation(fields: [visitId], references: [id])
   skuId                  String   @map("sku_id")
+  sku                    Sku      @relation(fields: [skuId], references: [id])
   unitsAvailable         Int      @map("units_available")
   lastStockinDate        DateTime @map("last_stockin_date")
   daysOutOfStock         Int      @map("days_out_of_stock")
@@ -171,6 +174,7 @@ model VisitPricing {
   visitId                  String  @map("visit_id")
   visit                    Visit   @relation(fields: [visitId], references: [id])
   skuId                    String  @map("sku_id")
+  sku                      Sku     @relation(fields: [skuId], references: [id])
   priceActual              Float   @map("price_actual")
   priceMaster              Float   @map("price_master")
   deviationPct             Float   @map("deviation_pct")
