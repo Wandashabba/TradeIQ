@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../network/api_client.dart';
 import 'auth_repository.dart';
 
 class SessionState {
-  const SessionState({this.role});
+  const SessionState({this.role, this.token});
   final String? role;
+  final String? token;
 }
 
 class SessionController extends AsyncNotifier<SessionState> {
@@ -12,9 +14,13 @@ class SessionController extends AsyncNotifier<SessionState> {
   Future<SessionState> build() async => const SessionState();
 
   Future<void> login(String email, String password) async {
-    final repo = ref.read(authRepositoryProvider);
-    final result = await repo.login(email, password);
-    state = AsyncData(SessionState(role: result.role));
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final repo = ref.read(authRepositoryProvider);
+      final result = await repo.login(email, password);
+      currentAuthToken = result.token;
+      return SessionState(role: result.role, token: result.token);
+    });
   }
 }
 

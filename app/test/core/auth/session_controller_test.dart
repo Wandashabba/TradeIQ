@@ -10,6 +10,13 @@ class FakeAuthRepository implements AuthRepository {
   }
 }
 
+class FailingAuthRepository implements AuthRepository {
+  @override
+  Future<AuthResult> login(String email, String password) async {
+    throw Exception('invalid credentials');
+  }
+}
+
 void main() {
   test('login success updates the session state with the returned role', () async {
     final container = ProviderContainer(
@@ -22,5 +29,18 @@ void main() {
 
     final state = container.read(sessionControllerProvider);
     expect(state.value?.role, 'manager');
+  });
+
+  test('login failure surfaces as AsyncError instead of throwing', () async {
+    final container = ProviderContainer(
+      overrides: [authRepositoryProvider.overrideWithValue(FailingAuthRepository())],
+    );
+    addTearDown(container.dispose);
+
+    final controller = container.read(sessionControllerProvider.notifier);
+    await controller.login('agent@tradeiq.com', 'wrong-password');
+
+    final state = container.read(sessionControllerProvider);
+    expect(state, isA<AsyncError<SessionState>>());
   });
 }
