@@ -3,6 +3,7 @@
 // is not built. This weighted-random implementation exists so Phase 1
 // callers (S3/S4 visibility+display screens) have a working interface to
 // build against. See: docs/architecture/stubs-and-interfaces.md
+// Tracking issue: https://github.com/Wandashabba/TradeIQ/issues/1
 
 export interface BrandingResult {
   pass: boolean;
