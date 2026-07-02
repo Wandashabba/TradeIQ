@@ -56,4 +56,82 @@ describe('outlets routes', () => {
     const res = await request(app).get('/outlets');
     expect(res.status).toBe(401);
   });
+
+  it('rejects outlet creation with a missing required field', async () => {
+    const res = await request(app)
+      .post('/outlets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        code: 'MISSING-NAME',
+        channelType: 'hypermarket',
+        lat: -26.2041,
+        lng: 28.0473,
+        territoryId: 'territory-1',
+        teamProfile: {},
+      });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a duplicate outlet code with 409', async () => {
+    const payload = {
+      name: 'Duplicate Outlet',
+      code: 'DUP-001',
+      channelType: 'hypermarket',
+      lat: -26.2041,
+      lng: 28.0473,
+      territoryId: 'territory-1',
+      teamProfile: {},
+    };
+
+    const firstRes = await request(app)
+      .post('/outlets')
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+    expect(firstRes.status).toBe(201);
+
+    const secondRes = await request(app)
+      .post('/outlets')
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+    expect(secondRes.status).toBe(409);
+  });
+
+  it('does not leak outlets across clients', async () => {
+    const clientB = await prisma.client.create({
+      data: {
+        name: 'Other Client',
+        industry: 'FMCG',
+        scorecardWeights: {},
+        kpiThresholds: {},
+      },
+    });
+    const tokenB = issueToken({ userId: 'seed-user-b', role: 'manager', clientId: clientB.id });
+
+    try {
+      const createResB = await request(app)
+        .post('/outlets')
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({
+          name: 'Client B Outlet',
+          code: 'CB-001',
+          channelType: 'convenience',
+          lat: -25.7461,
+          lng: 28.1881,
+          territoryId: 'territory-2',
+          teamProfile: {},
+        });
+      expect(createResB.status).toBe(201);
+
+      const listResA = await request(app)
+        .get('/outlets')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(listResA.status).toBe(200);
+      expect(listResA.body.some((outlet: { code: string }) => outlet.code === 'CB-001')).toBe(false);
+    } finally {
+      await prisma.outlet.deleteMany({ where: { clientId: clientB.id } });
+      await prisma.client.delete({ where: { id: clientB.id } });
+    }
+  });
 });
