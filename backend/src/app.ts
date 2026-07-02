@@ -1,5 +1,6 @@
 import express from 'express';
 import { authRouter } from './modules/auth/auth.routes';
+import { outletsRouter } from './modules/outlets/outlets.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -11,5 +12,6 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/auth', authRouter);
+app.use('/outlets', outletsRouter);
 
 app.use(errorHandler);
