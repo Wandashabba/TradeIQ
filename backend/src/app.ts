@@ -1,5 +1,6 @@
 import express from 'express';
 import { authRouter } from './modules/auth/auth.routes';
+import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
 
@@ -10,3 +11,5 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/auth', authRouter);
+
+app.use(errorHandler);
