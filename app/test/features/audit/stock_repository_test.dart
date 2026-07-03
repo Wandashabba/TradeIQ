@@ -6,12 +6,12 @@ import 'package:tradeiq_app/features/audit/data/stock_repository.dart';
 
 class _NoopFlusher implements QueueFlusher {
   @override
-  Future<void> flush(SyncQueueItem item) async {}
+  Future<Map<String, dynamic>?> flush(SyncQueueItem item) async => null;
 }
 
 class _ThrowingFlusher implements QueueFlusher {
   @override
-  Future<void> flush(SyncQueueItem item) async {
+  Future<Map<String, dynamic>?> flush(SyncQueueItem item) async {
     throw Exception('network error');
   }
 }
