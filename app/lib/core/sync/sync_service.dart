@@ -1,19 +1,33 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../network/api_client.dart' as api_client;
 import '../storage/local_db.dart';
 
 abstract class QueueFlusher {
   Future<void> flush(SyncQueueItem item);
 }
 
-/// Real network flusher wired in once the S1-S10 API endpoints exist.
-/// Currently only the /outlets endpoint is implemented backend-side
-/// (see backend/src/modules/outlets), so this is not yet used in `main.dart`.
+/// Posts queued entities to their matching backend endpoint. Only 'visit'
+/// is wired so far (POST /visits) — other entity types get their own case
+/// as their S2-S10 modules land.
 class HttpQueueFlusher implements QueueFlusher {
+  HttpQueueFlusher({Dio? dio}) : _dio = dio ?? api_client.dio;
+
+  final Dio _dio;
+
   @override
   Future<void> flush(SyncQueueItem item) async {
-    // Intentionally left for the follow-up S1-S10 implementation plan to
-    // route `item.entityType` to the matching backend endpoint.
-    throw UnimplementedError('HTTP sync for ${item.entityType} not wired yet');
+    switch (item.entityType) {
+      case 'visit':
+        await _dio.post('/visits', data: jsonDecode(item.payloadJson));
+        return;
+      default:
+        throw UnimplementedError('HTTP sync for ${item.entityType} not wired yet');
+    }
   }
 }
 
@@ -35,3 +49,7 @@ class SyncService {
     }
   }
 }
+
+final syncServiceProvider = Provider<SyncService>(
+  (ref) => SyncService(db: ref.read(localDbProvider), flusher: HttpQueueFlusher()),
+);
