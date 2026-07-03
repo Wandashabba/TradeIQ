@@ -50,9 +50,9 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     return null;
   }
 
-  List<Widget> _sections() => [
+  List<Widget> _sections(String visitId) => [
         S1OutletInfoScreen(checkinTs: _checkinTs),
-        const S2StockScreen(),
+        S2StockScreen(visitId: visitId),
         const S3S4VisibilityDisplayScreen(),
         const S5PricingPromotionsScreen(),
         const S6CompetitiveScreen(),
@@ -107,7 +107,9 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   }
 
   Widget _buildStepper() {
-    final sections = _sections();
+    final checkInResult = _checkInResult;
+    final visitId = checkInResult is CheckInSucceeded ? checkInResult.visitId : '';
+    final sections = _sections(visitId);
     return SingleChildScrollView(
       child: Stepper(
         physics: const NeverScrollableScrollPhysics(),
