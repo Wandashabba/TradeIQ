@@ -25,6 +25,9 @@ class HttpQueueFlusher implements QueueFlusher {
       case 'visit':
         await _dio.post('/visits', data: jsonDecode(item.payloadJson));
         return;
+      case 'stock':
+        await _dio.post('/stock', data: jsonDecode(item.payloadJson));
+        return;
       default:
         throw UnimplementedError('HTTP sync for ${item.entityType} not wired yet');
     }

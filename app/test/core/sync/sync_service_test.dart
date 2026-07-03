@@ -111,6 +111,13 @@ void main() {
       await flusher.flush(_visitQueueItem('{"outletId":"o1","lat":1.0,"lng":2.0}'));
     });
 
+    test('posts the stock payload to /stock and succeeds on 2xx', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))..httpClientAdapter = _FakeAdapter(201);
+      final flusher = HttpQueueFlusher(dio: dio);
+
+      await flusher.flush(_visitQueueItem('{"visitId":"v1","skuId":"s1"}').copyWith(entityType: 'stock'));
+    });
+
     test('throws when the backend rejects the check-in with 422', () async {
       final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))..httpClientAdapter = _FakeAdapter(422);
       final flusher = HttpQueueFlusher(dio: dio);
@@ -124,7 +131,7 @@ void main() {
     test('throws UnimplementedError for an unhandled entity type', () async {
       final flusher = HttpQueueFlusher(dio: Dio());
       await expectLater(
-        flusher.flush(_visitQueueItem('{}').copyWith(entityType: 'stock')),
+        flusher.flush(_visitQueueItem('{}').copyWith(entityType: 'receipt')),
         throwsA(isA<UnimplementedError>()),
       );
     });
