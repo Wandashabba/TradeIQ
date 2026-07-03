@@ -43,7 +43,14 @@ class SyncService {
         .get();
 
     for (final item in pending) {
-      await flusher.flush(item);
+      try {
+        await flusher.flush(item);
+      } catch (_) {
+        // One item's failure (network error, terminal rejection, or an
+        // unimplemented entity type) must not block the rest of the queue
+        // from being attempted — it just stays unsynced for next time.
+        continue;
+      }
       await (db.update(db.syncQueueItems)..where((tbl) => tbl.id.equals(item.id)))
           .write(const SyncQueueItemsCompanion(synced: Value(true)));
     }

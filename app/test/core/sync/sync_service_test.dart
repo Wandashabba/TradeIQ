@@ -15,6 +15,18 @@ class NoopFlusher implements QueueFlusher {
   }
 }
 
+class _FailFirstFlusher implements QueueFlusher {
+  final List<String> attempted = [];
+
+  @override
+  Future<void> flush(SyncQueueItem item) async {
+    attempted.add(item.entityId);
+    if (item.entityId == 'visit-1') {
+      throw Exception('network error');
+    }
+  }
+}
+
 class _FakeAdapter implements HttpClientAdapter {
   _FakeAdapter(this.statusCode);
   final int statusCode;
@@ -64,6 +76,31 @@ void main() {
     expect(flusher.callCount, 1);
     final rows = await db.select(db.syncQueueItems).get();
     expect(rows.first.synced, isTrue);
+  });
+
+  test('flushPending does not let one failing item block the rest of the queue', () async {
+    final db = LocalDb(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+      entityType: 'visit',
+      entityId: 'visit-1',
+      payloadJson: '{}',
+    ));
+    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+      entityType: 'visit',
+      entityId: 'visit-2',
+      payloadJson: '{}',
+    ));
+
+    final flusher = _FailFirstFlusher();
+    final service = SyncService(db: db, flusher: flusher);
+    await service.flushPending();
+
+    expect(flusher.attempted, ['visit-1', 'visit-2']);
+    final rows = await db.select(db.syncQueueItems).get();
+    final byEntityId = {for (final row in rows) row.entityId: row.synced};
+    expect(byEntityId['visit-1'], isFalse);
+    expect(byEntityId['visit-2'], isTrue);
   });
 
   group('HttpQueueFlusher', () {

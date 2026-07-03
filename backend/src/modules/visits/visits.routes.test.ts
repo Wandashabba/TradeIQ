@@ -113,4 +113,9 @@ describe('visits routes', () => {
     const res = await request(app).post('/visits').send({ outletId, lat: -26.2041, lng: 28.0473 });
     expect(res.status).toBe(401);
   });
+
+  it('GET / is not implemented yet', async () => {
+    const res = await request(app).get('/visits').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(501);
+  });
 });

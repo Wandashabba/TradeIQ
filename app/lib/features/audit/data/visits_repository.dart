@@ -68,7 +68,7 @@ class DriftVisitsRepository implements VisitsRepository {
       Coordinates(lat: outletLat, lng: outletLng),
       Coordinates(lat: lat, lng: lng),
     );
-    if (distance > 50) {
+    if (distance > defaultGeofenceRadiusMeters) {
       return CheckInGeofenceFailed(distance);
     }
 

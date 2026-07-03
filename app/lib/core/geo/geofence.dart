@@ -8,6 +8,8 @@ class Coordinates {
 
 const _earthRadiusMeters = 6371000.0;
 
+const defaultGeofenceRadiusMeters = 50.0;
+
 double _toRadians(double degrees) => degrees * pi / 180;
 
 double haversineDistanceMeters(Coordinates a, Coordinates b) {
@@ -21,6 +23,6 @@ double haversineDistanceMeters(Coordinates a, Coordinates b) {
   return 2 * _earthRadiusMeters * asin(sqrt(h));
 }
 
-bool isWithinGeofence(Coordinates outlet, Coordinates checkin, {double radiusMeters = 50}) {
+bool isWithinGeofence(Coordinates outlet, Coordinates checkin, {double radiusMeters = defaultGeofenceRadiusMeters}) {
   return haversineDistanceMeters(outlet, checkin) <= radiusMeters;
 }
