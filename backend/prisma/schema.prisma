@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  field_agent
+  manager
+  admin
+}
+
+enum VisitStatus {
+  in_progress
+  submitted
+}
+
+enum TaskPriority {
+  critical
+  high
+  normal
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  closed
+}
+
+model Client {
+  id               String   @id @default(uuid())
+  name             String
+  industry         String
+  scorecardWeights Json     @map("scorecard_weights")
+  kpiThresholds    Json     @map("kpi_thresholds")
+  users            User[]
+  outlets          Outlet[]
+  skus             Sku[]
+  planogramTemplates PlanogramTemplate[]
+  promoCalendar    PromoCalendar[]
+  visits           Visit[]
+
+  @@map("clients")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  clientId     String   @map("client_id")
+  client       Client   @relation(fields: [clientId], references: [id])
+  visits       Visit[]
+  tasksOwned   Task[]
+
+  @@map("users")
+}
+
+model Outlet {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  channelType String   @map("channel_type")
+  lat         Float
+  lng         Float
+  territoryId String   @map("territory_id")
+  teamProfile Json?    @map("team_profile")
+  clientId    String   @map("client_id")
+  client      Client   @relation(fields: [clientId], references: [id])
+  visits      Visit[]
+  tasks       Task[]
+
+  @@map("outlets")
+}
+
+model Sku {
+  id                  String   @id @default(uuid())
+  clientId            String   @map("client_id")
+  client              Client   @relation(fields: [clientId], references: [id])
+  name                String
+  category            String
+  minFacingsStandard  Int      @map("min_facings_standard")
+  rrp                 Float
+  visitStock          VisitStock[]
+  visitPricing        VisitPricing[]
+
+  @@map("skus")
+}
+
+model PlanogramTemplate {
+  id       String @id @default(uuid())
+  clientId String @map("client_id")
+  client   Client @relation(fields: [clientId], references: [id])
+  zoneMap  Json   @map("zone_map")
+
+  @@map("planogram_templates")
+}
+
+model PromoCalendar {
+  id           String   @id @default(uuid())
+  clientId     String   @map("client_id")
+  client       Client   @relation(fields: [clientId], references: [id])
+  promoName    String   @map("promo_name")
+  activeFrom   DateTime @map("active_from")
+  activeTo     DateTime @map("active_to")
+  requiredPosm Json     @map("required_posm")
+  outletScope  Json     @map("outlet_scope")
+
+  @@map("promo_calendar")
+}
+
+model Visit {
+  id            String      @id @default(uuid())
+  outletId      String      @map("outlet_id")
+  outlet        Outlet      @relation(fields: [outletId], references: [id])
+  agentId       String      @map("agent_id")
+  agent         User        @relation(fields: [agentId], references: [id])
+  clientId      String      @map("client_id")
+  client        Client      @relation(fields: [clientId], references: [id])
+  checkinTs     DateTime    @map("checkin_ts")
+  checkinLat    Float       @map("checkin_lat")
+  checkinLng    Float       @map("checkin_lng")
+  geofencePass  Boolean     @map("geofence_pass")
+  status        VisitStatus @default(in_progress)
+
+  stock        VisitStock[]
+  visibility   VisitVisibility?
+  pricing      VisitPricing[]
+  competitive  VisitCompetitive[]
+  capability   VisitCapability?
+  risks        VisitRisk[]
+  tasks        Task[]
+  photos       Photo[]
+  scorecard    Scorecard?
+
+  @@map("visits")
+}
+
+model VisitStock {
+  id                     String   @id @default(uuid())
+  visitId                String   @map("visit_id")
+  visit                  Visit    @relation(fields: [visitId], references: [id])
+  skuId                  String   @map("sku_id")
+  sku                    Sku      @relation(fields: [skuId], references: [id])
+  unitsAvailable         Int      @map("units_available")
+  lastStockinDate        DateTime @map("last_stockin_date")
+  daysOutOfStock         Int      @map("days_out_of_stock")
+  velocityAvg            Float    @map("velocity_avg")
+  coverageDaysPredicted  Float    @map("coverage_days_predicted")
+  salesActual            Float    @map("sales_actual")
+  salesTarget            Float    @map("sales_target")
+
+  @@map("visit_stock")
+}
+
+model VisitVisibility {
+  id                       String  @id @default(uuid())
+  visitId                  String  @unique @map("visit_id")
+  visit                    Visit   @relation(fields: [visitId], references: [id])
+  brandingElements         Json    @map("branding_elements")
+  planogramCompliancePct   Float   @map("planogram_compliance_pct")
+  facingsCount             Json    @map("facings_count")
+  highTrafficPass          Boolean @map("high_traffic_pass")
+  cleanlinessScore         Int     @map("cleanliness_score")
+
+  @@map("visit_visibility")
+}
+
+model VisitPricing {
+  id                       String  @id @default(uuid())
+  visitId                  String  @map("visit_id")
+  visit                    Visit   @relation(fields: [visitId], references: [id])
+  skuId                    String  @map("sku_id")
+  sku                      Sku     @relation(fields: [skuId], references: [id])
+  priceActual              Float   @map("price_actual")
+  priceMaster              Float   @map("price_master")
+  deviationPct             Float   @map("deviation_pct")
+  promoActive              Boolean @map("promo_active")
+  promoMaterialsDetected   Json    @map("promo_materials_detected")
+  commsRating              Int     @map("comms_rating")
+
+  @@map("visit_pricing")
+}
+
+model VisitCompetitive {
+  id                       String  @id @default(uuid())
+  visitId                  String  @map("visit_id")
+  visit                    Visit   @relation(fields: [visitId], references: [id])
+  competitorSku            String  @map("competitor_sku")
+  competitorPrice          Float   @map("competitor_price")
+  competitorPosmType       String  @map("competitor_posm_type")
+  competitorPromoterPresent Boolean @map("competitor_promoter_present")
+  geotag                   Json
+
+  @@map("visit_competitive")
+}
+
+model VisitCapability {
+  id                        String @id @default(uuid())
+  visitId                   String @unique @map("visit_id")
+  visit                     Visit  @relation(fields: [visitId], references: [id])
+  staffHeadcountConfirmed   Int    @map("staff_headcount_confirmed")
+  repTrainingStatus         Json   @map("rep_training_status")
+  quizScore                 Int    @map("quiz_score")
+
+  @@map("visit_capability")
+}
+
+model VisitRisk {
+  id        String @id @default(uuid())
+  visitId   String @map("visit_id")
+  visit     Visit  @relation(fields: [visitId], references: [id])
+  flagType  String @map("flag_type")
+  severity  String
+  note      String
+
+  @@map("visit_risks")
+}
+
+model Task {
+  id                String       @id @default(uuid())
+  visitId           String?      @map("visit_id")
+  visit             Visit?       @relation(fields: [visitId], references: [id])
+  findingType       String       @map("finding_type")
+  outletId          String       @map("outlet_id")
+  outlet            Outlet       @relation(fields: [outletId], references: [id])
+  requiredFix       String       @map("required_fix")
+  priority          TaskPriority
+  slaDueAt          DateTime     @map("sla_due_at")
+  ownerId           String       @map("owner_id")
+  owner             User         @relation(fields: [ownerId], references: [id])
+  status            TaskStatus   @default(open)
+  closurePhotoUrl   String?      @map("closure_photo_url")
+  closureVerified   Boolean      @default(false) @map("closure_verified")
+
+  @@map("tasks")
+}
+
+model Photo {
+  id        String   @id @default(uuid())
+  visitId   String   @map("visit_id")
+  visit     Visit    @relation(fields: [visitId], references: [id])
+  section   String
+  url       String
+  gpsTag    Json     @map("gps_tag")
+  timestamp DateTime
+
+  @@map("photos")
+}
+
+model Scorecard {
+  id              String @id @default(uuid())
+  visitId         String @unique @map("visit_id")
+  visit           Visit  @relation(fields: [visitId], references: [id])
+  dimensionScores Json   @map("dimension_scores")
+  weightedTotal   Float  @map("weighted_total")
+  ratingBand      String @map("rating_band")
+
+  @@map("scorecards")
+}

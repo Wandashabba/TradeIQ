@@ -1,0 +1,42 @@
+name: backend-ci
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tradeiq
+          POSTGRES_PASSWORD: tradeiq_dev
+          POSTGRES_DB: tradeiq
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tradeiq"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://tradeiq:tradeiq_dev@localhost:5432/tradeiq?schema=public
+      JWT_SECRET: ci-test-secret
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npm run lint
+      - run: npm test
