@@ -74,7 +74,8 @@ follow-up work, you have two options:
   `runApp`), then run the app and navigate to `/outlets` in the browser
   address bar (for the Chrome build). Revert the hardcoded token before
   committing — full login-to-outlets wiring is tracked as follow-up work,
-  not part of this scaffold.
+  not part of this scaffold. Tracked as
+  [issue #5](https://github.com/Wandashabba/TradeIQ/issues/5).
 
 ## 4. Run the test suites
 

@@ -28,6 +28,15 @@ deferred to Phase 2+) — they're scoped to the follow-up S1–S10
 implementation plan, not this scaffold. No GitHub issues are needed for
 these; they're just not built yet within Phase 1's own scope.
 
+## Known Phase 1 gaps
+
+Not a stub — this is in-scope Phase 1 work that isn't done yet, tracked as a
+regular issue rather than deferred:
+
+| Gap | Where | Tracking issue |
+|---|---|---|
+| Login form UI + router auth-redirect | `app/lib/features/auth/presentation/login_screen.dart` has no form; `app/lib/core/router/app_router.dart` has no redirect based on session state | https://github.com/Wandashabba/TradeIQ/issues/5 |
+
 ## Deferred infrastructure (Phase 2+, no code yet)
 
 Kafka event streaming, PostGIS (currently plain lat/lng + haversine), Redis
