@@ -14,6 +14,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  // Deliberately local state, not `session.isLoading` — AsyncNotifier's state
+  // is AsyncLoading from initial mount until build() resolves, which would
+  // incorrectly disable the button (and show a spinner) before any
+  // submission has happened.
   bool _isSubmitting = false;
 
   @override
