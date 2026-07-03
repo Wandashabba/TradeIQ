@@ -43,4 +43,21 @@ void main() {
     final state = container.read(sessionControllerProvider);
     expect(state, isA<AsyncError<SessionState>>());
   });
+
+  test('logout clears the session back to an empty state', () async {
+    final container = ProviderContainer(
+      overrides: [authRepositoryProvider.overrideWithValue(FakeAuthRepository())],
+    );
+    addTearDown(container.dispose);
+
+    final controller = container.read(sessionControllerProvider.notifier);
+    await controller.login('agent@tradeiq.com', 'password123');
+    expect(container.read(sessionControllerProvider).value?.role, 'manager');
+
+    controller.logout();
+
+    final state = container.read(sessionControllerProvider);
+    expect(state.value?.role, isNull);
+    expect(state.value?.token, isNull);
+  });
 }

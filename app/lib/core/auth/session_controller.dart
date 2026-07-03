@@ -22,6 +22,11 @@ class SessionController extends AsyncNotifier<SessionState> {
       return SessionState(role: result.role, token: result.token);
     });
   }
+
+  void logout() {
+    currentAuthToken = null;
+    state = const AsyncData(SessionState());
+  }
 }
 
 final sessionControllerProvider = AsyncNotifierProvider<SessionController, SessionState>(
