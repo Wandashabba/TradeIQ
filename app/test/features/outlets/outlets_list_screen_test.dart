@@ -7,7 +7,7 @@ import 'package:tradeiq_app/features/outlets/presentation/outlets_list_screen.da
 class FakeOutletsRepository implements OutletsRepository {
   @override
   Future<List<Outlet>> listOutlets() async => const [
-        Outlet(id: 'o1', name: 'Test Hypermarket', code: 'TH-001'),
+        Outlet(id: 'o1', name: 'Test Hypermarket', code: 'TH-001', lat: -26.2041, lng: 28.0473),
       ];
 }
 
