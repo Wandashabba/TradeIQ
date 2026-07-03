@@ -100,14 +100,40 @@ describe('stock routes', () => {
         clientId: otherClient.id,
       },
     });
-    const otherToken = issueToken({ userId: otherAgent.id, role: 'field_agent', clientId: otherClient.id });
+    const otherOutlet = await prisma.outlet.create({
+      data: {
+        name: 'Other Outlet',
+        code: 'STOCK-TEST-OTHER-001',
+        channelType: 'hypermarket',
+        lat: -25.7461,
+        lng: 28.1881,
+        territoryId: 'territory-2',
+        clientId: otherClient.id,
+      },
+    });
+    const otherVisit = await prisma.visit.create({
+      data: {
+        outletId: otherOutlet.id,
+        agentId: otherAgent.id,
+        clientId: otherClient.id,
+        checkinTs: new Date(),
+        checkinLat: -25.7461,
+        checkinLng: 28.1881,
+        geofencePass: true,
+        status: 'in_progress',
+      },
+    });
 
     try {
+      // Authenticate as the ORIGINAL client with a skuId that IS valid for
+      // them, so only the cross-tenant visitId can cause the 404 — proves
+      // the visit-tenant check independently, rather than relying on the
+      // sku check to also (coincidentally) fail and mask a broken visit check.
       const res = await request(app)
         .post('/stock')
-        .set('Authorization', `Bearer ${otherToken}`)
+        .set('Authorization', `Bearer ${token}`)
         .send({
-          visitId,
+          visitId: otherVisit.id,
           skuId,
           unitsAvailable: 40,
           lastStockinDate: '2026-06-30',
@@ -119,6 +145,8 @@ describe('stock routes', () => {
 
       expect(res.status).toBe(404);
     } finally {
+      await prisma.visit.deleteMany({ where: { clientId: otherClient.id } });
+      await prisma.outlet.deleteMany({ where: { clientId: otherClient.id } });
       await prisma.user.deleteMany({ where: { clientId: otherClient.id } });
       await prisma.client.delete({ where: { id: otherClient.id } });
     }
