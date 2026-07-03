@@ -15,12 +15,12 @@ part 'local_db.g.dart';
 /// Holds in-progress visit drafts ([VisitDrafts]) and the generic outbox of
 /// pending mutations ([SyncQueueItems]) that the sync service flushes to the
 /// backend once connectivity returns.
-@DriftDatabase(tables: [VisitDrafts, SyncQueueItems])
+@DriftDatabase(tables: [VisitDrafts, SyncQueueItems, StockDrafts])
 class LocalDb extends _$LocalDb {
   LocalDb([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   static QueryExecutor _openConnection() {
     return LazyDatabase(() async {

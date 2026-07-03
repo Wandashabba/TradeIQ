@@ -879,11 +879,601 @@ class SyncQueueItemsCompanion extends UpdateCompanion<SyncQueueItem> {
   }
 }
 
+class $StockDraftsTable extends StockDrafts
+    with TableInfo<$StockDraftsTable, StockDraft> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StockDraftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _visitIdMeta = const VerificationMeta(
+    'visitId',
+  );
+  @override
+  late final GeneratedColumn<String> visitId = GeneratedColumn<String>(
+    'visit_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _skuIdMeta = const VerificationMeta('skuId');
+  @override
+  late final GeneratedColumn<String> skuId = GeneratedColumn<String>(
+    'sku_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _unitsAvailableMeta = const VerificationMeta(
+    'unitsAvailable',
+  );
+  @override
+  late final GeneratedColumn<int> unitsAvailable = GeneratedColumn<int>(
+    'units_available',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastStockinDateMeta = const VerificationMeta(
+    'lastStockinDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastStockinDate =
+      GeneratedColumn<DateTime>(
+        'last_stockin_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _daysOutOfStockMeta = const VerificationMeta(
+    'daysOutOfStock',
+  );
+  @override
+  late final GeneratedColumn<int> daysOutOfStock = GeneratedColumn<int>(
+    'days_out_of_stock',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _velocityAvgMeta = const VerificationMeta(
+    'velocityAvg',
+  );
+  @override
+  late final GeneratedColumn<double> velocityAvg = GeneratedColumn<double>(
+    'velocity_avg',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _salesActualMeta = const VerificationMeta(
+    'salesActual',
+  );
+  @override
+  late final GeneratedColumn<double> salesActual = GeneratedColumn<double>(
+    'sales_actual',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _salesTargetMeta = const VerificationMeta(
+    'salesTarget',
+  );
+  @override
+  late final GeneratedColumn<double> salesTarget = GeneratedColumn<double>(
+    'sales_target',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    visitId,
+    skuId,
+    unitsAvailable,
+    lastStockinDate,
+    daysOutOfStock,
+    velocityAvg,
+    salesActual,
+    salesTarget,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stock_drafts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StockDraft> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('visit_id')) {
+      context.handle(
+        _visitIdMeta,
+        visitId.isAcceptableOrUnknown(data['visit_id']!, _visitIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_visitIdMeta);
+    }
+    if (data.containsKey('sku_id')) {
+      context.handle(
+        _skuIdMeta,
+        skuId.isAcceptableOrUnknown(data['sku_id']!, _skuIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_skuIdMeta);
+    }
+    if (data.containsKey('units_available')) {
+      context.handle(
+        _unitsAvailableMeta,
+        unitsAvailable.isAcceptableOrUnknown(
+          data['units_available']!,
+          _unitsAvailableMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_unitsAvailableMeta);
+    }
+    if (data.containsKey('last_stockin_date')) {
+      context.handle(
+        _lastStockinDateMeta,
+        lastStockinDate.isAcceptableOrUnknown(
+          data['last_stockin_date']!,
+          _lastStockinDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastStockinDateMeta);
+    }
+    if (data.containsKey('days_out_of_stock')) {
+      context.handle(
+        _daysOutOfStockMeta,
+        daysOutOfStock.isAcceptableOrUnknown(
+          data['days_out_of_stock']!,
+          _daysOutOfStockMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_daysOutOfStockMeta);
+    }
+    if (data.containsKey('velocity_avg')) {
+      context.handle(
+        _velocityAvgMeta,
+        velocityAvg.isAcceptableOrUnknown(
+          data['velocity_avg']!,
+          _velocityAvgMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_velocityAvgMeta);
+    }
+    if (data.containsKey('sales_actual')) {
+      context.handle(
+        _salesActualMeta,
+        salesActual.isAcceptableOrUnknown(
+          data['sales_actual']!,
+          _salesActualMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_salesActualMeta);
+    }
+    if (data.containsKey('sales_target')) {
+      context.handle(
+        _salesTargetMeta,
+        salesTarget.isAcceptableOrUnknown(
+          data['sales_target']!,
+          _salesTargetMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_salesTargetMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StockDraft map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StockDraft(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      visitId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}visit_id'],
+      )!,
+      skuId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sku_id'],
+      )!,
+      unitsAvailable: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}units_available'],
+      )!,
+      lastStockinDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_stockin_date'],
+      )!,
+      daysOutOfStock: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}days_out_of_stock'],
+      )!,
+      velocityAvg: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}velocity_avg'],
+      )!,
+      salesActual: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}sales_actual'],
+      )!,
+      salesTarget: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}sales_target'],
+      )!,
+    );
+  }
+
+  @override
+  $StockDraftsTable createAlias(String alias) {
+    return $StockDraftsTable(attachedDatabase, alias);
+  }
+}
+
+class StockDraft extends DataClass implements Insertable<StockDraft> {
+  final String id;
+  final String visitId;
+  final String skuId;
+  final int unitsAvailable;
+  final DateTime lastStockinDate;
+  final int daysOutOfStock;
+  final double velocityAvg;
+  final double salesActual;
+  final double salesTarget;
+  const StockDraft({
+    required this.id,
+    required this.visitId,
+    required this.skuId,
+    required this.unitsAvailable,
+    required this.lastStockinDate,
+    required this.daysOutOfStock,
+    required this.velocityAvg,
+    required this.salesActual,
+    required this.salesTarget,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['visit_id'] = Variable<String>(visitId);
+    map['sku_id'] = Variable<String>(skuId);
+    map['units_available'] = Variable<int>(unitsAvailable);
+    map['last_stockin_date'] = Variable<DateTime>(lastStockinDate);
+    map['days_out_of_stock'] = Variable<int>(daysOutOfStock);
+    map['velocity_avg'] = Variable<double>(velocityAvg);
+    map['sales_actual'] = Variable<double>(salesActual);
+    map['sales_target'] = Variable<double>(salesTarget);
+    return map;
+  }
+
+  StockDraftsCompanion toCompanion(bool nullToAbsent) {
+    return StockDraftsCompanion(
+      id: Value(id),
+      visitId: Value(visitId),
+      skuId: Value(skuId),
+      unitsAvailable: Value(unitsAvailable),
+      lastStockinDate: Value(lastStockinDate),
+      daysOutOfStock: Value(daysOutOfStock),
+      velocityAvg: Value(velocityAvg),
+      salesActual: Value(salesActual),
+      salesTarget: Value(salesTarget),
+    );
+  }
+
+  factory StockDraft.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StockDraft(
+      id: serializer.fromJson<String>(json['id']),
+      visitId: serializer.fromJson<String>(json['visitId']),
+      skuId: serializer.fromJson<String>(json['skuId']),
+      unitsAvailable: serializer.fromJson<int>(json['unitsAvailable']),
+      lastStockinDate: serializer.fromJson<DateTime>(json['lastStockinDate']),
+      daysOutOfStock: serializer.fromJson<int>(json['daysOutOfStock']),
+      velocityAvg: serializer.fromJson<double>(json['velocityAvg']),
+      salesActual: serializer.fromJson<double>(json['salesActual']),
+      salesTarget: serializer.fromJson<double>(json['salesTarget']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'visitId': serializer.toJson<String>(visitId),
+      'skuId': serializer.toJson<String>(skuId),
+      'unitsAvailable': serializer.toJson<int>(unitsAvailable),
+      'lastStockinDate': serializer.toJson<DateTime>(lastStockinDate),
+      'daysOutOfStock': serializer.toJson<int>(daysOutOfStock),
+      'velocityAvg': serializer.toJson<double>(velocityAvg),
+      'salesActual': serializer.toJson<double>(salesActual),
+      'salesTarget': serializer.toJson<double>(salesTarget),
+    };
+  }
+
+  StockDraft copyWith({
+    String? id,
+    String? visitId,
+    String? skuId,
+    int? unitsAvailable,
+    DateTime? lastStockinDate,
+    int? daysOutOfStock,
+    double? velocityAvg,
+    double? salesActual,
+    double? salesTarget,
+  }) => StockDraft(
+    id: id ?? this.id,
+    visitId: visitId ?? this.visitId,
+    skuId: skuId ?? this.skuId,
+    unitsAvailable: unitsAvailable ?? this.unitsAvailable,
+    lastStockinDate: lastStockinDate ?? this.lastStockinDate,
+    daysOutOfStock: daysOutOfStock ?? this.daysOutOfStock,
+    velocityAvg: velocityAvg ?? this.velocityAvg,
+    salesActual: salesActual ?? this.salesActual,
+    salesTarget: salesTarget ?? this.salesTarget,
+  );
+  StockDraft copyWithCompanion(StockDraftsCompanion data) {
+    return StockDraft(
+      id: data.id.present ? data.id.value : this.id,
+      visitId: data.visitId.present ? data.visitId.value : this.visitId,
+      skuId: data.skuId.present ? data.skuId.value : this.skuId,
+      unitsAvailable: data.unitsAvailable.present
+          ? data.unitsAvailable.value
+          : this.unitsAvailable,
+      lastStockinDate: data.lastStockinDate.present
+          ? data.lastStockinDate.value
+          : this.lastStockinDate,
+      daysOutOfStock: data.daysOutOfStock.present
+          ? data.daysOutOfStock.value
+          : this.daysOutOfStock,
+      velocityAvg: data.velocityAvg.present
+          ? data.velocityAvg.value
+          : this.velocityAvg,
+      salesActual: data.salesActual.present
+          ? data.salesActual.value
+          : this.salesActual,
+      salesTarget: data.salesTarget.present
+          ? data.salesTarget.value
+          : this.salesTarget,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockDraft(')
+          ..write('id: $id, ')
+          ..write('visitId: $visitId, ')
+          ..write('skuId: $skuId, ')
+          ..write('unitsAvailable: $unitsAvailable, ')
+          ..write('lastStockinDate: $lastStockinDate, ')
+          ..write('daysOutOfStock: $daysOutOfStock, ')
+          ..write('velocityAvg: $velocityAvg, ')
+          ..write('salesActual: $salesActual, ')
+          ..write('salesTarget: $salesTarget')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    visitId,
+    skuId,
+    unitsAvailable,
+    lastStockinDate,
+    daysOutOfStock,
+    velocityAvg,
+    salesActual,
+    salesTarget,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StockDraft &&
+          other.id == this.id &&
+          other.visitId == this.visitId &&
+          other.skuId == this.skuId &&
+          other.unitsAvailable == this.unitsAvailable &&
+          other.lastStockinDate == this.lastStockinDate &&
+          other.daysOutOfStock == this.daysOutOfStock &&
+          other.velocityAvg == this.velocityAvg &&
+          other.salesActual == this.salesActual &&
+          other.salesTarget == this.salesTarget);
+}
+
+class StockDraftsCompanion extends UpdateCompanion<StockDraft> {
+  final Value<String> id;
+  final Value<String> visitId;
+  final Value<String> skuId;
+  final Value<int> unitsAvailable;
+  final Value<DateTime> lastStockinDate;
+  final Value<int> daysOutOfStock;
+  final Value<double> velocityAvg;
+  final Value<double> salesActual;
+  final Value<double> salesTarget;
+  final Value<int> rowid;
+  const StockDraftsCompanion({
+    this.id = const Value.absent(),
+    this.visitId = const Value.absent(),
+    this.skuId = const Value.absent(),
+    this.unitsAvailable = const Value.absent(),
+    this.lastStockinDate = const Value.absent(),
+    this.daysOutOfStock = const Value.absent(),
+    this.velocityAvg = const Value.absent(),
+    this.salesActual = const Value.absent(),
+    this.salesTarget = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StockDraftsCompanion.insert({
+    required String id,
+    required String visitId,
+    required String skuId,
+    required int unitsAvailable,
+    required DateTime lastStockinDate,
+    required int daysOutOfStock,
+    required double velocityAvg,
+    required double salesActual,
+    required double salesTarget,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       visitId = Value(visitId),
+       skuId = Value(skuId),
+       unitsAvailable = Value(unitsAvailable),
+       lastStockinDate = Value(lastStockinDate),
+       daysOutOfStock = Value(daysOutOfStock),
+       velocityAvg = Value(velocityAvg),
+       salesActual = Value(salesActual),
+       salesTarget = Value(salesTarget);
+  static Insertable<StockDraft> custom({
+    Expression<String>? id,
+    Expression<String>? visitId,
+    Expression<String>? skuId,
+    Expression<int>? unitsAvailable,
+    Expression<DateTime>? lastStockinDate,
+    Expression<int>? daysOutOfStock,
+    Expression<double>? velocityAvg,
+    Expression<double>? salesActual,
+    Expression<double>? salesTarget,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (visitId != null) 'visit_id': visitId,
+      if (skuId != null) 'sku_id': skuId,
+      if (unitsAvailable != null) 'units_available': unitsAvailable,
+      if (lastStockinDate != null) 'last_stockin_date': lastStockinDate,
+      if (daysOutOfStock != null) 'days_out_of_stock': daysOutOfStock,
+      if (velocityAvg != null) 'velocity_avg': velocityAvg,
+      if (salesActual != null) 'sales_actual': salesActual,
+      if (salesTarget != null) 'sales_target': salesTarget,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StockDraftsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? visitId,
+    Value<String>? skuId,
+    Value<int>? unitsAvailable,
+    Value<DateTime>? lastStockinDate,
+    Value<int>? daysOutOfStock,
+    Value<double>? velocityAvg,
+    Value<double>? salesActual,
+    Value<double>? salesTarget,
+    Value<int>? rowid,
+  }) {
+    return StockDraftsCompanion(
+      id: id ?? this.id,
+      visitId: visitId ?? this.visitId,
+      skuId: skuId ?? this.skuId,
+      unitsAvailable: unitsAvailable ?? this.unitsAvailable,
+      lastStockinDate: lastStockinDate ?? this.lastStockinDate,
+      daysOutOfStock: daysOutOfStock ?? this.daysOutOfStock,
+      velocityAvg: velocityAvg ?? this.velocityAvg,
+      salesActual: salesActual ?? this.salesActual,
+      salesTarget: salesTarget ?? this.salesTarget,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (visitId.present) {
+      map['visit_id'] = Variable<String>(visitId.value);
+    }
+    if (skuId.present) {
+      map['sku_id'] = Variable<String>(skuId.value);
+    }
+    if (unitsAvailable.present) {
+      map['units_available'] = Variable<int>(unitsAvailable.value);
+    }
+    if (lastStockinDate.present) {
+      map['last_stockin_date'] = Variable<DateTime>(lastStockinDate.value);
+    }
+    if (daysOutOfStock.present) {
+      map['days_out_of_stock'] = Variable<int>(daysOutOfStock.value);
+    }
+    if (velocityAvg.present) {
+      map['velocity_avg'] = Variable<double>(velocityAvg.value);
+    }
+    if (salesActual.present) {
+      map['sales_actual'] = Variable<double>(salesActual.value);
+    }
+    if (salesTarget.present) {
+      map['sales_target'] = Variable<double>(salesTarget.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StockDraftsCompanion(')
+          ..write('id: $id, ')
+          ..write('visitId: $visitId, ')
+          ..write('skuId: $skuId, ')
+          ..write('unitsAvailable: $unitsAvailable, ')
+          ..write('lastStockinDate: $lastStockinDate, ')
+          ..write('daysOutOfStock: $daysOutOfStock, ')
+          ..write('velocityAvg: $velocityAvg, ')
+          ..write('salesActual: $salesActual, ')
+          ..write('salesTarget: $salesTarget, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalDb extends GeneratedDatabase {
   _$LocalDb(QueryExecutor e) : super(e);
   $LocalDbManager get managers => $LocalDbManager(this);
   late final $VisitDraftsTable visitDrafts = $VisitDraftsTable(this);
   late final $SyncQueueItemsTable syncQueueItems = $SyncQueueItemsTable(this);
+  late final $StockDraftsTable stockDrafts = $StockDraftsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -891,6 +1481,7 @@ abstract class _$LocalDb extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     visitDrafts,
     syncQueueItems,
+    stockDrafts,
   ];
 }
 
@@ -1352,6 +1943,291 @@ typedef $$SyncQueueItemsTableProcessedTableManager =
       SyncQueueItem,
       PrefetchHooks Function()
     >;
+typedef $$StockDraftsTableCreateCompanionBuilder =
+    StockDraftsCompanion Function({
+      required String id,
+      required String visitId,
+      required String skuId,
+      required int unitsAvailable,
+      required DateTime lastStockinDate,
+      required int daysOutOfStock,
+      required double velocityAvg,
+      required double salesActual,
+      required double salesTarget,
+      Value<int> rowid,
+    });
+typedef $$StockDraftsTableUpdateCompanionBuilder =
+    StockDraftsCompanion Function({
+      Value<String> id,
+      Value<String> visitId,
+      Value<String> skuId,
+      Value<int> unitsAvailable,
+      Value<DateTime> lastStockinDate,
+      Value<int> daysOutOfStock,
+      Value<double> velocityAvg,
+      Value<double> salesActual,
+      Value<double> salesTarget,
+      Value<int> rowid,
+    });
+
+class $$StockDraftsTableFilterComposer
+    extends Composer<_$LocalDb, $StockDraftsTable> {
+  $$StockDraftsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get visitId => $composableBuilder(
+    column: $table.visitId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get skuId => $composableBuilder(
+    column: $table.skuId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get unitsAvailable => $composableBuilder(
+    column: $table.unitsAvailable,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastStockinDate => $composableBuilder(
+    column: $table.lastStockinDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get daysOutOfStock => $composableBuilder(
+    column: $table.daysOutOfStock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get velocityAvg => $composableBuilder(
+    column: $table.velocityAvg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get salesActual => $composableBuilder(
+    column: $table.salesActual,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get salesTarget => $composableBuilder(
+    column: $table.salesTarget,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$StockDraftsTableOrderingComposer
+    extends Composer<_$LocalDb, $StockDraftsTable> {
+  $$StockDraftsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get visitId => $composableBuilder(
+    column: $table.visitId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get skuId => $composableBuilder(
+    column: $table.skuId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get unitsAvailable => $composableBuilder(
+    column: $table.unitsAvailable,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastStockinDate => $composableBuilder(
+    column: $table.lastStockinDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get daysOutOfStock => $composableBuilder(
+    column: $table.daysOutOfStock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get velocityAvg => $composableBuilder(
+    column: $table.velocityAvg,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get salesActual => $composableBuilder(
+    column: $table.salesActual,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get salesTarget => $composableBuilder(
+    column: $table.salesTarget,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$StockDraftsTableAnnotationComposer
+    extends Composer<_$LocalDb, $StockDraftsTable> {
+  $$StockDraftsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get visitId =>
+      $composableBuilder(column: $table.visitId, builder: (column) => column);
+
+  GeneratedColumn<String> get skuId =>
+      $composableBuilder(column: $table.skuId, builder: (column) => column);
+
+  GeneratedColumn<int> get unitsAvailable => $composableBuilder(
+    column: $table.unitsAvailable,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastStockinDate => $composableBuilder(
+    column: $table.lastStockinDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get daysOutOfStock => $composableBuilder(
+    column: $table.daysOutOfStock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get velocityAvg => $composableBuilder(
+    column: $table.velocityAvg,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get salesActual => $composableBuilder(
+    column: $table.salesActual,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get salesTarget => $composableBuilder(
+    column: $table.salesTarget,
+    builder: (column) => column,
+  );
+}
+
+class $$StockDraftsTableTableManager
+    extends
+        RootTableManager<
+          _$LocalDb,
+          $StockDraftsTable,
+          StockDraft,
+          $$StockDraftsTableFilterComposer,
+          $$StockDraftsTableOrderingComposer,
+          $$StockDraftsTableAnnotationComposer,
+          $$StockDraftsTableCreateCompanionBuilder,
+          $$StockDraftsTableUpdateCompanionBuilder,
+          (
+            StockDraft,
+            BaseReferences<_$LocalDb, $StockDraftsTable, StockDraft>,
+          ),
+          StockDraft,
+          PrefetchHooks Function()
+        > {
+  $$StockDraftsTableTableManager(_$LocalDb db, $StockDraftsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StockDraftsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StockDraftsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StockDraftsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> visitId = const Value.absent(),
+                Value<String> skuId = const Value.absent(),
+                Value<int> unitsAvailable = const Value.absent(),
+                Value<DateTime> lastStockinDate = const Value.absent(),
+                Value<int> daysOutOfStock = const Value.absent(),
+                Value<double> velocityAvg = const Value.absent(),
+                Value<double> salesActual = const Value.absent(),
+                Value<double> salesTarget = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StockDraftsCompanion(
+                id: id,
+                visitId: visitId,
+                skuId: skuId,
+                unitsAvailable: unitsAvailable,
+                lastStockinDate: lastStockinDate,
+                daysOutOfStock: daysOutOfStock,
+                velocityAvg: velocityAvg,
+                salesActual: salesActual,
+                salesTarget: salesTarget,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String visitId,
+                required String skuId,
+                required int unitsAvailable,
+                required DateTime lastStockinDate,
+                required int daysOutOfStock,
+                required double velocityAvg,
+                required double salesActual,
+                required double salesTarget,
+                Value<int> rowid = const Value.absent(),
+              }) => StockDraftsCompanion.insert(
+                id: id,
+                visitId: visitId,
+                skuId: skuId,
+                unitsAvailable: unitsAvailable,
+                lastStockinDate: lastStockinDate,
+                daysOutOfStock: daysOutOfStock,
+                velocityAvg: velocityAvg,
+                salesActual: salesActual,
+                salesTarget: salesTarget,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$StockDraftsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LocalDb,
+      $StockDraftsTable,
+      StockDraft,
+      $$StockDraftsTableFilterComposer,
+      $$StockDraftsTableOrderingComposer,
+      $$StockDraftsTableAnnotationComposer,
+      $$StockDraftsTableCreateCompanionBuilder,
+      $$StockDraftsTableUpdateCompanionBuilder,
+      (StockDraft, BaseReferences<_$LocalDb, $StockDraftsTable, StockDraft>),
+      StockDraft,
+      PrefetchHooks Function()
+    >;
 
 class $LocalDbManager {
   final _$LocalDb _db;
@@ -1360,4 +2236,6 @@ class $LocalDbManager {
       $$VisitDraftsTableTableManager(_db, _db.visitDrafts);
   $$SyncQueueItemsTableTableManager get syncQueueItems =>
       $$SyncQueueItemsTableTableManager(_db, _db.syncQueueItems);
+  $$StockDraftsTableTableManager get stockDrafts =>
+      $$StockDraftsTableTableManager(_db, _db.stockDrafts);
 }
