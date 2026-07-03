@@ -61,4 +61,20 @@ void main() {
 
     expect(find.text('Numeric Distribution'), findsOneWidget);
   });
+
+  testWidgets('logging out from a protected route redirects back to login', (tester) async {
+    await tester.pumpWidget(_appWithOverrides([
+      sessionControllerProvider.overrideWith(
+        () => _FixedSessionController(const SessionState(role: 'manager')),
+      ),
+    ]));
+    await tester.pumpAndSettle();
+    expect(find.text('Numeric Distribution'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    container.read(sessionControllerProvider.notifier).logout();
+    await tester.pumpAndSettle();
+
+    expect(find.text('TradeIQ Login'), findsOneWidget);
+  });
 }
