@@ -8,8 +8,11 @@ Scope is usually `app` or `backend`.
 
 ## Before opening a PR
 
-- `backend/`: `npm run lint && npm test`
-- `app/`: `flutter analyze && flutter test`
+```bash
+make test          # both suites
+make backend-test  # backend/: npm run lint && npm test
+make app-test      # app/: flutter analyze && flutter test
+```
 
 Both run in CI on every PR (`.github/workflows/backend-ci.yml` and
 `.github/workflows/app-ci.yml`) — fix failures locally first.

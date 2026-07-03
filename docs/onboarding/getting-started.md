@@ -2,6 +2,32 @@
 
 Clone, run, and see real data in under 10 minutes.
 
+## The fast path: Makefile
+
+```bash
+make setup      # one-time: docker up, npm install, migrate, seed
+make dev        # starts Postgres (waits for healthy) + backend dev server
+```
+
+Then in a second terminal:
+
+```bash
+make app        # flutter pub get + flutter run -d chrome
+```
+
+If you have more than one Flutter SDK on your machine and `flutter --version`
+doesn't resolve to 3.44+, override the binary per-command instead of editing
+your shell's `PATH`:
+
+```bash
+make app FLUTTER=/path/to/flutter-3.44/bin/flutter
+```
+
+Run `make help` to see every target (`test`, `backend-test`, `app-test`,
+`stop`, `restart`). The rest of this doc explains what those targets do
+under the hood — useful if something goes wrong, or you want to run a step
+manually.
+
 ## 1. Start Postgres
 
 ```bash
@@ -88,8 +114,23 @@ cd app && flutter test
 
 - **`P1001: Can't reach database server`** — Postgres isn't up yet; run
   `docker compose ps` and check the `postgres` service is `healthy`.
+- **Still `P1001` even though `docker compose ps` shows the container
+  running/healthy** — the container may have been created without its port
+  actually bound to the host (this happens if an earlier `docker compose up`
+  failed partway through, e.g. because port 5432 was already taken by
+  another Postgres). Check with `docker port tradeiq-postgres-1` — if it
+  prints nothing, force a clean recreate:
+  `docker compose down && docker compose up -d --force-recreate`.
+- **`Bind for 0.0.0.0:5432 failed: port is already allocated`** — something
+  else on your machine is already using 5432 (often another project's
+  Postgres, or a stale container from an old worktree of this repo). Find it
+  with `docker ps --format 'table {{.Names}}\t{{.Ports}}'` and stop it
+  (`docker stop <name>`), then retry.
 - **`flutter: command not found`** — install Flutter and ensure it's on your
   `PATH`; run `flutter doctor` to verify.
-- **`flutter pub get` fails to resolve dependencies** — check your Flutter
-  version is 3.44+ (`flutter --version`); the app's Dart SDK constraint
-  (`^3.12.0`) isn't satisfied by older Flutter releases.
+- **`flutter pub get` fails to resolve dependencies** (`requires SDK version
+  ^3.12.0`) — you likely have an older Flutter earlier in your `PATH`. Check
+  with `which flutter && flutter --version`. If it's not 3.44+, either
+  reorder your `PATH` or, without touching global config, invoke a specific
+  install directly (or via `make app FLUTTER=/path/to/flutter`):
+  `/path/to/flutter-3.44/bin/flutter pub get`.

@@ -13,8 +13,15 @@ Phase 1 targets FMCG demo data on an industry-agnostic architecture.
 
 ## Getting started
 
-See [`docs/onboarding/getting-started.md`](docs/onboarding/getting-started.md)
-— clone to running app + backend + seeded demo data in under 10 minutes.
+```bash
+make setup   # one-time: docker up, npm install, migrate, seed
+make dev     # starts Postgres + backend dev server
+make app     # (separate terminal) flutter pub get + flutter run -d chrome
+```
+
+Run `make help` for the full list of targets. See
+[`docs/onboarding/getting-started.md`](docs/onboarding/getting-started.md)
+for what each step does under the hood, plus troubleshooting.
 
 ## Architecture
 
