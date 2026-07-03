@@ -45,6 +45,21 @@ class _FakeGateway implements GeolocatorGateway {
   }
 }
 
+class _ThrowingPermissionGateway implements GeolocatorGateway {
+  @override
+  Future<LocationPermission> checkPermission() async => LocationPermission.denied;
+
+  @override
+  Future<LocationPermission> requestPermission() async =>
+      throw Exception("Permission definitions not found in the app's Info.plist.");
+
+  @override
+  Future<bool> isLocationServiceEnabled() async => true;
+
+  @override
+  Future<Position> getCurrentPosition() async => throw UnimplementedError();
+}
+
 void main() {
   test('returns LocationGranted with the device coordinates when permission is already granted', () async {
     final service = LocationService(
@@ -112,6 +127,14 @@ void main() {
     final service = LocationService(
       gateway: _FakeGateway(initialPermission: LocationPermission.whileInUse),
     );
+
+    final result = await service.getCurrentPosition();
+
+    expect(result, isA<LocationError>());
+  });
+
+  test('returns LocationError instead of throwing when requesting permission itself throws', () async {
+    final service = LocationService(gateway: _ThrowingPermissionGateway());
 
     final result = await service.getCurrentPosition();
 

@@ -24,19 +24,19 @@ class LocationService {
   final GeolocatorGateway _gateway;
 
   Future<LocationResult> getCurrentPosition() async {
-    var permission = await _gateway.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await _gateway.requestPermission();
-    }
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      return LocationDenied();
-    }
-
-    if (!await _gateway.isLocationServiceEnabled()) {
-      return LocationError('Location services are disabled');
-    }
-
     try {
+      var permission = await _gateway.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await _gateway.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        return LocationDenied();
+      }
+
+      if (!await _gateway.isLocationServiceEnabled()) {
+        return LocationError('Location services are disabled');
+      }
+
       final position = await _gateway.getCurrentPosition();
       return LocationGranted(position.latitude, position.longitude);
     } catch (e) {
