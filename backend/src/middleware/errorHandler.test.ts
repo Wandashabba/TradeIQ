@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { errorHandler, GeofenceRejectedError, NotFoundError, NotImplementedError } from './errorHandler';
+import { errorHandler, NotFoundError, NotImplementedError } from './errorHandler';
 
 describe('errorHandler', () => {
   it('maps NotImplementedError to 501', async () => {
