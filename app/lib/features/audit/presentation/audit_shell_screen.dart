@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../data/visits_repository.dart';
+import '../../outlets/data/outlets_repository.dart';
 import 'sections/s1_outlet_info_screen.dart';
 import 'sections/s2_stock_screen.dart';
 import 'sections/s3_4_visibility_display_screen.dart';
@@ -13,7 +16,9 @@ import 'sections/s9_action_plan_screen.dart';
 import 'sections/s10_scorecard_screen.dart';
 
 class AuditShellScreen extends ConsumerStatefulWidget {
-  const AuditShellScreen({super.key});
+  const AuditShellScreen({super.key, required this.outletId});
+
+  final String outletId;
 
   @override
   ConsumerState<AuditShellScreen> createState() => _AuditShellScreenState();
@@ -21,21 +26,44 @@ class AuditShellScreen extends ConsumerStatefulWidget {
 
 class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   int _step = 0;
+  bool _checkInStarted = false;
+  CheckInResult? _checkInResult;
 
-  static const List<Widget> _sections = [
-    S1OutletInfoScreen(),
-    S2StockScreen(),
-    S3S4VisibilityDisplayScreen(),
-    S5PricingPromotionsScreen(),
-    S6CompetitiveScreen(),
-    S7CapabilityScreen(),
-    S8RisksScreen(),
-    S9ActionPlanScreen(),
-    S10ScorecardScreen(),
-  ];
+  Future<void> _startCheckIn(double outletLat, double outletLng) async {
+    final result = await ref.read(visitsRepositoryProvider).checkIn(
+          outletId: widget.outletId,
+          outletLat: outletLat,
+          outletLng: outletLng,
+        );
+    if (!mounted) return;
+    setState(() => _checkInResult = result);
+  }
+
+  Outlet? _findOutlet(List<Outlet> outlets) {
+    for (final outlet in outlets) {
+      if (outlet.id == widget.outletId) return outlet;
+    }
+    return null;
+  }
+
+  // Only ever called from _buildStepper(), which only renders once
+  // _checkInResult is CheckInSucceeded — so check-in has just completed.
+  List<Widget> _sections() => [
+        S1OutletInfoScreen(checkinTs: DateTime.now()),
+        const S2StockScreen(),
+        const S3S4VisibilityDisplayScreen(),
+        const S5PricingPromotionsScreen(),
+        const S6CompetitiveScreen(),
+        const S7CapabilityScreen(),
+        const S8RisksScreen(),
+        const S9ActionPlanScreen(),
+        const S10ScorecardScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final outletsAsync = ref.watch(outletsListProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Audit Visit'),
@@ -47,21 +75,62 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Stepper(
-          physics: const NeverScrollableScrollPhysics(),
-          currentStep: _step,
-          onStepContinue: () {
-            if (_step < _sections.length - 1) setState(() => _step += 1);
-          },
-          onStepTapped: (index) => setState(() => _step = index),
-          steps: _sections
-              .map(
-                (screen) =>
-                    Step(title: const SizedBox.shrink(), content: screen),
-              )
-              .toList(),
-        ),
+      body: outletsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Failed to load outlet: $err')),
+        data: (outlets) {
+          final outlet = _findOutlet(outlets);
+          if (outlet == null) {
+            return const Center(child: Text('Outlet not found'));
+          }
+          if (!_checkInStarted) {
+            _checkInStarted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) => _startCheckIn(outlet.lat, outlet.lng));
+            return const Center(child: CircularProgressIndicator());
+          }
+          return switch (_checkInResult) {
+            null => const Center(child: CircularProgressIndicator()),
+            CheckInSucceeded() => _buildStepper(),
+            CheckInGeofenceFailed(:final distanceMeters) => _buildError(
+                'You are ${distanceMeters.round()}m from this outlet. Move within 50m to check in.',
+              ),
+            CheckInLocationUnavailable(:final message) => _buildError(
+                message,
+                onRetry: () => setState(() => _checkInStarted = false),
+              ),
+          };
+        },
+      ),
+    );
+  }
+
+  Widget _buildStepper() {
+    final sections = _sections();
+    return SingleChildScrollView(
+      child: Stepper(
+        physics: const NeverScrollableScrollPhysics(),
+        currentStep: _step,
+        onStepContinue: () {
+          if (_step < sections.length - 1) setState(() => _step += 1);
+        },
+        onStepTapped: (index) => setState(() => _step = index),
+        steps: sections.map((screen) => Step(title: const SizedBox.shrink(), content: screen)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildError(String message, {VoidCallback? onRetry}) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          if (onRetry != null)
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry'))
+          else
+            ElevatedButton(onPressed: () => context.go('/audit'), child: const Text('Back to outlets')),
+        ],
       ),
     );
   }
