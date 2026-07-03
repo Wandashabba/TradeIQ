@@ -8,15 +8,15 @@ void main() {
   runApp(const ProviderScope(child: TradeIqApp()));
 }
 
-class TradeIqApp extends StatelessWidget {
+class TradeIqApp extends ConsumerWidget {
   const TradeIqApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'TradeIQ',
       theme: AppTheme.dark(),
-      routerConfig: buildRouter(),
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }
