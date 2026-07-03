@@ -73,19 +73,21 @@ class DriftVisitsRepository implements VisitsRepository {
     }
 
     final id = _uuid.v4();
-    await db.into(db.visitDrafts).insert(VisitDraftsCompanion.insert(
-          id: id,
-          outletId: outletId,
-          checkinTs: DateTime.now(),
-          checkinLat: lat,
-          checkinLng: lng,
-          geofencePass: true,
-        ));
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'visit',
-          entityId: id,
-          payloadJson: jsonEncode({'outletId': outletId, 'lat': lat, 'lng': lng}),
-        ));
+    await db.transaction(() async {
+      await db.into(db.visitDrafts).insert(VisitDraftsCompanion.insert(
+            id: id,
+            outletId: outletId,
+            checkinTs: DateTime.now(),
+            checkinLat: lat,
+            checkinLng: lng,
+            geofencePass: true,
+          ));
+      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+            entityType: 'visit',
+            entityId: id,
+            payloadJson: jsonEncode({'outletId': outletId, 'lat': lat, 'lng': lng}),
+          ));
+    });
 
     try {
       await syncService.flushPending();

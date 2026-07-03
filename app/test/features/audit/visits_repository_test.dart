@@ -83,6 +83,20 @@ void main() {
     expect(await db.select(db.visitDrafts).get(), isEmpty);
   });
 
+  test('a LocationError from the location service returns CheckInLocationUnavailable with its message', () async {
+    final repository = DriftVisitsRepository(
+      db: db,
+      locationService: _FakeLocationService(LocationError('gps timeout')),
+      syncService: SyncService(db: db, flusher: _NoopFlusher()),
+    );
+
+    final result = await repository.checkIn(outletId: 'outlet-1', outletLat: -26.2041, outletLng: 28.0473);
+
+    expect(result, isA<CheckInLocationUnavailable>());
+    expect((result as CheckInLocationUnavailable).message, 'gps timeout');
+    expect(await db.select(db.visitDrafts).get(), isEmpty);
+  });
+
   test('a failing sync flush does not fail the check-in', () async {
     final repository = DriftVisitsRepository(
       db: db,
