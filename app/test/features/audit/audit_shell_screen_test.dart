@@ -89,4 +89,30 @@ void main() {
     final container = ProviderScope.containerOf(context);
     expect(container.read(sessionControllerProvider).value?.role, isNull);
   });
+
+  testWidgets('the check-in confirmation timestamp stays fixed across step navigation', (tester) async {
+    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository()));
+    await tester.pumpAndSettle();
+
+    // The Stepper is vertical, so every step's content (and its "Continue"
+    // control) exists in the widget tree at once — only the current step's
+    // body is visually expanded. All "Continue" buttons share the same
+    // onStepContinue callback, so tapping any of them advances _step and
+    // triggers the setState-driven rebuild we want to exercise here.
+    final firstTimestampFinder = find.textContaining('Checked in at').first;
+    final firstText = tester.widget<Text>(firstTimestampFinder).data;
+
+    await tester.tap(find.text('Continue').first);
+    await tester.pumpAndSettle();
+
+    // Tap step 1's index number ("1") to jump back via onStepTapped, which
+    // also calls setState and rebuilds the stepper (and _sections()).
+    await tester.tap(find.text('1').first);
+    await tester.pumpAndSettle();
+
+    final secondTimestampFinder = find.textContaining('Checked in at').first;
+    final secondText = tester.widget<Text>(secondTimestampFinder).data;
+
+    expect(secondText, firstText);
+  });
 }

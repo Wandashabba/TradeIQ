@@ -28,6 +28,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   int _step = 0;
   bool _checkInStarted = false;
   CheckInResult? _checkInResult;
+  DateTime? _checkinTs;
 
   Future<void> _startCheckIn(double outletLat, double outletLng) async {
     final result = await ref.read(visitsRepositoryProvider).checkIn(
@@ -36,7 +37,10 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
           outletLng: outletLng,
         );
     if (!mounted) return;
-    setState(() => _checkInResult = result);
+    setState(() {
+      _checkInResult = result;
+      if (result is CheckInSucceeded) _checkinTs = DateTime.now();
+    });
   }
 
   Outlet? _findOutlet(List<Outlet> outlets) {
@@ -46,10 +50,8 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     return null;
   }
 
-  // Only ever called from _buildStepper(), which only renders once
-  // _checkInResult is CheckInSucceeded — so check-in has just completed.
   List<Widget> _sections() => [
-        S1OutletInfoScreen(checkinTs: DateTime.now()),
+        S1OutletInfoScreen(checkinTs: _checkinTs),
         const S2StockScreen(),
         const S3S4VisibilityDisplayScreen(),
         const S5PricingPromotionsScreen(),
