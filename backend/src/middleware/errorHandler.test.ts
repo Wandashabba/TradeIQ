@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { errorHandler, NotImplementedError } from './errorHandler';
+import { errorHandler, GeofenceRejectedError, NotFoundError, NotImplementedError } from './errorHandler';
 
 describe('errorHandler', () => {
   it('maps NotImplementedError to 501', async () => {
@@ -25,5 +25,17 @@ describe('errorHandler', () => {
     const res = await request(app).get('/boom');
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: 'Internal server error' });
+  });
+
+  it('maps NotFoundError to 404', async () => {
+    const app = express();
+    app.get('/boom', () => {
+      throw new NotFoundError('missing thing');
+    });
+    app.use(errorHandler);
+
+    const res = await request(app).get('/boom');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'missing thing' });
   });
 });
