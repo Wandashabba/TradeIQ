@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
+import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
+import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
 class _FixedSessionController extends SessionController {
   _FixedSessionController(this._initial);
@@ -11,6 +13,23 @@ class _FixedSessionController extends SessionController {
 
   @override
   Future<SessionState> build() async => _initial;
+}
+
+class _FakeOutletsRepository implements OutletsRepository {
+  @override
+  Future<List<Outlet>> listOutlets() async => const [
+        Outlet(id: 'o1', name: 'Test Outlet', code: 'TO-001', lat: -26.2041, lng: 28.0473),
+      ];
+}
+
+class _FakeSucceedingVisitsRepository implements VisitsRepository {
+  @override
+  Future<CheckInResult> checkIn({
+    required String outletId,
+    required double outletLat,
+    required double outletLng,
+  }) async =>
+      CheckInSucceeded('visit-1');
 }
 
 Widget _appWithOverrides(List<Override> overrides) {
@@ -40,14 +59,33 @@ void main() {
     expect(find.text('TradeIQ Login'), findsOneWidget);
   });
 
-  testWidgets('authenticated field_agent starting at /login lands on /audit', (tester) async {
+  testWidgets('authenticated field_agent starting at /login lands on the outlet picker', (tester) async {
     await tester.pumpWidget(_appWithOverrides([
       sessionControllerProvider.overrideWith(
         () => _FixedSessionController(const SessionState(role: 'field_agent')),
       ),
+      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
     ]));
     await tester.pumpAndSettle();
 
+    expect(find.text('Select an Outlet'), findsOneWidget);
+  });
+
+  testWidgets('/audit/:outletId renders the audit shell for that outlet', (tester) async {
+    await tester.pumpWidget(_appWithOverrides([
+      sessionControllerProvider.overrideWith(
+        () => _FixedSessionController(const SessionState(role: 'field_agent')),
+      ),
+      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+      visitsRepositoryProvider.overrideWithValue(_FakeSucceedingVisitsRepository()),
+    ]));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    container.read(routerProvider).go('/audit/o1');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Audit Visit'), findsOneWidget);
     expect(find.text('S1 Outlet Information'), findsOneWidget);
   });
 
