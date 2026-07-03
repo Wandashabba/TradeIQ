@@ -15,6 +15,7 @@ class VisitDrafts extends Table {
   RealColumn get checkinLat => real()();
   RealColumn get checkinLng => real()();
   BoolColumn get geofencePass => boolean()();
+  TextColumn get remoteId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

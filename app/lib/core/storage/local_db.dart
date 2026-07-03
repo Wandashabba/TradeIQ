@@ -20,7 +20,7 @@ class LocalDb extends _$LocalDb {
   LocalDb([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   static QueryExecutor _openConnection() {
     return LazyDatabase(() async {

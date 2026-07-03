@@ -86,6 +86,17 @@ class $VisitDraftsTable extends VisitDrafts
       'CHECK ("geofence_pass" IN (0, 1))',
     ),
   );
+  static const VerificationMeta _remoteIdMeta = const VerificationMeta(
+    'remoteId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteId = GeneratedColumn<String>(
+    'remote_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -95,6 +106,7 @@ class $VisitDraftsTable extends VisitDrafts
     checkinLat,
     checkinLng,
     geofencePass,
+    remoteId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -162,6 +174,12 @@ class $VisitDraftsTable extends VisitDrafts
     } else if (isInserting) {
       context.missing(_geofencePassMeta);
     }
+    if (data.containsKey('remote_id')) {
+      context.handle(
+        _remoteIdMeta,
+        remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
+      );
+    }
     return context;
   }
 
@@ -199,6 +217,10 @@ class $VisitDraftsTable extends VisitDrafts
         DriftSqlType.bool,
         data['${effectivePrefix}geofence_pass'],
       )!,
+      remoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_id'],
+      ),
     );
   }
 
@@ -216,6 +238,7 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
   final double checkinLat;
   final double checkinLng;
   final bool geofencePass;
+  final String? remoteId;
   const VisitDraft({
     required this.id,
     required this.outletId,
@@ -224,6 +247,7 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
     required this.checkinLat,
     required this.checkinLng,
     required this.geofencePass,
+    this.remoteId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -235,6 +259,9 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
     map['checkin_lat'] = Variable<double>(checkinLat);
     map['checkin_lng'] = Variable<double>(checkinLng);
     map['geofence_pass'] = Variable<bool>(geofencePass);
+    if (!nullToAbsent || remoteId != null) {
+      map['remote_id'] = Variable<String>(remoteId);
+    }
     return map;
   }
 
@@ -247,6 +274,9 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
       checkinLat: Value(checkinLat),
       checkinLng: Value(checkinLng),
       geofencePass: Value(geofencePass),
+      remoteId: remoteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteId),
     );
   }
 
@@ -263,6 +293,7 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
       checkinLat: serializer.fromJson<double>(json['checkinLat']),
       checkinLng: serializer.fromJson<double>(json['checkinLng']),
       geofencePass: serializer.fromJson<bool>(json['geofencePass']),
+      remoteId: serializer.fromJson<String?>(json['remoteId']),
     );
   }
   @override
@@ -276,6 +307,7 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
       'checkinLat': serializer.toJson<double>(checkinLat),
       'checkinLng': serializer.toJson<double>(checkinLng),
       'geofencePass': serializer.toJson<bool>(geofencePass),
+      'remoteId': serializer.toJson<String?>(remoteId),
     };
   }
 
@@ -287,6 +319,7 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
     double? checkinLat,
     double? checkinLng,
     bool? geofencePass,
+    Value<String?> remoteId = const Value.absent(),
   }) => VisitDraft(
     id: id ?? this.id,
     outletId: outletId ?? this.outletId,
@@ -295,6 +328,7 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
     checkinLat: checkinLat ?? this.checkinLat,
     checkinLng: checkinLng ?? this.checkinLng,
     geofencePass: geofencePass ?? this.geofencePass,
+    remoteId: remoteId.present ? remoteId.value : this.remoteId,
   );
   VisitDraft copyWithCompanion(VisitDraftsCompanion data) {
     return VisitDraft(
@@ -311,6 +345,7 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
       geofencePass: data.geofencePass.present
           ? data.geofencePass.value
           : this.geofencePass,
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
     );
   }
 
@@ -323,7 +358,8 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
           ..write('checkinTs: $checkinTs, ')
           ..write('checkinLat: $checkinLat, ')
           ..write('checkinLng: $checkinLng, ')
-          ..write('geofencePass: $geofencePass')
+          ..write('geofencePass: $geofencePass, ')
+          ..write('remoteId: $remoteId')
           ..write(')'))
         .toString();
   }
@@ -337,6 +373,7 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
     checkinLat,
     checkinLng,
     geofencePass,
+    remoteId,
   );
   @override
   bool operator ==(Object other) =>
@@ -348,7 +385,8 @@ class VisitDraft extends DataClass implements Insertable<VisitDraft> {
           other.checkinTs == this.checkinTs &&
           other.checkinLat == this.checkinLat &&
           other.checkinLng == this.checkinLng &&
-          other.geofencePass == this.geofencePass);
+          other.geofencePass == this.geofencePass &&
+          other.remoteId == this.remoteId);
 }
 
 class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
@@ -359,6 +397,7 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
   final Value<double> checkinLat;
   final Value<double> checkinLng;
   final Value<bool> geofencePass;
+  final Value<String?> remoteId;
   final Value<int> rowid;
   const VisitDraftsCompanion({
     this.id = const Value.absent(),
@@ -368,6 +407,7 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
     this.checkinLat = const Value.absent(),
     this.checkinLng = const Value.absent(),
     this.geofencePass = const Value.absent(),
+    this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   VisitDraftsCompanion.insert({
@@ -378,6 +418,7 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
     required double checkinLat,
     required double checkinLng,
     required bool geofencePass,
+    this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        outletId = Value(outletId),
@@ -393,6 +434,7 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
     Expression<double>? checkinLat,
     Expression<double>? checkinLng,
     Expression<bool>? geofencePass,
+    Expression<String>? remoteId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -403,6 +445,7 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
       if (checkinLat != null) 'checkin_lat': checkinLat,
       if (checkinLng != null) 'checkin_lng': checkinLng,
       if (geofencePass != null) 'geofence_pass': geofencePass,
+      if (remoteId != null) 'remote_id': remoteId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -415,6 +458,7 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
     Value<double>? checkinLat,
     Value<double>? checkinLng,
     Value<bool>? geofencePass,
+    Value<String?>? remoteId,
     Value<int>? rowid,
   }) {
     return VisitDraftsCompanion(
@@ -425,6 +469,7 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
       checkinLat: checkinLat ?? this.checkinLat,
       checkinLng: checkinLng ?? this.checkinLng,
       geofencePass: geofencePass ?? this.geofencePass,
+      remoteId: remoteId ?? this.remoteId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -453,6 +498,9 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
     if (geofencePass.present) {
       map['geofence_pass'] = Variable<bool>(geofencePass.value);
     }
+    if (remoteId.present) {
+      map['remote_id'] = Variable<String>(remoteId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -469,6 +517,7 @@ class VisitDraftsCompanion extends UpdateCompanion<VisitDraft> {
           ..write('checkinLat: $checkinLat, ')
           ..write('checkinLng: $checkinLng, ')
           ..write('geofencePass: $geofencePass, ')
+          ..write('remoteId: $remoteId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1494,6 +1543,7 @@ typedef $$VisitDraftsTableCreateCompanionBuilder =
       required double checkinLat,
       required double checkinLng,
       required bool geofencePass,
+      Value<String?> remoteId,
       Value<int> rowid,
     });
 typedef $$VisitDraftsTableUpdateCompanionBuilder =
@@ -1505,6 +1555,7 @@ typedef $$VisitDraftsTableUpdateCompanionBuilder =
       Value<double> checkinLat,
       Value<double> checkinLng,
       Value<bool> geofencePass,
+      Value<String?> remoteId,
       Value<int> rowid,
     });
 
@@ -1549,6 +1600,11 @@ class $$VisitDraftsTableFilterComposer
 
   ColumnFilters<bool> get geofencePass => $composableBuilder(
     column: $table.geofencePass,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1596,6 +1652,11 @@ class $$VisitDraftsTableOrderingComposer
     column: $table.geofencePass,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$VisitDraftsTableAnnotationComposer
@@ -1633,6 +1694,9 @@ class $$VisitDraftsTableAnnotationComposer
     column: $table.geofencePass,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
 }
 
 class $$VisitDraftsTableTableManager
@@ -1673,6 +1737,7 @@ class $$VisitDraftsTableTableManager
                 Value<double> checkinLat = const Value.absent(),
                 Value<double> checkinLng = const Value.absent(),
                 Value<bool> geofencePass = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => VisitDraftsCompanion(
                 id: id,
@@ -1682,6 +1747,7 @@ class $$VisitDraftsTableTableManager
                 checkinLat: checkinLat,
                 checkinLng: checkinLng,
                 geofencePass: geofencePass,
+                remoteId: remoteId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1693,6 +1759,7 @@ class $$VisitDraftsTableTableManager
                 required double checkinLat,
                 required double checkinLng,
                 required bool geofencePass,
+                Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => VisitDraftsCompanion.insert(
                 id: id,
@@ -1702,6 +1769,7 @@ class $$VisitDraftsTableTableManager
                 checkinLat: checkinLat,
                 checkinLng: checkinLng,
                 geofencePass: geofencePass,
+                remoteId: remoteId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
