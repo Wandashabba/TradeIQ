@@ -68,12 +68,12 @@ class _LocationUnavailableVisitsRepository implements VisitsRepository {
       CheckInLocationUnavailable('Location permission denied');
 }
 
-Widget _appWith(VisitsRepository visitsRepository) {
+Widget _appWith(VisitsRepository visitsRepository, {LocalDb? db}) {
   return ProviderScope(
     overrides: [
       outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
       visitsRepositoryProvider.overrideWithValue(visitsRepository),
-      localDbProvider.overrideWithValue(LocalDb(NativeDatabase.memory())),
+      localDbProvider.overrideWithValue(db ?? LocalDb(NativeDatabase.memory())),
       skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
       stockRepositoryProvider.overrideWithValue(_NoopStockRepository()),
     ],
@@ -88,6 +88,51 @@ void main() {
 
     expect(find.text('S1 Outlet Information'), findsOneWidget);
     expect(find.text('S10 Execution Scorecard'), findsOneWidget);
+  });
+
+  testWidgets('passes the real visitId from a successful check-in to S2StockScreen', (tester) async {
+    // _SucceedingVisitsRepository always returns CheckInSucceeded('visit-1'),
+    // so pre-seeding a stock draft under that exact visitId lets us prove
+    // S2StockScreen was built with 'visit-1' specifically (not '' or any
+    // other placeholder): S2's recorded-SKU query is keyed on the visitId it
+    // was constructed with, so the SKU only renders as "recorded" (checkmark)
+    // if that query matched 'visit-1' exactly.
+    final db = LocalDb(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.into(db.stockDrafts).insert(StockDraftsCompanion.insert(
+          id: 'draft-1',
+          visitId: 'visit-1',
+          skuId: 'sku-1',
+          unitsAvailable: 40,
+          lastStockinDate: DateTime(2026, 6, 30),
+          daysOutOfStock: 0,
+          velocityAvg: 10,
+          salesActual: 350,
+          salesTarget: 400,
+        ));
+
+    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), db: db));
+    await tester.pumpAndSettle();
+
+    // S2 (step index 1) isn't the current step yet, so the vertical
+    // Stepper's AnimatedCrossFade wraps it in a disabled TickerMode —
+    // flutter_riverpod deliberately pauses provider-driven rebuilds for
+    // paused/invisible consumers, so S2's skusListProvider watch won't
+    // apply its loaded data until the step becomes current. Advance to
+    // it, exactly like a real user would via "Continue".
+    await tester.tap(find.text('Continue').first);
+    await tester.pumpAndSettle();
+
+    // S2's SKU list rendering (rather than a stuck spinner) proves
+    // S2StockScreen built with a real, non-null visitId — its local Drift
+    // query is keyed on visitId and its FutureBuilder-driven load would
+    // never resolve into the list view otherwise.
+    expect(find.text('Demo Brand 500ml'), findsOneWidget);
+
+    // The checkmark only appears if S2's StockDrafts query, keyed on the
+    // visitId it received, matched our seeded 'visit-1' row — a stray ''
+    // fallback would find no rows and leave the SKU unrecorded.
+    expect(find.byIcon(Icons.check_circle), findsOneWidget);
   });
 
   testWidgets('shows a blocking error when the check-in fails the geofence', (tester) async {

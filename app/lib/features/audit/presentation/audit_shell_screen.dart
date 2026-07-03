@@ -50,17 +50,22 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     return null;
   }
 
-  List<Widget> _sections(String visitId) => [
-        S1OutletInfoScreen(checkinTs: _checkinTs),
-        S2StockScreen(visitId: visitId),
-        const S3S4VisibilityDisplayScreen(),
-        const S5PricingPromotionsScreen(),
-        const S6CompetitiveScreen(),
-        const S7CapabilityScreen(),
-        const S8RisksScreen(),
-        const S9ActionPlanScreen(),
-        const S10ScorecardScreen(),
-      ];
+  // Only ever called from _buildStepper(), which only renders once
+  // _checkInResult is CheckInSucceeded, so this cast is always safe.
+  List<Widget> _sections() {
+    final visitId = (_checkInResult as CheckInSucceeded).visitId;
+    return [
+      S1OutletInfoScreen(checkinTs: _checkinTs),
+      S2StockScreen(visitId: visitId),
+      const S3S4VisibilityDisplayScreen(),
+      const S5PricingPromotionsScreen(),
+      const S6CompetitiveScreen(),
+      const S7CapabilityScreen(),
+      const S8RisksScreen(),
+      const S9ActionPlanScreen(),
+      const S10ScorecardScreen(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,9 +112,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   }
 
   Widget _buildStepper() {
-    final checkInResult = _checkInResult;
-    final visitId = checkInResult is CheckInSucceeded ? checkInResult.visitId : '';
-    final sections = _sections(visitId);
+    final sections = _sections();
     return SingleChildScrollView(
       child: Stepper(
         physics: const NeverScrollableScrollPhysics(),
