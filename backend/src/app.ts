@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { authRouter } from './modules/auth/auth.routes';
 import { outletsRouter } from './modules/outlets/outlets.routes';
+import { skusRouter } from './modules/skus/skus.routes';
 import { visitsRouter } from './modules/visits/visits.routes';
 import { stockRouter } from './modules/stock/stock.routes';
 import { visibilityRouter } from './modules/visibility/visibility.routes';
@@ -32,6 +33,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/auth', authRouter);
 app.use('/outlets', outletsRouter);
+app.use('/skus', skusRouter);
 app.use('/visits', visitsRouter);
 app.use('/stock', stockRouter);
 app.use('/visibility', visibilityRouter);
