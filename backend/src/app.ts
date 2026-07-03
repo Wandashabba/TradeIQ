@@ -1,3 +1,4 @@
+import cors from 'cors';
 import express from 'express';
 import { authRouter } from './modules/auth/auth.routes';
 import { outletsRouter } from './modules/outlets/outlets.routes';
@@ -14,6 +15,14 @@ import { dashboardRouter } from './modules/dashboard/dashboard.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
+
+// Open CORS policy: the Flutter web dev server runs on a different port
+// than this API, and there's no fixed dev port (`flutter run -d chrome`
+// picks one dynamically) or deployed origin yet in Phase 1. Auth uses a
+// Bearer token (not cookies), so an open policy carries no CSRF risk.
+// Revisit with an explicit origin allowlist once there's a real deployed
+// frontend origin to pin to.
+app.use(cors());
 
 app.use(express.json());
 

@@ -7,4 +7,9 @@ describe('GET /health', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'ok' });
   });
+
+  it('sets CORS headers so the Flutter web app can call the API cross-origin', async () => {
+    const res = await request(app).get('/health').set('Origin', 'http://localhost:8766');
+    expect(res.headers['access-control-allow-origin']).toBeDefined();
+  });
 });
