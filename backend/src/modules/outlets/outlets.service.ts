@@ -8,7 +8,7 @@ export interface CreateOutletInput {
   lat: number;
   lng: number;
   territoryId: string;
-  teamProfile: Prisma.InputJsonValue;
+  teamProfile?: Prisma.InputJsonValue;
   clientId: string;
 }
 

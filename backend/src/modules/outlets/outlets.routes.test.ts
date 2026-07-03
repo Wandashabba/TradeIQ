@@ -52,6 +52,23 @@ describe('outlets routes', () => {
     expect(listRes.body[0].code).toBe('TH-001');
   });
 
+  it('creates an outlet with 201 when teamProfile is omitted', async () => {
+    const res = await request(app)
+      .post('/outlets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'No Team Profile Outlet',
+        code: 'NTP-001',
+        channelType: 'hypermarket',
+        lat: -26.2041,
+        lng: 28.0473,
+        territoryId: 'territory-1',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.teamProfile).toBeNull();
+  });
+
   it('rejects requests without a bearer token', async () => {
     const res = await request(app).get('/outlets');
     expect(res.status).toBe(401);

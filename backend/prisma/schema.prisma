@@ -67,7 +67,7 @@ model Outlet {
   lat         Float
   lng         Float
   territoryId String   @map("territory_id")
-  teamProfile Json     @map("team_profile")
+  teamProfile Json?    @map("team_profile")
   clientId    String   @map("client_id")
   client      Client   @relation(fields: [clientId], references: [id])
   visits      Visit[]
