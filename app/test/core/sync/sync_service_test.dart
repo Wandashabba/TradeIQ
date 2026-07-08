@@ -217,6 +217,32 @@ void main() {
       expect(paths.single, '/visits/remote-v1/submit');
     });
 
+    test('visibility flush resolves the remote id and posts to /visibility', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final captured = <dynamic>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(201, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          captured.add(options.data);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'visibility',
+        entityId: 'vis-1',
+        payloadJson: '{"visitDraftId":"v1","planogramCompliancePct":80,"highTrafficPass":true}',
+      ));
+
+      final body = captured.single as Map;
+      expect(body['visitId'], 'remote-v1');
+      expect(body['planogramCompliancePct'], 80);
+      expect(body.containsKey('visitDraftId'), isFalse);
+    });
+
     test('throws UnimplementedError for an unhandled entity type', () async {
       final db = LocalDb(NativeDatabase.memory());
       addTearDown(db.close);

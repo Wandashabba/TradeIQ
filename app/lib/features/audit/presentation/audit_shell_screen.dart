@@ -57,7 +57,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   List<Widget> _sections() => [
         S1OutletInfoScreen(checkinTs: _checkinTs),
         S2StockScreen(visitDraftId: _visitDraftId!),
-        const S3S4VisibilityDisplayScreen(),
+        S3S4VisibilityDisplayScreen(visitDraftId: _visitDraftId!),
         const S5PricingPromotionsScreen(),
         const S6CompetitiveScreen(),
         const S7CapabilityScreen(),
