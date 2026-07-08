@@ -194,6 +194,29 @@ void main() {
       );
     });
 
+    test('visit_submit flush resolves the remote id and posts to /visits/:id/submit', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final paths = <String>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(200, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          paths.add(options.path);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'visit_submit',
+        entityId: 'submit-1',
+        payloadJson: '{"visitDraftId":"v1"}',
+      ));
+
+      expect(paths.single, '/visits/remote-v1/submit');
+    });
+
     test('throws UnimplementedError for an unhandled entity type', () async {
       final db = LocalDb(NativeDatabase.memory());
       addTearDown(db.close);

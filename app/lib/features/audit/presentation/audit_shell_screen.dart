@@ -110,17 +110,42 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     );
   }
 
+  Future<void> _submitVisit() async {
+    final id = _visitDraftId;
+    if (id == null) return;
+    await ref.read(visitsRepositoryProvider).submitVisit(id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Visit submitted')),
+    );
+    context.go('/audit');
+  }
+
   Widget _buildStepper() {
     final sections = _sections();
     return SingleChildScrollView(
-      child: Stepper(
-        physics: const NeverScrollableScrollPhysics(),
-        currentStep: _step,
-        onStepContinue: () {
-          if (_step < sections.length - 1) setState(() => _step += 1);
-        },
-        onStepTapped: (index) => setState(() => _step = index),
-        steps: sections.map((screen) => Step(title: const SizedBox.shrink(), content: screen)).toList(),
+      child: Column(
+        children: [
+          Stepper(
+            physics: const NeverScrollableScrollPhysics(),
+            currentStep: _step,
+            onStepContinue: () {
+              if (_step < sections.length - 1) setState(() => _step += 1);
+            },
+            onStepTapped: (index) => setState(() => _step = index),
+            steps: sections.map((screen) => Step(title: const SizedBox.shrink(), content: screen)).toList(),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitVisit,
+                child: const Text('Submit visit'),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

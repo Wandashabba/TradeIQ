@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -31,6 +32,10 @@ abstract class VisitsRepository {
     required double outletLat,
     required double outletLng,
   });
+
+  /// Marks the visit submitted locally and queues the submit for sync
+  /// (POST /visits/:remoteId/submit, resolved once the visit has synced).
+  Future<void> submitVisit(String visitDraftId);
 }
 
 class DriftVisitsRepository implements VisitsRepository {
@@ -73,11 +78,12 @@ class DriftVisitsRepository implements VisitsRepository {
     }
 
     final id = _uuid.v4();
+    final checkinTs = DateTime.now();
     await db.transaction(() async {
       await db.into(db.visitDrafts).insert(VisitDraftsCompanion.insert(
             id: id,
             outletId: outletId,
-            checkinTs: DateTime.now(),
+            checkinTs: checkinTs,
             checkinLat: lat,
             checkinLng: lng,
             geofencePass: true,
@@ -85,7 +91,13 @@ class DriftVisitsRepository implements VisitsRepository {
       await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
             entityType: 'visit',
             entityId: id,
-            payloadJson: jsonEncode({'outletId': outletId, 'lat': lat, 'lng': lng}),
+            payloadJson: jsonEncode({
+              'outletId': outletId,
+              'lat': lat,
+              'lng': lng,
+              'checkinTs': checkinTs.toUtc().toIso8601String(),
+              'geofencePass': true,
+            }),
           ));
     });
 
@@ -97,6 +109,25 @@ class DriftVisitsRepository implements VisitsRepository {
     }
 
     return CheckInSucceeded(id);
+  }
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {
+    await db.transaction(() async {
+      await (db.update(db.visitDrafts)..where((t) => t.id.equals(visitDraftId)))
+          .write(const VisitDraftsCompanion(status: Value('submitted')));
+      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+            entityType: 'visit_submit',
+            entityId: _uuid.v4(),
+            payloadJson: jsonEncode({'visitDraftId': visitDraftId}),
+          ));
+    });
+
+    try {
+      await syncService.flushPending();
+    } catch (_) {
+      // Best-effort: submission is recorded locally and queued for sync.
+    }
   }
 }
 

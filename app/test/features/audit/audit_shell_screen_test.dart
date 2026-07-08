@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
@@ -20,6 +21,8 @@ class _FakeSkusRepository implements SkusRepository {
 }
 
 class _SucceedingVisitsRepository implements VisitsRepository {
+  String? submittedId;
+
   @override
   Future<CheckInResult> checkIn({
     required String outletId,
@@ -27,6 +30,9 @@ class _SucceedingVisitsRepository implements VisitsRepository {
     required double outletLng,
   }) async =>
       CheckInSucceeded('visit-1');
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async => submittedId = visitDraftId;
 }
 
 class _GeofenceFailingVisitsRepository implements VisitsRepository {
@@ -37,6 +43,9 @@ class _GeofenceFailingVisitsRepository implements VisitsRepository {
     required double outletLng,
   }) async =>
       CheckInGeofenceFailed(650);
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
 }
 
 class _LocationUnavailableVisitsRepository implements VisitsRepository {
@@ -47,6 +56,9 @@ class _LocationUnavailableVisitsRepository implements VisitsRepository {
     required double outletLng,
   }) async =>
       CheckInLocationUnavailable('Location permission denied');
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
 }
 
 Widget _appWith(VisitsRepository visitsRepository) {
@@ -95,6 +107,37 @@ void main() {
     final context = tester.element(find.byType(AuditShellScreen));
     final container = ProviderScope.containerOf(context);
     expect(container.read(sessionControllerProvider).value?.role, isNull);
+  });
+
+  testWidgets('submitting the visit records the submit and returns to the picker', (tester) async {
+    final repo = _SucceedingVisitsRepository();
+    final router = GoRouter(
+      initialLocation: '/audit/o1',
+      routes: [
+        GoRoute(path: '/audit', builder: (context, state) => const Text('Outlet Picker')),
+        GoRoute(
+          path: '/audit/:outletId',
+          builder: (context, state) => const AuditShellScreen(outletId: 'o1'),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+        visitsRepositoryProvider.overrideWithValue(repo),
+        skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Submit visit'));
+    await tester.tap(find.text('Submit visit'));
+    await tester.pumpAndSettle();
+
+    expect(repo.submittedId, 'visit-1');
+    expect(find.text('Outlet Picker'), findsOneWidget);
   });
 
   testWidgets('the check-in confirmation timestamp stays fixed across step navigation', (tester) async {

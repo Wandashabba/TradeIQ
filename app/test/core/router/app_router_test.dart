@@ -30,6 +30,9 @@ class _FakeSucceedingVisitsRepository implements VisitsRepository {
     required double outletLng,
   }) async =>
       CheckInSucceeded('visit-1');
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
 }
 
 Widget _appWithOverrides(List<Override> overrides) {
