@@ -1,7 +1,29 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+
+/// Maps a login failure to a user-facing message. Distinguishes bad
+/// credentials (the backend's 401) from connectivity/server problems so the
+/// user isn't told their password is wrong when the server is unreachable.
+String loginErrorMessage(Object error) {
+  if (error is DioException) {
+    if (error.response?.statusCode == 401) {
+      return 'Invalid credentials';
+    }
+    switch (error.type) {
+      case DioExceptionType.connectionError:
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'Could not reach the server. Check your connection and try again.';
+      default:
+        return 'Something went wrong. Please try again.';
+    }
+  }
+  return 'Something went wrong. Please try again.';
+}
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -79,7 +101,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
-                        'Invalid credentials',
+                        loginErrorMessage(session.error!),
                         style: TextStyle(color: Theme.of(context).colorScheme.error),
                       ),
                     ),

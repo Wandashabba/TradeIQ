@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,10 +21,24 @@ class FakeAuthRepository implements AuthRepository {
   }
 }
 
-class FailingAuthRepository implements AuthRepository {
+class Unauthorized401AuthRepository implements AuthRepository {
   @override
   Future<AuthResult> login(String email, String password) async {
-    throw Exception('invalid credentials');
+    final options = RequestOptions(path: '/auth/login');
+    throw DioException(
+      requestOptions: options,
+      response: Response(requestOptions: options, statusCode: 401),
+    );
+  }
+}
+
+class NetworkErrorAuthRepository implements AuthRepository {
+  @override
+  Future<AuthResult> login(String email, String password) async {
+    throw DioException(
+      requestOptions: RequestOptions(path: '/auth/login'),
+      type: DioExceptionType.connectionError,
+    );
   }
 }
 
@@ -57,8 +72,8 @@ void main() {
     expect(find.text('Password is required'), findsOneWidget);
   });
 
-  testWidgets('shows an error message when login fails', (tester) async {
-    await tester.pumpWidget(_wrap(FailingAuthRepository()));
+  testWidgets('shows "Invalid credentials" on a 401 from the backend', (tester) async {
+    await tester.pumpWidget(_wrap(Unauthorized401AuthRepository()));
 
     await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'manager@tradeiq.com');
     await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'wrong-password');
@@ -66,5 +81,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Invalid credentials'), findsOneWidget);
+  });
+
+  testWidgets('shows a connectivity message when the server is unreachable', (tester) async {
+    await tester.pumpWidget(_wrap(NetworkErrorAuthRepository()));
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'manager@tradeiq.com');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'password123');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log in'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Could not reach the server'), findsOneWidget);
+    expect(find.text('Invalid credentials'), findsNothing);
   });
 }
