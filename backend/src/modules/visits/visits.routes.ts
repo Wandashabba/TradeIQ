@@ -1,12 +1,15 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
+import { requireRole } from '../../middleware/roleGuard';
 import { NotImplementedError } from '../../middleware/errorHandler';
 import { checkIn } from './visits.service';
 
 export const visitsRouter = Router();
 visitsRouter.use(requireAuth);
 
-visitsRouter.post('/', async (req: AuthedRequest, res) => {
+// Check-in is a field-agent action. Relax this guard if managers/admins ever
+// need to record visits directly.
+visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {
   const { outletId, lat, lng } = req.body as { outletId?: string; lat?: number; lng?: number };
 
   if (!outletId || lat === undefined || lng === undefined) {

@@ -114,6 +114,16 @@ describe('visits routes', () => {
     expect(res.status).toBe(401);
   });
 
+  it('forbids a manager from checking in with 403', async () => {
+    const managerToken = issueToken({ userId: 'seed-manager', role: 'manager', clientId });
+    const res = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473 });
+
+    expect(res.status).toBe(403);
+  });
+
   it('GET / is not implemented yet', async () => {
     const res = await request(app).get('/visits').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(501);
