@@ -3,7 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/auth_repository.dart';
+import 'package:tradeiq_app/core/auth/token_store.dart';
 import 'package:tradeiq_app/features/auth/presentation/login_screen.dart';
+
+/// In-memory token store so widget tests never touch the real secure-storage
+/// platform channel (whose calls hang under the test binding).
+class _FakeTokenStore implements TokenStore {
+  StoredSession? _session;
+
+  @override
+  Future<void> save(StoredSession session) async => _session = session;
+
+  @override
+  Future<StoredSession?> read() async => _session;
+
+  @override
+  Future<void> clear() async => _session = null;
+}
 
 class FakeAuthRepository implements AuthRepository {
   @override
@@ -44,7 +60,10 @@ class NetworkErrorAuthRepository implements AuthRepository {
 
 Widget _wrap(AuthRepository repository) {
   return ProviderScope(
-    overrides: [authRepositoryProvider.overrideWithValue(repository)],
+    overrides: [
+      authRepositoryProvider.overrideWithValue(repository),
+      tokenStoreProvider.overrideWithValue(_FakeTokenStore()),
+    ],
     child: const MaterialApp(home: LoginScreen()),
   );
 }

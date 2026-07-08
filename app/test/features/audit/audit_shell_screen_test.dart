@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -11,6 +12,11 @@ class _FakeOutletsRepository implements OutletsRepository {
   Future<List<Outlet>> listOutlets() async => const [
         Outlet(id: 'o1', name: 'Test Outlet', code: 'TO-001', lat: -26.2041, lng: 28.0473),
       ];
+}
+
+class _FakeSkusRepository implements SkusRepository {
+  @override
+  Future<List<Sku>> listSkus() async => const [];
 }
 
 class _SucceedingVisitsRepository implements VisitsRepository {
@@ -48,6 +54,7 @@ Widget _appWith(VisitsRepository visitsRepository) {
     overrides: [
       outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
       visitsRepositoryProvider.overrideWithValue(visitsRepository),
+      skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
     ],
     child: const MaterialApp(home: AuditShellScreen(outletId: 'o1')),
   );

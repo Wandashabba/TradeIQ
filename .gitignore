@@ -11,6 +11,8 @@ app/.flutter-plugins-dependencies
 app/build/
 app/.packages
 app/**/generated_plugin_registrant.dart
+# Generated code (Drift, etc.) — regenerated via build_runner in CI/local
+app/**/*.g.dart
 
 # IDE
 .vscode/

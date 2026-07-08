@@ -29,6 +29,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   bool _checkInStarted = false;
   CheckInResult? _checkInResult;
   DateTime? _checkinTs;
+  String? _visitDraftId;
 
   Future<void> _startCheckIn(double outletLat, double outletLng) async {
     final result = await ref.read(visitsRepositoryProvider).checkIn(
@@ -39,7 +40,10 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     if (!mounted) return;
     setState(() {
       _checkInResult = result;
-      if (result is CheckInSucceeded) _checkinTs = DateTime.now();
+      if (result is CheckInSucceeded) {
+        _checkinTs = DateTime.now();
+        _visitDraftId = result.visitId;
+      }
     });
   }
 
@@ -52,7 +56,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
 
   List<Widget> _sections() => [
         S1OutletInfoScreen(checkinTs: _checkinTs),
-        const S2StockScreen(),
+        S2StockScreen(visitDraftId: _visitDraftId!),
         const S3S4VisibilityDisplayScreen(),
         const S5PricingPromotionsScreen(),
         const S6CompetitiveScreen(),
