@@ -19,11 +19,9 @@ abstract class QueueFlusher {
 ///   ([VisitDrafts.remoteId]) and POSTs /stock. If the visit hasn't synced
 ///   yet the item is left queued (throws) and retried on the next flush.
 class HttpQueueFlusher implements QueueFlusher {
-  HttpQueueFlusher({required LocalDb db, Dio? dio})
-      : _db = db,
-        _dio = dio ?? api_client.dio;
+  HttpQueueFlusher({required this.db, Dio? dio}) : _dio = dio ?? api_client.dio;
 
-  final LocalDb _db;
+  final LocalDb db;
   final Dio _dio;
 
   @override
@@ -32,13 +30,13 @@ class HttpQueueFlusher implements QueueFlusher {
       case 'visit':
         final res = await _dio.post('/visits', data: jsonDecode(item.payloadJson));
         final remoteId = (res.data as Map<String, dynamic>)['id'] as String;
-        await (_db.update(_db.visitDrafts)..where((t) => t.id.equals(item.entityId)))
+        await (db.update(db.visitDrafts)..where((t) => t.id.equals(item.entityId)))
             .write(VisitDraftsCompanion(remoteId: Value(remoteId)));
         return;
       case 'stock':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
         final localVisitId = payload['visitDraftId'] as String;
-        final draft = await (_db.select(_db.visitDrafts)
+        final draft = await (db.select(db.visitDrafts)
               ..where((t) => t.id.equals(localVisitId)))
             .getSingleOrNull();
         final remoteId = draft?.remoteId;
