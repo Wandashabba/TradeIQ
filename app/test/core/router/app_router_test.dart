@@ -111,7 +111,10 @@ void main() {
     ]));
     await tester.pumpAndSettle();
 
-    expect(find.text('Numeric Distribution'), findsOneWidget);
+    // The dashboard's KPI grid now loads from GET /dashboard (unstubbed here,
+    // so it settles into the error state); the AppBar title is the stable
+    // signal that routing landed on the dashboard.
+    expect(find.text('Manager Dashboard'), findsOneWidget);
   });
 
   testWidgets('logging out from a protected route redirects back to login', (tester) async {
@@ -121,7 +124,7 @@ void main() {
       ),
     ]));
     await tester.pumpAndSettle();
-    expect(find.text('Numeric Distribution'), findsOneWidget);
+    expect(find.text('Manager Dashboard'), findsOneWidget);
 
     final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
     container.read(sessionControllerProvider.notifier).logout();
