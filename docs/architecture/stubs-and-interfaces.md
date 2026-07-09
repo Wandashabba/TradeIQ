@@ -16,26 +16,40 @@ touching callers.
 - `backend/src/lib/geofence.ts` — haversine distance check, ≤50m threshold
 - `backend/src/lib/slaClock.ts` — SLA due-date computation (critical=+24h, high=+3d, normal=+7d)
 - `backend/src/services/forecast.service.ts` — stock coverage-days prediction from velocity (simple formula, not ML — per-SKU ML demand forecasting is Phase 2+ and has no stub yet because no Phase 1 caller needs it)
-- `backend/src/modules/auth/*` — JWT issue/verify, login, role guards
-- `backend/src/modules/outlets/*` — full CRUD, the one fully-wired Phase 1 module
+- `backend/src/modules/auth/*` — JWT issue/verify, login (rate-limited), role guards (`requireRole`, enforced on write routes)
+- `backend/src/modules/outlets/*` — list (all roles) + create (manager/admin)
+- `backend/src/modules/skus/*` — client-scoped SKU listing (`GET /skus`)
+- `backend/src/modules/visits/*` — geofenced check-in (`POST /visits`) + submit (`POST /visits/:id/submit`), field_agent
+- `backend/src/modules/stock/*` — S2 per-SKU stock capture (`POST /stock`) with server-side coverage-days
+- `backend/src/modules/visibility/*` — S3–S4 visibility/display capture (`POST /visibility`, upsert)
 
 ## What is a route skeleton (not a stub, but not implemented)
 
-`visits`, `stock`, `visibility`, `pricing`, `competitive`, `capability`,
-`risks`, `tasks`, `scorecards`, and `dashboard` modules currently return
+`pricing` (S5), `competitive` (S6), `capability` (S7), `risks` (S8),
+`tasks` (S9), `scorecards` (S10), and `dashboard` modules currently return
 `501 Not Implemented` for every route. These are Phase 1 features (not
-deferred to Phase 2+) — they're scoped to the follow-up S1–S10
-implementation plan, not this scaffold. No GitHub issues are needed for
+deferred to Phase 2+) — they're scoped to the follow-up S5–S10
+implementation plans, not this scaffold. No GitHub issues are needed for
 these; they're just not built yet within Phase 1's own scope.
+
+`GET` listing routes on the built modules (`GET /visits`, `GET /stock`,
+`GET /visibility`) also still return `501` — only the agent-facing capture
+(`POST`) paths are wired so far; manager-facing listings land with the
+dashboard slice.
 
 ## Known Phase 1 gaps
 
-Not a stub — this is in-scope Phase 1 work that isn't done yet, tracked as a
-regular issue rather than deferred:
+Not a stub — in-scope Phase 1 work still to do:
 
-| Gap | Where | Tracking issue |
-|---|---|---|
-| Login form UI + router auth-redirect | `app/lib/features/auth/presentation/login_screen.dart` has no form; `app/lib/core/router/app_router.dart` has no redirect based on session state | https://github.com/Wandashabba/TradeIQ/issues/5 |
+| Gap | Where |
+|---|---|
+| Audit sections S5–S10 (pricing, competitive, capability, risks, action-plan, scorecard) | backend `modules/{pricing,competitive,capability,risks,tasks,scorecards}` return 501; app section screens are placeholders |
+| Manager dashboard (real KPI data) | `app/lib/features/dashboard/...` renders placeholder tiles; `GET` listing routes are 501 |
+
+Resolved since the original scaffold: login form UI + router auth-redirect
+(issue #5), session persistence, configurable API base URL, RBAC enforcement,
+and auth hardening (helmet, CORS allowlist, login rate-limiting) — see
+`docs/phase1-audit-and-remediation.md`.
 
 ## Deferred infrastructure (Phase 2+, no code yet)
 

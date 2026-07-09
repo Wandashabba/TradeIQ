@@ -39,6 +39,24 @@ Every other S1–S10 module follows the same shape once implemented (see
 `docs/architecture/stubs-and-interfaces.md` and the follow-up implementation
 plan for each section).
 
+## Audit capture flow (implemented: S1, S2, S3–S4)
+
+The field-agent flow is offline-first. On check-in the app writes a local
+`VisitDrafts` row plus a `SyncQueueItems` outbox entry, then best-effort
+flushes to `POST /visits`. Section captures (S2 stock → `POST /stock`, S3–S4
+visibility → `POST /visibility`) and visit submit (`POST /visits/:id/submit`)
+enqueue their own outbox items the same way.
+
+Because a visit is created with a *client* id offline, the sync flusher
+records the server-assigned id on `VisitDrafts.remoteId` after `POST /visits`
+succeeds; dependent items (stock, visibility, submit) resolve that `remoteId`
+at flush time and retry if the visit hasn't synced yet. The queue flushes in
+FIFO order so a visit always syncs before its children. See
+`app/lib/core/sync/sync_service.dart`.
+
+All write routes are role-guarded: check-in/capture/submit are `field_agent`,
+outlet creation is `manager`/`admin`. See `backend/src/middleware/roleGuard.ts`.
+
 ## Real logic vs. stubbed logic
 
 See `docs/architecture/stubs-and-interfaces.md` for the definitive list.
