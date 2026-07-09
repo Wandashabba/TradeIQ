@@ -4,9 +4,11 @@ import { issueToken } from './auth/auth.service';
 
 const token = issueToken({ userId: 'user-1', role: 'manager', clientId: 'client-1' });
 
+// Capture modules whose POST is implemented but whose GET listing is still a
+// 501 placeholder. /tasks and /dashboard have real GETs and are covered by
+// their own route tests.
 const skeletonRoutes = [
-  '/pricing', '/competitive',
-  '/capability', '/risks', '/tasks', '/scorecards', '/dashboard',
+  '/pricing', '/competitive', '/capability', '/risks', '/scorecards',
 ];
 
 describe('module skeleton routes', () => {

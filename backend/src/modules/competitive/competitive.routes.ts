@@ -1,9 +1,37 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth';
+import { AuthedRequest, requireAuth } from '../../middleware/auth';
+import { requireRole } from '../../middleware/roleGuard';
 import { NotImplementedError } from '../../middleware/errorHandler';
+import { recordCompetitive, CompetitiveItemInput } from './competitive.service';
 
 export const competitiveRouter = Router();
 competitiveRouter.use(requireAuth);
+
+function isValidItem(item: unknown): item is CompetitiveItemInput {
+  if (typeof item !== 'object' || item === null) return false;
+  const i = item as Record<string, unknown>;
+  return (
+    typeof i.competitorSku === 'string' &&
+    typeof i.competitorPrice === 'number' &&
+    typeof i.competitorPosmType === 'string' &&
+    typeof i.competitorPromoterPresent === 'boolean' &&
+    typeof i.geotag === 'object' &&
+    i.geotag !== null
+  );
+}
+
+competitiveRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {
+  const { visitId, items } = req.body as { visitId?: string; items?: unknown[] };
+
+  if (!visitId || !Array.isArray(items) || items.length === 0 || !items.every(isValidItem)) {
+    res.status(400).json({ error: 'visitId and a non-empty items[] with all required fields are required' });
+    return;
+  }
+
+  const rows = await recordCompetitive({ visitId, clientId: req.user!.clientId, items });
+  res.status(201).json(rows);
+});
+
 competitiveRouter.get('/', () => {
-  throw new NotImplementedError('Competitive intelligence module (S6) is not implemented yet');
+  throw new NotImplementedError('Competitive listing is not implemented yet');
 });
