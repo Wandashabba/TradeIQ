@@ -1,8 +1,14 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { NotImplementedError } from '../../middleware/errorHandler';
-import { checkIn, submitVisit } from './visits.service';
+import { checkIn, listVisits, submitVisit } from './visits.service';
+
+const VISIT_STATUSES = ['in_progress', 'submitted'] as const;
+type VisitStatusFilter = (typeof VISIT_STATUSES)[number];
+
+function isVisitStatus(value: string): value is VisitStatusFilter {
+  return (VISIT_STATUSES as readonly string[]).includes(value);
+}
 
 export const visitsRouter = Router();
 visitsRouter.use(requireAuth);
@@ -43,6 +49,26 @@ visitsRouter.post('/:id/submit', requireRole('field_agent'), async (req: AuthedR
   res.status(200).json(visit);
 });
 
-visitsRouter.get('/', () => {
-  throw new NotImplementedError('Visit listing is not implemented yet');
+// Any authenticated role may list visits. A field_agent is scoped to their own
+// visits; managers/admins see the whole client's visits.
+visitsRouter.get('/', async (req: AuthedRequest, res) => {
+  const { outletId, status } = req.query as { outletId?: unknown; status?: unknown };
+
+  if (outletId !== undefined && typeof outletId !== 'string') {
+    res.status(400).json({ error: 'outletId must be a string' });
+    return;
+  }
+  if (status !== undefined && (typeof status !== 'string' || !isVisitStatus(status))) {
+    res.status(400).json({ error: "status must be 'in_progress' or 'submitted'" });
+    return;
+  }
+
+  const visits = await listVisits({
+    clientId: req.user!.clientId,
+    role: req.user!.role,
+    agentId: req.user!.userId,
+    outletId,
+    status,
+  });
+  res.status(200).json(visits);
 });

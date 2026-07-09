@@ -8,6 +8,7 @@ describe('visibility routes', () => {
   let agentToken: string;
   let managerToken: string;
   let visitId: string;
+  let emptyVisitId: string;
 
   beforeAll(async () => {
     const client = await prisma.client.create({
@@ -45,10 +46,25 @@ describe('visibility routes', () => {
       },
     });
     visitId = visit.id;
+
+    // A second visit that never gets a VisitVisibility row (GET 404 case).
+    const emptyVisit = await prisma.visit.create({
+      data: {
+        outletId: outlet.id,
+        agentId: agent.id,
+        clientId,
+        checkinTs: new Date(),
+        checkinLat: -26.2041,
+        checkinLng: 28.0473,
+        geofencePass: true,
+        status: 'in_progress',
+      },
+    });
+    emptyVisitId = emptyVisit.id;
   });
 
   afterAll(async () => {
-    await prisma.visitVisibility.deleteMany({ where: { visitId } });
+    await prisma.visitVisibility.deleteMany({ where: { visit: { clientId } } });
     await prisma.visit.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId } });
     await prisma.user.deleteMany({ where: { clientId } });
@@ -121,8 +137,89 @@ describe('visibility routes', () => {
     expect(res.status).toBe(401);
   });
 
-  it('GET / is not implemented yet', async () => {
+  it('derives vision fields from the stub when photoUrl is provided (201)', async () => {
+    const res = await request(app)
+      .post('/visibility')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({
+        visitId,
+        photoUrl: 'https://example.com/shelf.jpg',
+        templateId: 'tmpl-1',
+        skuId: 'sku-1',
+        highTrafficPass: true,
+        // Manual brandingElements are merged with the stub result.
+        brandingElements: { poster: true },
+      });
+
+    expect(res.status).toBe(201);
+
+    // Stub returns 0..1; the service stores a 0..100 percentage.
+    expect(typeof res.body.planogramCompliancePct).toBe('number');
+    expect(res.body.planogramCompliancePct).toBeGreaterThanOrEqual(0);
+    expect(res.body.planogramCompliancePct).toBeLessThanOrEqual(100);
+
+    // facingsCount is { total: <int 1..6> } from countFacings.
+    expect(Number.isInteger(res.body.facingsCount.total)).toBe(true);
+    expect(res.body.facingsCount.total).toBeGreaterThanOrEqual(1);
+    expect(res.body.facingsCount.total).toBeLessThanOrEqual(6);
+
+    // cleanlinessScore is 1..5 from scoreCleanliness.
+    expect(Number.isInteger(res.body.cleanlinessScore)).toBe(true);
+    expect(res.body.cleanlinessScore).toBeGreaterThanOrEqual(1);
+    expect(res.body.cleanlinessScore).toBeLessThanOrEqual(5);
+
+    // brandingElements reflects the stub (detected 0..8 int, pass bool) merged
+    // over the manual object.
+    expect(res.body.brandingElements.poster).toBe(true);
+    expect(Number.isInteger(res.body.brandingElements.detected)).toBe(true);
+    expect(res.body.brandingElements.detected).toBeGreaterThanOrEqual(0);
+    expect(res.body.brandingElements.detected).toBeLessThanOrEqual(8);
+    expect(typeof res.body.brandingElements.pass).toBe('boolean');
+
+    // highTrafficPass stays a manual field.
+    expect(res.body.highTrafficPass).toBe(true);
+  });
+
+  it('GET returns the visibility row for a visit (200)', async () => {
+    await request(app)
+      .post('/visibility')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send(validBody());
+
+    const res = await request(app)
+      .get('/visibility')
+      .query({ visitId })
+      .set('Authorization', `Bearer ${agentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.visitId).toBe(visitId);
+    expect(res.body.planogramCompliancePct).toBe(82.5);
+  });
+
+  it('GET without visitId returns 400', async () => {
     const res = await request(app).get('/visibility').set('Authorization', `Bearer ${agentToken}`);
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(400);
+  });
+
+  it('GET returns 404 for a visit belonging to another client', async () => {
+    const otherToken = issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' });
+    const res = await request(app)
+      .get('/visibility')
+      .query({ visitId })
+      .set('Authorization', `Bearer ${otherToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('GET returns 404 when the visit has no visibility row', async () => {
+    const res = await request(app)
+      .get('/visibility')
+      .query({ visitId: emptyVisitId })
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('GET rejects requests without a bearer token', async () => {
+    const res = await request(app).get('/visibility').query({ visitId });
+    expect(res.status).toBe(401);
   });
 });

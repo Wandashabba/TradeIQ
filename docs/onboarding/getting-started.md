@@ -79,29 +79,21 @@ flutter pub get
 flutter run -d chrome   # or an attached device/simulator
 ```
 
-The app boots to the login screen (`/login`). The login screen and the
-login-to-outlets navigation are not wired up yet — there's no form on that
-screen, and the router doesn't redirect to an authenticated route on success
-(see `docs/architecture/stubs-and-interfaces.md` for what's scaffolded vs.
-what's a follow-up).
+The app boots to the login screen (`/login`), which has a working form.
+Sign in with a seeded account (see `backend/scripts/seed.ts` — e.g.
+`agent@demo-fmcg.tradeiq.com` / `demo-password-123` for a field agent, or
+`manager@demo-fmcg.tradeiq.com` for a manager). On success the router
+redirects by role: field agents land on the audit outlet-picker (`/audit`),
+managers/admins on the dashboard (`/dashboard`). The session is persisted, so
+a restart keeps you logged in until you log out.
 
-To see the proof-of-concept vertical slice (outlets list backed by a real
-`GET /outlets` call) working end-to-end today, without waiting on that
-follow-up work, you have two options:
+From there a field agent can run the full S1-S10 offline-first audit flow
+(check-in → capture → submit); a manager sees the 8-KPI dashboard and the
+task list (`/tasks`). Run `npm run seed` in `backend/` first so the dashboard
+has demo visits/scorecards to show.
 
-- **Fastest / no code changes:** run the existing widget test, which drives
-  `OutletsListScreen` against a fake repository and asserts it renders
-  outlet data: `flutter test test/features/outlets/outlets_list_screen_test.dart`.
-- **Against the real backend:** the app keeps its bearer token in a
-  top-level `currentAuthToken` variable in
-  `app/lib/core/network/api_client.dart` (there's no UI for setting it yet).
-  Temporarily set `currentAuthToken` to the token from the `curl
-  /auth/login` call above (e.g. hardcode it in `main.dart` before
-  `runApp`), then run the app and navigate to `/outlets` in the browser
-  address bar (for the Chrome build). Revert the hardcoded token before
-  committing — full login-to-outlets wiring is tracked as follow-up work,
-  not part of this scaffold. Tracked as
-  [issue #5](https://github.com/Wandashabba/TradeIQ/issues/5).
+To point the app at a non-local backend, pass
+`--dart-define=API_BASE_URL=https://your-host` to `flutter run`.
 
 ## 4. Run the test suites
 

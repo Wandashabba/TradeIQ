@@ -3,14 +3,17 @@ info:
   title: TradeIQ API
   version: 0.1.0
   description: >
-    Phase 1. Implemented: /auth, /outlets, /skus, /visits (check-in + submit),
-    /stock (S2), /visibility (S3-S4), /pricing (S5), /competitive (S6),
-    /capability (S7), /risks (S8), /tasks (S9), /scorecards (S10), /dashboard.
-    GET listings on the capture modules (/pricing, /competitive, /capability,
-    /risks, bare /scorecards) remain 501 — see
-    docs/architecture/stubs-and-interfaces.md. All non-auth/non-health routes
-    require a Bearer JWT; write routes are role-guarded (403 when the caller's
-    role is not permitted).
+    Phase 1 (complete). Implemented: /auth, /outlets, /skus, /visits (check-in
+    + submit + list), /stock (S2), /visibility (S3-S4, vision-stub wired),
+    /pricing (S5, OCR-stub wired), /competitive (S6), /capability (S7), /risks
+    (S8), /tasks (S9), /scorecards (S10), /dashboard, and /photos (photo
+    capture + photo-verified task closure). Every mounted route is implemented
+    — no route returns 501. Manager-facing GET listings on the per-visit
+    section modules follow a common contract: GET /<section>?visitId=<id>
+    returns that visit's captured rows (any authenticated role, tenant-scoped,
+    400 if visitId is missing, 404 if the visit is not the caller's). All
+    non-auth/non-health routes require a Bearer JWT; write routes are
+    role-guarded (403 when the caller's role is not permitted).
 servers:
   - url: http://localhost:4000
 paths:
@@ -105,6 +108,23 @@ paths:
         '401':
           description: Missing or invalid token
   /visits:
+    get:
+      summary: List visits (field_agent sees own; manager/admin sees the client's)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: outletId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [in_progress, submitted] }
+      responses:
+        '200':
+          description: Visits (newest check-in first)
+        '400':
+          description: Invalid status filter
+        '401':
+          description: Missing or invalid token
     post:
       summary: Geofenced outlet check-in (creates a Visit) — field_agent only
       security: [{ bearerAuth: [] }]
@@ -510,6 +530,54 @@ paths:
           description: Missing or invalid token
         '403':
           description: Caller is not a manager/admin
+  /photos:
+    post:
+      summary: Upload a photo for a visit (base64 data URL) — field_agent only
+      description: >
+        Phase-1 lean-infra storage (ADR 0007): the image is sent as a base64
+        data URL and stored directly; real object storage is a later phase.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId, section, dataUrl, gpsTag, timestamp]
+              properties:
+                visitId: { type: string }
+                section: { type: string, description: 'e.g. s3_visibility, s5_pricing, task_closure' }
+                dataUrl: { type: string, description: 'base64 data URL, capped ~8MB' }
+                gpsTag: { type: object }
+                timestamp: { type: string, format: date-time }
+      responses:
+        '201':
+          description: Photo stored
+        '400':
+          description: Missing/invalid fields or oversized dataUrl
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit not found for this client
+    get:
+      summary: List a visit's photos
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: visitId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Photos for the visit (newest first)
+        '400':
+          description: Missing visitId
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Visit not found for this client
 components:
   securitySchemes:
     bearerAuth:

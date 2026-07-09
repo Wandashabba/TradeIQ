@@ -140,6 +140,13 @@ export async function generateScorecard(input: GenerateScorecardInput) {
   });
 }
 
+export async function listScorecardsForClient(clientId: string) {
+  return prisma.scorecard.findMany({
+    where: { visit: { clientId } },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 export async function getScorecardByVisit(visitId: string, clientId: string) {
   const visit = await prisma.visit.findFirst({ where: { id: visitId, clientId } });
   if (!visit) {

@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { NotImplementedError } from '../../middleware/errorHandler';
-import { generateScorecard, getScorecardByVisit } from './scorecards.service';
+import { generateScorecard, getScorecardByVisit, listScorecardsForClient } from './scorecards.service';
 
 export const scorecardsRouter = Router();
 scorecardsRouter.use(requireAuth);
@@ -20,8 +19,9 @@ scorecardsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
 });
 
 // Registered before '/:visitId' so the bare list route isn't shadowed.
-scorecardsRouter.get('/', () => {
-  throw new NotImplementedError('Scorecard listing is not implemented yet');
+scorecardsRouter.get('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
+  const scorecards = await listScorecardsForClient(req.user!.clientId);
+  res.status(200).json(scorecards);
 });
 
 scorecardsRouter.get('/:visitId', async (req: AuthedRequest, res) => {

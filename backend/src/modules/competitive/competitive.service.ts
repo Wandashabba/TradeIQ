@@ -16,6 +16,17 @@ export interface RecordCompetitiveInput {
   items: CompetitiveItemInput[];
 }
 
+export async function listCompetitiveForVisit(visitId: string, clientId: string) {
+  const visit = await prisma.visit.findFirst({ where: { id: visitId, clientId } });
+  if (!visit) {
+    throw new NotFoundError('Visit not found');
+  }
+  return prisma.visitCompetitive.findMany({
+    where: { visitId },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 export async function recordCompetitive(input: RecordCompetitiveInput) {
   const visit = await prisma.visit.findFirst({
     where: { id: input.visitId, clientId: input.clientId },

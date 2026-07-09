@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { NotImplementedError } from '../../middleware/errorHandler';
-import { recordStock, StockItemInput } from './stock.service';
+import { listStockForVisit, recordStock, StockItemInput } from './stock.service';
 
 export const stockRouter = Router();
 stockRouter.use(requireAuth);
@@ -34,6 +33,13 @@ stockRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res
   res.status(201).json(rows);
 });
 
-stockRouter.get('/', () => {
-  throw new NotImplementedError('Stock listing is not implemented yet');
+stockRouter.get('/', async (req: AuthedRequest, res) => {
+  const { visitId } = req.query;
+  if (typeof visitId !== 'string') {
+    res.status(400).json({ error: 'visitId query param is required' });
+    return;
+  }
+
+  const rows = await listStockForVisit(visitId, req.user!.clientId);
+  res.status(200).json(rows);
 });

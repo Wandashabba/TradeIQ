@@ -6,6 +6,7 @@ import {
   createTask,
   findTaskForClient,
   listTasks,
+  photoExistsForClient,
   TaskStatusInput,
   updateTask,
 } from './tasks.service';
@@ -117,11 +118,22 @@ tasksRouter.patch('/:id', requireRole('field_agent', 'manager'), async (req: Aut
   const { id: taskId } = req.params as { id: string };
   const task = await findTaskForClient(taskId, req.user!.clientId);
 
-  if (status === 'closed' && closurePhotoUrl === undefined && !task.closurePhotoUrl) {
-    res.status(400).json({
-      error: 'Closing a task requires a closurePhotoUrl (in this request or already on the task)',
-    });
-    return;
+  if (status === 'closed') {
+    const effectiveClosurePhotoUrl = closurePhotoUrl ?? task.closurePhotoUrl;
+    if (!effectiveClosurePhotoUrl) {
+      res.status(400).json({
+        error: 'Closing a task requires a closurePhotoUrl (in this request or already on the task)',
+      });
+      return;
+    }
+    // Require an uploaded, tenant-owned Photo backing the closure url — a bare
+    // string is not enough.
+    if (!(await photoExistsForClient(effectiveClosurePhotoUrl, req.user!.clientId))) {
+      res.status(400).json({
+        error: 'Closing a task requires a verified closure photo (upload via POST /photos first)',
+      });
+      return;
+    }
   }
 
   const updated = await updateTask(task.id, {

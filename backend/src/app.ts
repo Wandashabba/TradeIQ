@@ -14,6 +14,7 @@ import { risksRouter } from './modules/risks/risks.routes';
 import { tasksRouter } from './modules/tasks/tasks.routes';
 import { scorecardsRouter } from './modules/scorecards/scorecards.routes';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes';
+import { photosRouter } from './modules/photos/photos.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -33,7 +34,9 @@ const corsOrigins = process.env.CORS_ORIGINS
   .filter((origin) => origin.length > 0);
 app.use(cors(corsOrigins && corsOrigins.length > 0 ? { origin: corsOrigins } : {}));
 
-app.use(express.json());
+// Raised from the 100kb default so base64 photo data URLs (POST /photos, capped
+// at ~8MB of base64 in the route) fit. Real object storage is a later phase.
+app.use(express.json({ limit: '12mb' }));
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
@@ -52,5 +55,6 @@ app.use('/risks', risksRouter);
 app.use('/tasks', tasksRouter);
 app.use('/scorecards', scorecardsRouter);
 app.use('/dashboard', dashboardRouter);
+app.use('/photos', photosRouter);
 
 app.use(errorHandler);

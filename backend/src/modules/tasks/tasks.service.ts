@@ -92,6 +92,17 @@ export async function findTaskForClient(taskId: string, clientId: string) {
   return task;
 }
 
+// A closure photo counts as verified only when a Photo row exists whose url
+// matches and whose visit belongs to the caller's client (Photo -> visit ->
+// clientId). This blocks closing a task with an arbitrary, unowned url.
+export async function photoExistsForClient(url: string, clientId: string): Promise<boolean> {
+  const photo = await prisma.photo.findFirst({
+    where: { url, visit: { clientId } },
+    select: { id: true },
+  });
+  return photo !== null;
+}
+
 export interface UpdateTaskInput {
   status?: TaskStatusInput;
   closurePhotoUrl?: string;

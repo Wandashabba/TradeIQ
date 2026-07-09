@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../data/dashboard_repository.dart';
@@ -14,6 +15,11 @@ class DashboardShellScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Manager Dashboard'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.checklist),
+            tooltip: 'Tasks',
+            onPressed: () => context.go('/tasks'),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',

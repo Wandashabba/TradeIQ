@@ -15,6 +15,17 @@ export interface RecordRisksInput {
   risks: RiskInput[];
 }
 
+export async function listRisksForVisit(visitId: string, clientId: string) {
+  const visit = await prisma.visit.findFirst({ where: { id: visitId, clientId } });
+  if (!visit) {
+    throw new NotFoundError('Visit not found');
+  }
+  return prisma.visitRisk.findMany({
+    where: { visitId },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 export async function recordRisks(input: RecordRisksInput) {
   const visit = await prisma.visit.findFirst({
     where: { id: input.visitId, clientId: input.clientId },

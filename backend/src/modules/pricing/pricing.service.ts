@@ -17,6 +17,17 @@ export interface RecordPricingInput {
   items: PricingItemInput[];
 }
 
+export async function listPricingForVisit(visitId: string, clientId: string) {
+  const visit = await prisma.visit.findFirst({ where: { id: visitId, clientId } });
+  if (!visit) {
+    throw new NotFoundError('Visit not found');
+  }
+  return prisma.visitPricing.findMany({
+    where: { visitId },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 export async function recordPricing(input: RecordPricingInput) {
   const visit = await prisma.visit.findFirst({
     where: { id: input.visitId, clientId: input.clientId },

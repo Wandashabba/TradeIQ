@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { NotImplementedError } from '../../middleware/errorHandler';
-import { recordRisks, RiskInput } from './risks.service';
+import { listRisksForVisit, recordRisks, RiskInput } from './risks.service';
 
 const SEVERITIES: readonly string[] = ['critical', 'high', 'normal'];
 
@@ -35,6 +34,13 @@ risksRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res
   res.status(201).json(result);
 });
 
-risksRouter.get('/', () => {
-  throw new NotImplementedError('Risk listing is not implemented yet');
+risksRouter.get('/', async (req: AuthedRequest, res) => {
+  const { visitId } = req.query;
+  if (typeof visitId !== 'string') {
+    res.status(400).json({ error: 'visitId query param is required' });
+    return;
+  }
+
+  const rows = await listRisksForVisit(visitId, req.user!.clientId);
+  res.status(200).json(rows);
 });

@@ -97,6 +97,7 @@ describe('tasks routes', () => {
 
   afterAll(async () => {
     await prisma.task.deleteMany({ where: { outlet: { clientId: { in: [clientId, otherClientId] } } } });
+    await prisma.photo.deleteMany({ where: { visit: { clientId } } });
     await prisma.visit.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
     await prisma.user.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
@@ -199,14 +200,36 @@ describe('tasks routes', () => {
     expect(row?.status).toBe('in_progress');
   });
 
-  it('closes a task when a closure photo is supplied (200)', async () => {
+  it('refuses to close with a closurePhotoUrl that has no uploaded photo (400)', async () => {
     const res = await request(app)
       .patch(`/tasks/${taskId}`)
       .set('Authorization', `Bearer ${agentToken}`)
-      .send({ status: 'closed', closurePhotoUrl: 'https://cdn.example.com/closure.jpg' });
+      .send({ status: 'closed', closurePhotoUrl: 'data:image/jpeg;base64,no-such-photo' });
+    expect(res.status).toBe(400);
+
+    const row = await prisma.task.findUnique({ where: { id: taskId } });
+    expect(row?.status).toBe('in_progress');
+  });
+
+  it('closes a task when a matching uploaded photo backs the closure url (200)', async () => {
+    const closureUrl = 'data:image/jpeg;base64,/9j/closure-photo';
+    await prisma.photo.create({
+      data: {
+        visitId,
+        section: 'task_closure',
+        url: closureUrl,
+        gpsTag: { lat: -26.2041, lng: 28.0473 },
+        timestamp: new Date(),
+      },
+    });
+
+    const res = await request(app)
+      .patch(`/tasks/${taskId}`)
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ status: 'closed', closurePhotoUrl: closureUrl });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('closed');
-    expect(res.body.closurePhotoUrl).toBe('https://cdn.example.com/closure.jpg');
+    expect(res.body.closurePhotoUrl).toBe(closureUrl);
   });
 
   it('forbids a field agent from setting closureVerified (403)', async () => {
