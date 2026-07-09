@@ -130,8 +130,47 @@ describe('pricing routes', () => {
     expect(res.status).toBe(401);
   });
 
-  it('GET / is not implemented yet', async () => {
+  it('lists a visit pricing rows ordered by createdAt desc (200)', async () => {
+    await prisma.visitPricing.create({
+      data: {
+        visitId,
+        skuId,
+        priceActual: 21,
+        priceMaster: 20,
+        deviationPct: 5,
+        promoActive: false,
+        promoMaterialsDetected: {},
+        commsRating: 3,
+      },
+    });
+
+    const res = await request(app)
+      .get('/pricing')
+      .query({ visitId })
+      .set('Authorization', `Bearer ${agentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.every((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
+  });
+
+  it('rejects a GET without visitId with 400', async () => {
     const res = await request(app).get('/pricing').set('Authorization', `Bearer ${agentToken}`);
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for a GET on a visit belonging to another client', async () => {
+    const otherToken = issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' });
+    const res = await request(app)
+      .get('/pricing')
+      .query({ visitId })
+      .set('Authorization', `Bearer ${otherToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects a GET without a bearer token with 401', async () => {
+    const res = await request(app).get('/pricing').query({ visitId });
+    expect(res.status).toBe(401);
   });
 });

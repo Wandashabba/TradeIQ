@@ -1,0 +1,96 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/api_client.dart';
+
+/// A manager-facing view of one S9 corrective task returned by GET /tasks.
+class TaskItem {
+  const TaskItem({
+    required this.id,
+    required this.findingType,
+    required this.requiredFix,
+    required this.priority,
+    required this.status,
+    required this.closureVerified,
+    required this.outletId,
+    this.closurePhotoUrl,
+    this.visitId,
+  });
+  final String id;
+  final String findingType;
+  final String requiredFix;
+  final String priority;
+  final String status;
+  final String? closurePhotoUrl;
+  final bool closureVerified;
+  final String outletId;
+  final String? visitId;
+
+  factory TaskItem.fromJson(Map<String, dynamic> json) => TaskItem(
+        id: json['id'] as String,
+        findingType: json['findingType'] as String,
+        requiredFix: json['requiredFix'] as String,
+        priority: json['priority'] as String,
+        status: json['status'] as String,
+        closurePhotoUrl: json['closurePhotoUrl'] as String?,
+        closureVerified: json['closureVerified'] as bool? ?? false,
+        outletId: json['outletId'] as String,
+        visitId: json['visitId'] as String?,
+      );
+}
+
+abstract class TasksAdminRepository {
+  Future<List<TaskItem>> listTasks({
+    String? status,
+    String? priority,
+    String? outletId,
+  });
+  Future<TaskItem> closeTask({
+    required String id,
+    required String closurePhotoUrl,
+  });
+  Future<TaskItem> verifyTask(String id);
+}
+
+class DioTasksAdminRepository implements TasksAdminRepository {
+  @override
+  Future<List<TaskItem>> listTasks({
+    String? status,
+    String? priority,
+    String? outletId,
+  }) async {
+    final query = <String, dynamic>{};
+    if (status != null) query['status'] = status;
+    if (priority != null) query['priority'] = priority;
+    if (outletId != null) query['outletId'] = outletId;
+    final response = await dio.get('/tasks', queryParameters: query);
+    return (response.data as List)
+        .map((json) => TaskItem.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<TaskItem> closeTask({
+    required String id,
+    required String closurePhotoUrl,
+  }) async {
+    final response = await dio.patch('/tasks/$id', data: {
+      'status': 'closed',
+      'closurePhotoUrl': closurePhotoUrl,
+    });
+    return TaskItem.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<TaskItem> verifyTask(String id) async {
+    final response = await dio.patch('/tasks/$id', data: {
+      'closureVerified': true,
+    });
+    return TaskItem.fromJson(response.data as Map<String, dynamic>);
+  }
+}
+
+final tasksAdminRepositoryProvider =
+    Provider<TasksAdminRepository>((ref) => DioTasksAdminRepository());
+
+final tasksListProvider = FutureProvider<List<TaskItem>>((ref) {
+  return ref.read(tasksAdminRepositoryProvider).listTasks();
+});

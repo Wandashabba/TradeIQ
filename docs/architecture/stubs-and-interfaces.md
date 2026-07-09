@@ -6,7 +6,7 @@ touching callers.
 
 | Capability | Stub file | Interface | Real implementation needed | Tracking issue |
 |---|---|---|---|---|
-| Computer vision (branding/planogram/facings/cleanliness) | `backend/src/services/vision.stub.ts` | `detectBranding`, `scorePlanogramCompliance`, `countFacings`, `scoreCleanliness` | On-device or server CV model for S3/S4 | https://github.com/Wandashabba/TradeIQ/issues/1 |
+| Computer vision (branding/planogram/facings/cleanliness) | `backend/src/services/vision.stub.ts` (now **wired** into `visibility.service.ts`: called when S3-4 capture includes a `photoUrl`) | `detectBranding`, `scorePlanogramCompliance`, `countFacings`, `scoreCleanliness` | On-device or server CV model for S3/S4 | https://github.com/Wandashabba/TradeIQ/issues/1 |
 | OCR price extraction | `backend/src/services/ocr.stub.ts` | `extractPriceFromPhoto` | Real OCR from a shelf-price photo for S5 | https://github.com/Wandashabba/TradeIQ/issues/2 |
 | Behavioural fraud / ghost-visit detection | `backend/src/services/fraud.stub.ts` | `detectGhostVisit` (currently throws, no Phase 1 caller) | Fraud/ghost-visit detection | https://github.com/Wandashabba/TradeIQ/issues/3 |
 | Predictive field dispatch | `backend/src/services/dispatch.stub.ts` | `dispatchNearestAgent` (currently throws, no Phase 1 caller) | Auto-assign nearest agent on share-of-shelf drop | https://github.com/Wandashabba/TradeIQ/issues/4 |
@@ -29,23 +29,25 @@ touching callers.
 - `backend/src/modules/tasks/*` — S9 task lifecycle: `POST /tasks` (manual create), `GET /tasks` (client-scoped list + filters), `PATCH /tasks/:id` (open → in_progress → closed with closure-photo rule; `closureVerified` manager-only)
 - `backend/src/modules/scorecards/*` — S10 weighted scorecard (`POST /scorecards`, upsert; `GET /scorecards/:visitId`) from S2–S8 rows using `Client.scorecardWeights` / `kpiThresholds`
 - `backend/src/modules/dashboard/*` — manager KPI rollup (`GET /dashboard`, manager/admin, territory/outlet/date filters)
+- `backend/src/modules/photos/*` — photo capture (`POST /photos`, base64 data URL per ADR 0007) + `GET /photos?visitId=`; backs photo-verified task closure
+- Manager-facing `GET` listings for every section (`GET /visits`, `/stock`, `/visibility`, `/pricing`, `/competitive`, `/capability`, `/risks`, bare `/scorecards`) — all implemented (no route returns 501 anymore)
+- Per-row `createdAt` timestamps on all capture models + measured `checkin_distance_m` on visits (data-capture for Phase-2 ML/fraud)
 
-## What is a route skeleton (not a stub, but not implemented)
+## Route skeletons
 
-`GET` listing routes on the capture modules (`GET /visits`, `GET /stock`,
-`GET /visibility`, `GET /pricing`, `GET /competitive`, `GET /capability`,
-`GET /risks`, bare `GET /scorecards`) still return `501` — only the
-agent-facing capture (`POST`) paths plus the manager-facing `GET /tasks`,
-`GET /scorecards/:visitId`, and `GET /dashboard` are wired.
+None remain — every mounted route is implemented. `fraud.stub.ts` and
+`dispatch.stub.ts` still throw `NotImplementedError` but have **no route**
+(they are Phase-2 features with no Phase-1 caller), which is correct.
 
-## Known Phase 1 gaps
+## Phase 1 status & follow-ups
 
-Not a stub — in-scope Phase 1 work still to do:
-
-| Gap | Where |
-|---|---|
-| Photo capture/upload (`Photo` model, closure photos as real uploads) | no `/photos` endpoint; `closurePhotoUrl` is a plain string |
-| Capture-module `GET` listings | see route-skeleton section above |
+The core Phase-1 audit flow (S1-S10), manager dashboard, task lifecycle with
+photo-verified closure, and the photo pipeline are all implemented — see
+`docs/ROADMAP.md` for the full status table. Remaining Phase-1 polish is
+tracked as issues, not gaps in the core flow: real in-app camera capture
+(#41), admin clients-config (#46), admin user provisioning (#42), auto-tasks
+from stockouts/price-deviations (#47), dashboard filter UI (#48), app
+per-route role guards (#43).
 
 Resolved since the original scaffold: S5–S10 audit sections + manager
 dashboard (issues #10–#16), login form UI + router auth-redirect

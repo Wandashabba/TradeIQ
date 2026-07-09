@@ -7,6 +7,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
 import '../../features/outlets/presentation/create_outlet_screen.dart';
 import '../../features/outlets/presentation/outlets_list_screen.dart';
+import '../../features/tasks/presentation/tasks_screen.dart';
 import '../auth/session_controller.dart';
 import 'session_refresh_listenable.dart';
 
@@ -37,6 +38,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/outlets', builder: (context, state) => const OutletsListScreen()),
       GoRoute(path: '/outlets/create', builder: (context, state) => const CreateOutletScreen()),
+      GoRoute(path: '/tasks', builder: (context, state) => const TasksScreen()),
     ],
   );
 });

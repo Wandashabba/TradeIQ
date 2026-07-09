@@ -266,8 +266,30 @@ describe('scorecards routes', () => {
     expect(res.status).toBe(401);
   });
 
-  it('GET / (bare listing) is not implemented yet', async () => {
+  it('GET / lists the callers client scorecards for a manager (200)', async () => {
+    // Ensure at least one scorecard exists for this client regardless of order.
+    await prisma.scorecard.upsert({
+      where: { visitId },
+      create: { visitId, dimensionScores: {}, weightedTotal: 73, ratingBand: 'amber' },
+      update: {},
+    });
+
+    const res = await request(app)
+      .get('/scorecards')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.some((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
+  });
+
+  it('GET / forbids a field agent with 403', async () => {
     const res = await request(app).get('/scorecards').set('Authorization', `Bearer ${agentToken}`);
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(403);
+  });
+
+  it('GET / rejects requests without a bearer token with 401', async () => {
+    const res = await request(app).get('/scorecards');
+    expect(res.status).toBe(401);
   });
 });

@@ -120,11 +120,12 @@ model Visit {
   agent         User        @relation(fields: [agentId], references: [id])
   clientId      String      @map("client_id")
   client        Client      @relation(fields: [clientId], references: [id])
-  checkinTs     DateTime    @map("checkin_ts")
-  checkinLat    Float       @map("checkin_lat")
-  checkinLng    Float       @map("checkin_lng")
-  geofencePass  Boolean     @map("geofence_pass")
-  status        VisitStatus @default(in_progress)
+  checkinTs        DateTime    @map("checkin_ts")
+  checkinLat       Float       @map("checkin_lat")
+  checkinLng       Float       @map("checkin_lng")
+  geofencePass     Boolean     @map("geofence_pass")
+  checkinDistanceM Float?      @map("checkin_distance_m")
+  status           VisitStatus @default(in_progress)
 
   stock        VisitStock[]
   visibility   VisitVisibility?
@@ -152,6 +153,7 @@ model VisitStock {
   coverageDaysPredicted  Float    @map("coverage_days_predicted")
   salesActual            Float    @map("sales_actual")
   salesTarget            Float    @map("sales_target")
+  createdAt              DateTime @default(now()) @map("created_at")
 
   @@map("visit_stock")
 }
@@ -165,6 +167,7 @@ model VisitVisibility {
   facingsCount             Json    @map("facings_count")
   highTrafficPass          Boolean @map("high_traffic_pass")
   cleanlinessScore         Int     @map("cleanliness_score")
+  createdAt                DateTime @default(now()) @map("created_at")
 
   @@map("visit_visibility")
 }
@@ -181,6 +184,7 @@ model VisitPricing {
   promoActive              Boolean @map("promo_active")
   promoMaterialsDetected   Json    @map("promo_materials_detected")
   commsRating              Int     @map("comms_rating")
+  createdAt                DateTime @default(now()) @map("created_at")
 
   @@map("visit_pricing")
 }
@@ -194,6 +198,7 @@ model VisitCompetitive {
   competitorPosmType       String  @map("competitor_posm_type")
   competitorPromoterPresent Boolean @map("competitor_promoter_present")
   geotag                   Json
+  createdAt                DateTime @default(now()) @map("created_at")
 
   @@map("visit_competitive")
 }
@@ -205,6 +210,7 @@ model VisitCapability {
   staffHeadcountConfirmed   Int    @map("staff_headcount_confirmed")
   repTrainingStatus         Json   @map("rep_training_status")
   quizScore                 Int    @map("quiz_score")
+  createdAt                 DateTime @default(now()) @map("created_at")
 
   @@map("visit_capability")
 }
@@ -216,6 +222,7 @@ model VisitRisk {
   flagType  String @map("flag_type")
   severity  String
   note      String
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("visit_risks")
 }
@@ -235,6 +242,7 @@ model Task {
   status            TaskStatus   @default(open)
   closurePhotoUrl   String?      @map("closure_photo_url")
   closureVerified   Boolean      @default(false) @map("closure_verified")
+  createdAt         DateTime     @default(now()) @map("created_at")
 
   @@map("tasks")
 }
@@ -247,6 +255,7 @@ model Photo {
   url       String
   gpsTag    Json     @map("gps_tag")
   timestamp DateTime
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("photos")
 }
@@ -255,9 +264,10 @@ model Scorecard {
   id              String @id @default(uuid())
   visitId         String @unique @map("visit_id")
   visit           Visit  @relation(fields: [visitId], references: [id])
-  dimensionScores Json   @map("dimension_scores")
-  weightedTotal   Float  @map("weighted_total")
-  ratingBand      String @map("rating_band")
+  dimensionScores Json     @map("dimension_scores")
+  weightedTotal   Float    @map("weighted_total")
+  ratingBand      String   @map("rating_band")
+  createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("scorecards")
 }

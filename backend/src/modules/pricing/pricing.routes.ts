@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { NotImplementedError } from '../../middleware/errorHandler';
-import { recordPricing, PricingItemInput } from './pricing.service';
+import { listPricingForVisit, recordPricing, PricingItemInput } from './pricing.service';
 
 export const pricingRouter = Router();
 pricingRouter.use(requireAuth);
@@ -32,6 +31,13 @@ pricingRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, r
   res.status(201).json(rows);
 });
 
-pricingRouter.get('/', () => {
-  throw new NotImplementedError('Pricing listing is not implemented yet');
+pricingRouter.get('/', async (req: AuthedRequest, res) => {
+  const { visitId } = req.query;
+  if (typeof visitId !== 'string') {
+    res.status(400).json({ error: 'visitId query param is required' });
+    return;
+  }
+
+  const rows = await listPricingForVisit(visitId, req.user!.clientId);
+  res.status(200).json(rows);
 });

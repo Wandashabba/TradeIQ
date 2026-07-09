@@ -28,6 +28,17 @@ function coverageFor(item: StockItemInput): number {
   return Number.isFinite(coverage) ? coverage : 0;
 }
 
+export async function listStockForVisit(visitId: string, clientId: string) {
+  const visit = await prisma.visit.findFirst({ where: { id: visitId, clientId } });
+  if (!visit) {
+    throw new NotFoundError('Visit not found');
+  }
+  return prisma.visitStock.findMany({
+    where: { visitId },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 export async function recordStock(input: RecordStockInput) {
   const visit = await prisma.visit.findFirst({
     where: { id: input.visitId, clientId: input.clientId },

@@ -2,8 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { NotImplementedError } from '../../middleware/errorHandler';
-import { recordCapability } from './capability.service';
+import { listCapabilityForVisit, recordCapability } from './capability.service';
 
 export const capabilityRouter = Router();
 capabilityRouter.use(requireAuth);
@@ -39,6 +38,13 @@ capabilityRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
   res.status(201).json(capability);
 });
 
-capabilityRouter.get('/', () => {
-  throw new NotImplementedError('Capability listing is not implemented yet');
+capabilityRouter.get('/', async (req: AuthedRequest, res) => {
+  const { visitId } = req.query;
+  if (typeof visitId !== 'string') {
+    res.status(400).json({ error: 'visitId query param is required' });
+    return;
+  }
+
+  const rows = await listCapabilityForVisit(visitId, req.user!.clientId);
+  res.status(200).json(rows);
 });

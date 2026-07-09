@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { NotImplementedError } from '../../middleware/errorHandler';
-import { recordCompetitive, CompetitiveItemInput } from './competitive.service';
+import { listCompetitiveForVisit, recordCompetitive, CompetitiveItemInput } from './competitive.service';
 
 export const competitiveRouter = Router();
 competitiveRouter.use(requireAuth);
@@ -32,6 +31,13 @@ competitiveRouter.post('/', requireRole('field_agent'), async (req: AuthedReques
   res.status(201).json(rows);
 });
 
-competitiveRouter.get('/', () => {
-  throw new NotImplementedError('Competitive listing is not implemented yet');
+competitiveRouter.get('/', async (req: AuthedRequest, res) => {
+  const { visitId } = req.query;
+  if (typeof visitId !== 'string') {
+    res.status(400).json({ error: 'visitId query param is required' });
+    return;
+  }
+
+  const rows = await listCompetitiveForVisit(visitId, req.user!.clientId);
+  res.status(200).json(rows);
 });

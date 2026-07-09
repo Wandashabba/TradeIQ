@@ -1,6 +1,8 @@
 import { prisma } from '../../lib/prisma';
-import { isWithinGeofence } from '../../lib/geofence';
+import { haversineDistanceMeters, isWithinGeofence } from '../../lib/geofence';
 import { GeofenceRejectedError, NotFoundError } from '../../middleware/errorHandler';
+import { Prisma } from '@prisma/client';
+import type { AuthTokenPayload } from '../auth/auth.service';
 
 export interface CheckInInput {
   outletId: string;
@@ -22,6 +24,12 @@ export async function checkIn(input: CheckInInput) {
     throw new NotFoundError('Outlet not found');
   }
 
+  // Measure the check-in distance once and derive both the pass decision and
+  // the persisted distance from it, so what we store matches what we evaluated.
+  const distanceMeters = haversineDistanceMeters(
+    { lat: outlet.lat, lng: outlet.lng },
+    { lat: input.lat, lng: input.lng },
+  );
   const geofencePass = isWithinGeofence(
     { lat: outlet.lat, lng: outlet.lng },
     { lat: input.lat, lng: input.lng },
@@ -38,9 +46,12 @@ export async function checkIn(input: CheckInInput) {
       checkinTs: input.checkinTs ? new Date(input.checkinTs) : new Date(),
       checkinLat: input.lat,
       checkinLng: input.lng,
-      // Always true for a persisted visit: a failed geofence throws above and
-      // is never recorded (the client also blocks it before enqueuing).
-      geofencePass: true,
+      // The real, computed pass value. It is always true on a persisted visit
+      // only because a failed geofence throws above and is never recorded — but
+      // it is no longer a hardcoded literal.
+      geofencePass,
+      // The measured check-in distance, persisted for later fraud/analytics use.
+      checkinDistanceM: Math.round(distanceMeters * 10) / 10,
       status: 'in_progress',
     },
   });
@@ -63,5 +74,33 @@ export async function submitVisit(input: SubmitVisitInput) {
   return prisma.visit.update({
     where: { id: input.visitId },
     data: { status: 'submitted' },
+  });
+}
+
+export interface ListVisitsInput {
+  clientId: string;
+  role: AuthTokenPayload['role'];
+  // Required in practice for a field_agent (they only see their own visits);
+  // ignored for managers/admins, who see the whole client's visits.
+  agentId?: string;
+  outletId?: string;
+  status?: 'in_progress' | 'submitted';
+}
+
+export async function listVisits(input: ListVisitsInput) {
+  const where: Prisma.VisitWhereInput = { clientId: input.clientId };
+  if (input.role === 'field_agent') {
+    where.agentId = input.agentId;
+  }
+  if (input.outletId) {
+    where.outletId = input.outletId;
+  }
+  if (input.status) {
+    where.status = input.status;
+  }
+
+  return prisma.visit.findMany({
+    where,
+    orderBy: { checkinTs: 'desc' },
   });
 }
