@@ -103,7 +103,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('S1 Outlet Information'), findsOneWidget);
-    expect(find.text('S10 Execution Scorecard'), findsOneWidget);
+    expect(find.text('S10 Scorecard'), findsOneWidget);
   });
 
   testWidgets('shows a blocking error when the check-in fails the geofence', (tester) async {
