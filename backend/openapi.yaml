@@ -14,6 +14,8 @@ info:
     400 if visitId is missing, 404 if the visit is not the caller's). All
     non-auth/non-health routes require a Bearer JWT; write routes are
     role-guarded (403 when the caller's role is not permitted).
+    Phase 3 (Activation) adds /territories, /campaigns, /beatplans, /alerts,
+    /templates, and /trends — see docs/architecture/phase3-activation.md.
 servers:
   - url: http://localhost:4000
 paths:
@@ -578,6 +580,169 @@ paths:
           description: Missing or invalid token
         '404':
           description: Visit not found for this client
+  # ── Phase 3 (Activation) ──────────────────────────────────────────────────
+  # Full detail in docs/architecture/phase3-activation.md. All tenant-scoped
+  # and role-guarded; responses summarised here.
+  /territories:
+    get:
+      summary: List the client's territories
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Territories }, '401': { description: Unauthorized } }
+    post:
+      summary: Create a territory — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden }, '409': { description: Duplicate code } }
+  /territories/{id}/agents:
+    post:
+      summary: Assign an agent to a territory — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '201': { description: Assigned }, '404': { description: Territory or user not found }, '409': { description: Already assigned } }
+  /territories/{id}/coverage:
+    get:
+      summary: Outlets + assigned agents for a territory
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Coverage }, '404': { description: Not found } }
+  /campaigns:
+    get:
+      summary: List campaigns (with outlet counts)
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Campaigns } }
+    post:
+      summary: Create a campaign + assign outlets — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden }, '404': { description: Outlet not found } }
+  /campaigns/{id}:
+    get:
+      summary: Campaign + its outlets
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Campaign }, '404': { description: Not found } }
+    patch:
+      summary: Update campaign status/fields — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '403': { description: Forbidden }, '404': { description: Not found } }
+  /campaigns/{id}/compliance:
+    get:
+      summary: Audit-derived compliance rollup — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Compliance rollup }, '404': { description: Not found } }
+  /beatplans:
+    get:
+      summary: List beat plans (agent sees own; manager sees client's)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: agentId, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [planned, in_progress, completed] } }
+      responses: { '200': { description: Beat plans }, '400': { description: Invalid status } }
+    post:
+      summary: Create a beat plan with sequenced stops — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden }, '404': { description: Agent/outlet/territory not found } }
+  /beatplans/{id}:
+    get:
+      summary: Beat plan + stops + adherence
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Beat plan }, '404': { description: Not found } }
+    patch:
+      summary: Update beat-plan status — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+  /beatplans/{id}/stops/{stopId}:
+    patch:
+      summary: Mark a stop visited — field_agent/manager
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: stopId, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+  /alerts/rules:
+    get:
+      summary: List alert rules
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Rules } }
+    post:
+      summary: Create an alert rule — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid metric }, '403': { description: Forbidden } }
+  /alerts/rules/{id}:
+    patch:
+      summary: Update an alert rule — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+  /alerts/evaluate:
+    post:
+      summary: Evaluate a visit against active rules → Alerts — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: 'Created alerts (may be empty)' }, '400': { description: Missing visitId }, '404': { description: Visit not found } }
+  /alerts:
+    get:
+      summary: List alerts (filter acknowledged/severity)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: acknowledged, in: query, schema: { type: string, enum: ['true', 'false'] } }
+        - { name: severity, in: query, schema: { type: string } }
+      responses: { '200': { description: Alerts } }
+  /alerts/{id}/ack:
+    patch:
+      summary: Acknowledge an alert — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Acknowledged }, '404': { description: Not found } }
+  /templates:
+    get:
+      summary: List audit templates (active; ?includeInactive=true for all)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: includeInactive, in: query, schema: { type: boolean } }]
+      responses: { '200': { description: Templates } }
+    post:
+      summary: Create an audit template — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden } }
+  /templates/{id}:
+    get:
+      summary: Fetch a template
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Template }, '404': { description: Not found } }
+    patch:
+      summary: Update a template (schema change bumps version) — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+  /trends/scorecards:
+    get:
+      summary: Scorecard weighted-total trend (day/week) — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
+      responses: { '200': { description: Time series }, '400': { description: Invalid params }, '403': { description: Forbidden } }
+  /trends/availability:
+    get:
+      summary: On-shelf-availability % trend — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
+      responses: { '200': { description: Time series }, '400': { description: Invalid params } }
+  /trends/perfect-store:
+    get:
+      summary: Perfect-store (green scorecard) rate trend — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
+      responses: { '200': { description: Time series }, '400': { description: Invalid params } }
 components:
   securitySchemes:
     bearerAuth:

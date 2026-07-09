@@ -53,20 +53,25 @@ attempts for fraud (#44); agent location/territory model for dispatch (#45);
 migrate photo storage to an object store (folded into #1/#2, ADR 0007).
 Infra deferred here: Kafka, PostGIS, Redis (ADR 0002).
 
-## Phase 3 — Activation (months 7-9) — 🟣 planned, issues filed
+## Phase 3 — Activation (months 7-9) — 🟢 Tier-1 backend implemented
 
 Turning captured audit data into field action and business outcomes. Grounded
 in a competitive scan (Repsly, GoSpotCheck/FORM, Salesforce Consumer Goods
-Cloud, Wiser, Movista, FieldAssist, Bizom, BeatRoute, StayinFront).
+Cloud, Wiser, Movista, FieldAssist, Bizom, BeatRoute, StayinFront). Backend
+detail: `docs/architecture/phase3-activation.md`.
 
-**Tier 1 (build first):**
-1. Trade Promotion & Campaign Management — planning → compliance → ROI (#29)
-2. Journey / Beat planning & visit scheduling (#30)
-3. Rules-based alerting & exception notifications (#31)
-4. Configurable audit/survey template builder (#32)
-5. Campaign-ROI / perfect-store / share-of-shelf trend analytics (#33)
+**Tier 1 — backend ✅ implemented (app UIs tracked as sub-tickets):**
+1. Trade Promotion & Campaign Management — CRUD + audit-derived compliance (#29) ✅ backend
+2. Journey / Beat planning & visit scheduling (#30) ✅ backend
+3. Rules-based alerting & exception evaluation (#31) ✅ backend
+4. Configurable audit/survey template builder (#32) ✅ backend
+5. Perfect-store / availability / scorecard trend analytics (#33) ✅ backend
+   (Territories (#35) shipped alongside as the Tier-1 enabler.)
 
-**Tier 2:**
+App UIs for the Tier-1 features and campaign-ROI dashboards are the next step
+(sub-tickets on #29-#33/#35). Event-driven alerting/streaming is Phase 4.
+
+**Tier 2 — planned:**
 6. Field-agent gamification & retailer incentives (#34)
 7. Territory management & coverage heatmaps (#35)
 8. In-store order-taking / sell-in capture (#36)
