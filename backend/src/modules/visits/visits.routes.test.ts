@@ -114,6 +114,72 @@ describe('visits routes', () => {
     expect(res.status).toBe(401);
   });
 
+  it('forbids a manager from checking in with 403', async () => {
+    const managerToken = issueToken({ userId: 'seed-manager', role: 'manager', clientId });
+    const res = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473 });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('stores the client-supplied check-in timestamp', async () => {
+    const checkinTs = '2026-07-01T08:30:00.000Z';
+    const res = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473, checkinTs });
+
+    expect(res.status).toBe(201);
+    expect(res.body.checkinTs).toBe(checkinTs);
+  });
+
+  it('submits a visit and marks it submitted (200)', async () => {
+    const createRes = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473 });
+    const visitId = createRes.body.id;
+
+    const res = await request(app)
+      .post(`/visits/${visitId}/submit`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('submitted');
+  });
+
+  it('returns 404 submitting a visit that belongs to another agent', async () => {
+    const createRes = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473 });
+    const visitId = createRes.body.id;
+
+    const otherAgentToken = issueToken({ userId: 'different-agent', role: 'field_agent', clientId });
+    const res = await request(app)
+      .post(`/visits/${visitId}/submit`)
+      .set('Authorization', `Bearer ${otherAgentToken}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('forbids a manager from submitting a visit with 403', async () => {
+    const createRes = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473 });
+    const visitId = createRes.body.id;
+
+    const managerToken = issueToken({ userId: 'seed-manager', role: 'manager', clientId });
+    const res = await request(app)
+      .post(`/visits/${visitId}/submit`)
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(403);
+  });
+
   it('GET / is not implemented yet', async () => {
     const res = await request(app).get('/visits').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(501);

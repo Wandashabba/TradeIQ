@@ -1,9 +1,10 @@
 import { Router } from 'express';
+import { loginRateLimiter } from '../../middleware/rateLimit';
 import { authenticateUser, issueToken } from './auth.service';
 
 export const authRouter = Router();
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', loginRateLimiter, async (req, res) => {
   const { email, password } = req.body as { email?: string; password?: string };
   if (!email || !password) {
     res.status(400).json({ error: 'email and password are required' });

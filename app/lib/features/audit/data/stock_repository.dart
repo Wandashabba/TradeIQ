@@ -6,23 +6,38 @@ import 'package:uuid/uuid.dart';
 import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_service.dart';
 
-/// Offline-first repository for per-SKU stock/availability observations
-/// captured during S2 of an audit visit.
-///
-/// Mirrors [DriftVisitsRepository]'s pattern from S1: write locally, enqueue
-/// a sync item, then best-effort flush — but simpler, since there's no
-/// geofence/location step here, so [recordStock] just returns `Future<void>`.
-abstract class StockRepository {
-  Future<void> recordStock({
-    required String visitId,
-    required String skuId,
-    required int unitsAvailable,
-    required DateTime lastStockinDate,
-    required int daysOutOfStock,
-    required double velocityAvg,
-    required double salesActual,
-    required double salesTarget,
+/// One captured stock line for a SKU during a visit.
+class StockEntry {
+  const StockEntry({
+    required this.skuId,
+    required this.unitsAvailable,
+    required this.lastStockinDate,
+    required this.daysOutOfStock,
+    required this.velocityAvg,
+    required this.salesActual,
+    required this.salesTarget,
   });
+  final String skuId;
+  final int unitsAvailable;
+  final DateTime lastStockinDate;
+  final int daysOutOfStock;
+  final double velocityAvg;
+  final double salesActual;
+  final double salesTarget;
+
+  Map<String, dynamic> toJson() => {
+        'skuId': skuId,
+        'unitsAvailable': unitsAvailable,
+        'lastStockinDate': lastStockinDate.toUtc().toIso8601String(),
+        'daysOutOfStock': daysOutOfStock,
+        'velocityAvg': velocityAvg,
+        'salesActual': salesActual,
+        'salesTarget': salesTarget,
+      };
+}
+
+abstract class StockRepository {
+  Future<void> saveStock({required String visitDraftId, required List<StockEntry> entries});
 }
 
 class DriftStockRepository implements StockRepository {
@@ -30,45 +45,31 @@ class DriftStockRepository implements StockRepository {
 
   final LocalDb db;
   final SyncService syncService;
-
   static const _uuid = Uuid();
 
   @override
-  Future<void> recordStock({
-    required String visitId,
-    required String skuId,
-    required int unitsAvailable,
-    required DateTime lastStockinDate,
-    required int daysOutOfStock,
-    required double velocityAvg,
-    required double salesActual,
-    required double salesTarget,
-  }) async {
-    final id = _uuid.v4();
+  Future<void> saveStock({required String visitDraftId, required List<StockEntry> entries}) async {
+    final batchId = _uuid.v4();
     await db.transaction(() async {
-      await db.into(db.stockDrafts).insert(StockDraftsCompanion.insert(
-            id: id,
-            visitId: visitId,
-            skuId: skuId,
-            unitsAvailable: unitsAvailable,
-            lastStockinDate: lastStockinDate,
-            daysOutOfStock: daysOutOfStock,
-            velocityAvg: velocityAvg,
-            salesActual: salesActual,
-            salesTarget: salesTarget,
-          ));
+      for (final entry in entries) {
+        await db.into(db.stockDrafts).insert(StockDraftsCompanion.insert(
+              id: _uuid.v4(),
+              visitDraftId: visitDraftId,
+              skuId: entry.skuId,
+              unitsAvailable: entry.unitsAvailable,
+              lastStockinDate: entry.lastStockinDate,
+              daysOutOfStock: entry.daysOutOfStock,
+              velocityAvg: entry.velocityAvg,
+              salesActual: entry.salesActual,
+              salesTarget: entry.salesTarget,
+            ));
+      }
       await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
             entityType: 'stock',
-            entityId: id,
+            entityId: batchId,
             payloadJson: jsonEncode({
-              'visitId': visitId,
-              'skuId': skuId,
-              'unitsAvailable': unitsAvailable,
-              'lastStockinDate': lastStockinDate.toIso8601String(),
-              'daysOutOfStock': daysOutOfStock,
-              'velocityAvg': velocityAvg,
-              'salesActual': salesActual,
-              'salesTarget': salesTarget,
+              'visitDraftId': visitDraftId,
+              'items': entries.map((e) => e.toJson()).toList(),
             }),
           ));
     });
@@ -76,8 +77,7 @@ class DriftStockRepository implements StockRepository {
     try {
       await syncService.flushPending();
     } catch (_) {
-      // Best-effort: the entry is already saved locally and queued; a
-      // failed flush just means it stays queued for the next attempt.
+      // Best-effort: rows are persisted and queued for the next flush.
     }
   }
 }

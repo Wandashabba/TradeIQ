@@ -9,9 +9,8 @@ class NoopFlusher implements QueueFlusher {
   int callCount = 0;
 
   @override
-  Future<Map<String, dynamic>?> flush(SyncQueueItem item) async {
+  Future<void> flush(SyncQueueItem item) async {
     callCount += 1;
-    return null;
   }
 }
 
@@ -19,29 +18,18 @@ class _FailFirstFlusher implements QueueFlusher {
   final List<String> attempted = [];
 
   @override
-  Future<Map<String, dynamic>?> flush(SyncQueueItem item) async {
+  Future<void> flush(SyncQueueItem item) async {
     attempted.add(item.entityId);
     if (item.entityId == 'visit-1') {
       throw Exception('network error');
     }
-    return null;
-  }
-}
-
-class _RecordingFlusher implements QueueFlusher {
-  final List<String> receivedPayloads = [];
-  Map<String, dynamic>? Function(SyncQueueItem item)? onFlush;
-
-  @override
-  Future<Map<String, dynamic>?> flush(SyncQueueItem item) async {
-    receivedPayloads.add(item.payloadJson);
-    return onFlush?.call(item);
   }
 }
 
 class _FakeAdapter implements HttpClientAdapter {
-  _FakeAdapter(this.statusCode);
+  _FakeAdapter(this.statusCode, [this.body = '{"id":"remote-visit-1"}']);
   final int statusCode;
+  final String body;
 
   @override
   void close({bool force = false}) {}
@@ -53,7 +41,7 @@ class _FakeAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     return ResponseBody.fromString(
-      '{}',
+      body,
       statusCode,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
@@ -62,39 +50,40 @@ class _FakeAdapter implements HttpClientAdapter {
   }
 }
 
-SyncQueueItem _visitQueueItem(String payloadJson) => SyncQueueItem(
-      id: 1,
-      entityType: 'visit',
-      entityId: 'visit-1',
+VisitDraftsCompanion _visitDraft(String id, {String? remoteId}) => VisitDraftsCompanion.insert(
+      id: id,
+      outletId: 'o1',
+      checkinTs: DateTime(2026, 1, 1),
+      checkinLat: 0,
+      checkinLng: 0,
+      geofencePass: true,
+      remoteId: Value(remoteId),
+    );
+
+SyncQueueItem _queueItem({
+  required String entityType,
+  required String entityId,
+  required String payloadJson,
+  int id = 1,
+}) =>
+    SyncQueueItem(
+      id: id,
+      entityType: entityType,
+      entityId: entityId,
       payloadJson: payloadJson,
       queuedAt: DateTime(2026, 1, 1),
       synced: false,
     );
-
-Future<void> _insertVisitDraft(LocalDb db, {required String id, String? remoteId}) async {
-  await db.into(db.visitDrafts).insert(VisitDraftsCompanion.insert(
-        id: id,
-        outletId: 'outlet-1',
-        checkinTs: DateTime(2026, 1, 1),
-        checkinLat: 0,
-        checkinLng: 0,
-        geofencePass: true,
-      ));
-  if (remoteId != null) {
-    await (db.update(db.visitDrafts)..where((t) => t.id.equals(id)))
-        .write(VisitDraftsCompanion(remoteId: Value(remoteId)));
-  }
-}
 
 void main() {
   test('flushPending marks queued items as synced', () async {
     final db = LocalDb(NativeDatabase.memory());
     addTearDown(db.close);
     await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-      entityType: 'visit',
-      entityId: 'visit-1',
-      payloadJson: '{}',
-    ));
+          entityType: 'visit',
+          entityId: 'visit-1',
+          payloadJson: '{}',
+        ));
 
     final flusher = NoopFlusher();
     final service = SyncService(db: db, flusher: flusher);
@@ -109,15 +98,15 @@ void main() {
     final db = LocalDb(NativeDatabase.memory());
     addTearDown(db.close);
     await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-      entityType: 'visit',
-      entityId: 'visit-1',
-      payloadJson: '{}',
-    ));
+          entityType: 'visit',
+          entityId: 'visit-1',
+          payloadJson: '{}',
+        ));
     await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-      entityType: 'visit',
-      entityId: 'visit-2',
-      payloadJson: '{}',
-    ));
+          entityType: 'visit',
+          entityId: 'visit-2',
+          payloadJson: '{}',
+        ));
 
     final flusher = _FailFirstFlusher();
     final service = SyncService(db: db, flusher: flusher);
@@ -130,93 +119,136 @@ void main() {
     expect(byEntityId['visit-2'], isTrue);
   });
 
-  test('writes the response id back to VisitDrafts.remoteId after a successful visit flush', () async {
-    final db = LocalDb(NativeDatabase.memory());
-    addTearDown(db.close);
-    await _insertVisitDraft(db, id: 'local-visit-1');
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-      entityType: 'visit',
-      entityId: 'local-visit-1',
-      payloadJson: '{"outletId":"outlet-1"}',
-    ));
-
-    final flusher = _RecordingFlusher()..onFlush = (_) => {'id': 'remote-visit-1'};
-    final service = SyncService(db: db, flusher: flusher);
-    await service.flushPending();
-
-    final draft = await (db.select(db.visitDrafts)..where((t) => t.id.equals('local-visit-1'))).getSingle();
-    expect(draft.remoteId, 'remote-visit-1');
-  });
-
-  test('skips a child item whose parent visit has not synced yet', () async {
-    final db = LocalDb(NativeDatabase.memory());
-    addTearDown(db.close);
-    await _insertVisitDraft(db, id: 'local-visit-1');
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-      entityType: 'stock',
-      entityId: 'stock-1',
-      payloadJson: '{"visitId":"local-visit-1","skuId":"sku-1"}',
-    ));
-
-    final flusher = _RecordingFlusher();
-    final service = SyncService(db: db, flusher: flusher);
-    await service.flushPending();
-
-    expect(flusher.receivedPayloads, isEmpty);
-    final rows = await db.select(db.syncQueueItems).get();
-    expect(rows.first.synced, isFalse);
-  });
-
-  test("resolves a child item to the parent visit's remote id once it is known", () async {
-    final db = LocalDb(NativeDatabase.memory());
-    addTearDown(db.close);
-    await _insertVisitDraft(db, id: 'local-visit-1', remoteId: 'remote-visit-1');
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-      entityType: 'stock',
-      entityId: 'stock-1',
-      payloadJson: '{"visitId":"local-visit-1","skuId":"sku-1"}',
-    ));
-
-    final flusher = _RecordingFlusher();
-    final service = SyncService(db: db, flusher: flusher);
-    await service.flushPending();
-
-    expect(flusher.receivedPayloads, ['{"visitId":"remote-visit-1","skuId":"sku-1"}']);
-    final rows = await db.select(db.syncQueueItems).get();
-    expect(rows.first.synced, isTrue);
-  });
-
   group('HttpQueueFlusher', () {
-    test('posts the visit payload to /visits and returns the decoded response', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _FakeAdapter(201);
-      final flusher = HttpQueueFlusher(dio: dio);
+    test('posts /visits and records the server id on the visit draft', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('visit-1'));
 
-      final response = await flusher.flush(_visitQueueItem('{"outletId":"o1","lat":1.0,"lng":2.0}'));
-      expect(response, isA<Map<String, dynamic>>());
-    });
-
-    test('posts the stock payload to /stock and succeeds on 2xx', () async {
       final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))..httpClientAdapter = _FakeAdapter(201);
-      final flusher = HttpQueueFlusher(dio: dio);
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_visitQueueItem('{"visitId":"v1","skuId":"s1"}').copyWith(entityType: 'stock'));
+      await flusher.flush(_queueItem(
+        entityType: 'visit',
+        entityId: 'visit-1',
+        payloadJson: '{"outletId":"o1","lat":1.0,"lng":2.0}',
+      ));
+
+      final draft = await (db.select(db.visitDrafts)..where((t) => t.id.equals('visit-1'))).getSingle();
+      expect(draft.remoteId, 'remote-visit-1');
     });
 
     test('throws when the backend rejects the check-in with 422', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
       final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))..httpClientAdapter = _FakeAdapter(422);
-      final flusher = HttpQueueFlusher(dio: dio);
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
 
       await expectLater(
-        flusher.flush(_visitQueueItem('{"outletId":"o1","lat":1.0,"lng":2.0}')),
+        flusher.flush(_queueItem(
+          entityType: 'visit',
+          entityId: 'visit-1',
+          payloadJson: '{"outletId":"o1","lat":1.0,"lng":2.0}',
+        )),
         throwsA(isA<DioException>()),
       );
     });
 
-    test('throws UnimplementedError for an unhandled entity type', () async {
-      final flusher = HttpQueueFlusher(dio: Dio());
+    test('stock flush resolves the remote visit id and posts to /stock', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final captured = <dynamic>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(201, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          captured.add(options.data);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'stock',
+        entityId: 'batch-1',
+        payloadJson: '{"visitDraftId":"v1","items":[{"skuId":"s1"}]}',
+      ));
+
+      expect(captured, hasLength(1));
+      expect((captured.first as Map)['visitId'], 'remote-v1');
+    });
+
+    test('stock flush throws when the visit has not synced yet', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1')); // remoteId null
+
+      final flusher = HttpQueueFlusher(db: db, dio: Dio());
       await expectLater(
-        flusher.flush(_visitQueueItem('{}').copyWith(entityType: 'receipt')),
+        flusher.flush(_queueItem(
+          entityType: 'stock',
+          entityId: 'batch-1',
+          payloadJson: '{"visitDraftId":"v1","items":[]}',
+        )),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('visit_submit flush resolves the remote id and posts to /visits/:id/submit', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final paths = <String>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(200, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          paths.add(options.path);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'visit_submit',
+        entityId: 'submit-1',
+        payloadJson: '{"visitDraftId":"v1"}',
+      ));
+
+      expect(paths.single, '/visits/remote-v1/submit');
+    });
+
+    test('visibility flush resolves the remote id and posts to /visibility', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final captured = <dynamic>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(201, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          captured.add(options.data);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'visibility',
+        entityId: 'vis-1',
+        payloadJson: '{"visitDraftId":"v1","planogramCompliancePct":80,"highTrafficPass":true}',
+      ));
+
+      final body = captured.single as Map;
+      expect(body['visitId'], 'remote-v1');
+      expect(body['planogramCompliancePct'], 80);
+      expect(body.containsKey('visitDraftId'), isFalse);
+    });
+
+    test('throws UnimplementedError for an unhandled entity type', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      final flusher = HttpQueueFlusher(db: db, dio: Dio());
+      await expectLater(
+        flusher.flush(_queueItem(entityType: 'pricing', entityId: 'p1', payloadJson: '{}')),
         throwsA(isA<UnimplementedError>()),
       );
     });

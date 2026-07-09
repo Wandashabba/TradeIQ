@@ -12,4 +12,9 @@ describe('GET /health', () => {
     const res = await request(app).get('/health').set('Origin', 'http://localhost:8766');
     expect(res.headers['access-control-allow-origin']).toBeDefined();
   });
+
+  it('sets baseline security headers via helmet', async () => {
+    const res = await request(app).get('/health');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
 });

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
@@ -15,12 +17,12 @@ class _FakeLocationService extends LocationService {
 
 class _NoopFlusher implements QueueFlusher {
   @override
-  Future<Map<String, dynamic>?> flush(SyncQueueItem item) async => null;
+  Future<void> flush(SyncQueueItem item) async {}
 }
 
 class _ThrowingFlusher implements QueueFlusher {
   @override
-  Future<Map<String, dynamic>?> flush(SyncQueueItem item) async {
+  Future<void> flush(SyncQueueItem item) async {
     throw Exception('network error');
   }
 }
@@ -53,6 +55,10 @@ void main() {
     final queued = await db.select(db.syncQueueItems).get();
     expect(queued, hasLength(1));
     expect(queued.first.entityType, 'visit');
+
+    final payload = jsonDecode(queued.first.payloadJson) as Map<String, dynamic>;
+    expect(payload['checkinTs'], isNotNull);
+    expect(payload['geofencePass'], isTrue);
   });
 
   test('a check-in outside the geofence writes nothing and returns the distance', () async {
@@ -109,5 +115,23 @@ void main() {
     expect(result, isA<CheckInSucceeded>());
     final queued = await db.select(db.syncQueueItems).get();
     expect(queued.first.synced, isFalse);
+  });
+
+  test('submitVisit marks the draft submitted and enqueues a visit_submit item', () async {
+    final repository = DriftVisitsRepository(
+      db: db,
+      locationService: _FakeLocationService(LocationGranted(-26.20400, 28.0473)),
+      syncService: SyncService(db: db, flusher: _NoopFlusher()),
+    );
+    final result = await repository.checkIn(outletId: 'outlet-1', outletLat: -26.2041, outletLng: 28.0473);
+    final visitId = (result as CheckInSucceeded).visitId;
+
+    await repository.submitVisit(visitId);
+
+    final drafts = await db.select(db.visitDrafts).get();
+    expect(drafts.firstWhere((d) => d.id == visitId).status, 'submitted');
+
+    final items = await db.select(db.syncQueueItems).get();
+    expect(items.where((i) => i.entityType == 'visit_submit'), hasLength(1));
   });
 }

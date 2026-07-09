@@ -1,12 +1,13 @@
 import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
+import { requireRole } from '../../middleware/roleGuard';
 import { createOutlet, listOutletsForClient } from './outlets.service';
 
 export const outletsRouter = Router();
 
-// No requireRole restriction yet — outlet read/write role rules aren't
-// specified in the design spec; add requireRole(...) here once they are.
+// All authenticated roles can read outlets (field agents pick one to visit),
+// but provisioning an outlet is a management action.
 outletsRouter.use(requireAuth);
 
 outletsRouter.get('/', async (req: AuthedRequest, res) => {
@@ -14,7 +15,7 @@ outletsRouter.get('/', async (req: AuthedRequest, res) => {
   res.status(200).json(outlets);
 });
 
-outletsRouter.post('/', async (req: AuthedRequest, res) => {
+outletsRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
   const { name, code, channelType, lat, lng, territoryId, teamProfile } = req.body as {
     name?: string;
     code?: string;

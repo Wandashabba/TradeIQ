@@ -5,7 +5,7 @@ import { issueToken } from './auth/auth.service';
 const token = issueToken({ userId: 'user-1', role: 'manager', clientId: 'client-1' });
 
 const skeletonRoutes = [
-  '/visibility', '/pricing', '/competitive',
+  '/pricing', '/competitive',
   '/capability', '/risks', '/tasks', '/scorecards', '/dashboard',
 ];
 

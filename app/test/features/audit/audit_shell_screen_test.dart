@@ -1,44 +1,39 @@
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
-import 'package:tradeiq_app/core/storage/local_db.dart';
-import 'package:tradeiq_app/features/audit/data/stock_repository.dart';
+import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
-import 'package:tradeiq_app/features/skus/data/skus_repository.dart';
 
 class _FakeOutletsRepository implements OutletsRepository {
   @override
   Future<List<Outlet>> listOutlets() async => const [
         Outlet(id: 'o1', name: 'Test Outlet', code: 'TO-001', lat: -26.2041, lng: 28.0473),
       ];
+
+  @override
+  Future<Outlet> createOutlet({
+    required String name,
+    required String code,
+    required String channelType,
+    required double lat,
+    required double lng,
+    required String territoryId,
+  }) =>
+      throw UnimplementedError();
 }
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus() async => const [
-        Sku(id: 'sku-1', name: 'Demo Brand 500ml', category: 'Beverages'),
-      ];
-}
-
-class _NoopStockRepository implements StockRepository {
-  @override
-  Future<void> recordStock({
-    required String visitId,
-    required String skuId,
-    required int unitsAvailable,
-    required DateTime lastStockinDate,
-    required int daysOutOfStock,
-    required double velocityAvg,
-    required double salesActual,
-    required double salesTarget,
-  }) async {}
+  Future<List<Sku>> listSkus() async => const [];
 }
 
 class _SucceedingVisitsRepository implements VisitsRepository {
+  String? submittedId;
+
   @override
   Future<CheckInResult> checkIn({
     required String outletId,
@@ -46,6 +41,9 @@ class _SucceedingVisitsRepository implements VisitsRepository {
     required double outletLng,
   }) async =>
       CheckInSucceeded('visit-1');
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async => submittedId = visitDraftId;
 }
 
 class _GeofenceFailingVisitsRepository implements VisitsRepository {
@@ -56,6 +54,9 @@ class _GeofenceFailingVisitsRepository implements VisitsRepository {
     required double outletLng,
   }) async =>
       CheckInGeofenceFailed(650);
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
 }
 
 class _LocationUnavailableVisitsRepository implements VisitsRepository {
@@ -66,16 +67,17 @@ class _LocationUnavailableVisitsRepository implements VisitsRepository {
     required double outletLng,
   }) async =>
       CheckInLocationUnavailable('Location permission denied');
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
 }
 
-Widget _appWith(VisitsRepository visitsRepository, {LocalDb? db}) {
+Widget _appWith(VisitsRepository visitsRepository) {
   return ProviderScope(
     overrides: [
       outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
       visitsRepositoryProvider.overrideWithValue(visitsRepository),
-      localDbProvider.overrideWithValue(db ?? LocalDb(NativeDatabase.memory())),
       skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-      stockRepositoryProvider.overrideWithValue(_NoopStockRepository()),
     ],
     child: const MaterialApp(home: AuditShellScreen(outletId: 'o1')),
   );
@@ -88,51 +90,6 @@ void main() {
 
     expect(find.text('S1 Outlet Information'), findsOneWidget);
     expect(find.text('S10 Execution Scorecard'), findsOneWidget);
-  });
-
-  testWidgets('passes the real visitId from a successful check-in to S2StockScreen', (tester) async {
-    // _SucceedingVisitsRepository always returns CheckInSucceeded('visit-1'),
-    // so pre-seeding a stock draft under that exact visitId lets us prove
-    // S2StockScreen was built with 'visit-1' specifically (not '' or any
-    // other placeholder): S2's recorded-SKU query is keyed on the visitId it
-    // was constructed with, so the SKU only renders as "recorded" (checkmark)
-    // if that query matched 'visit-1' exactly.
-    final db = LocalDb(NativeDatabase.memory());
-    addTearDown(db.close);
-    await db.into(db.stockDrafts).insert(StockDraftsCompanion.insert(
-          id: 'draft-1',
-          visitId: 'visit-1',
-          skuId: 'sku-1',
-          unitsAvailable: 40,
-          lastStockinDate: DateTime(2026, 6, 30),
-          daysOutOfStock: 0,
-          velocityAvg: 10,
-          salesActual: 350,
-          salesTarget: 400,
-        ));
-
-    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), db: db));
-    await tester.pumpAndSettle();
-
-    // S2 (step index 1) isn't the current step yet, so the vertical
-    // Stepper's AnimatedCrossFade wraps it in a disabled TickerMode —
-    // flutter_riverpod deliberately pauses provider-driven rebuilds for
-    // paused/invisible consumers, so S2's skusListProvider watch won't
-    // apply its loaded data until the step becomes current. Advance to
-    // it, exactly like a real user would via "Continue".
-    await tester.tap(find.text('Continue').first);
-    await tester.pumpAndSettle();
-
-    // S2's SKU list rendering (rather than a stuck spinner) proves
-    // S2StockScreen built with a real, non-null visitId — its local Drift
-    // query is keyed on visitId and its FutureBuilder-driven load would
-    // never resolve into the list view otherwise.
-    expect(find.text('Demo Brand 500ml'), findsOneWidget);
-
-    // The checkmark only appears if S2's StockDrafts query, keyed on the
-    // visitId it received, matched our seeded 'visit-1' row — a stray ''
-    // fallback would find no rows and leave the SKU unrecorded.
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
   });
 
   testWidgets('shows a blocking error when the check-in fails the geofence', (tester) async {
@@ -161,6 +118,37 @@ void main() {
     final context = tester.element(find.byType(AuditShellScreen));
     final container = ProviderScope.containerOf(context);
     expect(container.read(sessionControllerProvider).value?.role, isNull);
+  });
+
+  testWidgets('submitting the visit records the submit and returns to the picker', (tester) async {
+    final repo = _SucceedingVisitsRepository();
+    final router = GoRouter(
+      initialLocation: '/audit/o1',
+      routes: [
+        GoRoute(path: '/audit', builder: (context, state) => const Text('Outlet Picker')),
+        GoRoute(
+          path: '/audit/:outletId',
+          builder: (context, state) => const AuditShellScreen(outletId: 'o1'),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+        visitsRepositoryProvider.overrideWithValue(repo),
+        skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Submit visit'));
+    await tester.tap(find.text('Submit visit'));
+    await tester.pumpAndSettle();
+
+    expect(repo.submittedId, 'visit-1');
+    expect(find.text('Outlet Picker'), findsOneWidget);
   });
 
   testWidgets('the check-in confirmation timestamp stays fixed across step navigation', (tester) async {

@@ -3,11 +3,12 @@ info:
   title: TradeIQ API
   version: 0.1.0
   description: >
-    Phase 1 scaffold. /auth and /outlets are fully implemented. All other
-    module routes (/visits, /stock, /visibility, /pricing, /competitive,
-    /capability, /risks, /tasks, /scorecards, /dashboard) currently return
-    501 Not Implemented and will be filled in by follow-up plans — see
-    docs/architecture/stubs-and-interfaces.md.
+    Phase 1. Implemented: /auth, /outlets, /skus, /visits (check-in + submit),
+    /stock (S2), /visibility (S3-S4). Still 501 Not Implemented and filled in
+    by follow-up plans: /pricing, /competitive, /capability, /risks, /tasks,
+    /scorecards, /dashboard — see docs/architecture/stubs-and-interfaces.md.
+    All non-auth/non-health routes require a Bearer JWT; write routes are
+    role-guarded (403 when the caller's role is not permitted).
 servers:
   - url: http://localhost:4000
 paths:
@@ -84,8 +85,141 @@ paths:
           description: Missing required fields (name, code, channelType, lat, lng, territoryId)
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller's role may not create outlets (manager/admin only)
         '409':
           description: An outlet with this code already exists
+  /skus:
+    get:
+      summary: List SKUs for the authenticated user's client
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List of SKUs
+          content:
+            application/json:
+              schema:
+                type: array
+        '401':
+          description: Missing or invalid token
+  /visits:
+    post:
+      summary: Geofenced outlet check-in (creates a Visit) — field_agent only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outletId, lat, lng]
+              properties:
+                outletId: { type: string }
+                lat: { type: number }
+                lng: { type: number }
+                checkinTs:
+                  type: string
+                  format: date-time
+                  description: Client-captured check-in time (offline-first); server clock if omitted.
+      responses:
+        '201':
+          description: Visit created (status in_progress)
+        '400':
+          description: Missing outletId, lat, or lng
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Outlet not found for this client
+        '422':
+          description: Check-in location is outside the outlet geofence
+  /visits/{id}/submit:
+    post:
+      summary: Mark a visit submitted — field_agent, owner only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Visit updated (status submitted)
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit not found for this client/agent
+  /stock:
+    post:
+      summary: Record per-SKU stock for a visit (S2) — field_agent only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId, items]
+              properties:
+                visitId: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      [skuId, unitsAvailable, lastStockinDate, daysOutOfStock, velocityAvg, salesActual, salesTarget]
+                    properties:
+                      skuId: { type: string }
+                      unitsAvailable: { type: integer }
+                      lastStockinDate: { type: string, format: date-time }
+                      daysOutOfStock: { type: integer }
+                      velocityAvg: { type: number }
+                      salesActual: { type: number }
+                      salesTarget: { type: number }
+      responses:
+        '201':
+          description: Stock rows created (coverageDaysPredicted computed server-side)
+        '400':
+          description: Missing visitId or a non-empty valid items[]
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit or a referenced SKU not found for this client
+  /visibility:
+    post:
+      summary: Record visibility/display for a visit (S3-S4) — field_agent only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                [visitId, brandingElements, planogramCompliancePct, facingsCount, highTrafficPass, cleanlinessScore]
+              properties:
+                visitId: { type: string }
+                brandingElements: { type: object }
+                planogramCompliancePct: { type: number }
+                facingsCount: { type: object }
+                highTrafficPass: { type: boolean }
+                cleanlinessScore: { type: integer }
+      responses:
+        '201':
+          description: Visibility upserted (one row per visit)
+        '400':
+          description: Missing or invalid required fields
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit not found for this client
 components:
   securitySchemes:
     bearerAuth:

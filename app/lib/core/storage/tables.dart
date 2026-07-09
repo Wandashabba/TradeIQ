@@ -15,18 +15,22 @@ class VisitDrafts extends Table {
   RealColumn get checkinLat => real()();
   RealColumn get checkinLng => real()();
   BoolColumn get geofencePass => boolean()();
+
+  /// The server-assigned `Visit.id`, populated once the check-in syncs
+  /// (POST /visits). Null while the visit is still queued offline. Child
+  /// records (e.g. stock) resolve this to reference the real server visit.
   TextColumn get remoteId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-/// Local mirror of a per-SKU stock/availability observation recorded during
-/// S2 of an audit visit. Synced to the backend via the [SyncQueueItems]
-/// outbox, same pattern as [VisitDrafts] for S1.
+/// Local mirror of captured S2 stock rows awaiting sync. References the local
+/// [VisitDrafts] row (`visitDraftId`), not the server visit id; the sync
+/// flusher resolves the server id via [VisitDrafts.remoteId] at flush time.
 class StockDrafts extends Table {
   TextColumn get id => text()();
-  TextColumn get visitId => text()();
+  TextColumn get visitDraftId => text()();
   TextColumn get skuId => text()();
   IntColumn get unitsAvailable => integer()();
   DateTimeColumn get lastStockinDate => dateTime()();

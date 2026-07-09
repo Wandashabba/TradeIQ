@@ -9,13 +9,13 @@ describe('skus routes', () => {
 
   beforeAll(async () => {
     const client = await prisma.client.create({
-      data: { name: 'Test Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+      data: { name: 'Sku Test Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     clientId = client.id;
-    token = issueToken({ userId: 'seed-user', role: 'manager', clientId });
+    token = issueToken({ userId: 'sku-agent', role: 'field_agent', clientId });
 
     await prisma.sku.create({
-      data: { clientId, name: 'Test SKU', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99 },
+      data: { clientId, name: 'Test Cola 500ml', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99 },
     });
   });
 
@@ -27,10 +27,9 @@ describe('skus routes', () => {
 
   it("lists SKUs for the caller's client", async () => {
     const res = await request(app).get('/skus').set('Authorization', `Bearer ${token}`);
-
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
-    expect(res.body[0].name).toBe('Test SKU');
+    expect(res.body[0].name).toBe('Test Cola 500ml');
   });
 
   it('rejects requests without a bearer token', async () => {
@@ -39,20 +38,16 @@ describe('skus routes', () => {
   });
 
   it('does not leak SKUs across clients', async () => {
-    const otherClient = await prisma.client.create({
-      data: { name: 'Other Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+    const clientB = await prisma.client.create({
+      data: { name: 'Sku Client B', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
-    await prisma.sku.create({
-      data: { clientId: otherClient.id, name: 'Other Client SKU', category: 'Snacks', minFacingsStandard: 2, rrp: 9.99 },
-    });
-
+    const tokenB = issueToken({ userId: 'sku-agent-b', role: 'field_agent', clientId: clientB.id });
     try {
-      const res = await request(app).get('/skus').set('Authorization', `Bearer ${token}`);
+      const res = await request(app).get('/skus').set('Authorization', `Bearer ${tokenB}`);
       expect(res.status).toBe(200);
-      expect(res.body.some((sku: { name: string }) => sku.name === 'Other Client SKU')).toBe(false);
+      expect(res.body).toHaveLength(0);
     } finally {
-      await prisma.sku.deleteMany({ where: { clientId: otherClient.id } });
-      await prisma.client.delete({ where: { id: otherClient.id } });
+      await prisma.client.delete({ where: { id: clientB.id } });
     }
   });
 });

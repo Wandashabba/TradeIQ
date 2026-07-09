@@ -8,29 +8,70 @@ import '../network/api_client.dart' as api_client;
 import '../storage/local_db.dart';
 
 abstract class QueueFlusher {
-  Future<Map<String, dynamic>?> flush(SyncQueueItem item);
+  Future<void> flush(SyncQueueItem item);
 }
 
-/// Posts queued entities to their matching backend endpoint. Only 'visit'
-/// and 'stock' are wired so far — other entity types get their own case as
-/// their S3-S10 modules land. Returns the decoded response body so callers
-/// (see [SyncService.flushPending]) can capture a backend-assigned ID;
-/// entity types with no downstream consumer for their response just return
-/// null.
+/// Posts queued entities to their matching backend endpoint.
+///
+/// - `visit` → POST /visits, then records the server-assigned id on the
+///   matching [VisitDrafts] row so children can reference the real visit.
+/// - `stock` → resolves its local visit-draft id to the server visit id
+///   ([VisitDrafts.remoteId]) and POSTs /stock. If the visit hasn't synced
+///   yet the item is left queued (throws) and retried on the next flush.
 class HttpQueueFlusher implements QueueFlusher {
-  HttpQueueFlusher({Dio? dio}) : _dio = dio ?? api_client.dio;
+  HttpQueueFlusher({required this.db, Dio? dio}) : _dio = dio ?? api_client.dio;
 
+  final LocalDb db;
   final Dio _dio;
 
   @override
-  Future<Map<String, dynamic>?> flush(SyncQueueItem item) async {
+  Future<void> flush(SyncQueueItem item) async {
     switch (item.entityType) {
       case 'visit':
-        final response = await _dio.post('/visits', data: jsonDecode(item.payloadJson));
-        return response.data as Map<String, dynamic>?;
+        final res = await _dio.post('/visits', data: jsonDecode(item.payloadJson));
+        final remoteId = (res.data as Map<String, dynamic>)['id'] as String;
+        await (db.update(db.visitDrafts)..where((t) => t.id.equals(item.entityId)))
+            .write(VisitDraftsCompanion(remoteId: Value(remoteId)));
+        return;
       case 'stock':
-        await _dio.post('/stock', data: jsonDecode(item.payloadJson));
-        return null;
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final localVisitId = payload['visitDraftId'] as String;
+        final draft = await (db.select(db.visitDrafts)
+              ..where((t) => t.id.equals(localVisitId)))
+            .getSingleOrNull();
+        final remoteId = draft?.remoteId;
+        if (remoteId == null) {
+          // Visit not synced yet; leave queued and retry once its flush
+          // populates remoteId (visit items sort earlier by id).
+          throw StateError('Visit $localVisitId not synced yet');
+        }
+        await _dio.post('/stock', data: {'visitId': remoteId, 'items': payload['items']});
+        return;
+      case 'visit_submit':
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final localVisitId = payload['visitDraftId'] as String;
+        final draft = await (db.select(db.visitDrafts)
+              ..where((t) => t.id.equals(localVisitId)))
+            .getSingleOrNull();
+        final remoteId = draft?.remoteId;
+        if (remoteId == null) {
+          throw StateError('Visit $localVisitId not synced yet');
+        }
+        await _dio.post('/visits/$remoteId/submit');
+        return;
+      case 'visibility':
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final localVisitId = payload['visitDraftId'] as String;
+        final draft = await (db.select(db.visitDrafts)
+              ..where((t) => t.id.equals(localVisitId)))
+            .getSingleOrNull();
+        final remoteId = draft?.remoteId;
+        if (remoteId == null) {
+          throw StateError('Visit $localVisitId not synced yet');
+        }
+        final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
+        await _dio.post('/visibility', data: {'visitId': remoteId, ...fields});
+        return;
       default:
         throw UnimplementedError('HTTP sync for ${item.entityType} not wired yet');
     }
@@ -50,45 +91,21 @@ class SyncService {
         .get();
 
     for (final item in pending) {
-      var payloadJson = item.payloadJson;
-
-      if (item.entityType != 'visit') {
-        final payload = jsonDecode(payloadJson) as Map<String, dynamic>;
-        final localVisitId = payload['visitId'] as String?;
-        if (localVisitId != null) {
-          final parent = await (db.select(db.visitDrafts)
-                ..where((tbl) => tbl.id.equals(localVisitId)))
-              .getSingleOrNull();
-          if (parent?.remoteId == null) {
-            // Parent visit hasn't synced yet — retry on the next flushPending() call.
-            continue;
-          }
-          payload['visitId'] = parent!.remoteId;
-          payloadJson = jsonEncode(payload);
-        }
-      }
-
-      Map<String, dynamic>? response;
       try {
-        response = await flusher.flush(item.copyWith(payloadJson: payloadJson));
+        await flusher.flush(item);
       } catch (_) {
-        // One item's failure (network error, terminal rejection, or an
-        // unimplemented entity type) must not block the rest of the queue
-        // from being attempted — it just stays unsynced for next time.
+        // One item's failure (network error, terminal rejection, an
+        // unimplemented entity type, or a dependency not yet synced) must not
+        // block the rest of the queue — it just stays unsynced for next time.
         continue;
       }
-
-      if (item.entityType == 'visit' && response?['id'] is String) {
-        await (db.update(db.visitDrafts)..where((tbl) => tbl.id.equals(item.entityId)))
-            .write(VisitDraftsCompanion(remoteId: Value(response!['id'] as String)));
-      }
-
       await (db.update(db.syncQueueItems)..where((tbl) => tbl.id.equals(item.id)))
           .write(const SyncQueueItemsCompanion(synced: Value(true)));
     }
   }
 }
 
-final syncServiceProvider = Provider<SyncService>(
-  (ref) => SyncService(db: ref.read(localDbProvider), flusher: HttpQueueFlusher()),
-);
+final syncServiceProvider = Provider<SyncService>((ref) {
+  final db = ref.read(localDbProvider);
+  return SyncService(db: db, flusher: HttpQueueFlusher(db: db));
+});

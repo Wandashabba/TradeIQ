@@ -20,6 +20,17 @@ class _FakeOutletsRepository implements OutletsRepository {
   Future<List<Outlet>> listOutlets() async => const [
         Outlet(id: 'o1', name: 'Test Outlet', code: 'TO-001', lat: -26.2041, lng: 28.0473),
       ];
+
+  @override
+  Future<Outlet> createOutlet({
+    required String name,
+    required String code,
+    required String channelType,
+    required double lat,
+    required double lng,
+    required String territoryId,
+  }) =>
+      throw UnimplementedError();
 }
 
 class _FakeSucceedingVisitsRepository implements VisitsRepository {
@@ -30,6 +41,9 @@ class _FakeSucceedingVisitsRepository implements VisitsRepository {
     required double outletLng,
   }) async =>
       CheckInSucceeded('visit-1');
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
 }
 
 Widget _appWithOverrides(List<Override> overrides) {

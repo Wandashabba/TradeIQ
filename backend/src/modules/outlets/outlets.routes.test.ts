@@ -74,6 +74,26 @@ describe('outlets routes', () => {
     expect(res.status).toBe(401);
   });
 
+  it('forbids a field agent from creating an outlet with 403', async () => {
+    const agentToken = issueToken({ userId: 'seed-agent', role: 'field_agent', clientId });
+    const res = await request(app)
+      .post('/outlets')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({
+        name: 'Agent Outlet',
+        code: 'AGT-403',
+        channelType: 'hypermarket',
+        lat: -26.2041,
+        lng: 28.0473,
+        territoryId: 'territory-1',
+      });
+
+    expect(res.status).toBe(403);
+
+    const outlets = await prisma.outlet.findMany({ where: { code: 'AGT-403' } });
+    expect(outlets).toHaveLength(0);
+  });
+
   it('rejects outlet creation with a missing required field', async () => {
     const res = await request(app)
       .post('/outlets')

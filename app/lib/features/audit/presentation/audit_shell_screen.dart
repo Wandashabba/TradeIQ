@@ -29,6 +29,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   bool _checkInStarted = false;
   CheckInResult? _checkInResult;
   DateTime? _checkinTs;
+  String? _visitDraftId;
 
   Future<void> _startCheckIn(double outletLat, double outletLng) async {
     final result = await ref.read(visitsRepositoryProvider).checkIn(
@@ -39,7 +40,10 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     if (!mounted) return;
     setState(() {
       _checkInResult = result;
-      if (result is CheckInSucceeded) _checkinTs = DateTime.now();
+      if (result is CheckInSucceeded) {
+        _checkinTs = DateTime.now();
+        _visitDraftId = result.visitId;
+      }
     });
   }
 
@@ -50,22 +54,17 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     return null;
   }
 
-  // Only ever called from _buildStepper(), which only renders once
-  // _checkInResult is CheckInSucceeded, so this cast is always safe.
-  List<Widget> _sections() {
-    final visitId = (_checkInResult as CheckInSucceeded).visitId;
-    return [
-      S1OutletInfoScreen(checkinTs: _checkinTs),
-      S2StockScreen(visitId: visitId),
-      const S3S4VisibilityDisplayScreen(),
-      const S5PricingPromotionsScreen(),
-      const S6CompetitiveScreen(),
-      const S7CapabilityScreen(),
-      const S8RisksScreen(),
-      const S9ActionPlanScreen(),
-      const S10ScorecardScreen(),
-    ];
-  }
+  List<Widget> _sections() => [
+        S1OutletInfoScreen(checkinTs: _checkinTs),
+        S2StockScreen(visitDraftId: _visitDraftId!),
+        S3S4VisibilityDisplayScreen(visitDraftId: _visitDraftId!),
+        const S5PricingPromotionsScreen(),
+        const S6CompetitiveScreen(),
+        const S7CapabilityScreen(),
+        const S8RisksScreen(),
+        const S9ActionPlanScreen(),
+        const S10ScorecardScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -111,17 +110,42 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     );
   }
 
+  Future<void> _submitVisit() async {
+    final id = _visitDraftId;
+    if (id == null) return;
+    await ref.read(visitsRepositoryProvider).submitVisit(id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Visit submitted')),
+    );
+    context.go('/audit');
+  }
+
   Widget _buildStepper() {
     final sections = _sections();
     return SingleChildScrollView(
-      child: Stepper(
-        physics: const NeverScrollableScrollPhysics(),
-        currentStep: _step,
-        onStepContinue: () {
-          if (_step < sections.length - 1) setState(() => _step += 1);
-        },
-        onStepTapped: (index) => setState(() => _step = index),
-        steps: sections.map((screen) => Step(title: const SizedBox.shrink(), content: screen)).toList(),
+      child: Column(
+        children: [
+          Stepper(
+            physics: const NeverScrollableScrollPhysics(),
+            currentStep: _step,
+            onStepContinue: () {
+              if (_step < sections.length - 1) setState(() => _step += 1);
+            },
+            onStepTapped: (index) => setState(() => _step = index),
+            steps: sections.map((screen) => Step(title: const SizedBox.shrink(), content: screen)).toList(),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitVisit,
+                child: const Text('Submit visit'),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

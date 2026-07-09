@@ -1,237 +1,134 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/storage/local_db.dart';
+import '../../data/skus_repository.dart';
 import '../../data/stock_repository.dart';
-import '../../../skus/data/skus_repository.dart';
 
-class S2StockScreen extends ConsumerStatefulWidget {
-  const S2StockScreen({super.key, required this.visitId});
+/// S2 — Stock & Availability capture. One row per client SKU; on save the
+/// entries are persisted locally and queued for sync (POST /stock).
+class S2StockScreen extends ConsumerWidget {
+  const S2StockScreen({super.key, required this.visitDraftId});
 
-  final String visitId;
+  final String visitDraftId;
 
   @override
-  ConsumerState<S2StockScreen> createState() => _S2StockScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final skus = ref.watch(skusListProvider);
+    return skus.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(child: Text('Failed to load SKUs: $err')),
+      data: (list) => _StockForm(visitDraftId: visitDraftId, skus: list),
+    );
+  }
 }
 
-class _S2StockScreenState extends ConsumerState<S2StockScreen> {
-  Set<String> _recordedSkuIds = {};
-  bool _loadedRecorded = false;
+class _StockForm extends ConsumerStatefulWidget {
+  const _StockForm({required this.visitDraftId, required this.skus});
+
+  final String visitDraftId;
+  final List<Sku> skus;
+
+  @override
+  ConsumerState<_StockForm> createState() => _StockFormState();
+}
+
+class _StockFormState extends ConsumerState<_StockForm> {
+  final _units = <String, TextEditingController>{};
+  final _oos = <String, TextEditingController>{};
+  final _velocity = <String, TextEditingController>{};
+  final _salesActual = <String, TextEditingController>{};
+  final _salesTarget = <String, TextEditingController>{};
+  final _lastStockin = <String, DateTime>{};
+  bool _saved = false;
 
   @override
   void initState() {
     super.initState();
-    _loadRecordedSkuIds();
-  }
-
-  Future<void> _loadRecordedSkuIds() async {
-    final db = ref.read(localDbProvider);
-    final rows = await (db.select(db.stockDrafts)..where((t) => t.visitId.equals(widget.visitId))).get();
-    if (!mounted) return;
-    setState(() {
-      _recordedSkuIds = rows.map((r) => r.skuId).toSet();
-      _loadedRecorded = true;
-    });
-  }
-
-  Future<void> _openStockForm(Sku sku) async {
-    final result = await showDialog<_StockFormResult>(
-      context: context,
-      builder: (context) => _StockFormDialog(sku: sku),
-    );
-    if (result == null) return;
-
-    await ref.read(stockRepositoryProvider).recordStock(
-          visitId: widget.visitId,
-          skuId: sku.id,
-          unitsAvailable: result.unitsAvailable,
-          lastStockinDate: result.lastStockinDate,
-          daysOutOfStock: result.daysOutOfStock,
-          velocityAvg: result.velocityAvg,
-          salesActual: result.salesActual,
-          salesTarget: result.salesTarget,
-        );
-
-    if (!mounted) return;
-    setState(() => _recordedSkuIds = {..._recordedSkuIds, sku.id});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_loadedRecorded) {
-      return const Center(child: CircularProgressIndicator());
+    for (final sku in widget.skus) {
+      _units[sku.id] = TextEditingController();
+      _oos[sku.id] = TextEditingController(text: '0');
+      _velocity[sku.id] = TextEditingController();
+      _salesActual[sku.id] = TextEditingController();
+      _salesTarget[sku.id] = TextEditingController();
+      _lastStockin[sku.id] = DateTime.now();
     }
-
-    final skusAsync = ref.watch(skusListProvider);
-
-    return skusAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text('Failed to load SKUs: $err')),
-      data: (skus) => ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: skus.length,
-        itemBuilder: (context, index) {
-          final sku = skus[index];
-          final recorded = _recordedSkuIds.contains(sku.id);
-          return ListTile(
-            title: Text(sku.name),
-            subtitle: Text(sku.category),
-            trailing: recorded ? const Icon(Icons.check_circle, color: Colors.green) : null,
-            onTap: recorded ? null : () => _openStockForm(sku),
-          );
-        },
-      ),
-    );
   }
-}
-
-class _StockFormResult {
-  const _StockFormResult({
-    required this.unitsAvailable,
-    required this.lastStockinDate,
-    required this.daysOutOfStock,
-    required this.velocityAvg,
-    required this.salesActual,
-    required this.salesTarget,
-  });
-
-  final int unitsAvailable;
-  final DateTime lastStockinDate;
-  final int daysOutOfStock;
-  final double velocityAvg;
-  final double salesActual;
-  final double salesTarget;
-}
-
-class _StockFormDialog extends StatefulWidget {
-  const _StockFormDialog({required this.sku});
-
-  final Sku sku;
-
-  @override
-  State<_StockFormDialog> createState() => _StockFormDialogState();
-}
-
-class _StockFormDialogState extends State<_StockFormDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _unitsAvailableController = TextEditingController();
-  final _daysOutOfStockController = TextEditingController();
-  final _velocityAvgController = TextEditingController();
-  final _salesActualController = TextEditingController();
-  final _salesTargetController = TextEditingController();
-  DateTime? _lastStockinDate;
 
   @override
   void dispose() {
-    _unitsAvailableController.dispose();
-    _daysOutOfStockController.dispose();
-    _velocityAvgController.dispose();
-    _salesActualController.dispose();
-    _salesTargetController.dispose();
+    for (final c in [..._units.values, ..._oos.values, ..._velocity.values, ..._salesActual.values, ..._salesTarget.values]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _lastStockinDate ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: now,
+  Future<void> _save() async {
+    final entries = widget.skus.map((sku) {
+      return StockEntry(
+        skuId: sku.id,
+        unitsAvailable: int.tryParse(_units[sku.id]!.text) ?? 0,
+        lastStockinDate: _lastStockin[sku.id]!,
+        daysOutOfStock: int.tryParse(_oos[sku.id]!.text) ?? 0,
+        velocityAvg: double.tryParse(_velocity[sku.id]!.text) ?? 0.0,
+        salesActual: double.tryParse(_salesActual[sku.id]!.text) ?? 0.0,
+        salesTarget: double.tryParse(_salesTarget[sku.id]!.text) ?? 0.0,
+      );
+    }).toList();
+
+    await ref.read(stockRepositoryProvider).saveStock(
+          visitDraftId: widget.visitDraftId,
+          entries: entries,
+        );
+    if (mounted) setState(() => _saved = true);
+  }
+
+  Widget _numField(String label, Key key, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: TextField(
+        key: key,
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(labelText: label, isDense: true),
+      ),
     );
-    if (picked != null) setState(() => _lastStockinDate = picked);
-  }
-
-  void _submit() {
-    final formValid = _formKey.currentState!.validate();
-    if (!formValid || _lastStockinDate == null) {
-      setState(() {}); // rebuild so a missing-date error becomes visible
-      return;
-    }
-
-    Navigator.of(context).pop(_StockFormResult(
-      unitsAvailable: int.parse(_unitsAvailableController.text),
-      lastStockinDate: _lastStockinDate!,
-      daysOutOfStock: int.parse(_daysOutOfStockController.text),
-      velocityAvg: double.parse(_velocityAvgController.text),
-      salesActual: double.parse(_salesActualController.text),
-      salesTarget: double.parse(_salesTargetController.text),
-    ));
-  }
-
-  String? _requiredInt(String? value) {
-    if (value == null || value.isEmpty) return 'Required';
-    if (int.tryParse(value) == null) return 'Must be a whole number';
-    return null;
-  }
-
-  String? _requiredDouble(String? value) {
-    if (value == null || value.isEmpty) return 'Required';
-    if (double.tryParse(value) == null) return 'Must be a number';
-    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Stock: ${widget.sku.name}'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _unitsAvailableController,
-                decoration: const InputDecoration(labelText: 'Units available'),
-                keyboardType: TextInputType.number,
-                validator: _requiredInt,
+    if (widget.skus.isEmpty) {
+      return const Center(child: Text('No SKUs configured for this client.'));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('S2 Stock & Availability'),
+        const SizedBox(height: 8),
+        for (final sku in widget.skus)
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(sku.name, style: Theme.of(context).textTheme.titleMedium),
+                  _numField('Units available', ValueKey('units-${sku.id}'), _units[sku.id]!),
+                  _numField('Days out of stock', ValueKey('oos-${sku.id}'), _oos[sku.id]!),
+                  _numField('Avg daily velocity', ValueKey('vel-${sku.id}'), _velocity[sku.id]!),
+                  _numField('Sales actual', ValueKey('sactual-${sku.id}'), _salesActual[sku.id]!),
+                  _numField('Sales target', ValueKey('starget-${sku.id}'), _salesTarget[sku.id]!),
+                ],
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(_lastStockinDate == null
-                    ? 'Last stock-in date'
-                    : 'Last stock-in: ${_lastStockinDate!.toIso8601String().split('T').first}'),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: _pickDate,
-              ),
-              if (_lastStockinDate == null)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text('Required', style: TextStyle(color: Colors.red)),
-                ),
-              TextFormField(
-                controller: _daysOutOfStockController,
-                decoration: const InputDecoration(labelText: 'Days out of stock'),
-                keyboardType: TextInputType.number,
-                validator: _requiredInt,
-              ),
-              TextFormField(
-                controller: _velocityAvgController,
-                decoration: const InputDecoration(labelText: 'Average daily velocity'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: _requiredDouble,
-              ),
-              TextFormField(
-                controller: _salesActualController,
-                decoration: const InputDecoration(labelText: 'Sales actual'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: _requiredDouble,
-              ),
-              TextFormField(
-                controller: _salesTargetController,
-                decoration: const InputDecoration(labelText: 'Sales target'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: _requiredDouble,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        ElevatedButton(onPressed: _submit, child: const Text('Save')),
+        const SizedBox(height: 12),
+        ElevatedButton(onPressed: _save, child: const Text('Save stock')),
+        if (_saved)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text('Stock saved — queued for sync'),
+          ),
       ],
     );
   }

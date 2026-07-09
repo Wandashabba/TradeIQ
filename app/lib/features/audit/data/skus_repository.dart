@@ -2,15 +2,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 
 class Sku {
-  const Sku({required this.id, required this.name, required this.category});
+  const Sku({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.minFacingsStandard,
+    required this.rrp,
+  });
   final String id;
   final String name;
   final String category;
+  final int minFacingsStandard;
+  final double rrp;
 
   factory Sku.fromJson(Map<String, dynamic> json) => Sku(
         id: json['id'] as String,
         name: json['name'] as String,
         category: json['category'] as String,
+        minFacingsStandard: (json['minFacingsStandard'] as num).toInt(),
+        rrp: (json['rrp'] as num).toDouble(),
       );
 }
 
@@ -30,6 +40,5 @@ class DioSkusRepository implements SkusRepository {
 
 final skusRepositoryProvider = Provider<SkusRepository>((ref) => DioSkusRepository());
 
-final skusListProvider = FutureProvider<List<Sku>>((ref) {
-  return ref.read(skusRepositoryProvider).listSkus();
-});
+final skusListProvider =
+    FutureProvider<List<Sku>>((ref) => ref.read(skusRepositoryProvider).listSkus());
