@@ -4,11 +4,13 @@ info:
   version: 0.1.0
   description: >
     Phase 1. Implemented: /auth, /outlets, /skus, /visits (check-in + submit),
-    /stock (S2), /visibility (S3-S4). Still 501 Not Implemented and filled in
-    by follow-up plans: /pricing, /competitive, /capability, /risks, /tasks,
-    /scorecards, /dashboard — see docs/architecture/stubs-and-interfaces.md.
-    All non-auth/non-health routes require a Bearer JWT; write routes are
-    role-guarded (403 when the caller's role is not permitted).
+    /stock (S2), /visibility (S3-S4), /pricing (S5), /competitive (S6),
+    /capability (S7), /risks (S8), /tasks (S9), /scorecards (S10), /dashboard.
+    GET listings on the capture modules (/pricing, /competitive, /capability,
+    /risks, bare /scorecards) remain 501 — see
+    docs/architecture/stubs-and-interfaces.md. All non-auth/non-health routes
+    require a Bearer JWT; write routes are role-guarded (403 when the caller's
+    role is not permitted).
 servers:
   - url: http://localhost:4000
 paths:
@@ -220,6 +222,294 @@ paths:
           description: Caller is not a field_agent
         '404':
           description: Visit not found for this client
+  /pricing:
+    post:
+      summary: Record per-SKU shelf pricing for a visit (S5) — field_agent only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId, items]
+              properties:
+                visitId: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [skuId, priceActual, promoActive, promoMaterialsDetected, commsRating]
+                    properties:
+                      skuId: { type: string }
+                      priceActual:
+                        type: number
+                        description: Manual shelf-price entry (OCR-stub passthrough; real OCR is Phase 2, issue #2).
+                      promoActive: { type: boolean }
+                      promoMaterialsDetected: { type: object }
+                      commsRating: { type: integer }
+      responses:
+        '201':
+          description: Pricing rows created (priceMaster from Sku.rrp, deviationPct computed server-side)
+        '400':
+          description: Missing visitId or a non-empty valid items[]
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit or a referenced SKU not found for this client
+  /competitive:
+    post:
+      summary: Record competitor observations for a visit (S6) — field_agent only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId, items]
+              properties:
+                visitId: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [competitorSku, competitorPrice, competitorPosmType, competitorPromoterPresent, geotag]
+                    properties:
+                      competitorSku: { type: string }
+                      competitorPrice: { type: number }
+                      competitorPosmType: { type: string }
+                      competitorPromoterPresent: { type: boolean }
+                      geotag: { type: object }
+      responses:
+        '201':
+          description: Competitive rows created
+        '400':
+          description: Missing visitId or a non-empty valid items[]
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit not found for this client
+  /capability:
+    post:
+      summary: Record sales-team capability for a visit (S7) — field_agent only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId, staffHeadcountConfirmed, repTrainingStatus, quizScore]
+              properties:
+                visitId: { type: string }
+                staffHeadcountConfirmed: { type: integer }
+                repTrainingStatus: { type: object }
+                quizScore: { type: integer }
+      responses:
+        '201':
+          description: Capability upserted (one row per visit)
+        '400':
+          description: Missing or invalid required fields
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit not found for this client
+  /risks:
+    post:
+      summary: Flag risks for a visit (S8) — field_agent only; auto-creates SLA tasks
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId, risks]
+              properties:
+                visitId: { type: string }
+                risks:
+                  type: array
+                  items:
+                    type: object
+                    required: [flagType, severity, note]
+                    properties:
+                      flagType: { type: string }
+                      severity: { type: string, enum: [critical, high, normal] }
+                      note: { type: string }
+      responses:
+        '201':
+          description: >
+            Risk rows created, plus one auto-created Task per risk (owner = the
+            visit's agent, slaDueAt from severity: critical=+24h, high=+3d,
+            normal=+7d). Returns { risks, tasks }.
+        '400':
+          description: Missing visitId, empty risks[], or invalid severity
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit not found for this client
+  /tasks:
+    post:
+      summary: Create a task manually (S9) — field_agent or manager
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outletId, findingType, requiredFix, priority]
+              properties:
+                outletId: { type: string }
+                findingType: { type: string }
+                requiredFix: { type: string }
+                priority: { type: string, enum: [critical, high, normal] }
+                visitId: { type: string }
+                ownerId: { type: string, description: Defaults to the caller. }
+      responses:
+        '201':
+          description: Task created (slaDueAt computed from priority)
+        '400':
+          description: Missing or invalid required fields
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent or manager
+        '404':
+          description: Outlet, visit, or owner not found for this client
+    get:
+      summary: List tasks for the caller's client, ordered by SLA due date
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [open, in_progress, closed] }
+        - name: priority
+          in: query
+          schema: { type: string, enum: [critical, high, normal] }
+        - name: outletId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tasks scoped to the caller's client
+        '400':
+          description: Invalid filter value
+        '401':
+          description: Missing or invalid token
+  /tasks/{id}:
+    patch:
+      summary: Update task lifecycle (open → in_progress → closed) — field_agent or manager
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [open, in_progress, closed] }
+                closurePhotoUrl: { type: string }
+                closureVerified: { type: boolean, description: Manager only. }
+      responses:
+        '200':
+          description: Task updated
+        '400':
+          description: Invalid body, or closing without a closure photo
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Role not permitted (closureVerified is manager-only)
+        '404':
+          description: Task not found for this client
+  /scorecards:
+    post:
+      summary: Compute + persist the visit scorecard (S10) — field_agent only
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId]
+              properties:
+                visitId: { type: string }
+      responses:
+        '201':
+          description: >
+            Scorecard upserted (idempotent). Dimension scores computed from the
+            visit's S2-S8 rows, weighted by Client.scorecardWeights; ratingBand
+            from Client.kpiThresholds (defaults green>=80, amber>=60).
+        '400':
+          description: Missing visitId
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a field_agent
+        '404':
+          description: Visit not found for this client
+  /scorecards/{visitId}:
+    get:
+      summary: Fetch the scorecard for a visit
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: visitId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The visit's scorecard
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Visit or scorecard not found for this client
+  /dashboard:
+    get:
+      summary: Manager KPI rollup — manager/admin only
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: territoryId
+          in: query
+          schema: { type: string }
+        - name: outletId
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: >
+            { kpis: { numericDistribution, weightedDistribution, osaPct,
+            executionScore, priceCompliancePct, visibilityCompliancePct,
+            shareOfShelf, perfectStoreRate }, totals: { visits, outletsVisited,
+            outletsTotal } }. weightedDistribution and shareOfShelf are Phase-1
+            proxies (see module comments).
+        '400':
+          description: Unparseable from/to date
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a manager/admin
 components:
   securitySchemes:
     bearerAuth:

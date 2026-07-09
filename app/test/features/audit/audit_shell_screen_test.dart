@@ -1,8 +1,11 @@
+﻿import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
@@ -72,28 +75,39 @@ class _LocationUnavailableVisitsRepository implements VisitsRepository {
   Future<void> submitVisit(String visitDraftId) async {}
 }
 
-Widget _appWith(VisitsRepository visitsRepository) {
-  return ProviderScope(
-    overrides: [
+// The S10 scorecard section computes from the local DB on build, so the
+// shell tests need a real (in-memory) LocalDb behind the provider.
+List<Override> _overrides(VisitsRepository visitsRepository, LocalDb db) => [
       outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
       visitsRepositoryProvider.overrideWithValue(visitsRepository),
       skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-    ],
+      localDbProvider.overrideWithValue(db),
+    ];
+
+Widget _appWith(VisitsRepository visitsRepository, LocalDb db) {
+  return ProviderScope(
+    overrides: _overrides(visitsRepository, db),
     child: const MaterialApp(home: AuditShellScreen(outletId: 'o1')),
   );
 }
 
+LocalDb _testDb() {
+  final db = LocalDb(NativeDatabase.memory());
+  addTearDown(db.close);
+  return db;
+}
+
 void main() {
   testWidgets('shows a stepper with all 10 audit sections after a successful check-in', (tester) async {
-    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository()));
+    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
     expect(find.text('S1 Outlet Information'), findsOneWidget);
-    expect(find.text('S10 Execution Scorecard'), findsOneWidget);
+    expect(find.text('S10 Scorecard'), findsOneWidget);
   });
 
   testWidgets('shows a blocking error when the check-in fails the geofence', (tester) async {
-    await tester.pumpWidget(_appWith(_GeofenceFailingVisitsRepository()));
+    await tester.pumpWidget(_appWith(_GeofenceFailingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('650'), findsOneWidget);
@@ -101,7 +115,7 @@ void main() {
   });
 
   testWidgets('shows a retry action when location is unavailable', (tester) async {
-    await tester.pumpWidget(_appWith(_LocationUnavailableVisitsRepository()));
+    await tester.pumpWidget(_appWith(_LocationUnavailableVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
     expect(find.text('Location permission denied'), findsOneWidget);
@@ -109,7 +123,7 @@ void main() {
   });
 
   testWidgets('tapping logout clears the session', (tester) async {
-    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository()));
+    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.logout));
@@ -134,11 +148,7 @@ void main() {
     );
 
     await tester.pumpWidget(ProviderScope(
-      overrides: [
-        outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-        visitsRepositoryProvider.overrideWithValue(repo),
-        skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-      ],
+      overrides: _overrides(repo, _testDb()),
       child: MaterialApp.router(routerConfig: router),
     ));
     await tester.pumpAndSettle();
@@ -152,7 +162,7 @@ void main() {
   });
 
   testWidgets('the check-in confirmation timestamp stays fixed across step navigation', (tester) async {
-    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository()));
+    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
     // The Stepper is vertical, so every step's content (and its "Continue"

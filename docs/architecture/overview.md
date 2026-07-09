@@ -35,24 +35,36 @@ TradeIQ Phase 1 is a monorepo:
    `FutureProvider` defined in
    `app/lib/features/outlets/data/outlets_repository.dart`.
 
-Every other S1–S10 module follows the same shape once implemented (see
-`docs/architecture/stubs-and-interfaces.md` and the follow-up implementation
-plan for each section).
+Every S1–S10 module follows the same shape (see
+`docs/architecture/stubs-and-interfaces.md` for the implemented-vs-skeleton
+breakdown).
 
-## Audit capture flow (implemented: S1, S2, S3–S4)
+## Audit capture flow (implemented: S1–S10)
 
 The field-agent flow is offline-first. On check-in the app writes a local
 `VisitDrafts` row plus a `SyncQueueItems` outbox entry, then best-effort
 flushes to `POST /visits`. Section captures (S2 stock → `POST /stock`, S3–S4
-visibility → `POST /visibility`) and visit submit (`POST /visits/:id/submit`)
-enqueue their own outbox items the same way.
+visibility → `POST /visibility`, S5 pricing → `POST /pricing`, S6 competitive
+→ `POST /competitive`, S7 capability → `POST /capability`, S8 risks →
+`POST /risks` which auto-creates SLA tasks, S9 manual tasks → `POST /tasks`,
+S10 scorecard finalize → `POST /scorecards`) and visit submit
+(`POST /visits/:id/submit`) enqueue their own outbox items the same way.
+The S10 screen also computes a local, immediate scorecard from the queued
+section payloads (per ADR 0005) so the agent sees a score before leaving the
+outlet; the server-side scorecard computed by `POST /scorecards` from
+persisted rows is authoritative.
 
 Because a visit is created with a *client* id offline, the sync flusher
 records the server-assigned id on `VisitDrafts.remoteId` after `POST /visits`
-succeeds; dependent items (stock, visibility, submit) resolve that `remoteId`
-at flush time and retry if the visit hasn't synced yet. The queue flushes in
-FIFO order so a visit always syncs before its children. See
+succeeds; dependent items (stock, visibility, pricing, competitive,
+capability, risks, tasks, scorecard, submit) resolve that `remoteId` at flush
+time and retry if the visit hasn't synced yet. The queue flushes in FIFO
+order so a visit always syncs before its children. See
 `app/lib/core/sync/sync_service.dart`.
+
+The manager side reads `GET /dashboard` (eight KPI aggregates scoped to the
+manager's client, filterable by territory/outlet/date) and `GET /tasks` for
+the SLA task list.
 
 All write routes are role-guarded: check-in/capture/submit are `field_agent`,
 outlet creation is `manager`/`admin`. See `backend/src/middleware/roleGuard.ts`.

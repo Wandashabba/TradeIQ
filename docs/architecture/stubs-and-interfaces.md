@@ -22,20 +22,21 @@ touching callers.
 - `backend/src/modules/visits/*` — geofenced check-in (`POST /visits`) + submit (`POST /visits/:id/submit`), field_agent
 - `backend/src/modules/stock/*` — S2 per-SKU stock capture (`POST /stock`) with server-side coverage-days
 - `backend/src/modules/visibility/*` — S3–S4 visibility/display capture (`POST /visibility`, upsert)
+- `backend/src/modules/pricing/*` — S5 per-SKU shelf-price capture (`POST /pricing`), priceMaster from `Sku.rrp`, deviation computed server-side (shelf price is manual entry through the OCR-stub interface)
+- `backend/src/modules/competitive/*` — S6 competitor observations (`POST /competitive`)
+- `backend/src/modules/capability/*` — S7 sales-team capability (`POST /capability`, upsert)
+- `backend/src/modules/risks/*` — S8 risk flags (`POST /risks`); each risk auto-creates a `Task` with an SLA due date via `slaClock`
+- `backend/src/modules/tasks/*` — S9 task lifecycle: `POST /tasks` (manual create), `GET /tasks` (client-scoped list + filters), `PATCH /tasks/:id` (open → in_progress → closed with closure-photo rule; `closureVerified` manager-only)
+- `backend/src/modules/scorecards/*` — S10 weighted scorecard (`POST /scorecards`, upsert; `GET /scorecards/:visitId`) from S2–S8 rows using `Client.scorecardWeights` / `kpiThresholds`
+- `backend/src/modules/dashboard/*` — manager KPI rollup (`GET /dashboard`, manager/admin, territory/outlet/date filters)
 
 ## What is a route skeleton (not a stub, but not implemented)
 
-`pricing` (S5), `competitive` (S6), `capability` (S7), `risks` (S8),
-`tasks` (S9), `scorecards` (S10), and `dashboard` modules currently return
-`501 Not Implemented` for every route. These are Phase 1 features (not
-deferred to Phase 2+) — they're scoped to the follow-up S5–S10
-implementation plans, not this scaffold. No GitHub issues are needed for
-these; they're just not built yet within Phase 1's own scope.
-
-`GET` listing routes on the built modules (`GET /visits`, `GET /stock`,
-`GET /visibility`) also still return `501` — only the agent-facing capture
-(`POST`) paths are wired so far; manager-facing listings land with the
-dashboard slice.
+`GET` listing routes on the capture modules (`GET /visits`, `GET /stock`,
+`GET /visibility`, `GET /pricing`, `GET /competitive`, `GET /capability`,
+`GET /risks`, bare `GET /scorecards`) still return `501` — only the
+agent-facing capture (`POST`) paths plus the manager-facing `GET /tasks`,
+`GET /scorecards/:visitId`, and `GET /dashboard` are wired.
 
 ## Known Phase 1 gaps
 
@@ -43,10 +44,11 @@ Not a stub — in-scope Phase 1 work still to do:
 
 | Gap | Where |
 |---|---|
-| Audit sections S5–S10 (pricing, competitive, capability, risks, action-plan, scorecard) | backend `modules/{pricing,competitive,capability,risks,tasks,scorecards}` return 501; app section screens are placeholders |
-| Manager dashboard (real KPI data) | `app/lib/features/dashboard/...` renders placeholder tiles; `GET` listing routes are 501 |
+| Photo capture/upload (`Photo` model, closure photos as real uploads) | no `/photos` endpoint; `closurePhotoUrl` is a plain string |
+| Capture-module `GET` listings | see route-skeleton section above |
 
-Resolved since the original scaffold: login form UI + router auth-redirect
+Resolved since the original scaffold: S5–S10 audit sections + manager
+dashboard (issues #10–#16), login form UI + router auth-redirect
 (issue #5), session persistence, configurable API base URL, RBAC enforcement,
 and auth hardening (helmet, CORS allowlist, login rate-limiting) — see
 `docs/phase1-audit-and-remediation.md`.

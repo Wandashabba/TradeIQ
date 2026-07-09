@@ -243,12 +243,125 @@ void main() {
       expect(body.containsKey('visitDraftId'), isFalse);
     });
 
+    test('pricing flush resolves the remote id and posts items to /pricing', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final captured = <dynamic>[];
+      final paths = <String>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(201, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          captured.add(options.data);
+          paths.add(options.path);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'pricing',
+        entityId: 'p1',
+        payloadJson: '{"visitDraftId":"v1","items":[{"skuId":"s1","priceActual":19.99}]}',
+      ));
+
+      expect(paths.single, '/pricing');
+      final body = captured.single as Map;
+      expect(body['visitId'], 'remote-v1');
+      expect(body['items'], hasLength(1));
+    });
+
+    test('risk flush resolves the remote id and posts risks to /risks', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final captured = <dynamic>[];
+      final paths = <String>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(201, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          captured.add(options.data);
+          paths.add(options.path);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'risk',
+        entityId: 'r1',
+        payloadJson: '{"visitDraftId":"v1","risks":[{"flagType":"stockout","severity":"high","note":"empty shelf"}]}',
+      ));
+
+      expect(paths.single, '/risks');
+      final body = captured.single as Map;
+      expect(body['visitId'], 'remote-v1');
+      expect(body['risks'], hasLength(1));
+    });
+
+    test('task flush resolves the remote id and posts the task fields to /tasks', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final captured = <dynamic>[];
+      final paths = <String>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(201, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          captured.add(options.data);
+          paths.add(options.path);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'task',
+        entityId: 't1',
+        payloadJson:
+            '{"visitDraftId":"v1","outletId":"o1","findingType":"damage","requiredFix":"replace strip","priority":"normal"}',
+      ));
+
+      expect(paths.single, '/tasks');
+      final body = captured.single as Map;
+      expect(body['visitId'], 'remote-v1');
+      expect(body['outletId'], 'o1');
+      expect(body['priority'], 'normal');
+      expect(body.containsKey('visitDraftId'), isFalse);
+    });
+
+    test('scorecard flush resolves the remote id and posts to /scorecards', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final captured = <dynamic>[];
+      final paths = <String>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(201, '{}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          captured.add(options.data);
+          paths.add(options.path);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'scorecard',
+        entityId: 'sc1',
+        payloadJson: '{"visitDraftId":"v1"}',
+      ));
+
+      expect(paths.single, '/scorecards');
+      expect((captured.single as Map)['visitId'], 'remote-v1');
+    });
+
     test('throws UnimplementedError for an unhandled entity type', () async {
       final db = LocalDb(NativeDatabase.memory());
       addTearDown(db.close);
       final flusher = HttpQueueFlusher(db: db, dio: Dio());
       await expectLater(
-        flusher.flush(_queueItem(entityType: 'pricing', entityId: 'p1', payloadJson: '{}')),
+        flusher.flush(_queueItem(entityType: 'photo', entityId: 'ph1', payloadJson: '{}')),
         throwsA(isA<UnimplementedError>()),
       );
     });
