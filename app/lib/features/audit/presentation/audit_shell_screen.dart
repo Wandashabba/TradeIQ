@@ -58,12 +58,12 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
         S1OutletInfoScreen(checkinTs: _checkinTs),
         S2StockScreen(visitDraftId: _visitDraftId!),
         S3S4VisibilityDisplayScreen(visitDraftId: _visitDraftId!),
-        const S5PricingPromotionsScreen(),
-        const S6CompetitiveScreen(),
-        const S7CapabilityScreen(),
-        const S8RisksScreen(),
-        const S9ActionPlanScreen(),
-        const S10ScorecardScreen(),
+        S5PricingPromotionsScreen(visitDraftId: _visitDraftId!),
+        S6CompetitiveScreen(visitDraftId: _visitDraftId!),
+        S7CapabilityScreen(visitDraftId: _visitDraftId!),
+        S8RisksScreen(visitDraftId: _visitDraftId!),
+        S9ActionPlanScreen(visitDraftId: _visitDraftId!, outletId: widget.outletId),
+        S10ScorecardScreen(visitDraftId: _visitDraftId!),
       ];
 
   @override

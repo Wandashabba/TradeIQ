@@ -15,14 +15,27 @@ abstract class QueueFlusher {
 ///
 /// - `visit` → POST /visits, then records the server-assigned id on the
 ///   matching [VisitDrafts] row so children can reference the real visit.
-/// - `stock` → resolves its local visit-draft id to the server visit id
-///   ([VisitDrafts.remoteId]) and POSTs /stock. If the visit hasn't synced
-///   yet the item is left queued (throws) and retried on the next flush.
+/// - Every other entity type belongs to a visit: its payload carries the
+///   LOCAL visit-draft id (`visitDraftId`), which is resolved to the server
+///   visit id ([VisitDrafts.remoteId]) at flush time. If the visit hasn't
+///   synced yet the item is left queued (throws) and retried on the next
+///   flush (visit items sort earlier by id).
 class HttpQueueFlusher implements QueueFlusher {
   HttpQueueFlusher({required this.db, Dio? dio}) : _dio = dio ?? api_client.dio;
 
   final LocalDb db;
   final Dio _dio;
+
+  Future<String> _remoteVisitId(String localVisitId) async {
+    final draft = await (db.select(db.visitDrafts)
+          ..where((t) => t.id.equals(localVisitId)))
+        .getSingleOrNull();
+    final remoteId = draft?.remoteId;
+    if (remoteId == null) {
+      throw StateError('Visit $localVisitId not synced yet');
+    }
+    return remoteId;
+  }
 
   @override
   Future<void> flush(SyncQueueItem item) async {
@@ -35,42 +48,51 @@ class HttpQueueFlusher implements QueueFlusher {
         return;
       case 'stock':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final localVisitId = payload['visitDraftId'] as String;
-        final draft = await (db.select(db.visitDrafts)
-              ..where((t) => t.id.equals(localVisitId)))
-            .getSingleOrNull();
-        final remoteId = draft?.remoteId;
-        if (remoteId == null) {
-          // Visit not synced yet; leave queued and retry once its flush
-          // populates remoteId (visit items sort earlier by id).
-          throw StateError('Visit $localVisitId not synced yet');
-        }
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
         await _dio.post('/stock', data: {'visitId': remoteId, 'items': payload['items']});
         return;
       case 'visit_submit':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final localVisitId = payload['visitDraftId'] as String;
-        final draft = await (db.select(db.visitDrafts)
-              ..where((t) => t.id.equals(localVisitId)))
-            .getSingleOrNull();
-        final remoteId = draft?.remoteId;
-        if (remoteId == null) {
-          throw StateError('Visit $localVisitId not synced yet');
-        }
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
         await _dio.post('/visits/$remoteId/submit');
         return;
       case 'visibility':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
-        final localVisitId = payload['visitDraftId'] as String;
-        final draft = await (db.select(db.visitDrafts)
-              ..where((t) => t.id.equals(localVisitId)))
-            .getSingleOrNull();
-        final remoteId = draft?.remoteId;
-        if (remoteId == null) {
-          throw StateError('Visit $localVisitId not synced yet');
-        }
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
         final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
         await _dio.post('/visibility', data: {'visitId': remoteId, ...fields});
+        return;
+      case 'pricing':
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/pricing', data: {'visitId': remoteId, 'items': payload['items']});
+        return;
+      case 'competitive':
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/competitive', data: {'visitId': remoteId, 'items': payload['items']});
+        return;
+      case 'capability':
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
+        await _dio.post('/capability', data: {'visitId': remoteId, ...fields});
+        return;
+      case 'risk':
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/risks', data: {'visitId': remoteId, 'risks': payload['risks']});
+        return;
+      case 'task':
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
+        await _dio.post('/tasks', data: {'visitId': remoteId, ...fields});
+        return;
+      case 'scorecard':
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/scorecards', data: {'visitId': remoteId});
         return;
       default:
         throw UnimplementedError('HTTP sync for ${item.entityType} not wired yet');
