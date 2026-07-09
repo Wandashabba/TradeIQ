@@ -5,6 +5,7 @@ import '../../features/audit/presentation/audit_shell_screen.dart';
 import '../../features/audit/presentation/visit_outlet_picker_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
+import '../../features/outlets/presentation/create_outlet_screen.dart';
 import '../../features/outlets/presentation/outlets_list_screen.dart';
 import '../auth/session_controller.dart';
 import 'session_refresh_listenable.dart';
@@ -35,6 +36,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => AuditShellScreen(outletId: state.pathParameters['outletId']!),
       ),
       GoRoute(path: '/outlets', builder: (context, state) => const OutletsListScreen()),
+      GoRoute(path: '/outlets/create', builder: (context, state) => const CreateOutletScreen()),
     ],
   );
 });

@@ -21,3 +21,6 @@ app/**/*.g.dart
 
 # OS
 .DS_Store
+
+# AI assistant session files
+.claude/

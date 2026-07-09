@@ -1,11 +1,7 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import 'local_db_connection.dart';
 import 'tables.dart';
 
 part 'local_db.g.dart';
@@ -20,7 +16,7 @@ class LocalDb extends _$LocalDb {
   LocalDb([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -28,18 +24,18 @@ class LocalDb extends _$LocalDb {
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(visitDrafts, visitDrafts.remoteId);
+          }
+          if (from < 4) {
+            // Pre-merge lineages carried StockDrafts with different column
+            // sets (visitId vs visitDraftId) — recreate it in the merged
+            // shape; draft rows are re-capturable, so the drop is safe.
+            await customStatement('DROP TABLE IF EXISTS stock_drafts');
             await m.createTable(stockDrafts);
           }
         },
       );
 
-  static QueryExecutor _openConnection() {
-    return LazyDatabase(() async {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File(p.join(dir.path, 'tradeiq_local.sqlite'));
-      return NativeDatabase.createInBackground(file);
-    });
-  }
+  static QueryExecutor _openConnection() => openDbConnection();
 }
 
 final localDbProvider = Provider<LocalDb>((ref) => LocalDb());
