@@ -31,61 +31,89 @@ enum TaskStatus {
 }
 
 model Client {
-  id               String   @id @default(uuid())
-  name             String
-  industry         String
-  scorecardWeights Json     @map("scorecard_weights")
-  kpiThresholds    Json     @map("kpi_thresholds")
-  users            User[]
-  outlets          Outlet[]
-  skus             Sku[]
+  id                 String              @id @default(uuid())
+  name               String
+  industry           String
+  scorecardWeights   Json                @map("scorecard_weights")
+  kpiThresholds      Json                @map("kpi_thresholds")
+  users              User[]
+  outlets            Outlet[]
+  skus               Sku[]
   planogramTemplates PlanogramTemplate[]
-  promoCalendar    PromoCalendar[]
-  visits           Visit[]
+  promoCalendar      PromoCalendar[]
+  visits             Visit[]
+  territories        Territory[]
+  campaigns          Campaign[]
+  beatPlans          BeatPlan[]
+  alertRules         AlertRule[]
+  alerts             Alert[]
+  auditTemplates     AuditTemplate[]
+  checkInAttempts    CheckInAttempt[]
+  orders             Order[]
+  messages           Message[]
+  announcements      Announcement[]
+  webhooks           Webhook[]
+  reportDefinitions  ReportDefinition[]
 
   @@map("clients")
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         UserRole
-  clientId     String   @map("client_id")
-  client       Client   @relation(fields: [clientId], references: [id])
-  visits       Visit[]
-  tasksOwned   Task[]
+  id               String           @id @default(uuid())
+  email            String           @unique
+  passwordHash     String           @map("password_hash")
+  role             UserRole
+  clientId         String           @map("client_id")
+  client           Client           @relation(fields: [clientId], references: [id])
+  // Last-known agent location (updated on check-in) — feeds predictive dispatch.
+  lastLat          Float?           @map("last_lat")
+  lastLng          Float?           @map("last_lng")
+  lastSeenAt       DateTime?        @map("last_seen_at")
+  visits           Visit[]
+  tasksOwned       Task[]
+  territories      UserTerritory[]
+  beatPlans        BeatPlan[]
+  checkInAttempts  CheckInAttempt[]
+  ordersTaken      Order[]
+  messagesSent     Message[]        @relation("MessageSender")
+  messagesReceived Message[]        @relation("MessageRecipient")
+  announcements    Announcement[]
 
   @@map("users")
 }
 
 model Outlet {
-  id          String   @id @default(uuid())
-  name        String
-  code        String   @unique
-  channelType String   @map("channel_type")
-  lat         Float
-  lng         Float
-  territoryId String   @map("territory_id")
-  teamProfile Json?    @map("team_profile")
-  clientId    String   @map("client_id")
-  client      Client   @relation(fields: [clientId], references: [id])
-  visits      Visit[]
-  tasks       Task[]
+  id              String           @id @default(uuid())
+  name            String
+  code            String           @unique
+  channelType     String           @map("channel_type")
+  lat             Float
+  lng             Float
+  territoryId     String           @map("territory_id")
+  teamProfile     Json?            @map("team_profile")
+  clientId        String           @map("client_id")
+  client          Client           @relation(fields: [clientId], references: [id])
+  visits          Visit[]
+  tasks           Task[]
+  campaignOutlets CampaignOutlet[]
+  beatPlanStops   BeatPlanStop[]
+  checkInAttempts CheckInAttempt[]
+  orders          Order[]
 
   @@map("outlets")
 }
 
 model Sku {
-  id                  String   @id @default(uuid())
-  clientId            String   @map("client_id")
-  client              Client   @relation(fields: [clientId], references: [id])
-  name                String
-  category            String
-  minFacingsStandard  Int      @map("min_facings_standard")
-  rrp                 Float
-  visitStock          VisitStock[]
-  visitPricing        VisitPricing[]
+  id                 String         @id @default(uuid())
+  clientId           String         @map("client_id")
+  client             Client         @relation(fields: [clientId], references: [id])
+  name               String
+  category           String
+  minFacingsStandard Int            @map("min_facings_standard")
+  rrp                Float
+  visitStock         VisitStock[]
+  visitPricing       VisitPricing[]
+  orderLines         OrderLine[]
 
   @@map("skus")
 }
@@ -113,13 +141,13 @@ model PromoCalendar {
 }
 
 model Visit {
-  id            String      @id @default(uuid())
-  outletId      String      @map("outlet_id")
-  outlet        Outlet      @relation(fields: [outletId], references: [id])
-  agentId       String      @map("agent_id")
-  agent         User        @relation(fields: [agentId], references: [id])
-  clientId      String      @map("client_id")
-  client        Client      @relation(fields: [clientId], references: [id])
+  id               String      @id @default(uuid())
+  outletId         String      @map("outlet_id")
+  outlet           Outlet      @relation(fields: [outletId], references: [id])
+  agentId          String      @map("agent_id")
+  agent            User        @relation(fields: [agentId], references: [id])
+  clientId         String      @map("client_id")
+  client           Client      @relation(fields: [clientId], references: [id])
   checkinTs        DateTime    @map("checkin_ts")
   checkinLat       Float       @map("checkin_lat")
   checkinLng       Float       @map("checkin_lng")
@@ -127,99 +155,100 @@ model Visit {
   checkinDistanceM Float?      @map("checkin_distance_m")
   status           VisitStatus @default(in_progress)
 
-  stock        VisitStock[]
-  visibility   VisitVisibility?
-  pricing      VisitPricing[]
-  competitive  VisitCompetitive[]
-  capability   VisitCapability?
-  risks        VisitRisk[]
-  tasks        Task[]
-  photos       Photo[]
-  scorecard    Scorecard?
+  stock       VisitStock[]
+  visibility  VisitVisibility?
+  pricing     VisitPricing[]
+  competitive VisitCompetitive[]
+  capability  VisitCapability?
+  risks       VisitRisk[]
+  tasks       Task[]
+  photos      Photo[]
+  scorecard   Scorecard?
+  orders      Order[]
 
   @@map("visits")
 }
 
 model VisitStock {
-  id                     String   @id @default(uuid())
-  visitId                String   @map("visit_id")
-  visit                  Visit    @relation(fields: [visitId], references: [id])
-  skuId                  String   @map("sku_id")
-  sku                    Sku      @relation(fields: [skuId], references: [id])
-  unitsAvailable         Int      @map("units_available")
-  lastStockinDate        DateTime @map("last_stockin_date")
-  daysOutOfStock         Int      @map("days_out_of_stock")
-  velocityAvg            Float    @map("velocity_avg")
-  coverageDaysPredicted  Float    @map("coverage_days_predicted")
-  salesActual            Float    @map("sales_actual")
-  salesTarget            Float    @map("sales_target")
-  createdAt              DateTime @default(now()) @map("created_at")
+  id                    String   @id @default(uuid())
+  visitId               String   @map("visit_id")
+  visit                 Visit    @relation(fields: [visitId], references: [id])
+  skuId                 String   @map("sku_id")
+  sku                   Sku      @relation(fields: [skuId], references: [id])
+  unitsAvailable        Int      @map("units_available")
+  lastStockinDate       DateTime @map("last_stockin_date")
+  daysOutOfStock        Int      @map("days_out_of_stock")
+  velocityAvg           Float    @map("velocity_avg")
+  coverageDaysPredicted Float    @map("coverage_days_predicted")
+  salesActual           Float    @map("sales_actual")
+  salesTarget           Float    @map("sales_target")
+  createdAt             DateTime @default(now()) @map("created_at")
 
   @@map("visit_stock")
 }
 
 model VisitVisibility {
-  id                       String  @id @default(uuid())
-  visitId                  String  @unique @map("visit_id")
-  visit                    Visit   @relation(fields: [visitId], references: [id])
-  brandingElements         Json    @map("branding_elements")
-  planogramCompliancePct   Float   @map("planogram_compliance_pct")
-  facingsCount             Json    @map("facings_count")
-  highTrafficPass          Boolean @map("high_traffic_pass")
-  cleanlinessScore         Int     @map("cleanliness_score")
-  createdAt                DateTime @default(now()) @map("created_at")
+  id                     String   @id @default(uuid())
+  visitId                String   @unique @map("visit_id")
+  visit                  Visit    @relation(fields: [visitId], references: [id])
+  brandingElements       Json     @map("branding_elements")
+  planogramCompliancePct Float    @map("planogram_compliance_pct")
+  facingsCount           Json     @map("facings_count")
+  highTrafficPass        Boolean  @map("high_traffic_pass")
+  cleanlinessScore       Int      @map("cleanliness_score")
+  createdAt              DateTime @default(now()) @map("created_at")
 
   @@map("visit_visibility")
 }
 
 model VisitPricing {
-  id                       String  @id @default(uuid())
-  visitId                  String  @map("visit_id")
-  visit                    Visit   @relation(fields: [visitId], references: [id])
-  skuId                    String  @map("sku_id")
-  sku                      Sku     @relation(fields: [skuId], references: [id])
-  priceActual              Float   @map("price_actual")
-  priceMaster              Float   @map("price_master")
-  deviationPct             Float   @map("deviation_pct")
-  promoActive              Boolean @map("promo_active")
-  promoMaterialsDetected   Json    @map("promo_materials_detected")
-  commsRating              Int     @map("comms_rating")
-  createdAt                DateTime @default(now()) @map("created_at")
+  id                     String   @id @default(uuid())
+  visitId                String   @map("visit_id")
+  visit                  Visit    @relation(fields: [visitId], references: [id])
+  skuId                  String   @map("sku_id")
+  sku                    Sku      @relation(fields: [skuId], references: [id])
+  priceActual            Float    @map("price_actual")
+  priceMaster            Float    @map("price_master")
+  deviationPct           Float    @map("deviation_pct")
+  promoActive            Boolean  @map("promo_active")
+  promoMaterialsDetected Json     @map("promo_materials_detected")
+  commsRating            Int      @map("comms_rating")
+  createdAt              DateTime @default(now()) @map("created_at")
 
   @@map("visit_pricing")
 }
 
 model VisitCompetitive {
-  id                       String  @id @default(uuid())
-  visitId                  String  @map("visit_id")
-  visit                    Visit   @relation(fields: [visitId], references: [id])
-  competitorSku            String  @map("competitor_sku")
-  competitorPrice          Float   @map("competitor_price")
-  competitorPosmType       String  @map("competitor_posm_type")
-  competitorPromoterPresent Boolean @map("competitor_promoter_present")
-  geotag                   Json
-  createdAt                DateTime @default(now()) @map("created_at")
+  id                        String   @id @default(uuid())
+  visitId                   String   @map("visit_id")
+  visit                     Visit    @relation(fields: [visitId], references: [id])
+  competitorSku             String   @map("competitor_sku")
+  competitorPrice           Float    @map("competitor_price")
+  competitorPosmType        String   @map("competitor_posm_type")
+  competitorPromoterPresent Boolean  @map("competitor_promoter_present")
+  geotag                    Json
+  createdAt                 DateTime @default(now()) @map("created_at")
 
   @@map("visit_competitive")
 }
 
 model VisitCapability {
-  id                        String @id @default(uuid())
-  visitId                   String @unique @map("visit_id")
-  visit                     Visit  @relation(fields: [visitId], references: [id])
-  staffHeadcountConfirmed   Int    @map("staff_headcount_confirmed")
-  repTrainingStatus         Json   @map("rep_training_status")
-  quizScore                 Int    @map("quiz_score")
-  createdAt                 DateTime @default(now()) @map("created_at")
+  id                      String   @id @default(uuid())
+  visitId                 String   @unique @map("visit_id")
+  visit                   Visit    @relation(fields: [visitId], references: [id])
+  staffHeadcountConfirmed Int      @map("staff_headcount_confirmed")
+  repTrainingStatus       Json     @map("rep_training_status")
+  quizScore               Int      @map("quiz_score")
+  createdAt               DateTime @default(now()) @map("created_at")
 
   @@map("visit_capability")
 }
 
 model VisitRisk {
-  id        String @id @default(uuid())
-  visitId   String @map("visit_id")
-  visit     Visit  @relation(fields: [visitId], references: [id])
-  flagType  String @map("flag_type")
+  id        String   @id @default(uuid())
+  visitId   String   @map("visit_id")
+  visit     Visit    @relation(fields: [visitId], references: [id])
+  flagType  String   @map("flag_type")
   severity  String
   note      String
   createdAt DateTime @default(now()) @map("created_at")
@@ -228,21 +257,21 @@ model VisitRisk {
 }
 
 model Task {
-  id                String       @id @default(uuid())
-  visitId           String?      @map("visit_id")
-  visit             Visit?       @relation(fields: [visitId], references: [id])
-  findingType       String       @map("finding_type")
-  outletId          String       @map("outlet_id")
-  outlet            Outlet       @relation(fields: [outletId], references: [id])
-  requiredFix       String       @map("required_fix")
-  priority          TaskPriority
-  slaDueAt          DateTime     @map("sla_due_at")
-  ownerId           String       @map("owner_id")
-  owner             User         @relation(fields: [ownerId], references: [id])
-  status            TaskStatus   @default(open)
-  closurePhotoUrl   String?      @map("closure_photo_url")
-  closureVerified   Boolean      @default(false) @map("closure_verified")
-  createdAt         DateTime     @default(now()) @map("created_at")
+  id              String       @id @default(uuid())
+  visitId         String?      @map("visit_id")
+  visit           Visit?       @relation(fields: [visitId], references: [id])
+  findingType     String       @map("finding_type")
+  outletId        String       @map("outlet_id")
+  outlet          Outlet       @relation(fields: [outletId], references: [id])
+  requiredFix     String       @map("required_fix")
+  priority        TaskPriority
+  slaDueAt        DateTime     @map("sla_due_at")
+  ownerId         String       @map("owner_id")
+  owner           User         @relation(fields: [ownerId], references: [id])
+  status          TaskStatus   @default(open)
+  closurePhotoUrl String?      @map("closure_photo_url")
+  closureVerified Boolean      @default(false) @map("closure_verified")
+  createdAt       DateTime     @default(now()) @map("created_at")
 
   @@map("tasks")
 }
@@ -261,13 +290,269 @@ model Photo {
 }
 
 model Scorecard {
-  id              String @id @default(uuid())
-  visitId         String @unique @map("visit_id")
-  visit           Visit  @relation(fields: [visitId], references: [id])
+  id              String   @id @default(uuid())
+  visitId         String   @unique @map("visit_id")
+  visit           Visit    @relation(fields: [visitId], references: [id])
   dimensionScores Json     @map("dimension_scores")
   weightedTotal   Float    @map("weighted_total")
   ratingBand      String   @map("rating_band")
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("scorecards")
+}
+
+// ── Phase 3 (Activation) ──────────────────────────────────────────────────
+
+/// A sales/coverage territory. `code` mirrors the free-text `Outlet.territoryId`
+/// so existing outlets link by code without a schema migration on Outlet.
+model Territory {
+  id          String          @id @default(uuid())
+  clientId    String          @map("client_id")
+  client      Client          @relation(fields: [clientId], references: [id])
+  name        String
+  code        String
+  region      String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  assignments UserTerritory[]
+  beatPlans   BeatPlan[]
+
+  @@unique([clientId, code])
+  @@map("territories")
+}
+
+/// Assigns an agent (User) to a Territory they cover.
+model UserTerritory {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id])
+  territoryId String    @map("territory_id")
+  territory   Territory @relation(fields: [territoryId], references: [id])
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([userId, territoryId])
+  @@map("user_territories")
+}
+
+/// A trade-marketing campaign/promotion activated across a set of outlets.
+model Campaign {
+  id        String           @id @default(uuid())
+  clientId  String           @map("client_id")
+  client    Client           @relation(fields: [clientId], references: [id])
+  name      String
+  objective String?
+  startDate DateTime         @map("start_date")
+  endDate   DateTime         @map("end_date")
+  budget    Float?
+  status    String           @default("draft") // draft | active | completed
+  createdAt DateTime         @default(now()) @map("created_at")
+  outlets   CampaignOutlet[]
+
+  @@map("campaigns")
+}
+
+model CampaignOutlet {
+  id         String   @id @default(uuid())
+  campaignId String   @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  outletId   String   @map("outlet_id")
+  outlet     Outlet   @relation(fields: [outletId], references: [id])
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([campaignId, outletId])
+  @@map("campaign_outlets")
+}
+
+/// A permanent-journey-plan / beat: an agent's scheduled sequence of outlet
+/// stops for a day, with per-stop adherence tracking.
+model BeatPlan {
+  id            String         @id @default(uuid())
+  clientId      String         @map("client_id")
+  client        Client         @relation(fields: [clientId], references: [id])
+  agentId       String         @map("agent_id")
+  agent         User           @relation(fields: [agentId], references: [id])
+  territoryId   String?        @map("territory_id")
+  territory     Territory?     @relation(fields: [territoryId], references: [id])
+  name          String
+  scheduledDate DateTime       @map("scheduled_date")
+  status        String         @default("planned") // planned | in_progress | completed
+  createdAt     DateTime       @default(now()) @map("created_at")
+  stops         BeatPlanStop[]
+
+  @@map("beat_plans")
+}
+
+model BeatPlanStop {
+  id         String   @id @default(uuid())
+  beatPlanId String   @map("beat_plan_id")
+  beatPlan   BeatPlan @relation(fields: [beatPlanId], references: [id])
+  outletId   String   @map("outlet_id")
+  outlet     Outlet   @relation(fields: [outletId], references: [id])
+  sequence   Int
+  visited    Boolean  @default(false)
+
+  @@map("beat_plan_stops")
+}
+
+/// A configurable rule that raises Alerts from audit exceptions.
+model AlertRule {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  name      String
+  metric    String // out_of_stock | price_deviation | low_scorecard | sla_breach
+  threshold Float?
+  severity  String   @default("normal")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  alerts    Alert[]
+
+  @@map("alert_rules")
+}
+
+/// A raised alert instance (an exception that matched an AlertRule).
+model Alert {
+  id           String     @id @default(uuid())
+  clientId     String     @map("client_id")
+  client       Client     @relation(fields: [clientId], references: [id])
+  ruleId       String?    @map("rule_id")
+  rule         AlertRule? @relation(fields: [ruleId], references: [id])
+  visitId      String?    @map("visit_id")
+  outletId     String?    @map("outlet_id")
+  metric       String
+  message      String
+  severity     String
+  acknowledged Boolean    @default(false)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@map("alerts")
+}
+
+/// A configurable, versioned audit/survey template (dynamic form definition)
+/// per client/industry. `schema` is the form JSON (sections/fields/conditions/
+/// scoring); rendering/validation of it is an app-side concern.
+model AuditTemplate {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  name      String
+  industry  String?
+  schema    Json
+  version   Int      @default(1)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_templates")
+}
+
+// ── Phase 2 (Intelligence) + Phase 3 (Activation) Tier-2 ──────────────────
+
+/// Every geofenced check-in attempt, including rejected/borderline ones that
+/// never became a Visit — the negative-signal dataset for fraud/ghost-visit
+/// detection.
+model CheckInAttempt {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  outletId  String   @map("outlet_id")
+  outlet    Outlet   @relation(fields: [outletId], references: [id])
+  agentId   String   @map("agent_id")
+  agent     User     @relation(fields: [agentId], references: [id])
+  lat       Float
+  lng       Float
+  distanceM Float    @map("distance_m")
+  passed    Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("check_in_attempts")
+}
+
+/// An in-visit order / sell-in captured by an agent (Phase 3 #36).
+model Order {
+  id        String      @id @default(uuid())
+  clientId  String      @map("client_id")
+  client    Client      @relation(fields: [clientId], references: [id])
+  outletId  String      @map("outlet_id")
+  outlet    Outlet      @relation(fields: [outletId], references: [id])
+  agentId   String      @map("agent_id")
+  agent     User        @relation(fields: [agentId], references: [id])
+  visitId   String?     @map("visit_id")
+  visit     Visit?      @relation(fields: [visitId], references: [id])
+  status    String      @default("submitted") // submitted | confirmed | cancelled
+  total     Float       @default(0)
+  createdAt DateTime    @default(now()) @map("created_at")
+  lines     OrderLine[]
+
+  @@map("orders")
+}
+
+model OrderLine {
+  id        String @id @default(uuid())
+  orderId   String @map("order_id")
+  order     Order  @relation(fields: [orderId], references: [id])
+  skuId     String @map("sku_id")
+  sku       Sku    @relation(fields: [skuId], references: [id])
+  quantity  Int
+  unitPrice Float  @map("unit_price")
+
+  @@map("order_lines")
+}
+
+/// Direct/group field message (Phase 3 #37). `recipientId` null = broadcast
+/// within the client.
+model Message {
+  id          String    @id @default(uuid())
+  clientId    String    @map("client_id")
+  client      Client    @relation(fields: [clientId], references: [id])
+  senderId    String    @map("sender_id")
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id])
+  recipientId String?   @map("recipient_id")
+  recipient   User?     @relation("MessageRecipient", fields: [recipientId], references: [id])
+  body        String
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("messages")
+}
+
+/// A broadcast announcement to the client's field team (Phase 3 #37).
+model Announcement {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  authorId  String   @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id])
+  title     String
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("announcements")
+}
+
+/// An outbound webhook subscription (Phase 3 #38). Fired on matching events
+/// (e.g. visit.submitted, order.created, alert.raised).
+model Webhook {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  url       String
+  event     String
+  secret    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("webhooks")
+}
+
+/// A saved report definition (Phase 3 #39) — a named, filtered report the
+/// manager can generate on demand (scheduled delivery is a follow-up).
+model ReportDefinition {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  name      String
+  type      String // visits | scorecards | tasks | orders
+  filters   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("report_definitions")
 }

@@ -1,0 +1,76 @@
+import { Router } from 'express';
+import { AuthedRequest, requireAuth } from '../../middleware/auth';
+import { requireRole } from '../../middleware/roleGuard';
+import { getVisitFraud, listAttempts, listFlagged } from './fraud.service';
+
+const DEFAULT_MIN_SCORE = 50;
+
+export const fraudRouter = Router();
+
+// Fraud analytics are a supervisory concern: managers/admins only, and every
+// query is scoped to the caller's own client (tenant).
+fraudRouter.use(requireAuth);
+fraudRouter.use(requireRole('manager', 'admin'));
+
+// GET /fraud/visits/:visitId — score a single visit. 404 if it isn't the
+// caller's tenant's visit.
+fraudRouter.get('/visits/:visitId', async (req: AuthedRequest, res) => {
+  const { visitId } = req.params as { visitId: string };
+  const result = await getVisitFraud(visitId, req.user!.clientId);
+  res.status(200).json(result);
+});
+
+// GET /fraud/attempts — list check-in attempts, optional outletId/agentId/passed.
+fraudRouter.get('/attempts', async (req: AuthedRequest, res) => {
+  const { outletId, agentId, passed } = req.query as {
+    outletId?: unknown;
+    agentId?: unknown;
+    passed?: unknown;
+  };
+
+  if (outletId !== undefined && typeof outletId !== 'string') {
+    res.status(400).json({ error: 'outletId must be a string' });
+    return;
+  }
+  if (agentId !== undefined && typeof agentId !== 'string') {
+    res.status(400).json({ error: 'agentId must be a string' });
+    return;
+  }
+
+  let passedFilter: boolean | undefined;
+  if (passed !== undefined) {
+    if (passed === 'true') {
+      passedFilter = true;
+    } else if (passed === 'false') {
+      passedFilter = false;
+    } else {
+      res.status(400).json({ error: "passed must be 'true' or 'false'" });
+      return;
+    }
+  }
+
+  const attempts = await listAttempts({
+    clientId: req.user!.clientId,
+    outletId,
+    agentId,
+    passed: passedFilter,
+  });
+  res.status(200).json(attempts);
+});
+
+// GET /fraud/flagged — submitted visits scoring >= minScore (default 50).
+fraudRouter.get('/flagged', async (req: AuthedRequest, res) => {
+  const { minScore } = req.query as { minScore?: unknown };
+
+  let min = DEFAULT_MIN_SCORE;
+  if (minScore !== undefined) {
+    if (typeof minScore !== 'string' || minScore.trim() === '' || !Number.isFinite(Number(minScore))) {
+      res.status(400).json({ error: 'minScore must be a number' });
+      return;
+    }
+    min = Number(minScore);
+  }
+
+  const flagged = await listFlagged(req.user!.clientId, min);
+  res.status(200).json(flagged);
+});

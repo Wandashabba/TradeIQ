@@ -135,11 +135,13 @@ describe('visits routes', () => {
   });
 
   afterAll(async () => {
+    await prisma.checkInAttempt.deleteMany({ where: { clientId } });
     await prisma.visit.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId } });
     await prisma.user.deleteMany({ where: { clientId } });
     await prisma.client.delete({ where: { id: clientId } });
 
+    await prisma.checkInAttempt.deleteMany({ where: { clientId: clientBId } });
     await prisma.visit.deleteMany({ where: { clientId: clientBId } });
     await prisma.outlet.deleteMany({ where: { clientId: clientBId } });
     await prisma.user.deleteMany({ where: { clientId: clientBId } });

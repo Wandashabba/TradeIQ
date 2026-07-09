@@ -34,9 +34,31 @@ export async function checkIn(input: CheckInInput) {
     { lat: outlet.lat, lng: outlet.lng },
     { lat: input.lat, lng: input.lng },
   );
+  const distanceM = Math.round(distanceMeters * 10) / 10;
+
+  // Record EVERY attempt — including rejected/borderline ones — as the
+  // negative-signal dataset for fraud/ghost-visit detection (Phase 2 #3).
+  await prisma.checkInAttempt.create({
+    data: {
+      clientId: input.clientId,
+      outletId: input.outletId,
+      agentId: input.agentId,
+      lat: input.lat,
+      lng: input.lng,
+      distanceM,
+      passed: geofencePass,
+    },
+  });
+
   if (!geofencePass) {
     throw new GeofenceRejectedError('Check-in location is outside the outlet geofence');
   }
+
+  // Update the agent's last-known location (feeds predictive dispatch #4).
+  await prisma.user.update({
+    where: { id: input.agentId },
+    data: { lastLat: input.lat, lastLng: input.lng, lastSeenAt: new Date() },
+  });
 
   return prisma.visit.create({
     data: {
@@ -46,12 +68,8 @@ export async function checkIn(input: CheckInInput) {
       checkinTs: input.checkinTs ? new Date(input.checkinTs) : new Date(),
       checkinLat: input.lat,
       checkinLng: input.lng,
-      // The real, computed pass value. It is always true on a persisted visit
-      // only because a failed geofence throws above and is never recorded — but
-      // it is no longer a hardcoded literal.
       geofencePass,
-      // The measured check-in distance, persisted for later fraud/analytics use.
-      checkinDistanceM: Math.round(distanceMeters * 10) / 10,
+      checkinDistanceM: distanceM,
       status: 'in_progress',
     },
   });
