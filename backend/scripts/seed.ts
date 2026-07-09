@@ -664,6 +664,115 @@ async function main() {
     }
   }
 
+  // ── Phase 3 (Activation) demo data ──────────────────────────────────────
+  // A territory matching the outlets' territoryId, an agent assignment, a
+  // campaign across all outlets, a beat plan, an alert rule, and an audit
+  // template. Stable ids + upserts keep re-seeding idempotent.
+  const territory = await prisma.territory.upsert({
+    where: { clientId_code: { clientId: client.id, code: 'gauteng-north' } },
+    update: {},
+    create: {
+      id: 'demo-territory-1',
+      clientId: client.id,
+      name: 'Gauteng North',
+      code: 'gauteng-north',
+      region: 'Gauteng',
+    },
+  });
+
+  await prisma.userTerritory.upsert({
+    where: { userId_territoryId: { userId: agent.id, territoryId: territory.id } },
+    update: {},
+    create: { id: 'demo-user-territory-1', userId: agent.id, territoryId: territory.id },
+  });
+
+  await prisma.campaign.upsert({
+    where: { id: 'demo-campaign-1' },
+    update: {},
+    create: {
+      id: 'demo-campaign-1',
+      clientId: client.id,
+      name: 'Winter Chill Activation',
+      objective: 'Drive availability + secondary display for the 500ml/1L range',
+      startDate: PROMO_ACTIVE_FROM,
+      endDate: PROMO_ACTIVE_TO,
+      budget: 50000,
+      status: 'active',
+    },
+  });
+  for (const outlet of outlets) {
+    await prisma.campaignOutlet.upsert({
+      where: { campaignId_outletId: { campaignId: 'demo-campaign-1', outletId: outlet.id } },
+      update: {},
+      create: {
+        id: `demo-campaign-1-${outlet.id}`,
+        campaignId: 'demo-campaign-1',
+        outletId: outlet.id,
+      },
+    });
+  }
+
+  await prisma.beatPlan.upsert({
+    where: { id: 'demo-beatplan-1' },
+    update: {},
+    create: {
+      id: 'demo-beatplan-1',
+      clientId: client.id,
+      agentId: agent.id,
+      territoryId: territory.id,
+      name: 'Gauteng North — Mon route',
+      scheduledDate: new Date('2026-07-13T06:00:00.000Z'),
+      status: 'planned',
+    },
+  });
+  for (let i = 0; i < outlets.length; i += 1) {
+    await prisma.beatPlanStop.upsert({
+      where: { id: `demo-beatplan-1-stop-${i + 1}` },
+      update: {},
+      create: {
+        id: `demo-beatplan-1-stop-${i + 1}`,
+        beatPlanId: 'demo-beatplan-1',
+        outletId: outlets[i].id,
+        sequence: i + 1,
+        visited: i === 0,
+      },
+    });
+  }
+
+  await prisma.alertRule.upsert({
+    where: { id: 'demo-alert-rule-1' },
+    update: {},
+    create: {
+      id: 'demo-alert-rule-1',
+      clientId: client.id,
+      name: 'Out-of-stock on any SKU',
+      metric: 'out_of_stock',
+      severity: 'high',
+      active: true,
+    },
+  });
+
+  await prisma.auditTemplate.upsert({
+    where: { id: 'demo-audit-template-1' },
+    update: {},
+    create: {
+      id: 'demo-audit-template-1',
+      clientId: client.id,
+      name: 'FMCG Standard Store Audit',
+      industry: 'FMCG',
+      version: 1,
+      active: true,
+      schema: {
+        sections: [
+          { key: 's2_stock', label: 'Stock & Availability', fields: ['unitsAvailable', 'daysOutOfStock'] },
+          { key: 's3_visibility', label: 'Visibility & Display', fields: ['planogramCompliancePct', 'cleanlinessScore'] },
+          { key: 's5_pricing', label: 'Pricing & Promotions', fields: ['priceActual', 'promoActive'] },
+        ],
+        scoring: { availability: 0.3, visibility: 0.25, display: 0.15, pricing: 0.1, competitive: 0.1, salesCapability: 0.1 },
+      } as Prisma.InputJsonValue,
+    },
+  });
+
   console.log(
     [
       `Seeded client ${client.name}`,
@@ -679,6 +788,7 @@ async function main() {
       `${riskCount} risk flags`,
       `${visitSeeds.length} visibility + ${visitSeeds.length} capability + ${visitSeeds.length} scorecard + ${visitSeeds.length} photo rows`,
       `${taskCount} tasks`,
+      `Phase 3: 1 territory + 1 campaign (${outlets.length} outlets) + 1 beat plan + 1 alert rule + 1 audit template`,
     ].join(', '),
   );
 }

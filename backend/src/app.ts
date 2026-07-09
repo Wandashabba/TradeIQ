@@ -15,6 +15,12 @@ import { tasksRouter } from './modules/tasks/tasks.routes';
 import { scorecardsRouter } from './modules/scorecards/scorecards.routes';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes';
 import { photosRouter } from './modules/photos/photos.routes';
+import { territoriesRouter } from './modules/territories/territories.routes';
+import { campaignsRouter } from './modules/campaigns/campaigns.routes';
+import { beatplansRouter } from './modules/beatplans/beatplans.routes';
+import { alertsRouter } from './modules/alerts/alerts.routes';
+import { templatesRouter } from './modules/templates/templates.routes';
+import { trendsRouter } from './modules/trends/trends.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -56,5 +62,11 @@ app.use('/tasks', tasksRouter);
 app.use('/scorecards', scorecardsRouter);
 app.use('/dashboard', dashboardRouter);
 app.use('/photos', photosRouter);
+app.use('/territories', territoriesRouter);
+app.use('/campaigns', campaignsRouter);
+app.use('/beatplans', beatplansRouter);
+app.use('/alerts', alertsRouter);
+app.use('/templates', templatesRouter);
+app.use('/trends', trendsRouter);
 
 app.use(errorHandler);
