@@ -12,6 +12,14 @@ class VisitOutletPickerScreen extends ConsumerWidget {
     final outlets = ref.watch(outletsListProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Select an Outlet')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await context.push('/outlets/create');
+          ref.invalidate(outletsListProvider);
+        },
+        icon: const Icon(Icons.add_location_alt),
+        label: const Text('Create Store'),
+      ),
       body: outlets.when(
         data: (list) => ListView.builder(
           itemCount: list.length,
@@ -19,7 +27,9 @@ class VisitOutletPickerScreen extends ConsumerWidget {
             final outlet = list[index];
             return ListTile(
               title: Text(outlet.name),
-              subtitle: Text(outlet.code),
+              subtitle: Text(
+                '${outlet.code} · ${outlet.lat.toStringAsFixed(5)}, ${outlet.lng.toStringAsFixed(5)}',
+              ),
               trailing: ElevatedButton(
                 onPressed: () => context.go('/audit/${outlet.id}'),
                 child: const Text('Start Visit'),

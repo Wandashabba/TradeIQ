@@ -19,3 +19,6 @@ app/**/generated_plugin_registrant.dart
 
 # OS
 .DS_Store
+
+# AI assistant session files
+.claude/

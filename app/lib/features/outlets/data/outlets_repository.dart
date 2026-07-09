@@ -26,6 +26,14 @@ class Outlet {
 
 abstract class OutletsRepository {
   Future<List<Outlet>> listOutlets();
+  Future<Outlet> createOutlet({
+    required String name,
+    required String code,
+    required String channelType,
+    required double lat,
+    required double lng,
+    required String territoryId,
+  });
 }
 
 class DioOutletsRepository implements OutletsRepository {
@@ -35,6 +43,26 @@ class DioOutletsRepository implements OutletsRepository {
     return (response.data as List)
         .map((json) => Outlet.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  @override
+  Future<Outlet> createOutlet({
+    required String name,
+    required String code,
+    required String channelType,
+    required double lat,
+    required double lng,
+    required String territoryId,
+  }) async {
+    final response = await dio.post('/outlets', data: {
+      'name': name,
+      'code': code,
+      'channelType': channelType,
+      'lat': lat,
+      'lng': lng,
+      'territoryId': territoryId,
+    });
+    return Outlet.fromJson(response.data as Map<String, dynamic>);
   }
 }
 

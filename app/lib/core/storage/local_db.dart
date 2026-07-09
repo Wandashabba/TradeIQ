@@ -1,11 +1,7 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import 'local_db_connection.dart';
 import 'tables.dart';
 
 part 'local_db.g.dart';
@@ -22,13 +18,7 @@ class LocalDb extends _$LocalDb {
   @override
   int get schemaVersion => 3;
 
-  static QueryExecutor _openConnection() {
-    return LazyDatabase(() async {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File(p.join(dir.path, 'tradeiq_local.sqlite'));
-      return NativeDatabase.createInBackground(file);
-    });
-  }
+  static QueryExecutor _openConnection() => openDbConnection();
 }
 
 final localDbProvider = Provider<LocalDb>((ref) => LocalDb());
