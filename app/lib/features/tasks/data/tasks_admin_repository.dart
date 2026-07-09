@@ -57,11 +57,10 @@ class DioTasksAdminRepository implements TasksAdminRepository {
     String? priority,
     String? outletId,
   }) async {
-    final query = <String, dynamic>{
-      if (status != null) 'status': status,
-      if (priority != null) 'priority': priority,
-      if (outletId != null) 'outletId': outletId,
-    };
+    final query = <String, dynamic>{};
+    if (status != null) query['status'] = status;
+    if (priority != null) query['priority'] = priority;
+    if (outletId != null) query['outletId'] = outletId;
     final response = await dio.get('/tasks', queryParameters: query);
     return (response.data as List)
         .map((json) => TaskItem.fromJson(json as Map<String, dynamic>))
