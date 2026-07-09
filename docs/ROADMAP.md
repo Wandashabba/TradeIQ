@@ -34,24 +34,25 @@ The field-agent offline-first audit app + manager dashboard, on lean infra
 from stockouts/price-deviations (#47), dashboard filter UI (#48), app
 per-route role guards (#43). Closed audit-section issues: #8-#16; login #5.
 
-## Phase 2 — Intelligence (months 4-6) — 🔵 deferred, seams ready
+## Phase 2 — Intelligence (months 4-6) — 🟢 in-house parts implemented; CV/OCR vendor-blocked
 
-Real ML/CV/OCR behind the interfaces the stubs already define. The Phase-1
-gap-closure work deliberately started **capturing the raw data** these need
-(photos, GPS/timestamps, measured distances) so Phase 2 does not cold-start.
+Real logic behind the stub interfaces. The in-house-implementable capabilities
+(heuristic/statistical) are shipped; CV and OCR need a trained model or paid
+vendor and stay stubbed. Detail: `docs/architecture/phase2-intelligence.md`.
 
-| Capability | Stub / seam | Issue |
+| Capability | Status | Issue |
 |---|---|---|
-| Computer vision (branding/planogram/facings/cleanliness/POSM) | `vision.stub.ts`, wired into S3-4 | #1 |
-| OCR price extraction | `ocr.stub.ts`, wired into S5 | #2 |
-| Behavioural fraud / ghost-visit detection | `fraud.stub.ts` | #3 |
-| Predictive field dispatch | `dispatch.stub.ts` | #4 |
-| ML demand forecasting | replaces `forecast.service.ts` velocity formula | (no issue yet) |
+| Behavioural fraud / ghost-visit detection | ✅ real heuristic engine (`modules/fraud`) | #3 |
+| Predictive field dispatch | ✅ real nearest-agent (`modules/dispatch`) | #4 |
+| ML demand forecasting | ✅ real exponential smoothing (`forecast.service` + `modules/forecast`) | — |
+| Persist failed geofence attempts | ✅ `CheckInAttempt` model | #44 |
+| Agent location / territory for dispatch | ✅ `User.lastLat/lng` + Territories | #45 |
+| Computer vision (branding/planogram/facings/cleanliness/POSM) | 🔴 stub wired; needs model/vendor | #1 |
+| OCR price extraction | 🔴 stub wired; needs model/vendor | #2 |
 
-**Phase-2 data-readiness follow-ups:** persist failed/borderline geofence
-attempts for fraud (#44); agent location/territory model for dispatch (#45);
-migrate photo storage to an object store (folded into #1/#2, ADR 0007).
-Infra deferred here: Kafka, PostGIS, Redis (ADR 0002).
+CV/OCR are **blocked on a vendor/model decision, not on integration** — the
+seams are wired and Phase 1 captures the photos they would consume. Infra
+deferred: Kafka, PostGIS, Redis (ADR 0002).
 
 ## Phase 3 — Activation (months 7-9) — 🟢 Tier-1 backend implemented
 
@@ -71,14 +72,17 @@ detail: `docs/architecture/phase3-activation.md`.
 App UIs for the Tier-1 features and campaign-ROI dashboards are the next step
 (sub-tickets on #29-#33/#35). Event-driven alerting/streaming is Phase 4.
 
-**Tier 2 — planned:**
-6. Field-agent gamification & retailer incentives (#34)
-7. Territory management & coverage heatmaps (#35)
-8. In-store order-taking / sell-in capture (#36)
-9. In-app messaging & announcements (#37)
-10. Integrations, webhooks & data export (ERP/POS/CRM) (#38)
-11. Report builder & scheduled delivery (#39)
-12. Multi-language localization (#40)
+**Tier 2 — backend ✅ implemented (app UIs tracked separately):**
+6. Field-agent gamification & leaderboard (#34) ✅ backend (`modules/gamification`)
+7. Territory management & coverage (#35) ✅ backend (shipped in Tier-1)
+8. In-store order-taking / sell-in capture (#36) ✅ backend (`modules/orders`)
+9. In-app messaging & announcements (#37) ✅ backend (`modules/collaboration`)
+10. Integrations, webhooks & data export (#38) ✅ backend (`modules/webhooks`, report CSV export)
+11. Report builder (#39) ✅ backend (`modules/reports`); scheduled delivery is a follow-up
+12. Multi-language localization (#40) — 🟣 app-side, planned
+
+Retailer/trade **incentive schemes** (the reward side of #34) and **scheduled
+report delivery** (#39) are follow-ups on top of the shipped backends.
 
 Sequencing note: #35 (territories) underpins #30 (beat planning); #29→#33
 (campaign → ROI) is the tightest activation feedback loop; #7/#35 also

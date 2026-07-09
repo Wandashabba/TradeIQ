@@ -16,6 +16,9 @@ info:
     role-guarded (403 when the caller's role is not permitted).
     Phase 3 (Activation) adds /territories, /campaigns, /beatplans, /alerts,
     /templates, and /trends — see docs/architecture/phase3-activation.md.
+    Phase 2 (Intelligence) adds /fraud, /dispatch, /forecast; Phase 3 Tier-2
+    adds /orders, /messages, /announcements, /webhooks, /gamification, /reports
+    — see docs/architecture/phase2-intelligence.md.
 servers:
   - url: http://localhost:4000
 paths:
@@ -743,6 +746,151 @@ paths:
         - { name: to, in: query, schema: { type: string, format: date-time } }
         - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
       responses: { '200': { description: Time series }, '400': { description: Invalid params } }
+  # ── Phase 2 (Intelligence) ────────────────────────────────────────────────
+  /fraud/visits/{visitId}:
+    get:
+      summary: Fraud risk score + signals for a visit — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: visitId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: 'Risk score + signals' }, '404': { description: Not found } }
+  /fraud/attempts:
+    get:
+      summary: List check-in attempts (incl. rejected) — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: outletId, in: query, schema: { type: string } }
+        - { name: agentId, in: query, schema: { type: string } }
+        - { name: passed, in: query, schema: { type: string, enum: ['true', 'false'] } }
+      responses: { '200': { description: Attempts } }
+  /fraud/flagged:
+    get:
+      summary: Submitted visits above a fraud-risk threshold — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: minScore, in: query, schema: { type: number } }]
+      responses: { '200': { description: Flagged visits } }
+  /dispatch:
+    post:
+      summary: Rank agents for an outlet (nearest + in-territory) — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: 'Ranked candidates + recommended' }, '400': { description: Missing outletId }, '404': { description: Outlet not found } }
+  /dispatch/agents:
+    get:
+      summary: Ranked agent candidates for an outlet — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: outletId, in: query, required: true, schema: { type: string } }]
+      responses: { '200': { description: Candidates }, '400': { description: Missing outletId } }
+  /forecast:
+    get:
+      summary: Exponential-smoothing demand forecast for a SKU — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: skuId, in: query, required: true, schema: { type: string } }
+        - { name: outletId, in: query, schema: { type: string } }
+      responses: { '200': { description: Forecast }, '400': { description: Missing skuId }, '404': { description: SKU not found } }
+  # ── Phase 3 Tier-2 ────────────────────────────────────────────────────────
+  /orders:
+    get:
+      summary: List orders (agent sees own; manager sees client's)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: outletId, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [submitted, confirmed, cancelled] } }
+      responses: { '200': { description: Orders } }
+    post:
+      summary: Create an in-visit order / sell-in — field_agent/manager
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid }, '404': { description: Outlet/SKU/visit not found } }
+  /orders/{id}:
+    get:
+      summary: Order + lines
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Order }, '404': { description: Not found } }
+    patch:
+      summary: Update order status — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+  /messages:
+    get:
+      summary: List messages visible to the caller
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Messages } }
+    post:
+      summary: Send a direct or broadcast message
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Sent }, '400': { description: Empty body }, '404': { description: Recipient not found } }
+  /messages/{id}/read:
+    patch:
+      summary: Mark a message read (recipient only)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Marked read }, '404': { description: Not found } }
+  /announcements:
+    get:
+      summary: List the client's announcements
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Announcements } }
+    post:
+      summary: Post an announcement — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden } }
+  /webhooks:
+    get:
+      summary: List webhook subscriptions — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Webhooks } }
+    post:
+      summary: Create a webhook subscription — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid url/event }, '403': { description: Forbidden } }
+  /webhooks/{id}:
+    patch:
+      summary: Update a webhook — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+    delete:
+      summary: Delete a webhook — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '204': { description: Deleted }, '404': { description: Not found } }
+  /gamification/leaderboard:
+    get:
+      summary: Field-agent leaderboard (points from scorecards/tasks/visits)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses: { '200': { description: Leaderboard }, '400': { description: Invalid dates } }
+  /gamification/me:
+    get:
+      summary: The caller's own leaderboard entry + rank
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Entry } }
+  /reports:
+    get:
+      summary: List saved report definitions — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Definitions } }
+    post:
+      summary: Create a report definition — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid type/filters }, '403': { description: Forbidden } }
+  /reports/{id}:
+    delete:
+      summary: Delete a report definition — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '204': { description: Deleted }, '404': { description: Not found } }
+  /reports/{id}/generate:
+    get:
+      summary: Run a report (JSON, or ?format=csv) — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: format, in: query, schema: { type: string, enum: [csv] } }
+      responses: { '200': { description: 'Report rows (JSON or text/csv)' }, '404': { description: Not found } }
 components:
   securitySchemes:
     bearerAuth:

@@ -21,6 +21,14 @@ import { beatplansRouter } from './modules/beatplans/beatplans.routes';
 import { alertsRouter } from './modules/alerts/alerts.routes';
 import { templatesRouter } from './modules/templates/templates.routes';
 import { trendsRouter } from './modules/trends/trends.routes';
+import { fraudRouter } from './modules/fraud/fraud.routes';
+import { dispatchRouter } from './modules/dispatch/dispatch.routes';
+import { forecastRouter } from './modules/forecast/forecast.routes';
+import { ordersRouter } from './modules/orders/orders.routes';
+import { collaborationRouter } from './modules/collaboration/collaboration.routes';
+import { webhooksRouter } from './modules/webhooks/webhooks.routes';
+import { gamificationRouter } from './modules/gamification/gamification.routes';
+import { reportsRouter } from './modules/reports/reports.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -68,5 +76,13 @@ app.use('/beatplans', beatplansRouter);
 app.use('/alerts', alertsRouter);
 app.use('/templates', templatesRouter);
 app.use('/trends', trendsRouter);
+app.use('/fraud', fraudRouter);
+app.use('/dispatch', dispatchRouter);
+app.use('/forecast', forecastRouter);
+app.use('/orders', ordersRouter);
+app.use('/', collaborationRouter);
+app.use('/webhooks', webhooksRouter);
+app.use('/gamification', gamificationRouter);
+app.use('/reports', reportsRouter);
 
 app.use(errorHandler);

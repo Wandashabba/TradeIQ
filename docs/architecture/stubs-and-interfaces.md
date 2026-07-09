@@ -8,8 +8,8 @@ touching callers.
 |---|---|---|---|---|
 | Computer vision (branding/planogram/facings/cleanliness) | `backend/src/services/vision.stub.ts` (now **wired** into `visibility.service.ts`: called when S3-4 capture includes a `photoUrl`) | `detectBranding`, `scorePlanogramCompliance`, `countFacings`, `scoreCleanliness` | On-device or server CV model for S3/S4 | https://github.com/Wandashabba/TradeIQ/issues/1 |
 | OCR price extraction | `backend/src/services/ocr.stub.ts` | `extractPriceFromPhoto` | Real OCR from a shelf-price photo for S5 | https://github.com/Wandashabba/TradeIQ/issues/2 |
-| Behavioural fraud / ghost-visit detection | `backend/src/services/fraud.stub.ts` | `detectGhostVisit` (currently throws, no Phase 1 caller) | Fraud/ghost-visit detection | https://github.com/Wandashabba/TradeIQ/issues/3 |
-| Predictive field dispatch | `backend/src/services/dispatch.stub.ts` | `dispatchNearestAgent` (currently throws, no Phase 1 caller) | Auto-assign nearest agent on share-of-shelf drop | https://github.com/Wandashabba/TradeIQ/issues/4 |
+| Behavioural fraud / ghost-visit detection | ✅ **superseded** by `backend/src/modules/fraud` (real heuristic engine) | — | `fraud.stub.ts` retained but unused | https://github.com/Wandashabba/TradeIQ/issues/3 |
+| Predictive field dispatch | ✅ **superseded** by `backend/src/modules/dispatch` (real nearest-agent) | — | `dispatch.stub.ts` retained but unused | https://github.com/Wandashabba/TradeIQ/issues/4 |
 
 ## What is real (not stubbed)
 

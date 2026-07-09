@@ -48,21 +48,36 @@ model Client {
   alertRules         AlertRule[]
   alerts             Alert[]
   auditTemplates     AuditTemplate[]
+  checkInAttempts    CheckInAttempt[]
+  orders             Order[]
+  messages           Message[]
+  announcements      Announcement[]
+  webhooks           Webhook[]
+  reportDefinitions  ReportDefinition[]
 
   @@map("clients")
 }
 
 model User {
-  id           String          @id @default(uuid())
-  email        String          @unique
-  passwordHash String          @map("password_hash")
-  role         UserRole
-  clientId     String          @map("client_id")
-  client       Client          @relation(fields: [clientId], references: [id])
-  visits       Visit[]
-  tasksOwned   Task[]
-  territories  UserTerritory[]
-  beatPlans    BeatPlan[]
+  id               String           @id @default(uuid())
+  email            String           @unique
+  passwordHash     String           @map("password_hash")
+  role             UserRole
+  clientId         String           @map("client_id")
+  client           Client           @relation(fields: [clientId], references: [id])
+  // Last-known agent location (updated on check-in) — feeds predictive dispatch.
+  lastLat          Float?           @map("last_lat")
+  lastLng          Float?           @map("last_lng")
+  lastSeenAt       DateTime?        @map("last_seen_at")
+  visits           Visit[]
+  tasksOwned       Task[]
+  territories      UserTerritory[]
+  beatPlans        BeatPlan[]
+  checkInAttempts  CheckInAttempt[]
+  ordersTaken      Order[]
+  messagesSent     Message[]        @relation("MessageSender")
+  messagesReceived Message[]        @relation("MessageRecipient")
+  announcements    Announcement[]
 
   @@map("users")
 }
@@ -82,6 +97,8 @@ model Outlet {
   tasks           Task[]
   campaignOutlets CampaignOutlet[]
   beatPlanStops   BeatPlanStop[]
+  checkInAttempts CheckInAttempt[]
+  orders          Order[]
 
   @@map("outlets")
 }
@@ -96,6 +113,7 @@ model Sku {
   rrp                Float
   visitStock         VisitStock[]
   visitPricing       VisitPricing[]
+  orderLines         OrderLine[]
 
   @@map("skus")
 }
@@ -146,6 +164,7 @@ model Visit {
   tasks       Task[]
   photos      Photo[]
   scorecard   Scorecard?
+  orders      Order[]
 
   @@map("visits")
 }
@@ -423,4 +442,117 @@ model AuditTemplate {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("audit_templates")
+}
+
+// ── Phase 2 (Intelligence) + Phase 3 (Activation) Tier-2 ──────────────────
+
+/// Every geofenced check-in attempt, including rejected/borderline ones that
+/// never became a Visit — the negative-signal dataset for fraud/ghost-visit
+/// detection.
+model CheckInAttempt {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  outletId  String   @map("outlet_id")
+  outlet    Outlet   @relation(fields: [outletId], references: [id])
+  agentId   String   @map("agent_id")
+  agent     User     @relation(fields: [agentId], references: [id])
+  lat       Float
+  lng       Float
+  distanceM Float    @map("distance_m")
+  passed    Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("check_in_attempts")
+}
+
+/// An in-visit order / sell-in captured by an agent (Phase 3 #36).
+model Order {
+  id        String      @id @default(uuid())
+  clientId  String      @map("client_id")
+  client    Client      @relation(fields: [clientId], references: [id])
+  outletId  String      @map("outlet_id")
+  outlet    Outlet      @relation(fields: [outletId], references: [id])
+  agentId   String      @map("agent_id")
+  agent     User        @relation(fields: [agentId], references: [id])
+  visitId   String?     @map("visit_id")
+  visit     Visit?      @relation(fields: [visitId], references: [id])
+  status    String      @default("submitted") // submitted | confirmed | cancelled
+  total     Float       @default(0)
+  createdAt DateTime    @default(now()) @map("created_at")
+  lines     OrderLine[]
+
+  @@map("orders")
+}
+
+model OrderLine {
+  id        String @id @default(uuid())
+  orderId   String @map("order_id")
+  order     Order  @relation(fields: [orderId], references: [id])
+  skuId     String @map("sku_id")
+  sku       Sku    @relation(fields: [skuId], references: [id])
+  quantity  Int
+  unitPrice Float  @map("unit_price")
+
+  @@map("order_lines")
+}
+
+/// Direct/group field message (Phase 3 #37). `recipientId` null = broadcast
+/// within the client.
+model Message {
+  id          String    @id @default(uuid())
+  clientId    String    @map("client_id")
+  client      Client    @relation(fields: [clientId], references: [id])
+  senderId    String    @map("sender_id")
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id])
+  recipientId String?   @map("recipient_id")
+  recipient   User?     @relation("MessageRecipient", fields: [recipientId], references: [id])
+  body        String
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("messages")
+}
+
+/// A broadcast announcement to the client's field team (Phase 3 #37).
+model Announcement {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  authorId  String   @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id])
+  title     String
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("announcements")
+}
+
+/// An outbound webhook subscription (Phase 3 #38). Fired on matching events
+/// (e.g. visit.submitted, order.created, alert.raised).
+model Webhook {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  url       String
+  event     String
+  secret    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("webhooks")
+}
+
+/// A saved report definition (Phase 3 #39) — a named, filtered report the
+/// manager can generate on demand (scheduled delivery is a follow-up).
+model ReportDefinition {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  name      String
+  type      String // visits | scorecards | tasks | orders
+  filters   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("report_definitions")
 }
