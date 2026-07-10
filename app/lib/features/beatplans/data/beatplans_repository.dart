@@ -76,6 +76,16 @@ abstract class BeatPlansRepository {
   Future<List<BeatPlan>> listBeatPlans();
   Future<BeatPlanDetail> getBeatPlan(String id);
   Future<void> markStopVisited(String planId, String stopId, bool visited);
+
+  /// POST /beatplans (manager/admin). [outletIds] order becomes the stop
+  /// sequence. Requires a non-empty [outletIds]; [territoryId] is optional.
+  Future<BeatPlan> createBeatPlan({
+    required String agentId,
+    required String name,
+    required String scheduledDate,
+    required List<String> outletIds,
+    String? territoryId,
+  });
 }
 
 class DioBeatPlansRepository implements BeatPlansRepository {
@@ -103,6 +113,24 @@ class DioBeatPlansRepository implements BeatPlansRepository {
       '/beatplans/$planId/stops/$stopId',
       data: {'visited': visited},
     );
+  }
+
+  @override
+  Future<BeatPlan> createBeatPlan({
+    required String agentId,
+    required String name,
+    required String scheduledDate,
+    required List<String> outletIds,
+    String? territoryId,
+  }) async {
+    final response = await dio.post('/beatplans', data: {
+      'agentId': agentId,
+      'name': name,
+      'scheduledDate': scheduledDate,
+      'outletIds': outletIds,
+      'territoryId': ?territoryId,
+    });
+    return BeatPlan.fromJson(response.data as Map<String, dynamic>);
   }
 }
 

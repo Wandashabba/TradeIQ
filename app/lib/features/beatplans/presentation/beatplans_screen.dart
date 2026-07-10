@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../data/beatplans_repository.dart';
+import 'beat_plan_form_screen.dart';
 
 class BeatPlansScreen extends ConsumerWidget {
   const BeatPlansScreen({super.key});
@@ -10,6 +11,9 @@ class BeatPlansScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final beatPlans = ref.watch(beatPlansListProvider);
+    final role = ref.watch(sessionControllerProvider).value?.role;
+    // Planning is a manager/admin action; a field agent only executes plans.
+    final canBuild = role == 'manager' || role == 'admin';
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Beat Plans'),
@@ -21,6 +25,18 @@ class BeatPlansScreen extends ConsumerWidget {
           ),
         ],
       ),
+      floatingActionButton: canBuild
+          ? FloatingActionButton(
+              key: const ValueKey<String>('beatplan-create-fab'),
+              tooltip: 'New beat plan',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => const BeatPlanFormScreen(),
+                ),
+              ),
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: beatPlans.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
