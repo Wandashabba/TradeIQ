@@ -29,6 +29,9 @@ abstract class WebhooksRepository {
     required String event,
   });
   Future<void> deleteWebhook(String id);
+
+  /// PATCH /webhooks/:id — activate or deactivate a webhook without deleting it.
+  Future<Webhook> setActive(String id, bool active);
 }
 
 class DioWebhooksRepository implements WebhooksRepository {
@@ -55,6 +58,12 @@ class DioWebhooksRepository implements WebhooksRepository {
   @override
   Future<void> deleteWebhook(String id) async {
     await dio.delete('/webhooks/$id');
+  }
+
+  @override
+  Future<Webhook> setActive(String id, bool active) async {
+    final response = await dio.patch('/webhooks/$id', data: {'active': active});
+    return Webhook.fromJson(response.data as Map<String, dynamic>);
   }
 }
 

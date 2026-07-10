@@ -64,13 +64,30 @@ class _WebhookCard extends ConsumerWidget {
       child: ListTile(
         title: Text(webhook.event),
         subtitle: Text(webhook.url),
-        trailing: IconButton(
-          key: ValueKey<String>('delete-${webhook.id}'),
-          icon: const Icon(Icons.delete),
-          onPressed: () async {
-            await ref.read(webhooksRepositoryProvider).deleteWebhook(webhook.id);
-            ref.invalidate(webhooksListProvider);
-          },
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Switch(
+              key: ValueKey<String>('toggle-${webhook.id}'),
+              value: webhook.active,
+              onChanged: (value) async {
+                await ref
+                    .read(webhooksRepositoryProvider)
+                    .setActive(webhook.id, value);
+                ref.invalidate(webhooksListProvider);
+              },
+            ),
+            IconButton(
+              key: ValueKey<String>('delete-${webhook.id}'),
+              icon: const Icon(Icons.delete),
+              onPressed: () async {
+                await ref
+                    .read(webhooksRepositoryProvider)
+                    .deleteWebhook(webhook.id);
+                ref.invalidate(webhooksListProvider);
+              },
+            ),
+          ],
         ),
       ),
     );

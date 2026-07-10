@@ -56,6 +56,9 @@ abstract class IncentivesRepository {
   });
   Future<void> deleteScheme(String id);
   Future<List<EarnedIncentive>> earned();
+
+  /// PATCH /incentives/:id — activate or deactivate a scheme without deleting it.
+  Future<IncentiveScheme> setActive(String id, bool active);
 }
 
 class DioIncentivesRepository implements IncentivesRepository {
@@ -86,6 +89,13 @@ class DioIncentivesRepository implements IncentivesRepository {
   @override
   Future<void> deleteScheme(String id) async {
     await dio.delete('/incentives/$id');
+  }
+
+  @override
+  Future<IncentiveScheme> setActive(String id, bool active) async {
+    final response =
+        await dio.patch('/incentives/$id', data: {'active': active});
+    return IncentiveScheme.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
