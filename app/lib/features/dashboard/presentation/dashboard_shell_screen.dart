@@ -103,8 +103,14 @@ class _DashboardDrawer extends StatelessWidget {
     ('Leaderboard', Icons.leaderboard, '/leaderboard'),
     ('Fraud review', Icons.gpp_maybe, '/fraud'),
     ('Reports', Icons.assessment, '/reports'),
+    ('Trends', Icons.show_chart, '/trends'),
+    ('Dispatch', Icons.near_me, '/dispatch'),
+    ('Incentives', Icons.card_giftcard, '/incentives'),
     ('Messages', Icons.message, '/messages'),
     ('Users', Icons.group, '/users'),
+    ('Audit templates', Icons.description, '/audit-templates'),
+    ('Webhooks', Icons.link, '/webhooks'),
+    ('Scoring config', Icons.tune, '/client-config'),
     ('Outlets', Icons.store, '/outlets'),
   ];
 
