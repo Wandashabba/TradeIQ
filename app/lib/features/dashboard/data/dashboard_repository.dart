@@ -68,8 +68,15 @@ class DioDashboardRepository implements DashboardRepository {
 final dashboardRepositoryProvider =
     Provider<DashboardRepository>((ref) => DioDashboardRepository());
 
+class DashboardFilterNotifier extends Notifier<DashboardFilter> {
+  @override
+  DashboardFilter build() => const DashboardFilter();
+
+  void set(DashboardFilter filter) => state = filter;
+}
+
 final dashboardFilterProvider =
-    StateProvider<DashboardFilter>((ref) => const DashboardFilter());
+    NotifierProvider<DashboardFilterNotifier, DashboardFilter>(DashboardFilterNotifier.new);
 
 final dashboardKpisProvider = FutureProvider<DashboardKpis>((ref) {
   final filter = ref.watch(dashboardFilterProvider);

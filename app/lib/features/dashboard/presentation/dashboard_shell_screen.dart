@@ -107,7 +107,7 @@ class _FilterBar extends ConsumerWidget {
     final territories = ref.watch(territoriesListProvider);
 
     void update(DashboardFilter next) {
-      ref.read(dashboardFilterProvider.notifier).state = next;
+      ref.read(dashboardFilterProvider.notifier).set(next);
     }
 
     Future<void> pickRange() async {
