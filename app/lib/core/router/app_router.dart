@@ -13,6 +13,11 @@ import '../../features/alerts/presentation/alerts_screen.dart';
 import '../../features/territories/presentation/territories_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 import '../../features/beatplans/presentation/beatplans_screen.dart';
+import '../../features/gamification/presentation/leaderboard_screen.dart';
+import '../../features/fraud/presentation/fraud_screen.dart';
+import '../../features/reports/presentation/reports_screen.dart';
+import '../../features/collaboration/presentation/messages_screen.dart';
+import '../../features/users/presentation/users_screen.dart';
 import '../auth/session_controller.dart';
 import 'session_refresh_listenable.dart';
 
@@ -40,6 +45,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       const managerOnly = {
         '/dashboard', '/tasks', '/campaigns', '/alerts', '/territories', '/orders',
+        '/fraud', '/reports', '/users',
       };
       final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
       if (role == 'field_agent' && managerOnly.contains(loc)) {
@@ -66,6 +72,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/territories', builder: (context, state) => const TerritoriesScreen()),
       GoRoute(path: '/orders', builder: (context, state) => const OrdersScreen()),
       GoRoute(path: '/beatplans', builder: (context, state) => const BeatPlansScreen()),
+      GoRoute(path: '/leaderboard', builder: (context, state) => const LeaderboardScreen()),
+      GoRoute(path: '/fraud', builder: (context, state) => const FraudScreen()),
+      GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
+      GoRoute(path: '/messages', builder: (context, state) => const MessagesScreen()),
+      GoRoute(path: '/users', builder: (context, state) => const UsersScreen()),
     ],
   );
 });
