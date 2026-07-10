@@ -69,6 +69,18 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>
       throw UnimplementedError();
+
+  @override
+  Future<Territory> createTerritory({
+    required String name,
+    required String code,
+    String? region,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> assignAgent(String territoryId, String userId) async =>
+      throw UnimplementedError();
 }
 
 class _FakeOutletsRepository implements OutletsRepository {
