@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeIQ — Auth UI Design</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { background:#050505; background-image: radial-gradient(circle at 50% -10%, #16203a 0%, #050505 60%); color:#fff; font-family:'Inter',sans-serif; min-height:100vh; }
+        h1,h2,.heading { font-family:'Montserrat',sans-serif; }
+        .screen-frame { width:415px; height:880px; border:none; border-radius:24px; }
+        .no-scrollbar::-webkit-scrollbar { display:none; }
+        .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+    </style>
+</head>
+<body>
+    <header class="text-center pt-14 pb-8 px-6">
+        <div class="inline-flex items-center gap-2 text-xs font-medium text-blue-400 bg-[#0f1117]/70 border border-blue-900/40 px-4 py-1.5 rounded-full mb-5">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+            TradeIQ · Design
+        </div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Authentication UI</h1>
+        <p class="text-gray-400 max-w-xl mx-auto text-sm md:text-base">Landing, Sign In and Sign Up screens for the TradeIQ field-execution app — dark theme, blue gradient, 375×812 mobile frames.</p>
+        <div class="flex justify-center gap-3 mt-6 flex-wrap">
+            <a href="landing.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Landing</a>
+            <a href="signin.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Sign In</a>
+            <a href="signup.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Sign Up</a>
+        </div>
+    </header>
+
+    <main class="flex gap-6 justify-start lg:justify-center items-start overflow-x-auto no-scrollbar px-8 pb-16">
+        <figure class="flex-shrink-0 text-center">
+            <iframe src="landing.html" class="screen-frame" title="Landing"></iframe>
+            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">01 · Landing</figcaption>
+        </figure>
+        <figure class="flex-shrink-0 text-center">
+            <iframe src="signin.html" class="screen-frame" title="Sign In"></iframe>
+            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">02 · Sign In</figcaption>
+        </figure>
+        <figure class="flex-shrink-0 text-center">
+            <iframe src="signup.html" class="screen-frame" title="Sign Up"></iframe>
+            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">03 · Sign Up</figcaption>
+        </figure>
+    </main>
+
+    <footer class="text-center pb-10 text-xs text-gray-600">Static HTML mockups · Tailwind + Font Awesome · flows: Landing → Sign Up ⇄ Sign In</footer>
+</body>
+</html>
