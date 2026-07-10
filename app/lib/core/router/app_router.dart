@@ -8,6 +8,11 @@ import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
 import '../../features/outlets/presentation/create_outlet_screen.dart';
 import '../../features/outlets/presentation/outlets_list_screen.dart';
 import '../../features/tasks/presentation/tasks_screen.dart';
+import '../../features/campaigns/presentation/campaigns_screen.dart';
+import '../../features/alerts/presentation/alerts_screen.dart';
+import '../../features/territories/presentation/territories_screen.dart';
+import '../../features/orders/presentation/orders_screen.dart';
+import '../../features/beatplans/presentation/beatplans_screen.dart';
 import '../auth/session_controller.dart';
 import 'session_refresh_listenable.dart';
 
@@ -26,6 +31,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isOnLoginScreen) {
         return session!.role == 'field_agent' ? '/audit' : '/dashboard';
       }
+
+      // Per-route role guard: field agents live in the audit/visit flow;
+      // managers/admins live in the dashboard/ops screens. Bounce a role that
+      // navigates (e.g. by URL) to the other side's screens. Shared screens
+      // (/outlets, /beatplans) are intentionally omitted from both sets.
+      final role = session!.role;
+      final loc = state.matchedLocation;
+      const managerOnly = {
+        '/dashboard', '/tasks', '/campaigns', '/alerts', '/territories', '/orders',
+      };
+      final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
+      if (role == 'field_agent' && managerOnly.contains(loc)) {
+        return '/audit';
+      }
+      if (role != 'field_agent' && isAuditRoute) {
+        return '/dashboard';
+      }
       return null;
     },
     routes: [
@@ -39,6 +61,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/outlets', builder: (context, state) => const OutletsListScreen()),
       GoRoute(path: '/outlets/create', builder: (context, state) => const CreateOutletScreen()),
       GoRoute(path: '/tasks', builder: (context, state) => const TasksScreen()),
+      GoRoute(path: '/campaigns', builder: (context, state) => const CampaignsScreen()),
+      GoRoute(path: '/alerts', builder: (context, state) => const AlertsScreen()),
+      GoRoute(path: '/territories', builder: (context, state) => const TerritoriesScreen()),
+      GoRoute(path: '/orders', builder: (context, state) => const OrdersScreen()),
+      GoRoute(path: '/beatplans', builder: (context, state) => const BeatPlansScreen()),
     ],
   );
 });

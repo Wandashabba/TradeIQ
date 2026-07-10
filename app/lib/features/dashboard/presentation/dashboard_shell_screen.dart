@@ -12,6 +12,7 @@ class DashboardShellScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kpis = ref.watch(dashboardKpisProvider);
     return Scaffold(
+      drawer: const _DashboardDrawer(),
       appBar: AppBar(
         title: const Text('Manager Dashboard'),
         actions: [
@@ -81,6 +82,46 @@ class DashboardShellScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Navigation drawer to the manager/admin destinations backed by the Phase 3
+/// modules. Each entry closes the drawer then routes via go_router.
+class _DashboardDrawer extends StatelessWidget {
+  const _DashboardDrawer();
+
+  static const _destinations = <(String, IconData, String)>[
+    ('Dashboard', Icons.dashboard, '/dashboard'),
+    ('Tasks', Icons.checklist, '/tasks'),
+    ('Campaigns', Icons.campaign, '/campaigns'),
+    ('Alerts', Icons.warning_amber, '/alerts'),
+    ('Territories', Icons.map, '/territories'),
+    ('Orders', Icons.shopping_cart, '/orders'),
+    ('Beat plans', Icons.route, '/beatplans'),
+    ('Outlets', Icons.store, '/outlets'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: ListView(
+          children: [
+            const DrawerHeader(child: Center(child: Text('TradeIQ'))),
+            for (final (label, icon, path) in _destinations)
+              ListTile(
+                key: ValueKey('nav-$path'),
+                leading: Icon(icon),
+                title: Text(label),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  context.go(path);
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

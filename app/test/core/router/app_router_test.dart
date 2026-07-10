@@ -132,4 +132,37 @@ void main() {
 
     expect(find.text('TradeIQ Login'), findsOneWidget);
   });
+
+  testWidgets('a field_agent navigating to a manager route is bounced to /audit', (tester) async {
+    await tester.pumpWidget(_appWithOverrides([
+      sessionControllerProvider.overrideWith(
+        () => _FixedSessionController(const SessionState(role: 'field_agent')),
+      ),
+      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+    ]));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    container.read(routerProvider).go('/dashboard');
+    await tester.pumpAndSettle();
+
+    // Guarded away from the manager dashboard, back to the audit outlet picker.
+    expect(find.text('Select an Outlet'), findsOneWidget);
+    expect(find.text('Manager Dashboard'), findsNothing);
+  });
+
+  testWidgets('a manager navigating to the audit flow is bounced to /dashboard', (tester) async {
+    await tester.pumpWidget(_appWithOverrides([
+      sessionControllerProvider.overrideWith(
+        () => _FixedSessionController(const SessionState(role: 'manager')),
+      ),
+    ]));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    container.read(routerProvider).go('/audit/o1');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Manager Dashboard'), findsOneWidget);
+  });
 }
