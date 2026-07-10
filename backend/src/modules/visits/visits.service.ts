@@ -4,6 +4,7 @@ import { GeofenceRejectedError, NotFoundError } from '../../middleware/errorHand
 import { Prisma } from '@prisma/client';
 import type { AuthTokenPayload } from '../auth/auth.service';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
+import { evaluateVisit } from '../alerts/alerts.service';
 
 export interface CheckInInput {
   outletId: string;
@@ -102,6 +103,16 @@ export async function submitVisit(input: SubmitVisitInput) {
     visitId: submitted.id,
     outletId: submitted.outletId,
   });
+
+  // Issue #53: auto-evaluate the client's alert rules against the just-submitted
+  // visit so exceptions surface without a manual POST /alerts/evaluate.
+  // Best-effort — a rules-evaluation failure must not fail a submission that has
+  // already been persisted. evaluateVisit itself fires the alert.raised webhook.
+  try {
+    await evaluateVisit({ clientId: submitted.clientId, visitId: submitted.id });
+  } catch (err) {
+    console.error(`Auto-evaluate alerts failed for visit ${submitted.id}:`, err);
+  }
 
   return submitted;
 }
