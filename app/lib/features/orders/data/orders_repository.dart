@@ -26,8 +26,33 @@ class OrderItem {
       );
 }
 
+/// One line on a new order. [quantity] must be a positive integer and
+/// [unitPrice] non-negative (enforced by the backend).
+class OrderLine {
+  const OrderLine({
+    required this.skuId,
+    required this.quantity,
+    required this.unitPrice,
+  });
+  final String skuId;
+  final int quantity;
+  final double unitPrice;
+
+  Map<String, dynamic> toJson() => {
+        'skuId': skuId,
+        'quantity': quantity,
+        'unitPrice': unitPrice,
+      };
+}
+
 abstract class OrdersRepository {
   Future<List<OrderItem>> listOrders({String? status, String? outletId});
+
+  /// POST /orders (field_agent/manager). [lines] must be non-empty.
+  Future<OrderItem> createOrder({
+    required String outletId,
+    required List<OrderLine> lines,
+  });
 }
 
 class DioOrdersRepository implements OrdersRepository {
@@ -40,6 +65,18 @@ class DioOrdersRepository implements OrdersRepository {
     return (response.data as List)
         .map((json) => OrderItem.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  @override
+  Future<OrderItem> createOrder({
+    required String outletId,
+    required List<OrderLine> lines,
+  }) async {
+    final response = await dio.post('/orders', data: {
+      'outletId': outletId,
+      'lines': lines.map((line) => line.toJson()).toList(),
+    });
+    return OrderItem.fromJson(response.data as Map<String, dynamic>);
   }
 }
 

@@ -41,6 +41,16 @@ class TerritoryCoverage {
 abstract class TerritoriesRepository {
   Future<List<Territory>> listTerritories();
   Future<TerritoryCoverage> getCoverage(String id);
+
+  /// POST /territories (manager/admin). [code] must be unique per client.
+  Future<Territory> createTerritory({
+    required String name,
+    required String code,
+    String? region,
+  });
+
+  /// POST /territories/:id/agents (manager/admin) — assign a field agent.
+  Future<void> assignAgent(String territoryId, String userId);
 }
 
 class DioTerritoriesRepository implements TerritoriesRepository {
@@ -56,6 +66,25 @@ class DioTerritoriesRepository implements TerritoriesRepository {
   Future<TerritoryCoverage> getCoverage(String id) async {
     final response = await dio.get('/territories/$id/coverage');
     return TerritoryCoverage.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Territory> createTerritory({
+    required String name,
+    required String code,
+    String? region,
+  }) async {
+    final response = await dio.post('/territories', data: {
+      'name': name,
+      'code': code,
+      'region': ?region,
+    });
+    return Territory.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> assignAgent(String territoryId, String userId) async {
+    await dio.post('/territories/$territoryId/agents', data: {'userId': userId});
   }
 }
 
