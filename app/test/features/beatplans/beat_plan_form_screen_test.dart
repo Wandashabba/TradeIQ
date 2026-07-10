@@ -133,12 +133,20 @@ void main() {
     await tester.pumpAndSettle();
 
     // Add both outlets: o2 first, then o1, to prove order is preserved.
-    await tester.tap(find.byKey(const ValueKey<String>('stop-available-o2')));
+    // The form is taller than the test viewport, so scroll each control into
+    // view before interacting with it.
+    final o2 = find.byKey(const ValueKey<String>('stop-available-o2'));
+    await tester.ensureVisible(o2);
+    await tester.tap(o2);
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey<String>('stop-available-o1')));
+    final o1 = find.byKey(const ValueKey<String>('stop-available-o1'));
+    await tester.ensureVisible(o1);
+    await tester.tap(o1);
     await tester.pump();
 
-    await tester.tap(find.byKey(const ValueKey<String>('beatplan-save-button')));
+    final save = find.byKey(const ValueKey<String>('beatplan-save-button'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
     await tester.pumpAndSettle();
 
     expect(repo.createdArgs, isNotNull);
@@ -154,7 +162,9 @@ void main() {
 
     await tester.enterText(
         find.byKey(const ValueKey<String>('beatplan-name-field')), 'No Agent');
-    await tester.tap(find.byKey(const ValueKey<String>('beatplan-save-button')));
+    final save = find.byKey(const ValueKey<String>('beatplan-save-button'));
+    await tester.ensureVisible(save);
+    await tester.tap(save);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Select a field agent'), findsOneWidget);
