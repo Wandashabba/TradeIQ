@@ -135,6 +135,12 @@ describe('visits routes', () => {
   });
 
   afterAll(async () => {
+    // Alert/stock rows from the auto-evaluate test reference the visit, rule and
+    // sku, so they must be cleared before the visit/client rows they depend on.
+    await prisma.alert.deleteMany({ where: { clientId } });
+    await prisma.visitStock.deleteMany({ where: { visit: { clientId } } });
+    await prisma.alertRule.deleteMany({ where: { clientId } });
+    await prisma.sku.deleteMany({ where: { clientId } });
     await prisma.checkInAttempt.deleteMany({ where: { clientId } });
     await prisma.visit.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId } });
@@ -255,6 +261,47 @@ describe('visits routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('submitted');
+  });
+
+  it('auto-evaluates alert rules on submit and raises matching alerts (#53)', async () => {
+    // An active rule that fires on any zero-stock SKU for this client.
+    const rule = await prisma.alertRule.create({
+      data: { clientId, name: 'AUTO-OOS', metric: 'out_of_stock', severity: 'high', active: true },
+    });
+
+    const createRes = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473 });
+    const visitId = createRes.body.id;
+
+    const sku = await prisma.sku.create({
+      data: { clientId, name: 'AUTO-OOS SKU', category: 'beverage', minFacingsStandard: 4, rrp: 9.99 },
+    });
+    await prisma.visitStock.create({
+      data: {
+        visitId,
+        skuId: sku.id,
+        unitsAvailable: 0,
+        lastStockinDate: new Date(),
+        daysOutOfStock: 2,
+        velocityAvg: 1,
+        coverageDaysPredicted: 0,
+        salesActual: 0,
+        salesTarget: 10,
+      },
+    });
+
+    const res = await request(app)
+      .post(`/visits/${visitId}/submit`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    // The alert was raised by submit itself — no manual POST /alerts/evaluate.
+    const alerts = await prisma.alert.findMany({ where: { visitId } });
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].metric).toBe('out_of_stock');
+    expect(alerts[0].ruleId).toBe(rule.id);
   });
 
   it('returns 404 submitting a visit that belongs to another agent', async () => {
