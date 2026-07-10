@@ -120,8 +120,8 @@ class DioCampaignsRepository implements CampaignsRepository {
       'name': name,
       'startDate': startDate,
       'endDate': endDate,
-      if (objective != null) 'objective': objective,
-      if (budget != null) 'budget': budget,
+      'objective': ?objective,
+      'budget': ?budget,
       if (outletIds != null && outletIds.isNotEmpty) 'outletIds': outletIds,
     });
     return Campaign.fromJson(response.data as Map<String, dynamic>);
@@ -136,10 +136,10 @@ class DioCampaignsRepository implements CampaignsRepository {
     String? status,
   }) async {
     final response = await dio.patch('/campaigns/$id', data: {
-      if (name != null) 'name': name,
-      if (objective != null) 'objective': objective,
-      if (budget != null) 'budget': budget,
-      if (status != null) 'status': status,
+      'name': ?name,
+      'objective': ?objective,
+      'budget': ?budget,
+      'status': ?status,
     });
     return Campaign.fromJson(response.data as Map<String, dynamic>);
   }
