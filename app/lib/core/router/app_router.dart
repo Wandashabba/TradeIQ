@@ -31,6 +31,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isOnLoginScreen) {
         return session!.role == 'field_agent' ? '/audit' : '/dashboard';
       }
+
+      // Per-route role guard: field agents live in the audit/visit flow;
+      // managers/admins live in the dashboard/ops screens. Bounce a role that
+      // navigates (e.g. by URL) to the other side's screens. Shared screens
+      // (/outlets, /beatplans) are intentionally omitted from both sets.
+      final role = session!.role;
+      final loc = state.matchedLocation;
+      const managerOnly = {
+        '/dashboard', '/tasks', '/campaigns', '/alerts', '/territories', '/orders',
+      };
+      final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
+      if (role == 'field_agent' && managerOnly.contains(loc)) {
+        return '/audit';
+      }
+      if (role != 'field_agent' && isAuditRoute) {
+        return '/dashboard';
+      }
       return null;
     },
     routes: [
