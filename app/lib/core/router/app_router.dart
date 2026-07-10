@@ -18,6 +18,12 @@ import '../../features/fraud/presentation/fraud_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/collaboration/presentation/messages_screen.dart';
 import '../../features/users/presentation/users_screen.dart';
+import '../../features/incentives/presentation/incentives_screen.dart';
+import '../../features/webhooks/presentation/webhooks_screen.dart';
+import '../../features/clients/presentation/client_config_screen.dart';
+import '../../features/templates/presentation/templates_screen.dart';
+import '../../features/dispatch/presentation/dispatch_screen.dart';
+import '../../features/trends/presentation/trends_screen.dart';
 import '../auth/session_controller.dart';
 import 'session_refresh_listenable.dart';
 
@@ -45,7 +51,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       const managerOnly = {
         '/dashboard', '/tasks', '/campaigns', '/alerts', '/territories', '/orders',
-        '/fraud', '/reports', '/users',
+        '/fraud', '/reports', '/users', '/incentives', '/webhooks', '/client-config',
+        '/audit-templates', '/dispatch', '/trends',
       };
       final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
       if (role == 'field_agent' && managerOnly.contains(loc)) {
@@ -77,6 +84,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
       GoRoute(path: '/messages', builder: (context, state) => const MessagesScreen()),
       GoRoute(path: '/users', builder: (context, state) => const UsersScreen()),
+      GoRoute(path: '/incentives', builder: (context, state) => const IncentivesScreen()),
+      GoRoute(path: '/webhooks', builder: (context, state) => const WebhooksScreen()),
+      GoRoute(path: '/client-config', builder: (context, state) => const ClientConfigScreen()),
+      GoRoute(path: '/audit-templates', builder: (context, state) => const TemplatesScreen()),
+      GoRoute(path: '/dispatch', builder: (context, state) => const DispatchScreen()),
+      GoRoute(path: '/trends', builder: (context, state) => const TrendsScreen()),
     ],
   );
 });
