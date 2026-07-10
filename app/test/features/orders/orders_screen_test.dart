@@ -24,11 +24,25 @@ class _FakeOrdersRepository implements OrdersRepository {
   @override
   Future<List<OrderItem>> listOrders({String? status, String? outletId}) async =>
       const [_orderA, _orderB];
+
+  @override
+  Future<OrderItem> createOrder({
+    required String outletId,
+    required List<OrderLine> lines,
+  }) async =>
+      _orderA;
 }
 
 class _FailingOrdersRepository implements OrdersRepository {
   @override
   Future<List<OrderItem>> listOrders({String? status, String? outletId}) async =>
+      throw Exception('boom');
+
+  @override
+  Future<OrderItem> createOrder({
+    required String outletId,
+    required List<OrderLine> lines,
+  }) async =>
       throw Exception('boom');
 }
 
