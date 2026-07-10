@@ -100,6 +100,11 @@ class _DashboardDrawer extends StatelessWidget {
     ('Territories', Icons.map, '/territories'),
     ('Orders', Icons.shopping_cart, '/orders'),
     ('Beat plans', Icons.route, '/beatplans'),
+    ('Leaderboard', Icons.leaderboard, '/leaderboard'),
+    ('Fraud review', Icons.gpp_maybe, '/fraud'),
+    ('Reports', Icons.assessment, '/reports'),
+    ('Messages', Icons.message, '/messages'),
+    ('Users', Icons.group, '/users'),
     ('Outlets', Icons.store, '/outlets'),
   ];
 
