@@ -41,7 +41,10 @@ const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8gr5J8Xj3GVj0mLKfsYnZ5ZUq0/UZK
 export async function authenticateUser(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email } });
   const passwordValid = await comparePassword(password, user?.passwordHash ?? DUMMY_HASH);
-  if (!user || !passwordValid) {
+  // Deactivated accounts are rejected as if the credentials were bad — the
+  // bcrypt comparison above has already run, so timing stays indistinguishable
+  // and we never reveal that the account exists but is disabled.
+  if (!user || !passwordValid || !user.active) {
     return null;
   }
   return user;

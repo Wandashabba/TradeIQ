@@ -61,4 +61,23 @@ describe('POST /auth/login', () => {
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'email and password are required' });
   });
+
+  it('returns 401 for a deactivated user even with correct credentials', async () => {
+    const deactivatedEmail = 'auth-route-deactivated@example.com';
+    await prisma.user.create({
+      data: {
+        email: deactivatedEmail,
+        passwordHash: await hashPassword(password),
+        role: 'field_agent',
+        clientId,
+        active: false,
+      },
+    });
+
+    const res = await request(app)
+      .post('/auth/login')
+      .send({ email: deactivatedEmail, password });
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Invalid credentials' });
+  });
 });

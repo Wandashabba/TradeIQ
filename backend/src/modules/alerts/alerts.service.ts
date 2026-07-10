@@ -1,6 +1,7 @@
 import { Alert, Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
 
 // The fixed set of metrics an AlertRule may target. Kept in one place so the
 // route validation and the evaluator agree on what's supported.
@@ -168,7 +169,22 @@ export async function evaluateVisit(input: EvaluateVisitInput): Promise<Alert[]>
   }
 
   // One transaction so a partial batch of alerts is never persisted.
-  return prisma.$transaction(alertsToCreate.map((data) => prisma.alert.create({ data })));
+  const created = await prisma.$transaction(
+    alertsToCreate.map((data) => prisma.alert.create({ data })),
+  );
+
+  // Issue #38: fire best-effort to any webhooks the client has subscribed to
+  // this event. dispatchWebhookEvent never throws (swallows delivery errors),
+  // so awaiting is safe and avoids open-handle warnings.
+  if (created.length > 0) {
+    await dispatchWebhookEvent(input.clientId, 'alert.raised', {
+      visitId: input.visitId,
+      count: created.length,
+      alertIds: created.map((a) => a.id),
+    });
+  }
+
+  return created;
 }
 
 export interface ListAlertsInput {

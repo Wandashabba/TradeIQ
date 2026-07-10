@@ -54,6 +54,9 @@ describe('stock routes', () => {
   });
 
   afterAll(async () => {
+    // Delete auto-created follow-up tasks (issue #47) before visits so the
+    // Task -> Visit FK doesn't block cleanup.
+    await prisma.task.deleteMany({ where: { visit: { clientId } } });
     await prisma.visitStock.deleteMany({ where: { visitId } });
     await prisma.visit.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId } });
@@ -82,6 +85,32 @@ describe('stock routes', () => {
     expect(res.status).toBe(201);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].coverageDaysPredicted).toBeCloseTo(5); // 20 / 4
+  });
+
+  it('auto-creates a stockout Task for an out-of-stock item and dedupes on re-submit (#47)', async () => {
+    const outOfStock = { ...validItem(), unitsAvailable: 0 };
+
+    const first = await request(app)
+      .post('/stock')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ visitId, items: [outOfStock] });
+    expect(first.status).toBe(201);
+
+    const tasks = await prisma.task.findMany({ where: { visitId, findingType: 'stockout' } });
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].requiredFix).toBe(`Restock SKU ${skuId}`);
+    expect(tasks[0].priority).toBe('high');
+    expect(tasks[0].status).toBe('open');
+
+    // Re-submitting the same section must not spam duplicate tasks.
+    const second = await request(app)
+      .post('/stock')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ visitId, items: [outOfStock] });
+    expect(second.status).toBe(201);
+
+    const afterResubmit = await prisma.task.findMany({ where: { visitId, findingType: 'stockout' } });
+    expect(afterResubmit).toHaveLength(1);
   });
 
   it('returns 404 for a visit belonging to another client', async () => {

@@ -29,10 +29,11 @@ The field-agent offline-first audit app + manager dashboard, on lean infra
 | Seed: client/users/outlets/SKUs/planograms/promos/demo visits+scorecards+tasks | ✅ |
 | Migrations, docker-compose (Postgres), CI (app + backend) | ✅ |
 
-**Phase-1 follow-ups (tracked, not blocking):** real in-app camera capture
-(#41), admin clients-config (#46), admin user provisioning (#42), auto-tasks
-from stockouts/price-deviations (#47), dashboard filter UI (#48), app
-per-route role guards (#43). Closed audit-section issues: #8-#16; login #5.
+**Phase-1 follow-ups:** ✅ admin clients-config (#46, `modules/clients`),
+✅ admin user provisioning + deactivation (#42, `modules/users`), ✅ auto-tasks
+from stockouts/price-deviations (#47). Still app-side: real in-app camera
+capture (#41), dashboard filter UI (#48), per-route role guards (#43). Closed
+audit-section issues: #8-#16; login #5.
 
 ## Phase 2 — Intelligence (months 4-6) — 🟢 in-house parts implemented; CV/OCR vendor-blocked
 
@@ -73,24 +74,34 @@ App UIs for the Tier-1 features and campaign-ROI dashboards are the next step
 (sub-tickets on #29-#33/#35). Event-driven alerting/streaming is Phase 4.
 
 **Tier 2 — backend ✅ implemented (app UIs tracked separately):**
-6. Field-agent gamification & leaderboard (#34) ✅ backend (`modules/gamification`)
+6. Field-agent gamification & leaderboard (#34) ✅ backend (`modules/gamification` + `modules/incentives` reward schemes)
 7. Territory management & coverage (#35) ✅ backend (shipped in Tier-1)
 8. In-store order-taking / sell-in capture (#36) ✅ backend (`modules/orders`)
 9. In-app messaging & announcements (#37) ✅ backend (`modules/collaboration`)
-10. Integrations, webhooks & data export (#38) ✅ backend (`modules/webhooks`, report CSV export)
-11. Report builder (#39) ✅ backend (`modules/reports`); scheduled delivery is a follow-up
+10. Integrations, webhooks & data export (#38) ✅ backend (`modules/webhooks` + event wiring on visit/order/alert, report CSV export)
+11. Report builder + scheduling (#39) ✅ backend (`modules/reports` + `modules/reportschedules`); recurring delivery infra is Phase 4
 12. Multi-language localization (#40) — 🟣 app-side, planned
 
-Retailer/trade **incentive schemes** (the reward side of #34) and **scheduled
-report delivery** (#39) are follow-ups on top of the shipped backends.
+Now shipped: retailer/agent **incentive schemes** (`modules/incentives`),
+**event-driven webhooks** (fire on visit.submitted / order.created /
+alert.raised), and **report schedules** (definition + on-demand run). The
+recurring scheduler + email/webhook delivery transport is Phase 4.
 
 Sequencing note: #35 (territories) underpins #30 (beat planning); #29→#33
 (campaign → ROI) is the tightest activation feedback loop; #7/#35 also
 unblocks the Phase-2 dispatch data gap (#45).
 
-## Phase 4 — Scale & Optimise (months 10-12) — ⚪ not yet ticketed
+## Phase 4 — Scale & Optimise (months 10-12) — 🟣 ticketed
 
-White-label & multi-tenant admin at scale, self-serve API marketplace,
-multi-currency finance / trade-spend deduction management, and ML route
-optimisation / next-best-action (on top of the Phase-3 beat-planning
-foundation). To be ticketed once Phase 3 lands.
+Scale, enterprise, and optimisation on top of the Phase 1-3 foundation:
+1. Multi-tenant admin & white-labeling at scale (#58)
+2. Self-serve API marketplace & partner integrations (#59)
+3. Trade-spend / deduction management & multi-currency finance (#60)
+4. ML route optimisation & next-best-action (#61)
+5. Event streaming backbone — Kafka (#62)
+6. PostGIS spatial engine — territory polygons, spatial dispatch, heatmaps (#63)
+7. Redis caching & soft-reserve (#64)
+8. Object storage + CDN for photos — migrate off base64/Postgres, ADR 0007 (#65)
+9. Scheduled report delivery infra — cron + email/webhook (#66)
+10. Push notifications for alerts & messaging — FCM/APNs (#67)
+11. Enterprise auth (SSO/SAML), audit logging & compliance (#68)

@@ -54,6 +54,9 @@ describe('pricing routes', () => {
   });
 
   afterAll(async () => {
+    // Delete auto-created follow-up tasks (issue #47) before visits so the
+    // Task -> Visit FK doesn't block cleanup.
+    await prisma.task.deleteMany({ where: { visit: { clientId } } });
     await prisma.visitPricing.deleteMany({ where: { visitId } });
     await prisma.visit.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId } });
@@ -82,6 +85,33 @@ describe('pricing routes', () => {
     expect(res.body[0].priceMaster).toBe(20);
     expect(res.body[0].priceActual).toBe(22);
     expect(res.body[0].deviationPct).toBeCloseTo(10); // (22 - 20) / 20 * 100
+  });
+
+  it('auto-creates a price_deviation Task for a >10% deviation and dedupes on re-submit (#47)', async () => {
+    // priceActual 25 vs master 20 => +25% deviation (> 10% threshold).
+    const deviating = { ...validItem(), priceActual: 25 };
+
+    const first = await request(app)
+      .post('/pricing')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ visitId, items: [deviating] });
+    expect(first.status).toBe(201);
+
+    const tasks = await prisma.task.findMany({ where: { visitId, findingType: 'price_deviation' } });
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].requiredFix).toBe(`Correct shelf price for SKU ${skuId} (deviation 25%)`);
+    expect(tasks[0].priority).toBe('normal');
+    expect(tasks[0].status).toBe('open');
+
+    // Re-submitting the same section must not spam duplicate tasks.
+    const second = await request(app)
+      .post('/pricing')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ visitId, items: [deviating] });
+    expect(second.status).toBe(201);
+
+    const afterResubmit = await prisma.task.findMany({ where: { visitId, findingType: 'price_deviation' } });
+    expect(afterResubmit).toHaveLength(1);
   });
 
   it('returns 404 for a visit belonging to another client', async () => {
