@@ -38,14 +38,29 @@ class DashboardKpis {
   }
 }
 
+/// Active dashboard filter. All fields null = whole-client, all-time (the
+/// default). Wired to GET /dashboard's territoryId/from/to query params.
+class DashboardFilter {
+  const DashboardFilter({this.territoryId, this.from, this.to});
+  final String? territoryId;
+  final String? from; // ISO date
+  final String? to; // ISO date
+
+  bool get isActive => territoryId != null || from != null || to != null;
+}
+
 abstract class DashboardRepository {
-  Future<DashboardKpis> fetchKpis();
+  Future<DashboardKpis> fetchKpis({String? territoryId, String? from, String? to});
 }
 
 class DioDashboardRepository implements DashboardRepository {
   @override
-  Future<DashboardKpis> fetchKpis() async {
-    final response = await dio.get('/dashboard');
+  Future<DashboardKpis> fetchKpis({String? territoryId, String? from, String? to}) async {
+    final query = <String, dynamic>{};
+    if (territoryId != null) query['territoryId'] = territoryId;
+    if (from != null) query['from'] = from;
+    if (to != null) query['to'] = to;
+    final response = await dio.get('/dashboard', queryParameters: query);
     return DashboardKpis.fromJson(response.data as Map<String, dynamic>);
   }
 }
@@ -53,6 +68,21 @@ class DioDashboardRepository implements DashboardRepository {
 final dashboardRepositoryProvider =
     Provider<DashboardRepository>((ref) => DioDashboardRepository());
 
+class DashboardFilterNotifier extends Notifier<DashboardFilter> {
+  @override
+  DashboardFilter build() => const DashboardFilter();
+
+  void set(DashboardFilter filter) => state = filter;
+}
+
+final dashboardFilterProvider =
+    NotifierProvider<DashboardFilterNotifier, DashboardFilter>(DashboardFilterNotifier.new);
+
 final dashboardKpisProvider = FutureProvider<DashboardKpis>((ref) {
-  return ref.read(dashboardRepositoryProvider).fetchKpis();
+  final filter = ref.watch(dashboardFilterProvider);
+  return ref.read(dashboardRepositoryProvider).fetchKpis(
+        territoryId: filter.territoryId,
+        from: filter.from,
+        to: filter.to,
+      );
 });

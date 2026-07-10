@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../territories/data/territories_repository.dart';
 import '../data/dashboard_repository.dart';
 
 class DashboardShellScreen extends ConsumerWidget {
@@ -28,9 +29,13 @@ class DashboardShellScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: kpis.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
+      body: Column(
+        children: [
+          const _FilterBar(),
+          Expanded(
+            child: kpis.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -82,6 +87,81 @@ class DashboardShellScreen extends ConsumerWidget {
             ),
           );
         },
+              ),
+            ),
+          ],
+        ),
+    );
+  }
+}
+
+/// Territory + date-range filter bar for the dashboard KPIs. Updates
+/// [dashboardFilterProvider], which [dashboardKpisProvider] watches, so the
+/// grid re-queries GET /dashboard with the chosen params.
+class _FilterBar extends ConsumerWidget {
+  const _FilterBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(dashboardFilterProvider);
+    final territories = ref.watch(territoriesListProvider);
+
+    void update(DashboardFilter next) {
+      ref.read(dashboardFilterProvider.notifier).set(next);
+    }
+
+    Future<void> pickRange() async {
+      final range = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2035),
+      );
+      if (range != null) {
+        update(DashboardFilter(
+          territoryId: filter.territoryId,
+          from: range.start.toIso8601String(),
+          to: range.end.toIso8601String(),
+        ));
+      }
+    }
+
+    final territoryDropdown = territories.maybeWhen(
+      data: (list) => DropdownButton<String?>(
+        key: const ValueKey('filter-territory'),
+        value: filter.territoryId,
+        hint: const Text('All territories'),
+        items: [
+          const DropdownMenuItem<String?>(value: null, child: Text('All territories')),
+          for (final t in list) DropdownMenuItem<String?>(value: t.id, child: Text(t.name)),
+        ],
+        onChanged: (v) => update(DashboardFilter(
+          territoryId: v,
+          from: filter.from,
+          to: filter.to,
+        )),
+      ),
+      orElse: () => const SizedBox.shrink(),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Flexible(child: territoryDropdown),
+          const SizedBox(width: 12),
+          TextButton.icon(
+            key: const ValueKey('filter-daterange'),
+            icon: const Icon(Icons.date_range),
+            label: Text(filter.from != null ? 'Dated' : 'Date range'),
+            onPressed: pickRange,
+          ),
+          if (filter.isActive)
+            TextButton(
+              key: const ValueKey('filter-clear'),
+              onPressed: () => update(const DashboardFilter()),
+              child: const Text('Clear'),
+            ),
+        ],
       ),
     );
   }
@@ -103,8 +183,14 @@ class _DashboardDrawer extends StatelessWidget {
     ('Leaderboard', Icons.leaderboard, '/leaderboard'),
     ('Fraud review', Icons.gpp_maybe, '/fraud'),
     ('Reports', Icons.assessment, '/reports'),
+    ('Trends', Icons.show_chart, '/trends'),
+    ('Dispatch', Icons.near_me, '/dispatch'),
+    ('Incentives', Icons.card_giftcard, '/incentives'),
     ('Messages', Icons.message, '/messages'),
     ('Users', Icons.group, '/users'),
+    ('Audit templates', Icons.description, '/audit-templates'),
+    ('Webhooks', Icons.link, '/webhooks'),
+    ('Scoring config', Icons.tune, '/client-config'),
     ('Outlets', Icons.store, '/outlets'),
   ];
 
