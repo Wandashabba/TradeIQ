@@ -56,6 +56,16 @@ class _FakeBeatPlansRepository implements BeatPlansRepository {
     visitedStopId = stopId;
     visitedValue = visited;
   }
+
+  @override
+  Future<BeatPlan> createBeatPlan({
+    required String agentId,
+    required String name,
+    required String scheduledDate,
+    required List<String> outletIds,
+    String? territoryId,
+  }) async =>
+      _plans.first;
 }
 
 Widget _listApp(_FakeBeatPlansRepository repo) => ProviderScope(
