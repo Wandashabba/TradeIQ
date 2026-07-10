@@ -46,11 +46,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Per-route role guard: field agents live in the audit/visit flow;
       // managers/admins live in the dashboard/ops screens. Bounce a role that
       // navigates (e.g. by URL) to the other side's screens. Shared screens
-      // (/outlets, /beatplans) are intentionally omitted from both sets.
+      // (/outlets, /beatplans, /orders) are intentionally omitted from both
+      // sets — a field agent captures in-store orders (#36), so /orders is not
+      // manager-only.
       final role = session!.role;
       final loc = state.matchedLocation;
       const managerOnly = {
-        '/dashboard', '/tasks', '/campaigns', '/alerts', '/territories', '/orders',
+        '/dashboard', '/tasks', '/campaigns', '/alerts', '/territories',
         '/fraud', '/reports', '/users', '/incentives', '/webhooks', '/client-config',
         '/audit-templates', '/dispatch', '/trends',
       };

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
+import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
 class _FixedSessionController extends SessionController {
@@ -29,6 +30,19 @@ class _FakeOutletsRepository implements OutletsRepository {
     required double lat,
     required double lng,
     required String territoryId,
+  }) =>
+      throw UnimplementedError();
+}
+
+class _FakeOrdersRepository implements OrdersRepository {
+  @override
+  Future<List<OrderItem>> listOrders({String? status, String? outletId}) async =>
+      const [];
+
+  @override
+  Future<OrderItem> createOrder({
+    required String outletId,
+    required List<OrderLine> lines,
   }) =>
       throw UnimplementedError();
 }
@@ -149,6 +163,25 @@ void main() {
     // Guarded away from the manager dashboard, back to the audit outlet picker.
     expect(find.text('Select an Outlet'), findsOneWidget);
     expect(find.text('Manager Dashboard'), findsNothing);
+  });
+
+  testWidgets('a field_agent can reach /orders for in-store capture', (tester) async {
+    await tester.pumpWidget(_appWithOverrides([
+      sessionControllerProvider.overrideWith(
+        () => _FixedSessionController(const SessionState(role: 'field_agent')),
+      ),
+      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+      ordersRepositoryProvider.overrideWithValue(_FakeOrdersRepository()),
+    ]));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    container.read(routerProvider).go('/orders');
+    await tester.pumpAndSettle();
+
+    // /orders is a shared route: the field agent is NOT bounced back to /audit.
+    expect(find.text('Orders'), findsOneWidget);
+    expect(find.text('Select an Outlet'), findsNothing);
   });
 
   testWidgets('a manager navigating to the audit flow is bounced to /dashboard', (tester) async {
