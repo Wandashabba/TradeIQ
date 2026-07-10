@@ -34,6 +34,18 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>
       const TerritoryCoverage(outletCount: 0, agentCount: 0);
+
+  @override
+  Future<Territory> createTerritory({
+    required String name,
+    required String code,
+    String? region,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> assignAgent(String territoryId, String userId) async =>
+      throw UnimplementedError();
 }
 
 Widget _app(DashboardRepository repo) => ProviderScope(
