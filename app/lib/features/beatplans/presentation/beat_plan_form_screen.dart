@@ -297,11 +297,8 @@ class _StopBuilder extends StatelessWidget {
             dense: true,
             title: Text(o.name),
             subtitle: Text(o.code),
-            trailing: IconButton(
-              icon: const Icon(Icons.add_circle_outline),
-              tooltip: 'Add stop',
-              onPressed: () => onAdd(o.id),
-            ),
+            trailing: const Icon(Icons.add_circle_outline),
+            onTap: () => onAdd(o.id),
           ),
       ],
     );
