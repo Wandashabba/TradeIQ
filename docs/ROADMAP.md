@@ -91,9 +91,17 @@ Sequencing note: #35 (territories) underpins #30 (beat planning); #29→#33
 (campaign → ROI) is the tightest activation feedback loop; #7/#35 also
 unblocks the Phase-2 dispatch data gap (#45).
 
-## Phase 4 — Scale & Optimise (months 10-12) — ⚪ not yet ticketed
+## Phase 4 — Scale & Optimise (months 10-12) — 🟣 ticketed
 
-White-label & multi-tenant admin at scale, self-serve API marketplace,
-multi-currency finance / trade-spend deduction management, and ML route
-optimisation / next-best-action (on top of the Phase-3 beat-planning
-foundation). To be ticketed once Phase 3 lands.
+Scale, enterprise, and optimisation on top of the Phase 1-3 foundation:
+1. Multi-tenant admin & white-labeling at scale (#58)
+2. Self-serve API marketplace & partner integrations (#59)
+3. Trade-spend / deduction management & multi-currency finance (#60)
+4. ML route optimisation & next-best-action (#61)
+5. Event streaming backbone — Kafka (#62)
+6. PostGIS spatial engine — territory polygons, spatial dispatch, heatmaps (#63)
+7. Redis caching & soft-reserve (#64)
+8. Object storage + CDN for photos — migrate off base64/Postgres, ADR 0007 (#65)
+9. Scheduled report delivery infra — cron + email/webhook (#66)
+10. Push notifications for alerts & messaging — FCM/APNs (#67)
+11. Enterprise auth (SSO/SAML), audit logging & compliance (#68)
