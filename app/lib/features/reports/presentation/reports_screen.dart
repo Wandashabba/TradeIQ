@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../data/reports_repository.dart';
+import 'report_form_screen.dart';
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
@@ -20,6 +21,18 @@ class ReportsScreen extends ConsumerWidget {
             onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
           ),
         ],
+      ),
+      // The whole /reports surface is manager/admin only (route-guarded), so the
+      // build action does not need a further role check here.
+      floatingActionButton: FloatingActionButton(
+        key: const ValueKey<String>('report-create-fab'),
+        tooltip: 'New report',
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (context) => const ReportFormScreen(),
+          ),
+        ),
+        child: const Icon(Icons.add),
       ),
       body: reports.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -65,6 +78,11 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
     }
   }
 
+  Future<void> _delete() async {
+    await ref.read(reportsRepositoryProvider).deleteReport(widget.report.id);
+    ref.invalidate(reportsListProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -74,10 +92,21 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
           '${widget.report.type}'
           '${_lastRowCount != null ? ' · $_lastRowCount rows' : ''}',
         ),
-        trailing: TextButton(
-          key: ValueKey<String>('run-${widget.report.id}'),
-          onPressed: _run,
-          child: const Text('Run'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(
+              key: ValueKey<String>('run-${widget.report.id}'),
+              onPressed: _run,
+              child: const Text('Run'),
+            ),
+            IconButton(
+              key: ValueKey<String>('delete-${widget.report.id}'),
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete report',
+              onPressed: _delete,
+            ),
+          ],
         ),
       ),
     );
