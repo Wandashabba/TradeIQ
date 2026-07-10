@@ -39,6 +39,27 @@ class _FakeCampaignsRepository implements CampaignsRepository {
 
   @override
   Future<CampaignCompliance> getCompliance(String id) async => _compliance;
+
+  @override
+  Future<Campaign> createCampaign({
+    required String name,
+    required String startDate,
+    required String endDate,
+    String? objective,
+    double? budget,
+    List<String>? outletIds,
+  }) async =>
+      _campaignA;
+
+  @override
+  Future<Campaign> updateCampaign(
+    String id, {
+    String? name,
+    String? objective,
+    double? budget,
+    String? status,
+  }) async =>
+      _campaignA;
 }
 
 class _ThrowingCampaignsRepository implements CampaignsRepository {
@@ -47,6 +68,27 @@ class _ThrowingCampaignsRepository implements CampaignsRepository {
 
   @override
   Future<CampaignCompliance> getCompliance(String id) async =>
+      throw Exception('boom');
+
+  @override
+  Future<Campaign> createCampaign({
+    required String name,
+    required String startDate,
+    required String endDate,
+    String? objective,
+    double? budget,
+    List<String>? outletIds,
+  }) async =>
+      throw Exception('boom');
+
+  @override
+  Future<Campaign> updateCampaign(
+    String id, {
+    String? name,
+    String? objective,
+    double? budget,
+    String? status,
+  }) async =>
       throw Exception('boom');
 }
 
