@@ -41,6 +41,16 @@ class _FakeWebhooksRepository implements WebhooksRepository {
   Future<void> deleteWebhook(String id) async {
     deletedId = id;
   }
+
+  String? toggledId;
+  bool? toggledValue;
+
+  @override
+  Future<Webhook> setActive(String id, bool active) async {
+    toggledId = id;
+    toggledValue = active;
+    return _firstWebhook;
+  }
 }
 
 class _ThrowingWebhooksRepository implements WebhooksRepository {
@@ -56,6 +66,10 @@ class _ThrowingWebhooksRepository implements WebhooksRepository {
 
   @override
   Future<void> deleteWebhook(String id) async => throw UnimplementedError();
+
+  @override
+  Future<Webhook> setActive(String id, bool active) async =>
+      throw UnimplementedError();
 }
 
 Widget _app(WebhooksRepository repo) => ProviderScope(
@@ -106,6 +120,19 @@ void main() {
 
     expect(repo.createdUrl, 'https://example.com/new');
     expect(repo.createdEvent, 'stock.captured');
+  });
+
+  testWidgets('toggling active calls setActive', (tester) async {
+    final repo = _FakeWebhooksRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    // _firstWebhook starts active; toggling turns it off.
+    await tester.tap(find.byKey(const ValueKey<String>('toggle-w-first')));
+    await tester.pumpAndSettle();
+
+    expect(repo.toggledId, 'w-first');
+    expect(repo.toggledValue, false);
   });
 
   testWidgets('shows an error message when loading fails', (tester) async {

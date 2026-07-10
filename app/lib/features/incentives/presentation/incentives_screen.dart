@@ -66,13 +66,30 @@ class _SchemeCard extends ConsumerWidget {
         subtitle: Text(
           '${scheme.metric} ≥ ${scheme.threshold.toStringAsFixed(0)} → ${scheme.rewardPoints} pts',
         ),
-        trailing: IconButton(
-          key: ValueKey<String>('delete-${scheme.id}'),
-          icon: const Icon(Icons.delete),
-          onPressed: () async {
-            await ref.read(incentivesRepositoryProvider).deleteScheme(scheme.id);
-            ref.invalidate(incentivesListProvider);
-          },
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Switch(
+              key: ValueKey<String>('toggle-${scheme.id}'),
+              value: scheme.active,
+              onChanged: (value) async {
+                await ref
+                    .read(incentivesRepositoryProvider)
+                    .setActive(scheme.id, value);
+                ref.invalidate(incentivesListProvider);
+              },
+            ),
+            IconButton(
+              key: ValueKey<String>('delete-${scheme.id}'),
+              icon: const Icon(Icons.delete),
+              onPressed: () async {
+                await ref
+                    .read(incentivesRepositoryProvider)
+                    .deleteScheme(scheme.id);
+                ref.invalidate(incentivesListProvider);
+              },
+            ),
+          ],
         ),
       ),
     );

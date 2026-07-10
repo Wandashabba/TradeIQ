@@ -60,6 +60,16 @@ class _FakeIncentivesRepository implements IncentivesRepository {
 
   @override
   Future<List<EarnedIncentive>> earned() async => const [];
+
+  String? toggledId;
+  bool? toggledValue;
+
+  @override
+  Future<IncentiveScheme> setActive(String id, bool active) async {
+    toggledId = id;
+    toggledValue = active;
+    return _schemeA;
+  }
 }
 
 class _ThrowingIncentivesRepository implements IncentivesRepository {
@@ -80,6 +90,10 @@ class _ThrowingIncentivesRepository implements IncentivesRepository {
 
   @override
   Future<List<EarnedIncentive>> earned() async => throw UnimplementedError();
+
+  @override
+  Future<IncentiveScheme> setActive(String id, bool active) async =>
+      throw UnimplementedError();
 }
 
 Widget _app(IncentivesRepository repo) => ProviderScope(
@@ -136,6 +150,19 @@ void main() {
     expect(repo.createdMetric, 'scorecard');
     expect(repo.createdThreshold, 15.0);
     expect(repo.createdRewardPoints, 75);
+  });
+
+  testWidgets('toggling active calls setActive', (tester) async {
+    final repo = _FakeIncentivesRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    // _schemeA starts active; toggling turns it off.
+    await tester.tap(find.byKey(const ValueKey<String>('toggle-s-a')));
+    await tester.pumpAndSettle();
+
+    expect(repo.toggledId, 's-a');
+    expect(repo.toggledValue, false);
   });
 
   testWidgets('shows an error message when loading fails', (tester) async {
