@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../data/orders_repository.dart';
+import 'order_form_screen.dart';
 
 class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
@@ -10,6 +11,9 @@ class OrdersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final orders = ref.watch(ordersListProvider);
+    final role = ref.watch(sessionControllerProvider).value?.role;
+    // Order capture is a field-agent/manager action (matches POST /orders).
+    final canCreate = role == 'field_agent' || role == 'manager';
     return Scaffold(
       appBar: AppBar(
         title: const Text('Orders'),
@@ -21,6 +25,18 @@ class OrdersScreen extends ConsumerWidget {
           ),
         ],
       ),
+      floatingActionButton: canCreate
+          ? FloatingActionButton(
+              key: const ValueKey<String>('order-create-fab'),
+              tooltip: 'New order',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => const OrderFormScreen(),
+                ),
+              ),
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: orders.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
