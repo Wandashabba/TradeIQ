@@ -38,6 +38,17 @@ class ReportResult {
 abstract class ReportsRepository {
   Future<List<ReportDefinition>> listReports();
   Future<ReportResult> generate(String id);
+
+  /// POST /reports (manager/admin). [type] is one of
+  /// visits|scorecards|tasks|orders; [filters] honours from/to/outletId/status.
+  Future<ReportDefinition> createReport({
+    required String name,
+    required String type,
+    required Map<String, dynamic> filters,
+  });
+
+  /// DELETE /reports/:id.
+  Future<void> deleteReport(String id);
 }
 
 class DioReportsRepository implements ReportsRepository {
@@ -53,6 +64,25 @@ class DioReportsRepository implements ReportsRepository {
   Future<ReportResult> generate(String id) async {
     final response = await dio.get('/reports/$id/generate');
     return ReportResult.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ReportDefinition> createReport({
+    required String name,
+    required String type,
+    required Map<String, dynamic> filters,
+  }) async {
+    final response = await dio.post('/reports', data: {
+      'name': name,
+      'type': type,
+      'filters': filters,
+    });
+    return ReportDefinition.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> deleteReport(String id) async {
+    await dio.delete('/reports/$id');
   }
 }
 

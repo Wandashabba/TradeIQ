@@ -18,6 +18,7 @@ const _reportB = ReportDefinition(
 
 class _FakeReportsRepository implements ReportsRepository {
   String? generatedId;
+  String? deletedId;
 
   @override
   Future<List<ReportDefinition>> listReports() async => const [
@@ -33,6 +34,19 @@ class _FakeReportsRepository implements ReportsRepository {
       generatedAt: '2026-07-09T10:00:00.000Z',
     );
   }
+
+  @override
+  Future<ReportDefinition> createReport({
+    required String name,
+    required String type,
+    required Map<String, dynamic> filters,
+  }) async =>
+      _reportA;
+
+  @override
+  Future<void> deleteReport(String id) async {
+    deletedId = id;
+  }
 }
 
 class _FailingReportsRepository implements ReportsRepository {
@@ -43,6 +57,17 @@ class _FailingReportsRepository implements ReportsRepository {
   @override
   Future<ReportResult> generate(String id) async =>
       throw Exception('boom');
+
+  @override
+  Future<ReportDefinition> createReport({
+    required String name,
+    required String type,
+    required Map<String, dynamic> filters,
+  }) async =>
+      throw Exception('boom');
+
+  @override
+  Future<void> deleteReport(String id) async => throw Exception('boom');
 }
 
 Widget _app(ReportsRepository repo) => ProviderScope(
@@ -72,6 +97,17 @@ void main() {
 
     expect(repo.generatedId, 'r-a');
     expect(find.text('coverage · 5 rows'), findsOneWidget);
+  });
+
+  testWidgets('deleting a report calls the repository', (tester) async {
+    final repo = _FakeReportsRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('delete-r-a')));
+    await tester.pumpAndSettle();
+
+    expect(repo.deletedId, 'r-a');
   });
 
   testWidgets('shows an error message when loading fails', (tester) async {
