@@ -4,10 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
+import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
 class _FakeDashboardRepository implements DashboardRepository {
   @override
-  Future<DashboardKpis> fetchKpis() async => const DashboardKpis(
+  Future<DashboardKpis> fetchKpis({String? territoryId, String? from, String? to}) async =>
+      const DashboardKpis(
         numericDistribution: 72.5,
         weightedDistribution: 81.3,
         osaPct: 93.1,
@@ -21,11 +23,24 @@ class _FakeDashboardRepository implements DashboardRepository {
 
 class _ThrowingDashboardRepository implements DashboardRepository {
   @override
-  Future<DashboardKpis> fetchKpis() async => throw Exception('network down');
+  Future<DashboardKpis> fetchKpis({String? territoryId, String? from, String? to}) async =>
+      throw Exception('network down');
+}
+
+class _FakeTerritoriesRepository implements TerritoriesRepository {
+  @override
+  Future<List<Territory>> listTerritories() async => const [];
+
+  @override
+  Future<TerritoryCoverage> getCoverage(String id) async =>
+      const TerritoryCoverage(outletCount: 0, agentCount: 0);
 }
 
 Widget _app(DashboardRepository repo) => ProviderScope(
-      overrides: [dashboardRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        dashboardRepositoryProvider.overrideWithValue(repo),
+        territoriesRepositoryProvider.overrideWithValue(_FakeTerritoriesRepository()),
+      ],
       child: const MaterialApp(home: DashboardShellScreen()),
     );
 
@@ -57,6 +72,14 @@ void main() {
 
     expect(find.textContaining('Failed to load KPIs:'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('renders the KPI filter bar (territory + date range)', (tester) async {
+    await tester.pumpWidget(_app(_FakeDashboardRepository()));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('filter-territory')), findsOneWidget);
+    expect(find.byKey(const ValueKey('filter-daterange')), findsOneWidget);
   });
 
   testWidgets('tapping logout clears the session', (tester) async {
