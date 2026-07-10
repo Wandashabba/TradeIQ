@@ -1,0 +1,66 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/auth/session_controller.dart';
+import '../data/orders_repository.dart';
+
+class OrdersScreen extends ConsumerWidget {
+  const OrdersScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final orders = ref.watch(ordersListProvider);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Orders'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log out',
+            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
+          ),
+        ],
+      ),
+      body: orders.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Failed to load orders: $err'),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(ordersListProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+        data: (list) => ListView.builder(
+          itemCount: list.length,
+          itemBuilder: (context, index) => _OrderCard(order: list[index]),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderCard extends StatelessWidget {
+  const _OrderCard({required this.order});
+
+  final OrderItem order;
+
+  @override
+  Widget build(BuildContext context) {
+    final shortId =
+        order.id.substring(0, order.id.length >= 8 ? 8 : order.id.length);
+    return Card(
+      child: ListTile(
+        title: Text('Order $shortId'),
+        subtitle: Text(
+          '${order.status} · ${order.lineCount} lines · total ${order.total.toStringAsFixed(2)}',
+        ),
+      ),
+    );
+  }
+}
