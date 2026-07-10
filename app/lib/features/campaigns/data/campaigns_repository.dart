@@ -69,6 +69,27 @@ class CampaignCompliance {
 abstract class CampaignsRepository {
   Future<List<Campaign>> listCampaigns();
   Future<CampaignCompliance> getCompliance(String id);
+
+  /// POST /campaigns. Dates are ISO strings; [outletIds] seeds the initial
+  /// outlet assignment. Requires a manager/admin session.
+  Future<Campaign> createCampaign({
+    required String name,
+    required String startDate,
+    required String endDate,
+    String? objective,
+    double? budget,
+    List<String>? outletIds,
+  });
+
+  /// PATCH /campaigns/:id. Only name/objective/budget/status are editable —
+  /// the backend does not accept date or outlet changes on update.
+  Future<Campaign> updateCampaign(
+    String id, {
+    String? name,
+    String? objective,
+    double? budget,
+    String? status,
+  });
 }
 
 class DioCampaignsRepository implements CampaignsRepository {
@@ -84,6 +105,43 @@ class DioCampaignsRepository implements CampaignsRepository {
   Future<CampaignCompliance> getCompliance(String id) async {
     final response = await dio.get('/campaigns/$id/compliance');
     return CampaignCompliance.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Campaign> createCampaign({
+    required String name,
+    required String startDate,
+    required String endDate,
+    String? objective,
+    double? budget,
+    List<String>? outletIds,
+  }) async {
+    final response = await dio.post('/campaigns', data: {
+      'name': name,
+      'startDate': startDate,
+      'endDate': endDate,
+      if (objective != null) 'objective': objective,
+      if (budget != null) 'budget': budget,
+      if (outletIds != null && outletIds.isNotEmpty) 'outletIds': outletIds,
+    });
+    return Campaign.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Campaign> updateCampaign(
+    String id, {
+    String? name,
+    String? objective,
+    double? budget,
+    String? status,
+  }) async {
+    final response = await dio.patch('/campaigns/$id', data: {
+      if (name != null) 'name': name,
+      if (objective != null) 'objective': objective,
+      if (budget != null) 'budget': budget,
+      if (status != null) 'status': status,
+    });
+    return Campaign.fromJson(response.data as Map<String, dynamic>);
   }
 }
 

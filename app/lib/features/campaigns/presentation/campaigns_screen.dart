@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../data/campaigns_repository.dart';
+import 'campaign_form_screen.dart';
 
 class CampaignsScreen extends ConsumerWidget {
   const CampaignsScreen({super.key});
@@ -20,6 +21,16 @@ class CampaignsScreen extends ConsumerWidget {
             onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        key: const ValueKey<String>('campaign-create-fab'),
+        tooltip: 'New campaign',
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (context) => const CampaignFormScreen(),
+          ),
+        ),
+        child: const Icon(Icons.add),
       ),
       body: campaigns.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -106,7 +117,22 @@ class _CampaignCard extends ConsumerWidget {
         key: ValueKey<String>('campaign-${campaign.id}'),
         title: Text(campaign.name),
         subtitle: Text('${campaign.status} · ${campaign.outletCount} outlets'),
-        trailing: const Icon(Icons.expand_more),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              key: ValueKey<String>('campaign-edit-${campaign.id}'),
+              icon: const Icon(Icons.edit),
+              tooltip: 'Edit campaign',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (context) => CampaignFormScreen(campaign: campaign),
+                ),
+              ),
+            ),
+            const Icon(Icons.expand_more),
+          ],
+        ),
         onTap: () => _showCompliance(context, ref),
       ),
     );
