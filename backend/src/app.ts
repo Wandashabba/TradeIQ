@@ -29,6 +29,10 @@ import { collaborationRouter } from './modules/collaboration/collaboration.route
 import { webhooksRouter } from './modules/webhooks/webhooks.routes';
 import { gamificationRouter } from './modules/gamification/gamification.routes';
 import { reportsRouter } from './modules/reports/reports.routes';
+import { clientsRouter } from './modules/clients/clients.routes';
+import { usersRouter } from './modules/users/users.routes';
+import { incentivesRouter } from './modules/incentives/incentives.routes';
+import { reportSchedulesRouter } from './modules/reportschedules/reportschedules.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -84,5 +88,9 @@ app.use('/', collaborationRouter);
 app.use('/webhooks', webhooksRouter);
 app.use('/gamification', gamificationRouter);
 app.use('/reports', reportsRouter);
+app.use('/clients', clientsRouter);
+app.use('/users', usersRouter);
+app.use('/incentives', incentivesRouter);
+app.use('/report-schedules', reportSchedulesRouter);
 
 app.use(errorHandler);

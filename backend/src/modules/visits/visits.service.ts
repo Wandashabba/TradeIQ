@@ -3,6 +3,7 @@ import { haversineDistanceMeters, isWithinGeofence } from '../../lib/geofence';
 import { GeofenceRejectedError, NotFoundError } from '../../middleware/errorHandler';
 import { Prisma } from '@prisma/client';
 import type { AuthTokenPayload } from '../auth/auth.service';
+import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
 
 export interface CheckInInput {
   outletId: string;
@@ -89,10 +90,20 @@ export async function submitVisit(input: SubmitVisitInput) {
     throw new NotFoundError('Visit not found');
   }
 
-  return prisma.visit.update({
+  const submitted = await prisma.visit.update({
     where: { id: input.visitId },
     data: { status: 'submitted' },
   });
+
+  // Issue #38: fire best-effort to any webhooks the client has subscribed to
+  // this event. dispatchWebhookEvent never throws (swallows delivery errors),
+  // so awaiting is safe and avoids open-handle warnings.
+  await dispatchWebhookEvent(submitted.clientId, 'visit.submitted', {
+    visitId: submitted.id,
+    outletId: submitted.outletId,
+  });
+
+  return submitted;
 }
 
 export interface ListVisitsInput {

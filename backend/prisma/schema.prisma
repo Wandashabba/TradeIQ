@@ -54,6 +54,8 @@ model Client {
   announcements      Announcement[]
   webhooks           Webhook[]
   reportDefinitions  ReportDefinition[]
+  incentiveSchemes   IncentiveScheme[]
+  reportSchedules    ReportSchedule[]
 
   @@map("clients")
 }
@@ -65,6 +67,8 @@ model User {
   role             UserRole
   clientId         String           @map("client_id")
   client           Client           @relation(fields: [clientId], references: [id])
+  // Deactivated users keep their history but cannot log in (admin provisioning).
+  active           Boolean          @default(true)
   // Last-known agent location (updated on check-in) — feeds predictive dispatch.
   lastLat          Float?           @map("last_lat")
   lastLng          Float?           @map("last_lng")
@@ -546,13 +550,48 @@ model Webhook {
 /// A saved report definition (Phase 3 #39) — a named, filtered report the
 /// manager can generate on demand (scheduled delivery is a follow-up).
 model ReportDefinition {
-  id        String   @id @default(uuid())
-  clientId  String   @map("client_id")
-  client    Client   @relation(fields: [clientId], references: [id])
+  id        String           @id @default(uuid())
+  clientId  String           @map("client_id")
+  client    Client           @relation(fields: [clientId], references: [id])
   name      String
   type      String // visits | scorecards | tasks | orders
   filters   Json
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  schedules ReportSchedule[]
 
   @@map("report_definitions")
+}
+
+/// A reward scheme that turns field performance into agent incentives
+/// (Phase 3 #34, the reward side of gamification).
+model IncentiveScheme {
+  id           String   @id @default(uuid())
+  clientId     String   @map("client_id")
+  client       Client   @relation(fields: [clientId], references: [id])
+  name         String
+  metric       String // scorecard | tasks_closed | visits
+  threshold    Float
+  rewardPoints Int      @map("reward_points")
+  rewardDetail String?  @map("reward_detail")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("incentive_schemes")
+}
+
+/// A recurring delivery of a saved report (Phase 3 #39). The scheduler that
+/// fires these is infra (Phase 4); this model + the run endpoint are the seam.
+model ReportSchedule {
+  id                 String           @id @default(uuid())
+  clientId           String           @map("client_id")
+  client             Client           @relation(fields: [clientId], references: [id])
+  reportDefinitionId String           @map("report_definition_id")
+  reportDefinition   ReportDefinition @relation(fields: [reportDefinitionId], references: [id])
+  cadence            String // daily | weekly
+  recipients         Json
+  lastRunAt          DateTime?        @map("last_run_at")
+  active             Boolean          @default(true)
+  createdAt          DateTime         @default(now()) @map("created_at")
+
+  @@map("report_schedules")
 }

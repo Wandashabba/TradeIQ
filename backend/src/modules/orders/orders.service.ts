@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
 
 export type OrderStatus = 'submitted' | 'confirmed' | 'cancelled';
 
@@ -57,7 +58,7 @@ export async function createOrder(input: CreateOrderInput) {
   }
 
   // Nested create runs the order + its lines in a single implicit transaction.
-  return prisma.order.create({
+  const order = await prisma.order.create({
     data: {
       clientId: input.clientId,
       outletId: input.outletId,
@@ -75,6 +76,17 @@ export async function createOrder(input: CreateOrderInput) {
     },
     include: { lines: true },
   });
+
+  // Issue #38: fire best-effort to any webhooks the client has subscribed to
+  // this event. dispatchWebhookEvent never throws (swallows delivery errors),
+  // so awaiting is safe and avoids open-handle warnings.
+  await dispatchWebhookEvent(order.clientId, 'order.created', {
+    orderId: order.id,
+    outletId: order.outletId,
+    total: order.total,
+  });
+
+  return order;
 }
 
 export interface ListOrdersInput {

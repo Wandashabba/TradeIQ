@@ -1,6 +1,12 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { predictCoverageDays } from '../../services/forecast.service';
+import { computeSlaDueAt } from '../../lib/slaClock';
+
+// Auto-task creation threshold for stock-outs (issue #47). `0 units available`
+// is the default flag; client-configurable thresholds land under issue #46.
+const STOCKOUT_UNITS_THRESHOLD = 0;
+const STOCKOUT_FINDING_TYPE = 'stockout';
 
 export interface StockItemInput {
   skuId: string;
@@ -58,7 +64,7 @@ export async function recordStock(input: RecordStockInput) {
     throw new NotFoundError(`SKU not found: ${unknown}`);
   }
 
-  return prisma.$transaction(
+  const rows = await prisma.$transaction(
     input.items.map((item) =>
       prisma.visitStock.create({
         data: {
@@ -75,4 +81,51 @@ export async function recordStock(input: RecordStockInput) {
       }),
     ),
   );
+
+  // Auto-create a follow-up Task for every out-of-stock SKU, mirroring the
+  // risks module's flag -> task pattern (issue #47). Deduplicated by
+  // (visitId, findingType, requiredFix) so re-submitting the section is
+  // idempotent. Task creation is best-effort: a failure here must not fail the
+  // already-persisted stock capture.
+  await createStockoutTasks(input.visitId, visit.outletId, visit.agentId, input.items);
+
+  return rows;
+}
+
+async function createStockoutTasks(
+  visitId: string,
+  outletId: string,
+  agentId: string,
+  items: StockItemInput[],
+): Promise<void> {
+  try {
+    const stockouts = items.filter((item) => item.unitsAvailable === STOCKOUT_UNITS_THRESHOLD);
+    if (stockouts.length === 0) return;
+
+    const existing = await prisma.task.findMany({
+      where: { visitId, findingType: STOCKOUT_FINDING_TYPE },
+      select: { requiredFix: true },
+    });
+    const existingFixes = new Set(existing.map((t) => t.requiredFix));
+
+    const now = new Date();
+    for (const item of stockouts) {
+      const requiredFix = `Restock SKU ${item.skuId}`;
+      if (existingFixes.has(requiredFix)) continue; // dedup: skip already-open task
+      await prisma.task.create({
+        data: {
+          visitId,
+          findingType: STOCKOUT_FINDING_TYPE,
+          outletId,
+          requiredFix,
+          priority: 'high',
+          slaDueAt: computeSlaDueAt('high', now),
+          ownerId: agentId,
+        },
+      });
+      existingFixes.add(requiredFix); // guard against duplicate SKUs in one payload
+    }
+  } catch {
+    // Swallow: stock capture already succeeded; task backfill is low-risk (#47).
+  }
 }

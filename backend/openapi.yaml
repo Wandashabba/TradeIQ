@@ -891,6 +891,82 @@ paths:
         - { name: id, in: path, required: true, schema: { type: string } }
         - { name: format, in: query, schema: { type: string, enum: [csv] } }
       responses: { '200': { description: 'Report rows (JSON or text/csv)' }, '404': { description: Not found } }
+  # ── Follow-ups (Phase 1/3) ────────────────────────────────────────────────
+  /clients/me:
+    get:
+      summary: The caller's client config (scorecard weights / KPI thresholds)
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Config } }
+    patch:
+      summary: Update scorecard weights / KPI thresholds — admin
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '403': { description: Forbidden } }
+  /users:
+    get:
+      summary: List client users — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Users } }
+    post:
+      summary: Provision a user — admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden }, '409': { description: Duplicate email } }
+  /users/{id}:
+    patch:
+      summary: Update a user (active/role) — admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+  /incentives:
+    get:
+      summary: List incentive schemes
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Schemes } }
+    post:
+      summary: Create an incentive scheme — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid metric }, '403': { description: Forbidden } }
+  /incentives/earned:
+    get:
+      summary: Agents who met active scheme thresholds + reward points
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Earned incentives } }
+  /incentives/{id}:
+    patch:
+      summary: Update an incentive scheme — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+    delete:
+      summary: Delete an incentive scheme — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '204': { description: Deleted }, '404': { description: Not found } }
+  /report-schedules:
+    get:
+      summary: List report schedules — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Schedules } }
+    post:
+      summary: Schedule a saved report — manager/admin
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Created }, '400': { description: Invalid }, '404': { description: Report definition not found } }
+  /report-schedules/{id}:
+    patch:
+      summary: Update a report schedule — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+    delete:
+      summary: Delete a report schedule — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '204': { description: Deleted }, '404': { description: Not found } }
+  /report-schedules/{id}/run:
+    post:
+      summary: Generate the scheduled report now + record the run — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: 'Generated (delivery is Phase 4)' }, '404': { description: Not found } }
 components:
   securitySchemes:
     bearerAuth:

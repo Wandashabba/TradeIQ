@@ -2,6 +2,13 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { extractPriceFromPhoto } from '../../services/ocr.stub';
+import { computeSlaDueAt } from '../../lib/slaClock';
+
+// Auto-task creation threshold for shelf-price deviation (issue #47). A ±10%
+// deviation is the default flag; client-configurable thresholds land under
+// issue #46.
+const PRICE_DEVIATION_THRESHOLD_PCT = 10;
+const PRICE_DEVIATION_FINDING_TYPE = 'price_deviation';
 
 export interface PricingItemInput {
   skuId: string;
@@ -67,5 +74,52 @@ export async function recordPricing(input: RecordPricingInput) {
     }),
   );
 
-  return prisma.$transaction(rows.map((data) => prisma.visitPricing.create({ data })));
+  const created = await prisma.$transaction(rows.map((data) => prisma.visitPricing.create({ data })));
+
+  // Auto-create a follow-up Task for every SKU whose shelf price deviates more
+  // than the threshold from master, mirroring the risks module's flag -> task
+  // pattern (issue #47). Deduplicated by (visitId, findingType, requiredFix) so
+  // re-submitting the section is idempotent. Best-effort: a failure here must
+  // not fail the already-persisted pricing capture.
+  await createPriceDeviationTasks(input.visitId, visit.outletId, visit.agentId, rows);
+
+  return created;
+}
+
+async function createPriceDeviationTasks(
+  visitId: string,
+  outletId: string,
+  agentId: string,
+  rows: Array<{ skuId: string; deviationPct: number }>,
+): Promise<void> {
+  try {
+    const deviating = rows.filter((r) => Math.abs(r.deviationPct) > PRICE_DEVIATION_THRESHOLD_PCT);
+    if (deviating.length === 0) return;
+
+    const existing = await prisma.task.findMany({
+      where: { visitId, findingType: PRICE_DEVIATION_FINDING_TYPE },
+      select: { requiredFix: true },
+    });
+    const existingFixes = new Set(existing.map((t) => t.requiredFix));
+
+    const now = new Date();
+    for (const row of deviating) {
+      const requiredFix = `Correct shelf price for SKU ${row.skuId} (deviation ${row.deviationPct}%)`;
+      if (existingFixes.has(requiredFix)) continue; // dedup: skip already-open task
+      await prisma.task.create({
+        data: {
+          visitId,
+          findingType: PRICE_DEVIATION_FINDING_TYPE,
+          outletId,
+          requiredFix,
+          priority: 'normal',
+          slaDueAt: computeSlaDueAt('normal', now),
+          ownerId: agentId,
+        },
+      });
+      existingFixes.add(requiredFix); // guard against duplicate SKUs in one payload
+    }
+  } catch {
+    // Swallow: pricing capture already succeeded; task backfill is low-risk (#47).
+  }
 }
