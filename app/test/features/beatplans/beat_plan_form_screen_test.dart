@@ -35,7 +35,7 @@ class _RecordingBeatPlansRepository implements BeatPlansRepository {
       'outletIds': outletIds,
       'territoryId': territoryId,
     };
-    return const BeatPlan(
+    return BeatPlan(
         id: 'bp1', name: name, status: 'planned', scheduledDate: scheduledDate);
   }
 }
