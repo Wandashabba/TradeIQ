@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/audit/presentation/audit_shell_screen.dart';
 import '../../features/audit/presentation/visit_outlet_picker_screen.dart';
+import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
 import '../../features/outlets/presentation/create_outlet_screen.dart';
@@ -29,17 +30,18 @@ import 'session_refresh_listenable.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/',
     refreshListenable: ref.read(sessionRefreshListenableProvider),
     redirect: (context, state) {
       final session = ref.read(sessionControllerProvider).value;
       final isLoggedIn = session?.role != null;
-      final isOnLoginScreen = state.matchedLocation == '/login';
+      final location = state.matchedLocation;
+      final isPublicRoute = location == '/' || location == '/login';
 
       if (!isLoggedIn) {
-        return isOnLoginScreen ? null : '/login';
+        return isPublicRoute ? null : '/login';
       }
-      if (isOnLoginScreen) {
+      if (isPublicRoute) {
         return session!.role == 'field_agent' ? '/audit' : '/dashboard';
       }
 
@@ -50,11 +52,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       // sets — a field agent captures in-store orders (#36), so /orders is not
       // manager-only.
       final role = session!.role;
-      final loc = state.matchedLocation;
+      final loc = location;
       const managerOnly = {
-        '/dashboard', '/tasks', '/campaigns', '/alerts', '/territories',
-        '/fraud', '/reports', '/users', '/incentives', '/webhooks', '/client-config',
-        '/audit-templates', '/dispatch', '/trends',
+        '/dashboard',
+        '/tasks',
+        '/campaigns',
+        '/alerts',
+        '/territories',
+        '/fraud',
+        '/reports',
+        '/users',
+        '/incentives',
+        '/webhooks',
+        '/client-config',
+        '/audit-templates',
+        '/dispatch',
+        '/trends',
       };
       final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
       if (role == 'field_agent' && managerOnly.contains(loc)) {
@@ -66,32 +79,88 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(path: '/', builder: (context, state) => const LandingScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-      GoRoute(path: '/dashboard', builder: (context, state) => const DashboardShellScreen()),
-      GoRoute(path: '/audit', builder: (context, state) => const VisitOutletPickerScreen()),
+      GoRoute(
+        path: '/dashboard',
+        builder: (context, state) => const DashboardShellScreen(),
+      ),
+      GoRoute(
+        path: '/audit',
+        builder: (context, state) => const VisitOutletPickerScreen(),
+      ),
       GoRoute(
         path: '/audit/:outletId',
-        builder: (context, state) => AuditShellScreen(outletId: state.pathParameters['outletId']!),
+        builder: (context, state) =>
+            AuditShellScreen(outletId: state.pathParameters['outletId']!),
       ),
-      GoRoute(path: '/outlets', builder: (context, state) => const OutletsListScreen()),
-      GoRoute(path: '/outlets/create', builder: (context, state) => const CreateOutletScreen()),
+      GoRoute(
+        path: '/outlets',
+        builder: (context, state) => const OutletsListScreen(),
+      ),
+      GoRoute(
+        path: '/outlets/create',
+        builder: (context, state) => const CreateOutletScreen(),
+      ),
       GoRoute(path: '/tasks', builder: (context, state) => const TasksScreen()),
-      GoRoute(path: '/campaigns', builder: (context, state) => const CampaignsScreen()),
-      GoRoute(path: '/alerts', builder: (context, state) => const AlertsScreen()),
-      GoRoute(path: '/territories', builder: (context, state) => const TerritoriesScreen()),
-      GoRoute(path: '/orders', builder: (context, state) => const OrdersScreen()),
-      GoRoute(path: '/beatplans', builder: (context, state) => const BeatPlansScreen()),
-      GoRoute(path: '/leaderboard', builder: (context, state) => const LeaderboardScreen()),
+      GoRoute(
+        path: '/campaigns',
+        builder: (context, state) => const CampaignsScreen(),
+      ),
+      GoRoute(
+        path: '/alerts',
+        builder: (context, state) => const AlertsScreen(),
+      ),
+      GoRoute(
+        path: '/territories',
+        builder: (context, state) => const TerritoriesScreen(),
+      ),
+      GoRoute(
+        path: '/orders',
+        builder: (context, state) => const OrdersScreen(),
+      ),
+      GoRoute(
+        path: '/beatplans',
+        builder: (context, state) => const BeatPlansScreen(),
+      ),
+      GoRoute(
+        path: '/leaderboard',
+        builder: (context, state) => const LeaderboardScreen(),
+      ),
       GoRoute(path: '/fraud', builder: (context, state) => const FraudScreen()),
-      GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
-      GoRoute(path: '/messages', builder: (context, state) => const MessagesScreen()),
+      GoRoute(
+        path: '/reports',
+        builder: (context, state) => const ReportsScreen(),
+      ),
+      GoRoute(
+        path: '/messages',
+        builder: (context, state) => const MessagesScreen(),
+      ),
       GoRoute(path: '/users', builder: (context, state) => const UsersScreen()),
-      GoRoute(path: '/incentives', builder: (context, state) => const IncentivesScreen()),
-      GoRoute(path: '/webhooks', builder: (context, state) => const WebhooksScreen()),
-      GoRoute(path: '/client-config', builder: (context, state) => const ClientConfigScreen()),
-      GoRoute(path: '/audit-templates', builder: (context, state) => const TemplatesScreen()),
-      GoRoute(path: '/dispatch', builder: (context, state) => const DispatchScreen()),
-      GoRoute(path: '/trends', builder: (context, state) => const TrendsScreen()),
+      GoRoute(
+        path: '/incentives',
+        builder: (context, state) => const IncentivesScreen(),
+      ),
+      GoRoute(
+        path: '/webhooks',
+        builder: (context, state) => const WebhooksScreen(),
+      ),
+      GoRoute(
+        path: '/client-config',
+        builder: (context, state) => const ClientConfigScreen(),
+      ),
+      GoRoute(
+        path: '/audit-templates',
+        builder: (context, state) => const TemplatesScreen(),
+      ),
+      GoRoute(
+        path: '/dispatch',
+        builder: (context, state) => const DispatchScreen(),
+      ),
+      GoRoute(
+        path: '/trends',
+        builder: (context, state) => const TrendsScreen(),
+      ),
     ],
   );
 });

@@ -44,6 +44,7 @@ dependencies:
   uuid: ^4.5.3
   flutter_secure_storage: ^10.3.1
   drift_flutter: ^0.3.0
+  video_player: ^2.11.1
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +70,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/images/tradeiq-ti-monogram.png
+    - assets/images/grocery-store-background.jpeg
+    - assets/videos/Steadycam_gliding_down_aisle_202607102247.mp4
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -19,8 +19,14 @@ class _FixedSessionController extends SessionController {
 class _FakeOutletsRepository implements OutletsRepository {
   @override
   Future<List<Outlet>> listOutlets() async => const [
-        Outlet(id: 'o1', name: 'Test Outlet', code: 'TO-001', lat: -26.2041, lng: 28.0473),
-      ];
+    Outlet(
+      id: 'o1',
+      name: 'Test Outlet',
+      code: 'TO-001',
+      lat: -26.2041,
+      lng: 28.0473,
+    ),
+  ];
 
   @override
   Future<Outlet> createOutlet({
@@ -30,21 +36,21 @@ class _FakeOutletsRepository implements OutletsRepository {
     required double lat,
     required double lng,
     required String territoryId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 class _FakeOrdersRepository implements OrdersRepository {
   @override
-  Future<List<OrderItem>> listOrders({String? status, String? outletId}) async =>
-      const [];
+  Future<List<OrderItem>> listOrders({
+    String? status,
+    String? outletId,
+  }) async => const [];
 
   @override
   Future<OrderItem> createOrder({
     required String outletId,
     required List<OrderLine> lines,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 class _FakeSucceedingVisitsRepository implements VisitsRepository {
@@ -53,8 +59,7 @@ class _FakeSucceedingVisitsRepository implements VisitsRepository {
     required String outletId,
     required double outletLat,
     required double outletLng,
-  }) async =>
-      CheckInSucceeded('visit-1');
+  }) async => CheckInSucceeded('visit-1');
 
   @override
   Future<void> submitVisit(String visitDraftId) async {}
@@ -64,52 +69,76 @@ Widget _appWithOverrides(List<Override> overrides) {
   return ProviderScope(
     overrides: overrides,
     child: Consumer(
-      builder: (context, ref, _) => MaterialApp.router(routerConfig: ref.watch(routerProvider)),
+      builder: (context, ref, _) =>
+          MaterialApp.router(routerConfig: ref.watch(routerProvider)),
     ),
   );
 }
 
 void main() {
-  testWidgets('unauthenticated root route shows the login screen', (tester) async {
+  testWidgets('unauthenticated root route shows the landing screen', (
+    tester,
+  ) async {
     await tester.pumpWidget(_appWithOverrides([]));
     await tester.pumpAndSettle();
-    expect(find.text('TradeIQ Login'), findsOneWidget);
+    expect(find.text('TradeIQ'), findsOneWidget);
+    expect(find.text('Field Execution, In Focus'), findsOneWidget);
   });
 
-  testWidgets('unauthenticated request for /dashboard redirects to login', (tester) async {
+  testWidgets('unauthenticated request for /dashboard redirects to login', (
+    tester,
+  ) async {
     await tester.pumpWidget(_appWithOverrides([]));
     await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
     container.read(routerProvider).go('/dashboard');
     await tester.pumpAndSettle();
 
-    expect(find.text('TradeIQ Login'), findsOneWidget);
+    expect(find.text('Welcome Back!'), findsOneWidget);
   });
 
-  testWidgets('authenticated field_agent starting at /login lands on the outlet picker', (tester) async {
-    await tester.pumpWidget(_appWithOverrides([
-      sessionControllerProvider.overrideWith(
-        () => _FixedSessionController(const SessionState(role: 'field_agent')),
-      ),
-      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-    ]));
+  testWidgets(
+    'authenticated field_agent starting at /login lands on the outlet picker',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Select an Outlet'), findsOneWidget);
+    },
+  );
+
+  testWidgets('/audit/:outletId renders the audit shell for that outlet', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () =>
+              _FixedSessionController(const SessionState(role: 'field_agent')),
+        ),
+        outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+        visitsRepositoryProvider.overrideWithValue(
+          _FakeSucceedingVisitsRepository(),
+        ),
+      ]),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Select an Outlet'), findsOneWidget);
-  });
-
-  testWidgets('/audit/:outletId renders the audit shell for that outlet', (tester) async {
-    await tester.pumpWidget(_appWithOverrides([
-      sessionControllerProvider.overrideWith(
-        () => _FixedSessionController(const SessionState(role: 'field_agent')),
-      ),
-      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-      visitsRepositoryProvider.overrideWithValue(_FakeSucceedingVisitsRepository()),
-    ]));
-    await tester.pumpAndSettle();
-
-    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
     container.read(routerProvider).go('/audit/o1');
     await tester.pumpAndSettle();
 
@@ -117,12 +146,16 @@ void main() {
     expect(find.text('S1 Outlet Information'), findsOneWidget);
   });
 
-  testWidgets('authenticated manager starting at /login lands on /dashboard', (tester) async {
-    await tester.pumpWidget(_appWithOverrides([
-      sessionControllerProvider.overrideWith(
-        () => _FixedSessionController(const SessionState(role: 'manager')),
-      ),
-    ]));
+  testWidgets('authenticated manager starting at /login lands on /dashboard', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(const SessionState(role: 'manager')),
+        ),
+      ]),
+    );
     await tester.pumpAndSettle();
 
     // The dashboard's KPI grid now loads from GET /dashboard (unstubbed here,
@@ -131,51 +164,73 @@ void main() {
     expect(find.text('Manager Dashboard'), findsOneWidget);
   });
 
-  testWidgets('logging out from a protected route redirects back to login', (tester) async {
-    await tester.pumpWidget(_appWithOverrides([
-      sessionControllerProvider.overrideWith(
-        () => _FixedSessionController(const SessionState(role: 'manager')),
-      ),
-    ]));
+  testWidgets('logging out from a protected route redirects back to login', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(const SessionState(role: 'manager')),
+        ),
+      ]),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Manager Dashboard'), findsOneWidget);
 
-    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
     container.read(sessionControllerProvider.notifier).logout();
     await tester.pumpAndSettle();
 
-    expect(find.text('TradeIQ Login'), findsOneWidget);
+    expect(find.text('Welcome Back!'), findsOneWidget);
   });
 
-  testWidgets('a field_agent navigating to a manager route is bounced to /audit', (tester) async {
-    await tester.pumpWidget(_appWithOverrides([
-      sessionControllerProvider.overrideWith(
-        () => _FixedSessionController(const SessionState(role: 'field_agent')),
-      ),
-      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-    ]));
+  testWidgets(
+    'a field_agent navigating to a manager route is bounced to /audit',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/dashboard');
+      await tester.pumpAndSettle();
+
+      // Guarded away from the manager dashboard, back to the audit outlet picker.
+      expect(find.text('Select an Outlet'), findsOneWidget);
+      expect(find.text('Manager Dashboard'), findsNothing);
+    },
+  );
+
+  testWidgets('a field_agent can reach /orders for in-store capture', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () =>
+              _FixedSessionController(const SessionState(role: 'field_agent')),
+        ),
+        outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+        ordersRepositoryProvider.overrideWithValue(_FakeOrdersRepository()),
+      ]),
+    );
     await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
-    container.read(routerProvider).go('/dashboard');
-    await tester.pumpAndSettle();
-
-    // Guarded away from the manager dashboard, back to the audit outlet picker.
-    expect(find.text('Select an Outlet'), findsOneWidget);
-    expect(find.text('Manager Dashboard'), findsNothing);
-  });
-
-  testWidgets('a field_agent can reach /orders for in-store capture', (tester) async {
-    await tester.pumpWidget(_appWithOverrides([
-      sessionControllerProvider.overrideWith(
-        () => _FixedSessionController(const SessionState(role: 'field_agent')),
-      ),
-      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-      ordersRepositoryProvider.overrideWithValue(_FakeOrdersRepository()),
-    ]));
-    await tester.pumpAndSettle();
-
-    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
     container.read(routerProvider).go('/orders');
     await tester.pumpAndSettle();
 
@@ -184,18 +239,25 @@ void main() {
     expect(find.text('Select an Outlet'), findsNothing);
   });
 
-  testWidgets('a manager navigating to the audit flow is bounced to /dashboard', (tester) async {
-    await tester.pumpWidget(_appWithOverrides([
-      sessionControllerProvider.overrideWith(
-        () => _FixedSessionController(const SessionState(role: 'manager')),
-      ),
-    ]));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'a manager navigating to the audit flow is bounced to /dashboard',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(const SessionState(role: 'manager')),
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
-    container.read(routerProvider).go('/audit/o1');
-    await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/audit/o1');
+      await tester.pumpAndSettle();
 
-    expect(find.text('Manager Dashboard'), findsOneWidget);
-  });
+      expect(find.text('Manager Dashboard'), findsOneWidget);
+    },
+  );
 }

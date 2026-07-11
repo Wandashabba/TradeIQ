@@ -69,12 +69,17 @@ Widget _wrap(AuthRepository repository) {
 }
 
 void main() {
-  testWidgets('submitting valid credentials shows a loading indicator', (tester) async {
+  testWidgets('submitting valid credentials shows a loading indicator', (
+    tester,
+  ) async {
     await tester.pumpWidget(_wrap(FakeAuthRepository()));
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'manager@tradeiq.com');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'password123');
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Log in'));
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'manager@tradeiq.com',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'password123');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign in'));
     await tester.pump();
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -84,30 +89,40 @@ void main() {
   testWidgets('shows validation errors when fields are empty', (tester) async {
     await tester.pumpWidget(_wrap(FakeAuthRepository()));
 
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Log in'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign in'));
     await tester.pump();
 
     expect(find.text('Email is required'), findsOneWidget);
     expect(find.text('Password is required'), findsOneWidget);
   });
 
-  testWidgets('shows "Invalid credentials" on a 401 from the backend', (tester) async {
+  testWidgets('shows "Invalid credentials" on a 401 from the backend', (
+    tester,
+  ) async {
     await tester.pumpWidget(_wrap(Unauthorized401AuthRepository()));
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'manager@tradeiq.com');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'wrong-password');
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Log in'));
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'manager@tradeiq.com',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'wrong-password');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign in'));
     await tester.pumpAndSettle();
 
     expect(find.text('Invalid credentials'), findsOneWidget);
   });
 
-  testWidgets('shows a connectivity message when the server is unreachable', (tester) async {
+  testWidgets('shows a connectivity message when the server is unreachable', (
+    tester,
+  ) async {
     await tester.pumpWidget(_wrap(NetworkErrorAuthRepository()));
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'manager@tradeiq.com');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'password123');
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Log in'));
+    await tester.enterText(
+      find.byType(TextFormField).at(0),
+      'manager@tradeiq.com',
+    );
+    await tester.enterText(find.byType(TextFormField).at(1), 'password123');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign in'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Could not reach the server'), findsOneWidget);
