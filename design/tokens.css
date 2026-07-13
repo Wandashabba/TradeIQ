@@ -1,0 +1,268 @@
+/* TradeIQ design tokens — dark instrument panel.
+   Palette validated with the dataviz validator against surface #14161c:
+   categorical (#3987e5, #199e70, #c98500) passes lightness band, chroma floor,
+   CVD separation (worst adjacent ΔE 41.3 protan) and 3:1 contrast.
+   Status steps (#0ca30c, #fab219, #d03b3b) clear 3:1 on the same surface and are
+   always paired with an icon + label, never color alone. */
+
+:root {
+  /* Planes & surfaces */
+  --plane:        #0b0c10;  /* page ground */
+  --surface-1:    #14161c;  /* panel — the chart surface the palette is validated against */
+  --surface-2:    #1a1d25;  /* raised: inputs, table header, hover */
+  --surface-3:    #21252e;  /* pressed / selected wash */
+
+  /* Hairlines — solid, one shade off the surface. Never dashed. */
+  --line:         #23262f;
+  --line-strong:  #2f333e;
+
+  /* Ink */
+  --ink-1:        #e9ebee;  /* primary */
+  --ink-2:        #99a1ad;  /* secondary */
+  --ink-3:        #6a7280;  /* muted: axis ticks, labels */
+
+  /* Brand — reserved for identity + interactive affordances only. */
+  --brand:        #0a6cf0;
+  --brand-hover:  #1f7cf5;
+  --brand-quiet:  rgba(57,135,229,0.12);
+
+  /* Data series (categorical slot order is fixed — never cycled) */
+  --series-1:     #3987e5;
+  --series-2:     #199e70;
+  --series-3:     #c98500;
+  --series-1-fill: rgba(57,135,229,0.14);
+
+  /* Status — reserved. Never used as a series color. */
+  --good:         #0ca30c;
+  --warn:         #fab219;
+  --crit:         #d03b3b;
+  --good-quiet:   rgba(12,163,12,0.13);
+  --warn-quiet:   rgba(250,178,25,0.13);
+  --crit-quiet:   rgba(208,59,59,0.14);
+
+  /* Chart chrome */
+  --grid:         #22252d;
+  --axis:         #2f333e;
+
+  /* Geometry — squared off. Nothing is a pill. */
+  --r-control:    3px;
+  --r-panel:      4px;
+
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--ink-1);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────── */
+/* One sans throughout — no display face, including on the hero figure. */
+
+.eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-1);
+  letter-spacing: 0.01em;
+}
+
+/* Proportional figures on big standalone numbers; tabular only where digits
+   must align vertically (tables, axis ticks, ledger columns). */
+.figure       { font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: proportional-nums; }
+.figure-hero  { font-size: 44px; line-height: 1; }
+.figure-tile  { font-size: 22px; line-height: 1.1; }
+.tnum         { font-variant-numeric: tabular-nums; }
+
+/* ── Panels ───────────────────────────────────────────────────────────── */
+
+.panel {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-body { padding: 14px; }
+
+/* ── Deltas: sign + figure. Never color alone. ────────────────────────── */
+
+.delta { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.delta.up   { color: var(--good); }
+.delta.down { color: var(--crit); }
+.delta.flat { color: var(--ink-3); }
+
+/* ── Status: dot + word, always ───────────────────────────────────────── */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.status::before {
+  content: '';
+  width: 6px; height: 6px;
+  flex: none;
+  background: currentColor;
+}
+.status.crit { color: var(--crit); }
+.status.warn { color: var(--warn); }
+.status.good { color: var(--good); }
+.status.done { color: var(--ink-3); }
+/* Resolved rows read as a hollow square, so state survives grayscale. */
+.status.done::before { background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+
+.btn {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink-1);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.btn:hover { background: var(--surface-3); }
+.btn-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-2);
+  padding: 4px 6px;
+}
+.btn-quiet:hover { color: var(--ink-1); background: var(--surface-2); }
+
+.select {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink-1);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  padding: 6px 26px 6px 10px;
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
+                    linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: right 12px center, right 7px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.select:focus-visible,
+.input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.input {
+  font: inherit;
+  font-size: 13px;
+  width: 100%;
+  color: var(--ink-1);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  padding: 9px 11px;
+}
+.input::placeholder { color: var(--ink-3); }
+
+/* Segmented control — replaces the pill tab row. */
+.segmented { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r-control); overflow: hidden; }
+.segmented button {
+  font: inherit; font-size: 12px; font-weight: 550;
+  color: var(--ink-2); background: var(--surface-1);
+  border: 0; border-right: 1px solid var(--line-strong);
+  padding: 5px 11px; cursor: pointer;
+}
+.segmented button:last-child { border-right: 0; }
+.segmented button[aria-pressed='true'] { background: var(--surface-3); color: var(--ink-1); }
+.segmented button:hover { color: var(--ink-1); }
+
+/* ── Table ────────────────────────────────────────────────────────────── */
+
+table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.data th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+table.data td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-1);
+}
+table.data tbody tr:hover { background: var(--surface-2); }
+table.data .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Chart chrome ─────────────────────────────────────────────────────── */
+
+.legend { display: flex; gap: 14px; align-items: center; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-2); }
+.legend-swatch { width: 9px; height: 9px; flex: none; border-radius: 1px; }
+
+.tooltip {
+  position: absolute;
+  z-index: 60;
+  min-width: 132px;
+  padding: 8px 10px;
+  background: #05060a;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  font-size: 11.5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 90ms linear;
+}
+.tooltip[data-show='true'] { opacity: 1; }
+.tooltip .tt-key { color: var(--ink-3); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+.tooltip .tt-val { color: var(--ink-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.chart-wrap { position: relative; }
+
+/* Table-view twin: every chart has one, so no value is reachable by color alone. */
+.table-view[hidden] { display: none; }
+
+.scroll-x { overflow-x: auto; }
+
+a { color: var(--brand-hover); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

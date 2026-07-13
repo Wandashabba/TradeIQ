@@ -1,95 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradeIQ — Manager UI Design</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        body { background:#050505; background-image: radial-gradient(circle at 50% -10%, #16203a 0%, #050505 60%); color:#fff; font-family:'Inter',sans-serif; min-height:100vh; }
-        h1,h2,.heading { font-family:'Montserrat',sans-serif; }
-        .screen-frame { width:415px; height:880px; border:none; border-radius:24px; }
-        .no-scrollbar::-webkit-scrollbar { display:none; }
-        .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeIQ — Manager Console</title>
+<link rel="stylesheet" href="tokens.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .page { max-width: 1180px; margin: 0 auto; padding: 34px 20px 56px; }
+  .masthead { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand-name span { color: var(--series-1); }
+  .masthead .tag { margin-left: auto; font-size: 11.5px; }
+
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .lede { font-size: 13.5px; color: var(--ink-2); max-width: 74ch; line-height: 1.6; margin: 0 0 24px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 34px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+
+  .strip { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; }
+  .strip::-webkit-scrollbar { height: 8px; }
+  .strip::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+  figure { margin: 0; flex: none; }
+  /* Real desktop width, scaled — never a squeezed iframe. */
+  .thumb { width: 630px; height: 750px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface-1); overflow: hidden; }
+  .thumb iframe { width: 1400px; height: 1667px; border: 0; display: block; transform: scale(0.45); transform-origin: top left; }
+  figcaption { margin-top: 9px; font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+  figcaption .n { font-size: 10px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  figcaption a { margin-left: auto; font-size: 11.5px; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 900px) { .grid3 { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 13px 15px; }
+  .card b { display: block; font-size: 12.5px; margin-bottom: 5px; }
+  .card p { margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+
+  /* Implementation map */
+  .pr { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .pr:last-child { border-bottom: 0; }
+  .pr-n { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--series-1); padding-top: 2px; }
+  .pr-t { font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+  .pr-d { font-size: 12px; color: var(--ink-3); line-height: 1.6; margin: 0; }
+  code { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+</style>
 </head>
 <body>
-    <header class="text-center pt-14 pb-8 px-6">
-        <div class="inline-flex items-center gap-2 text-xs font-medium text-blue-400 bg-[#0f1117]/70 border border-blue-900/40 px-4 py-1.5 rounded-full mb-5">
-            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
-            TradeIQ · Design
-        </div>
-        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Manager UI</h1>
-        <p class="text-gray-400 max-w-xl mx-auto text-sm md:text-base">
-            Dashboard, drawer and the shared list pattern (Alerts). Follows the auth screens' own
-            structure — header on the dark ground, one rounded content sheet — filled with dense,
-            ledger-style data: hairline rules instead of card grids, deltas as plain colored figures,
-            severity as a dot and a word.
-        </p>
-        <div class="flex justify-center gap-3 mt-6 flex-wrap">
-            <a href="dashboard.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Dashboard</a>
-            <a href="drawer.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Drawer</a>
-            <a href="alerts.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Alerts</a>
-            <a href="index.html" class="px-4 py-2 rounded-full border border-blue-500/40 text-blue-400 text-sm hover:bg-blue-500/10 transition">← Auth UI set</a>
-        </div>
-    </header>
+<div class="page">
 
-    <main class="flex gap-6 justify-start lg:justify-center items-start overflow-x-auto no-scrollbar px-8 pb-10">
-        <figure class="flex-shrink-0 text-center">
-            <iframe src="dashboard.html" class="screen-frame" title="Dashboard"></iframe>
-            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">01 · Dashboard</figcaption>
-        </figure>
-        <figure class="flex-shrink-0 text-center">
-            <iframe src="drawer.html" class="screen-frame" title="Navigation Drawer"></iframe>
-            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">02 · Drawer</figcaption>
-        </figure>
-        <figure class="flex-shrink-0 text-center">
-            <iframe src="alerts.html" class="screen-frame" title="Alerts"></iframe>
-            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">03 · Alerts (shared list pattern)</figcaption>
-        </figure>
-    </main>
+  <div class="masthead">
+    <svg viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+      <path d="M10 30 C 30 10, 70 10, 90 30 L 80 40 L 60 40 L 60 90 C 60 100, 40 100, 35 90 L 35 40 L 20 40 Z" fill="url(#mg-a)"/>
+      <path d="M65 40 L 85 40 L 85 90 C 85 100, 65 100, 60 90 Z" fill="url(#mg-b)"/>
+      <defs>
+        <linearGradient id="mg-a" x1="10" y1="10" x2="90" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#3987e5"/><stop offset="1" stop-color="#0a3f8f"/></linearGradient>
+        <linearGradient id="mg-b" x1="65" y1="40" x2="85" y2="100" gradientUnits="userSpaceOnUse"><stop stop-color="#2f7bd8"/><stop offset="1" stop-color="#07306e"/></linearGradient>
+      </defs>
+    </svg>
+    <span class="brand-name">Trade<span>IQ</span></span>
+    <a class="tag" href="index.html">← All design</a>
+  </div>
 
-    <section class="max-w-3xl mx-auto px-6 pb-6">
-        <h2 class="text-lg font-extrabold tracking-tight mb-4 text-center">Design decisions</h2>
-        <div class="grid md:grid-cols-3 gap-3 text-sm">
-            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
-                <p class="text-gray-200 font-semibold mb-1">Summary → act → detail</p>
-                <p class="text-gray-500 text-[13px]">Execution Score is the one number that matters, so it leads with its trend. What needs action today sits directly beneath it; the full KPI ledger follows.</p>
-            </div>
-            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
-                <p class="text-gray-200 font-semibold mb-1">One sheet, not card grids</p>
-                <p class="text-gray-500 text-[13px]">Content sits on a single rounded sheet — the sign-in screen's structure — with hairline rules for rhythm. Denser, calmer, and cheaper to build than a card per number.</p>
-            </div>
-            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
-                <p class="text-gray-200 font-semibold mb-1">State is never color alone</p>
-                <p class="text-gray-500 text-[13px]">Severity = dot + word; deltas = sign + figure. Blue stays reserved for brand and interactive elements. Readable in grayscale and for CVD.</p>
-            </div>
-        </div>
-    </section>
+  <h1>Manager console</h1>
+  <p class="lede">
+    A manager opens this at 08:00 with one question: <i>what is broken, and who is fixing it?</i>
+    Everything above the fold answers that. The 375px phone frame couldn’t — it forced a scroll
+    between the score and the alerts causing it, so the two facts you have to hold together were
+    never on screen together.
+  </p>
 
-    <section class="max-w-3xl mx-auto px-6 pb-16">
-        <h2 class="text-lg font-extrabold tracking-tight mb-4 text-center">Implementation map — four small PRs</h2>
-        <div class="space-y-3 text-sm">
-            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
-                <span class="text-blue-400 font-bold text-xs tracking-widest">PR 1 · THEME + CORE WIDGETS</span>
-                <p class="text-gray-400 mt-1">Extend <code class="text-gray-300">AppTheme</code>; add <code class="text-gray-300">ContentSheet · HeroStat · LedgerRow · AttentionRow · SectionLabel · EmptyState</code> to <code class="text-gray-300">core/widgets/</code> with tests. Pure additive — zero regression risk.</p>
-            </div>
-            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
-                <span class="text-blue-400 font-bold text-xs tracking-widest">PR 2 · DASHBOARD</span>
-                <p class="text-gray-400 mt-1">Hero Execution Score with trend (trends endpoint already returns the series), needs-attention rows fed by <code class="text-gray-300">GET /alerts</code> + <code class="text-gray-300">GET /tasks</code>, KPI ledger.</p>
-            </div>
-            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
-                <span class="text-blue-400 font-bold text-xs tracking-widest">PR 3 · DRAWER</span>
-                <p class="text-gray-400 mt-1">Grouped destinations (Operate / Insight / Configure), plain counts, active left-rule, user foot. Touches <code class="text-gray-300">manager_scaffold.dart</code> only — every screen inherits.</p>
-            </div>
-            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
-                <span class="text-blue-400 font-bold text-xs tracking-widest">PR 4 · LIST SCREENS</span>
-                <p class="text-gray-400 mt-1">Alerts first (severity pattern), then mechanical adoption across Tasks, Orders, Users, Webhooks, Incentives, Territories…</p>
-            </div>
-        </div>
-    </section>
+  <div class="strip">
+    <figure>
+      <div class="thumb"><iframe src="dashboard.html" title="Dashboard" scrolling="no"></iframe></div>
+      <figcaption><span class="n">01</span> Execution overview <a href="dashboard.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb"><iframe src="alerts.html" title="Alerts" scrolling="no"></iframe></div>
+      <figcaption><span class="n">02</span> Alerts worklist <a href="alerts.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb"><iframe src="drawer.html" title="Navigation" scrolling="no"></iframe></div>
+      <figcaption><span class="n">03</span> Navigation system <a href="drawer.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+  </div>
 
-    <footer class="text-center pb-10 text-xs text-gray-600">Static HTML mockups · palette + type from app/lib/core/theme (AppColors / AppTheme) · flow: Dashboard → Drawer / Alerts</footer>
+  <h2>Design decisions</h2>
+  <div class="grid3">
+    <div class="card">
+      <b>Score, then cause, then who</b>
+      <p>Execution score leads with its trend and its target. Immediately right of it sits what is dragging it down — and every row is a link into the thing you’d do about it. Summary, cause, action: one screen.</p>
+    </div>
+    <div class="card">
+      <b>Charts, not decoration</b>
+      <p>Axes, a target rule, a hover crosshair, and a table view behind every chart. A single hue per chart; length carries magnitude, so color is free to carry status instead.</p>
+    </div>
+    <div class="card">
+      <b>State survives grayscale</b>
+      <p>Severity is a bar, a dot and a word. Deltas carry ▲/▼ plus a sign. Print it, or read it with deuteranopia, and nothing is lost.</p>
+    </div>
+    <div class="card">
+      <b>One filter row, not per-panel filters</b>
+      <p>Territory, channel and date range sit above everything they scope, so every panel is guaranteed to be showing the same slice. A filter inside a card is a lie waiting to happen.</p>
+    </div>
+    <div class="card">
+      <b>Color is spent, not sprayed</b>
+      <p>Blue is brand and interaction. Red is consequence. <code>Tasks 12</code> is muted; <code>Alerts 3</code> is red because those three breach. Everything else is ink.</p>
+    </div>
+    <div class="card">
+      <b>Honest to the backend</b>
+      <p>Rules named as they exist (<code>oos_any_sku</code>), auto-created task IDs shown, the CV-stub caveat printed on the page. The mockup doesn’t promise what the API can’t serve.</p>
+    </div>
+  </div>
+
+  <h2>Implementation map</h2>
+  <div class="panel" style="padding: 4px 15px">
+    <div class="pr">
+      <div class="pr-n">PR 1</div>
+      <div>
+        <div class="pr-t">Theme + core widgets</div>
+        <p class="pr-d">Port <code>tokens.css</code> into <code>AppColors</code>/<code>AppTheme</code> (squared radii, one type family). Add <code>StatTile · LedgerRow · StatusChip · FilterBar · PanelCard</code> to <code>core/widgets/</code>. Purely additive — no screen changes yet, so zero regression risk.</p>
+      </div>
+    </div>
+    <div class="pr">
+      <div class="pr-n">PR 2</div>
+      <div>
+        <div class="pr-t">Console shell</div>
+        <p class="pr-d">Replace the drawer in <code>manager_scaffold.dart</code> with a responsive rail (expanded ≥1080px, collapsed below, drawer on phone). Every one of the 18 manager screens inherits it.</p>
+      </div>
+    </div>
+    <div class="pr">
+      <div class="pr-n">PR 3</div>
+      <div>
+        <div class="pr-t">Dashboard</div>
+        <p class="pr-d">Hero score + trend from <code>GET /trends/scorecards</code>; needs-attention from <code>GET /alerts</code> + <code>GET /tasks</code>; KPI strip from <code>GET /dashboard</code>; territory bars from <code>GET /territories/:id/coverage</code>. Charts need a Flutter chart package — none is in <code>pubspec.yaml</code> today.</p>
+      </div>
+    </div>
+    <div class="pr">
+      <div class="pr-n">PR 4</div>
+      <div>
+        <div class="pr-t">List screens</div>
+        <p class="pr-d">Alerts first, since it establishes the severity pattern; then mechanically across Tasks, Orders, Users, Webhooks, Incentives, Territories.</p>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size:12px;color:var(--ink-3);margin-top:22px;border-top:1px solid var(--line);padding-top:14px;line-height:1.6">
+    Static HTML · tokens in <code>tokens.css</code> · no build step, no CDN framework. Demo figures throughout.
+  </p>
+
+</div>
 </body>
 </html>

@@ -86,3 +86,20 @@ final dashboardKpisProvider = FutureProvider<DashboardKpis>((ref) {
         to: filter.to,
       );
 });
+
+/// KPIs scoped to a single territory.
+///
+/// `GET /territories/:id/coverage` returns outlet and agent *lists*, not a
+/// score, so the only honest way to rank territories by execution score is to
+/// re-query `GET /dashboard` per territory. That is one request per territory —
+/// acceptable at the current scale (a client has a handful), but the right fix
+/// is a server-side `GET /dashboard/by-territory` rollup if the list grows.
+final territoryKpisProvider =
+    FutureProvider.family<DashboardKpis, String>((ref, territoryId) {
+  final filter = ref.watch(dashboardFilterProvider);
+  return ref.read(dashboardRepositoryProvider).fetchKpis(
+        territoryId: territoryId,
+        from: filter.from,
+        to: filter.to,
+      );
+});
