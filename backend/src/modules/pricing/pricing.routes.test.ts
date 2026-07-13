@@ -114,6 +114,48 @@ describe('pricing routes', () => {
     expect(afterResubmit).toHaveLength(1);
   });
 
+  it('respects a client-configured kpiThresholds.priceDeviationPct (#47)', async () => {
+    // A fresh SKU so the dedup key (requiredFix) can't collide with the task
+    // created by the previous case. priceActual 25 vs rrp 20 => +25% deviation.
+    const premiumSku = await prisma.sku.create({
+      data: { clientId, name: 'Pricing Fanta', category: 'Beverages', minFacingsStandard: 4, rrp: 20 },
+    });
+    const deviating = { ...validItem(), skuId: premiumSku.id, priceActual: 25 };
+    const taskFilter = {
+      visitId,
+      findingType: 'price_deviation',
+      requiredFix: `Correct shelf price for SKU ${premiumSku.id} (deviation 25%)`,
+    };
+
+    try {
+      // 25% is under a raised 30% threshold — no task.
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { kpiThresholds: { priceDeviationPct: 30 } },
+      });
+      const suppressed = await request(app)
+        .post('/pricing')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({ visitId, items: [deviating] });
+      expect(suppressed.status).toBe(201);
+      expect(await prisma.task.findMany({ where: taskFilter })).toHaveLength(0);
+
+      // Tightened to 20%, the same 25% deviation now flags.
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { kpiThresholds: { priceDeviationPct: 20 } },
+      });
+      const flagged = await request(app)
+        .post('/pricing')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({ visitId, items: [deviating] });
+      expect(flagged.status).toBe(201);
+      expect(await prisma.task.findMany({ where: taskFilter })).toHaveLength(1);
+    } finally {
+      await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: {} } });
+    }
+  });
+
   it('returns 404 for a visit belonging to another client', async () => {
     const otherToken = issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' });
     const res = await request(app)

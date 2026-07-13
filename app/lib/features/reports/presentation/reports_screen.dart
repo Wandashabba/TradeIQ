@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/reports_repository.dart';
 import 'report_form_screen.dart';
 
@@ -11,17 +11,8 @@ class ReportsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reports = ref.watch(reportsListProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Reports',
       // The whole /reports surface is manager/admin only (route-guarded), so the
       // build action does not need a further role check here.
       floatingActionButton: FloatingActionButton(

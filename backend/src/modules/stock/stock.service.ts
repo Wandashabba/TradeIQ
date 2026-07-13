@@ -2,10 +2,12 @@ import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { predictCoverageDays } from '../../services/forecast.service';
 import { computeSlaDueAt } from '../../lib/slaClock';
+import { kpiThreshold } from '../../lib/kpiThresholds';
 
-// Auto-task creation threshold for stock-outs (issue #47). `0 units available`
-// is the default flag; client-configurable thresholds land under issue #46.
-const STOCKOUT_UNITS_THRESHOLD = 0;
+// Auto-task creation threshold for stock-outs (issue #47): an item with at
+// most this many units counts as out of stock. Clients override the default
+// via kpiThresholds.stockoutUnits (PATCH /clients/me, issue #46).
+const DEFAULT_STOCKOUT_UNITS_THRESHOLD = 0;
 const STOCKOUT_FINDING_TYPE = 'stockout';
 
 export interface StockItemInput {
@@ -87,19 +89,30 @@ export async function recordStock(input: RecordStockInput) {
   // (visitId, findingType, requiredFix) so re-submitting the section is
   // idempotent. Task creation is best-effort: a failure here must not fail the
   // already-persisted stock capture.
-  await createStockoutTasks(input.visitId, visit.outletId, visit.agentId, input.items);
+  await createStockoutTasks(input.visitId, input.clientId, visit.outletId, visit.agentId, input.items);
 
   return rows;
 }
 
 async function createStockoutTasks(
   visitId: string,
+  clientId: string,
   outletId: string,
   agentId: string,
   items: StockItemInput[],
 ): Promise<void> {
   try {
-    const stockouts = items.filter((item) => item.unitsAvailable === STOCKOUT_UNITS_THRESHOLD);
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { kpiThresholds: true },
+    });
+    const unitsThreshold = kpiThreshold(
+      client?.kpiThresholds,
+      'stockoutUnits',
+      DEFAULT_STOCKOUT_UNITS_THRESHOLD,
+    );
+
+    const stockouts = items.filter((item) => item.unitsAvailable <= unitsThreshold);
     if (stockouts.length === 0) return;
 
     const existing = await prisma.task.findMany({

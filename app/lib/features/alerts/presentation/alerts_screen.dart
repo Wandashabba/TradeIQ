@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/alerts_repository.dart';
 
 class AlertsScreen extends ConsumerWidget {
@@ -10,17 +10,8 @@ class AlertsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alerts = ref.watch(alertsListProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Alerts'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Alerts',
       body: alerts.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(

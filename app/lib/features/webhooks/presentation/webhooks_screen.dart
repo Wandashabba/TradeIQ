@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/webhooks_repository.dart';
 
 class WebhooksScreen extends ConsumerWidget {
@@ -10,17 +10,8 @@ class WebhooksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final webhooks = ref.watch(webhooksListProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Webhooks'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Webhooks',
       floatingActionButton: FloatingActionButton(
         tooltip: 'Add webhook',
         onPressed: () => showDialog<void>(

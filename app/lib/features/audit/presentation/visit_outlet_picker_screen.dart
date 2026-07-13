@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/agent_scaffold.dart';
 import '../../outlets/data/outlets_repository.dart';
 
 class VisitOutletPickerScreen extends ConsumerWidget {
@@ -10,8 +11,8 @@ class VisitOutletPickerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final outlets = ref.watch(outletsListProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Select an Outlet')),
+    return AgentScaffold(
+      title: 'Select an Outlet',
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await context.push('/outlets/create');

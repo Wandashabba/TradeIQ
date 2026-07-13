@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/fraud_repository.dart';
 
 class FraudScreen extends ConsumerWidget {
@@ -10,17 +10,8 @@ class FraudScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final visits = ref.watch(flaggedVisitsProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Fraud Review'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Fraud Review',
       body: visits.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(

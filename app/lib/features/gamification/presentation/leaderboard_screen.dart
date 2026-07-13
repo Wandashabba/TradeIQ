@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/gamification_repository.dart';
 
 class LeaderboardScreen extends ConsumerWidget {
@@ -10,17 +10,8 @@ class LeaderboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final leaderboard = ref.watch(leaderboardProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Leaderboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Leaderboard',
       body: leaderboard.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(

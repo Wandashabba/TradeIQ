@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/dashboard_repository.dart';
 
@@ -11,23 +11,8 @@ class DashboardShellScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kpis = ref.watch(dashboardKpisProvider);
-    return Scaffold(
-      drawer: const _DashboardDrawer(),
-      appBar: AppBar(
-        title: const Text('Manager Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.checklist),
-            tooltip: 'Tasks',
-            onPressed: () => context.go('/tasks'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Manager Dashboard',
       body: Column(
         children: [
           const _FilterBar(),
@@ -166,53 +151,4 @@ class _FilterBar extends ConsumerWidget {
   }
 }
 
-/// Navigation drawer to the manager/admin destinations backed by the Phase 3
-/// modules. Each entry closes the drawer then routes via go_router.
-class _DashboardDrawer extends StatelessWidget {
-  const _DashboardDrawer();
 
-  static const _destinations = <(String, IconData, String)>[
-    ('Dashboard', Icons.dashboard, '/dashboard'),
-    ('Tasks', Icons.checklist, '/tasks'),
-    ('Campaigns', Icons.campaign, '/campaigns'),
-    ('Alerts', Icons.warning_amber, '/alerts'),
-    ('Territories', Icons.map, '/territories'),
-    ('Orders', Icons.shopping_cart, '/orders'),
-    ('Beat plans', Icons.route, '/beatplans'),
-    ('Leaderboard', Icons.leaderboard, '/leaderboard'),
-    ('Fraud review', Icons.gpp_maybe, '/fraud'),
-    ('Reports', Icons.assessment, '/reports'),
-    ('Trends', Icons.show_chart, '/trends'),
-    ('Dispatch', Icons.near_me, '/dispatch'),
-    ('Incentives', Icons.card_giftcard, '/incentives'),
-    ('Messages', Icons.message, '/messages'),
-    ('Users', Icons.group, '/users'),
-    ('Audit templates', Icons.description, '/audit-templates'),
-    ('Webhooks', Icons.link, '/webhooks'),
-    ('Scoring config', Icons.tune, '/client-config'),
-    ('Outlets', Icons.store, '/outlets'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      child: SafeArea(
-        child: ListView(
-          children: [
-            const DrawerHeader(child: Center(child: Text('TradeIQ'))),
-            for (final (label, icon, path) in _destinations)
-              ListTile(
-                key: ValueKey('nav-$path'),
-                leading: Icon(icon),
-                title: Text(label),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  context.go(path);
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}

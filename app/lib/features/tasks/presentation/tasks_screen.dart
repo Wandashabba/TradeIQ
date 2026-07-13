@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../../audit/data/photos_repository.dart';
 import '../data/tasks_admin_repository.dart';
 
@@ -11,17 +11,8 @@ class TasksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(tasksListProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tasks'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Tasks',
       body: tasks.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
