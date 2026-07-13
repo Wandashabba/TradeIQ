@@ -19,12 +19,13 @@ class _S6State extends ConsumerState<S6CompetitiveScreen> {
   final _skus = <TextEditingController>[];
   final _prices = <TextEditingController>[];
   final _posmTypes = <TextEditingController>[];
+  final _facings = <TextEditingController>[];
   final _promoters = <bool>[];
   bool _saved = false;
 
   @override
   void dispose() {
-    for (final c in [..._skus, ..._prices, ..._posmTypes]) {
+    for (final c in [..._skus, ..._prices, ..._posmTypes, ..._facings]) {
       c.dispose();
     }
     super.dispose();
@@ -35,6 +36,7 @@ class _S6State extends ConsumerState<S6CompetitiveScreen> {
       _skus.add(TextEditingController());
       _prices.add(TextEditingController());
       _posmTypes.add(TextEditingController());
+      _facings.add(TextEditingController(text: '1'));
       _promoters.add(false);
     });
   }
@@ -49,6 +51,10 @@ class _S6State extends ConsumerState<S6CompetitiveScreen> {
             competitorPrice: double.tryParse(_prices[i].text) ?? 0.0,
             competitorPosmType: _posmTypes[i].text.trim(),
             competitorPromoterPresent: _promoters[i],
+            // Facings is what makes share-of-shelf a real ratio rather than a
+            // count of how many rows the agent typed (#93). A blank box means
+            // "at least one" — never zero, which would erase the competitor.
+            facingsCount: int.tryParse(_facings[i].text.trim()) ?? 1,
           ),
     ];
 
@@ -90,6 +96,16 @@ class _S6State extends ConsumerState<S6CompetitiveScreen> {
                     key: ValueKey('comp-posm-$i'),
                     controller: _posmTypes[i],
                     decoration: const InputDecoration(labelText: 'POSM type', isDense: true),
+                  ),
+                  TextField(
+                    key: ValueKey('comp-facings-$i'),
+                    controller: _facings[i],
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Facings on shelf',
+                      helperText: 'How much shelf this competitor holds',
+                      isDense: true,
+                    ),
                   ),
                   SwitchListTile(
                     key: ValueKey('comp-promoter-$i'),

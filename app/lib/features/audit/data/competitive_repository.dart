@@ -13,17 +13,27 @@ class CompetitiveEntry {
     required this.competitorPrice,
     required this.competitorPosmType,
     required this.competitorPromoterPresent,
+    this.facingsCount = 1,
   });
   final String competitorSku;
   final double competitorPrice;
   final String competitorPosmType;
   final bool competitorPromoterPresent;
 
+  /// How many facings this competitor holds.
+  ///
+  /// Share of shelf used to count each captured ROW as one facing, so a
+  /// competitor with a whole shelf counted the same as one with a single can
+  /// (#93). Defaults to 1, which reproduces that old behaviour for a caller that
+  /// does not supply it.
+  final int facingsCount;
+
   Map<String, dynamic> toJson() => {
         'competitorSku': competitorSku,
         'competitorPrice': competitorPrice,
         'competitorPosmType': competitorPosmType,
         'competitorPromoterPresent': competitorPromoterPresent,
+        'facingsCount': facingsCount,
         // Phase-1: empty geotag object — the check-in GPS is the visit-level geotag.
         'geotag': const <String, double>{},
       };

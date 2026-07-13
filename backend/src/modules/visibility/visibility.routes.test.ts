@@ -137,47 +137,87 @@ describe('visibility routes', () => {
     expect(res.status).toBe(401);
   });
 
-  it('derives vision fields from the stub when photoUrl is provided (201)', async () => {
-    const res = await request(app)
-      .post('/visibility')
-      .set('Authorization', `Bearer ${agentToken}`)
-      .send({
-        visitId,
-        photoUrl: 'https://example.com/shelf.jpg',
-        templateId: 'tmpl-1',
-        skuId: 'sku-1',
-        highTrafficPass: true,
-        // Manual brandingElements are merged with the stub result.
-        brandingElements: { poster: true },
-      });
+  describe('the computer-vision seam (#92)', () => {
+    const original = process.env.VISION_ENABLED;
 
-    expect(res.status).toBe(201);
+    afterEach(() => {
+      if (original === undefined) {
+        delete process.env.VISION_ENABLED;
+      } else {
+        process.env.VISION_ENABLED = original;
+      }
+    });
 
-    // Stub returns 0..1; the service stores a 0..100 percentage.
-    expect(typeof res.body.planogramCompliancePct).toBe('number');
-    expect(res.body.planogramCompliancePct).toBeGreaterThanOrEqual(0);
-    expect(res.body.planogramCompliancePct).toBeLessThanOrEqual(100);
+    it('KEEPS the agent\'s measurements when a photo is sent while CV is off', async () => {
+      // This is the whole point of the guard. The CV implementation is still
+      // Math.random(); if a photo alone were enough to trigger it, a real
+      // measurement taken in a store would be silently replaced by noise that
+      // then feeds the scorecard, the dashboard and the perfect-store trend.
+      delete process.env.VISION_ENABLED;
 
-    // facingsCount is { total: <int 1..6> } from countFacings.
-    expect(Number.isInteger(res.body.facingsCount.total)).toBe(true);
-    expect(res.body.facingsCount.total).toBeGreaterThanOrEqual(1);
-    expect(res.body.facingsCount.total).toBeLessThanOrEqual(6);
+      const res = await request(app)
+        .post('/visibility')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({
+          visitId,
+          photoUrl: 'https://example.com/shelf.jpg',
+          highTrafficPass: true,
+          brandingElements: { poster: true },
+          planogramCompliancePct: 87.5,
+          facingsCount: { total: 12 },
+          cleanlinessScore: 4,
+        });
 
-    // cleanlinessScore is 1..5 from scoreCleanliness.
-    expect(Number.isInteger(res.body.cleanlinessScore)).toBe(true);
-    expect(res.body.cleanlinessScore).toBeGreaterThanOrEqual(1);
-    expect(res.body.cleanlinessScore).toBeLessThanOrEqual(5);
+      expect(res.status).toBe(201);
+      // Exactly what the agent measured — untouched.
+      expect(res.body.planogramCompliancePct).toBe(87.5);
+      expect(res.body.facingsCount.total).toBe(12);
+      expect(res.body.cleanlinessScore).toBe(4);
+      // The stub never ran, so it contributed no branding verdict.
+      expect(res.body.brandingElements.detected).toBeUndefined();
+    });
 
-    // brandingElements reflects the stub (detected 0..8 int, pass bool) merged
-    // over the manual object.
-    expect(res.body.brandingElements.poster).toBe(true);
-    expect(Number.isInteger(res.body.brandingElements.detected)).toBe(true);
-    expect(res.body.brandingElements.detected).toBeGreaterThanOrEqual(0);
-    expect(res.body.brandingElements.detected).toBeLessThanOrEqual(8);
-    expect(typeof res.body.brandingElements.pass).toBe('boolean');
+    it('rejects a photo with no manual values while CV is off (400)', async () => {
+      // Without this the service would write undefined into the vision columns.
+      delete process.env.VISION_ENABLED;
 
-    // highTrafficPass stays a manual field.
-    expect(res.body.highTrafficPass).toBe(true);
+      const res = await request(app)
+        .post('/visibility')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({
+          visitId,
+          photoUrl: 'https://example.com/shelf.jpg',
+          highTrafficPass: true,
+        });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('derives the vision fields from the model only when explicitly enabled', async () => {
+      process.env.VISION_ENABLED = 'true';
+
+      const res = await request(app)
+        .post('/visibility')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({
+          visitId,
+          photoUrl: 'https://example.com/shelf.jpg',
+          templateId: 'tmpl-1',
+          skuId: 'sku-1',
+          highTrafficPass: true,
+          brandingElements: { poster: true },
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.planogramCompliancePct).toBeGreaterThanOrEqual(0);
+      expect(res.body.planogramCompliancePct).toBeLessThanOrEqual(100);
+      expect(Number.isInteger(res.body.facingsCount.total)).toBe(true);
+      expect(Number.isInteger(res.body.cleanlinessScore)).toBe(true);
+      // The stub's branding verdict is merged over the manual object.
+      expect(res.body.brandingElements.poster).toBe(true);
+      expect(Number.isInteger(res.body.brandingElements.detected)).toBe(true);
+      expect(res.body.highTrafficPass).toBe(true);
+    });
   });
 
   it('GET returns the visibility row for a visit (200)', async () => {
