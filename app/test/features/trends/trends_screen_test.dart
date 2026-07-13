@@ -12,25 +12,34 @@ const _points = <TrendPoint>[
 ];
 
 class _FakeTrendsRepository implements TrendsRepository {
-  @override
-  Future<List<TrendPoint>> scorecards() async => _points;
+  /// Every query the screen actually issued — so a test can prove the control
+  /// reaches the API, rather than merely repainting itself.
+  final queries = <TrendQuery>[];
 
   @override
-  Future<List<TrendPoint>> availability() async => _points;
+  Future<List<TrendPoint>> scorecards([
+    TrendQuery query = const TrendQuery(),
+  ]) async {
+    queries.add(query);
+    return _points;
+  }
 
   @override
-  Future<List<TrendPoint>> perfectStore() async => _points;
+  Future<List<TrendPoint>> availability([TrendQuery query = const TrendQuery()]) async => _points;
+
+  @override
+  Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => _points;
 }
 
 class _ThrowingTrendsRepository implements TrendsRepository {
   @override
-  Future<List<TrendPoint>> scorecards() async => throw Exception('boom');
+  Future<List<TrendPoint>> scorecards([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
 
   @override
-  Future<List<TrendPoint>> availability() async => throw Exception('boom');
+  Future<List<TrendPoint>> availability([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
 
   @override
-  Future<List<TrendPoint>> perfectStore() async => throw Exception('boom');
+  Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
 }
 
 Widget _app(TrendsRepository repo) => routedApp(
@@ -99,5 +108,31 @@ void main() {
     await _pump(tester, _app(_ThrowingTrendsRepository()));
 
     expect(find.textContaining('Failed to load'), findsWidgets);
+  });
+
+  testWidgets('defaults to weekly buckets and the server default window', (
+    tester,
+  ) async {
+    final repo = _FakeTrendsRepository();
+    await _pump(tester, _app(repo));
+
+    expect(repo.queries.first.interval, TrendInterval.week);
+    // Null is not "all time" — it is the server's own lookback. The control must
+    // not claim a range we never asked for.
+    expect(repo.queries.first.from, isNull);
+    expect(repo.queries.first.to, isNull);
+    expect(find.text('Server default'), findsOneWidget);
+  });
+
+  testWidgets('switching to daily re-queries with interval=day', (tester) async {
+    final repo = _FakeTrendsRepository();
+    await _pump(tester, _app(repo));
+
+    await tester.tap(find.byKey(const ValueKey('interval-day')));
+    await tester.pumpAndSettle();
+
+    // One filter row scopes every panel, so the new interval has to reach the
+    // API — not just repaint the segment.
+    expect(repo.queries.last.interval, TrendInterval.day);
   });
 }
