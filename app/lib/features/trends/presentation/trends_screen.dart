@@ -23,6 +23,8 @@ class TrendsScreen extends ConsumerWidget {
             style: TextStyle(fontSize: 12, color: AppColors.ink3),
           ),
           const SizedBox(height: 12),
+          const _TrendFilters(),
+          const SizedBox(height: 12),
           _TrendPanel(
             key: const ValueKey('trend-scorecards'),
             heading: 'Scorecard trend',
@@ -226,5 +228,104 @@ class _TrendTable extends StatelessWidget {
   static String _trim(double v) {
     final s = v.toStringAsFixed(1);
     return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
+  }
+}
+
+/// One filter row scoping every chart below it — interval and window.
+///
+/// A per-panel range control would let two charts silently disagree about which
+/// slice of time they show, which is worse than no control at all.
+class _TrendFilters extends ConsumerWidget {
+  const _TrendFilters();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(trendQueryProvider);
+
+    void update(TrendQuery next) =>
+        ref.read(trendQueryProvider.notifier).set(next);
+
+    Future<void> pickRange() async {
+      final range = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2035),
+      );
+      if (range != null) {
+        update(TrendQuery(
+          interval: query.interval,
+          from: range.start,
+          to: range.end,
+        ));
+      }
+    }
+
+    return FilterRow(
+      children: [
+        const SectionLabel('Bucket'),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.lineStrong),
+            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final interval in TrendInterval.values)
+                InkWell(
+                  key: ValueKey('interval-${interval.name}'),
+                  onTap: () => update(TrendQuery(
+                    interval: interval,
+                    from: query.from,
+                    to: query.to,
+                  )),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: interval == query.interval
+                          ? AppColors.surface3
+                          : Colors.transparent,
+                      border: Border(
+                        right: BorderSide(
+                          color: interval == TrendInterval.values.last
+                              ? Colors.transparent
+                              : AppColors.lineStrong,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      interval == TrendInterval.day ? 'Daily' : 'Weekly',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: interval == query.interval
+                            ? AppColors.ink1
+                            : AppColors.ink2,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 4),
+        const SectionLabel('Window'),
+        OutlinedButton.icon(
+          key: const ValueKey('trend-daterange'),
+          icon: const Icon(Icons.date_range, size: 14),
+          // Null is not "all time" — it is the server's own default lookback.
+          // Say that, rather than implying a range we never asked for.
+          label: Text(query.isRanged ? 'Custom range' : 'Server default'),
+          onPressed: pickRange,
+        ),
+        if (query.isRanged)
+          TextButton(
+            key: const ValueKey('trend-clear'),
+            onPressed: () => update(TrendQuery(interval: query.interval)),
+            child: const Text('Clear'),
+          ),
+      ],
+    );
   }
 }

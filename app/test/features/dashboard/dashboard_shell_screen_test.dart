@@ -112,16 +112,16 @@ class _FakeTrendsRepository implements TrendsRepository {
   final List<TrendPoint> scorecardPoints;
 
   @override
-  Future<List<TrendPoint>> scorecards() async => scorecardPoints;
+  Future<List<TrendPoint>> scorecards([TrendQuery query = const TrendQuery()]) async => scorecardPoints;
 
   @override
-  Future<List<TrendPoint>> availability() async => const [
+  Future<List<TrendPoint>> availability([TrendQuery query = const TrendQuery()]) async => const [
         TrendPoint(period: '2026-W25', value: 92.6),
         TrendPoint(period: '2026-W26', value: 93.1),
       ];
 
   @override
-  Future<List<TrendPoint>> perfectStore() async => const [];
+  Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => const [];
 }
 
 AlertItem _alert({required String severity, String metric = 'out_of_stock'}) =>
