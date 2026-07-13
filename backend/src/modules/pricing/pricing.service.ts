@@ -3,11 +3,12 @@ import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { extractPriceFromPhoto } from '../../services/ocr.stub';
 import { computeSlaDueAt } from '../../lib/slaClock';
+import { kpiThreshold } from '../../lib/kpiThresholds';
 
-// Auto-task creation threshold for shelf-price deviation (issue #47). A ±10%
-// deviation is the default flag; client-configurable thresholds land under
-// issue #46.
-const PRICE_DEVIATION_THRESHOLD_PCT = 10;
+// Auto-task creation threshold for shelf-price deviation (issue #47): a ±10%
+// deviation is the default flag. Clients override the default via
+// kpiThresholds.priceDeviationPct (PATCH /clients/me, issue #46).
+const DEFAULT_PRICE_DEVIATION_THRESHOLD_PCT = 10;
 const PRICE_DEVIATION_FINDING_TYPE = 'price_deviation';
 
 export interface PricingItemInput {
@@ -81,19 +82,30 @@ export async function recordPricing(input: RecordPricingInput) {
   // pattern (issue #47). Deduplicated by (visitId, findingType, requiredFix) so
   // re-submitting the section is idempotent. Best-effort: a failure here must
   // not fail the already-persisted pricing capture.
-  await createPriceDeviationTasks(input.visitId, visit.outletId, visit.agentId, rows);
+  await createPriceDeviationTasks(input.visitId, input.clientId, visit.outletId, visit.agentId, rows);
 
   return created;
 }
 
 async function createPriceDeviationTasks(
   visitId: string,
+  clientId: string,
   outletId: string,
   agentId: string,
   rows: Array<{ skuId: string; deviationPct: number }>,
 ): Promise<void> {
   try {
-    const deviating = rows.filter((r) => Math.abs(r.deviationPct) > PRICE_DEVIATION_THRESHOLD_PCT);
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { kpiThresholds: true },
+    });
+    const deviationThresholdPct = kpiThreshold(
+      client?.kpiThresholds,
+      'priceDeviationPct',
+      DEFAULT_PRICE_DEVIATION_THRESHOLD_PCT,
+    );
+
+    const deviating = rows.filter((r) => Math.abs(r.deviationPct) > deviationThresholdPct);
     if (deviating.length === 0) return;
 
     const existing = await prisma.task.findMany({
