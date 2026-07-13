@@ -68,12 +68,49 @@ Widget _app(AlertsRepository repo) => routedApp(
     );
 
 void main() {
-  testWidgets('renders alert messages once loaded', (tester) async {
+  testWidgets('opens on the triage list — what is still open', (tester) async {
     await tester.pumpWidget(_app(_FakeAlertsRepository()));
+    await tester.pumpAndSettle();
+
+    // The worklist defaults to Open: a manager lands on what still needs doing,
+    // not on a mixed pile. The acknowledged alert is one tab away, not gone.
+    expect(find.text('SKU 42 out of stock'), findsOneWidget);
+    expect(find.text('Shelf price mismatch'), findsNothing);
+  });
+
+  testWidgets('the All tab reveals acknowledged alerts', (tester) async {
+    await tester.pumpWidget(_app(_FakeAlertsRepository()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
     await tester.pumpAndSettle();
 
     expect(find.text('SKU 42 out of stock'), findsOneWidget);
     expect(find.text('Shelf price mismatch'), findsOneWidget);
+  });
+
+  testWidgets('triage counts summarise the list before you read it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(_FakeAlertsRepository()));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('triage-critical')), findsOneWidget);
+    expect(find.byKey(const ValueKey('triage-warning')), findsOneWidget);
+    expect(find.byKey(const ValueKey('triage-acknowledged')), findsOneWidget);
+  });
+
+  testWidgets('an acknowledged alert offers no Acknowledge action', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(_FakeAlertsRepository()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('ack-a-open')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('ack-a-done')), findsNothing);
   });
 
   testWidgets('acknowledging an open alert calls acknowledge with its id',

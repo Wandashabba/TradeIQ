@@ -115,11 +115,26 @@ Widget _app(
     );
 
 void main() {
-  testWidgets('renders task finding types once loaded', (tester) async {
+  testWidgets('opens on the still-open tasks', (tester) async {
     await tester.pumpWidget(_app(
       _FakeTasksAdminRepository(),
       _RecordingPhotosRepository(),
     ));
+    await tester.pumpAndSettle();
+
+    // The worklist defaults to Open — a closed task is one tab away, not gone.
+    expect(find.text('out_of_stock'), findsOneWidget);
+    expect(find.text('price_wrong'), findsNothing);
+  });
+
+  testWidgets('the All tab reveals closed tasks', (tester) async {
+    await tester.pumpWidget(_app(
+      _FakeTasksAdminRepository(),
+      _RecordingPhotosRepository(),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
     await tester.pumpAndSettle();
 
     expect(find.text('out_of_stock'), findsOneWidget);
@@ -147,6 +162,11 @@ void main() {
     final tasksRepo = _FakeTasksAdminRepository();
     final photosRepo = _RecordingPhotosRepository();
     await tester.pumpWidget(_app(tasksRepo, photosRepo));
+    await tester.pumpAndSettle();
+
+    // Verification lives on the closed list, which is where a manager goes to
+    // sign work off.
+    await tester.tap(find.byKey(const ValueKey('tab-_Tab.closed')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('verify-t-closed')));

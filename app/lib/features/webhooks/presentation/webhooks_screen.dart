@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/widgets/worklist.dart';
 import '../data/webhooks_repository.dart';
 
+/// Outbound endpoints, as a worklist: the event is the subject, the URL is the
+/// machine-facing token, and delivery state is a mark *and* a word.
 class WebhooksScreen extends ConsumerWidget {
   const WebhooksScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final webhooks = ref.watch(webhooksListProvider);
+
     return ManagerScaffold(
       title: 'Webhooks',
       floatingActionButton: FloatingActionButton(
@@ -20,67 +26,86 @@ class WebhooksScreen extends ConsumerWidget {
         ),
         child: const Icon(Icons.add),
       ),
-      body: webhooks.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Failed to load webhooks: $err'),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(webhooksListProvider),
-                child: const Text('Retry'),
-              ),
-            ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Each endpoint receives a POST when its event fires. '
+            'Pausing keeps the endpoint but stops delivery.',
+            style: TextStyle(fontSize: 12, color: AppColors.ink3),
           ),
-        ),
-        data: (list) => ListView.builder(
-          itemCount: list.length,
-          itemBuilder: (context, index) => _WebhookCard(webhook: list[index]),
-        ),
+          const SizedBox(height: 12),
+          AsyncSection<List<Webhook>>(
+            value: webhooks,
+            label: 'webhooks',
+            onRetry: () => ref.invalidate(webhooksListProvider),
+            builder: (list) {
+              final live = list.where((w) => w.active).length;
+              return PanelCard(
+                title: '${list.length} '
+                    '${list.length == 1 ? 'endpoint' : 'endpoints'}',
+                subtitle: '$live receiving',
+                padded: false,
+                child: list.isEmpty
+                    ? const EmptyState(
+                        message: 'No endpoints registered',
+                        hint: 'Add one to forward events to an external system.',
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final w in list) _WebhookRow(webhook: w),
+                        ],
+                      ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 }
 
-class _WebhookCard extends ConsumerWidget {
-  const _WebhookCard({required this.webhook});
+class _WebhookRow extends ConsumerWidget {
+  const _WebhookRow({required this.webhook});
 
   final Webhook webhook;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      child: ListTile(
-        title: Text(webhook.event),
-        subtitle: Text(webhook.url),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Switch(
-              key: ValueKey<String>('toggle-${webhook.id}'),
-              value: webhook.active,
-              onChanged: (value) async {
-                await ref
-                    .read(webhooksRepositoryProvider)
-                    .setActive(webhook.id, value);
-                ref.invalidate(webhooksListProvider);
-              },
-            ),
-            IconButton(
-              key: ValueKey<String>('delete-${webhook.id}'),
-              icon: const Icon(Icons.delete),
-              onPressed: () async {
-                await ref
-                    .read(webhooksRepositoryProvider)
-                    .deleteWebhook(webhook.id);
-                ref.invalidate(webhooksListProvider);
-              },
-            ),
-          ],
-        ),
+    Future<void> setActive(bool value) async {
+      await ref.read(webhooksRepositoryProvider).setActive(webhook.id, value);
+      ref.invalidate(webhooksListProvider);
+    }
+
+    Future<void> delete() async {
+      await ref.read(webhooksRepositoryProvider).deleteWebhook(webhook.id);
+      ref.invalidate(webhooksListProvider);
+    }
+
+    return WorklistRow(
+      title: webhook.event,
+      // The URL is a thing the system calls, not prose — mono token.
+      meta: Row(
+        children: [Flexible(child: CodeToken(webhook.url))],
       ),
+      level: webhook.active ? StatusLevel.good : StatusLevel.neutral,
+      statusLabel: webhook.active ? 'Active' : 'Paused',
+      resolved: !webhook.active,
+      actions: [
+        Switch(
+          key: ValueKey<String>('toggle-${webhook.id}'),
+          value: webhook.active,
+          onChanged: (value) => setActive(value),
+        ),
+        RowAction(
+          key: ValueKey<String>('delete-${webhook.id}'),
+          label: 'Delete',
+          tone: StatusLevel.critical,
+          onPressed: delete,
+        ),
+      ],
     );
   }
 }
@@ -145,6 +170,10 @@ class _CreateWebhookDialogState extends ConsumerState<_CreateWebhookDialog> {
         ],
       ),
       actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           key: const ValueKey<String>('create-webhook'),
           onPressed: _submitting ? null : _create,

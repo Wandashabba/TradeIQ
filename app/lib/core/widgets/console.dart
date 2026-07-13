@@ -175,13 +175,19 @@ class StatusChip extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-            color: color,
+        // Flexible, not fixed: a long word ("ACKNOWLEDGED") in a narrow column
+        // must ellipsize rather than overflow its row.
+        Flexible(
+          child: Text(
+            label.toUpperCase(),
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+              color: color,
+            ),
           ),
         ),
       ],
