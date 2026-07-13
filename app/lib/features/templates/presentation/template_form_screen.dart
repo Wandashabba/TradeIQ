@@ -19,7 +19,7 @@ class TemplateFormScreen extends ConsumerWidget {
     final detail = ref.watch(templateDetailProvider(templateId));
     return Scaffold(
       appBar: AppBar(
-        title: Text(detail.valueOrNull?.template.name ?? 'Template Preview'),
+        title: Text(detail.value?.template.name ?? 'Template Preview'),
       ),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
