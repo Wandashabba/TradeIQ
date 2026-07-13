@@ -170,6 +170,8 @@ model Visit {
   scorecard   Scorecard?
   orders      Order[]
 
+  templateResponses VisitTemplateResponse[]
+
   @@map("visits")
 }
 
@@ -445,7 +447,28 @@ model AuditTemplate {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
+  responses VisitTemplateResponse[]
+
   @@map("audit_templates")
+}
+
+/// A visit's answers to a dynamic audit template — the generic persistence
+/// model for template-driven (non-S1–S10) capture. One row per
+/// (visit, template); re-submitting a section overwrites the answers.
+/// `templateVersion` snapshots the template version answered against, since a
+/// schema patch bumps AuditTemplate.version.
+model VisitTemplateResponse {
+  id              String        @id @default(uuid())
+  visitId         String        @map("visit_id")
+  visit           Visit         @relation(fields: [visitId], references: [id])
+  templateId      String        @map("template_id")
+  template        AuditTemplate @relation(fields: [templateId], references: [id])
+  templateVersion Int           @map("template_version")
+  answers         Json
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@unique([visitId, templateId])
+  @@map("visit_template_responses")
 }
 
 // ── Phase 2 (Intelligence) + Phase 3 (Activation) Tier-2 ──────────────────
