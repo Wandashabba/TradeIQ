@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeIQ — Navigation Drawer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                fontFamily: { sans: ['Inter','sans-serif'], heading: ['Montserrat','sans-serif'] },
+                colors: { tradeDark:'#0f1117', tradeCard:'#1a1d24', tradeInput:'#262a33', tradeLine:'#262a33', tradeBlue:'#0052cc', tradeBlueLight:'#007aff', tradeGood:'#3fc7a6', tradeWarn:'#e8c15a', tradeBad:'#ff6b7a' }
+            }}
+        }
+    </script>
+    <style>
+        body { background-color:#050505; background-image: radial-gradient(circle at 50% 0%, #1a2235 0%, #050505 70%); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; color:white; }
+        .phone-frame { width:375px; height:812px; background-color:#0f1117; border-radius:45px; box-shadow:0 0 0 10px #1f232e, 0 30px 60px rgba(0,0,0,0.5), 0 0 100px rgba(0,82,204,0.15); position:relative; overflow:hidden; }
+        .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:30px; background-color:#1f232e; border-bottom-left-radius:20px; border-bottom-right-radius:20px; z-index:50; }
+        .microlabel { font-size:10px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#737b8c; }
+        .nav-row { display:flex; align-items:center; gap:13px; padding:9px 14px 9px 12px; font-size:13.5px; font-weight:500; color:#a9b0be; border-left:2px solid transparent; }
+        .nav-row i { width:16px; text-align:center; color:#5d6577; font-size:12.5px; }
+        .nav-row.active { border-left-color:#007aff; color:#fff; font-weight:700; }
+        .nav-row.active i { color:#007aff; }
+        .nav-count { margin-left:auto; font-size:12px; font-weight:600; color:#737b8c; font-variant-numeric:tabular-nums; }
+        .nav-count.hot { color:#ff6b7a; font-weight:700; }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="notch"></div>
+
+        <!-- Dimmed dashboard behind -->
+        <div class="absolute inset-0 pt-16 px-6">
+            <div class="flex items-center justify-between mb-5">
+                <span class="text-gray-400 p-2 -ml-2"><i class="fa-solid fa-bars"></i></span>
+                <span class="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-[11px] font-bold text-gray-300">NM</span>
+            </div>
+            <p class="microlabel mb-1.5">Monday 13 July · Acme Beverages</p>
+            <h1 class="font-heading text-2xl font-extrabold tracking-tight">Execution overview</h1>
+        </div>
+        <div class="absolute inset-0 bg-black/60 z-10"></div>
+
+        <!-- Drawer -->
+        <div class="absolute top-0 bottom-0 left-0 w-[290px] bg-[#14171f] z-20 flex flex-col pt-14 pb-5">
+            <!-- Brand -->
+            <div class="px-6 pb-5">
+                <span class="font-heading font-extrabold text-[19px] tracking-tight">Trade<span class="text-tradeBlueLight">IQ</span></span>
+                <p class="text-[11px] text-gray-600 mt-0.5">Field execution, in focus</p>
+            </div>
+
+            <div class="flex-1 overflow-hidden relative">
+                <p class="microlabel px-6 mt-1 mb-1">Operate</p>
+                <div class="nav-row active"><i class="fa-solid fa-table-columns"></i> Dashboard</div>
+                <div class="nav-row"><i class="fa-solid fa-list-check"></i> Tasks <span class="nav-count">12</span></div>
+                <div class="nav-row"><i class="fa-solid fa-triangle-exclamation"></i> Alerts <span class="nav-count hot">3</span></div>
+                <div class="nav-row"><i class="fa-solid fa-cart-shopping"></i> Orders</div>
+                <div class="nav-row"><i class="fa-solid fa-route"></i> Beat plans</div>
+                <div class="nav-row"><i class="fa-solid fa-paper-plane"></i> Dispatch</div>
+                <div class="nav-row"><i class="fa-solid fa-comments"></i> Messages</div>
+
+                <p class="microlabel px-6 mt-4 mb-1">Insight</p>
+                <div class="nav-row"><i class="fa-solid fa-chart-column"></i> Reports</div>
+                <div class="nav-row"><i class="fa-solid fa-arrow-trend-up"></i> Trends</div>
+                <div class="nav-row"><i class="fa-solid fa-trophy"></i> Leaderboard</div>
+                <div class="nav-row"><i class="fa-solid fa-shield-halved"></i> Fraud review</div>
+                <div class="nav-row"><i class="fa-solid fa-bullhorn"></i> Campaigns</div>
+
+                <p class="microlabel px-6 mt-4 mb-1">Configure</p>
+                <div class="nav-row"><i class="fa-solid fa-users"></i> Users &amp; territories</div>
+                <div class="nav-row"><i class="fa-solid fa-file-lines"></i> Audit templates</div>
+                <div class="nav-row"><i class="fa-solid fa-sliders"></i> Scoring config</div>
+
+                <div class="absolute left-0 right-0 bottom-0 h-12" style="background:linear-gradient(to bottom, rgba(20,23,31,0), rgba(20,23,31,.95)); pointer-events:none"></div>
+            </div>
+
+            <!-- User foot -->
+            <div class="border-t border-tradeLine mx-5 pt-3.5 flex items-center gap-3">
+                <div class="flex-1 min-w-0">
+                    <b class="block text-[13px] font-bold leading-tight">Naledi Mokoena</b>
+                    <span class="block text-[11.5px] text-gray-500">Manager · Acme Beverages</span>
+                </div>
+                <span class="text-gray-500 text-[13px] p-2 -mr-2" title="Log out"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

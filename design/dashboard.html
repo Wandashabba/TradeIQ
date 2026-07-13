@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeIQ — Manager Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                fontFamily: { sans: ['Inter','sans-serif'], heading: ['Montserrat','sans-serif'] },
+                colors: { tradeDark:'#0f1117', tradeCard:'#1a1d24', tradeInput:'#262a33', tradeLine:'#262a33', tradeBlue:'#0052cc', tradeBlueLight:'#007aff', tradeGood:'#3fc7a6', tradeWarn:'#e8c15a', tradeBad:'#ff6b7a' },
+                backgroundImage: { 'blue-gradient':'linear-gradient(135deg, #007aff 0%, #003399 100%)' }
+            }}
+        }
+    </script>
+    <style>
+        body { background-color:#050505; background-image: radial-gradient(circle at 50% 0%, #1a2235 0%, #050505 70%); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; color:white; font-variant-numeric:tabular-nums; }
+        .phone-frame { width:375px; height:812px; background-color:#0f1117; border-radius:45px; box-shadow:0 0 0 10px #1f232e, 0 30px 60px rgba(0,0,0,0.5), 0 0 100px rgba(0,82,204,0.15); position:relative; overflow:hidden; }
+        .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:30px; background-color:#1f232e; border-bottom-left-radius:20px; border-bottom-right-radius:20px; z-index:50; }
+        .microlabel { font-size:10px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:#737b8c; }
+        .hairline { border-top:1px solid #262a33; }
+        .fade-out { position:absolute; left:0; right:0; bottom:0; height:70px; background:linear-gradient(to bottom, rgba(26,29,36,0), rgba(26,29,36,.96)); pointer-events:none; z-index:30; border-radius:0; }
+    </style>
+</head>
+<body>
+    <div class="phone-frame flex flex-col">
+        <div class="notch"></div>
+
+        <!-- Status Bar -->
+        <div class="absolute top-0 w-full h-12 flex justify-between items-center px-6 text-xs font-medium z-40">
+            <span>9:41</span>
+            <div class="flex gap-2 items-center"><i class="fa-solid fa-signal"></i><i class="fa-solid fa-wifi"></i><i class="fa-solid fa-battery-full"></i></div>
+        </div>
+
+        <!-- Header on the dark ground -->
+        <div class="pt-16 px-6 pb-5">
+            <div class="flex items-center justify-between mb-5">
+                <a href="drawer.html" class="text-gray-400 hover:text-white transition-colors p-2 -ml-2"><i class="fa-solid fa-bars"></i></a>
+                <span class="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-[11px] font-bold text-gray-300">NM</span>
+            </div>
+            <p class="microlabel mb-1.5">Monday 13 July · Acme Beverages</p>
+            <h1 class="font-heading text-2xl font-extrabold tracking-tight">Execution overview</h1>
+            <p class="text-[13px] text-gray-400 mt-2">
+                <span class="border-b border-dotted border-gray-500 pb-px">All territories</span>
+                <span class="text-gray-600 mx-1">·</span>
+                <span class="border-b border-dotted border-gray-500 pb-px">Last 30 days</span>
+                <i class="fa-solid fa-caret-down text-gray-500 text-[10px] ml-1.5"></i>
+            </p>
+        </div>
+
+        <!-- Content sheet -->
+        <div class="flex-1 bg-tradeCard rounded-t-[40px] px-6 pt-7 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] overflow-hidden relative">
+
+            <!-- Hero -->
+            <p class="microlabel">Execution score</p>
+            <div class="flex items-baseline gap-3 mt-1">
+                <span class="font-heading text-[56px] leading-none font-extrabold tracking-tighter">78.4</span>
+                <span class="text-[13px] font-semibold text-tradeGood"><i class="fa-solid fa-arrow-up text-[10px]"></i> 2.1 since June</span>
+            </div>
+            <svg class="block mt-3 -mx-1" width="100%" height="52" viewBox="0 0 315 52" fill="none" preserveAspectRatio="none" aria-hidden="true">
+                <line x1="0" y1="14" x2="315" y2="14" stroke="#262a33" stroke-width="1"/>
+                <line x1="0" y1="32" x2="315" y2="32" stroke="#262a33" stroke-width="1"/>
+                <line x1="0" y1="50" x2="315" y2="50" stroke="#262a33" stroke-width="1"/>
+                <path d="M0 38 L26 35 L52 37 L78 30 L104 32 L130 25 L156 28 L182 20 L208 23 L234 17 L260 19 L286 12 L315 9 V52 H0 Z" fill="rgba(0,122,255,.10)"/>
+                <path d="M0 38 L26 35 L52 37 L78 30 L104 32 L130 25 L156 28 L182 20 L208 23 L234 17 L260 19 L286 12 L315 9" stroke="#007aff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                <circle cx="315" cy="9" r="3" fill="#007aff" stroke="#1a1d24" stroke-width="2"/>
+            </svg>
+            <div class="flex justify-between text-[10px] text-gray-600 mt-1 mb-5"><span>14 Jun</span><span>28 Jun</span><span>13 Jul</span></div>
+
+            <!-- Needs attention: act first -->
+            <div class="hairline pt-4">
+                <div class="flex items-baseline justify-between mb-1">
+                    <p class="microlabel">Needs attention</p>
+                    <a href="alerts.html" class="text-[12px] font-semibold text-tradeBlueLight">All alerts</a>
+                </div>
+                <a href="alerts.html" class="flex items-center gap-3 py-2.5 block">
+                    <span class="w-1.5 h-1.5 rounded-full bg-tradeBad flex-shrink-0"></span>
+                    <span class="flex-1 text-[13.5px]"><b class="font-bold">3 critical alerts</b> <span class="text-gray-500">— 2 stockouts, 1 price deviation</span></span>
+                    <i class="fa-solid fa-chevron-right text-gray-600 text-[10px]"></i>
+                </a>
+                <div class="flex items-center gap-3 py-2.5 border-t border-tradeLine/60">
+                    <span class="w-1.5 h-1.5 rounded-full bg-tradeWarn flex-shrink-0"></span>
+                    <span class="flex-1 text-[13.5px]"><b class="font-bold">12 tasks due today</b> <span class="text-gray-500">— 4 breach SLA within 6h</span></span>
+                    <i class="fa-solid fa-chevron-right text-gray-600 text-[10px]"></i>
+                </div>
+            </div>
+
+            <!-- KPI ledger -->
+            <div class="hairline pt-4 mt-2">
+                <p class="microlabel mb-1">Key indicators</p>
+                <div class="flex items-center py-2.5 border-b border-tradeLine/60">
+                    <span class="flex-1 text-[13px] text-gray-300">On-shelf availability</span>
+                    <span class="text-[15px] font-bold w-16 text-right">92.1%</span>
+                    <span class="text-[11.5px] font-semibold text-tradeGood w-12 text-right">+0.8</span>
+                </div>
+                <div class="flex items-center py-2.5 border-b border-tradeLine/60">
+                    <span class="flex-1 text-[13px] text-gray-300">Perfect store rate</span>
+                    <span class="text-[15px] font-bold w-16 text-right">61.4%</span>
+                    <span class="text-[11.5px] font-semibold text-tradeBad w-12 text-right">−1.2</span>
+                </div>
+                <div class="flex items-center py-2.5 border-b border-tradeLine/60">
+                    <span class="flex-1 text-[13px] text-gray-300">Price compliance</span>
+                    <span class="text-[15px] font-bold w-16 text-right">88.7%</span>
+                    <span class="text-[11.5px] font-semibold text-tradeGood w-12 text-right">+0.4</span>
+                </div>
+                <div class="flex items-center py-2.5 border-b border-tradeLine/60">
+                    <span class="flex-1 text-[13px] text-gray-300">Visibility compliance</span>
+                    <span class="text-[15px] font-bold w-16 text-right">83.2%</span>
+                    <span class="text-[11.5px] font-semibold text-tradeGood w-12 text-right">+1.9</span>
+                </div>
+                <div class="flex items-center py-2.5 border-b border-tradeLine/60">
+                    <span class="flex-1 text-[13px] text-gray-300">Share of shelf</span>
+                    <span class="text-[15px] font-bold w-16 text-right">34.8%</span>
+                    <span class="text-[11.5px] font-semibold text-tradeBad w-12 text-right">−0.3</span>
+                </div>
+                <div class="flex items-center py-2.5">
+                    <span class="flex-1 text-[13px] text-gray-300">Weighted distribution</span>
+                    <span class="text-[15px] font-bold w-16 text-right">81.3%</span>
+                    <span class="text-[11.5px] font-semibold text-tradeGood w-12 text-right">+0.6</span>
+                </div>
+            </div>
+
+            <div class="fade-out"></div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeIQ — Alerts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                fontFamily: { sans: ['Inter','sans-serif'], heading: ['Montserrat','sans-serif'] },
+                colors: { tradeDark:'#0f1117', tradeCard:'#1a1d24', tradeInput:'#262a33', tradeLine:'#262a33', tradeBlue:'#0052cc', tradeBlueLight:'#007aff', tradeGood:'#3fc7a6', tradeWarn:'#e8c15a', tradeBad:'#ff6b7a' }
+            }}
+        }
+    </script>
+    <style>
+        body { background-color:#050505; background-image: radial-gradient(circle at 50% 0%, #1a2235 0%, #050505 70%); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; color:white; font-variant-numeric:tabular-nums; }
+        .phone-frame { width:375px; height:812px; background-color:#0f1117; border-radius:45px; box-shadow:0 0 0 10px #1f232e, 0 30px 60px rgba(0,0,0,0.5), 0 0 100px rgba(0,82,204,0.15); position:relative; overflow:hidden; }
+        .notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:30px; background-color:#1f232e; border-bottom-left-radius:20px; border-bottom-right-radius:20px; z-index:50; }
+        .microlabel { font-size:10px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; }
+        .tab { font-size:13px; font-weight:600; color:#737b8c; padding-bottom:9px; border-bottom:2px solid transparent; }
+        .tab.on { color:#fff; border-bottom-color:#007aff; }
+        .fade-out { position:absolute; left:0; right:0; bottom:0; height:70px; background:linear-gradient(to bottom, rgba(26,29,36,0), rgba(26,29,36,.96)); pointer-events:none; z-index:30; }
+    </style>
+</head>
+<body>
+    <div class="phone-frame flex flex-col">
+        <div class="notch"></div>
+
+        <!-- Status Bar -->
+        <div class="absolute top-0 w-full h-12 flex justify-between items-center px-6 text-xs font-medium z-40">
+            <span>9:41</span>
+            <div class="flex gap-2 items-center"><i class="fa-solid fa-signal"></i><i class="fa-solid fa-wifi"></i><i class="fa-solid fa-battery-full"></i></div>
+        </div>
+
+        <!-- Header -->
+        <div class="pt-16 px-6 pb-4">
+            <div class="flex items-center mb-4">
+                <a href="dashboard.html" class="text-gray-400 hover:text-white transition-colors p-2 -ml-2"><i class="fa-solid fa-arrow-left"></i></a>
+                <span class="text-gray-400 p-2 ml-auto -mr-2"><i class="fa-solid fa-filter"></i></span>
+            </div>
+            <h1 class="font-heading text-2xl font-extrabold tracking-tight">Alerts</h1>
+            <p class="text-[13px] text-gray-500 mt-1">Rules run on every visit submit · 5 open</p>
+        </div>
+
+        <!-- Sheet -->
+        <div class="flex-1 bg-tradeCard rounded-t-[40px] px-6 pt-6 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] overflow-hidden relative">
+
+            <!-- Tabs -->
+            <div class="flex gap-6 border-b border-tradeLine mb-1">
+                <span class="tab on">Open · 5</span>
+                <span class="tab">Acknowledged</span>
+                <span class="tab">All</span>
+            </div>
+
+            <!-- Row -->
+            <div class="py-3.5 border-b border-tradeLine/60">
+                <div class="flex items-baseline gap-2">
+                    <span class="microlabel text-tradeBad">● Critical · Stockout</span>
+                    <span class="ml-auto text-[11px] text-gray-600">2h ago</span>
+                </div>
+                <p class="text-[14px] font-semibold mt-1.5 leading-snug">Coke Zero 500ml out of stock</p>
+                <p class="text-[11.5px] text-gray-500 mt-0.5">Sunrise Spaza · Soweto East · rule “OOS any SKU”</p>
+                <div class="mt-2"><span class="text-[12.5px] font-semibold text-tradeBlueLight">Acknowledge</span></div>
+            </div>
+
+            <div class="py-3.5 border-b border-tradeLine/60">
+                <div class="flex items-baseline gap-2">
+                    <span class="microlabel text-tradeBad">● Critical · Stockout</span>
+                    <span class="ml-auto text-[11px] text-gray-600">3h ago</span>
+                </div>
+                <p class="text-[14px] font-semibold mt-1.5 leading-snug">Simba Chips 120g out of stock</p>
+                <p class="text-[11.5px] text-gray-500 mt-0.5">Khumalo Superette · Soweto East</p>
+                <div class="mt-2"><span class="text-[12.5px] font-semibold text-tradeBlueLight">Acknowledge</span></div>
+            </div>
+
+            <div class="py-3.5 border-b border-tradeLine/60">
+                <div class="flex items-baseline gap-2">
+                    <span class="microlabel text-tradeWarn">● Warning · Price</span>
+                    <span class="ml-auto text-[11px] text-gray-600">5h ago</span>
+                </div>
+                <p class="text-[14px] font-semibold mt-1.5 leading-snug">Fanta 2L priced 14% over RRP</p>
+                <p class="text-[11.5px] text-gray-500 mt-0.5">Mama T’s Store · Alexandra · task auto-created</p>
+                <div class="mt-2"><span class="text-[12.5px] font-semibold text-tradeBlueLight">Acknowledge</span></div>
+            </div>
+
+            <div class="py-3.5 border-b border-tradeLine/60">
+                <div class="flex items-baseline gap-2">
+                    <span class="microlabel text-tradeWarn">● Warning · Scorecard</span>
+                    <span class="ml-auto text-[11px] text-gray-600">Yesterday</span>
+                </div>
+                <p class="text-[14px] font-semibold mt-1.5 leading-snug">Outlet score dropped below 60</p>
+                <p class="text-[11.5px] text-gray-500 mt-0.5">Zola Cash &amp; Carry · Tembisa</p>
+                <div class="mt-2"><span class="text-[12.5px] font-semibold text-tradeBlueLight">Acknowledge</span></div>
+            </div>
+
+            <div class="py-3.5 opacity-50">
+                <div class="flex items-baseline gap-2">
+                    <span class="microlabel text-tradeGood">✓ Acknowledged</span>
+                    <span class="ml-auto text-[11px] text-gray-600">2d ago</span>
+                </div>
+                <p class="text-[14px] font-semibold mt-1.5 leading-snug">Planogram compliance under 70%</p>
+                <p class="text-[11.5px] text-gray-500 mt-0.5">Bela Mini Market · Katlehong · by Naledi</p>
+            </div>
+
+            <div class="fade-out"></div>
+        </div>
+    </div>
+</body>
+</html>
