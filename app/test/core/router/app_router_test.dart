@@ -125,7 +125,9 @@ void main() {
     container.read(routerProvider).go('/dashboard');
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome Back!'), findsOneWidget);
+    // The login screen's stable unique marker after the c71f37b redesign
+    // ('Sign in' appears twice: headline + submit button).
+    expect(find.text('Forgot password?'), findsOneWidget);
   });
 
   testWidgets(
@@ -211,7 +213,9 @@ void main() {
     container.read(sessionControllerProvider.notifier).logout();
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome Back!'), findsOneWidget);
+    // The login screen's stable unique marker after the c71f37b redesign
+    // ('Sign in' appears twice: headline + submit button).
+    expect(find.text('Forgot password?'), findsOneWidget);
   });
 
   testWidgets(

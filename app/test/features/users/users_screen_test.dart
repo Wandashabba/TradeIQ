@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/features/users/presentation/users_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _activeUser = AppUser(
   id: 'u-active',
@@ -70,11 +71,11 @@ class _ThrowingUsersRepository implements UsersRepository {
       throw UnimplementedError();
 }
 
-Widget _app(UsersRepository repo) => ProviderScope(
+Widget _app(UsersRepository repo) => routedApp(
+      const UsersScreen(),
       overrides: [
         usersRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: UsersScreen()),
     );
 
 void main() {

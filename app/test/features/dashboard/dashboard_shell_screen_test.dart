@@ -6,6 +6,8 @@ import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
+import '../../helpers/routed_app.dart';
+
 class _FakeDashboardRepository implements DashboardRepository {
   @override
   Future<DashboardKpis> fetchKpis({String? territoryId, String? from, String? to}) async =>
@@ -48,12 +50,12 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
       throw UnimplementedError();
 }
 
-Widget _app(DashboardRepository repo) => ProviderScope(
+Widget _app(DashboardRepository repo) => routedApp(
+      const DashboardShellScreen(),
       overrides: [
         dashboardRepositoryProvider.overrideWithValue(repo),
         territoriesRepositoryProvider.overrideWithValue(_FakeTerritoriesRepository()),
       ],
-      child: const MaterialApp(home: DashboardShellScreen()),
     );
 
 void main() {

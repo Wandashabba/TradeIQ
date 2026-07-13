@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/orders/presentation/orders_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _orderA = OrderItem(
   id: 'ord-aaaaaaaa1',
@@ -46,11 +47,11 @@ class _FailingOrdersRepository implements OrdersRepository {
       throw Exception('boom');
 }
 
-Widget _app(OrdersRepository repo) => ProviderScope(
+Widget _app(OrdersRepository repo) => routedApp(
+      const OrdersScreen(),
       overrides: [
         ordersRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: OrdersScreen()),
     );
 
 void main() {

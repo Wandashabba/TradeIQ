@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/beatplans/data/beatplans_repository.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/beatplans_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _plans = [
   BeatPlan(
@@ -68,20 +69,18 @@ class _FakeBeatPlansRepository implements BeatPlansRepository {
       _plans.first;
 }
 
-Widget _listApp(_FakeBeatPlansRepository repo) => ProviderScope(
+Widget _listApp(_FakeBeatPlansRepository repo) => routedApp(
+      const BeatPlansScreen(),
       overrides: [
         beatPlansRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: BeatPlansScreen()),
     );
 
-Widget _detailApp(_FakeBeatPlansRepository repo) => ProviderScope(
+Widget _detailApp(_FakeBeatPlansRepository repo) => routedApp(
+      const BeatPlanDetailScreen(planId: 'bp1'),
       overrides: [
         beatPlansRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(
-        home: BeatPlanDetailScreen(planId: 'bp1'),
-      ),
     );
 
 void main() {

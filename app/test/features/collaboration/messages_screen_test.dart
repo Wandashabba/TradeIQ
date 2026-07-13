@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/collaboration/data/collaboration_repository.dart';
 import 'package:tradeiq_app/features/collaboration/presentation/messages_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _first = Message(id: 'm1', body: 'Morning standup at 9');
 const _second = Message(id: 'm2', body: 'Restock run complete');
@@ -35,11 +36,11 @@ class _ThrowingCollaborationRepository implements CollaborationRepository {
   Future<List<Announcement>> listAnnouncements() async => throw Exception('boom');
 }
 
-Widget _app(CollaborationRepository repo) => ProviderScope(
+Widget _app(CollaborationRepository repo) => routedApp(
+      const MessagesScreen(),
       overrides: [
         collaborationRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: MessagesScreen()),
     );
 
 void main() {

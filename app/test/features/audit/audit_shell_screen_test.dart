@@ -11,6 +11,8 @@ import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
+import '../../helpers/routed_app.dart';
+
 class _FakeOutletsRepository implements OutletsRepository {
   @override
   Future<List<Outlet>> listOutlets() async => const [
@@ -85,9 +87,9 @@ List<Override> _overrides(VisitsRepository visitsRepository, LocalDb db) => [
     ];
 
 Widget _appWith(VisitsRepository visitsRepository, LocalDb db) {
-  return ProviderScope(
+  return routedApp(
+    const AuditShellScreen(outletId: 'o1'),
     overrides: _overrides(visitsRepository, db),
-    child: const MaterialApp(home: AuditShellScreen(outletId: 'o1')),
   );
 }
 

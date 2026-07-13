@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/campaigns/data/campaigns_repository.dart';
 import 'package:tradeiq_app/features/campaigns/presentation/campaigns_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _campaignA = Campaign(
   id: 'c1',
@@ -92,11 +93,11 @@ class _ThrowingCampaignsRepository implements CampaignsRepository {
       throw Exception('boom');
 }
 
-Widget _app(CampaignsRepository repo) => ProviderScope(
+Widget _app(CampaignsRepository repo) => routedApp(
+      const CampaignsScreen(),
       overrides: [
         campaignsRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: CampaignsScreen()),
     );
 
 void main() {

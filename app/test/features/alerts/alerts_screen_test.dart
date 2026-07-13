@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _unacknowledged = AlertItem(
   id: 'a-open',
@@ -59,11 +60,11 @@ class _ThrowingAlertsRepository implements AlertsRepository {
       throw Exception('boom');
 }
 
-Widget _app(AlertsRepository repo) => ProviderScope(
+Widget _app(AlertsRepository repo) => routedApp(
+      const AlertsScreen(),
       overrides: [
         alertsRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: AlertsScreen()),
     );
 
 void main() {

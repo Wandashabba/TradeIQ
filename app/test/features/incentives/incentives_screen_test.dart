@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/incentives/data/incentives_repository.dart';
 import 'package:tradeiq_app/features/incentives/presentation/incentives_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _schemeA = IncentiveScheme(
   id: 's-a',
@@ -96,11 +97,11 @@ class _ThrowingIncentivesRepository implements IncentivesRepository {
       throw UnimplementedError();
 }
 
-Widget _app(IncentivesRepository repo) => ProviderScope(
+Widget _app(IncentivesRepository repo) => routedApp(
+      const IncentivesScreen(),
       overrides: [
         incentivesRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: IncentivesScreen()),
     );
 
 void main() {
