@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/clients/data/clients_repository.dart';
 import 'package:tradeiq_app/features/clients/presentation/client_config_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _config = ClientConfig(
   name: 'Acme Beverages',
@@ -39,11 +40,11 @@ class _ThrowingClientsRepository implements ClientsRepository {
       throw Exception('boom');
 }
 
-Widget _app(ClientsRepository repo) => ProviderScope(
+Widget _app(ClientsRepository repo) => routedApp(
+      const ClientConfigScreen(),
       overrides: [
         clientsRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: ClientConfigScreen()),
     );
 
 void main() {

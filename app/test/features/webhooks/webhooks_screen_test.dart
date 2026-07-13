@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/webhooks/data/webhooks_repository.dart';
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _firstWebhook = Webhook(
   id: 'w-first',
@@ -72,11 +73,11 @@ class _ThrowingWebhooksRepository implements WebhooksRepository {
       throw UnimplementedError();
 }
 
-Widget _app(WebhooksRepository repo) => ProviderScope(
+Widget _app(WebhooksRepository repo) => routedApp(
+      const WebhooksScreen(),
       overrides: [
         webhooksRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: WebhooksScreen()),
     );
 
 void main() {

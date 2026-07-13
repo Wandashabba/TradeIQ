@@ -25,8 +25,25 @@ class AuditTemplate {
       );
 }
 
+/// One template fetched by GET /templates/:id, including its free-form
+/// dynamic-form `schema` (issue #54 — the renderer consumes this).
+class AuditTemplateDetail {
+  const AuditTemplateDetail({required this.template, required this.schema});
+  final AuditTemplate template;
+  final Map<String, dynamic> schema;
+
+  factory AuditTemplateDetail.fromJson(Map<String, dynamic> json) =>
+      AuditTemplateDetail(
+        template: AuditTemplate.fromJson(json),
+        schema: json['schema'] is Map<String, dynamic>
+            ? json['schema'] as Map<String, dynamic>
+            : const {},
+      );
+}
+
 abstract class TemplatesRepository {
   Future<List<AuditTemplate>> listTemplates();
+  Future<AuditTemplateDetail> fetchTemplate(String id);
 }
 
 class DioTemplatesRepository implements TemplatesRepository {
@@ -37,6 +54,12 @@ class DioTemplatesRepository implements TemplatesRepository {
         .map((json) => AuditTemplate.fromJson(json as Map<String, dynamic>))
         .toList();
   }
+
+  @override
+  Future<AuditTemplateDetail> fetchTemplate(String id) async {
+    final response = await dio.get('/templates/$id');
+    return AuditTemplateDetail.fromJson(response.data as Map<String, dynamic>);
+  }
 }
 
 final templatesRepositoryProvider =
@@ -44,4 +67,9 @@ final templatesRepositoryProvider =
 
 final templatesListProvider = FutureProvider<List<AuditTemplate>>((ref) {
   return ref.read(templatesRepositoryProvider).listTemplates();
+});
+
+final templateDetailProvider =
+    FutureProvider.family<AuditTemplateDetail, String>((ref, id) {
+  return ref.read(templatesRepositoryProvider).fetchTemplate(id);
 });

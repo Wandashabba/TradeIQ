@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/manager_scaffold.dart';
 import '../data/templates_repository.dart';
@@ -54,6 +55,8 @@ class _TemplateCard extends StatelessWidget {
         trailing: t.active
             ? const Icon(Icons.check_circle, color: Colors.green)
             : const Icon(Icons.pause_circle, color: Colors.grey),
+        // Preview walks the template's dynamic form (issue #54 step 2).
+        onTap: () => context.push('/audit-templates/${t.id}/preview'),
       ),
     );
   }

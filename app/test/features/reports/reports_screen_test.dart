@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/reports_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _reportA = ReportDefinition(
   id: 'r-a',
@@ -70,11 +71,11 @@ class _FailingReportsRepository implements ReportsRepository {
   Future<void> deleteReport(String id) async => throw Exception('boom');
 }
 
-Widget _app(ReportsRepository repo) => ProviderScope(
+Widget _app(ReportsRepository repo) => routedApp(
+      const ReportsScreen(),
       overrides: [
         reportsRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: ReportsScreen()),
     );
 
 void main() {

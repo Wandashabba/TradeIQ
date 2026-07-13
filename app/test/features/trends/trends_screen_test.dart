@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 import 'package:tradeiq_app/features/trends/presentation/trends_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _points = <TrendPoint>[
   TrendPoint(period: '2026-W26', value: 40),
@@ -31,11 +32,11 @@ class _ThrowingTrendsRepository implements TrendsRepository {
   Future<List<TrendPoint>> perfectStore() async => throw Exception('boom');
 }
 
-Widget _app(TrendsRepository repo) => ProviderScope(
+Widget _app(TrendsRepository repo) => routedApp(
+      const TrendsScreen(),
       overrides: [
         trendsRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: TrendsScreen()),
     );
 
 void main() {

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/territories/presentation/territories_screen.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _north = Territory(
   id: 'ter-1',
@@ -98,13 +99,13 @@ Widget _app(
   TerritoriesRepository repo, {
   String? role,
 }) =>
-    ProviderScope(
+    routedApp(
+      const TerritoriesScreen(),
       overrides: [
         territoriesRepositoryProvider.overrideWithValue(repo),
         usersRepositoryProvider.overrideWithValue(_FakeUsersRepository()),
         sessionControllerProvider.overrideWith(() => _RoleSession(role)),
       ],
-      child: const MaterialApp(home: TerritoriesScreen()),
     );
 
 void main() {

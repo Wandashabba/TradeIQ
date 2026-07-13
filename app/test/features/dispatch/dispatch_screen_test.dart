@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/dispatch/data/dispatch_repository.dart';
 import 'package:tradeiq_app/features/dispatch/presentation/dispatch_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _outlets = [
   Outlet(id: 'o1', name: 'Corner Shop', code: 'CS1', lat: -26.2, lng: 28.0),
@@ -37,13 +38,13 @@ class _FakeDispatchRepository implements DispatchRepository {
   Future<DispatchResult> dispatch(String outletId) async => _result;
 }
 
-Widget _app() => ProviderScope(
+Widget _app() => routedApp(
+      const DispatchScreen(),
       overrides: [
         outletsListProvider.overrideWith((ref) async => _outlets),
         dispatchRepositoryProvider
             .overrideWithValue(_FakeDispatchRepository()),
       ],
-      child: const MaterialApp(home: DispatchScreen()),
     );
 
 void main() {

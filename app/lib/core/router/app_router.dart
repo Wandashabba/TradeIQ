@@ -22,6 +22,7 @@ import '../../features/users/presentation/users_screen.dart';
 import '../../features/incentives/presentation/incentives_screen.dart';
 import '../../features/webhooks/presentation/webhooks_screen.dart';
 import '../../features/clients/presentation/client_config_screen.dart';
+import '../../features/templates/presentation/template_form_screen.dart';
 import '../../features/templates/presentation/templates_screen.dart';
 import '../../features/dispatch/presentation/dispatch_screen.dart';
 import '../../features/trends/presentation/trends_screen.dart';
@@ -70,7 +71,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/trends',
       };
       final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
-      if (role == 'field_agent' && managerOnly.contains(loc)) {
+      // Template subroutes (e.g. /audit-templates/:id/preview) are manager
+      // territory too — the exact-match set above only covers the list screen.
+      final isTemplatesSubroute = loc.startsWith('/audit-templates/');
+      if (role == 'field_agent' &&
+          (managerOnly.contains(loc) || isTemplatesSubroute)) {
         return '/audit';
       }
       if (role != 'field_agent' && isAuditRoute) {
@@ -152,6 +157,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/audit-templates',
         builder: (context, state) => const TemplatesScreen(),
+      ),
+      GoRoute(
+        path: '/audit-templates/:templateId/preview',
+        builder: (context, state) => TemplateFormScreen(
+          templateId: state.pathParameters['templateId']!,
+        ),
       ),
       GoRoute(
         path: '/dispatch',

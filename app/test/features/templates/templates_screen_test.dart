@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 import 'package:tradeiq_app/features/templates/presentation/templates_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _templates = [
   AuditTemplate(
@@ -23,19 +24,27 @@ const _templates = [
 class _FakeTemplatesRepository implements TemplatesRepository {
   @override
   Future<List<AuditTemplate>> listTemplates() async => _templates;
+
+  @override
+  Future<AuditTemplateDetail> fetchTemplate(String id) =>
+      throw UnimplementedError();
 }
 
 class _FailingTemplatesRepository implements TemplatesRepository {
   @override
   Future<List<AuditTemplate>> listTemplates() async =>
       throw Exception('boom');
+
+  @override
+  Future<AuditTemplateDetail> fetchTemplate(String id) =>
+      throw UnimplementedError();
 }
 
-Widget _app(TemplatesRepository repo) => ProviderScope(
+Widget _app(TemplatesRepository repo) => routedApp(
+      const TemplatesScreen(),
       overrides: [
         templatesRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: TemplatesScreen()),
     );
 
 void main() {

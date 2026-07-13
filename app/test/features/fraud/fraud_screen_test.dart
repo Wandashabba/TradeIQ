@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/fraud/data/fraud_repository.dart';
 import 'package:tradeiq_app/features/fraud/presentation/fraud_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _highRiskVisit = FlaggedVisit(
   visitId: 'v-high-001',
@@ -35,11 +36,11 @@ class _ThrowingFraudRepository implements FraudRepository {
       throw Exception('boom');
 }
 
-Widget _app(FraudRepository repo) => ProviderScope(
+Widget _app(FraudRepository repo) => routedApp(
+      const FraudScreen(),
       overrides: [
         fraudRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: FraudScreen()),
     );
 
 void main() {

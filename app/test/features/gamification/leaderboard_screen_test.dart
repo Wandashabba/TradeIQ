@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/gamification/data/gamification_repository.dart';
 import 'package:tradeiq_app/features/gamification/presentation/leaderboard_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _entries = [
   LeaderboardEntry(
@@ -36,11 +37,11 @@ class _FailingGamificationRepository implements GamificationRepository {
       throw Exception('boom');
 }
 
-Widget _app(GamificationRepository repo) => ProviderScope(
+Widget _app(GamificationRepository repo) => routedApp(
+      const LeaderboardScreen(),
       overrides: [
         gamificationRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(home: LeaderboardScreen()),
     );
 
 void main() {

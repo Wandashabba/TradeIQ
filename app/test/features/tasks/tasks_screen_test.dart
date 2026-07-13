@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 import 'package:tradeiq_app/features/tasks/presentation/tasks_screen.dart';
+
+import '../../helpers/routed_app.dart';
 
 const _openTask = TaskItem(
   id: 't-open',
@@ -105,12 +106,12 @@ Widget _app(
   _FakeTasksAdminRepository tasksRepo,
   _RecordingPhotosRepository photosRepo,
 ) =>
-    ProviderScope(
+    routedApp(
+      const TasksScreen(),
       overrides: [
         tasksAdminRepositoryProvider.overrideWithValue(tasksRepo),
         photosRepositoryProvider.overrideWithValue(photosRepo),
       ],
-      child: const MaterialApp(home: TasksScreen()),
     );
 
 void main() {
