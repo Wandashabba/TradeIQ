@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeIQ — Manager UI Design</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { background:#050505; background-image: radial-gradient(circle at 50% -10%, #16203a 0%, #050505 60%); color:#fff; font-family:'Inter',sans-serif; min-height:100vh; }
+        h1,h2,.heading { font-family:'Montserrat',sans-serif; }
+        .screen-frame { width:415px; height:880px; border:none; border-radius:24px; }
+        .no-scrollbar::-webkit-scrollbar { display:none; }
+        .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+    </style>
+</head>
+<body>
+    <header class="text-center pt-14 pb-8 px-6">
+        <div class="inline-flex items-center gap-2 text-xs font-medium text-blue-400 bg-[#0f1117]/70 border border-blue-900/40 px-4 py-1.5 rounded-full mb-5">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+            TradeIQ · Design
+        </div>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Manager UI</h1>
+        <p class="text-gray-400 max-w-xl mx-auto text-sm md:text-base">
+            Dashboard, drawer and the shared list pattern (Alerts). Follows the auth screens' own
+            structure — header on the dark ground, one rounded content sheet — filled with dense,
+            ledger-style data: hairline rules instead of card grids, deltas as plain colored figures,
+            severity as a dot and a word.
+        </p>
+        <div class="flex justify-center gap-3 mt-6 flex-wrap">
+            <a href="dashboard.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Dashboard</a>
+            <a href="drawer.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Drawer</a>
+            <a href="alerts.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Alerts</a>
+            <a href="index.html" class="px-4 py-2 rounded-full border border-blue-500/40 text-blue-400 text-sm hover:bg-blue-500/10 transition">← Auth UI set</a>
+        </div>
+    </header>
+
+    <main class="flex gap-6 justify-start lg:justify-center items-start overflow-x-auto no-scrollbar px-8 pb-10">
+        <figure class="flex-shrink-0 text-center">
+            <iframe src="dashboard.html" class="screen-frame" title="Dashboard"></iframe>
+            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">01 · Dashboard</figcaption>
+        </figure>
+        <figure class="flex-shrink-0 text-center">
+            <iframe src="drawer.html" class="screen-frame" title="Navigation Drawer"></iframe>
+            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">02 · Drawer</figcaption>
+        </figure>
+        <figure class="flex-shrink-0 text-center">
+            <iframe src="alerts.html" class="screen-frame" title="Alerts"></iframe>
+            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">03 · Alerts (shared list pattern)</figcaption>
+        </figure>
+    </main>
+
+    <section class="max-w-3xl mx-auto px-6 pb-6">
+        <h2 class="text-lg font-extrabold tracking-tight mb-4 text-center">Design decisions</h2>
+        <div class="grid md:grid-cols-3 gap-3 text-sm">
+            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
+                <p class="text-gray-200 font-semibold mb-1">Summary → act → detail</p>
+                <p class="text-gray-500 text-[13px]">Execution Score is the one number that matters, so it leads with its trend. What needs action today sits directly beneath it; the full KPI ledger follows.</p>
+            </div>
+            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
+                <p class="text-gray-200 font-semibold mb-1">One sheet, not card grids</p>
+                <p class="text-gray-500 text-[13px]">Content sits on a single rounded sheet — the sign-in screen's structure — with hairline rules for rhythm. Denser, calmer, and cheaper to build than a card per number.</p>
+            </div>
+            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
+                <p class="text-gray-200 font-semibold mb-1">State is never color alone</p>
+                <p class="text-gray-500 text-[13px]">Severity = dot + word; deltas = sign + figure. Blue stays reserved for brand and interactive elements. Readable in grayscale and for CVD.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="max-w-3xl mx-auto px-6 pb-16">
+        <h2 class="text-lg font-extrabold tracking-tight mb-4 text-center">Implementation map — four small PRs</h2>
+        <div class="space-y-3 text-sm">
+            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
+                <span class="text-blue-400 font-bold text-xs tracking-widest">PR 1 · THEME + CORE WIDGETS</span>
+                <p class="text-gray-400 mt-1">Extend <code class="text-gray-300">AppTheme</code>; add <code class="text-gray-300">ContentSheet · HeroStat · LedgerRow · AttentionRow · SectionLabel · EmptyState</code> to <code class="text-gray-300">core/widgets/</code> with tests. Pure additive — zero regression risk.</p>
+            </div>
+            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
+                <span class="text-blue-400 font-bold text-xs tracking-widest">PR 2 · DASHBOARD</span>
+                <p class="text-gray-400 mt-1">Hero Execution Score with trend (trends endpoint already returns the series), needs-attention rows fed by <code class="text-gray-300">GET /alerts</code> + <code class="text-gray-300">GET /tasks</code>, KPI ledger.</p>
+            </div>
+            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
+                <span class="text-blue-400 font-bold text-xs tracking-widest">PR 3 · DRAWER</span>
+                <p class="text-gray-400 mt-1">Grouped destinations (Operate / Insight / Configure), plain counts, active left-rule, user foot. Touches <code class="text-gray-300">manager_scaffold.dart</code> only — every screen inherits.</p>
+            </div>
+            <div class="bg-[#1a1d24] border border-white/5 rounded-2xl px-5 py-4">
+                <span class="text-blue-400 font-bold text-xs tracking-widest">PR 4 · LIST SCREENS</span>
+                <p class="text-gray-400 mt-1">Alerts first (severity pattern), then mechanical adoption across Tasks, Orders, Users, Webhooks, Incentives, Territories…</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="text-center pb-10 text-xs text-gray-600">Static HTML mockups · palette + type from app/lib/core/theme (AppColors / AppTheme) · flow: Dashboard → Drawer / Alerts</footer>
+</body>
+</html>
