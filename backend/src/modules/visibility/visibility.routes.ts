@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
+import { isVisionEnabled } from '../../lib/featureFlags';
 import { requireRole } from '../../middleware/roleGuard';
 import { getVisibility, recordVisibility } from './visibility.service';
 
@@ -30,9 +31,12 @@ visibilityRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
     cleanlinessScore?: unknown;
   };
 
-  // A non-empty photoUrl switches the section to vision-assisted capture; the
-  // vision fields are then derived from the CV stub in the service layer.
+  // A photo only switches the section to vision-assisted capture when CV is
+  // actually enabled (#92). While it is disabled — the default, because the
+  // implementation is still a random stub — a photo is just evidence, and the
+  // agent's own measurements are still required and still stand.
   const hasPhoto = typeof photoUrl === 'string' && photoUrl.length > 0;
+  const visionWillRun = hasPhoto && isVisionEnabled();
 
   // visitId and highTrafficPass (a manual field) are required in both paths.
   if (!visitId || typeof highTrafficPass !== 'boolean') {
@@ -40,9 +44,10 @@ visibilityRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
     return;
   }
 
-  if (!hasPhoto) {
-    // Manual-entry path — validate the client-provided vision fields exactly as
-    // before.
+  if (!visionWillRun) {
+    // Manual-entry path — validate the client-provided vision fields. This now
+    // covers "a photo was sent but CV is off": without it the service would
+    // write undefined into the vision columns.
     if (
       typeof planogramCompliancePct !== 'number' ||
       typeof cleanlinessScore !== 'number' ||
@@ -59,27 +64,30 @@ visibilityRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
     }
   }
 
+  // Forward everything we were given and let the service decide which path to
+  // take. The route used to drop the manual fields whenever a photo was present,
+  // which meant a photo sent with CV disabled wrote undefined into the vision
+  // columns — the route was making a decision that is the service's to make.
   const visibility = await recordVisibility({
     visitId,
     clientId: req.user!.clientId,
     highTrafficPass,
-    ...(hasPhoto
-      ? {
-          photoUrl: photoUrl as string,
-          templateId: typeof templateId === 'string' ? templateId : undefined,
-          skuId: typeof skuId === 'string' ? skuId : undefined,
-          // Optional manual brandingElements are merged with the stub result.
-          brandingElements:
-            typeof brandingElements === 'object' && brandingElements !== null
-              ? (brandingElements as Prisma.InputJsonValue)
-              : undefined,
-        }
-      : {
-          brandingElements: brandingElements as Prisma.InputJsonValue,
-          planogramCompliancePct: planogramCompliancePct as number,
-          facingsCount: facingsCount as Prisma.InputJsonValue,
-          cleanlinessScore: cleanlinessScore as number,
-        }),
+    photoUrl: hasPhoto ? (photoUrl as string) : undefined,
+    templateId: typeof templateId === 'string' ? templateId : undefined,
+    skuId: typeof skuId === 'string' ? skuId : undefined,
+    // Manual brandingElements stand on their own, and are merged with the model's
+    // verdict when vision runs.
+    brandingElements:
+      typeof brandingElements === 'object' && brandingElements !== null
+        ? (brandingElements as Prisma.InputJsonValue)
+        : undefined,
+    planogramCompliancePct:
+      typeof planogramCompliancePct === 'number' ? planogramCompliancePct : undefined,
+    facingsCount:
+      typeof facingsCount === 'object' && facingsCount !== null
+        ? (facingsCount as Prisma.InputJsonValue)
+        : undefined,
+    cleanlinessScore: typeof cleanlinessScore === 'number' ? cleanlinessScore : undefined,
   });
   res.status(201).json(visibility);
 });

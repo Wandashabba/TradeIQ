@@ -63,11 +63,62 @@ void main() {
     expect(scorecard.dimensionScores['visibility'], 80);
     expect(scorecard.dimensionScores['display'], 80);
     expect(scorecard.dimensionScores['pricing'], 0);
-    expect(scorecard.dimensionScores['competitive'], 0);
     expect(scorecard.dimensionScores['salesCapability'], 70);
-    // (50*.3 + 80*.25 + 80*.15 + 0 + 0 + 70*.1) / 1.0 = 54.0
-    expect(scorecard.weightedTotal, 54.0);
-    expect(scorecard.ratingBand, 'red');
+
+    // No competitor was captured, so share of shelf is UNMEASURABLE — the
+    // dimension is omitted rather than scored 0 (#93).
+    expect(scorecard.dimensionScores.containsKey('competitive'), isFalse);
+
+    // The total normalises by the weights actually used (0.9, not 1.0):
+    // (50*.3 + 80*.25 + 80*.15 + 0*.1 + 70*.1) / 0.9 = 60.0
+    //
+    // Scoring the unmeasurable dimension 0 would have dragged this to 54.0 and
+    // put the visit in the red band — punishing an agent for a shelf that had
+    // no competitor on it.
+    expect(scorecard.weightedTotal, 60.0);
+    expect(scorecard.ratingBand, 'amber');
+  });
+
+  test('competitive is our share of shelf, not "captured anything at all"', () async {
+    await _enqueue(db, 'visibility', {
+      'visitDraftId': 'visit-1',
+      'planogramCompliancePct': 80,
+      'cleanlinessScore': 4,
+      'facingsCount': {'total': 30},
+    });
+    await _enqueue(db, 'competitive', {
+      'visitDraftId': 'visit-1',
+      'items': [
+        {'competitorSku': 'Rival', 'facingsCount': 10},
+      ],
+    });
+
+    final scorecard = await service.computeForVisit('visit-1');
+
+    // 30 of ours against 10 of theirs. The old rule scored a flat 100 for having
+    // typed a single row — it measured data entry, not the store.
+    expect(scorecard.dimensionScores['competitive'], 75.0);
+  });
+
+  test('a competitor with more shelf than us scores us down', () async {
+    await _enqueue(db, 'visibility', {
+      'visitDraftId': 'visit-1',
+      'planogramCompliancePct': 80,
+      'cleanlinessScore': 4,
+      'facingsCount': {'total': 2},
+    });
+    await _enqueue(db, 'competitive', {
+      'visitDraftId': 'visit-1',
+      'items': [
+        {'competitorSku': 'Rival', 'facingsCount': 18},
+      ],
+    });
+
+    final scorecard = await service.computeForVisit('visit-1');
+
+    // 2 of 20 facings — being crushed on shelf used to score identically to
+    // dominating it.
+    expect(scorecard.dimensionScores['competitive'], 10.0);
   });
 
   test('finalizeScorecard enqueues a scorecard item for the visit', () async {

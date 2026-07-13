@@ -57,14 +57,29 @@ class ScorecardService {
       // Phase-1 local proxy: 100 if any pricing items were captured, else 0
       // (the server-side scorecard computes the true deviation-based score).
       'pricing': _anyItemsCaptured(payloadsByType['pricing'] ?? const []) ? 100 : 0,
-      'competitive': _anyItemsCaptured(payloadsByType['competitive'] ?? const []) ? 100 : 0,
       'salesCapability': _salesCapability(payloadsByType['capability'] ?? const []),
     };
+
+    // Competitive is our share of shelf, mirroring the server (#93). It used to
+    // be "captured anything at all → 100", which scored data entry rather than
+    // the store. When there is nothing to measure it against the dimension is
+    // UNKNOWN: omitted here and skipped in the weighted total below, so an
+    // unmeasurable dimension never silently scores 0 and drags the score down.
+    final competitive = _shareOfShelf(
+      payloadsByType['visibility'] ?? const [],
+      payloadsByType['competitive'] ?? const [],
+    );
+    if (competitive != null) {
+      dimensions['competitive'] = competitive;
+    }
 
     var weightedSum = 0.0;
     var weightSum = 0.0;
     for (final entry in kScorecardWeights.entries) {
-      weightedSum += (dimensions[entry.key] ?? 0) * entry.value;
+      // Normalise by the weights actually used — the remaining dimensions carry
+      // the score between them.
+      if (!dimensions.containsKey(entry.key)) continue;
+      weightedSum += dimensions[entry.key]! * entry.value;
       weightSum += entry.value;
     }
     final total = weightSum == 0 ? 0.0 : ((weightedSum / weightSum) * 100).round() / 100;
@@ -75,6 +90,37 @@ class ScorecardService {
       // Default thresholds; the server applies per-client kpiThresholds.
       ratingBand: total >= 80 ? 'green' : (total >= 60 ? 'amber' : 'red'),
     );
+  }
+
+  /// Our facings vs the competitors' facings, from the queued payloads.
+  ///
+  /// Returns null when there is nothing to measure — no competitor rows, or no
+  /// facings on either side. Null means UNKNOWN, not zero.
+  double? _shareOfShelf(
+    List<Map<String, dynamic>> visibility,
+    List<Map<String, dynamic>> competitive,
+  ) {
+    final competitorRows = competitive
+        .expand((p) => (p['items'] as List? ?? const []))
+        .cast<Map<String, dynamic>>()
+        .toList();
+    if (competitorRows.isEmpty) return null;
+
+    final own = visibility.fold<double>(0, (sum, p) {
+      final facings = p['facingsCount'];
+      if (facings is Map && facings['total'] is num) {
+        return sum + (facings['total'] as num).toDouble();
+      }
+      return sum;
+    });
+    final theirs = competitorRows.fold<double>(
+      0,
+      (sum, row) => sum + ((row['facingsCount'] as num?)?.toDouble() ?? 1),
+    );
+
+    final shelf = own + theirs;
+    if (shelf <= 0) return null;
+    return ((100 * own / shelf) * 100).round() / 100;
   }
 
   /// Enqueues the finalize marker; the server recomputes the scorecard

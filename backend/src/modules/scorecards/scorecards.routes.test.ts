@@ -180,11 +180,13 @@ describe('scorecards routes', () => {
       visibility: 80,
       display: 80,
       pricing: 90,
-      competitive: 100,
+      // Share of shelf: 12 of our facings against 1 competitor facing (#93).
+      // This used to be a flat 100 for having captured any competitor at all.
+      competitive: 92.31,
       salesCapability: 70,
     });
-    // 50*.3 + 80*.25 + 80*.15 + 90*.1 + 100*.1 + 70*.1 = 73
-    expect(res.body.weightedTotal).toBe(73);
+    // 50*.3 + 80*.25 + 80*.15 + 90*.1 + 92.31*.1 + 70*.1 = 72.23
+    expect(res.body.weightedTotal).toBe(72.23);
     expect(res.body.ratingBand).toBe('amber');
   });
 
@@ -213,7 +215,7 @@ describe('scorecards routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.visitId).toBe(visitId);
-    expect(res.body.weightedTotal).toBe(73);
+    expect(res.body.weightedTotal).toBe(72.23);
     expect(res.body.ratingBand).toBe('amber');
   });
 

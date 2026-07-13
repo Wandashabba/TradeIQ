@@ -20,6 +20,15 @@ function clamp(value: number, min = 0, max = 100): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/** Safely read `.total` out of the facingsCount Json column. */
+function facingsTotal(value: Prisma.JsonValue): number {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return 0;
+  }
+  const total = (value as Record<string, unknown>).total;
+  return typeof total === 'number' && Number.isFinite(total) ? total : 0;
+}
+
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -82,15 +91,35 @@ export async function generateScorecard(input: GenerateScorecardInput) {
       ? clamp(100 - pricing.reduce((sum, row) => sum + Math.abs(row.deviationPct), 0) / pricing.length)
       : 0;
 
-  // competitive: Phase-1 capture-completeness proxy — the agent gets full
-  // marks for capturing any competitive intel at all. A quality-weighted
-  // competitive score is a Phase-2 concern.
-  const competitiveScore = competitive.length > 0 ? 100 : 0;
+  // competitive: our share of shelf against the competitors observed here.
+  //
+  // This used to be `competitive.length > 0 ? 100 : 0` — full marks for logging
+  // a single competitor, zero for logging none. That scored *data entry*, not
+  // store reality: an agent who typed one row outscored nothing they actually
+  // did in the store, and an outlet with genuinely no competition scored 0 (#93).
+  //
+  // Now it is the real ratio. When there is nothing to measure it against, the
+  // dimension is UNKNOWN rather than 0 — see `unknownDimensions` below. Scoring
+  // an unmeasurable dimension as zero silently drags down the weighted total.
+  const ownFacings = visibility ? facingsTotal(visibility.facingsCount) : 0;
+  const competitorFacings = competitive.reduce((sum, row) => sum + row.facingsCount, 0);
+  const shelfTotal = ownFacings + competitorFacings;
+  const competitiveScore = shelfTotal > 0 ? clamp((100 * ownFacings) / shelfTotal) : 0;
+  const competitiveIsKnown = competitive.length > 0 && shelfTotal > 0;
 
   // salesCapability: staff product-knowledge quiz score.
   const salesCapability = capability ? clamp(capability.quizScore) : 0;
 
-  const dimensionScores: Record<ScorecardDimension, number> = {
+  // A dimension with nothing to measure is *unknown*, not zero. It is omitted
+  // from the stored scores (so the app shows "—" rather than a damning 0) and
+  // skipped in the weighted total, which normalises by the weights it actually
+  // used — so the remaining dimensions simply carry the score between them.
+  const unknownDimensions = new Set<ScorecardDimension>();
+  if (!competitiveIsKnown) {
+    unknownDimensions.add('competitive');
+  }
+
+  const allScores: Record<ScorecardDimension, number> = {
     availability: round2(availability),
     visibility: round2(visibilityScore),
     display: round2(display),
@@ -99,16 +128,25 @@ export async function generateScorecard(input: GenerateScorecardInput) {
     salesCapability: round2(salesCapability),
   };
 
+  const dimensionScores: Partial<Record<ScorecardDimension, number>> = {};
+  for (const dimension of SCORECARD_DIMENSIONS) {
+    if (!unknownDimensions.has(dimension)) {
+      dimensionScores[dimension] = allScores[dimension];
+    }
+  }
+
   // Weighted total over the dimensions present in the client's configured
   // weights; if the weights json is empty/invalid, fall back to equal weights
   // across all six dimensions.
   const configuredWeights = asNumberRecord(client.scorecardWeights);
+  const scored = SCORECARD_DIMENSIONS.filter((dimension) => !unknownDimensions.has(dimension));
+
   let weightedSum = 0;
   let weightSum = 0;
-  for (const dimension of SCORECARD_DIMENSIONS) {
+  for (const dimension of scored) {
     const weight = configuredWeights[dimension];
     if (typeof weight === 'number' && weight > 0) {
-      weightedSum += dimensionScores[dimension] * weight;
+      weightedSum += allScores[dimension] * weight;
       weightSum += weight;
     }
   }
@@ -116,8 +154,8 @@ export async function generateScorecard(input: GenerateScorecardInput) {
     weightSum > 0
       ? round2(weightedSum / weightSum)
       : round2(
-          SCORECARD_DIMENSIONS.reduce((sum, dimension) => sum + dimensionScores[dimension], 0) /
-            SCORECARD_DIMENSIONS.length,
+          scored.reduce((sum, dimension) => sum + allScores[dimension], 0) /
+            Math.max(1, scored.length),
         );
 
   const thresholds = asNumberRecord(client.kpiThresholds);

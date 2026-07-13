@@ -65,7 +65,14 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(entry.value),
-                  Text((scorecard.dimensionScores[entry.key] ?? 0).toStringAsFixed(0)),
+                  // An absent dimension is UNKNOWN, not zero — e.g. competitive
+                  // in an outlet where no competitor was on shelf to measure
+                  // against. Printing 0 would read as "you scored nothing".
+                  Text(
+                    scorecard.dimensionScores.containsKey(entry.key)
+                        ? scorecard.dimensionScores[entry.key]!.toStringAsFixed(0)
+                        : '—',
+                  ),
                 ],
               ),
             const SizedBox(height: 12),

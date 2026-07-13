@@ -24,6 +24,8 @@ interface OutletSeed {
   name: string;
   code: string;
   channelType: string;
+  /// Share of category turnover. A hypermarket is not one kiosk (#93).
+  acvWeight: number;
   lat: number;
   lng: number;
 }
@@ -60,6 +62,8 @@ interface PricingSeed {
 interface CompetitiveSeed {
   competitorSku: string;
   competitorPrice: number;
+  /// Facings this competitor holds — the denominator of a real share of shelf.
+  facingsCount: number;
   competitorPosmType: string;
   competitorPromoterPresent: boolean;
   geotag: Prisma.InputJsonValue;
@@ -180,9 +184,9 @@ async function main() {
   // Outlets — stable ids so visits/tasks reference them deterministically.
   // -------------------------------------------------------------------------
   const outletSeeds: OutletSeed[] = [
-    { id: 'demo-outlet-1', name: 'Sandton Hypermarket', code: 'SAN-001', channelType: 'hypermarket', lat: -26.1076, lng: 28.0567 },
-    { id: 'demo-outlet-2', name: 'Rosebank Supermarket', code: 'ROS-002', channelType: 'supermarket', lat: -26.1467, lng: 28.0436 },
-    { id: 'demo-outlet-3', name: 'Fourways Convenience', code: 'FOU-003', channelType: 'convenience', lat: -26.0164, lng: 28.0122 },
+    { id: 'demo-outlet-1', name: 'Sandton Hypermarket', code: 'SAN-001', channelType: 'hypermarket', lat: -26.1076, lng: 28.0567, acvWeight: 6.0 },
+    { id: 'demo-outlet-2', name: 'Rosebank Supermarket', code: 'ROS-002', channelType: 'supermarket', lat: -26.1467, lng: 28.0436, acvWeight: 3.0 },
+    { id: 'demo-outlet-3', name: 'Fourways Convenience', code: 'FOU-003', channelType: 'convenience', lat: -26.0164, lng: 28.0122, acvWeight: 1.0 },
   ];
 
   const outlets = [];
@@ -195,6 +199,7 @@ async function main() {
         name: outlet.name,
         code: outlet.code,
         channelType: outlet.channelType,
+        acvWeight: outlet.acvWeight,
         lat: outlet.lat,
         lng: outlet.lng,
         territoryId: 'gauteng-north',
@@ -343,7 +348,7 @@ async function main() {
         { skuId: 'demo-sku-3', priceActual: 18.5, priceMaster: 18.5, deviationPct: 0, promoActive: false, promoMaterialsDetected: { poster: false }, commsRating: 5 },
       ],
       competitive: [
-        { competitorSku: 'RivalCola 500ml', competitorPrice: 22.99, competitorPosmType: 'shelf_strip', competitorPromoterPresent: false, geotag: { lat: -26.1075, lng: 28.0568 } },
+        { competitorSku: 'RivalCola 500ml', competitorPrice: 22.99, facingsCount: 4, competitorPosmType: 'shelf_strip', competitorPromoterPresent: false, geotag: { lat: -26.1075, lng: 28.0568 } },
       ],
       capability: {
         staffHeadcountConfirmed: 4,
@@ -404,7 +409,7 @@ async function main() {
         { skuId: 'demo-sku-2', priceActual: 33.49, priceMaster: 34.99, deviationPct: -4.29, promoActive: false, promoMaterialsDetected: { poster: false }, commsRating: 4 },
       ],
       competitive: [
-        { competitorSku: 'RivalCola 1L', competitorPrice: 31.99, competitorPosmType: 'poster', competitorPromoterPresent: true, geotag: { lat: -26.1468, lng: 28.0435 } },
+        { competitorSku: 'RivalCola 1L', competitorPrice: 31.99, facingsCount: 9, competitorPosmType: 'poster', competitorPromoterPresent: true, geotag: { lat: -26.1468, lng: 28.0435 } },
       ],
       capability: {
         staffHeadcountConfirmed: 3,
@@ -465,8 +470,8 @@ async function main() {
         { skuId: 'demo-sku-5', priceActual: 17.49, priceMaster: 15.99, deviationPct: 9.38, promoActive: false, promoMaterialsDetected: { poster: false }, commsRating: 2 },
       ],
       competitive: [
-        { competitorSku: 'RivalCola 500ml', competitorPrice: 21.99, competitorPosmType: 'end_cap', competitorPromoterPresent: true, geotag: { lat: -26.0166, lng: 28.0125 } },
-        { competitorSku: 'BudgetChips 150g', competitorPrice: 15.99, competitorPosmType: 'floor_stack', competitorPromoterPresent: false, geotag: { lat: -26.0166, lng: 28.0125 } },
+        { competitorSku: 'RivalCola 500ml', competitorPrice: 21.99, facingsCount: 12, competitorPosmType: 'end_cap', competitorPromoterPresent: true, geotag: { lat: -26.0166, lng: 28.0125 } },
+        { competitorSku: 'BudgetChips 150g', competitorPrice: 15.99, facingsCount: 6, competitorPosmType: 'floor_stack', competitorPromoterPresent: false, geotag: { lat: -26.0166, lng: 28.0125 } },
       ],
       capability: {
         staffHeadcountConfirmed: 2,
@@ -591,6 +596,7 @@ async function main() {
           id: `${visit.id}-competitive-${competitiveIndex}`,
           visitId: visit.id,
           competitorSku: row.competitorSku,
+          facingsCount: row.facingsCount,
           competitorPrice: row.competitorPrice,
           competitorPosmType: row.competitorPosmType,
           competitorPromoterPresent: row.competitorPromoterPresent,

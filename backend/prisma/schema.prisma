@@ -95,6 +95,11 @@ model Outlet {
   lng             Float
   territoryId     String           @map("territory_id")
   teamProfile     Json?            @map("team_profile")
+  /// The outlet's share of category turnover — the ACV weight that makes
+  /// *weighted* distribution mean something different from *numeric*
+  /// distribution. Defaults to 1, in which case the two metrics agree, which is
+  /// honest: with no weights supplied, every outlet genuinely counts the same.
+  acvWeight       Float            @default(1) @map("acv_weight")
   clientId        String           @map("client_id")
   client          Client           @relation(fields: [clientId], references: [id])
   visits          Visit[]
@@ -232,6 +237,13 @@ model VisitCompetitive {
   competitorPrice           Float    @map("competitor_price")
   competitorPosmType        String   @map("competitor_posm_type")
   competitorPromoterPresent Boolean  @map("competitor_promoter_present")
+  /// How many facings this competitor SKU holds. Without it, share-of-shelf was
+  /// counting each captured ROW as one facing — so a competitor with a whole
+  /// shelf counted the same as one with a single can.
+  ///
+  /// Defaults to 1 so rows written before this column behave exactly as they did
+  /// (one row = one facing) rather than silently changing historic numbers.
+  facingsCount              Int      @default(1) @map("facings_count")
   geotag                    Json
   createdAt                 DateTime @default(now()) @map("created_at")
 

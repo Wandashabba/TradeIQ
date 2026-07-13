@@ -76,8 +76,10 @@ export async function getDashboardSummary(filters: DashboardFilters): Promise<Da
     };
   }
 
-  const [outletsTotal, visits] = await Promise.all([
-    prisma.outlet.count({ where: outletWhere }),
+  const [outlets, visits] = await Promise.all([
+    // The ACV weights are needed for weighted distribution, so select the rows
+    // rather than just counting them.
+    prisma.outlet.findMany({ where: outletWhere, select: { id: true, acvWeight: true } }),
     prisma.visit.findMany({
       where: visitWhere,
       include: {
@@ -90,19 +92,31 @@ export async function getDashboardSummary(filters: DashboardFilters): Promise<Da
     }),
   ]);
 
-  const outletsVisited = new Set(visits.map((visit) => visit.outletId)).size;
+  const outletsTotal = outlets.length;
+  const visitedOutletIds = new Set(visits.map((visit) => visit.outletId));
+  const outletsVisited = visitedOutletIds.size;
 
   const stockRows = visits.flatMap((visit) => visit.stock);
   const pricingRows = visits.flatMap((visit) => visit.pricing);
   const visibilityRows = visits.flatMap((visit) => (visit.visibility ? [visit.visibility] : []));
-  const competitiveRowCount = visits.reduce((sum, visit) => sum + visit.competitive.length, 0);
   const scorecards = visits.flatMap((visit) => (visit.scorecard ? [visit.scorecard] : []));
 
   const numericDistribution = pct(outletsVisited, outletsTotal);
 
-  // Phase-1 proxy: weighted distribution equals numeric distribution until we
-  // have per-outlet sales volumes to weight by (Phase 2).
-  const weightedDistribution = numericDistribution;
+  // Weighted distribution: outlets weighted by their share of category turnover
+  // (`Outlet.acvWeight`), so covering one hypermarket is not equivalent to
+  // covering one kiosk.
+  //
+  // This used to be assigned `= numericDistribution` — two tiles on the console,
+  // two different labels, always the same number (#93). Now it is a real figure.
+  // With every weight left at its default of 1 the two metrics agree, and that
+  // is honest: if no weights are supplied, every outlet genuinely does count the
+  // same.
+  const totalAcv = outlets.reduce((sum, outlet) => sum + outlet.acvWeight, 0);
+  const visitedAcv = outlets
+    .filter((outlet) => visitedOutletIds.has(outlet.id))
+    .reduce((sum, outlet) => sum + outlet.acvWeight, 0);
+  const weightedDistribution = pct(visitedAcv, totalAcv);
 
   const osaPct = pct(
     stockRows.filter((row) => row.unitsAvailable > 0).length,
@@ -118,11 +132,19 @@ export async function getDashboardSummary(filters: DashboardFilters): Promise<Da
 
   const visibilityCompliancePct = mean(visibilityRows.map((row) => row.planogramCompliancePct));
 
-  // Phase-1 share-of-shelf proxy: our facings come from the visibility
-  // capture's facingsCount.total, and each competitive row counts as a single
-  // competitor facing. Real shelf-space measurement is a Phase-2 concern.
+  // Share of shelf: our facings against the competitors' facings.
+  //
+  // This used to divide by the *row count* of competitive captures — so a
+  // competitor holding an entire shelf counted exactly the same as one holding a
+  // single can, and the denominator measured how much data an agent typed rather
+  // than what was on the shelf (#93). Competitor facings are now captured
+  // (`VisitCompetitive.facingsCount`), so this is a real ratio.
   const ownFacings = visibilityRows.reduce((sum, row) => sum + facingsTotal(row.facingsCount), 0);
-  const shareOfShelf = pct(ownFacings, ownFacings + competitiveRowCount);
+  const competitorFacings = visits.reduce(
+    (sum, visit) => sum + visit.competitive.reduce((n, row) => n + row.facingsCount, 0),
+    0,
+  );
+  const shareOfShelf = pct(ownFacings, ownFacings + competitorFacings);
 
   const perfectStoreRate = pct(
     scorecards.filter((scorecard) => scorecard.ratingBand === 'green').length,
