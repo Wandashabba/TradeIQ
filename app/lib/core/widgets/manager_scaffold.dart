@@ -29,6 +29,7 @@ const _insight = <NavDestination>[
 ];
 
 const _configure = <NavDestination>[
+  (label: 'Alert rules', icon: Icons.rule_outlined, path: '/alert-rules'),
   (label: 'Territories', icon: Icons.map_outlined, path: '/territories'),
   (label: 'Users', icon: Icons.group_outlined, path: '/users'),
   (label: 'Audit templates', icon: Icons.description_outlined, path: '/audit-templates'),

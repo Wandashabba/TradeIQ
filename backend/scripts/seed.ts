@@ -137,7 +137,20 @@ async function main() {
         salesCapability: 0.1,
         competitive: 0.1,
       },
-      kpiThresholds: { excellent: 90, good: 70, needsImprovement: 50 },
+      // These are the four keys the code actually reads:
+      //   green / amber        -> scorecard RAG bands (scorecards.service.ts)
+      //   stockoutUnits        -> auto-task trigger (stock.service.ts)
+      //   priceDeviationPct    -> auto-task trigger (pricing.service.ts)
+      // The seed previously wrote excellent/good/needsImprovement, which no
+      // code path reads — the bands silently fell back to their defaults, so
+      // the "configurable" thresholds were inert. The values below are those
+      // same defaults, now spelled the way the engine reads them (#46).
+      kpiThresholds: {
+        green: 80,
+        amber: 60,
+        stockoutUnits: 0,
+        priceDeviationPct: 10,
+      },
     },
   });
 

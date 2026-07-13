@@ -104,6 +104,25 @@ describe('clients routes', () => {
     expect(res.body.kpiThresholds).toEqual({ green: 85, amber: 60 });
   });
 
+  it('rejects a non-numeric kpiThreshold with 400', async () => {
+    // Every consumer reads thresholds as numbers and falls back to a default on
+    // anything else — so without this guard a bad value looks accepted while
+    // silently doing nothing.
+    const res = await request(app)
+      .patch('/clients/me')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ kpiThresholds: { green: '85' } });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a non-finite kpiThreshold with 400', async () => {
+    const res = await request(app)
+      .patch('/clients/me')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ kpiThresholds: { stockoutUnits: null } });
+    expect(res.status).toBe(400);
+  });
+
   it('forbids a manager from updating config with 403', async () => {
     const res = await request(app)
       .patch('/clients/me')

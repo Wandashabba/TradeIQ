@@ -194,6 +194,55 @@ void main() {
       );
     });
 
+    test('photo flush resolves the remote visit id and posts to /photos', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+
+      final captured = <dynamic>[];
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(201, '{"id":"p1","url":"u"}')
+        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+          captured.add(options.data);
+          handler.next(options);
+        }));
+      final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+      await flusher.flush(_queueItem(
+        entityType: 'photo',
+        entityId: 'photo-1',
+        payloadJson:
+            '{"visitDraftId":"v1","section":"visibility","dataUrl":"data:image/jpeg;base64,AAA",'
+            '"gpsTag":{},"timestamp":"2026-07-13T09:00:00.000Z"}',
+      ));
+
+      expect(captured, hasLength(1));
+      final body = captured.first as Map;
+      expect(body['visitId'], 'remote-v1');
+      expect(body['section'], 'visibility');
+      expect(body['dataUrl'], 'data:image/jpeg;base64,AAA');
+      // visitDraftId is a local id — it must never leak to the server.
+      expect(body.containsKey('visitDraftId'), isFalse);
+    });
+
+    test('photo flush waits for its visit, so an offline capture is not lost', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      await db.into(db.visitDrafts).insert(_visitDraft('v1')); // remoteId null
+
+      // A shelf photo taken in a dead aisle stays queued until the visit that
+      // owns it exists on the server — it is retried, never dropped.
+      final flusher = HttpQueueFlusher(db: db, dio: Dio());
+      await expectLater(
+        flusher.flush(_queueItem(
+          entityType: 'photo',
+          entityId: 'photo-1',
+          payloadJson: '{"visitDraftId":"v1","section":"pricing","dataUrl":"x","gpsTag":{},"timestamp":"t"}',
+        )),
+        throwsA(isA<StateError>()),
+      );
+    });
+
     test('visit_submit flush resolves the remote id and posts to /visits/:id/submit', () async {
       final db = LocalDb(NativeDatabase.memory());
       addTearDown(db.close);
@@ -360,8 +409,10 @@ void main() {
       final db = LocalDb(NativeDatabase.memory());
       addTearDown(db.close);
       final flusher = HttpQueueFlusher(db: db, dio: Dio());
+      // 'photo' used to stand in for "unhandled" here — it is wired now (#41),
+      // so this needs a type the flusher genuinely does not know.
       await expectLater(
-        flusher.flush(_queueItem(entityType: 'photo', entityId: 'ph1', payloadJson: '{}')),
+        flusher.flush(_queueItem(entityType: 'sasquatch', entityId: 'x1', payloadJson: '{}')),
         throwsA(isA<UnimplementedError>()),
       );
     });

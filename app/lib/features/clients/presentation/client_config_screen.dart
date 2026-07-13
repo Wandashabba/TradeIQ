@@ -135,6 +135,142 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
           'nothing. A dimension weighted 0 is dropped from the score entirely.',
           style: TextStyle(fontSize: 11.5, color: AppColors.ink3, height: 1.5),
         ),
+        const SizedBox(height: 16),
+        _ThresholdsPanel(thresholds: widget.config.kpiThresholds),
+      ],
+    );
+  }
+}
+
+/// The four KPI thresholds the engine reads. Two set the scorecard's RAG bands;
+/// two decide when a capture opens a task on its own.
+class _ThresholdsPanel extends ConsumerStatefulWidget {
+  const _ThresholdsPanel({required this.thresholds});
+
+  final Map<String, double> thresholds;
+
+  @override
+  ConsumerState<_ThresholdsPanel> createState() => _ThresholdsPanelState();
+}
+
+class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
+  late final Map<KpiThreshold, TextEditingController> _controllers = {
+    for (final t in KpiThreshold.values)
+      t: TextEditingController(
+        text: (widget.thresholds[t.key] ?? t.fallback).toString(),
+      ),
+  };
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final map = <String, double>{};
+    _controllers.forEach((threshold, controller) {
+      final parsed = double.tryParse(controller.text.trim());
+      // A blank or unparseable box must not silently become 0 — that would turn
+      // "leave it alone" into "never trigger". Fall back to what the engine
+      // already uses.
+      map[threshold.key] = parsed ?? threshold.fallback;
+    });
+
+    await ref.read(clientsRepositoryProvider).updateThresholds(map);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved')),
+      );
+      ref.invalidate(clientConfigProvider);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PanelCard(
+          title: 'KPI thresholds',
+          subtitle: 'What counts as green, and what opens a task',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final t in KpiThreshold.values)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: AppColors.line)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t.label,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.ink1,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              t.help,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.ink3,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 3,
+                        child: TextField(
+                          key: ValueKey<String>('threshold-${t.key}'),
+                          controller: _controllers[t],
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          style: const TextStyle(fontSize: 13),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            suffixText: t.suffix.isEmpty ? null : t.suffix,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ElevatedButton(
+                  key: const ValueKey<String>('save-thresholds'),
+                  onPressed: _submit,
+                  child: const Text('Save thresholds'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'These four keys are the whole contract — the engine reads nothing '
+          'else. Changing a band re-grades new scorecards only; it does not '
+          'retroactively re-score past visits.',
+          style: TextStyle(fontSize: 11.5, color: AppColors.ink3, height: 1.5),
+        ),
       ],
     );
   }
