@@ -23,12 +23,20 @@ const _templates = [
 class _FakeTemplatesRepository implements TemplatesRepository {
   @override
   Future<List<AuditTemplate>> listTemplates() async => _templates;
+
+  @override
+  Future<AuditTemplateDetail> fetchTemplate(String id) =>
+      throw UnimplementedError();
 }
 
 class _FailingTemplatesRepository implements TemplatesRepository {
   @override
   Future<List<AuditTemplate>> listTemplates() async =>
       throw Exception('boom');
+
+  @override
+  Future<AuditTemplateDetail> fetchTemplate(String id) =>
+      throw UnimplementedError();
 }
 
 Widget _app(TemplatesRepository repo) => ProviderScope(

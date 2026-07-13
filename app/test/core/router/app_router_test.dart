@@ -7,6 +7,7 @@ import 'package:tradeiq_app/core/router/app_router.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 
 class _FixedSessionController extends SessionController {
   _FixedSessionController(this._initial);
@@ -51,6 +52,33 @@ class _FakeOrdersRepository implements OrdersRepository {
     required String outletId,
     required List<OrderLine> lines,
   }) => throw UnimplementedError();
+}
+
+class _FakeTemplatesRepository implements TemplatesRepository {
+  @override
+  Future<List<AuditTemplate>> listTemplates() async => const [];
+
+  @override
+  Future<AuditTemplateDetail> fetchTemplate(String id) async =>
+      const AuditTemplateDetail(
+        template: AuditTemplate(
+          id: 'tpl-1',
+          name: 'Grocery Audit',
+          version: 1,
+          active: true,
+        ),
+        schema: {
+          'sections': [
+            {
+              'id': 's1',
+              'title': 'Availability',
+              'fields': [
+                {'id': 'onShelf', 'label': 'On shelf?', 'type': 'boolean'},
+              ],
+            },
+          ],
+        },
+      );
 }
 
 class _FakeSucceedingVisitsRepository implements VisitsRepository {
@@ -237,6 +265,61 @@ void main() {
     // /orders is a shared route: the field agent is NOT bounced back to /audit.
     expect(find.text('Orders'), findsOneWidget);
     expect(find.text('Select an Outlet'), findsNothing);
+  });
+
+  testWidgets(
+    'a field_agent navigating to a template preview is bounced to /audit',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          templatesRepositoryProvider.overrideWithValue(
+            _FakeTemplatesRepository(),
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/audit-templates/tpl-1/preview');
+      await tester.pumpAndSettle();
+
+      // The preview subroute is manager territory, like /audit-templates.
+      expect(find.text('Select an Outlet'), findsOneWidget);
+      expect(find.text('Grocery Audit'), findsNothing);
+    },
+  );
+
+  testWidgets('a manager can open a template preview and see its form', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(const SessionState(role: 'manager')),
+        ),
+        templatesRepositoryProvider.overrideWithValue(
+          _FakeTemplatesRepository(),
+        ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    container.read(routerProvider).go('/audit-templates/tpl-1/preview');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Grocery Audit'), findsOneWidget);
+    expect(find.text('On shelf?'), findsOneWidget);
   });
 
   testWidgets(

@@ -28,4 +28,36 @@ void main() {
     expect(template.version, 1);
     expect(template.active, true);
   });
+
+  test('AuditTemplateDetail.fromJson keeps the schema map verbatim', () {
+    final detail = AuditTemplateDetail.fromJson(const {
+      'id': 'tpl-1',
+      'name': 'Grocery Audit',
+      'version': 2,
+      'active': true,
+      'schema': {
+        'sections': [
+          {'id': 's1', 'fields': []},
+        ],
+      },
+    });
+
+    expect(detail.template.id, 'tpl-1');
+    expect(detail.schema['sections'], isA<List<dynamic>>());
+  });
+
+  test('AuditTemplateDetail.fromJson tolerates a missing/mistyped schema', () {
+    final missing = AuditTemplateDetail.fromJson(const {
+      'id': 'tpl-2',
+      'name': 'Pharmacy Audit',
+    });
+    expect(missing.schema, isEmpty);
+
+    final mistyped = AuditTemplateDetail.fromJson(const {
+      'id': 'tpl-3',
+      'name': 'Broken Audit',
+      'schema': ['not', 'a', 'map'],
+    });
+    expect(mistyped.schema, isEmpty);
+  });
 }
