@@ -10,6 +10,7 @@ import '../../features/outlets/presentation/create_outlet_screen.dart';
 import '../../features/outlets/presentation/outlets_list_screen.dart';
 import '../../features/tasks/presentation/tasks_screen.dart';
 import '../../features/campaigns/presentation/campaigns_screen.dart';
+import '../../features/alerts/presentation/alert_rules_screen.dart';
 import '../../features/alerts/presentation/alerts_screen.dart';
 import '../../features/territories/presentation/territories_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
@@ -59,6 +60,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/tasks',
         '/campaigns',
         '/alerts',
+        '/alert-rules',
         '/territories',
         '/fraud',
         '/reports',
@@ -115,6 +117,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/alerts',
         builder: (context, state) => const AlertsScreen(),
+      ),
+      GoRoute(
+        path: '/alert-rules',
+        builder: (context, state) => const AlertRulesScreen(),
       ),
       GoRoute(
         path: '/territories',

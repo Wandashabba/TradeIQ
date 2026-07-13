@@ -43,9 +43,21 @@ clientsRouter.patch('/me', requireRole('admin'), async (req: AuthedRequest, res)
     }
   }
 
-  if (kpiThresholds !== undefined && !isPlainObject(kpiThresholds)) {
-    res.status(400).json({ error: 'kpiThresholds must be a non-null, non-array object' });
-    return;
+  if (kpiThresholds !== undefined) {
+    if (!isPlainObject(kpiThresholds)) {
+      res.status(400).json({ error: 'kpiThresholds must be a non-null, non-array object' });
+      return;
+    }
+    // Every consumer (kpiThreshold(), the scorecard RAG bands) reads these as
+    // numbers and silently falls back to a default on anything else — so a
+    // non-numeric threshold would look accepted while doing nothing. Reject it.
+    const allThresholdsValid = Object.values(kpiThresholds).every(
+      (threshold) => typeof threshold === 'number' && Number.isFinite(threshold),
+    );
+    if (!allThresholdsValid) {
+      res.status(400).json({ error: 'kpiThresholds values must be finite numbers' });
+      return;
+    }
   }
 
   const data: {

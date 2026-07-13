@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/photo_capture_field.dart';
+import '../../data/photos_repository.dart';
 import '../../data/pricing_repository.dart';
 import '../../data/skus_repository.dart';
 
@@ -38,6 +40,7 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
   final _comms = <String, TextEditingController>{};
   final _promo = <String, bool>{};
   bool _saved = false;
+  String? _photoDataUrl;
 
   @override
   void initState() {
@@ -75,6 +78,19 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
           visitDraftId: widget.visitDraftId,
           entries: entries,
         );
+
+    // The shelf-price photo is evidence, and the corpus a real price OCR (#2)
+    // would be trained on. Prices themselves stay manually entered — the OCR
+    // seam (`ocr.stub.ts`) is a passthrough that returns whatever it was given,
+    // so nothing here is machine-read yet, and the UI does not pretend it is.
+    if (_photoDataUrl != null) {
+      await ref.read(queuedPhotosRepositoryProvider).queuePhoto(
+            visitDraftId: widget.visitDraftId,
+            section: 'pricing',
+            dataUrl: _photoDataUrl!,
+          );
+    }
+
     if (mounted) setState(() => _saved = true);
   }
 
@@ -123,6 +139,13 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
               ),
             ),
           ),
+        const SizedBox(height: 16),
+        PhotoCaptureField(
+          label: 'Shelf-price photo',
+          helperText: 'Optional. Prices are still entered by hand — this is '
+              'evidence, and the training data for automated price reading.',
+          onCaptured: (dataUrl) => setState(() => _photoDataUrl = dataUrl),
+        ),
         const SizedBox(height: 12),
         ElevatedButton(onPressed: _save, child: const Text('Save pricing')),
         if (_saved)

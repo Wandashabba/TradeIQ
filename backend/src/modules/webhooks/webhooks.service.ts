@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 
@@ -57,20 +58,31 @@ export async function deleteWebhook(id: string): Promise<void> {
 }
 
 /**
+ * Signs a webhook body with the subscriber's shared secret (#38).
+ *
+ * Without this, an endpoint receiving `{"event":"alert.raised",...}` has no way
+ * to tell TradeIQ apart from anyone who has guessed the URL — and these payloads
+ * drive downstream ERP and ordering systems. The scheme is the industry-standard
+ * one (Stripe/GitHub): HMAC-SHA256 over the exact bytes we send.
+ *
+ * The timestamp is signed alongside the body (`<timestamp>.<body>`), not just
+ * beside it, so a captured payload cannot be replayed later with a fresh
+ * timestamp. Subscribers should reject a signature whose `t` is far from now.
+ */
+export function signWebhookBody(secret: string, timestamp: string, body: string): string {
+  return createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex');
+}
+
+/**
  * Best-effort fan-out of a domain event to every ACTIVE webhook the client has
  * registered for that `event`. Each endpoint is POSTed a JSON body of
  * `{ event, payload, timestamp }` via the global `fetch` (Node 24). Every call
  * is wrapped in its own try/catch and awaited through `Promise.allSettled`, so
- * a slow or failing subscriber can never throw back into the caller — this is
- * fire-and-forget delivery with no retry/queue (a hardened version is a
- * follow-up).
+ * a slow or failing subscriber can never throw back into the caller.
  *
- * @remarks A hardened implementation would use each webhook's `secret` to sign
- * the body (e.g. an HMAC-SHA256 `X-Signature` header) so subscribers can verify
- * authenticity. That signing is intentionally omitted here.
- *
- * Wiring this into the visit.submitted / order.created / alert.raised events is
- * a follow-up: those modules are not touched by this change.
+ * Delivery is signed but still fire-and-forget: there is **no retry and no
+ * queue**, so a subscriber that is down when the event fires simply misses it.
+ * A durable outbox is Phase 4 (#62).
  */
 export async function dispatchWebhookEvent(
   clientId: string,
@@ -81,16 +93,27 @@ export async function dispatchWebhookEvent(
     where: { clientId, event, active: true },
   });
 
-  const body = JSON.stringify({ event, payload, timestamp: new Date().toISOString() });
+  const timestamp = new Date().toISOString();
+  const body = JSON.stringify({ event, payload, timestamp });
 
   await Promise.allSettled(
     webhooks.map(async (webhook) => {
       try {
-        await fetch(webhook.url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body,
-        });
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'X-TradeIQ-Event': event,
+          'X-TradeIQ-Timestamp': timestamp,
+        };
+
+        // A webhook registered without a secret still fires — it just cannot be
+        // verified. We do not silently invent one, because a subscriber holding
+        // a secret we never told them about would reject every delivery.
+        if (webhook.secret) {
+          headers['X-TradeIQ-Signature'] =
+            `sha256=${signWebhookBody(webhook.secret, timestamp, body)}`;
+        }
+
+        await fetch(webhook.url, { method: 'POST', headers, body });
       } catch {
         // Best-effort: a failing subscriber must never break the caller.
       }

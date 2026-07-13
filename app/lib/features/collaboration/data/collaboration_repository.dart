@@ -41,6 +41,14 @@ abstract class CollaborationRepository {
   Future<List<Message>> listMessages();
   Future<Message> sendMessage(String body, {String? recipientId});
   Future<List<Announcement>> listAnnouncements();
+
+  /// POST /announcements. The backend gates this on `requireRole('manager',
+  /// 'admin')` — the caller must role-gate the affordance too, or a field agent
+  /// gets a 403 for a button we showed them.
+  Future<Announcement> createAnnouncement({
+    required String title,
+    required String body,
+  });
 }
 
 class DioCollaborationRepository implements CollaborationRepository {
@@ -67,6 +75,18 @@ class DioCollaborationRepository implements CollaborationRepository {
         .map((json) => Announcement.fromJson(json as Map<String, dynamic>))
         .toList();
   }
+
+  @override
+  Future<Announcement> createAnnouncement({
+    required String title,
+    required String body,
+  }) async {
+    final response = await dio.post(
+      '/announcements',
+      data: <String, dynamic>{'title': title, 'body': body},
+    );
+    return Announcement.fromJson(response.data as Map<String, dynamic>);
+  }
 }
 
 final collaborationRepositoryProvider =
@@ -76,6 +96,6 @@ final messagesProvider = FutureProvider<List<Message>>((ref) {
   return ref.read(collaborationRepositoryProvider).listMessages();
 });
 
-final announcementsProvider = FutureProvider<List<Announcement>>((ref) {
+final announcementsListProvider = FutureProvider<List<Announcement>>((ref) {
   return ref.read(collaborationRepositoryProvider).listAnnouncements();
 });
