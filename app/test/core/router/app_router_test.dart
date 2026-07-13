@@ -191,7 +191,7 @@ void main() {
     // The dashboard's KPI grid now loads from GET /dashboard (unstubbed here,
     // so it settles into the error state); the AppBar title is the stable
     // signal that routing landed on the dashboard.
-    expect(find.text('Manager Dashboard'), findsOneWidget);
+    expect(find.text('Execution overview'), findsOneWidget);
   });
 
   testWidgets('logging out from a protected route redirects back to login', (
@@ -205,7 +205,7 @@ void main() {
       ]),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Manager Dashboard'), findsOneWidget);
+    expect(find.text('Execution overview'), findsOneWidget);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(MaterialApp)),
@@ -241,7 +241,7 @@ void main() {
 
       // Guarded away from the manager dashboard, back to the audit outlet picker.
       expect(find.text('Select an Outlet'), findsOneWidget);
-      expect(find.text('Manager Dashboard'), findsNothing);
+      expect(find.text('Execution overview'), findsNothing);
     },
   );
 
@@ -344,7 +344,7 @@ void main() {
       container.read(routerProvider).go('/audit/o1');
       await tester.pumpAndSettle();
 
-      expect(find.text('Manager Dashboard'), findsOneWidget);
+      expect(find.text('Execution overview'), findsOneWidget);
     },
   );
 }

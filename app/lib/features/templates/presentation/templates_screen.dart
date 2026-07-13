@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/widgets/worklist.dart';
 import '../data/templates_repository.dart';
 
 class TemplatesScreen extends ConsumerWidget {
@@ -11,53 +14,94 @@ class TemplatesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final templates = ref.watch(templatesListProvider);
+
     return ManagerScaffold(
       title: 'Audit Templates',
-      body: templates.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Failed to load templates: $err'),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(templatesListProvider),
-                child: const Text('Retry'),
-              ),
-            ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'A template is the form an agent fills in on a visit.',
+            style: TextStyle(fontSize: 12, color: AppColors.ink3),
           ),
-        ),
-        data: (list) => ListView.builder(
-          itemCount: list.length,
-          itemBuilder: (context, index) => _TemplateCard(template: list[index]),
-        ),
+          const SizedBox(height: 12),
+          AsyncSection<List<AuditTemplate>>(
+            value: templates,
+            label: 'templates',
+            onRetry: () => ref.invalidate(templatesListProvider),
+            builder: (list) => _TemplateList(templates: list),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _TemplateCard extends StatelessWidget {
-  const _TemplateCard({required this.template});
+class _TemplateList extends StatelessWidget {
+  const _TemplateList({required this.templates});
+
+  final List<AuditTemplate> templates;
+
+  @override
+  Widget build(BuildContext context) {
+    return PanelCard(
+      title:
+          '${templates.length} ${templates.length == 1 ? 'template' : 'templates'}',
+      subtitle: 'Tap a row to preview its form',
+      padded: false,
+      child: templates.isEmpty
+          ? const EmptyState(
+              message: 'No templates yet',
+              hint: 'Templates published to this client appear here.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final t in templates) _TemplateRow(template: t),
+              ],
+            ),
+    );
+  }
+}
+
+class _TemplateRow extends StatelessWidget {
+  const _TemplateRow({required this.template});
 
   final AuditTemplate template;
 
   @override
   Widget build(BuildContext context) {
     final t = template;
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.description),
-        title: Text(t.name),
-        subtitle: Text(
-          'v${t.version}${t.industry != null ? ' · ${t.industry}' : ''}',
-        ),
-        trailing: t.active
-            ? const Icon(Icons.check_circle, color: Colors.green)
-            : const Icon(Icons.pause_circle, color: Colors.grey),
-        // Preview walks the template's dynamic form (issue #54 step 2).
-        onTap: () => context.push('/audit-templates/${t.id}/preview'),
+    final industry = t.industry;
+
+    return WorklistRow(
+      key: ValueKey('template-${t.id}'),
+      title: t.name,
+      // The id is what the API and the agent app know this template by, so it
+      // wears the mono token.
+      meta: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CodeToken(t.id),
+          const SizedBox(width: 6),
+          const Text('·'),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              industry == null ? 'v${t.version}' : 'v${t.version} · $industry',
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
+      level: t.active ? StatusLevel.good : StatusLevel.neutral,
+      statusLabel: t.active ? 'Active' : 'Paused',
+      // A paused template is done, not broken — dim it, keep it on the page.
+      resolved: !t.active,
+      // Preview walks the template's dynamic form (issue #54 step 2).
+      onTap: () => context.push('/audit-templates/${t.id}/preview'),
     );
   }
 }

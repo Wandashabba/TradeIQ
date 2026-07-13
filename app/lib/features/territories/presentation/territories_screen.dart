@@ -2,10 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/widgets/worklist.dart';
 import '../../users/data/users_repository.dart';
 import '../data/territories_repository.dart';
 import 'territory_form_screen.dart';
+
+/// Coverage for one territory. Kept per-id and cached by Riverpod so a row that
+/// rebuilds does not re-fetch. `GET /territories/:id/coverage` returns the
+/// outlet and agent *lists*, so all we can honestly show is their counts —
+/// there is no coverage rate to report.
+final _coverageProvider =
+    FutureProvider.family<TerritoryCoverage, String>((ref, id) {
+  return ref.read(territoriesRepositoryProvider).getCoverage(id);
+});
 
 class TerritoriesScreen extends ConsumerWidget {
   const TerritoriesScreen({super.key});
@@ -16,6 +28,7 @@ class TerritoriesScreen extends ConsumerWidget {
     final role = ref.watch(sessionControllerProvider).value?.role;
     // Creating territories and assigning agents are manager/admin actions.
     final canManage = role == 'manager' || role == 'admin';
+
     return ManagerScaffold(
       title: 'Territories',
       floatingActionButton: canManage
@@ -30,33 +43,47 @@ class TerritoriesScreen extends ConsumerWidget {
               child: const Icon(Icons.add),
             )
           : null,
-      body: territories.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Failed to load territories: $err'),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(territoriesListProvider),
-                child: const Text('Retry'),
-              ),
-            ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'A territory groups outlets and the agents who work them. '
+            'Open a row for its full coverage.',
+            style: TextStyle(fontSize: 12, color: AppColors.ink3),
           ),
-        ),
-        data: (list) => ListView.builder(
-          itemCount: list.length,
-          itemBuilder: (context, index) =>
-              _TerritoryCard(territory: list[index], canManage: canManage),
-        ),
+          const SizedBox(height: 12),
+          AsyncSection<List<Territory>>(
+            value: territories,
+            label: 'territories',
+            onRetry: () => ref.invalidate(territoriesListProvider),
+            builder: (list) => PanelCard(
+              title: '${list.length} '
+                  '${list.length == 1 ? 'territory' : 'territories'}',
+              subtitle: 'Outlet and agent counts, not a coverage rate',
+              padded: false,
+              child: list.isEmpty
+                  ? const EmptyState(
+                      message: 'No territories yet',
+                      hint: 'Create one to group outlets and assign agents.',
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final t in list)
+                          _TerritoryRow(territory: t, canManage: canManage),
+                      ],
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _TerritoryCard extends ConsumerWidget {
-  const _TerritoryCard({required this.territory, required this.canManage});
+class _TerritoryRow extends ConsumerWidget {
+  const _TerritoryRow({required this.territory, required this.canManage});
 
   final Territory territory;
   final bool canManage;
@@ -68,7 +95,8 @@ class _TerritoryCard extends ConsumerWidget {
         title: Text(territory.name),
         content: FutureBuilder<TerritoryCoverage>(
           key: ValueKey<String>('coverage-${territory.id}'),
-          future: ref.read(territoriesRepositoryProvider).getCoverage(territory.id),
+          future:
+              ref.read(territoriesRepositoryProvider).getCoverage(territory.id),
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
               return const SizedBox(
@@ -104,23 +132,56 @@ class _TerritoryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      child: ListTile(
-        key: ValueKey<String>('territory-${territory.id}'),
-        title: Text(territory.name),
-        subtitle: Text(
-          '${territory.code}${territory.region != null ? ' · ${territory.region}' : ''}',
+    final coverage = ref.watch(_coverageProvider(territory.id));
+
+    // A territory nobody is assigned to is the one state worth flagging; the
+    // rest is just a count, so it stays neutral.
+    final (level, status) = switch (coverage) {
+      AsyncData(:final value) when value.agentCount == 0 => (
+          StatusLevel.warning,
+          'Unassigned',
         ),
-        trailing: canManage
-            ? IconButton(
-                key: ValueKey<String>('territory-assign-${territory.id}'),
-                icon: const Icon(Icons.person_add),
-                tooltip: 'Assign agent',
-                onPressed: () => _assignAgent(context),
-              )
-            : null,
-        onTap: () => _showCoverage(context, ref),
+      AsyncData() => (StatusLevel.good, 'Assigned'),
+      _ => (StatusLevel.neutral, null),
+    };
+
+    final figures = switch (coverage) {
+      AsyncData(:final value) =>
+        '${value.outletCount} outlets · ${value.agentCount} agents',
+      AsyncError() => 'Coverage unavailable',
+      _ => 'Loading coverage…',
+    };
+    final region = territory.region;
+
+    return WorklistRow(
+      key: ValueKey<String>('territory-${territory.id}'),
+      title: territory.name,
+      // The code is what the back office quotes; the figures beside it are the
+      // plain counts the coverage endpoint returns.
+      meta: Row(
+        children: [
+          CodeToken(territory.code),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              region == null ? figures : '$region · $figures',
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
+      level: level,
+      statusLabel: status,
+      onTap: () => _showCoverage(context, ref),
+      actions: [
+        if (canManage)
+          RowAction(
+            key: ValueKey<String>('territory-assign-${territory.id}'),
+            label: 'Assign',
+            onPressed: () => _assignAgent(context),
+          ),
+      ],
     );
   }
 }
@@ -147,6 +208,8 @@ class _AssignAgentDialogState extends ConsumerState<_AssignAgentDialog> {
           .read(territoriesRepositoryProvider)
           .assignAgent(widget.territory.id, _agentId!);
       if (mounted) {
+        // The row's coverage figure is now stale — drop it so it refetches.
+        ref.invalidate(_coverageProvider(widget.territory.id));
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Agent assigned.')),

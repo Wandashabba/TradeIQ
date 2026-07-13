@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/widgets/worklist.dart';
 import '../data/beatplans_repository.dart';
 import 'beat_plan_form_screen.dart';
 
+/// Beat plans as a worklist: what is scheduled, what is running, what is done.
 class BeatPlansScreen extends ConsumerWidget {
   const BeatPlansScreen({super.key});
 
@@ -29,45 +33,88 @@ class BeatPlansScreen extends ConsumerWidget {
               child: const Icon(Icons.add),
             )
           : null,
-      body: beatPlans.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Failed to load beat plans: $err'),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(beatPlansListProvider),
-                child: const Text('Retry'),
-              ),
-            ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          AsyncSection<List<BeatPlan>>(
+            value: beatPlans,
+            label: 'beat plans',
+            onRetry: () => ref.invalidate(beatPlansListProvider),
+            builder: (list) => PanelCard(
+              title: '${list.length} ${list.length == 1 ? 'plan' : 'plans'}',
+              subtitle: 'Tap a plan to work its stops',
+              padded: false,
+              child: list.isEmpty
+                  ? const EmptyState(
+                      message: 'No beat plans',
+                      hint: 'A plan is a day of outlet stops in visit order.',
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final plan in list) _BeatPlanRow(plan: plan),
+                      ],
+                    ),
+            ),
           ),
-        ),
-        data: (list) => ListView.builder(
-          itemCount: list.length,
-          itemBuilder: (context, index) => _BeatPlanCard(plan: list[index]),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _BeatPlanCard extends StatelessWidget {
-  const _BeatPlanCard({required this.plan});
+/// A plan in flight is the one a manager can still act on; a missed one is the
+/// one that cost a visit. Both outrank a plan that is merely scheduled.
+StatusLevel _levelFor(String status) => switch (status) {
+      'completed' => StatusLevel.good,
+      'in_progress' => StatusLevel.warning,
+      'missed' || 'cancelled' => StatusLevel.critical,
+      _ => StatusLevel.neutral,
+    };
+
+String _statusWord(String status) => switch (status) {
+      'scheduled' => 'Scheduled',
+      'in_progress' => 'In progress',
+      'completed' => 'Completed',
+      'missed' => 'Missed',
+      'cancelled' => 'Cancelled',
+      _ => status,
+    };
+
+class _BeatPlanRow extends StatelessWidget {
+  const _BeatPlanRow({required this.plan});
 
   final BeatPlan plan;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(plan.name),
-        subtitle: Text('${plan.status} · ${plan.scheduledDate}'),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (context) => BeatPlanDetailScreen(planId: plan.id),
+    return WorklistRow(
+      key: ValueKey<String>('beatplan-${plan.id}'),
+      title: plan.name,
+      // The plan code is what the stops endpoint keys on — mono token, so a
+      // manager can quote it straight back at the API or a support ticket.
+      meta: Row(
+        children: [
+          CodeToken(plan.id),
+          const SizedBox(width: 6),
+          const Text('·'),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              plan.scheduledDate,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
+        ],
+      ),
+      level: _levelFor(plan.status),
+      statusLabel: _statusWord(plan.status),
+      resolved: plan.status == 'completed',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => BeatPlanDetailScreen(planId: plan.id),
         ),
       ),
     );
@@ -83,42 +130,68 @@ class BeatPlanDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(beatPlanDetailProvider(planId));
     return Scaffold(
+      backgroundColor: AppColors.plane,
       appBar: AppBar(title: const Text('Beat Plan')),
-      body: detail.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Failed to load beat plan: $err'),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(beatPlanDetailProvider(planId)),
-                child: const Text('Retry'),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          AsyncSection<BeatPlanDetail>(
+            value: detail,
+            label: 'beat plan',
+            onRetry: () => ref.invalidate(beatPlanDetailProvider(planId)),
+            builder: (data) => PanelCard(
+              title: data.plan.name,
+              subtitle: data.plan.scheduledDate,
+              trailing: StatusChip(
+                label: _statusWord(data.plan.status),
+                level: _levelFor(data.plan.status),
               ),
-            ],
-          ),
-        ),
-        data: (data) => ListView(
-          children: [
-            ListTile(
-              key: const ValueKey<String>('adherence'),
-              title: Text('${data.stopsVisited} / ${data.stopsTotal} stops'),
+              padded: false,
+              // The tiles paint their ink on the nearest Material ancestor —
+              // give them a transparent one *inside* the panel, or their
+              // splashes land behind the panel's own background.
+              child: Material(
+                type: MaterialType.transparency,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      key: const ValueKey<String>('adherence'),
+                      title: Text(
+                        '${data.stopsVisited} / ${data.stopsTotal} stops',
+                      ),
+                      subtitle: Text(
+                        '${(data.adherenceRate * 100).toStringAsFixed(0)}% adherence',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.ink3,
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1, color: AppColors.line),
+                    for (final stop in data.stops)
+                      CheckboxListTile(
+                        key: ValueKey<String>('stop-${stop.id}'),
+                        title: Text('Stop ${stop.sequence}'),
+                        subtitle: Align(
+                          alignment: Alignment.centerLeft,
+                          child: CodeToken(stop.outletId),
+                        ),
+                        value: stop.visited,
+                        onChanged: (v) async {
+                          await ref
+                              .read(beatPlansRepositoryProvider)
+                              .markStopVisited(planId, stop.id, v ?? false);
+                          ref.invalidate(beatPlanDetailProvider(planId));
+                        },
+                      ),
+                  ],
+                ),
+              ),
             ),
-            for (final stop in data.stops)
-              CheckboxListTile(
-                key: ValueKey<String>('stop-${stop.id}'),
-                title: Text('Stop ${stop.sequence}'),
-                value: stop.visited,
-                onChanged: (v) async {
-                  await ref
-                      .read(beatPlansRepositoryProvider)
-                      .markStopVisited(planId, stop.id, v ?? false);
-                  ref.invalidate(beatPlanDetailProvider(planId));
-                },
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

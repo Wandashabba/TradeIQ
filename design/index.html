@@ -1,50 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradeIQ — Auth UI Design</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        body { background:#050505; background-image: radial-gradient(circle at 50% -10%, #16203a 0%, #050505 60%); color:#fff; font-family:'Inter',sans-serif; min-height:100vh; }
-        h1,h2,.heading { font-family:'Montserrat',sans-serif; }
-        .screen-frame { width:415px; height:880px; border:none; border-radius:24px; }
-        .no-scrollbar::-webkit-scrollbar { display:none; }
-        .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeIQ — Design</title>
+<link rel="stylesheet" href="tokens.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .page { max-width: 1180px; margin: 0 auto; padding: 34px 20px 56px; }
+  .masthead { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand-name span { color: var(--series-1); }
+  .masthead .tag { margin-left: auto; font-size: 11px; color: var(--ink-3); }
+
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .lede { font-size: 13.5px; color: var(--ink-2); max-width: 74ch; line-height: 1.6; margin: 0 0 26px; }
+
+  h2 { font-size: 14px; font-weight: 600; letter-spacing: -0.005em; margin: 34px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+
+  /* Before / after */
+  .shift { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 800px) { .shift { grid-template-columns: minmax(0, 1fr); } }
+  .col { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 14px 16px; }
+  .col h3 { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; margin: 0 0 10px; }
+  .col.was h3 { color: var(--crit); }
+  .col.now h3 { color: var(--good); }
+  .col ul { margin: 0; padding-left: 16px; }
+  .col li { font-size: 12.5px; color: var(--ink-2); line-height: 1.65; margin-bottom: 4px; }
+  .col li b { color: var(--ink-1); font-weight: 600; }
+
+  /* Screens */
+  .set { margin-top: 12px; }
+  .set-lbl { font-size: 12px; color: var(--ink-3); margin: 0 0 10px; }
+  .strip { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; }
+  .strip::-webkit-scrollbar { height: 8px; }
+  .strip::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+  figure { margin: 0; flex: none; }
+  /* Thumbnails render the page at its REAL width and scale down, so the console
+     is never squeezed into a phone-width iframe (which collides its labels). */
+  .thumb { border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface-1); overflow: hidden; position: relative; }
+  .thumb iframe { border: 0; display: block; transform-origin: top left; }
+  .thumb.desk { width: 588px; height: 700px; }
+  .thumb.desk iframe { width: 1344px; height: 1600px; transform: scale(0.4375); }
+  .thumb.phone { width: 344px; height: 700px; }
+  .thumb.phone iframe { width: 440px; height: 896px; transform: scale(0.78); }
+  figcaption { margin-top: 9px; font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+  figcaption .n { font-size: 10px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  figcaption a { margin-left: auto; font-size: 11.5px; }
+
+  /* Palette */
+  .pal { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 8px; }
+  .sw { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 10px 11px; }
+  .chip { height: 26px; border-radius: 2px; margin-bottom: 8px; }
+  .sw-n { font-size: 11.5px; font-weight: 600; }
+  .sw-h { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+
+  .note { font-size: 12px; color: var(--ink-3); line-height: 1.6; margin-top: 12px; }
+  .note code { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .flag { border-left: 2px solid var(--warn); background: var(--warn-quiet); padding: 10px 13px; border-radius: 0 var(--r-control) var(--r-control) 0; }
+  .flag b { color: var(--ink-1); }
+</style>
 </head>
 <body>
-    <header class="text-center pt-14 pb-8 px-6">
-        <div class="inline-flex items-center gap-2 text-xs font-medium text-blue-400 bg-[#0f1117]/70 border border-blue-900/40 px-4 py-1.5 rounded-full mb-5">
-            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
-            TradeIQ · Design
-        </div>
-        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">Authentication UI</h1>
-        <p class="text-gray-400 max-w-xl mx-auto text-sm md:text-base">Landing, Sign In and Sign Up screens for the TradeIQ field-execution app — dark theme, blue gradient, 375×812 mobile frames.</p>
-        <div class="flex justify-center gap-3 mt-6 flex-wrap">
-            <a href="landing.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Landing</a>
-            <a href="signin.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Sign In</a>
-            <a href="signup.html" class="px-4 py-2 rounded-full bg-[#1a1d24] border border-white/10 text-sm hover:border-blue-500/50 transition">Open Sign Up</a>
-            <a href="manager.html" class="px-4 py-2 rounded-full border border-blue-500/40 text-blue-400 text-sm hover:bg-blue-500/10 transition">Manager UI set →</a>
-        </div>
-    </header>
+<div class="page">
 
-    <main class="flex gap-6 justify-start lg:justify-center items-start overflow-x-auto no-scrollbar px-8 pb-16">
-        <figure class="flex-shrink-0 text-center">
-            <iframe src="landing.html" class="screen-frame" title="Landing"></iframe>
-            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">01 · Landing</figcaption>
-        </figure>
-        <figure class="flex-shrink-0 text-center">
-            <iframe src="signin.html" class="screen-frame" title="Sign In"></iframe>
-            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">02 · Sign In</figcaption>
-        </figure>
-        <figure class="flex-shrink-0 text-center">
-            <iframe src="signup.html" class="screen-frame" title="Sign Up"></iframe>
-            <figcaption class="mt-3 text-sm font-medium text-gray-300 heading">03 · Sign Up</figcaption>
-        </figure>
-    </main>
+  <div class="masthead">
+    <svg viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+      <path d="M10 30 C 30 10, 70 10, 90 30 L 80 40 L 60 40 L 60 90 C 60 100, 40 100, 35 90 L 35 40 L 20 40 Z" fill="url(#ix-a)"/>
+      <path d="M65 40 L 85 40 L 85 90 C 85 100, 65 100, 60 90 Z" fill="url(#ix-b)"/>
+      <defs>
+        <linearGradient id="ix-a" x1="10" y1="10" x2="90" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#3987e5"/><stop offset="1" stop-color="#0a3f8f"/></linearGradient>
+        <linearGradient id="ix-b" x1="65" y1="40" x2="85" y2="100" gradientUnits="userSpaceOnUse"><stop stop-color="#2f7bd8"/><stop offset="1" stop-color="#07306e"/></linearGradient>
+      </defs>
+    </svg>
+    <span class="brand-name">Trade<span>IQ</span></span>
+    <span class="tag">Static mockups · not wired to code</span>
+  </div>
 
-    <footer class="text-center pb-10 text-xs text-gray-600">Static HTML mockups · Tailwind + Font Awesome · flows: Landing → Sign Up ⇄ Sign In</footer>
+  <h1>Design</h1>
+  <p class="lede">
+    An instrument panel for retail execution, not a marketing site. The previous mockups leaned on
+    gradients, pill buttons and glow — the visual vocabulary of a landing page — for screens whose
+    real job is to get a manager from “something is wrong” to “someone is fixing it” in one screen.
+    These are rebuilt around density, hairlines and figures.
+  </p>
+
+  <h2>What changed</h2>
+  <div class="shift">
+    <div class="col was">
+      <h3>Removed</h3>
+      <ul>
+        <li><b>Gradient pill buttons</b> and 40px sheet radii — a CTA is not the shape of a control you press forty times a day.</li>
+        <li><b>The blue glow</b> behind every frame, dot and shadow.</li>
+        <li><b>Montserrat extrabold</b> display headings — one sans now, including on the hero figure.</li>
+        <li><b>Tailwind CDN + Font Awesome</b> — the generic-utility look is half of what read as machine-made.</li>
+        <li><b>Fake Google / Apple sign-in</b> — the backend has no OAuth; the buttons were a lie.</li>
+        <li><b>The overlay drawer on desktop</b> — a tap to see where you are.</li>
+      </ul>
+    </div>
+    <div class="col now">
+      <h3>Introduced</h3>
+      <ul>
+        <li><b>A desktop console</b> for the manager — persistent rail, filter row, multi-column grid. Managers are on Flutter web.</li>
+        <li><b>Real charts</b> — axes, hairline grid, target rules, hover crosshairs, and a table view behind every one.</li>
+        <li><b>3px geometry.</b> Nothing is a pill; panels are 4px.</li>
+        <li><b>A validated palette</b> — run through the CVD/contrast checker, not eyeballed.</li>
+        <li><b>State is never color alone</b> — severity is a bar + a dot + a word; deltas carry a sign.</li>
+        <li><b>Copy that matches the backend</b> — rate limits, auto-created tasks, admin provisioning.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Manager console — desktop</h2>
+  <p class="set-lbl">Flutter web. The stats-dense surfaces: where a manager triages a morning.</p>
+  <div class="strip set">
+    <figure>
+      <div class="thumb desk"><iframe src="dashboard.html" title="Dashboard" scrolling="no"></iframe></div>
+      <figcaption><span class="n">01</span> Execution overview <a href="dashboard.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb desk"><iframe src="alerts.html" title="Alerts" scrolling="no"></iframe></div>
+      <figcaption><span class="n">02</span> Alerts worklist <a href="alerts.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb desk"><iframe src="drawer.html" title="Navigation" scrolling="no"></iframe></div>
+      <figcaption><span class="n">03</span> Navigation system <a href="drawer.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+  </div>
+
+  <h2>Auth — mobile</h2>
+  <p class="set-lbl">The bezel stays rounded, because a phone is. Nothing inside it is.</p>
+  <div class="strip set">
+    <figure>
+      <div class="thumb phone"><iframe src="landing.html" title="Landing" scrolling="no"></iframe></div>
+      <figcaption><span class="n">04</span> Landing <span style="color:var(--ink-3);font-size:11px">· unchanged</span> <a href="landing.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb phone"><iframe src="signin.html" title="Sign in" scrolling="no"></iframe></div>
+      <figcaption><span class="n">05</span> Sign in <a href="signin.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb phone"><iframe src="signup.html" title="Set up workspace" scrolling="no"></iframe></div>
+      <figcaption><span class="n">06</span> Workspace setup <a href="signup.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+  </div>
+
+  <p class="note flag">
+    <b>Open question on sign-up.</b> The backend has no public registration — an admin provisions
+    users via <code>POST /users</code>. So screen 06 is reframed as <i>workspace setup</i>: it creates
+    the <code>Client</code> (name + industry, which seed the scorecard weights) and its first admin.
+    If self-serve signup was never intended, this screen should instead become “accept invite &amp; set
+    password”, and the landing CTA should read <i>Request a demo</i>.
+  </p>
+
+  <h2>Palette</h2>
+  <div class="pal">
+    <div class="sw"><div class="chip" style="background:var(--series-1)"></div><div class="sw-n">Series 1</div><div class="sw-h">#3987e5</div></div>
+    <div class="sw"><div class="chip" style="background:var(--series-2)"></div><div class="sw-n">Series 2</div><div class="sw-h">#199e70</div></div>
+    <div class="sw"><div class="chip" style="background:var(--series-3)"></div><div class="sw-n">Series 3</div><div class="sw-h">#c98500</div></div>
+    <div class="sw"><div class="chip" style="background:var(--good)"></div><div class="sw-n">Good</div><div class="sw-h">#0ca30c</div></div>
+    <div class="sw"><div class="chip" style="background:var(--warn)"></div><div class="sw-n">Warning</div><div class="sw-h">#fab219</div></div>
+    <div class="sw"><div class="chip" style="background:var(--crit)"></div><div class="sw-n">Critical</div><div class="sw-h">#d03b3b</div></div>
+    <div class="sw"><div class="chip" style="background:var(--surface-1);border:1px solid var(--line-strong)"></div><div class="sw-n">Surface</div><div class="sw-h">#14161c</div></div>
+    <div class="sw"><div class="chip" style="background:var(--plane);border:1px solid var(--line-strong)"></div><div class="sw-n">Plane</div><div class="sw-h">#0b0c10</div></div>
+  </div>
+  <p class="note">
+    The three series hues were validated against the <code>#14161c</code> surface: they clear the
+    lightness band, the chroma floor, 3:1 contrast, and a worst adjacent CVD ΔE of 41.3 — well above
+    the ≥12 target. Status hues clear 3:1 on the same surface and are always paired with an icon or a
+    word, so a red row still reads as critical in grayscale. Tokens live in <code>tokens.css</code>;
+    they mirror <code>app/lib/core/theme/app_colors.dart</code>.
+  </p>
+
+  <p class="note" style="margin-top:22px;border-top:1px solid var(--line);padding-top:14px">
+    Figures throughout are demo data. Visibility metrics (planogram %, facings, cleanliness) are
+    produced by the Phase-1 CV stub — see <code>docs/architecture/stubs-and-interfaces.md</code>.
+  </p>
+
+</div>
 </body>
 </html>
