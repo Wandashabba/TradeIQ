@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeIQ — Agent · Submit</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="agent.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .band {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: var(--r-control);
+    font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  }
+  .band.amber { background: var(--warn-quiet); color: var(--warn); }
+  .dim { padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .dim:last-child { border-bottom: 0; }
+  .dim-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .dim-name { font-size: 14px; color: var(--ink-1); }
+  .dim-val  { font-size: 14px; font-weight: 650; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .dim-val.na { color: var(--ink-3); font-weight: 500; }
+  .bar { height: 5px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--series-1); border-radius: 3px; }
+  .bar.na  > i { background: repeating-linear-gradient(45deg, var(--line-strong) 0 4px, transparent 4px 8px); }
+  .outcome { padding: 20px 16px 6px; text-align: center; }
+  .task-row { display: flex; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line); align-items: flex-start; }
+  .task-row:last-child { border-bottom: 0; }
+</style>
+</head>
+<body class="agent">
+
+<!-- ══════════ A · The submit gate ══════════ -->
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>08:41</span><span class="sig">
+    <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><rect x="0" y="7" width="2.5" height="4" rx=".5"/><rect x="4" y="5" width="2.5" height="6" rx=".5"/><rect x="8" y="2.5" width="2.5" height="8.5" rx=".5" opacity=".35"/><rect x="12" y="0" width="2.5" height="11" rx=".5" opacity=".35"/></svg>
+  </span></div>
+
+  <header class="appbar">
+    <a class="back" href="agent-visit.html" aria-label="Back">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3 5 8l5 5"/></svg>
+    </a>
+    <div class="appbar-title"><h1>Submit visit</h1><p>Sunrise Spaza · 47 min in store</p></div>
+  </header>
+
+  <div class="body">
+    <p class="hint" style="margin-bottom:14px">
+      Check this over before it goes to your manager. After submitting you can’t
+      change it.
+    </p>
+
+    <div class="card">
+      <div class="section-row" style="cursor:default">
+        <span class="state done">✓</span>
+        <div class="grow"><div class="name">9 sections complete</div>
+        <div class="meta">12 SKUs counted · 2 competitors · 1 photo</div></div>
+      </div>
+    </div>
+
+    <div class="eyebrow-lg">This will raise</div>
+    <div class="card">
+      <div class="task-row">
+        <span class="state blocked" style="width:20px;height:20px;font-size:11px">!</span>
+        <div class="grow">
+          <div class="name" style="font-size:14px">Fanta Orange 2L out of stock</div>
+          <div class="meta">Task for the manager · critical</div>
+        </div>
+      </div>
+      <div class="task-row">
+        <span class="state partial" style="width:20px;height:20px;font-size:11px">◐</span>
+        <div class="grow">
+          <div class="name" style="font-size:14px">Coke Zero priced 12% over RRP</div>
+          <div class="meta">Task for the manager · normal</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint" style="margin-top:12px">
+      You are telling the manager two things are wrong in this store. Both come
+      from what you captured — nothing is added afterwards.
+    </p>
+
+    <div class="sync pending" style="margin-top:14px">
+      <span class="dot"></span>
+      <div class="grow">
+        <div><b>No signal right now</b></div>
+        <div class="sub">Submitting saves it on the phone and sends it the moment you have signal</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <a class="btn-lg" href="agent-submit.html#done">Submit visit</a>
+  </div>
+</div>
+
+<p class="caption">
+  <b>05a · Submit gate</b>
+  Shows what the submission will <i>do</i> — the tasks it raises for the manager —
+  before it happens, and is honest that submitting offline is submitting: it saves
+  and sends itself.
+</p>
+
+<!-- ══════════ B · The outcome ══════════ -->
+<div class="phone" id="done">
+  <div class="notch"></div>
+  <div class="statusbar"><span>08:42</span><span class="sig">
+    <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><rect x="0" y="7" width="2.5" height="4" rx=".5"/><rect x="4" y="5" width="2.5" height="6" rx=".5"/><rect x="8" y="2.5" width="2.5" height="8.5" rx=".5" opacity=".35"/><rect x="12" y="0" width="2.5" height="11" rx=".5" opacity=".35"/></svg>
+  </span></div>
+
+  <header class="appbar">
+    <div class="appbar-title" style="flex:1"><h1>Visit submitted</h1><p>Sunrise Spaza · 08:42</p></div>
+  </header>
+
+  <div class="body">
+
+    <div class="outcome">
+      <div class="big-figure">72<span style="font-size:22px;color:var(--ink-3);font-weight:500">/100</span></div>
+      <div style="margin-top:10px"><span class="band amber">● Amber</span></div>
+      <p class="hint" style="margin-top:10px">
+        Up 6 points from your last visit here (66).
+      </p>
+    </div>
+
+    <div class="eyebrow-lg">How it was scored</div>
+    <div class="card">
+      <div class="dim">
+        <div class="dim-head"><span class="dim-name">Availability</span><span class="dim-val">83</span></div>
+        <div class="bar"><i style="width:83%"></i></div>
+      </div>
+      <div class="dim">
+        <div class="dim-head"><span class="dim-name">Visibility</span><span class="dim-val">80</span></div>
+        <div class="bar"><i style="width:80%"></i></div>
+      </div>
+      <div class="dim">
+        <div class="dim-head"><span class="dim-name">Display</span><span class="dim-val">80</span></div>
+        <div class="bar"><i style="width:80%"></i></div>
+      </div>
+      <div class="dim">
+        <div class="dim-head"><span class="dim-name">Pricing</span><span class="dim-val">61</span></div>
+        <div class="bar"><i style="width:61%"></i></div>
+      </div>
+      <div class="dim">
+        <div class="dim-head"><span class="dim-name">Share of shelf</span><span class="dim-val">29</span></div>
+        <div class="bar"><i style="width:29%"></i></div>
+      </div>
+      <!-- An unmeasurable dimension reads as "—", never as a zero that looks
+           like the agent failed at something. Mirrors the server (#93). -->
+      <div class="dim">
+        <div class="dim-head"><span class="dim-name">Team capability</span><span class="dim-val na">—</span></div>
+        <div class="bar na"><i style="width:100%"></i></div>
+        <p class="help" style="margin-top:6px">No staff on shift to assess — not counted against you.</p>
+      </div>
+    </div>
+
+    <div class="sync pending" style="margin-top:14px">
+      <span class="dot"></span>
+      <div class="grow">
+        <div><b>Held on this phone</b></div>
+        <div class="sub">Will send itself when you have signal · safe to close the app</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <a class="btn-lg" href="agent-today.html">Next store · Mama T’s</a>
+  </div>
+</div>
+
+<p class="caption">
+  <b>05b · Outcome</b>
+  The score is the point of the visit, so it is the outcome screen — not a form
+  section the agent has to go and open. An unmeasurable dimension shows “—”, never
+  a zero that reads as failure. And the next store is one tap away.
+</p>
+
+</body>
+</html>

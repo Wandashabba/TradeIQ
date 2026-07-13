@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeIQ — Agent · Capture</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="agent.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .sku {
+    padding: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sku:last-child { border-bottom: 0; }
+  .sku-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .sku-name { font-size: 15px; font-weight: 600; color: var(--ink-1); flex: 1; }
+  .sku-rrp { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .oos {
+    margin-top: 10px;
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; font-weight: 600; color: var(--crit);
+  }
+  .oos svg { flex: none; }
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .pager .of { font-size: 12.5px; color: var(--ink-3); }
+</style>
+</head>
+<body class="agent">
+
+<!-- ══════════ Stock: counts entered by thumb, not by keyboard ══════════ -->
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>08:12</span><span class="sig">
+    <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><rect x="0" y="7" width="2.5" height="4" rx=".5"/><rect x="4" y="5" width="2.5" height="6" rx=".5"/><rect x="8" y="2.5" width="2.5" height="8.5" rx=".5" opacity=".35"/><rect x="12" y="0" width="2.5" height="11" rx=".5" opacity=".35"/></svg>
+  </span></div>
+
+  <header class="appbar">
+    <a class="back" href="agent-visit.html" aria-label="Back to visit">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3 5 8l5 5"/></svg>
+    </a>
+    <div class="appbar-title">
+      <h1>Stock &amp; availability</h1>
+      <p>Sunrise Spaza · saves as you go</p>
+    </div>
+  </header>
+
+  <div class="body">
+    <div class="pager">
+      <div class="progress" style="flex:1;margin-right:12px"><i style="width:25%"></i></div>
+      <span class="of">3 of 12 SKUs</span>
+    </div>
+
+    <div class="card">
+
+      <div class="sku">
+        <div class="sku-head">
+          <span class="sku-name">Coke Zero 500ml</span>
+          <span class="sku-rrp">RRP R14.99</span>
+        </div>
+        <div class="stepper">
+          <button type="button" aria-label="One fewer">−</button>
+          <span class="val">18</span>
+          <button type="button" aria-label="One more">+</button>
+        </div>
+      </div>
+
+      <!-- Zero is not a typo — it is the finding. Say so loudly, because it is
+           what raises a task and what the manager will act on. -->
+      <div class="sku">
+        <div class="sku-head">
+          <span class="sku-name">Fanta Orange 2L</span>
+          <span class="sku-rrp">RRP R24.99</span>
+        </div>
+        <div class="stepper">
+          <button type="button" aria-label="One fewer">−</button>
+          <span class="val zero">0</span>
+          <button type="button" aria-label="One more">+</button>
+        </div>
+        <div class="oos">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2.2 14.5 13.5h-13L8 2.2Z"/><path d="M8 6.4v3"/><path d="M8 11.3v.2"/></svg>
+          Out of stock — this will raise a task for the manager
+        </div>
+      </div>
+
+      <div class="sku">
+        <div class="sku-head">
+          <span class="sku-name">Simba Chips 120g</span>
+          <span class="sku-rrp">RRP R18.49</span>
+        </div>
+        <div class="stepper">
+          <button type="button" aria-label="One fewer">−</button>
+          <span class="val">6</span>
+          <button type="button" aria-label="One more">+</button>
+        </div>
+      </div>
+
+      <div class="sku" style="opacity:.55">
+        <div class="sku-head">
+          <span class="sku-name">Sprite 330ml</span>
+          <span class="sku-rrp">RRP R11.99</span>
+        </div>
+        <div class="stepper">
+          <button type="button" aria-label="One fewer">−</button>
+          <span class="val" style="color:var(--ink-3)">—</span>
+          <button type="button" aria-label="One more">+</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint" style="margin-top:14px">
+      Counting on shelf is a two-handed job. Tap to count — the keyboard would
+      cover half the screen and take your other hand off the shelf.
+    </p>
+  </div>
+
+  <div class="bottom-bar">
+    <a class="btn-lg" href="agent-visit.html">Done · back to visit</a>
+  </div>
+</div>
+
+<p class="caption">
+  <b>04a · Stock</b>
+  One section, full screen, no nesting. Counts are entered with a ±&nbsp;stepper
+  (54px targets) instead of a text field, and a zero is treated as the finding it
+  is, not as an empty box.
+</p>
+
+<!-- ══════════ Visibility: the photo section ══════════ -->
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>08:19</span><span class="sig">
+    <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><rect x="0" y="7" width="2.5" height="4" rx=".5"/><rect x="4" y="5" width="2.5" height="6" rx=".5"/><rect x="8" y="2.5" width="2.5" height="8.5" rx=".5" opacity=".35"/><rect x="12" y="0" width="2.5" height="11" rx=".5" opacity=".35"/></svg>
+  </span></div>
+
+  <header class="appbar">
+    <a class="back" href="agent-visit.html" aria-label="Back to visit">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3 5 8l5 5"/></svg>
+    </a>
+    <div class="appbar-title">
+      <h1>Visibility &amp; display</h1>
+      <p>Sunrise Spaza · saves as you go</p>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <div class="field">
+      <label>Branding on shelf</label>
+      <div class="chips">
+        <span class="chip" aria-pressed="true">✓ Poster</span>
+        <span class="chip" aria-pressed="true">✓ Shelf strip</span>
+        <span class="chip">Wobbler</span>
+        <span class="chip">Floor stack</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Our facings on shelf</label>
+      <div class="stepper">
+        <button type="button" aria-label="One fewer">−</button>
+        <span class="val">12</span>
+        <button type="button" aria-label="One more">+</button>
+      </div>
+      <p class="help">Counted against the competitors’ facings to give share of shelf.</p>
+    </div>
+
+    <div class="field">
+      <label>Planogram followed?</label>
+      <div class="choice">
+        <button type="button" aria-pressed="true">Mostly</button>
+        <button type="button">Partly</button>
+        <button type="button">No</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Shelf photo</label>
+      <div class="shot">
+        <span class="thumb">
+          <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.6" y="4" width="12.8" height="9.4" rx="1.4"/><circle cx="8" cy="8.7" r="2.4"/><path d="M5.6 4 6.6 2.4h2.8L10.4 4"/></svg>
+        </span>
+        <div style="flex:1">
+          <div style="font-size:13.5px;color:var(--ink-1);font-weight:600">Photo taken</div>
+          <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Held on this phone · 1.2 MB</div>
+        </div>
+        <button class="chip" style="min-height:40px">Retake</button>
+      </div>
+      <p class="help">
+        Evidence for this section. It is stored with the visit — it does not change
+        the numbers you entered above.
+      </p>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <a class="btn-lg" href="agent-visit.html">Done · back to visit</a>
+  </div>
+</div>
+
+<p class="caption">
+  <b>04b · Visibility</b>
+  Chips and three big choices instead of switches and free-text. The photo caption
+  is deliberate: it says the photo is <i>evidence</i> and does <b>not</b> alter the
+  agent's numbers — because on the server a photo used to hand the CV stub
+  permission to overwrite them (#92).
+</p>
+
+</body>
+</html>
