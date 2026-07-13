@@ -113,6 +113,44 @@ describe('stock routes', () => {
     expect(afterResubmit).toHaveLength(1);
   });
 
+  it('respects a client-configured kpiThresholds.stockoutUnits (#47)', async () => {
+    // A fresh SKU so the dedup key (requiredFix) can't collide with the task
+    // created by the previous case.
+    const lowStockSku = await prisma.sku.create({
+      data: { clientId, name: 'Stock Fanta', category: 'Beverages', minFacingsStandard: 4, rrp: 15.99 },
+    });
+    const lowStock = { ...validItem(), skuId: lowStockSku.id, unitsAvailable: 3 };
+    const taskFilter = {
+      visitId,
+      findingType: 'stockout',
+      requiredFix: `Restock SKU ${lowStockSku.id}`,
+    };
+
+    try {
+      // 3 units is not a stockout under the default threshold (0 units).
+      const withDefault = await request(app)
+        .post('/stock')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({ visitId, items: [lowStock] });
+      expect(withDefault.status).toBe(201);
+      expect(await prisma.task.findMany({ where: taskFilter })).toHaveLength(0);
+
+      // With stockoutUnits raised to 5, the same 3-unit row flags a stockout.
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { kpiThresholds: { stockoutUnits: 5 } },
+      });
+      const withOverride = await request(app)
+        .post('/stock')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({ visitId, items: [lowStock] });
+      expect(withOverride.status).toBe(201);
+      expect(await prisma.task.findMany({ where: taskFilter })).toHaveLength(1);
+    } finally {
+      await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: {} } });
+    }
+  });
+
   it('returns 404 for a visit belonging to another client', async () => {
     const otherToken = issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' });
     const res = await request(app)
