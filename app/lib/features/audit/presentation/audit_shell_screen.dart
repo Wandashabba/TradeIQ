@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/agent_scaffold.dart';
 import '../data/visits_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
 import 'sections/s1_outlet_info_screen.dart';
@@ -70,17 +70,8 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   Widget build(BuildContext context) {
     final outletsAsync = ref.watch(outletsListProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Audit Visit'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return AgentScaffold(
+      title: 'Audit Visit',
       body: outletsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Failed to load outlet: $err')),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/orders_repository.dart';
 import 'order_form_screen.dart';
 
@@ -14,17 +15,8 @@ class OrdersScreen extends ConsumerWidget {
     final role = ref.watch(sessionControllerProvider).value?.role;
     // Order capture is a field-agent/manager action (matches POST /orders).
     final canCreate = role == 'field_agent' || role == 'manager';
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Orders'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Orders',
       floatingActionButton: canCreate
           ? FloatingActionButton(
               key: const ValueKey<String>('order-create-fab'),

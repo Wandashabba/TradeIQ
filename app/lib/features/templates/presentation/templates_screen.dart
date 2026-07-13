@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/templates_repository.dart';
 
 class TemplatesScreen extends ConsumerWidget {
@@ -10,17 +10,8 @@ class TemplatesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final templates = ref.watch(templatesListProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Audit Templates'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Audit Templates',
       body: templates.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(

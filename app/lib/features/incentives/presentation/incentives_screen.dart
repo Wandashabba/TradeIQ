@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/incentives_repository.dart';
 
 class IncentivesScreen extends ConsumerWidget {
@@ -10,17 +10,8 @@ class IncentivesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final schemes = ref.watch(incentivesListProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Incentives'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Incentives',
       floatingActionButton: FloatingActionButton(
         tooltip: 'Add scheme',
         onPressed: () => showDialog<void>(

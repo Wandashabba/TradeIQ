@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/beatplans_repository.dart';
 import 'beat_plan_form_screen.dart';
 
@@ -14,17 +15,8 @@ class BeatPlansScreen extends ConsumerWidget {
     final role = ref.watch(sessionControllerProvider).value?.role;
     // Planning is a manager/admin action; a field agent only executes plans.
     final canBuild = role == 'manager' || role == 'admin';
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Beat Plans'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'My Beat Plans',
       floatingActionButton: canBuild
           ? FloatingActionButton(
               key: const ValueKey<String>('beatplan-create-fab'),

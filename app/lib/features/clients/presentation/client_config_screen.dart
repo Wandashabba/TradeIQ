@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/clients_repository.dart';
 
 class ClientConfigScreen extends ConsumerWidget {
@@ -10,17 +10,8 @@ class ClientConfigScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(clientConfigProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scoring Config'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Scoring Config',
       body: config.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../data/campaigns_repository.dart';
 import 'campaign_form_screen.dart';
 
@@ -11,17 +11,8 @@ class CampaignsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final campaigns = ref.watch(campaignsListProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Campaigns'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Campaigns',
       floatingActionButton: FloatingActionButton(
         key: const ValueKey<String>('campaign-create-fab'),
         tooltip: 'New campaign',

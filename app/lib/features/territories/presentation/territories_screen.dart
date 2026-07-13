@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../../users/data/users_repository.dart';
 import '../data/territories_repository.dart';
 import 'territory_form_screen.dart';
@@ -15,17 +16,8 @@ class TerritoriesScreen extends ConsumerWidget {
     final role = ref.watch(sessionControllerProvider).value?.role;
     // Creating territories and assigning agents are manager/admin actions.
     final canManage = role == 'manager' || role == 'admin';
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Territories'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Territories',
       floatingActionButton: canManage
           ? FloatingActionButton(
               key: const ValueKey<String>('territory-create-fab'),

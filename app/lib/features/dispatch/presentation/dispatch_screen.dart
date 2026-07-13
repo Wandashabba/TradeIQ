@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/auth/session_controller.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/dispatch_repository.dart';
 
@@ -18,18 +18,8 @@ class _DispatchScreenState extends ConsumerState<DispatchScreen> {
   @override
   Widget build(BuildContext context) {
     final outlets = ref.watch(outletsListProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dispatch'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () =>
-                ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Dispatch',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
