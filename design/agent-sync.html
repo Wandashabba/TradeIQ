@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeIQ — Agent · Sync &amp; shared screens</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="agent.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .q-row { display: flex; gap: 11px; padding: 12px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+  .q-row:last-child { border-bottom: 0; }
+  .q-icon { width: 20px; flex: none; display: grid; place-items: center; }
+  .q-row .grow { flex: 1; min-width: 0; }
+  .q-name { font-size: 14px; color: var(--ink-1); }
+  .q-meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .q-state { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; flex: none; }
+  .q-state.wait { color: var(--warn); }
+  .q-state.sent { color: var(--good); }
+  .q-state.fail { color: var(--crit); }
+
+  .line { display: flex; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+  .line:last-child { border-bottom: 0; }
+</style>
+</head>
+<body class="agent">
+
+<!-- ══════════ A · Sync — the honest queue ══════════ -->
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>08:44</span><span class="sig">
+    <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><rect x="0" y="7" width="2.5" height="4" rx=".5"/><rect x="4" y="5" width="2.5" height="6" rx=".5" opacity=".35"/><rect x="8" y="2.5" width="2.5" height="8.5" rx=".5" opacity=".35"/><rect x="12" y="0" width="2.5" height="11" rx=".5" opacity=".35"/></svg>
+  </span></div>
+
+  <header class="appbar">
+    <a class="back" href="agent-today.html" aria-label="Back">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3 5 8l5 5"/></svg>
+    </a>
+    <div class="appbar-title"><h1>Your work</h1><p>What’s on the phone, what’s sent</p></div>
+  </header>
+
+  <div class="body">
+
+    <div class="sync pending">
+      <span class="dot"></span>
+      <div class="grow">
+        <div><b>6 items held on this phone</b></div>
+        <div class="sub">Last sent 07:41 · they’ll go automatically</div>
+      </div>
+    </div>
+
+    <div class="eyebrow-lg">Waiting to send</div>
+    <div class="card">
+      <div class="q-row">
+        <span class="q-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="var(--warn)" stroke-width="1.6"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.2 1.6"/></svg></span>
+        <div class="grow"><div class="q-name">Sunrise Spaza — full visit</div><div class="q-meta">9 sections · 1 photo · submitted 08:42</div></div>
+        <span class="q-state wait">Waiting</span>
+      </div>
+      <div class="q-row">
+        <span class="q-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="var(--warn)" stroke-width="1.6"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.2 1.6"/></svg></span>
+        <div class="grow"><div class="q-name">Bela Mini Market — full visit</div><div class="q-meta">9 sections · submitted 07:41</div></div>
+        <span class="q-state wait">Waiting</span>
+      </div>
+
+      <!-- A failure the agent must actually know about, not a silent forever-retry. -->
+      <div class="q-row">
+        <span class="q-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="var(--crit)" stroke-width="1.6"><path d="M8 2.2 14.5 13.5h-13L8 2.2Z"/><path d="M8 6.4v3"/><path d="M8 11.3v.2"/></svg></span>
+        <div class="grow"><div class="q-name">Khumalo — shelf photo</div><div class="q-meta">Too large to send · 11 MB</div></div>
+        <span class="q-state fail">Failed</span>
+      </div>
+    </div>
+
+    <div class="eyebrow-lg">Sent</div>
+    <div class="card">
+      <div class="q-row">
+        <span class="q-icon"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="var(--good)" stroke-width="1.8"><path d="M3.5 8.4 6.6 11.5 12.5 5"/></svg></span>
+        <div class="grow"><div class="q-name">Khumalo Superette — full visit</div><div class="q-meta">Sent 07:41 · scored 78</div></div>
+        <span class="q-state sent">Sent</span>
+      </div>
+    </div>
+
+    <p class="hint" style="margin-top:14px">
+      Nothing here is lost. Items send themselves when you have signal — you never
+      have to remember to do it. The failed photo is the one thing that needs you.
+    </p>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn-lg secondary">Try sending now</button>
+  </div>
+</div>
+
+<p class="caption">
+  <b>06 · Your work</b>
+  The app is offline-first and today shows the agent <b>nothing</b> about sync — no
+  pending count, no last-synced time, no failure. This is the screen behind the
+  status chip: every item, its state, and the one that actually needs a human.
+</p>
+
+<!-- ══════════ B · Orders — a shared screen, in the agent's clothes ══════════ -->
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>08:33</span><span class="sig">
+    <svg width="15" height="11" viewBox="0 0 15 11" fill="currentColor"><rect x="0" y="7" width="2.5" height="4" rx=".5"/><rect x="4" y="5" width="2.5" height="6" rx=".5"/><rect x="8" y="2.5" width="2.5" height="8.5" rx=".5" opacity=".35"/><rect x="12" y="0" width="2.5" height="11" rx=".5" opacity=".35"/></svg>
+  </span></div>
+
+  <header class="appbar">
+    <a class="back" href="agent-visit.html" aria-label="Back">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 3 5 8l5 5"/></svg>
+    </a>
+    <div class="appbar-title"><h1>Take an order</h1><p>Sunrise Spaza</p></div>
+  </header>
+
+  <div class="body">
+
+    <p class="hint" style="margin-bottom:12px">
+      Out-of-stock lines are suggested first — you just counted them.
+    </p>
+
+    <div class="card">
+      <div class="sku" style="padding:14px;border-bottom:1px solid var(--line)">
+        <div class="sku-head" style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
+          <span style="font-size:15px;font-weight:600;color:var(--ink-1);flex:1">Fanta Orange 2L</span>
+          <span style="font-size:11px;font-weight:700;color:var(--crit);text-transform:uppercase;letter-spacing:.05em">Was 0</span>
+        </div>
+        <div class="stepper">
+          <button type="button">−</button>
+          <span class="val">24</span>
+          <button type="button">+</button>
+        </div>
+      </div>
+
+      <div class="sku" style="padding:14px">
+        <div class="sku-head" style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
+          <span style="font-size:15px;font-weight:600;color:var(--ink-1);flex:1">Coke Zero 500ml</span>
+          <span style="font-size:12px;color:var(--ink-3)">18 on shelf</span>
+        </div>
+        <div class="stepper">
+          <button type="button">−</button>
+          <span class="val" style="color:var(--ink-3)">0</span>
+          <button type="button">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="line">
+        <span style="font-size:13.5px;color:var(--ink-2)">24 × Fanta Orange 2L</span>
+        <span style="font-size:13.5px;color:var(--ink-1);font-variant-numeric:tabular-nums">R 599.76</span>
+      </div>
+      <div class="line">
+        <span style="font-size:14px;font-weight:650;color:var(--ink-1)">Order total</span>
+        <span style="font-size:17px;font-weight:700;color:var(--ink-1);font-variant-numeric:tabular-nums">R 599.76</span>
+      </div>
+    </div>
+
+    <p class="hint" style="margin-top:12px">
+      Prices are the current list price. They are not yet checked against the promo
+      calendar — that’s <code>#99</code>.
+    </p>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn-lg">Place order · R 599.76</button>
+  </div>
+</div>
+
+<p class="caption">
+  <b>07 · Orders (shared screen)</b>
+  Agents share Orders, Leaderboard and Messages with managers, but today those wear
+  the manager console's dense desktop styling. Same data, agent ergonomics — and it
+  uses what the agent <i>just captured</i>: the out-of-stock SKU is the first line.
+</p>
+
+</body>
+</html>

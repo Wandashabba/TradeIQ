@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeIQ — Field Agent</title>
+<link rel="stylesheet" href="tokens.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  .page { max-width: 1180px; margin: 0 auto; padding: 34px 20px 56px; }
+  .masthead { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand-name span { color: var(--series-1); }
+  .masthead .tag { margin-left: auto; font-size: 11.5px; }
+
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .lede { font-size: 13.5px; color: var(--ink-2); max-width: 74ch; line-height: 1.6; margin: 0 0 26px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 34px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+
+  /* Manager vs agent, side by side — they are not the same design problem. */
+  .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 800px) { .split { grid-template-columns: minmax(0, 1fr); } }
+  .col { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 14px 16px; }
+  .col h3 { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; margin: 0 0 10px; color: var(--ink-3); }
+  .col ul { margin: 0; padding-left: 16px; }
+  .col li { font-size: 12.5px; color: var(--ink-2); line-height: 1.65; margin-bottom: 5px; }
+  .col li b { color: var(--ink-1); font-weight: 600; }
+
+  .strip { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 10px; }
+  .strip::-webkit-scrollbar { height: 8px; }
+  .strip::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+  figure { margin: 0; flex: none; }
+  .thumb { width: 344px; height: 700px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface-1); overflow: hidden; }
+  .thumb iframe { width: 440px; height: 896px; border: 0; display: block; transform: scale(0.78); transform-origin: top left; }
+  figcaption { margin-top: 9px; font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+  figcaption .n { font-size: 10px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  figcaption a { margin-left: auto; font-size: 11.5px; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 900px) { .grid3 { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 13px 15px; }
+  .card b { display: block; font-size: 12.5px; margin-bottom: 5px; }
+  .card p { margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+
+  .pr { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .pr:last-child { border-bottom: 0; }
+  .pr-n { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--series-1); padding-top: 2px; }
+  .pr-t { font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+  .pr-d { font-size: 12px; color: var(--ink-3); line-height: 1.6; margin: 0; }
+  code { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .flag { border-left: 2px solid var(--warn); background: var(--warn-quiet); padding: 10px 13px; border-radius: 0 var(--r-control) var(--r-control) 0; font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+  .flag b { color: var(--ink-1); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="masthead">
+    <svg viewBox="0 0 100 100" width="22" height="22" aria-hidden="true">
+      <path d="M10 30 C 30 10, 70 10, 90 30 L 80 40 L 60 40 L 60 90 C 60 100, 40 100, 35 90 L 35 40 L 20 40 Z" fill="url(#ag-a)"/>
+      <path d="M65 40 L 85 40 L 85 90 C 85 100, 65 100, 60 90 Z" fill="url(#ag-b)"/>
+      <defs>
+        <linearGradient id="ag-a" x1="10" y1="10" x2="90" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#3987e5"/><stop offset="1" stop-color="#0a3f8f"/></linearGradient>
+        <linearGradient id="ag-b" x1="65" y1="40" x2="85" y2="100" gradientUnits="userSpaceOnUse"><stop stop-color="#2f7bd8"/><stop offset="1" stop-color="#07306e"/></linearGradient>
+      </defs>
+    </svg>
+    <span class="brand-name">Trade<span>IQ</span></span>
+    <a class="tag" href="index.html">← All design</a>
+  </div>
+
+  <h1>Field agent</h1>
+  <p class="lede">
+    The manager and the agent are the same product, the same palette and the same
+    tokens — but they are not the same design problem. A manager sits at a desk
+    triaging many things at once, so density is a feature. An agent is standing in
+    an aisle with one hand on a shelf, in bad light, often with no signal, doing
+    one thing at a time — and asking one question all day: <i>is my work safe?</i>
+  </p>
+
+  <h2>Two different problems</h2>
+  <div class="split">
+    <div class="col">
+      <h3>Manager console</h3>
+      <ul>
+        <li><b>Density is the point.</b> Twelve panels, hairline rules, 12.5px type.</li>
+        <li><b>Actions top-right</b> — the mouse is already there.</li>
+        <li>Reading, comparing, deciding. Rarely typing.</li>
+        <li>Always online, on a big screen.</li>
+        <li>Answers: <i>what is broken, and who is fixing it?</i></li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>Field agent</h3>
+      <ul>
+        <li><b>One thing at a time.</b> Full-screen sections, 15px type, ≥48px targets.</li>
+        <li><b>Actions at the bottom</b> — that is where the thumb is.</li>
+        <li><b>Counting, not typing.</b> A ± stepper beats a keyboard that covers half the screen and needs the other hand.</li>
+        <li><b>Offline is normal</b>, not an error state.</li>
+        <li>Answers: <i>where am I, what’s left, and is my work safe?</i></li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>The visit</h2>
+  <div class="strip">
+    <figure>
+      <div class="thumb"><iframe src="agent-today.html" scrolling="no" title="Today"></iframe></div>
+      <figcaption><span class="n">01</span> Today · route <a href="agent-today.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb"><iframe src="agent-checkin.html" scrolling="no" title="Check-in"></iframe></div>
+      <figcaption><span class="n">02</span> Check-in + geofence <a href="agent-checkin.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb"><iframe src="agent-visit.html" scrolling="no" title="Visit"></iframe></div>
+      <figcaption><span class="n">03</span> The visit <a href="agent-visit.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb"><iframe src="agent-section.html" scrolling="no" title="Capture"></iframe></div>
+      <figcaption><span class="n">04</span> Capture <a href="agent-section.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb"><iframe src="agent-submit.html" scrolling="no" title="Submit"></iframe></div>
+      <figcaption><span class="n">05</span> Submit + score <a href="agent-submit.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+    <figure>
+      <div class="thumb"><iframe src="agent-sync.html" scrolling="no" title="Sync"></iframe></div>
+      <figcaption><span class="n">06</span> Your work · orders <a href="agent-sync.html" target="_blank">Open ↗</a></figcaption>
+    </figure>
+  </div>
+
+  <h2>Design decisions</h2>
+  <div class="grid3">
+    <div class="card">
+      <b>Sync is never hidden</b>
+      <p>The app is offline-first and today tells the agent <i>nothing</i> — no pending count, no last-synced time, no failure. Every agent screen now carries the answer, and one screen lists the whole queue. “Saved on this phone” is a promise, so it has to be visible.</p>
+    </div>
+    <div class="card">
+      <b>The store sets the order, not us</b>
+      <p>A checklist hub, not a wizard. You cannot count stock while the aisle is blocked by a delivery. The agent works in whatever order the store allows; the app tracks what is done and what still blocks submit.</p>
+    </div>
+    <div class="card">
+      <b>The thumb is the cursor</b>
+      <p>Primary actions sit in a bottom bar, never top-right. Counts use a 54px ± stepper instead of a text field: the keyboard covers half the screen and needs the hand that is holding the shelf.</p>
+    </div>
+    <div class="card">
+      <b>A blocked button explains itself</b>
+      <p>Submit is disabled until the required sections are done — and it says <i>which</i>. A disabled control with no reason is a dead end, and a dead end in a store is a phone call to the manager.</p>
+    </div>
+    <div class="card">
+      <b>Zero is a finding, not a blank</b>
+      <p>Zero units on shelf is the most valuable thing an agent can record — it raises the task. It is styled as a finding, and the row says what it will do, rather than looking like an empty field.</p>
+    </div>
+    <div class="card">
+      <b>Unmeasurable ≠ failure</b>
+      <p>A dimension with nothing to measure shows “—”, never 0. No staff on shift is not the agent scoring nothing for capability. This mirrors the server, which now excludes it from the weighted total (#93).</p>
+    </div>
+  </div>
+
+  <h2>What this fixes in the current app</h2>
+  <div class="grid3">
+    <div class="card">
+      <b>A stepper with no titles</b>
+      <p><code>audit_shell_screen.dart</code> renders <code>Step(title: SizedBox.shrink())</code> — nine sections, no names, no progress. The agent cannot see where they are or what is left.</p>
+    </div>
+    <div class="card">
+      <b>No sync feedback at all</b>
+      <p>There is no pending count, no last-sync time and no failure surface anywhere in the app, despite every capture going through an outbox.</p>
+    </div>
+    <div class="card">
+      <b>No route screen</b>
+      <p>Agents get the manager's beat-plan list behind a role gate. There is no “my day” at all (#52), and beat plans have no recurrence (#98).</p>
+    </div>
+  </div>
+
+  <h2>Implementation map</h2>
+  <div style="background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-panel);padding:4px 15px">
+    <div class="pr">
+      <div class="pr-n">PR 1</div>
+      <div>
+        <div class="pr-t">Agent shell + sync truth</div>
+        <p class="pr-d">Extend <code>AgentScaffold</code> with the bottom action bar and the sync chip; add a <code>SyncStatus</code> provider over the existing outbox (pending count, last flush, failures) and the “Your work” screen. Nothing else needs to change for the agent to stop flying blind.</p>
+      </div>
+    </div>
+    <div class="pr">
+      <div class="pr-n">PR 2</div>
+      <div>
+        <div class="pr-t">Visit hub</div>
+        <p class="pr-d">Replace the <code>Stepper</code> in <code>audit_shell_screen.dart</code> with the checklist hub + full-screen sections. Section state comes from the local Drift rows, so it works offline by construction.</p>
+      </div>
+    </div>
+    <div class="pr">
+      <div class="pr-n">PR 3</div>
+      <div>
+        <div class="pr-t">Capture ergonomics</div>
+        <p class="pr-d">Shared <code>CountStepper · ChoiceRow · ChipGroup</code> widgets; roll through S1–S9. Reuses <code>PhotoCaptureField</code> from #41.</p>
+      </div>
+    </div>
+    <div class="pr">
+      <div class="pr-n">PR 4</div>
+      <div>
+        <div class="pr-t">Today + submit outcome</div>
+        <p class="pr-d">The route screen (#52) and the submit gate/score outcome. Needs <code>GET /beatplans?date=</code> for an agent’s own stops — that endpoint does not exist yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="flag" style="margin-top:22px">
+    <b>What the API cannot back yet.</b> The route screen needs today’s stops for the
+    signed-in agent (<code>GET /beatplans?date=&amp;agent=me</code>) — not available today.
+    Distance-to-store is computed on-device from the outlet’s lat/lng, which does
+    exist. The “3 open tasks from last visit” row needs
+    <code>GET /tasks?outletId=</code>, which does exist. The order screen’s promo
+    pricing does <b>not</b> (#99) — the mock says so on the screen rather than
+    implying it works.
+  </p>
+
+</div>
+</body>
+</html>
