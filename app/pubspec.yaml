@@ -45,6 +45,9 @@ dependencies:
   flutter_secure_storage: ^10.3.1
   drift_flutter: ^0.3.0
   video_player: ^2.11.1
+  # Camera + gallery capture for closure and section photos (#41). Works on
+  # mobile and web, which matters because the same codebase serves both.
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:

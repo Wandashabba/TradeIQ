@@ -327,6 +327,34 @@ void main() {
   });
 
   testWidgets(
+    'a field_agent navigating to /alert-rules is bounced to /audit',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/alert-rules');
+      await tester.pumpAndSettle();
+
+      // Only managers/admins may write rules (requireRole on the backend), so
+      // the screen is manager-only — an agent lands back on the outlet picker.
+      expect(find.text('Select an Outlet'), findsOneWidget);
+      expect(find.text('Alert rules'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'a manager navigating to the audit flow is bounced to /dashboard',
     (tester) async {
       await tester.pumpWidget(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/photo_capture_field.dart';
+import '../../data/photos_repository.dart';
 import '../../data/visibility_repository.dart';
 
 /// S3–S4 — Visibility & Display capture: branding elements present, planogram
@@ -24,6 +26,7 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
   final _cleanliness = TextEditingController();
   bool _highTraffic = false;
   bool _saved = false;
+  String? _photoDataUrl;
 
   @override
   void dispose() {
@@ -44,6 +47,27 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
             cleanlinessScore: int.tryParse(_cleanliness.text) ?? 0,
           ),
         );
+
+    // The shelf photo is queued to POST /photos as *evidence*, deliberately
+    // separate from the visibility payload.
+    //
+    // It is NOT passed as `photoUrl` on POST /visibility, and that is not an
+    // oversight: `visibility.service.ts` treats a non-empty photoUrl as the
+    // computer-vision seam and OVERWRITES the agent's measured planogram %,
+    // facings and cleanliness with the output of `vision.stub.ts` — which is
+    // Math.random(). Sending the photo there would silently replace real field
+    // data with noise, and that noise feeds the scorecard and the dashboard.
+    //
+    // So: capture the evidence now (this is the corpus #1/#2 need to train on),
+    // and wire photoUrl through only once the stub is a real model.
+    if (_photoDataUrl != null) {
+      await ref.read(queuedPhotosRepositoryProvider).queuePhoto(
+            visitDraftId: widget.visitDraftId,
+            section: 'visibility',
+            dataUrl: _photoDataUrl!,
+          );
+    }
+
     if (mounted) setState(() => _saved = true);
   }
 
@@ -89,6 +113,13 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
           title: const Text('High-traffic location'),
           value: _highTraffic,
           onChanged: (v) => setState(() => _highTraffic = v),
+        ),
+        const SizedBox(height: 16),
+        PhotoCaptureField(
+          label: 'Shelf photo',
+          helperText: 'Optional. Stored as evidence for this section and as '
+              'training data for automated planogram scoring.',
+          onCaptured: (dataUrl) => setState(() => _photoDataUrl = dataUrl),
         ),
         const SizedBox(height: 12),
         ElevatedButton(onPressed: _save, child: const Text('Save visibility')),

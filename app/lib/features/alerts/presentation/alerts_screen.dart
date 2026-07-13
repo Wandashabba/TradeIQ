@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/console.dart';
@@ -31,9 +32,22 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Rules evaluate on every visit submit.',
-            style: TextStyle(fontSize: 12, color: AppColors.ink3),
+          // What raises these rows is one hop away — a manager reading "a rule
+          // fired" should be able to go and see (or silence) the rule itself.
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Rules evaluate on every visit submit.',
+                  style: TextStyle(fontSize: 12, color: AppColors.ink3),
+                ),
+              ),
+              RowAction(
+                key: const ValueKey<String>('manage-rules'),
+                label: 'Manage rules',
+                onPressed: () => context.go('/alert-rules'),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           AsyncSection<List<AlertItem>>(

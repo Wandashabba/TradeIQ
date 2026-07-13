@@ -24,16 +24,36 @@ The field-agent offline-first audit app + manager dashboard, on lean infra
 | S10 scorecard (local on-device + server-authoritative, per-client weights/thresholds) | ✅ |
 | Manager dashboard — 8 KPIs (`GET /dashboard`, filterable server-side) | ✅ |
 | Photo pipeline (`POST /photos`) + photo-verified task closure | ✅ (base64/Postgres, ADR 0007) |
+| Real camera capture — closure + S3-S4/S5 section photos (#41) | ✅ (offline-first via the sync outbox) |
 | Manager-facing GET listings for every section + `GET /visits` | ✅ |
 | Per-row `createdAt` timestamps + measured check-in distance | ✅ |
 | Seed: client/users/outlets/SKUs/planograms/promos/demo visits+scorecards+tasks | ✅ |
 | Migrations, docker-compose (Postgres), CI (app + backend) | ✅ |
 
-**Phase-1 follow-ups:** ✅ admin clients-config (#46, `modules/clients`),
-✅ admin user provisioning + deactivation (#42, `modules/users`), ✅ auto-tasks
-from stockouts/price-deviations (#47). Still app-side: real in-app camera
-capture (#41), dashboard filter UI (#48), per-route role guards (#43). Closed
+**Phase-1 follow-ups — all closed:** admin clients-config (#46), admin user
+provisioning + deactivation (#42), auto-tasks from stockouts/price-deviations
+(#47), per-route role guards (#43), dashboard filter UI (#48), and **real
+in-app camera capture (#41)** — task closure and the S3–S4 / S5 sections now
+capture genuine photos (offline-first, via the sync outbox). Closed
 audit-section issues: #8-#16; login #5.
+
+Two things that capture unblocks, and one trap it exposed:
+
+- The photos are the **corpus Phase-2 CV/OCR (#1, #2) need**. Before this, the
+  app uploaded a 1×1 transparent PNG, so "photo-verified closure" verified
+  nothing and no training data existed.
+- Section photos are stored via `POST /photos` but are deliberately **not**
+  passed as `photoUrl` on `POST /visibility`. That is not an oversight:
+  `visibility.service.ts` treats a non-empty `photoUrl` as the CV seam and
+  *overwrites* the agent's measured planogram %, facings and cleanliness with
+  `vision.stub.ts` — which is `Math.random()`. Wiring the photo through would
+  silently replace real field data with noise that feeds the scorecard and the
+  dashboard. Connect it only when the stub is a real model.
+- `kpiThresholds` had a **key mismatch**: the seed wrote
+  `excellent`/`good`/`needsImprovement`, but the engine reads
+  `green`/`amber`/`stockoutUnits`/`priceDeviationPct`. The seeded bands were
+  inert and the RAG scores silently fell back to their defaults. Fixed, and the
+  config screen now edits exactly the four keys that are actually read.
 
 ## Phase 2 — Intelligence (months 4-6) — 🟢 in-house parts implemented; CV/OCR vendor-blocked
 
@@ -62,34 +82,65 @@ in a competitive scan (Repsly, GoSpotCheck/FORM, Salesforce Consumer Goods
 Cloud, Wiser, Movista, FieldAssist, Bizom, BeatRoute, StayinFront). Backend
 detail: `docs/architecture/phase3-activation.md`.
 
-**Tier 1 — backend ✅ implemented (app UIs tracked as sub-tickets):**
-1. Trade Promotion & Campaign Management — CRUD + audit-derived compliance (#29) ✅ backend
-2. Journey / Beat planning & visit scheduling (#30) ✅ backend
-3. Rules-based alerting & exception evaluation (#31) ✅ backend
-4. Configurable audit/survey template builder (#32) ✅ backend
-5. Perfect-store / availability / scorecard trend analytics (#33) ✅ backend
-   (Territories (#35) shipped alongside as the Tier-1 enabler.)
+> **Read this before trusting a ✅ below.** An audit of the tickets against the
+> code (2026-07-13) found that "backend ✅" had been claiming more than the code
+> does. Each capability's *CRUD* is real; the *analytics* each ticket is named
+> for is, in three cases, absent from the backend as well as the app. Those are
+> now marked 🔴 rather than ✅, because "no app UI yet" and "the endpoint does
+> not exist" are very different kinds of missing.
 
-App UIs for the Tier-1 features and campaign-ROI dashboards are the next step
-(sub-tickets on #29-#33/#35). Event-driven alerting/streaming is Phase 4.
+**Tier 1:**
+1. Trade Promotion & Campaign Management (#29) — ✅ backend CRUD + audit-derived
+   compliance; app UI ✅. **🔴 ROI is not built** — `Campaign.budget` is stored
+   and read by nothing, and `Order` has no `campaignId`, so spend cannot be
+   attributed to a campaign at all.
+2. Journey / Beat planning & visit scheduling (#30) — ✅ backend, ✅ manager app UI.
+   **🔴 No recurrence**: a `BeatPlan` has a single `scheduledDate`, so these are
+   one-off dated plans, not permanent journey plans. **🔴 No field-agent route
+   screen** — agents see the manager list behind a role gate.
+3. Rules-based alerting & exception evaluation (#31) — ✅ backend (auto-evaluates
+   on visit submit), ✅ alerts inbox, ✅ rules-management UI. Push/email delivery
+   is Phase 4 (#67); in-app + outbound webhook only.
+4. Configurable audit/survey template builder (#32) — ✅ backend store/serve,
+   ✅ schema renderer. **🔴 No builder** (the app can list and preview templates,
+   not author them) and **🔴 the S1–S10 audit flow is still hard-coded** — a
+   selected template drives nothing, and responses are not persisted.
+5. Trend analytics (#33) — ✅ scorecards / availability / perfect-store series,
+   ✅ charts in-app. **🔴 No campaign-ROI, no share-of-shelf trend, no benchmark
+   comparison** — those endpoints do not exist.
 
-**Tier 2 — backend ✅ implemented (app UIs tracked separately):**
-6. Field-agent gamification & leaderboard (#34) ✅ backend (`modules/gamification` + `modules/incentives` reward schemes)
-7. Territory management & coverage (#35) ✅ backend (shipped in Tier-1)
-8. In-store order-taking / sell-in capture (#36) ✅ backend (`modules/orders`)
-9. In-app messaging & announcements (#37) ✅ backend (`modules/collaboration`)
-10. Integrations, webhooks & data export (#38) ✅ backend (`modules/webhooks` + event wiring on visit/order/alert, report CSV export)
-11. Report builder + scheduling (#39) ✅ backend (`modules/reports` + `modules/reportschedules`); recurring delivery infra is Phase 4
-12. Multi-language localization (#40) — 🟣 app-side, planned
-
-Now shipped: retailer/agent **incentive schemes** (`modules/incentives`),
-**event-driven webhooks** (fire on visit.submitted / order.created /
-alert.raised), and **report schedules** (definition + on-demand run). The
-recurring scheduler + email/webhook delivery transport is Phase 4.
+**Tier 2:**
+6. Gamification & incentives (#34) — ✅ leaderboard (computed on the fly) and
+   reward schemes, ✅ app UIs. **🔴 No badges, contests, or persisted points
+   model**, and **🔴 retailer/trade loyalty is absent** — incentives reward
+   *agents* only, not the retailers the pitch names.
+7. Territory management & coverage (#35) — ✅ CRUD, agent assignment, app UI.
+   **🔴 No heatmap and no coverage rate**: `/territories/:id/coverage` returns
+   outlet and agent *lists*, and `Outlet.lat/lng` is not used for any
+   geographic analytics.
+8. In-store order-taking / sell-in capture (#36) — ✅ backend + app UI.
+   **🔴 No campaign attribution** (`Order` has no `campaignId`) and 🔴 no promo
+   pricing (`unitPrice` is hand-entered; `PromoCalendar` is never consulted).
+9. In-app messaging & announcements (#37) — ✅ backend, ✅ messages + announcements
+   UI. 🔴 No attachments.
+10. Integrations & webhooks (#38) — ✅ `modules/webhooks`, firing on
+    visit.submitted / order.created / alert.raised, ✅ **HMAC-SHA256 signed**
+    (`X-TradeIQ-Signature`, timestamp signed with the body to block replay).
+    **🔴 No retry and no queue** — a subscriber that is down misses the event;
+    a durable outbox is Phase 4. **🔴 No ERP/POS/CRM connectors.**
+11. Report builder + scheduling (#39) — ✅ report definitions + on-demand
+    generate/CSV. **🔴 Scheduling does not fire**: there is no cron/scheduler
+    anywhere, so `ReportSchedule.cadence` is stored and ignored, and delivery is
+    a documented no-op (`deliveredTo` merely echoes the recipients). Phase 4 (#66).
+12. Multi-language localization (#40) — 🔴 not started: no `.arb` files, no
+    `intl`/`flutter_localizations` dependency, every string a hard-coded literal.
 
 Sequencing note: #35 (territories) underpins #30 (beat planning); #29→#33
-(campaign → ROI) is the tightest activation feedback loop; #7/#35 also
-unblocks the Phase-2 dispatch data gap (#45).
+(campaign → ROI) is the tightest activation feedback loop — and it is the one
+that is **not built on either side**, so it is the highest-value Phase-3 gap.
+
+**Dead models:** `PlanogramTemplate` and `PromoCalendar` are in the schema and
+seeded, but no module, route or service reads them.
 
 ## Phase 4 — Scale & Optimise (months 10-12) — 🟣 ticketed
 

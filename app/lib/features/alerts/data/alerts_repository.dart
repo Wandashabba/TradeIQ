@@ -64,3 +64,113 @@ final alertsRepositoryProvider =
 final alertsListProvider = FutureProvider<List<AlertItem>>((ref) {
   return ref.read(alertsRepositoryProvider).listAlerts();
 });
+
+/// The metrics an [AlertRule] may target. This mirrors the backend's runtime
+/// allow-list (`ALERT_METRICS` in alerts.service.ts) exactly — POST /alerts/rules
+/// rejects anything else with a 400, so the UI must never offer a fourth.
+const alertRuleMetrics = <String>['out_of_stock', 'price_deviation', 'low_scorecard'];
+
+/// One configured rule returned by GET /alerts/rules.
+///
+/// `threshold` is genuinely optional: the backend falls back to its own default
+/// (10% deviation, score 60) when a rule leaves it unset, so null here means
+/// "the server decides", not zero.
+class AlertRule {
+  const AlertRule({
+    required this.id,
+    required this.name,
+    required this.metric,
+    required this.severity,
+    required this.active,
+    this.threshold,
+  });
+
+  final String id;
+  final String name;
+  final String metric;
+  final String severity;
+  final bool active;
+  final double? threshold;
+
+  factory AlertRule.fromJson(Map<String, dynamic> json) => AlertRule(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        metric: json['metric'] as String,
+        // The column defaults to 'normal' server-side; the guard is for a rule
+        // written before the default existed.
+        severity: json['severity'] as String? ?? 'normal',
+        active: json['active'] as bool? ?? true,
+        threshold: (json['threshold'] as num?)?.toDouble(),
+      );
+}
+
+abstract class AlertRulesRepository {
+  Future<List<AlertRule>> listRules();
+
+  Future<AlertRule> createRule({
+    required String name,
+    required String metric,
+    double? threshold,
+    String? severity,
+  });
+
+  Future<AlertRule> updateRule(
+    String id, {
+    bool? active,
+    double? threshold,
+    String? severity,
+  });
+}
+
+class DioAlertRulesRepository implements AlertRulesRepository {
+  @override
+  Future<List<AlertRule>> listRules() async {
+    final response = await dio.get('/alerts/rules');
+    return (response.data as List)
+        .map((json) => AlertRule.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<AlertRule> createRule({
+    required String name,
+    required String metric,
+    double? threshold,
+    String? severity,
+  }) async {
+    // Omit rather than send null: the route type-checks each field it receives,
+    // so a null threshold would fail validation where an absent one is allowed.
+    final body = <String, dynamic>{'name': name, 'metric': metric};
+    if (threshold != null) body['threshold'] = threshold;
+    if (severity != null) body['severity'] = severity;
+    final response = await dio.post('/alerts/rules', data: body);
+    return AlertRule.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<AlertRule> updateRule(
+    String id, {
+    bool? active,
+    double? threshold,
+    String? severity,
+  }) async {
+    // PATCH is a partial update — an omitted field is left unchanged, and the
+    // route 400s when all three are omitted, so callers must send at least one.
+    final body = <String, dynamic>{};
+    if (active != null) body['active'] = active;
+    if (threshold != null) body['threshold'] = threshold;
+    if (severity != null) body['severity'] = severity;
+    final response = await dio.patch('/alerts/rules/$id', data: body);
+    return AlertRule.fromJson(response.data as Map<String, dynamic>);
+  }
+}
+
+final alertRulesRepositoryProvider =
+    Provider<AlertRulesRepository>((ref) => DioAlertRulesRepository());
+
+/// GET /alerts/rules returns newest-first, and the evaluator lets the newest
+/// active rule per metric win. The screen relies on that order, so nothing here
+/// re-sorts the list.
+final alertRulesListProvider = FutureProvider<List<AlertRule>>((ref) {
+  return ref.read(alertRulesRepositoryProvider).listRules();
+});

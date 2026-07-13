@@ -94,6 +94,15 @@ class HttpQueueFlusher implements QueueFlusher {
         final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
         await _dio.post('/scorecards', data: {'visitId': remoteId});
         return;
+      case 'photo':
+        // A section photo captured mid-audit (#41). Same rule as every other
+        // child: it carries the local visit-draft id and waits for the visit to
+        // sync before it can name a server visit.
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
+        await _dio.post('/photos', data: {'visitId': remoteId, ...fields});
+        return;
       default:
         throw UnimplementedError('HTTP sync for ${item.entityType} not wired yet');
     }

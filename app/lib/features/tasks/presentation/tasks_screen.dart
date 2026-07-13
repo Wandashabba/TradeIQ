@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
+import '../../../core/widgets/photo_capture_field.dart';
 import '../../audit/data/photos_repository.dart';
 import '../data/tasks_admin_repository.dart';
 
@@ -218,11 +219,21 @@ class _TaskRow extends ConsumerWidget {
 
   final TaskItem task;
 
-  Future<void> _close(WidgetRef ref) async {
+  /// Closing a task means producing evidence it was actually fixed. The photo is
+  /// the evidence, so the capture is the gate: no photo, no closure. (Until #41
+  /// this uploaded a 1×1 transparent placeholder, which meant "photo-verified
+  /// closure" verified nothing.)
+  Future<void> _close(BuildContext context, WidgetRef ref) async {
+    final dataUrl = await showDialog<String>(
+      context: context,
+      builder: (_) => _ClosurePhotoDialog(task: task),
+    );
+    if (dataUrl == null) return;
+
     final result = await ref.read(photosRepositoryProvider).uploadPhoto(
           visitId: task.visitId!,
           section: 'task_closure',
-          dataUrl: kPlaceholderPhotoDataUrl,
+          dataUrl: dataUrl,
           gpsTag: const <String, double>{},
           timestamp: DateTime.now().toIso8601String(),
         );
@@ -276,7 +287,7 @@ class _TaskRow extends ConsumerWidget {
           RowAction(
             key: ValueKey('close-${task.id}'),
             label: 'Close with photo',
-            onPressed: () => _close(ref),
+            onPressed: () => _close(context, ref),
           ),
         if (isClosed && !task.closureVerified)
           RowAction(
@@ -284,6 +295,65 @@ class _TaskRow extends ConsumerWidget {
             label: 'Verify',
             onPressed: () => _verify(ref),
           ),
+      ],
+    );
+  }
+}
+
+/// The closure gate. Returns the captured data URL, or null if the manager backs
+/// out — in which case the task stays open, which is the correct outcome.
+class _ClosurePhotoDialog extends StatefulWidget {
+  const _ClosurePhotoDialog({required this.task});
+
+  final TaskItem task;
+
+  @override
+  State<_ClosurePhotoDialog> createState() => _ClosurePhotoDialogState();
+}
+
+class _ClosurePhotoDialogState extends State<_ClosurePhotoDialog> {
+  String? _dataUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface1,
+      title: const Text('Close with photo', style: TextStyle(fontSize: 15)),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.task.requiredFix,
+              style: const TextStyle(fontSize: 12.5, color: AppColors.ink2),
+            ),
+            const SizedBox(height: 14),
+            PhotoCaptureField(
+              label: 'Closure evidence',
+              helperText:
+                  'The photo is what makes the closure verifiable — a manager '
+                  'has to be able to see the fix, not take your word for it.',
+              onCaptured: (dataUrl) => setState(() => _dataUrl = dataUrl),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          key: const ValueKey('confirm-closure'),
+          // No photo, no closure. Disabled rather than hidden, so the reason the
+          // button will not fire is visible.
+          onPressed: _dataUrl == null
+              ? null
+              : () => Navigator.of(context).pop(_dataUrl),
+          child: const Text('Close task'),
+        ),
       ],
     );
   }
