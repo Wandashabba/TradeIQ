@@ -129,6 +129,11 @@ describe('fraud routes', () => {
         geofencePass: true,
         checkinDistanceM: 45,
         status: 'submitted',
+        // The DEVICE says the visit finished at the same instant it began — a
+        // genuine 0s dwell, measured on one clock. Dwell used to be inferred
+        // from the server's insert time, which measured the network, not the
+        // agent (#101).
+        submittedAtClient: SUS_CHECKIN,
       },
     });
     suspiciousVisitId = suspiciousVisit.id;
