@@ -6,6 +6,7 @@ import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
+import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -144,7 +145,7 @@ void main() {
   });
 
   testWidgets(
-    'authenticated field_agent starting at /login lands on the outlet picker',
+    'authenticated field_agent starting at /login lands on their route for the day',
     (tester) async {
       await tester.pumpWidget(
         _appWithOverrides([
@@ -154,11 +155,16 @@ void main() {
             ),
           ),
           outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          // The route screen reads the agent's beat plan over the network; the
+          // routing question here is only *where they land*.
+          todayRouteProvider.overrideWith((ref) async => null),
         ]),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Select an Outlet'), findsOneWidget);
+      // The first question of an agent's day is "where am I going", not "which
+      // of these 400 outlets would you like to audit".
+      expect(find.text('Today'), findsOneWidget);
     },
   );
 
@@ -235,7 +241,7 @@ void main() {
   });
 
   testWidgets(
-    'a field_agent navigating to a manager route is bounced to /audit',
+    'a field_agent navigating to a manager route is bounced to their route',
     (tester) async {
       await tester.pumpWidget(
         _appWithOverrides([
@@ -245,6 +251,7 @@ void main() {
             ),
           ),
           outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
         ]),
       );
       await tester.pumpAndSettle();
@@ -256,7 +263,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Guarded away from the manager dashboard, back to the audit outlet picker.
-      expect(find.text('Select an Outlet'), findsOneWidget);
+      expect(find.text('Today'), findsOneWidget);
       expect(find.text('Execution overview'), findsNothing);
     },
   );
@@ -288,7 +295,7 @@ void main() {
   });
 
   testWidgets(
-    'a field_agent navigating to a template preview is bounced to /audit',
+    'a field_agent navigating to a template preview is bounced to their route',
     (tester) async {
       await tester.pumpWidget(
         _appWithOverrides([
@@ -298,6 +305,7 @@ void main() {
             ),
           ),
           outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
           templatesRepositoryProvider.overrideWithValue(
             _FakeTemplatesRepository(),
           ),
@@ -312,7 +320,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The preview subroute is manager territory, like /audit-templates.
-      expect(find.text('Select an Outlet'), findsOneWidget);
+      expect(find.text('Today'), findsOneWidget);
       expect(find.text('Grocery Audit'), findsNothing);
     },
   );
@@ -343,7 +351,7 @@ void main() {
   });
 
   testWidgets(
-    'a field_agent navigating to /alert-rules is bounced to /audit',
+    'a field_agent navigating to /alert-rules is bounced to their route',
     (tester) async {
       await tester.pumpWidget(
         _appWithOverrides([
@@ -353,6 +361,7 @@ void main() {
             ),
           ),
           outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
         ]),
       );
       await tester.pumpAndSettle();
@@ -365,7 +374,7 @@ void main() {
 
       // Only managers/admins may write rules (requireRole on the backend), so
       // the screen is manager-only — an agent lands back on the outlet picker.
-      expect(find.text('Select an Outlet'), findsOneWidget);
+      expect(find.text('Today'), findsOneWidget);
       expect(find.text('Alert rules'), findsNothing);
     },
   );

@@ -9,6 +9,7 @@ import '../../../core/widgets/agent_scaffold.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/visit_progress.dart';
 import '../data/visits_repository.dart';
+import 'submit_gate_screen.dart';
 import 'sections/s1_outlet_info_screen.dart';
 import 'sections/s2_stock_screen.dart';
 import 'sections/s3_4_visibility_display_screen.dart';
@@ -100,18 +101,34 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     );
   }
 
-  Future<void> _submitVisit() async {
+  /// Submitting is irreversible and it raises tasks against a real shop. It does
+  /// not happen on one tap of a hub button — the agent gets to see what they are
+  /// about to say about this store, and confirm it.
+  Future<void> _openSubmitGate(Outlet outlet) async {
     final id = _visitDraftId;
     if (id == null) return;
+
+    final confirmed = await Navigator.of(context).push<bool>(
+      agentSectionRoute<bool>(
+        SubmitGateScreen(
+          visitDraftId: id,
+          outletName: outlet.name,
+          checkinTs: _checkinTs,
+          onConfirm: () => Navigator.of(context).pop(true),
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     await ref.read(visitsRepositoryProvider).submitVisit(id);
     if (!mounted) return;
+
     // The visit is done. Let them feel it — they are about to walk out of the
     // shop and will not be looking at the screen.
     Buzz.done();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Visit submitted — it will send itself')),
-    );
-    context.go('/audit');
+    // The score is the outcome of the visit, so it is where the visit ends.
+    // `go` rather than `push`: there is no way back into a submitted visit.
+    context.go('/audit/${outlet.id}/done?draft=$id&name=${Uri.encodeComponent(outlet.name)}');
   }
 
   @override
@@ -203,7 +220,8 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
               AgentButton(
                 key: const ValueKey('submit-visit'),
                 label: 'Submit visit',
-                onPressed: progress.canSubmit ? _submitVisit : null,
+                onPressed:
+                    progress.canSubmit ? () => _openSubmitGate(outlet) : null,
               ),
             ],
           ),

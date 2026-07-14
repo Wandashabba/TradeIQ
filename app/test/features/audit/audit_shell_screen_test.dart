@@ -8,6 +8,7 @@ import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
+import 'package:tradeiq_app/features/audit/data/visit_review.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
@@ -112,6 +113,19 @@ List<Override> _overrides(
       // real queries against a real database.
       syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
       visitProgressProvider.overrideWith((ref, arg) => Stream.value(progress)),
+      // The submit gate reads the outbox too — same rule, same reason.
+      visitReviewProvider.overrideWith(
+        (ref, arg) => Stream.value(
+          const VisitReview(
+            skusCounted: 12,
+            outOfStock: 0,
+            skusPriced: 12,
+            competitors: 0,
+            photos: 0,
+            willRaise: [],
+          ),
+        ),
+      ),
     ];
 
 Widget _appWith(VisitsRepository visitsRepository, LocalDb db) {
@@ -126,6 +140,26 @@ LocalDb _testDb() {
   addTearDown(db.close);
   return db;
 }
+
+/// The hub plus the two places a submit can land: the outcome (on confirm) and
+/// the picker (on back out).
+GoRouter _submitRouter() => GoRouter(
+      initialLocation: '/audit/o1',
+      routes: [
+        GoRoute(
+          path: '/audit',
+          builder: (context, state) => const Text('Outlet Picker'),
+        ),
+        GoRoute(
+          path: '/audit/:outletId',
+          builder: (context, state) => const AuditShellScreen(outletId: 'o1'),
+        ),
+        GoRoute(
+          path: '/audit/:outletId/done',
+          builder: (context, state) => const Text('Outcome'),
+        ),
+      ],
+    );
 
 void main() {
   testWidgets('shows the audit as a named checklist after a successful check-in', (tester) async {
@@ -183,32 +217,44 @@ void main() {
     expect(container.read(sessionControllerProvider).value?.role, isNull);
   });
 
-  testWidgets('submitting the visit records the submit and returns to the picker', (tester) async {
+  testWidgets('submit opens the gate first — it does not submit on one tap', (tester) async {
     final repo = _SucceedingVisitsRepository();
-    final router = GoRouter(
-      initialLocation: '/audit/o1',
-      routes: [
-        GoRoute(path: '/audit', builder: (context, state) => const Text('Outlet Picker')),
-        GoRoute(
-          path: '/audit/:outletId',
-          builder: (context, state) => const AuditShellScreen(outletId: 'o1'),
-        ),
-      ],
-    );
 
-    // A visit is only submittable once the four scored sections are captured.
     await tester.pumpWidget(ProviderScope(
       overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
-      child: MaterialApp.router(routerConfig: router),
+      child: MaterialApp.router(routerConfig: _submitRouter()),
     ));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Submit visit'));
-    await tester.tap(find.text('Submit visit'));
+    await tester.tap(find.byKey(const ValueKey('submit-visit')));
+    await tester.pumpAndSettle();
+
+    // Submitting is irreversible and it raises tasks against a real shop. The
+    // hub button opens the review; it does not fire the submission.
+    expect(repo.submittedId, isNull);
+    expect(find.textContaining('cannot change it'), findsOneWidget);
+  });
+
+  testWidgets('confirming at the gate submits and ends on the outcome', (tester) async {
+    final repo = _SucceedingVisitsRepository();
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
+      child: MaterialApp.router(routerConfig: _submitRouter()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Submit visit'));
+    await tester.tap(find.byKey(const ValueKey('submit-visit')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('confirm-submit')));
     await tester.pumpAndSettle();
 
     expect(repo.submittedId, 'visit-1');
-    expect(find.text('Outlet Picker'), findsOneWidget);
+    // The visit ends on its score, not back at a list of outlets.
+    expect(find.text('Outcome'), findsOneWidget);
   });
 
   testWidgets('the check-in timestamp does not drift when you leave a section and come back', (tester) async {

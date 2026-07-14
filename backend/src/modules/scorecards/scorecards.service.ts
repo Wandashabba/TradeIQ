@@ -185,6 +185,30 @@ export async function listScorecardsForClient(clientId: string) {
   });
 }
 
+/// The scores this outlet has been given, most recent first.
+///
+/// A field agent may only see the ones from *their own* visits: "up 6 points
+/// from your last visit here" is feedback on their own work, not a window onto
+/// a colleague's. Managers see the outlet's whole history.
+export async function listScorecardHistory(input: {
+  clientId: string;
+  outletId: string;
+  agentId?: string;
+  take?: number;
+}) {
+  return prisma.scorecard.findMany({
+    where: {
+      visit: {
+        clientId: input.clientId,
+        outletId: input.outletId,
+        ...(input.agentId ? { agentId: input.agentId } : {}),
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: input.take ?? 5,
+  });
+}
+
 export async function getScorecardByVisit(visitId: string, clientId: string) {
   const visit = await prisma.visit.findFirst({ where: { id: visitId, clientId } });
   if (!visit) {

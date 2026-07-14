@@ -128,6 +128,19 @@ class DriftVisitsRepository implements VisitsRepository {
               'submittedAtClient': DateTime.now().toUtc().toIso8601String(),
             }),
           ));
+
+      // Ask the server to score it. This used to happen only if the agent went
+      // into the Score section and tapped "Finalize" — so a visit submitted
+      // without opening that screen was never scored at all, and the outcome
+      // screen would wait forever for a scorecard nobody had asked for.
+      //
+      // Queued after the submit (the outbox flushes in id order) so the visit
+      // is already `submitted` when the server scores it.
+      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
+            entityType: 'scorecard',
+            entityId: _uuid.v4(),
+            payloadJson: jsonEncode({'visitDraftId': visitDraftId}),
+          ));
     });
 
     try {
