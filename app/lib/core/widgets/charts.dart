@@ -104,37 +104,65 @@ class _LineChartState extends State<LineChart> {
       height: widget.height,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final painter = _LinePainter(
-            points: widget.points,
-            scale: scale,
-            target: widget.target,
-            hover: _hover,
-            valueSuffix: widget.valueSuffix,
-          );
+          // The series DRAWS ITSELF left to right on load and whenever the range
+          // changes. It is not decoration: it makes the direction of the data the
+          // first thing you perceive, before you have read a single axis label.
+          // Keyed on the data, so switching 30d -> 90d re-draws rather than
+          // silently swapping one line for another.
+          return TweenAnimationBuilder<double>(
+            key: ValueKey(widget.points.length),
+            tween: Tween(begin: 0, end: 1),
+            duration: _reduceMotion(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 620),
+            curve: Curves.easeOutCubic,
+            builder: (context, t, _) {
+              final painter = _LinePainter(
+                points: widget.points,
+                scale: scale,
+                target: widget.target,
+                hover: _hover,
+                valueSuffix: widget.valueSuffix,
+                progress: t,
+              );
 
-          return MouseRegion(
-            onHover: (e) => _updateHover(e.localPosition, constraints.maxWidth, painter),
-            onExit: (_) => setState(() => _hover = null),
-            child: GestureDetector(
-              // Touch gets the same affordance as hover — keyboard/pointer
-              // parity, and a tooltip that never gates a value.
-              onTapDown: (e) =>
-                  _updateHover(e.localPosition, constraints.maxWidth, painter),
-              onTapUp: (_) => setState(() => _hover = null),
-              child: CustomPaint(
-                size: Size(constraints.maxWidth, widget.height),
-                painter: painter,
-                child: _hover == null
-                    ? null
-                    : _Tooltip(
-                        point: widget.points[_hover!],
-                        suffix: widget.valueSuffix,
-                        seriesName: widget.seriesName,
-                        x: painter.xFor(_hover!, constraints.maxWidth),
-                        plotWidth: constraints.maxWidth,
-                      ),
-              ),
-            ),
+              return MouseRegion(
+                onHover: (e) =>
+                    _updateHover(e.localPosition, constraints.maxWidth, painter),
+                onExit: (_) => setState(() => _hover = null),
+                child: GestureDetector(
+                  // Scrub: press and drag along the series to read every point.
+                  // Touch gets exactly what the mouse gets.
+                  onTapDown: (e) =>
+                      _updateHover(e.localPosition, constraints.maxWidth, painter),
+                  onHorizontalDragStart: (e) =>
+                      _updateHover(e.localPosition, constraints.maxWidth, painter),
+                  onHorizontalDragUpdate: (e) =>
+                      _updateHover(e.localPosition, constraints.maxWidth, painter),
+                  onHorizontalDragEnd: (_) => setState(() => _hover = null),
+                  onTapUp: (_) => setState(() => _hover = null),
+                  child: CustomPaint(
+                    size: Size(constraints.maxWidth, widget.height),
+                    painter: painter,
+                    child: _hover == null
+                        ? null
+                        : _ScrubReadout(
+                            point: widget.points[_hover!],
+                            // The change from the previous point, coloured. A
+                            // value alone says where you are; a delta says which
+                            // way you are going.
+                            previous: _hover! > 0
+                                ? widget.points[_hover! - 1].value
+                                : null,
+                            suffix: widget.valueSuffix,
+                            seriesName: widget.seriesName,
+                            x: painter.xFor(_hover!, constraints.maxWidth),
+                            plotWidth: constraints.maxWidth,
+                          ),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -147,6 +175,9 @@ class _LineChartState extends State<LineChart> {
   }
 }
 
+bool _reduceMotion(BuildContext context) =>
+    MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
 class _LinePainter extends CustomPainter {
   _LinePainter({
     required this.points,
@@ -154,6 +185,7 @@ class _LinePainter extends CustomPainter {
     required this.target,
     required this.hover,
     required this.valueSuffix,
+    this.progress = 1,
   });
 
   final List<ChartPoint> points;
@@ -161,6 +193,11 @@ class _LinePainter extends CustomPainter {
   final double? target;
   final int? hover;
   final String valueSuffix;
+
+  /// 0 → 1 as the series draws itself in. The chrome (grid, axes, target rule)
+  /// is painted immediately: the frame of reference should never be the thing
+  /// that is animating.
+  final double progress;
 
   static const _pad = EdgeInsets.fromLTRB(38, 12, 46, 24);
 
@@ -212,7 +249,7 @@ class _LinePainter extends CustomPainter {
       tp.paint(canvas, Offset(_pad.left + innerW + 5, y - tp.height / 2));
     }
 
-    // Area + line
+    // Area + line, revealed left-to-right by `progress`.
     final path = Path();
     for (var i = 0; i < points.length; i++) {
       final o = Offset(xFor(i, size.width), _yFor(points[i].value, size.height));
@@ -222,6 +259,11 @@ class _LinePainter extends CustomPainter {
       ..lineTo(xFor(points.length - 1, size.width), baseY)
       ..lineTo(_pad.left, baseY)
       ..close();
+
+    canvas.save();
+    canvas.clipRect(
+      Rect.fromLTWH(_pad.left, 0, innerW * progress.clamp(0, 1), size.height),
+    );
     canvas.drawPath(area, Paint()..color = AppColors.series1.withValues(alpha: 0.14));
     canvas.drawPath(
       path,
@@ -232,6 +274,7 @@ class _LinePainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..strokeCap = StrokeCap.round,
     );
+    canvas.restore();
 
     // Baseline + x ticks: first, middle, last only.
     canvas.drawLine(
@@ -252,7 +295,9 @@ class _LinePainter extends CustomPainter {
       tp.paint(canvas, Offset(dx, size.height - _pad.bottom + 7));
     }
 
-    // Endpoint marker + the one direct label.
+    // Endpoint marker + the one direct label — only once the line has arrived
+    // there, so the label never floats ahead of its own data.
+    if (progress < 0.995) return;
     final last = points.length - 1;
     final lastO = Offset(xFor(last, size.width), _yFor(points[last].value, size.height));
     canvas.drawCircle(lastO, 4, Paint()..color = AppColors.series1);
@@ -299,7 +344,10 @@ class _LinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LinePainter old) =>
-      old.points != points || old.hover != hover || old.target != target;
+      old.points != points ||
+      old.hover != hover ||
+      old.target != target ||
+      old.progress != progress;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -324,8 +372,46 @@ class ColumnChart extends StatefulWidget {
   State<ColumnChart> createState() => _ColumnChartState();
 }
 
-class _ColumnChartState extends State<ColumnChart> {
+class _ColumnChartState extends State<ColumnChart>
+    with SingleTickerProviderStateMixin {
   int? _hover;
+  late AnimationController _c;
+  double _progress = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    // Columns rise from the baseline. Growth is the one motion a bar chart can
+    // carry without lying: it starts at zero, which is where the axis is.
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 560),
+    )..addListener(() => setState(() => _progress = _c.value));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      _progress = 1;
+    } else if (!_c.isAnimating && _c.value == 0) {
+      _c.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(ColumnChart old) {
+    super.didUpdateWidget(old);
+    // New data — a new range — re-draws rather than morphing one series into
+    // another, which would imply a continuity that is not there.
+    if (old.points != widget.points) _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -342,6 +428,7 @@ class _ColumnChartState extends State<ColumnChart> {
             points: widget.points,
             scale: scale,
             hover: _hover,
+            progress: _progress,
           );
           return MouseRegion(
             onHover: (e) {
@@ -370,11 +457,17 @@ class _ColumnChartState extends State<ColumnChart> {
 }
 
 class _ColumnPainter extends CustomPainter {
-  _ColumnPainter({required this.points, required this.scale, required this.hover});
+  _ColumnPainter({
+    required this.points,
+    required this.scale,
+    required this.hover,
+    this.progress = 1,
+  });
 
   final List<ChartPoint> points;
   final ({double min, double max, double step}) scale;
   final int? hover;
+  final double progress;
 
   static const _pad = EdgeInsets.fromLTRB(38, 12, 10, 24);
 
@@ -411,13 +504,14 @@ class _ColumnPainter extends CustomPainter {
 
     for (var i = 0; i < points.length; i++) {
       final t = (points[i].value - scale.min) / (scale.max - scale.min);
-      final h = t * (baseY - _pad.top);
+      final h = t * (baseY - _pad.top) * progress.clamp(0, 1);
       final x = centerOf(i, size.width) - barW / 2;
       final rect = RRect.fromRectAndCorners(
         Rect.fromLTWH(x, baseY - h, barW, h),
         // 4px rounded data-end, anchored square to the baseline.
-        topLeft: const Radius.circular(4),
-        topRight: const Radius.circular(4),
+        // 2px, not 4. A column is a measurement, not a lozenge.
+        topLeft: const Radius.circular(2),
+        topRight: const Radius.circular(2),
       );
       canvas.drawRRect(
         rect,
@@ -445,7 +539,7 @@ class _ColumnPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ColumnPainter old) =>
-      old.points != points || old.hover != hover;
+      old.points != points || old.hover != hover || old.progress != progress;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -480,22 +574,44 @@ class BarChart extends StatelessWidget {
     if (points.isEmpty) {
       return const _EmptyPlot(height: 120, message: 'No territories in range');
     }
+
+    // Bars fill from the axis. Same rule as the columns: the animation starts at
+    // zero, which is where the measurement starts.
     return SizedBox(
       height: points.length * 30 + 28,
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _BarPainter(points: points, target: target, max: max),
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey(points.length),
+        tween: Tween(begin: 0, end: 1),
+        duration: _reduceMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 560),
+        curve: Curves.easeOutCubic,
+        builder: (context, t, _) => CustomPaint(
+          size: Size.infinite,
+          painter: _BarPainter(
+            points: points,
+            target: target,
+            max: max,
+            progress: t,
+          ),
+        ),
       ),
     );
   }
 }
 
 class _BarPainter extends CustomPainter {
-  _BarPainter({required this.points, required this.target, required this.max});
+  _BarPainter({
+    required this.points,
+    required this.target,
+    required this.max,
+    this.progress = 1,
+  });
 
   final List<ChartPoint> points;
   final double target;
   final double max;
+  final double progress;
 
   static const _pad = EdgeInsets.fromLTRB(92, 6, 46, 22);
   static const _rowH = 30.0;
@@ -548,13 +664,17 @@ class _BarPainter extends CustomPainter {
         ),
         Paint()..color = AppColors.grid,
       );
+      final grown = (x(p.value) - _pad.left) * progress.clamp(0, 1);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(_pad.left, y, math.max(2, x(p.value) - _pad.left), barH),
-          const Radius.circular(2),
+          Rect.fromLTWH(_pad.left, y, math.max(2, grown), barH),
+          const Radius.circular(1),
         ),
         Paint()..color = p.value < target ? AppColors.crit : AppColors.series1,
       );
+
+      // The figure only appears once its bar has arrived under it.
+      if (progress < 0.9) continue;
 
       final val = _text(
         p.value.toStringAsFixed(1),
@@ -570,7 +690,9 @@ class _BarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BarPainter old) =>
-      old.points != points || old.target != target;
+      old.points != points ||
+      old.target != target ||
+      old.progress != progress;
 }
 
 class _LegendItem extends StatelessWidget {
@@ -748,4 +870,145 @@ class _EmptyPlot extends StatelessWidget {
 String _trim(double v) {
   final s = v.toStringAsFixed(1);
   return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
+}
+
+/// The readout that follows the scrub.
+///
+/// A value tells you where you are. A DELTA tells you which way you are going —
+/// and that is the thing a manager is actually looking for, so it is coloured:
+/// green for up, red for down. (These KPIs are all "higher is better". A metric
+/// where down is good must not reuse this without inverting it.)
+class _ScrubReadout extends StatelessWidget {
+  const _ScrubReadout({
+    required this.point,
+    required this.previous,
+    required this.suffix,
+    required this.seriesName,
+    required this.x,
+    required this.plotWidth,
+  });
+
+  final ChartPoint point;
+  final double? previous;
+  final String suffix;
+  final String seriesName;
+  final double x;
+  final double plotWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    const w = 150.0;
+    final left = (x + 12).clamp(0.0, math.max(0.0, plotWidth - w)).toDouble();
+    final delta = previous == null ? null : point.value - previous!;
+
+    return Stack(
+      children: [
+        Positioned(
+          left: left,
+          top: 6,
+          child: Container(
+            width: w,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF05060A),
+              border: Border.all(color: AppColors.lineStrong),
+              borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  point.label.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    color: AppColors.ink3,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '${_trim(point.value)}$suffix',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink1,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    if (delta != null && delta.abs() >= 0.05) ...[
+                      const SizedBox(width: 7),
+                      DeltaBadge(value: delta, suffix: suffix),
+                    ],
+                  ],
+                ),
+                if (seriesName.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      seriesName,
+                      style: const TextStyle(fontSize: 11, color: AppColors.ink3),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Up is green, down is red — and the sign is spelled out, so the direction
+/// survives greyscale, print, and colour-vision deficiency. Colour reinforces
+/// the sign; it never replaces it.
+class DeltaBadge extends StatelessWidget {
+  const DeltaBadge({
+    super.key,
+    required this.value,
+    this.suffix = '',
+    this.fontSize = 11.5,
+  });
+
+  final double value;
+  final String suffix;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final up = value >= 0;
+    final color = up ? AppColors.good : AppColors.crit;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            up ? Icons.arrow_upward : Icons.arrow_downward,
+            size: fontSize,
+            color: color,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            '${value.abs().toStringAsFixed(1)}$suffix',
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w600,
+              color: color,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

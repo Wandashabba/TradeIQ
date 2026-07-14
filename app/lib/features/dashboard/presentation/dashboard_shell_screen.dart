@@ -26,7 +26,7 @@ class DashboardShellScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kpis = ref.watch(dashboardKpisProvider);
+    final snapshot = ref.watch(dashboardSnapshotProvider);
 
     return ManagerScaffold(
       title: 'Execution overview',
@@ -42,11 +42,11 @@ class DashboardShellScreen extends ConsumerWidget {
                 wide: wide,
                 leftFlex: 19,
                 rightFlex: 10,
-                left: _ExecutionScorePanel(kpis: kpis),
+                left: _ExecutionScorePanel(snapshot: snapshot),
                 right: const _NeedsAttentionPanel(),
               ),
               const SizedBox(height: 12),
-              _KpiStrip(kpis: kpis),
+              _KpiStrip(snapshot: snapshot),
               const SizedBox(height: 12),
               const _TwoColumn(
                 wide: true,
@@ -107,9 +107,9 @@ class _TwoColumn extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════
 
 class _ExecutionScorePanel extends ConsumerWidget {
-  const _ExecutionScorePanel({required this.kpis});
+  const _ExecutionScorePanel({required this.snapshot});
 
-  final AsyncValue<DashboardKpis> kpis;
+  final AsyncValue<DashboardSnapshot> snapshot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -125,34 +125,42 @@ class _ExecutionScorePanel extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            kpis.when(
+            snapshot.when(
               loading: () => const _InlineLoader(height: 44),
               error: (err, _) => _InlineError(
                 message: 'Could not load KPIs',
-                onRetry: () => ref.invalidate(dashboardKpisProvider),
+                onRetry: () => ref.invalidate(dashboardSnapshotProvider),
               ),
-              data: (data) => Row(
+              data: (snap) => Row(
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    data.executionScore.toStringAsFixed(1),
+                  // The headline figure counts up to its value. Not a flourish:
+                  // it makes the number the thing the eye lands on first, which
+                  // is the whole point of a hero figure.
+                  TweenAnimationBuilder<double>(
                     key: const ValueKey('kpi-execution-score'),
-                    style: Theme.of(context).textTheme.displaySmall,
+                    tween: Tween(begin: 0, end: snap.current.executionScore),
+                    duration: (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 700),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, v, _) => Text(
+                      v.toStringAsFixed(1),
+                      style: Theme.of(context).textTheme.displaySmall,
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  // The delta needs a previous period the API doesn't return
-                  // yet, so we derive it from the trend series rather than
-                  // inventing a number.
-                  trend.maybeWhen(
-                    data: (points) => points.length < 2
-                        ? const SizedBox.shrink()
-                        : DeltaText(
-                            points.last.value - points[points.length - 2].value,
-                            fontSize: 13,
-                          ),
-                    orElse: () => const SizedBox.shrink(),
-                  ),
+                  // Measured against the window immediately before this one — the
+                  // same comparison every tile below makes, so the whole screen
+                  // is answering one question consistently.
+                  switch (snap.of((k) => k.executionScore)) {
+                    final d when d.hasDelta => DeltaBadge(
+                        value: d.change!,
+                        fontSize: 13,
+                      ),
+                    _ => const SizedBox.shrink(),
+                  },
                 ],
               ),
             ),
@@ -286,28 +294,73 @@ class _NeedsAttentionPanel extends ConsumerWidget {
 // KPI strip
 // ═══════════════════════════════════════════════════════════════════════
 
-class _KpiStrip extends StatelessWidget {
-  const _KpiStrip({required this.kpis});
+/// One KPI, in the order the console reads them.
+typedef _Kpi = ({
+  String label,
+  double Function(DashboardKpis) read,
+  String note,
+});
 
-  final AsyncValue<DashboardKpis> kpis;
+const _kpis = <_Kpi>[
+  (label: 'On-shelf availability', read: _osa, note: 'of all SKU checks'),
+  (label: 'Perfect-store rate', read: _perfect, note: 'outlets passing every gate'),
+  (label: 'Price compliance', read: _price, note: 'within tolerance of RRP'),
+  (label: 'Visibility compliance', read: _visibility, note: 'planogram threshold'),
+  (label: 'Share of shelf', read: _sos, note: 'vs. observed competitors'),
+  (label: 'Weighted distribution', read: _weighted, note: 'volume-weighted'),
+  (label: 'Numeric distribution', read: _numeric, note: 'outlets stocking'),
+];
+
+double _osa(DashboardKpis k) => k.osaPct;
+double _perfect(DashboardKpis k) => k.perfectStoreRate;
+double _price(DashboardKpis k) => k.priceCompliancePct;
+double _visibility(DashboardKpis k) => k.visibilityCompliancePct;
+double _sos(DashboardKpis k) => k.shareOfShelf;
+double _weighted(DashboardKpis k) => k.weightedDistribution;
+double _numeric(DashboardKpis k) => k.numericDistribution;
+
+class _KpiStrip extends ConsumerWidget {
+  const _KpiStrip({required this.snapshot});
+
+  final AsyncValue<DashboardSnapshot> snapshot;
+
+  /// A sparkline is only drawn where a real history series exists.
+  ///
+  /// `/trends` serves three series and no more (#95). The other five KPIs have
+  /// no history endpoint, so they get no sparkline — a fabricated shape would be
+  /// the most confident-looking lie on the screen.
+  List<double>? _series(WidgetRef ref, String label) {
+    List<double>? read(AsyncValue<List<TrendPoint>> v) => v.maybeWhen(
+          data: (points) =>
+              points.length < 2 ? null : [for (final p in points) p.value],
+          orElse: () => null,
+        );
+
+    return switch (label) {
+      'On-shelf availability' => read(ref.watch(availabilityTrendProvider)),
+      'Perfect-store rate' => read(ref.watch(perfectStoreTrendProvider)),
+      _ => null,
+    };
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return PanelCard(
       title: 'Key indicators',
+      subtitle: 'Change vs. the window before',
       padded: false,
-      child: kpis.when(
+      child: snapshot.when(
         loading: () => const _InlineLoader(height: 90),
         error: (err, _) => _InlineError(message: 'Could not load KPIs: $err'),
-        data: (data) {
-          final tiles = <(String, String, String)>[
-            ('On-shelf availability', '${data.osaPct.toStringAsFixed(1)}%', 'of all SKU checks'),
-            ('Perfect-store rate', '${data.perfectStoreRate.toStringAsFixed(1)}%', 'outlets passing every gate'),
-            ('Price compliance', '${data.priceCompliancePct.toStringAsFixed(1)}%', 'within tolerance of RRP'),
-            ('Visibility compliance', '${data.visibilityCompliancePct.toStringAsFixed(1)}%', 'planogram threshold'),
-            ('Share of shelf', '${data.shareOfShelf.toStringAsFixed(1)}%', 'vs. observed competitors'),
-            ('Weighted distribution', '${data.weightedDistribution.toStringAsFixed(1)}%', 'volume-weighted'),
-            ('Numeric distribution', '${data.numericDistribution.toStringAsFixed(1)}%', 'outlets stocking'),
+        data: (snap) {
+          final tiles = [
+            for (final k in _kpis)
+              (
+                k.label,
+                '${k.read(snap.current).toStringAsFixed(1)}%',
+                k.note,
+                snap.of(k.read),
+              ),
           ];
 
           return LayoutBuilder(
@@ -320,7 +373,7 @@ class _KpiStrip extends StatelessWidget {
 
               // Chunk into rows and let each row divide the full width, so a
               // short final row fills instead of leaving a ragged empty cell.
-              final rows = <List<(String, String, String)>>[];
+              final rows = <List<(String, String, String, KpiDelta)>>[];
               for (var i = 0; i < tiles.length; i += columns) {
                 rows.add(
                   tiles.sublist(i, math.min(i + columns, tiles.length)),
@@ -357,6 +410,18 @@ class _KpiStrip extends StatelessWidget {
                                   label: rows[r][c].$1,
                                   value: rows[r][c].$2,
                                   note: rows[r][c].$3,
+                                  // Measured against the window immediately
+                                  // before this one — a second real request, not
+                                  // an invented baseline. Null when there is
+                                  // nothing to compare to (all-time has no
+                                  // "before"), and the tile then shows no arrow.
+                                  delta: rows[r][c].$4.hasDelta
+                                      ? rows[r][c].$4.change
+                                      : null,
+                                  spark: switch (_series(ref, rows[r][c].$1)) {
+                                    final values? => Sparkline(values: values),
+                                    _ => null,
+                                  },
                                 ),
                               ),
                             ),
@@ -494,21 +559,6 @@ class _FilterBar extends ConsumerWidget {
     void update(DashboardFilter next) =>
         ref.read(dashboardFilterProvider.notifier).set(next);
 
-    Future<void> pickRange() async {
-      final range = await showDateRangePicker(
-        context: context,
-        firstDate: DateTime(2020),
-        lastDate: DateTime(2035),
-      );
-      if (range != null) {
-        update(DashboardFilter(
-          territoryId: filter.territoryId,
-          from: range.start.toIso8601String(),
-          to: range.end.toIso8601String(),
-        ));
-      }
-    }
-
     final territoryDropdown = territories.maybeWhen(
       data: (list) => DropdownButton<String?>(
         key: const ValueKey('filter-territory'),
@@ -527,7 +577,9 @@ class _FilterBar extends ConsumerWidget {
             DropdownMenuItem<String?>(value: t.id, child: Text(t.name)),
         ],
         onChanged: (v) => update(
-          DashboardFilter(territoryId: v, from: filter.from, to: filter.to),
+          v == null
+              ? filter.copyWith(clearTerritory: true)
+              : filter.copyWith(territoryId: v),
         ),
       ),
       orElse: () => const SizedBox.shrink(),
@@ -548,17 +600,65 @@ class _FilterBar extends ConsumerWidget {
           const SectionLabel('Territory'),
           territoryDropdown,
           const SizedBox(width: 4),
-          OutlinedButton.icon(
+          // The window is what makes every delta on this screen possible: without
+          // a bounded range there is no previous period, and every arrow would be
+          // invented. "All" is offered, and honestly shows no arrows at all.
+          _RangeControl(
             key: const ValueKey('filter-daterange'),
-            icon: const Icon(Icons.date_range, size: 14),
-            label: Text(filter.from != null ? 'Custom range' : 'All time'),
-            onPressed: pickRange,
+            selected: filter.range,
+            onChanged: (r) => update(filter.copyWith(range: r)),
           ),
-          if (filter.isActive)
-            TextButton(
-              key: const ValueKey('filter-clear'),
-              onPressed: () => update(const DashboardFilter()),
-              child: const Text('Clear'),
+        ],
+      ),
+    );
+  }
+}
+
+class _RangeControl extends StatelessWidget {
+  const _RangeControl({super.key, required this.selected, required this.onChanged});
+
+  final DashboardRange selected;
+  final ValueChanged<DashboardRange> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.lineStrong),
+        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (i, r) in DashboardRange.values.indexed)
+            InkWell(
+              key: ValueKey('range-${r.name}'),
+              onTap: () => onChanged(r),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                decoration: BoxDecoration(
+                  color: r == selected
+                      ? AppColors.surface3
+                      : Colors.transparent,
+                  border: Border(
+                    right: BorderSide(
+                      color: i == DashboardRange.values.length - 1
+                          ? Colors.transparent
+                          : AppColors.lineStrong,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  r.label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: r == selected ? AppColors.ink1 : AppColors.ink2,
+                  ),
+                ),
+              ),
             ),
         ],
       ),
