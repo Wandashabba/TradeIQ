@@ -124,15 +124,34 @@ final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
   });
 });
 
+/// True only while a flush is actually in flight.
+///
+/// This is what the pulsing dot means: *sending, right now*. It deliberately
+/// does NOT mean "there is pending work" — holding captures on the phone is the
+/// normal state in a shop with no signal, and a permanently pulsing dot would
+/// read as an alarm. (It would also make `pumpAndSettle` hang in every test that
+/// renders an agent screen, since a forever-repeating animation never settles.)
+class SyncingNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool value) => state = value;
+}
+
+final syncingProvider =
+    NotifierProvider<SyncingNotifier, bool>(SyncingNotifier.new);
+
 /// A manual "try sending now". The queue flushes itself, but an agent who has
 /// just walked into signal should be able to make it happen rather than wonder.
 final syncNowProvider = Provider<Future<void> Function()>((ref) {
-  final service = ref.read(syncServiceProvider);
   return () async {
+    ref.read(syncingProvider.notifier).set(true);
     try {
-      await service.flushPending();
+      await ref.read(syncServiceProvider).flushPending();
     } catch (_) {
       // Per-item failures are already recorded on the rows themselves.
+    } finally {
+      ref.read(syncingProvider.notifier).set(false);
     }
   };
 });

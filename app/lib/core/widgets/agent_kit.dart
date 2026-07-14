@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'agent_motion.dart';
 
 /// The field agent's widget kit.
 ///
@@ -34,6 +35,7 @@ class StatusBanner extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
+    this.pulsing = false,
   });
 
   final BannerLevel level;
@@ -41,10 +43,18 @@ class StatusBanner extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
 
+  /// Breathe the dot — reserved for "sending, right now".
+  final bool pulsing;
+
   @override
   Widget build(BuildContext context) {
     final color = level.color;
-    return Container(
+    // The banner MORPHS between states — amber "held on this phone" easing into
+    // green "everything is sent" is the moment the agent has been waiting for.
+    // Cutting between them would throw it away.
+    return AnimatedContainer(
+      duration: reduceMotion(context) ? Duration.zero : Motion.base,
+      curve: Motion.enter,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: level.wash,
@@ -53,33 +63,38 @@ class StatusBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
+          PulseDot(color: color, active: pulsing),
           const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: color,
+                AnimatedSwitcher(
+                  duration: reduceMotion(context) ? Duration.zero : Motion.base,
+                  child: Text(
+                    title,
+                    key: ValueKey(title),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
                   ),
                 ),
                 if (subtitle != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 1),
-                    child: Text(
-                      subtitle!,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.ink3,
+                    child: AnimatedSwitcher(
+                      duration:
+                          reduceMotion(context) ? Duration.zero : Motion.base,
+                      child: Text(
+                        subtitle!,
+                        key: ValueKey(subtitle),
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.ink3,
+                        ),
                       ),
                     ),
                   ),
@@ -111,11 +126,18 @@ class AgentButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
-    return SizedBox(
-      width: double.infinity,
-      height: kTapTarget,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
+
+    // The moment the last required section lands, this button comes alive — the
+    // colour eases in rather than snapping. It is the agent's "you can go now".
+    return PressFeedback(
+      onTap: onPressed,
+      child: SizedBox(
+        width: double.infinity,
+        height: kTapTarget,
+        child: AnimatedContainer(
+          duration: reduceMotion(context) ? Duration.zero : Motion.base,
+          curve: Motion.enter,
+          decoration: BoxDecoration(
           color: !enabled
               ? AppColors.surface2
               : secondary
@@ -128,44 +150,38 @@ class AgentButton extends StatelessWidget {
                     ? AppColors.lineStrong
                     : AppColors.brand,
           ),
-          borderRadius: BorderRadius.circular(AppColors.radiusControl),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
             borderRadius: BorderRadius.circular(AppColors.radiusControl),
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    Icon(
-                      icon,
-                      size: 18,
-                      color: !enabled
-                          ? AppColors.ink3
-                          : secondary
-                              ? AppColors.ink1
-                              : Colors.white,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: !enabled
-                          ? AppColors.ink3
-                          : secondary
-                              ? AppColors.ink1
-                              : Colors.white,
-                    ),
+          ),
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: !enabled
+                        ? AppColors.ink3
+                        : secondary
+                            ? AppColors.ink1
+                            : Colors.white,
                   ),
+                  const SizedBox(width: 8),
                 ],
-              ),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: !enabled
+                        ? AppColors.ink3
+                        : secondary
+                            ? AppColors.ink1
+                            : Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -228,15 +244,35 @@ class CountStepper extends StatelessWidget {
   /// not look like an empty field.
   final bool zeroIsFinding;
 
+  /// The agent is looking at the shelf, not at the phone. A count they can
+  /// *feel* land is worth more than one they have to look down to check — and
+  /// hitting zero is heavier, because zero raises a task for a manager.
+  void _change(int? from, int to) {
+    if (to == 0 && zeroIsFinding) {
+      Buzz.finding();
+    } else {
+      Buzz.tick();
+    }
+    onChanged(to);
+  }
+
   @override
   Widget build(BuildContext context) {
     final v = value;
     final isZero = v == 0;
 
-    return DecoratedBox(
+    return AnimatedContainer(
+      duration: reduceMotion(context) ? Duration.zero : Motion.base,
+      curve: Motion.enter,
       decoration: BoxDecoration(
         color: AppColors.surface2,
-        border: Border.all(color: AppColors.lineStrong),
+        // The whole control takes on the finding's colour, so an out-of-stock is
+        // unmissable from arm's length in a dark aisle.
+        border: Border.all(
+          color: isZero && zeroIsFinding
+              ? AppColors.crit.withValues(alpha: 0.6)
+              : AppColors.lineStrong,
+        ),
         borderRadius: BorderRadius.circular(AppColors.radiusControl),
       ),
       child: Row(
@@ -245,7 +281,7 @@ class CountStepper extends StatelessWidget {
             icon: Icons.remove,
             // From "not counted", - means "there are none": an explicit zero,
             // which is exactly how an agent records an empty shelf.
-            onTap: v == null || v > min ? () => onChanged((v ?? 1) - 1) : null,
+            onTap: v == null || v > min ? () => _change(v, (v ?? 1) - 1) : null,
             semantic: 'One fewer',
           ),
           Expanded(
@@ -256,8 +292,8 @@ class CountStepper extends StatelessWidget {
                 child: SizedBox(
                   height: 54,
                   child: Center(
-                    child: Text(
-                      v == null ? '—' : '$v',
+                    child: AnimatedCount(
+                      value: v,
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
@@ -279,7 +315,7 @@ class CountStepper extends StatelessWidget {
             // From "not counted", the first + means "I counted one" — not zero.
             // Landing on 0 would silently record an out-of-stock, which is a
             // finding that raises a task.
-            onTap: v == null || v < max ? () => onChanged((v ?? 0) + 1) : null,
+            onTap: v == null || v < max ? () => _change(v, (v ?? 0) + 1) : null,
             semantic: 'One more',
           ),
         ],

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
+import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 
 /// "Your work" — everything the agent has captured, and whether the server has
@@ -87,13 +88,28 @@ class MyWorkScreen extends ConsumerWidget {
   }
 }
 
-class _Summary extends StatelessWidget {
+class _Summary extends ConsumerWidget {
   const _Summary({required this.status});
 
   final SyncStatus status;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final syncing = ref.watch(syncingProvider);
+    if (syncing && status.pending.isNotEmpty) {
+      final n = status.pendingCount;
+      return StatusBanner(
+        key: const ValueKey('work-summary'),
+        level: BannerLevel.info,
+        title: 'Sending $n ${n == 1 ? 'item' : 'items'}…',
+        subtitle: 'You don’t have to wait for this',
+        pulsing: true,
+      );
+    }
+    return _summaryFor(status);
+  }
+
+  static Widget _summaryFor(SyncStatus status) {
     if (status.needsAttention.isNotEmpty) {
       final n = status.needsAttention.length;
       return StatusBanner(
@@ -164,10 +180,13 @@ class _Group extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < items.length; i++)
-            _Row(
-              item: items[i],
-              showError: showError,
-              last: i == items.length - 1,
+            Reveal(
+              index: i,
+              child: _Row(
+                item: items[i],
+                showError: showError,
+                last: i == items.length - 1,
+              ),
             ),
         ],
       ),

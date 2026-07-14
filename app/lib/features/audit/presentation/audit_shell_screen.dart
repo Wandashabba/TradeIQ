@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
+import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/visit_progress.dart';
@@ -85,10 +86,13 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   }
 
   /// One section, full screen. No nesting, no long scroll of nine forms.
+  ///
+  /// It slides in from the right, which says "you have gone *into* something and
+  /// can come back out" — exactly the hub/section relationship.
   void _openSection(AuditSection section, String visitDraftId) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => _SectionScreen(
+      agentSectionRoute<void>(
+        _SectionScreen(
           title: section.label,
           child: _sectionBody(section, visitDraftId),
         ),
@@ -101,6 +105,9 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     if (id == null) return;
     await ref.read(visitsRepositoryProvider).submitVisit(id);
     if (!mounted) return;
+    // The visit is done. Let them feel it — they are about to walk out of the
+    // shop and will not be looking at the screen.
+    Buzz.done();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Visit submitted — it will send itself')),
     );
@@ -214,17 +221,20 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
                 ),
                 child: Column(
                   children: [
-                    for (final section in AuditSection.values)
-                      _SectionRow(
-                        section: section,
-                        state: progress.stateOf(section),
-                        detail: progress.details[section],
-                        last: section == AuditSection.values.last,
-                        // The score is the RESULT of the other eight, so it
-                        // cannot be opened and filled in.
-                        onTap: section == AuditSection.score
-                            ? null
-                            : () => _openSection(section, visitDraftId),
+                    for (final (i, section) in AuditSection.values.indexed)
+                      Reveal(
+                        index: i,
+                        child: _SectionRow(
+                          section: section,
+                          state: progress.stateOf(section),
+                          detail: progress.details[section],
+                          last: section == AuditSection.values.last,
+                          // The score is the RESULT of the other eight, so it
+                          // cannot be opened and filled in.
+                          onTap: section == AuditSection.score
+                              ? null
+                              : () => _openSection(section, visitDraftId),
+                        ),
                       ),
                   ],
                 ),
@@ -297,15 +307,29 @@ class _Progress extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
-                child: Text(
-                  '$done of $total sections',
+                child: Row(
                   key: const ValueKey('visit-progress'),
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink1,
-                  ),
+                  children: [
+                    // The count rolls up as sections land — nine small wins a
+                    // visit, and each one should be visible.
+                    AnimatedCount(
+                      value: done,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink1,
+                      ),
+                    ),
+                    Text(
+                      ' of $total sections',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -323,11 +347,20 @@ class _Progress extends StatelessWidget {
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: total == 0 ? 0 : done / total,
-              minHeight: 6,
-              backgroundColor: AppColors.surface3,
-              valueColor: const AlwaysStoppedAnimation(AppColors.series1),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: total == 0 ? 0 : done / total),
+              duration: reduceMotion(context) ? Duration.zero : Motion.slow,
+              curve: Motion.enter,
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value,
+                minHeight: 6,
+                backgroundColor: AppColors.surface3,
+                valueColor: AlwaysStoppedAnimation(
+                  // The bar turns green the moment the visit is submittable —
+                  // "you can go" said in colour, before it is said in words.
+                  blocking == 0 ? AppColors.good : AppColors.series1,
+                ),
+              ),
             ),
           ),
         ],
@@ -472,27 +505,26 @@ class _StateMark extends StatelessWidget {
       );
     }
 
-    final (color, icon, filled) = switch (state) {
-      SectionState.done => (AppColors.good, Icons.check, true),
-      SectionState.partial => (AppColors.warn, Icons.more_horiz, false),
-      SectionState.notStarted => (AppColors.ink3, null, false),
-    };
+    // Done draws its tick; the other two are static marks. Completing a section
+    // is the small win the agent gets nine times a visit — it should land, not
+    // blink into existence.
+    if (state == SectionState.done) {
+      return const TickMark(done: true);
+    }
 
-    return Container(
+    final color = state == SectionState.partial ? AppColors.warn : AppColors.ink3;
+
+    return AnimatedContainer(
+      duration: reduceMotion(context) ? Duration.zero : Motion.base,
       width: 22,
       height: 22,
       decoration: BoxDecoration(
-        color: filled ? color : Colors.transparent,
         shape: BoxShape.circle,
-        border: filled ? null : Border.all(color: color, width: 1.5),
+        border: Border.all(color: color, width: 1.5),
       ),
-      child: icon == null
-          ? null
-          : Icon(
-              icon,
-              size: 13,
-              color: filled ? const Color(0xFF04210B) : color,
-            ),
+      child: state == SectionState.partial
+          ? Icon(Icons.more_horiz, size: 13, color: color)
+          : null,
     );
   }
 }
@@ -516,7 +548,10 @@ class _CheckingIn extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
+              // A radar, not a spinner. A spinner says "something is happening";
+              // this says "we are looking for you", which is what waiting for a
+              // GPS fix actually is.
+              _LocatingRadar(),
               SizedBox(height: 22),
               Text(
                 'Finding you…',
@@ -703,6 +738,89 @@ class _NoLocation extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Concentric rings sweeping outward while we wait for a GPS fix.
+///
+/// This is the one place a longer, looping animation earns its keep: the agent
+/// is standing still, waiting, and the app has to show it is working. It stops
+/// the moment we have a fix.
+class _LocatingRadar extends StatefulWidget {
+  const _LocatingRadar();
+
+  @override
+  State<_LocatingRadar> createState() => _LocatingRadarState();
+}
+
+class _LocatingRadarState extends State<_LocatingRadar>
+    with SingleTickerProviderStateMixin {
+  // Eager, not `late final`: a lazily-created controller would first be built by
+  // dispose() whenever build skipped it (reduced motion), and constructing a
+  // Ticker against a dead element throws.
+  late AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const pin = Icon(Icons.location_on_outlined, size: 40, color: AppColors.series1);
+
+    if (reduceMotion(context)) {
+      return const SizedBox(width: 120, height: 120, child: Center(child: pin));
+    }
+
+    return SizedBox(
+      width: 120,
+      height: 120,
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, child) => Stack(
+          alignment: Alignment.center,
+          children: [
+            // Two rings, half a cycle apart, so there is always one in flight.
+            for (final offset in [0.0, 0.5])
+              _Ring(t: (_c.value + offset) % 1.0),
+            child!,
+          ],
+        ),
+        child: pin,
+      ),
+    );
+  }
+}
+
+class _Ring extends StatelessWidget {
+  const _Ring({required this.t});
+
+  final double t;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40 + 80 * t,
+      height: 40 + 80 * t,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppColors.series1.withValues(alpha: 0.45 * (1 - t)),
+          width: 1.5,
         ),
       ),
     );
