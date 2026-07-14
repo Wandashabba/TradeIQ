@@ -9,6 +9,7 @@ describe('scorecards routes', () => {
   let managerToken: string;
   let visitId: string;
   let emptyVisitId: string;
+  let outletId: string;
 
   beforeAll(async () => {
     const client = await prisma.client.create({
@@ -50,6 +51,8 @@ describe('scorecards routes', () => {
         clientId,
       },
     });
+
+    outletId = outlet.id;
 
     const visitData = {
       outletId: outlet.id,
@@ -293,5 +296,84 @@ describe('scorecards routes', () => {
   it('GET / rejects requests without a bearer token with 401', async () => {
     const res = await request(app).get('/scorecards');
     expect(res.status).toBe(401);
+  });
+
+  describe('GET /history', () => {
+    it('lets an agent see their own past scores at an outlet', async () => {
+      // The outcome screen tells them "up 6 points from your last visit here".
+      // That sentence is only true if they can read the last visit.
+      await request(app)
+        .post('/scorecards')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({ visitId });
+
+      const res = await request(app)
+        .get('/scorecards/history')
+        .query({ outletId })
+        .set('Authorization', `Bearer ${agentToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.some((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
+    });
+
+    it('does not show one agent another agent’s scores', async () => {
+      const other = await prisma.user.create({
+        data: {
+          email: 'score-other-agent@example.com',
+          passwordHash: 'x',
+          role: 'field_agent',
+          clientId,
+        },
+      });
+      const otherVisit = await prisma.visit.create({
+        data: {
+          outletId,
+          agentId: other.id,
+          clientId,
+          checkinTs: new Date(),
+          checkinLat: -26.2041,
+          checkinLng: 28.0473,
+          geofencePass: true,
+          status: 'submitted',
+        },
+      });
+      await prisma.scorecard.create({
+        data: {
+          visitId: otherVisit.id,
+          dimensionScores: {},
+          weightedTotal: 91,
+          ratingBand: 'green',
+        },
+      });
+
+      // An agent's score history is feedback on their own work, not a window
+      // onto a colleague's — and certainly not a leaderboard nobody opted into.
+      const res = await request(app)
+        .get('/scorecards/history')
+        .query({ outletId })
+        .set('Authorization', `Bearer ${agentToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.some((row: { visitId: string }) => row.visitId === otherVisit.id)).toBe(
+        false,
+      );
+
+      // A manager, whose job is the outlet rather than the agent, sees both.
+      const managerRes = await request(app)
+        .get('/scorecards/history')
+        .query({ outletId })
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(
+        managerRes.body.some((row: { visitId: string }) => row.visitId === otherVisit.id),
+      ).toBe(true);
+    });
+
+    it('requires an outletId', async () => {
+      const res = await request(app)
+        .get('/scorecards/history')
+        .set('Authorization', `Bearer ${agentToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });

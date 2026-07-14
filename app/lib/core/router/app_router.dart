@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/audit/presentation/audit_shell_screen.dart';
 import '../../features/audit/presentation/my_work_screen.dart';
+import '../../features/audit/presentation/visit_outcome_screen.dart';
 import '../../features/audit/presentation/visit_outlet_picker_screen.dart';
+import '../../features/beatplans/presentation/today_screen.dart';
 import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
@@ -45,7 +47,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         return isPublicRoute ? null : '/login';
       }
       if (isPublicRoute) {
-        return session!.role == 'field_agent' ? '/audit' : '/dashboard';
+        // An agent's day starts with "where am I going", not "pick one of 400
+        // outlets" — so they land on their route, not on the picker.
+        return session!.role == 'field_agent' ? '/today' : '/dashboard';
       }
 
       // Per-route role guard: field agents live in the audit/visit flow;
@@ -74,14 +78,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/trends',
       };
       final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
+      // The agent's route for the day. Their home, and theirs alone — a manager
+      // has a dashboard for this and no use for one agent's walking order.
+      final isAgentOnly = loc == '/today';
       // Template subroutes (e.g. /audit-templates/:id/preview) are manager
       // territory too — the exact-match set above only covers the list screen.
       final isTemplatesSubroute = loc.startsWith('/audit-templates/');
       if (role == 'field_agent' &&
           (managerOnly.contains(loc) || isTemplatesSubroute)) {
-        return '/audit';
+        return '/today';
       }
-      if (role != 'field_agent' && isAuditRoute) {
+      if (role != 'field_agent' && (isAuditRoute || isAgentOnly)) {
         return '/dashboard';
       }
       return null;
@@ -93,6 +100,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/dashboard',
         builder: (context, state) => const DashboardShellScreen(),
       ),
+      // The field agent's home: their route for the day.
+      GoRoute(path: '/today', builder: (context, state) => const TodayScreen()),
       GoRoute(
         path: '/audit',
         builder: (context, state) => const VisitOutletPickerScreen(),
@@ -107,6 +116,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/audit/:outletId',
         builder: (context, state) =>
             AuditShellScreen(outletId: state.pathParameters['outletId']!),
+      ),
+      // Where a visit ends: its score. Reached with `go`, never `push` — there
+      // is no way back into a visit that has been submitted.
+      GoRoute(
+        path: '/audit/:outletId/done',
+        builder: (context, state) => VisitOutcomeScreen(
+          outletId: state.pathParameters['outletId']!,
+          visitDraftId: state.uri.queryParameters['draft'] ?? '',
+          outletName: state.uri.queryParameters['name'] ?? 'This store',
+        ),
       ),
       GoRoute(
         path: '/outlets',

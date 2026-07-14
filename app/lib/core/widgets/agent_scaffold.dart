@@ -48,7 +48,7 @@ class AgentScaffold extends ConsumerWidget {
     // only ask GoRouter where we are when we actually need to know (to decide
     // whether this is the root screen); a screen given its own `onBack` has
     // already answered that question, and must never ask.
-    final isRoot = onBack == null && _matchedLocation(context) == '/audit';
+    final isRoot = onBack == null && _matchedLocation(context) == '/today';
 
     return Scaffold(
       backgroundColor: AppColors.plane,
@@ -59,7 +59,7 @@ class AgentScaffold extends ConsumerWidget {
             : IconButton(
                 icon: const Icon(Icons.arrow_back, size: 22),
                 tooltip: 'Back',
-                onPressed: onBack ?? () => context.go('/audit'),
+                onPressed: onBack ?? () => context.go('/today'),
               ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
