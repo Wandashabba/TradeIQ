@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/features/audit/presentation/visit_outlet_picker_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -38,7 +39,14 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [outletsRepositoryProvider.overrideWithValue(FakeOutletsRepository())],
+        overrides: [
+          outletsRepositoryProvider.overrideWithValue(FakeOutletsRepository()),
+          // Agent screens carry the sync chip, which watches the outbox over a
+          // Drift stream. Drift's watch() reschedules a zero-duration timer on
+          // every tick, so pumpAndSettle never settles against a real one — a
+          // widget test stubs the provider rather than the database.
+          syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
+        ],
         child: MaterialApp.router(routerConfig: router),
       ),
     );

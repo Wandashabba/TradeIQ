@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 import '../../outlets/data/outlets_repository.dart';
 
@@ -13,13 +14,16 @@ class VisitOutletPickerScreen extends ConsumerWidget {
     final outlets = ref.watch(outletsListProvider);
     return AgentScaffold(
       title: 'Select an Outlet',
-      floatingActionButton: FloatingActionButton.extended(
+      subtitle: 'Tap a store to start a visit',
+      // The primary action lives in the thumb zone, not floating over the list.
+      bottomAction: AgentButton(
+        label: 'Add a store',
+        icon: Icons.add_location_alt_outlined,
+        secondary: true,
         onPressed: () async {
           await context.push('/outlets/create');
           ref.invalidate(outletsListProvider);
         },
-        icon: const Icon(Icons.add_location_alt),
-        label: const Text('Create Store'),
       ),
       body: outlets.when(
         data: (list) => ListView.builder(

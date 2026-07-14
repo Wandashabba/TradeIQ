@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/audit/presentation/audit_shell_screen.dart';
+import '../../features/audit/presentation/my_work_screen.dart';
 import '../../features/audit/presentation/visit_outlet_picker_screen.dart';
 import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
@@ -95,6 +96,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/audit',
         builder: (context, state) => const VisitOutletPickerScreen(),
+      ),
+      // The agent's sync queue. Shared with managers deliberately: a manager
+      // asked "did the agent's visit actually reach us?" should be able to look.
+      GoRoute(
+        path: '/my-work',
+        builder: (context, state) => const MyWorkScreen(),
       ),
       GoRoute(
         path: '/audit/:outletId',
