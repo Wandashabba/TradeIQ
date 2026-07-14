@@ -158,6 +158,24 @@ async function main() {
     },
   });
 
+  // The demo client had a manager and an agent and no admin at all — and since
+  // POST /users is admin-only and there is no public registration, nobody could
+  // create one either. Scoring config, user management and webhooks were locked
+  // behind a role that did not exist.
+  //
+  // For a real deployment, `npm run create-admin` mints the first one. This is
+  // the demo's.
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@demo-fmcg.tradeiq.com' },
+    update: {},
+    create: {
+      email: 'admin@demo-fmcg.tradeiq.com',
+      passwordHash: await hashPassword('demo-password-123'),
+      role: 'admin',
+      clientId: client.id,
+    },
+  });
+
   const manager = await prisma.user.upsert({
     where: { email: 'manager@demo-fmcg.tradeiq.com' },
     update: {},
@@ -795,7 +813,8 @@ async function main() {
   console.log(
     [
       `Seeded client ${client.name}`,
-      `users: manager ${manager.email} + agent ${agent.email}`,
+      `users: admin ${admin.email} + manager ${manager.email} + agent ${agent.email}`,
+      'all three sign in with: demo-password-123',
       `${outlets.length} outlets`,
       `${skuSeeds.length} SKUs`,
       `${planogramSeeds.length} planogram templates`,

@@ -13,7 +13,8 @@
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
-    "seed": "ts-node scripts/seed.ts"
+    "seed": "ts-node scripts/seed.ts",
+    "create-admin": "ts-node scripts/create-admin.ts"
   },
   "keywords": [],
   "author": "",
