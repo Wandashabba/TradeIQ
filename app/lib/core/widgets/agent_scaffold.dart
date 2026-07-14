@@ -6,6 +6,7 @@ import '../auth/session_controller.dart';
 import '../sync/sync_status.dart';
 import '../theme/app_colors.dart';
 import 'agent_kit.dart';
+import 'agent_motion.dart';
 
 /// The field agent's shell.
 ///
@@ -140,14 +141,21 @@ class SyncChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(syncStatusProvider);
+    final syncing = ref.watch(syncingProvider);
 
     return status.maybeWhen(
       data: (s) {
-        final (level, title, sub) = _describe(s);
-        return InkWell(
-          key: const ValueKey('sync-chip'),
+        final (level, title, sub) = _describe(s, syncing);
+        return PressFeedback(
           onTap: () => context.push('/my-work'),
-          child: StatusBanner(level: level, title: title, subtitle: sub),
+          child: StatusBanner(
+            key: const ValueKey('sync-chip'),
+            level: level,
+            title: title,
+            subtitle: sub,
+            // Breathing means "sending, right now" — never merely "pending".
+            pulsing: syncing,
+          ),
         );
       },
       // Never guess. If we cannot read the queue we say nothing rather than
@@ -156,7 +164,15 @@ class SyncChip extends ConsumerWidget {
     );
   }
 
-  static (BannerLevel, String, String) _describe(SyncStatus s) {
+  static (BannerLevel, String, String) _describe(SyncStatus s, bool syncing) {
+    if (syncing && s.pending.isNotEmpty) {
+      final n = s.pendingCount;
+      return (
+        BannerLevel.info,
+        'Sending $n ${n == 1 ? 'capture' : 'captures'}…',
+        'Keep going — you don’t have to wait',
+      );
+    }
     if (s.needsAttention.isNotEmpty) {
       final n = s.needsAttention.length;
       return (
