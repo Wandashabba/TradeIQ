@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dio/dio.dart';
+
+import '../../../core/auth/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -59,12 +62,23 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
     _controllers.forEach((key, controller) {
       map[key] = double.tryParse(controller.text) ?? 0;
     });
-    await ref.read(clientsRepositoryProvider).updateWeights(map);
-    if (mounted) {
+
+    // A failed save must not take the app down. Before this, a 403 from the
+    // admin-only endpoint escaped as an unhandled DioException and crashed the
+    // screen — after showing a manager an editable form they were never allowed
+    // to submit.
+    try {
+      await ref.read(clientsRepositoryProvider).updateWeights(map);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Saved')),
       );
       ref.invalidate(clientConfigProvider);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(describeSaveFailure(e))),
+      );
     }
   }
 
@@ -115,16 +129,26 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
                   controller: entry.value,
                   weight: _weightOf(entry.key),
                   total: total,
+                  // A field you can type into but never save is worse than one
+                  // you cannot type into at all.
+                  enabled: canEditConfig(ref),
                 ),
               const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: ElevatedButton(
-                  key: const ValueKey<String>('save-config'),
-                  onPressed: _submit,
-                  child: const Text('Save'),
-                ),
-              ),
+              // PATCH /clients/me is admin-only. A manager who filled this form
+              // in used to get a 403 — as an unhandled exception, which crashed
+              // the screen. They can read it (it explains their own scores);
+              // they simply cannot save it.
+              if (canEditConfig(ref))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ElevatedButton(
+                    key: const ValueKey<String>('save-config'),
+                    onPressed: _submit,
+                    child: const Text('Save'),
+                  ),
+                )
+              else
+                const ReadOnlyNotice(),
             ],
           ),
         ),
@@ -179,12 +203,18 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
       map[threshold.key] = parsed ?? threshold.fallback;
     });
 
-    await ref.read(clientsRepositoryProvider).updateThresholds(map);
-    if (mounted) {
+    try {
+      await ref.read(clientsRepositoryProvider).updateThresholds(map);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Saved')),
       );
       ref.invalidate(clientConfigProvider);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(describeSaveFailure(e))),
+      );
     }
   }
 
@@ -239,6 +269,7 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
                         child: TextField(
                           key: ValueKey<String>('threshold-${t.key}'),
                           controller: _controllers[t],
+                          enabled: canEditConfig(ref),
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
@@ -253,14 +284,19 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
                   ),
                 ),
               const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: ElevatedButton(
-                  key: const ValueKey<String>('save-thresholds'),
-                  onPressed: _submit,
-                  child: const Text('Save thresholds'),
-                ),
-              ),
+              // Only an admin may PATCH /clients/me. Do not offer a manager a
+              // button that can only ever 403 at them.
+              if (canEditConfig(ref))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ElevatedButton(
+                    key: const ValueKey<String>('save-thresholds'),
+                    onPressed: _submit,
+                    child: const Text('Save thresholds'),
+                  ),
+                )
+              else
+                const ReadOnlyNotice(),
             ],
           ),
         ),
@@ -282,12 +318,14 @@ class _WeightRow extends StatelessWidget {
     required this.controller,
     required this.weight,
     required this.total,
+    this.enabled = true,
   });
 
   final String dimension;
   final TextEditingController controller;
   final double weight;
   final double total;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -314,6 +352,7 @@ class _WeightRow extends StatelessWidget {
             child: TextField(
               key: ValueKey<String>('weight-$dimension'),
               controller: controller,
+              enabled: enabled,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(fontSize: 13),
               decoration: const InputDecoration(isDense: true),
@@ -348,5 +387,64 @@ class _WeightRow extends StatelessWidget {
       (m) => '${m[1]} ${m[2]!.toLowerCase()}',
     );
     return spaced[0].toUpperCase() + spaced.substring(1);
+  }
+}
+
+/// Whether the signed-in user may actually change the scoring config.
+///
+/// `PATCH /clients/me` is `requireRole('admin')`. A manager can *read* the
+/// config — they should, it explains their own scores — but offering them a Save
+/// button they can never use is a trap: it fails with a 403 after they have done
+/// the work of filling the form in.
+bool canEditConfig(WidgetRef ref) =>
+    ref.watch(sessionControllerProvider).value?.role == 'admin';
+
+/// A save failure in words a human can act on, rather than a stack trace.
+String describeSaveFailure(Object error) {
+  if (error is DioException && error.response?.statusCode == 403) {
+    return 'Only an administrator can change scoring config.';
+  }
+  if (error is DioException && error.response?.statusCode == 400) {
+    final message = error.response?.data;
+    if (message is Map && message['error'] is String) {
+      return message['error'] as String;
+    }
+    return 'The server rejected those values.';
+  }
+  return 'Could not save: $error';
+}
+
+/// Shown to a manager in place of the controls they cannot use.
+class ReadOnlyNotice extends StatelessWidget {
+  const ReadOnlyNotice({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey<String>('read-only-notice'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        border: Border.all(color: AppColors.lineStrong),
+        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.lock_outline, size: 15, color: AppColors.ink3),
+          SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'Read-only. Only an administrator can change scoring config — '
+              'these figures are shown because they explain your scores.',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.ink3,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/features/clients/data/clients_repository.dart';
 import 'package:tradeiq_app/features/clients/presentation/client_config_screen.dart';
 
@@ -44,6 +46,27 @@ class _FakeClientsRepository implements ClientsRepository {
   }
 }
 
+/// Loads fine, refuses to save — the 403 an admin-only endpoint returns to a
+/// caller who is not one.
+class _RejectingClientsRepository implements ClientsRepository {
+  @override
+  Future<ClientConfig> getConfig() async => _config;
+
+  @override
+  Future<ClientConfig> updateWeights(Map<String, double> weights) async =>
+      throw DioException(
+        requestOptions: RequestOptions(path: '/clients/me'),
+        response: Response<dynamic>(
+          requestOptions: RequestOptions(path: '/clients/me'),
+          statusCode: 403,
+        ),
+      );
+
+  @override
+  Future<ClientConfig> updateThresholds(Map<String, double> thresholds) async =>
+      throw Exception('boom');
+}
+
 class _ThrowingClientsRepository implements ClientsRepository {
   @override
   Future<ClientConfig> getConfig() async => throw Exception('boom');
@@ -57,10 +80,23 @@ class _ThrowingClientsRepository implements ClientsRepository {
       throw Exception('boom');
 }
 
-Widget _app(ClientsRepository repo) => routedApp(
+class _FixedSessionController extends SessionController {
+  _FixedSessionController(this._role);
+  final String _role;
+
+  @override
+  Future<SessionState> build() async => SessionState(role: _role);
+}
+
+/// Defaults to an admin: PATCH /clients/me is admin-only, so that is the role
+/// the editing tests are about.
+Widget _app(ClientsRepository repo, {String role = 'admin'}) => routedApp(
       const ClientConfigScreen(),
       overrides: [
         clientsRepositoryProvider.overrideWithValue(repo),
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(role),
+        ),
       ],
     );
 
@@ -157,5 +193,38 @@ void main() {
     await _pump(tester, _app(_ThrowingClientsRepository()));
 
     expect(find.textContaining('Failed to load config'), findsOneWidget);
+  });
+
+  testWidgets('a manager sees the config, but cannot save it', (tester) async {
+    // PATCH /clients/me is admin-only. Showing a manager an editable form and a
+    // Save button meant they filled it in and got a 403 — which arrived as an
+    // UNHANDLED exception and crashed the screen.
+    await _pump(tester, _app(_FakeClientsRepository(), role: 'manager'));
+
+    expect(find.byKey(const ValueKey<String>('read-only-notice')), findsWidgets);
+    expect(find.byKey(const ValueKey<String>('save-config')), findsNothing);
+    expect(find.byKey(const ValueKey<String>('save-thresholds')), findsNothing);
+
+    // And the fields they cannot save are not typeable either.
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('weight-availability')),
+    );
+    expect(field.enabled, isFalse);
+  });
+
+  testWidgets('a 403 is reported in words, not thrown as an exception', (
+    tester,
+  ) async {
+    await _pump(tester, _app(_RejectingClientsRepository()));
+
+    // Before, this escaped as an unhandled DioException and crashed the screen.
+    await tester.tap(find.byKey(const ValueKey<String>('save-config')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.text('Only an administrator can change scoring config.'),
+      findsOneWidget,
+    );
   });
 }
