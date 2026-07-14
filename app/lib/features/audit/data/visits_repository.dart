@@ -119,7 +119,14 @@ class DriftVisitsRepository implements VisitsRepository {
       await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
             entityType: 'visit_submit',
             entityId: _uuid.v4(),
-            payloadJson: jsonEncode({'visitDraftId': visitDraftId}),
+            payloadJson: jsonEncode({
+              'visitDraftId': visitDraftId,
+              // Stamped NOW, on the device — the moment the agent actually
+              // finished, not whenever the outbox happens to flush. Dwell time
+              // is only meaningful measured on one clock, and this is the same
+              // clock that produced checkinTs (#101).
+              'submittedAtClient': DateTime.now().toUtc().toIso8601String(),
+            }),
           ));
     });
 

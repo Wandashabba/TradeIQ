@@ -81,6 +81,13 @@ export interface SubmitVisitInput {
   visitId: string;
   clientId: string;
   agentId: string;
+  /**
+   * The DEVICE's completion timestamp (ISO 8601), from the same clock that
+   * produced `checkinTs`. Dwell time is only meaningful measured on one clock —
+   * see `Visit.submittedAtClient` and #101. Optional: an older client that does
+   * not send it simply yields no dwell measurement, which is the honest outcome.
+   */
+  submittedAtClient?: string;
 }
 
 export async function submitVisit(input: SubmitVisitInput) {
@@ -91,9 +98,19 @@ export async function submitVisit(input: SubmitVisitInput) {
     throw new NotFoundError('Visit not found');
   }
 
+  // Only accept a parseable timestamp — a junk string must not become an
+  // Invalid Date that silently poisons the dwell calculation.
+  const clientCompletedAt = input.submittedAtClient
+    ? new Date(input.submittedAtClient)
+    : undefined;
+  const submittedAtClient =
+    clientCompletedAt && !Number.isNaN(clientCompletedAt.getTime())
+      ? clientCompletedAt
+      : undefined;
+
   const submitted = await prisma.visit.update({
     where: { id: input.visitId },
-    data: { status: 'submitted' },
+    data: { status: 'submitted', ...(submittedAtClient ? { submittedAtClient } : {}) },
   });
 
   // Issue #38: fire best-effort to any webhooks the client has subscribed to

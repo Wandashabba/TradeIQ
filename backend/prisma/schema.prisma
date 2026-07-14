@@ -163,6 +163,18 @@ model Visit {
   geofencePass     Boolean     @map("geofence_pass")
   checkinDistanceM Float?      @map("checkin_distance_m")
   status           VisitStatus @default(in_progress)
+  /// When the agent's DEVICE says the visit was completed.
+  ///
+  /// Dwell time (the fraud engine's fast-completion signal) is only meaningful
+  /// when measured on ONE clock. `checkinTs` is the device's clock; a section
+  /// row's `createdAt` is the server's insert time, which on an offline-first
+  /// app is whenever the outbox happened to flush. Subtracting one from the
+  /// other measured network conditions and clock skew, not how long the agent
+  /// spent in the store (#101).
+  ///
+  /// Nullable: visits recorded before this existed have no honest dwell, and we
+  /// would rather report nothing than a number we know to be wrong.
+  submittedAtClient DateTime? @map("submitted_at_client")
 
   stock       VisitStock[]
   visibility  VisitVisibility?

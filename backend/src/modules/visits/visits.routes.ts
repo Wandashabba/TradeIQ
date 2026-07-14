@@ -41,10 +41,14 @@ visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
 
 visitsRouter.post('/:id/submit', requireRole('field_agent'), async (req: AuthedRequest, res) => {
   const { id } = req.params as { id: string };
+  const { submittedAtClient } = (req.body ?? {}) as { submittedAtClient?: unknown };
   const visit = await submitVisit({
     visitId: id,
     clientId: req.user!.clientId,
     agentId: req.user!.userId,
+    // The device's own completion time, so dwell can be measured on one clock (#101).
+    submittedAtClient:
+      typeof submittedAtClient === 'string' ? submittedAtClient : undefined,
   });
   res.status(200).json(visit);
 });

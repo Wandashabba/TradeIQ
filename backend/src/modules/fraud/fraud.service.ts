@@ -45,6 +45,12 @@ export interface FraudVisitInput {
   checkinLat: number;
   checkinLng: number;
   checkinDistanceM: number | null;
+  /**
+   * The device's completion timestamp — the same clock that produced
+   * `checkinTs`. Null for visits recorded before this existed, in which case no
+   * dwell is measurable and no fast-completion signal is emitted (#101).
+   */
+  submittedAtClient?: Date | null;
 }
 
 /** Related rows the heuristics reason over, pre-loaded by the caller. */
@@ -137,18 +143,33 @@ export function computeFraudSignals(
 
   const hasSections = related.sectionCreatedAts.length > 0;
 
-  // 4. Implausibly fast completion. dwell = (latest section row) - check-in.
-  //    CAVEAT: a section row's createdAt is the SERVER insert time, not a
-  //    per-capture client timestamp, so this dwell is an approximation until
-  //    the app sends per-capture client timestamps.
-  if (visit.status === 'submitted' && hasSections) {
-    const lastSectionMs = Math.max(...related.sectionCreatedAts.map((date) => date.getTime()));
-    const dwellMs = lastSectionMs - checkinMs;
-    if (dwellMs < FAST_COMPLETION_MS) {
-      const dwellSeconds = Math.max(0, Math.round(dwellMs / 1000));
+  // 4. Implausibly fast completion — dwell = submit - check-in, measured on ONE
+  //    clock (#101).
+  //
+  //    This used to subtract the client's `checkinTs` from a section row's
+  //    SERVER `createdAt`. Those are two different clocks, and on an
+  //    offline-first app the server one is "whenever the outbox flushed", so the
+  //    figure was wrong in both directions:
+  //
+  //      * a device clock running ahead made dwell negative, which read as
+  //        "completed 0s after check-in" and put 20 points on an honest agent;
+  //      * a delayed sync inflated dwell, so a genuine 20-second ghost visit
+  //        sailed through unflagged.
+  //
+  //    So we now use the device's own completion timestamp. When we do not have
+  //    one, dwell is UNMEASURABLE and we emit nothing: a fabricated signal that
+  //    gets someone investigated is worse than a missing one.
+  if (visit.status === 'submitted' && hasSections && visit.submittedAtClient) {
+    const dwellMs = visit.submittedAtClient.getTime() - checkinMs;
+
+    // A negative dwell means the device clock moved between check-in and submit
+    // (or was changed). It is not evidence of a fast visit, so it is not
+    // evidence of fraud — say nothing rather than guess.
+    if (dwellMs >= 0 && dwellMs < FAST_COMPLETION_MS) {
+      const dwellSeconds = Math.round(dwellMs / 1000);
       signals.push({
         code: 'fast_completion',
-        detail: `Visit completed ~${dwellSeconds}s after check-in (approximate; server insert time)`,
+        detail: `Visit completed ${dwellSeconds}s after check-in (device clock)`,
         weight: WEIGHT_FAST_COMPLETION,
       });
     }
@@ -191,6 +212,7 @@ function toFraudVisitInput(visit: FraudVisitPayload): FraudVisitInput {
     checkinLat: visit.checkinLat,
     checkinLng: visit.checkinLng,
     checkinDistanceM: visit.checkinDistanceM,
+    submittedAtClient: visit.submittedAtClient,
   };
 }
 

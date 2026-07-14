@@ -54,7 +54,15 @@ class HttpQueueFlusher implements QueueFlusher {
       case 'visit_submit':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
         final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
-        await _dio.post('/visits/$remoteId/submit');
+        // Carry the device's completion time through to the server. Without it
+        // the fraud engine has no honest dwell measurement (#101).
+        final submittedAtClient = payload['submittedAtClient'];
+        await _dio.post(
+          '/visits/$remoteId/submit',
+          data: submittedAtClient == null
+              ? null
+              : {'submittedAtClient': submittedAtClient},
+        );
         return;
       case 'visibility':
         final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
