@@ -54,4 +54,17 @@ class SyncQueueItems extends Table {
   DateTimeColumn get queuedAt =>
       dateTime().withDefault(currentDateAndTime)();
   BoolColumn get synced => boolean().withDefault(const Constant(false))();
+
+  /// How many times we have tried to send this item, and why the last try
+  /// failed.
+  ///
+  /// The flusher used to swallow every failure silently and retry forever, so
+  /// an item that could *never* succeed — a photo the server rejects as too
+  /// large, say — looked exactly like one waiting for signal. The agent had no
+  /// way to tell "it will send itself" from "this will never send". Recording
+  /// the attempt makes the difference visible, which is the whole point of the
+  /// sync screen.
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  TextColumn get lastError => text().nullable()();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
 }

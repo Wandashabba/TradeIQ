@@ -7,6 +7,11 @@ import 'package:go_router/go_router.dart';
 /// test must pump its screen under a real GoRoute — a bare
 /// `MaterialApp(home: ...)` throws a GoError. Wrap the screen under test with
 /// this instead.
+///
+/// NOTE: every agent screen now carries the sync chip, which watches the outbox.
+/// Rendering one therefore opens the local database — so an agent-screen test
+/// MUST override `localDbProvider` with an in-memory LocalDb, or it will reach
+/// for the real on-disk connection and never settle.
 Widget routedApp(
   Widget screen, {
   List<Override> overrides = const [],

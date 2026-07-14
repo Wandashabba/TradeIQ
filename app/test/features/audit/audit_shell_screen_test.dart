@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
+import 'package:tradeiq_app/core/sync/sync_status.dart';
+import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
+import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
@@ -79,11 +82,36 @@ class _LocationUnavailableVisitsRepository implements VisitsRepository {
 
 // The S10 scorecard section computes from the local DB on build, so the
 // shell tests need a real (in-memory) LocalDb behind the provider.
-List<Override> _overrides(VisitsRepository visitsRepository, LocalDb db) => [
+/// Nothing captured — the state a visit starts in, so submit is blocked.
+const _nothingDone = VisitProgress(states: {}, details: {});
+
+/// The four scored sections done — the state that unblocks submit.
+const _readyToSubmit = VisitProgress(
+  states: {
+    AuditSection.stock: SectionState.done,
+    AuditSection.visibility: SectionState.done,
+    AuditSection.pricing: SectionState.done,
+    AuditSection.capability: SectionState.done,
+  },
+  details: {},
+);
+
+List<Override> _overrides(
+  VisitsRepository visitsRepository,
+  LocalDb db, {
+  VisitProgress progress = _nothingDone,
+}) =>
+    [
       outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
       visitsRepositoryProvider.overrideWithValue(visitsRepository),
       skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
       localDbProvider.overrideWithValue(db),
+      // Drift's watch() reschedules a zero-duration timer on every tick, so
+      // pumpAndSettle never settles against a real stream. Widget tests stub the
+      // derived providers; visit_progress_test and sync_status_test cover the
+      // real queries against a real database.
+      syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
+      visitProgressProvider.overrideWith((ref, arg) => Stream.value(progress)),
     ];
 
 Widget _appWith(VisitsRepository visitsRepository, LocalDb db) {
@@ -100,20 +128,39 @@ LocalDb _testDb() {
 }
 
 void main() {
-  testWidgets('shows a stepper with all 10 audit sections after a successful check-in', (tester) async {
+  testWidgets('shows the audit as a named checklist after a successful check-in', (tester) async {
     await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
-    expect(find.text('S1 Outlet Information'), findsOneWidget);
-    expect(find.text('S10 Scorecard'), findsOneWidget);
+    // The old shell was a Material Stepper built with
+    // `Step(title: SizedBox.shrink())` — nine sections with NO titles. An agent
+    // could not see which section they were on, what was done, or what was left.
+    expect(find.text('Outlet info'), findsOneWidget);
+    expect(find.text('Stock & availability'), findsOneWidget);
+    expect(find.text('Score'), findsOneWidget);
+    expect(find.byKey(const ValueKey('visit-progress')), findsOneWidget);
+  });
+
+  testWidgets('submit is blocked until the required sections are done, and says which', (tester) async {
+    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
+    await tester.pumpAndSettle();
+
+    // Submitting without them lands a visit with a scorecard dimension at zero,
+    // marking the store down for work the agent never did.
+    final button = tester.widget<AgentButton>(
+      find.byKey(const ValueKey('submit-visit')),
+    );
+    expect(button.onPressed, isNull);
+    expect(find.textContaining('to submit'), findsWidgets);
   });
 
   testWidgets('shows a blocking error when the check-in fails the geofence', (tester) async {
     await tester.pumpWidget(_appWith(_GeofenceFailingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
+    // The measured distance against the threshold — not a bare "too far".
     expect(find.textContaining('650'), findsOneWidget);
-    expect(find.text('S1 Outlet Information'), findsNothing);
+    expect(find.text('Stock & availability'), findsNothing);
   });
 
   testWidgets('shows a retry action when location is unavailable', (tester) async {
@@ -121,7 +168,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Location permission denied'), findsOneWidget);
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
   });
 
   testWidgets('tapping logout clears the session', (tester) async {
@@ -149,8 +196,9 @@ void main() {
       ],
     );
 
+    // A visit is only submittable once the four scored sections are captured.
     await tester.pumpWidget(ProviderScope(
-      overrides: _overrides(repo, _testDb()),
+      overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
       child: MaterialApp.router(routerConfig: router),
     ));
     await tester.pumpAndSettle();
@@ -163,29 +211,33 @@ void main() {
     expect(find.text('Outlet Picker'), findsOneWidget);
   });
 
-  testWidgets('the check-in confirmation timestamp stays fixed across step navigation', (tester) async {
+  testWidgets('the check-in timestamp does not drift when you leave a section and come back', (tester) async {
     await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
-    // The Stepper is vertical, so every step's content (and its "Continue"
-    // control) exists in the widget tree at once — only the current step's
-    // body is visually expanded. All "Continue" buttons share the same
-    // onStepContinue callback, so tapping any of them advances _step and
-    // triggers the setState-driven rebuild we want to exercise here.
-    final firstTimestampFinder = find.textContaining('Checked in at').first;
-    final firstText = tester.widget<Text>(firstTimestampFinder).data;
-
-    await tester.tap(find.text('Continue').first);
+    // The check-in time is evidence: it is half of the dwell measurement the
+    // fraud engine reasons over. It must be stamped once, at check-in, and never
+    // re-derived on a rebuild.
+    await tester.tap(find.byKey(const ValueKey('section-outletInfo')));
     await tester.pumpAndSettle();
 
-    // Tap step 1's index number ("1") to jump back via onStepTapped, which
-    // also calls setState and rebuilds the stepper (and _sections()).
-    await tester.tap(find.text('1').first);
+    // Opening a section pushes it full-screen — one thing at a time.
+    expect(find.text('S1 Outlet Information'), findsOneWidget);
+
+    final first = tester
+        .widget<Text>(find.textContaining('Checked in at').first)
+        .data;
+
+    await tester.pageBack();
     await tester.pumpAndSettle();
 
-    final secondTimestampFinder = find.textContaining('Checked in at').first;
-    final secondText = tester.widget<Text>(secondTimestampFinder).data;
+    await tester.tap(find.byKey(const ValueKey('section-outletInfo')));
+    await tester.pumpAndSettle();
 
-    expect(secondText, firstText);
+    final second = tester
+        .widget<Text>(find.textContaining('Checked in at').first)
+        .data;
+
+    expect(second, first);
   });
 }

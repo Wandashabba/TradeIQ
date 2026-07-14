@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/agent_kit.dart';
 import '../../data/skus_repository.dart';
 import '../../data/stock_repository.dart';
 
@@ -33,7 +35,10 @@ class _StockForm extends ConsumerStatefulWidget {
 }
 
 class _StockFormState extends ConsumerState<_StockForm> {
-  final _units = <String, TextEditingController>{};
+  /// The count on the shelf — the one thing here the agent can actually observe,
+  /// and the one that raises a stockout task. Null means "not counted yet",
+  /// which is a different thing from zero.
+  final _units = <String, int?>{};
   final _oos = <String, TextEditingController>{};
   final _velocity = <String, TextEditingController>{};
   final _salesActual = <String, TextEditingController>{};
@@ -45,7 +50,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
   void initState() {
     super.initState();
     for (final sku in widget.skus) {
-      _units[sku.id] = TextEditingController();
+      _units[sku.id] = null;
       _oos[sku.id] = TextEditingController(text: '0');
       _velocity[sku.id] = TextEditingController();
       _salesActual[sku.id] = TextEditingController();
@@ -56,7 +61,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
 
   @override
   void dispose() {
-    for (final c in [..._units.values, ..._oos.values, ..._velocity.values, ..._salesActual.values, ..._salesTarget.values]) {
+    for (final c in [..._oos.values, ..._velocity.values, ..._salesActual.values, ..._salesTarget.values]) {
       c.dispose();
     }
     super.dispose();
@@ -66,7 +71,10 @@ class _StockFormState extends ConsumerState<_StockForm> {
     final entries = widget.skus.map((sku) {
       return StockEntry(
         skuId: sku.id,
-        unitsAvailable: int.tryParse(_units[sku.id]!.text) ?? 0,
+        // An uncounted SKU is recorded as 0 — the server reads that as out of
+        // stock, which is why the hub will not let the visit be submitted until
+        // every SKU has actually been counted.
+        unitsAvailable: _units[sku.id] ?? 0,
         lastStockinDate: _lastStockin[sku.id]!,
         daysOutOfStock: int.tryParse(_oos[sku.id]!.text) ?? 0,
         velocityAvg: double.tryParse(_velocity[sku.id]!.text) ?? 0.0,
@@ -80,6 +88,18 @@ class _StockFormState extends ConsumerState<_StockForm> {
           entries: entries,
         );
     if (mounted) setState(() => _saved = true);
+  }
+
+  /// Tap the number to type it. A shelf can hold sixty units, and nobody taps
+  /// "+" sixty times — the +/- is for adjusting, this is for entering.
+  Future<void> _typeCount(Sku sku) async {
+    final entered = await showDialog<int>(
+      context: context,
+      builder: (_) => _CountInputDialog(sku: sku, initial: _units[sku.id]),
+    );
+    if (entered != null && mounted) {
+      setState(() => _units[sku.id] = entered);
+    }
   }
 
   Widget _numField(String label, Key key, TextEditingController controller) {
@@ -112,8 +132,59 @@ class _StockFormState extends ConsumerState<_StockForm> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(sku.name, style: Theme.of(context).textTheme.titleMedium),
-                  _numField('Units available', ValueKey('units-${sku.id}'), _units[sku.id]!),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          sku.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink1,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'RRP ${sku.rrp.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.ink3,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  CountStepper(
+                    key: ValueKey('units-${sku.id}'),
+                    value: _units[sku.id],
+                    zeroIsFinding: true,
+                    onChanged: (v) => setState(() => _units[sku.id] = v),
+                    onEdit: () => _typeCount(sku),
+                  ),
+                  if (_units[sku.id] == 0)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning_amber_outlined,
+                              size: 15, color: AppColors.crit),
+                          SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              'Out of stock — this raises a task for the manager',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.crit,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 6),
                   _numField('Days out of stock', ValueKey('oos-${sku.id}'), _oos[sku.id]!),
                   _numField('Avg daily velocity', ValueKey('vel-${sku.id}'), _velocity[sku.id]!),
                   _numField('Sales actual', ValueKey('sactual-${sku.id}'), _salesActual[sku.id]!),
@@ -129,6 +200,59 @@ class _StockFormState extends ConsumerState<_StockForm> {
             padding: EdgeInsets.only(top: 12),
             child: Text('Stock saved — queued for sync'),
           ),
+      ],
+    );
+  }
+}
+
+/// Owns its own controller, so the field is never disposed while the dialog is
+/// still animating away.
+class _CountInputDialog extends StatefulWidget {
+  const _CountInputDialog({required this.sku, required this.initial});
+
+  final Sku sku;
+  final int? initial;
+
+  @override
+  State<_CountInputDialog> createState() => _CountInputDialogState();
+}
+
+class _CountInputDialogState extends State<_CountInputDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial?.toString() ?? '');
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface1,
+      title: Text(widget.sku.name, style: const TextStyle(fontSize: 15)),
+      content: TextField(
+        key: ValueKey('units-input-${widget.sku.id}'),
+        controller: _controller,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          labelText: 'Units on shelf',
+          isDense: true,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          key: ValueKey('units-confirm-${widget.sku.id}'),
+          onPressed: () =>
+              Navigator.of(context).pop(int.tryParse(_controller.text.trim())),
+          child: const Text('Set'),
+        ),
       ],
     );
   }

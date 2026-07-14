@@ -132,15 +132,53 @@ class SyncService {
     for (final item in pending) {
       try {
         await flusher.flush(item);
-      } catch (_) {
+      } catch (e) {
         // One item's failure (network error, terminal rejection, an
         // unimplemented entity type, or a dependency not yet synced) must not
         // block the rest of the queue — it just stays unsynced for next time.
+        //
+        // But it is no longer swallowed. The failure is recorded, because
+        // "waiting for signal" and "the server will never accept this" look
+        // identical to an agent otherwise, and only one of them needs them to
+        // do something about it.
+        await (db.update(db.syncQueueItems)..where((tbl) => tbl.id.equals(item.id)))
+            .write(
+          SyncQueueItemsCompanion(
+            attempts: Value(item.attempts + 1),
+            lastError: Value(_describe(e)),
+            lastAttemptAt: Value(DateTime.now()),
+          ),
+        );
         continue;
       }
       await (db.update(db.syncQueueItems)..where((tbl) => tbl.id.equals(item.id)))
-          .write(const SyncQueueItemsCompanion(synced: Value(true)));
+          .write(
+        SyncQueueItemsCompanion(
+          synced: const Value(true),
+          attempts: Value(item.attempts + 1),
+          lastError: const Value(null),
+          lastAttemptAt: Value(DateTime.now()),
+        ),
+      );
     }
+  }
+
+  /// A sentence an agent standing in a shop can act on — not a stack trace.
+  static String _describe(Object error) {
+    if (error is StateError) {
+      // The parent visit has not reached the server yet, so this child cannot
+      // name it. Ordinary, and self-healing on the next flush.
+      return 'Waiting for the visit to send first';
+    }
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      if (status == null) return 'No connection';
+      if (status == 401 || status == 403) return 'Signed out — sign in again';
+      if (status == 413) return 'Too large to send';
+      if (status >= 500) return 'Server problem — will retry';
+      return 'Rejected by the server ($status)';
+    }
+    return 'Could not send';
   }
 }
 

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_scaffold.dart';
-import '../data/visits_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
+import '../data/visit_progress.dart';
+import '../data/visits_repository.dart';
 import 'sections/s1_outlet_info_screen.dart';
 import 'sections/s2_stock_screen.dart';
 import 'sections/s3_4_visibility_display_screen.dart';
@@ -15,6 +18,15 @@ import 'sections/s8_risks_screen.dart';
 import 'sections/s9_action_plan_screen.dart';
 import 'sections/s10_scorecard_screen.dart';
 
+/// The visit hub.
+///
+/// This replaces a Material [Stepper] whose steps were built with
+/// `Step(title: SizedBox.shrink())` — nine sections with *no titles at all*, on
+/// one long scroll. An agent could not see which section they were on, what was
+/// done, or what was left.
+///
+/// Sections can be done in any order, because a store will not always let you
+/// follow one: you cannot count stock while a delivery is blocking the aisle.
 class AuditShellScreen extends ConsumerStatefulWidget {
   const AuditShellScreen({super.key, required this.outletId});
 
@@ -25,7 +37,6 @@ class AuditShellScreen extends ConsumerStatefulWidget {
 }
 
 class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
-  int _step = 0;
   bool _checkInStarted = false;
   CheckInResult? _checkInResult;
   DateTime? _checkinTs;
@@ -54,49 +65,33 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     return null;
   }
 
-  List<Widget> _sections() => [
-        S1OutletInfoScreen(checkinTs: _checkinTs),
-        S2StockScreen(visitDraftId: _visitDraftId!),
-        S3S4VisibilityDisplayScreen(visitDraftId: _visitDraftId!),
-        S5PricingPromotionsScreen(visitDraftId: _visitDraftId!),
-        S6CompetitiveScreen(visitDraftId: _visitDraftId!),
-        S7CapabilityScreen(visitDraftId: _visitDraftId!),
-        S8RisksScreen(visitDraftId: _visitDraftId!),
-        S9ActionPlanScreen(visitDraftId: _visitDraftId!, outletId: widget.outletId),
-        S10ScorecardScreen(visitDraftId: _visitDraftId!),
-      ];
+  Widget _sectionBody(AuditSection section, String visitDraftId) {
+    return switch (section) {
+      AuditSection.outletInfo => S1OutletInfoScreen(checkinTs: _checkinTs),
+      AuditSection.stock => S2StockScreen(visitDraftId: visitDraftId),
+      AuditSection.visibility =>
+        S3S4VisibilityDisplayScreen(visitDraftId: visitDraftId),
+      AuditSection.pricing =>
+        S5PricingPromotionsScreen(visitDraftId: visitDraftId),
+      AuditSection.competitive => S6CompetitiveScreen(visitDraftId: visitDraftId),
+      AuditSection.capability => S7CapabilityScreen(visitDraftId: visitDraftId),
+      AuditSection.risks => S8RisksScreen(visitDraftId: visitDraftId),
+      AuditSection.actionPlan => S9ActionPlanScreen(
+          visitDraftId: visitDraftId,
+          outletId: widget.outletId,
+        ),
+      AuditSection.score => S10ScorecardScreen(visitDraftId: visitDraftId),
+    };
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final outletsAsync = ref.watch(outletsListProvider);
-
-    return AgentScaffold(
-      title: 'Audit Visit',
-      body: outletsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Failed to load outlet: $err')),
-        data: (outlets) {
-          final outlet = _findOutlet(outlets);
-          if (outlet == null) {
-            return const Center(child: Text('Outlet not found'));
-          }
-          if (!_checkInStarted) {
-            _checkInStarted = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) => _startCheckIn(outlet.lat, outlet.lng));
-            return const Center(child: CircularProgressIndicator());
-          }
-          return switch (_checkInResult) {
-            null => const Center(child: CircularProgressIndicator()),
-            CheckInSucceeded() => _buildStepper(),
-            CheckInGeofenceFailed(:final distanceMeters) => _buildError(
-                'You are ${distanceMeters.round()}m from this outlet. Move within 50m to check in.',
-              ),
-            CheckInLocationUnavailable(:final message) => _buildError(
-                message,
-                onRetry: () => setState(() => _checkInStarted = false),
-              ),
-          };
-        },
+  /// One section, full screen. No nesting, no long scroll of nine forms.
+  void _openSection(AuditSection section, String visitDraftId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _SectionScreen(
+          title: section.label,
+          child: _sectionBody(section, visitDraftId),
+        ),
       ),
     );
   }
@@ -107,52 +102,608 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     await ref.read(visitsRepositoryProvider).submitVisit(id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Visit submitted')),
+      const SnackBar(content: Text('Visit submitted — it will send itself')),
     );
     context.go('/audit');
   }
 
-  Widget _buildStepper() {
-    final sections = _sections();
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          Stepper(
-            physics: const NeverScrollableScrollPhysics(),
-            currentStep: _step,
-            onStepContinue: () {
-              if (_step < sections.length - 1) setState(() => _step += 1);
-            },
-            onStepTapped: (index) => setState(() => _step = index),
-            steps: sections.map((screen) => Step(title: const SizedBox.shrink(), content: screen)).toList(),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submitVisit,
-                child: const Text('Submit visit'),
+  @override
+  Widget build(BuildContext context) {
+    final outletsAsync = ref.watch(outletsListProvider);
+
+    return outletsAsync.when(
+      loading: () => const AgentScaffold(
+        title: 'Starting visit',
+        showSyncChip: false,
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, _) => AgentScaffold(
+        title: 'Visit',
+        showSyncChip: false,
+        body: Center(child: Text('Failed to load outlet: $err')),
+      ),
+      data: (outlets) {
+        final outlet = _findOutlet(outlets);
+        if (outlet == null) {
+          return const AgentScaffold(
+            title: 'Visit',
+            showSyncChip: false,
+            body: Center(child: Text('Outlet not found')),
+          );
+        }
+
+        if (!_checkInStarted) {
+          _checkInStarted = true;
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _startCheckIn(outlet.lat, outlet.lng),
+          );
+        }
+
+        return switch (_checkInResult) {
+          null => _CheckingIn(outlet: outlet),
+          CheckInSucceeded() => _hub(outlet),
+          CheckInGeofenceFailed(:final distanceMeters) => _TooFar(
+              outlet: outlet,
+              distanceMeters: distanceMeters,
+              onRetry: () => setState(() {
+                _checkInStarted = false;
+                _checkInResult = null;
+              }),
+            ),
+          CheckInLocationUnavailable(:final message) => _NoLocation(
+              outlet: outlet,
+              message: message,
+              onRetry: () => setState(() {
+                _checkInStarted = false;
+                _checkInResult = null;
+              }),
+            ),
+        };
+      },
+    );
+  }
+
+  Widget _hub(Outlet outlet) {
+    final visitDraftId = _visitDraftId!;
+    final progressAsync = ref.watch(visitProgressProvider(visitDraftId));
+
+    return progressAsync.when(
+      loading: () => AgentScaffold(
+        title: outlet.name,
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, _) => AgentScaffold(
+        title: outlet.name,
+        body: Center(child: Text('Could not read this visit: $err')),
+      ),
+      data: (progress) {
+        final blocking = progress.blocking;
+
+        return AgentScaffold(
+          title: outlet.name,
+          subtitle: _checkinTs == null
+              ? null
+              : 'In store ${formatAgo(_checkinTs!).replaceAll(' ago', '')}',
+          bottomAction: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // A blocked action explains itself. A dead end in a shop is a
+              // phone call to the manager.
+              if (blocking.isNotEmpty)
+                BarNote(
+                  'Finish ${blocking.map((s) => s.label).join(' and ')} to submit',
+                ),
+              AgentButton(
+                key: const ValueKey('submit-visit'),
+                label: 'Submit visit',
+                onPressed: progress.canSubmit ? _submitVisit : null,
               ),
+            ],
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            children: [
+              _Progress(progress: progress),
+              const SizedBox(height: 18),
+              const _Heading('The audit'),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.surface1,
+                  border: Border.all(color: AppColors.line),
+                  borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+                ),
+                child: Column(
+                  children: [
+                    for (final section in AuditSection.values)
+                      _SectionRow(
+                        section: section,
+                        state: progress.stateOf(section),
+                        detail: progress.details[section],
+                        last: section == AuditSection.values.last,
+                        // The score is the RESULT of the other eight, so it
+                        // cannot be opened and filled in.
+                        onTap: section == AuditSection.score
+                            ? null
+                            : () => _openSection(section, visitDraftId),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Do the sections in any order — the store will not always let you '
+                'follow one. Everything saves as you go, even with no signal.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.ink3,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A section, full screen, with its own way back to the hub.
+class _SectionScreen extends StatelessWidget {
+  const _SectionScreen({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AgentScaffold(
+      title: title,
+      subtitle: 'Saves as you go',
+      onBack: () => Navigator.of(context).pop(),
+      bottomAction: AgentButton(
+        label: 'Done · back to visit',
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _Progress extends StatelessWidget {
+  const _Progress({required this.progress});
+
+  final VisitProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = progress.doneCount;
+    final total = progress.captureCount;
+    final blocking = progress.blocking.length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface1,
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  '$done of $total sections',
+                  key: const ValueKey('visit-progress'),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                blocking == 0
+                    ? 'Ready to submit'
+                    : '$blocking still required',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: blocking == 0 ? AppColors.good : AppColors.ink3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : done / total,
+              minHeight: 6,
+              backgroundColor: AppColors.surface3,
+              valueColor: const AlwaysStoppedAnimation(AppColors.series1),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildError(String message, {VoidCallback? onRetry}) {
-    return Center(
-      child: Column(
+class _Heading extends StatelessWidget {
+  const _Heading(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.9,
+          color: AppColors.ink3,
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionRow extends StatelessWidget {
+  const _SectionRow({
+    required this.section,
+    required this.state,
+    required this.detail,
+    required this.last,
+    required this.onTap,
+  });
+
+  final AuditSection section;
+  final SectionState state;
+  final String? detail;
+  final bool last;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isScore = section == AuditSection.score;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('section-${section.name}'),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 56),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            border: last
+                ? null
+                : const Border(bottom: BorderSide(color: AppColors.line)),
+          ),
+          child: Opacity(
+            opacity: isScore ? 0.7 : 1,
+            child: Row(
+              children: [
+                _StateMark(state: state, isScore: isScore),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        section.label,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: AppColors.ink1,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        isScore
+                            ? 'Calculated when you submit'
+                            : detail ??
+                                (section.required
+                                    ? 'Not started'
+                                    : 'Optional'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.ink3,
+                        ),
+                      ),
+                      if (section.required && state != SectionState.done)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 3),
+                          child: Text(
+                            'REQUIRED TO SUBMIT',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                              color: AppColors.crit,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (onTap != null)
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: AppColors.ink3,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// State is a shape *and* a colour — readable in glare, in greyscale, and under
+/// colour-vision deficiency.
+class _StateMark extends StatelessWidget {
+  const _StateMark({required this.state, required this.isScore});
+
+  final SectionState state;
+  final bool isScore;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isScore) {
+      return const SizedBox(
+        width: 22,
+        height: 22,
+        child: Center(
+          child: Text('—', style: TextStyle(color: AppColors.ink3)),
+        ),
+      );
+    }
+
+    final (color, icon, filled) = switch (state) {
+      SectionState.done => (AppColors.good, Icons.check, true),
+      SectionState.partial => (AppColors.warn, Icons.more_horiz, false),
+      SectionState.notStarted => (AppColors.ink3, null, false),
+    };
+
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: filled ? color : Colors.transparent,
+        shape: BoxShape.circle,
+        border: filled ? null : Border.all(color: color, width: 1.5),
+      ),
+      child: icon == null
+          ? null
+          : Icon(
+              icon,
+              size: 13,
+              color: filled ? const Color(0xFF04210B) : color,
+            ),
+    );
+  }
+}
+
+// ── Check-in states ────────────────────────────────────────────────────────
+
+class _CheckingIn extends StatelessWidget {
+  const _CheckingIn({required this.outlet});
+
+  final Outlet outlet;
+
+  @override
+  Widget build(BuildContext context) {
+    return AgentScaffold(
+      title: outlet.name,
+      subtitle: outlet.code,
+      showSyncChip: false,
+      body: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 22),
+              Text(
+                'Finding you…',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink1,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'You must be within 50 m of the store to check in. '
+                'This is what proves the visit happened.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: AppColors.ink2,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The geofence failure. It used to be a bare sentence with a "Back to outlets"
+/// button — a dead end. It now shows the measured distance against the
+/// threshold, offers a way forward, and is honest that hammering retry from far
+/// away is itself a fraud signal (it is: `failed_attempts` carries up to 25
+/// risk points, and every attempt is recorded server-side).
+class _TooFar extends StatelessWidget {
+  const _TooFar({
+    required this.outlet,
+    required this.distanceMeters,
+    required this.onRetry,
+  });
+
+  final Outlet outlet;
+  final double distanceMeters;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return AgentScaffold(
+      title: outlet.name,
+      subtitle: outlet.code,
+      showSyncChip: false,
+      bottomAction: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          if (onRetry != null)
-            ElevatedButton(onPressed: onRetry, child: const Text('Retry'))
-          else
-            ElevatedButton(onPressed: () => context.go('/audit'), child: const Text('Back to outlets')),
+          AgentButton(
+            key: const ValueKey('checkin-retry'),
+            label: 'Try again',
+            onPressed: onRetry,
+          ),
+          const SizedBox(height: 8),
+          AgentButton(
+            label: 'Back to route',
+            secondary: true,
+            onPressed: () => context.go('/audit'),
+          ),
         ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.location_off_outlined,
+              size: 52,
+              color: AppColors.crit,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'You’re too far away',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Move closer to the store and try again. Nothing is lost — the '
+              'visit hasn’t started.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13.5,
+                color: AppColors.ink2,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              key: const ValueKey('checkin-distance'),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: AppColors.crit.withValues(alpha: 0.4),
+                ),
+                borderRadius: BorderRadius.circular(AppColors.radiusControl),
+              ),
+              child: Text(
+                '${distanceMeters.round()} m away · need 50 m or closer',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.crit,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'This attempt is recorded. Retrying from far away is itself a '
+              'fraud signal, so it is better to walk closer than to keep '
+              'tapping.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.ink3,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoLocation extends StatelessWidget {
+  const _NoLocation({
+    required this.outlet,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final Outlet outlet;
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return AgentScaffold(
+      title: outlet.name,
+      subtitle: outlet.code,
+      showSyncChip: false,
+      bottomAction: AgentButton(
+        key: const ValueKey('checkin-retry'),
+        label: 'Try again',
+        onPressed: onRetry,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.gps_off_outlined,
+              size: 52,
+              color: AppColors.warn,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Can’t find your location',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13.5,
+                color: AppColors.ink2,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

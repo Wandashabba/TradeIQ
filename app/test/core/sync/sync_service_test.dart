@@ -73,6 +73,7 @@ SyncQueueItem _queueItem({
       payloadJson: payloadJson,
       queuedAt: DateTime(2026, 1, 1),
       synced: false,
+      attempts: 0,
     );
 
 void main() {

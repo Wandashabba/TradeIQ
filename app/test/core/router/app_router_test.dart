@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
+import 'package:tradeiq_app/core/sync/sync_status.dart';
+import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -95,7 +97,18 @@ class _FakeSucceedingVisitsRepository implements VisitsRepository {
 
 Widget _appWithOverrides(List<Override> overrides) {
   return ProviderScope(
-    overrides: overrides,
+    overrides: [
+      // Agent screens carry the sync chip, which watches the outbox over a Drift
+      // stream. Drift's watch() reschedules a zero-duration timer on every tick,
+      // so pumpAndSettle never settles against a real one — stub the provider.
+      syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
+      visitProgressProvider.overrideWith(
+        (ref, arg) => Stream.value(
+          const VisitProgress(states: {}, details: {}),
+        ),
+      ),
+      ...overrides,
+    ],
     child: Consumer(
       builder: (context, ref, _) =>
           MaterialApp.router(routerConfig: ref.watch(routerProvider)),
@@ -172,8 +185,11 @@ void main() {
     container.read(routerProvider).go('/audit/o1');
     await tester.pumpAndSettle();
 
-    expect(find.text('Audit Visit'), findsOneWidget);
-    expect(find.text('S1 Outlet Information'), findsOneWidget);
+    // The visit is titled by the store the agent is standing in, and the audit
+    // is a named checklist — not a Stepper with blank steps.
+    expect(find.text('Test Outlet'), findsOneWidget);
+    expect(find.text('Outlet info'), findsOneWidget);
+    expect(find.text('Stock & availability'), findsOneWidget);
   });
 
   testWidgets('authenticated manager starting at /login lands on /dashboard', (
