@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
+import 'package:tradeiq_app/core/widgets/console.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
@@ -29,6 +30,36 @@ class _FakeDashboardRepository implements DashboardRepository {
         shareOfShelf: 41.2,
         perfectStoreRate: 55.6,
       );
+}
+
+/// Returns a LOWER figure for the earlier window, so the console has a real rise
+/// to report rather than an invented one.
+class _ImprovingDashboardRepository implements DashboardRepository {
+  @override
+  Future<DashboardKpis> fetchKpis({
+    String? territoryId,
+    String? from,
+    String? to,
+  }) async {
+    // The previous window is the one that ends where the current one starts.
+    final isPrevious = from != null && DateTime.parse(from).isBefore(
+          DateTime(2026, 6, 14),
+        );
+    final osa = isPrevious ? 88.0 : 93.1;
+    final perfect = isPrevious ? 60.0 : 55.6;
+    final execution = isPrevious ? 76.3 : 78.4;
+
+    return DashboardKpis(
+      numericDistribution: 72.5,
+      weightedDistribution: 81.3,
+      osaPct: osa,
+      executionScore: execution,
+      priceCompliancePct: 88.0,
+      visibilityCompliancePct: 76.4,
+      shareOfShelf: 41.2,
+      perfectStoreRate: perfect,
+    );
+  }
 }
 
 class _ThrowingDashboardRepository implements DashboardRepository {
@@ -273,8 +304,19 @@ void main() {
     );
 
     expect(find.byType(LineChart), findsOneWidget);
-    // The delta is derived from the series, not invented: 78.4 − 76.2 = 2.2.
-    expect(find.text('▲ 2.2'), findsOneWidget);
+  });
+
+  testWidgets('the hero delta is measured against the previous window, like the tiles', (
+    tester,
+  ) async {
+    await _pump(tester, _app(dashboard: _ImprovingDashboardRepository()));
+
+    // Execution score went 76.3 -> 78.4 across the two windows: +2.1 points.
+    // It used to be derived from the last two points of the trend series, which
+    // answered a different question from every tile beneath it.
+    final hero = find.byKey(const ValueKey('kpi-execution-score'));
+    expect(hero, findsOneWidget);
+    expect(find.byType(DeltaBadge), findsWidgets);
   });
 
   testWidgets('shows an error state with a Retry when the KPI fetch fails', (
@@ -302,5 +344,39 @@ void main() {
     final context = tester.element(find.byType(DashboardShellScreen));
     final container = ProviderScope.containerOf(context);
     expect(container.read(sessionControllerProvider).value?.role, isNull);
+  });
+
+  testWidgets('a KPI that rose shows a green up arrow, measured not invented', (
+    tester,
+  ) async {
+    await _pump(tester, _app(dashboard: _ImprovingDashboardRepository()));
+
+    // On-shelf availability went 88.0 -> 93.1 across the two windows: +5.1
+    // points. The figure comes from a second real request for the preceding
+    // window, not from a baseline we made up.
+    final tile = find.byKey(const ValueKey('kpi-On-shelf availability'));
+    expect(
+      find.descendant(of: tile, matching: find.textContaining('5.1')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a KPI that fell shows a red down arrow', (tester) async {
+    await _pump(tester, _app(dashboard: _ImprovingDashboardRepository()));
+
+    // Perfect-store rate went 60.0 -> 55.6: a fall of 4.4 points.
+    final tile = find.byKey(const ValueKey('kpi-Perfect-store rate'));
+    expect(
+      find.descendant(of: tile, matching: find.textContaining('4.4')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('with no previous window there is no arrow at all', (tester) async {
+    await _pump(tester, _app());
+
+    // The fake returns the same numbers for both windows, so nothing moved —
+    // and a 0.0 delta is not movement. No arrow is the honest rendering.
+    expect(find.byType(DeltaText), findsNothing);
   });
 }

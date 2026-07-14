@@ -38,15 +38,64 @@ class DashboardKpis {
   }
 }
 
-/// Active dashboard filter. All fields null = whole-client, all-time (the
-/// default). Wired to GET /dashboard's territoryId/from/to query params.
-class DashboardFilter {
-  const DashboardFilter({this.territoryId, this.from, this.to});
-  final String? territoryId;
-  final String? from; // ISO date
-  final String? to; // ISO date
+/// The window the console is looking at.
+///
+/// A window is what makes a *delta* possible: "92.1% on-shelf availability" is a
+/// fact, but "92.1%, up 0.8 on the previous 30 days" is a decision. Without a
+/// bounded window there is no previous period to compare against, and every
+/// arrow on the screen would be invented.
+enum DashboardRange {
+  last7(label: '7d', days: 7),
+  last30(label: '30d', days: 30),
+  last90(label: '90d', days: 90),
+  ytd(label: 'YTD', days: null),
+  allTime(label: 'All', days: null);
 
-  bool get isActive => territoryId != null || from != null || to != null;
+  const DashboardRange({required this.label, required this.days});
+
+  final String label;
+  final int? days;
+
+  /// The window itself. Null start = unbounded (all time).
+  (DateTime?, DateTime) window(DateTime now) => switch (this) {
+        DashboardRange.ytd => (DateTime(now.year), now),
+        DashboardRange.allTime => (null, now),
+        _ => (now.subtract(Duration(days: days!)), now),
+      };
+
+  /// The equally-long window immediately before this one — the thing we measure
+  /// "up 0.8" against. Null when there is nothing to compare to: all-time has no
+  /// "before", and we will not fabricate one.
+  (DateTime, DateTime)? previousWindow(DateTime now) {
+    final (start, end) = window(now);
+    if (start == null) return null;
+    final span = end.difference(start);
+    return (start.subtract(span), start);
+  }
+}
+
+/// Active dashboard filter. Wired to GET /dashboard's territoryId/from/to.
+class DashboardFilter {
+  const DashboardFilter({
+    this.territoryId,
+    this.range = DashboardRange.last30,
+  });
+
+  final String? territoryId;
+  final DashboardRange range;
+
+  bool get isActive =>
+      territoryId != null || range != DashboardRange.last30;
+
+  DashboardFilter copyWith({
+    String? territoryId,
+    bool clearTerritory = false,
+    DashboardRange? range,
+  }) =>
+      DashboardFilter(
+        territoryId: clearTerritory ? null : (territoryId ?? this.territoryId),
+        range: range ?? this.range,
+      );
 }
 
 abstract class DashboardRepository {
@@ -76,30 +125,101 @@ class DashboardFilterNotifier extends Notifier<DashboardFilter> {
 }
 
 final dashboardFilterProvider =
-    NotifierProvider<DashboardFilterNotifier, DashboardFilter>(DashboardFilterNotifier.new);
+    NotifierProvider<DashboardFilterNotifier, DashboardFilter>(
+  DashboardFilterNotifier.new,
+);
 
-final dashboardKpisProvider = FutureProvider<DashboardKpis>((ref) {
-  final filter = ref.watch(dashboardFilterProvider);
-  return ref.read(dashboardRepositoryProvider).fetchKpis(
-        territoryId: filter.territoryId,
-        from: filter.from,
-        to: filter.to,
+/// The clock, injected so a test can pin "now" instead of racing it.
+final nowProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+/// One KPI, its value now, and the same KPI over the window immediately before.
+class KpiDelta {
+  const KpiDelta({required this.current, this.previous});
+
+  final double current;
+
+  /// Null when there is nothing honest to compare against — an all-time view has
+  /// no "before", and a delta would be a fabrication.
+  final double? previous;
+
+  /// The change in percentage POINTS, not a percentage change of a percentage.
+  /// These KPIs are already rates: "up 0.8" means 91.3% became 92.1%, and saying
+  /// "up 0.9%" of a percentage is a different — and wrong — number.
+  double? get change => previous == null ? null : current - previous!;
+
+  bool get hasDelta => change != null && change!.abs() >= 0.05;
+}
+
+/// The dashboard, with the previous window fetched alongside it.
+///
+/// Two requests, not one: `GET /dashboard` has no comparison built in, and the
+/// alternative — inventing a baseline — is exactly the kind of plausible-looking
+/// number this codebase has been busy removing.
+class DashboardSnapshot {
+  const DashboardSnapshot({required this.current, this.previous});
+
+  final DashboardKpis current;
+  final DashboardKpis? previous;
+
+  KpiDelta of(double Function(DashboardKpis) read) => KpiDelta(
+        current: read(current),
+        previous: previous == null ? null : read(previous!),
       );
+}
+
+final dashboardSnapshotProvider = FutureProvider<DashboardSnapshot>((ref) async {
+  final filter = ref.watch(dashboardFilterProvider);
+  final repo = ref.read(dashboardRepositoryProvider);
+  final now = ref.read(nowProvider)();
+
+  final (from, to) = filter.range.window(now);
+  final previous = filter.range.previousWindow(now);
+
+  final current = await repo.fetchKpis(
+    territoryId: filter.territoryId,
+    from: from?.toIso8601String(),
+    to: to.toIso8601String(),
+  );
+
+  if (previous == null) {
+    return DashboardSnapshot(current: current);
+  }
+
+  // A failed comparison must not take the dashboard down. No previous figure
+  // simply means no arrow — which is honest, and better than a wrong one.
+  try {
+    final prior = await repo.fetchKpis(
+      territoryId: filter.territoryId,
+      from: previous.$1.toIso8601String(),
+      to: previous.$2.toIso8601String(),
+    );
+    return DashboardSnapshot(current: current, previous: prior);
+  } catch (_) {
+    return DashboardSnapshot(current: current);
+  }
 });
+
+/// Back-compat for callers that only need the current figures.
+final dashboardKpisProvider = FutureProvider<DashboardKpis>(
+  (ref) async => (await ref.watch(dashboardSnapshotProvider.future)).current,
+);
 
 /// KPIs scoped to a single territory.
 ///
 /// `GET /territories/:id/coverage` returns outlet and agent *lists*, not a
 /// score, so the only honest way to rank territories by execution score is to
 /// re-query `GET /dashboard` per territory. That is one request per territory —
-/// acceptable at the current scale (a client has a handful), but the right fix
-/// is a server-side `GET /dashboard/by-territory` rollup if the list grows.
+/// acceptable at the current scale, but a server-side rollup is the right fix
+/// if the list grows (#97).
 final territoryKpisProvider =
     FutureProvider.family<DashboardKpis, String>((ref, territoryId) {
   final filter = ref.watch(dashboardFilterProvider);
+  final now = ref.read(nowProvider)();
+  final (from, to) = filter.range.window(now);
+
   return ref.read(dashboardRepositoryProvider).fetchKpis(
         territoryId: territoryId,
-        from: filter.from,
-        to: filter.to,
+        from: from?.toIso8601String(),
+        to: to.toIso8601String(),
       );
 });
