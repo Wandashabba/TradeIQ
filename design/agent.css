@@ -1,0 +1,395 @@
+/* TradeIQ — the field agent's layer, on top of tokens.css.
+ *
+ * The manager's console and the agent's app are the same product and the same
+ * palette, but they are not the same design problem:
+ *
+ *   Manager — at a desk, on a wide screen, triaging many things at once.
+ *             Density is a feature. Actions live top-right.
+ *
+ *   Agent   — standing in an aisle, one hand on the phone and one on a shelf,
+ *             in bad light, often with no signal. They do ONE thing at a time,
+ *             and all day they are asking one question: "is my work safe?"
+ *
+ * So this layer trades density for reach and certainty:
+ *   · primary actions sit at the BOTTOM, in the thumb zone — never top-right
+ *   · targets are >= 48px, type is larger, contrast is higher (sunlight/glare)
+ *   · counts are entered with steppers, not by summoning a keyboard
+ *   · sync state is never hidden, and never optimistic
+ */
+
+:root {
+  /* Reach: a bottom bar is always this tall, and content must clear it. */
+  --bar-h: 76px;
+
+  /* Touch: nothing interactive is smaller than this. */
+  --tap: 48px;
+}
+
+/* ── Device frame ──────────────────────────────────────────────────────── */
+
+body.agent {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.phone {
+  width: 375px;
+  height: 812px;
+  background: var(--plane);
+  border-radius: 38px;
+  box-shadow: 0 0 0 9px #1c1f26, 0 24px 48px rgba(0, 0, 0, 0.55);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+.notch {
+  position: absolute; top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 148px; height: 27px;
+  background: #1c1f26;
+  border-radius: 0 0 14px 14px;
+  z-index: 60;
+}
+.statusbar {
+  position: absolute; top: 0;
+  width: 100%; height: 44px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 22px;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--ink-2);
+  z-index: 50;
+}
+.statusbar .sig { display: flex; gap: 5px; align-items: center; }
+
+/* ── App bar ───────────────────────────────────────────────────────────── */
+
+.appbar {
+  padding: 52px 16px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.appbar .back {
+  width: var(--tap); height: var(--tap);
+  margin-left: -12px;
+  display: grid; place-items: center;
+  color: var(--ink-2);
+  border-radius: var(--r-control);
+}
+.appbar .back:active { background: var(--surface-2); }
+.appbar-title { min-width: 0; }
+.appbar-title h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--ink-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.appbar-title p {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ── Scroll body — always clears the bottom bar ────────────────────────── */
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px calc(var(--bar-h) + 16px);
+}
+.body::-webkit-scrollbar { display: none; }
+
+/* ── The thumb zone. The one place a primary action may live. ──────────── */
+
+.bottom-bar {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 12px 16px 18px;
+  /* Opaque, not a fade. A gradient let the list scroll through the text telling
+     the agent why the button is disabled — which is the one thing on this bar
+     that has to be readable. */
+  background: var(--surface-1);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 20px rgba(5, 6, 10, 0.5);
+  z-index: 40;
+}
+
+.btn-lg {
+  width: 100%;
+  min-height: var(--tap);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  color: #fff;
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  border-radius: var(--r-control);
+  cursor: pointer;
+}
+.btn-lg:active { background: #0a5fd0; }
+.btn-lg[disabled] {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+.btn-lg.secondary {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  color: var(--ink-1);
+}
+
+/* Why a disabled button is disabled — never make them guess. */
+.bar-note {
+  margin: 0 0 9px;
+  font-size: 12px;
+  color: var(--ink-3);
+  text-align: center;
+}
+.bar-note b { color: var(--warn); font-weight: 600; }
+
+/* ── Sync truth. The agent's most-asked question, answered permanently. ── */
+
+.sync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--r-control);
+  font-size: 12.5px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+.sync .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+/* Held on the device: honest, not alarming. This is the normal state offline. */
+.sync.pending { border-color: rgba(250, 178, 25, 0.35); background: var(--warn-quiet); color: var(--warn); }
+.sync.pending .dot { background: var(--warn); }
+/* Everything is on the server. */
+.sync.synced { border-color: rgba(12, 163, 12, 0.3); background: var(--good-quiet); color: var(--good); }
+.sync.synced .dot { background: var(--good); }
+/* Tried and failed — needs the agent to know, not a silent retry forever. */
+.sync.failed { border-color: rgba(208, 59, 59, 0.4); background: var(--crit-quiet); color: var(--crit); }
+.sync.failed .dot { background: var(--crit); }
+.sync .grow { flex: 1; min-width: 0; }
+.sync .sub { color: var(--ink-3); font-size: 11.5px; }
+
+/* ── Cards & rows ──────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  overflow: hidden;
+}
+.card + .card { margin-top: 10px; }
+
+.section-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;               /* comfortably above the 48px floor */
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.section-row:last-child { border-bottom: 0; }
+.section-row:active { background: var(--surface-2); }
+
+/* State is a shape AND a word — readable in glare, in greyscale, and CVD. */
+.state {
+  width: 22px; height: 22px;
+  flex: none;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700;
+}
+.state.done    { background: var(--good); color: #04210b; }
+.state.partial { background: transparent; color: var(--warn); box-shadow: inset 0 0 0 2px var(--warn); }
+.state.todo    { background: transparent; color: var(--ink-3); box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.state.blocked { background: transparent; color: var(--crit); box-shadow: inset 0 0 0 2px var(--crit); }
+
+.section-row .grow { flex: 1; min-width: 0; }
+.section-row .name { font-size: 15px; color: var(--ink-1); }
+.section-row .meta { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+.section-row .chev { color: var(--ink-3); flex: none; }
+
+/* ── Progress ──────────────────────────────────────────────────────────── */
+
+.progress {
+  height: 6px;
+  background: var(--surface-3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress > i {
+  display: block;
+  height: 100%;
+  background: var(--series-1);
+  border-radius: 3px;
+}
+.progress-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.progress-line .n { font-size: 14px; font-weight: 650; color: var(--ink-1); }
+.progress-line .of { font-size: 12px; color: var(--ink-3); }
+
+/* ── Capture controls — big, and keyboard-free where possible ──────────── */
+
+.field { margin-bottom: 16px; }
+.field > label {
+  display: block;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink-2);
+  margin-bottom: 7px;
+}
+.field .help {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+/* A count is entered by tapping, not by typing. The keyboard covers half the
+   screen and the agent has one free hand. */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.stepper button {
+  width: 56px;
+  border: 0;
+  background: var(--surface-3);
+  color: var(--ink-1);
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.stepper button:active { background: var(--brand); color: #fff; }
+.stepper .val {
+  flex: 1;
+  min-height: 54px;
+  display: grid; place-items: center;
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+.stepper .val.zero { color: var(--crit); }
+
+/* Yes/no is two big targets, not a 20px switch. */
+.choice { display: flex; gap: 8px; }
+.choice button {
+  flex: 1;
+  min-height: var(--tap);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  cursor: pointer;
+}
+.choice button[aria-pressed='true'] {
+  background: var(--brand-quiet);
+  border-color: var(--brand);
+  color: var(--ink-1);
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  min-height: 40px;
+  padding: 0 14px;
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  cursor: pointer;
+}
+.chip[aria-pressed='true'] {
+  background: var(--brand-quiet);
+  border-color: var(--brand);
+  color: var(--ink-1);
+}
+
+/* Photo: the shutter is a target you can hit without looking. */
+.shoot {
+  width: 100%;
+  min-height: 92px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 14px; font-weight: 600;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-panel);
+  cursor: pointer;
+}
+.shoot:active { border-color: var(--brand); color: var(--ink-1); }
+.shot { display: flex; gap: 10px; align-items: center; }
+.shot img, .shot .thumb {
+  width: 76px; height: 76px;
+  border-radius: var(--r-control);
+  background: var(--surface-3);
+  display: grid; place-items: center;
+  color: var(--ink-3);
+  flex: none;
+}
+
+/* ── Misc ──────────────────────────────────────────────────────────────── */
+
+.eyebrow-lg {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 18px 0 8px;
+}
+.hint {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+.big-figure {
+  font-size: 44px;
+  font-weight: 650;
+  letter-spacing: -1px;
+  color: var(--ink-1);
+  line-height: 1;
+}
+
+.caption {
+  width: 375px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+.caption b { display: block; color: var(--ink-1); font-size: 13px; margin-bottom: 3px; font-weight: 600; }
