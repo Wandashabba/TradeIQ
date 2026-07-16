@@ -51,6 +51,7 @@ describe('territories routes', () => {
     await prisma.userTerritory.deleteMany({
       where: { territory: { clientId: { in: [clientId, otherClientId] } } },
     });
+    await prisma.visit.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
     await prisma.outlet.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
     await prisma.territory.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
     await prisma.user.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
@@ -177,6 +178,107 @@ describe('territories routes', () => {
     expect(outletIds).toEqual([outlet.id]);
     const agentIds = (res.body.agents as Array<{ id: string }>).map((a) => a.id);
     expect(agentIds).toContain(managerId);
+  });
+
+  it('returns coverageRate computed from distinct visited outlets', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-CoverageRate', code: 'TERR-COVR1' },
+    });
+    const outletA = await prisma.outlet.create({
+      data: {
+        name: 'TERR-Outlet-A',
+        code: 'TERR-OUT-A',
+        channelType: 'general_trade',
+        lat: -26.2,
+        lng: 28.04,
+        territoryId: territory.code,
+        clientId,
+      },
+    });
+    const outletB = await prisma.outlet.create({
+      data: {
+        name: 'TERR-Outlet-B',
+        code: 'TERR-OUT-B',
+        channelType: 'general_trade',
+        lat: -26.2,
+        lng: 28.04,
+        territoryId: territory.code,
+        clientId,
+      },
+    });
+    await prisma.outlet.create({
+      data: {
+        name: 'TERR-Outlet-C',
+        code: 'TERR-OUT-C',
+        channelType: 'general_trade',
+        lat: -26.2,
+        lng: 28.04,
+        territoryId: territory.code,
+        clientId,
+      },
+    });
+    // Outlet A visited twice in-window; still counts once toward outletsVisited.
+    await prisma.visit.create({
+      data: {
+        outletId: outletA.id,
+        agentId,
+        clientId,
+        checkinTs: new Date('2026-07-01T09:00:00.000Z'),
+        checkinLat: -26.2,
+        checkinLng: 28.04,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+    await prisma.visit.create({
+      data: {
+        outletId: outletA.id,
+        agentId,
+        clientId,
+        checkinTs: new Date('2026-07-03T09:00:00.000Z'),
+        checkinLat: -26.2,
+        checkinLng: 28.04,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+    await prisma.visit.create({
+      data: {
+        outletId: outletB.id,
+        agentId,
+        clientId,
+        checkinTs: new Date('2026-07-05T09:00:00.000Z'),
+        checkinLat: -26.2,
+        checkinLng: 28.04,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.coverage).toEqual({ outletsVisited: 2, outletsTotal: 3, coverageRate: 66.67 });
+
+    // Narrowing the window to exclude the outletB visit drops the rate.
+    const windowed = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .query({ from: '2026-07-01T00:00:00.000Z', to: '2026-07-04T00:00:00.000Z' })
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(windowed.status).toBe(200);
+    expect(windowed.body.coverage).toEqual({ outletsVisited: 1, outletsTotal: 3, coverageRate: 33.33 });
+  });
+
+  it('rejects an invalid from date with 400', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-BadFrom', code: 'TERR-BADFROM1' },
+    });
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .query({ from: 'not-a-date' })
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(res.status).toBe(400);
   });
 
   it('returns 404 coverage for a territory of another client', async () => {

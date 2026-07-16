@@ -1,3 +1,4 @@
+import { Prisma, Territory, User, Outlet } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 
@@ -59,7 +60,17 @@ export async function assignAgentToTerritory(input: AssignAgentInput) {
   });
 }
 
-export async function getTerritoryCoverage(territoryId: string, clientId: string) {
+export async function getTerritoryCoverage(
+  territoryId: string,
+  clientId: string,
+  from?: Date,
+  to?: Date,
+): Promise<{
+  territory: Territory;
+  outlets: Outlet[];
+  agents: User[];
+  coverage: { outletsVisited: number; outletsTotal: number; coverageRate: number };
+}> {
   const territory = await findTerritoryForClient(territoryId, clientId);
 
   // Outlets link to a territory by the free-text Outlet.territoryId equalling
@@ -74,5 +85,21 @@ export async function getTerritoryCoverage(territoryId: string, clientId: string
   });
   const agents = assignments.map((assignment) => assignment.user);
 
-  return { territory, outlets, agents };
+  const outletIds = outlets.map((outlet) => outlet.id);
+  const visitWhere: Prisma.VisitWhereInput = { clientId, outletId: { in: outletIds } };
+  if (from || to) {
+    visitWhere.checkinTs = {
+      ...(from ? { gte: from } : {}),
+      ...(to ? { lte: to } : {}),
+    };
+  }
+  const visitedOutlets = outletIds.length
+    ? await prisma.visit.findMany({ where: visitWhere, select: { outletId: true }, distinct: ['outletId'] })
+    : [];
+
+  const outletsTotal = outlets.length;
+  const outletsVisited = visitedOutlets.length;
+  const coverageRate = outletsTotal > 0 ? Math.round((100 * outletsVisited / outletsTotal) * 100) / 100 : 0;
+
+  return { territory, outlets, agents, coverage: { outletsVisited, outletsTotal, coverageRate } };
 }
