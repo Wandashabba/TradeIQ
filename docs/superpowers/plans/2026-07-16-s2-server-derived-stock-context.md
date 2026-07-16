@@ -563,6 +563,20 @@ void main() {
 
 Run: `cd app && flutter test test/features/audit/skus_repository_test.dart` — expect PASS. Commit: `feat(app): Sku model carries server-computed stock context (#112)`.
 
+## Task 6b: App — fix the other `skusListProvider` consumers Task 6 broke
+
+**Discovered mid-implementation, not in the original plan:** Task 6 converting `skusListProvider` to `FutureProvider.family<List<Sku>, String>` breaks four consumers the plan never accounted for (found via `flutter analyze` + grep after Task 6 landed): `visit_progress.dart`, `visit_review.dart`, `s5_pricing_promotions_screen.dart`, `order_form_screen.dart`, plus their test files. Task 8's text also incorrectly assumed `S5PricingPromotionsScreen` already took an `outletId` param — it doesn't; that was a planning error, corrected here.
+
+**`visit_progress.dart` / `visit_review.dart`** (both `StreamProvider.family<T, String>` keyed by `visitDraftId`, with no `outletId` in scope): add a small shared provider, `visitDraftOutletIdProvider = FutureProvider.family<String?, String>((ref, visitDraftId) async { ... })` in `skus_repository.dart` (or a new tiny file if that fits house style better — implementer's call), that looks up `VisitDrafts.outletId` for the given `visitDraftId` via `db.select(db.visitDrafts)..where((t) => t.id.equals(visitDraftId))`. Both files then watch this provider first, and only watch `skusListProvider(outletId)` once the lookup resolves to a non-null id — falling back to their existing `orElse: () => 0` / `orElse: () => <String,String>{}` graceful-degradation defaults otherwise (matches their existing `.maybeWhen` pattern, just with one more layer).
+
+**`s5_pricing_promotions_screen.dart`**: add `required this.outletId` to `S5PricingPromotionsScreen`, change `ref.watch(skusListProvider)` to `ref.watch(skusListProvider(outletId))`. Update `audit_shell_screen.dart`'s `_sectionBody` call site: `AuditSection.pricing => S5PricingPromotionsScreen(visitDraftId: visitDraftId, outletId: widget.outletId)`.
+
+**`order_form_screen.dart`**: architecturally different — no visit context, `_outletId` starts `null` and is set only once the agent picks an outlet from a dropdown. Only call `ref.watch(skusListProvider(_outletId!))` once `_outletId != null`; while null, show a "Select an outlet to see available SKUs" placeholder instead of the SKU/pricing section (consistent with #112's premise that stock context is inherently outlet-scoped — there is no meaningful SKU context without an outlet now, whereas before this endpoint returned the same bare catalog regardless of outlet).
+
+Update the four corresponding test files (`visit_progress_test.dart`, `visit_review_test.dart`, `s5_pricing_promotions_screen_test.dart`, `order_form_screen_test.dart`) to match: fake `SkusRepository.listSkus` implementations gain `{required String outletId}`; any `Sku(...)` test literals gain `daysOutOfStock`/`velocityAvg`; `S5PricingPromotionsScreen` test construction gains `outletId: '...'`; `order_form_screen_test.dart` gains a case covering the "no outlet selected yet" placeholder state if one doesn't already exist for a conceptually similar gate.
+
+Run `flutter analyze` — should show zero errors outside `s2_stock_screen.dart`/`s2_stock_screen_test.dart`/`audit_shell_screen_test.dart` (Task 8's remaining, expected scope) after this task. Commit: `fix(app): thread outletId through remaining skusListProvider consumers (#112)`.
+
 ## Task 7: App — `StockEntry`/`StockDrafts` drop the four removed fields
 
 `stock_repository.dart`:
