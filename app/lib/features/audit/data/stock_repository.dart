@@ -6,33 +6,24 @@ import 'package:uuid/uuid.dart';
 import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_service.dart';
 
-/// One captured stock line for a SKU during a visit.
+/// One captured stock line for a SKU during a visit. daysOutOfStock,
+/// velocityAvg, salesActual, and salesTarget are no longer agent input —
+/// the server computes the first two and there is no source for the other
+/// two yet (#112).
 class StockEntry {
   const StockEntry({
     required this.skuId,
     required this.unitsAvailable,
     required this.lastStockinDate,
-    required this.daysOutOfStock,
-    required this.velocityAvg,
-    required this.salesActual,
-    required this.salesTarget,
   });
   final String skuId;
   final int unitsAvailable;
   final DateTime lastStockinDate;
-  final int daysOutOfStock;
-  final double velocityAvg;
-  final double salesActual;
-  final double salesTarget;
 
   Map<String, dynamic> toJson() => {
         'skuId': skuId,
         'unitsAvailable': unitsAvailable,
         'lastStockinDate': lastStockinDate.toUtc().toIso8601String(),
-        'daysOutOfStock': daysOutOfStock,
-        'velocityAvg': velocityAvg,
-        'salesActual': salesActual,
-        'salesTarget': salesTarget,
       };
 }
 
@@ -58,10 +49,6 @@ class DriftStockRepository implements StockRepository {
               skuId: entry.skuId,
               unitsAvailable: entry.unitsAvailable,
               lastStockinDate: entry.lastStockinDate,
-              daysOutOfStock: entry.daysOutOfStock,
-              velocityAvg: entry.velocityAvg,
-              salesActual: entry.salesActual,
-              salesTarget: entry.salesTarget,
             ));
       }
       await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(

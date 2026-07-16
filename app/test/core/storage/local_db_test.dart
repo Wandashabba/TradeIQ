@@ -28,10 +28,6 @@ void main() {
           skuId: 'sku1',
           unitsAvailable: 20,
           lastStockinDate: DateTime(2026, 7, 1),
-          daysOutOfStock: 0,
-          velocityAvg: 4,
-          salesActual: 100,
-          salesTarget: 120,
         ));
 
     final rows = await db.select(db.stockDrafts).get();

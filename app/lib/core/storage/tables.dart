@@ -34,10 +34,6 @@ class StockDrafts extends Table {
   TextColumn get skuId => text()();
   IntColumn get unitsAvailable => integer()();
   DateTimeColumn get lastStockinDate => dateTime()();
-  IntColumn get daysOutOfStock => integer()();
-  RealColumn get velocityAvg => real()();
-  RealColumn get salesActual => real()();
-  RealColumn get salesTarget => real()();
 
   @override
   Set<Column> get primaryKey => {id};

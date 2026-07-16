@@ -15,10 +15,6 @@ StockEntry _entry() => StockEntry(
       skuId: 'sku-1',
       unitsAvailable: 20,
       lastStockinDate: DateTime.utc(2026, 7, 1),
-      daysOutOfStock: 0,
-      velocityAvg: 4,
-      salesActual: 100,
-      salesTarget: 120,
     );
 
 void main() {
@@ -47,5 +43,6 @@ void main() {
     expect(payload['visitDraftId'], 'visit-1');
     expect((payload['items'] as List), hasLength(2));
     expect((payload['items'] as List).first['skuId'], 'sku-1');
+    expect((payload['items'] as List).first.containsKey('velocityAvg'), isFalse);
   });
 }
