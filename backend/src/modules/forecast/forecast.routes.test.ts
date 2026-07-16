@@ -10,6 +10,8 @@ describe('forecast routes', () => {
   let agentToken: string;
   let skuId: string;
   let otherSkuId: string;
+  let outletId: string;
+  let agentId: string;
 
   beforeAll(async () => {
     const client = await prisma.client.create({
@@ -22,6 +24,7 @@ describe('forecast routes', () => {
       data: { email: 'fcast-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
+    agentId = agent.id;
 
     const outlet = await prisma.outlet.create({
       data: {
@@ -34,6 +37,7 @@ describe('forecast routes', () => {
         clientId,
       },
     });
+    outletId = outlet.id;
 
     const sku = await prisma.sku.create({
       data: { clientId, name: 'FCAST-Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99 },
@@ -112,6 +116,56 @@ describe('forecast routes', () => {
     expect(res.body.historyPoints).toHaveLength(3);
     expect(typeof res.body.forecastNextPeriod).toBe('number');
     expect(typeof res.body.forecastCoverageDays).toBe('number');
+  });
+
+  it('excludes rows with a null salesActual from the forecast series (unrecorded ≠ zero)', async () => {
+    const nullSku = await prisma.sku.create({
+      data: { clientId, name: 'FCAST-NullCola', category: 'Beverages', minFacingsStandard: 4, rrp: 14.99 },
+    });
+
+    // Same three-visit shape as the primary fixture, but the middle observation
+    // was never captured (null) rather than recorded as 0 — the read path must
+    // drop it from the history series, not silently treat "unknown" as "zero".
+    const salesSeriesWithGap: Array<number | null> = [10, null, 30];
+    for (let i = 0; i < salesSeriesWithGap.length; i += 1) {
+      const visit = await prisma.visit.create({
+        data: {
+          outletId,
+          agentId,
+          clientId,
+          checkinTs: new Date(`2026-07-1${i + 1}T09:00:00.000Z`),
+          checkinLat: -26.2041,
+          checkinLng: 28.0473,
+          geofencePass: true,
+          status: 'submitted',
+        },
+      });
+      await prisma.visitStock.create({
+        data: {
+          visitId: visit.id,
+          skuId: nullSku.id,
+          unitsAvailable: 60,
+          lastStockinDate: new Date(`2026-07-1${i + 1}T00:00:00.000Z`),
+          daysOutOfStock: 0,
+          velocityAvg: 5,
+          coverageDaysPredicted: 12,
+          salesActual: salesSeriesWithGap[i],
+          salesTarget: 40,
+          createdAt: new Date(`2026-07-1${i + 1}T10:00:00.000Z`),
+        },
+      });
+    }
+
+    const res = await request(app)
+      .get('/forecast')
+      .query({ skuId: nullSku.id })
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    // 3 rows seeded, but only 2 carry a recorded salesActual — the null row is dropped.
+    expect(res.body.historyPoints).toEqual([10, 30]);
+    // SES(alpha=0.5) over [10, 30]: s0 = 10, s1 = 0.5*30 + 0.5*10 = 20.
+    expect(res.body.forecastNextPeriod).toBe(20);
   });
 
   it('404s for a SKU belonging to another client', async () => {
