@@ -167,6 +167,84 @@ describe('stock routes', () => {
     expect(res.body[0].coverageDaysPredicted).toBe(0);
   });
 
+  it('ignores client-sent daysOutOfStock/velocityAvg and stores the server-computed values instead (#112)', async () => {
+    // The core invariant #112 exists to guarantee: an agent (or any client)
+    // cannot make daysOutOfStock/velocityAvg be anything other than what the
+    // server derives from history. StockItemInput no longer even has these
+    // fields in TypeScript, but nothing stops a raw HTTP body from including
+    // them anyway -- this proves the server actively ignores them rather than
+    // merely not requiring them, by sending values that CONTRADICT what
+    // history computes and asserting they're discarded, not coincidentally
+    // matched.
+    const ghostSku = await prisma.sku.create({
+      data: { clientId, name: 'Ghost Fanta', category: 'Beverages', minFacingsStandard: 4, rrp: 12.99 },
+    });
+    const outlet = await prisma.outlet.findFirstOrThrow({ where: { clientId } });
+    const agentId = (await prisma.user.findFirstOrThrow({ where: { clientId } })).id;
+
+    const priorVisit = await prisma.visit.create({
+      data: {
+        outletId: outlet.id,
+        agentId,
+        clientId,
+        checkinTs: new Date('2026-07-01T00:00:00.000Z'),
+        checkinLat: -26.2041,
+        checkinLng: 28.0473,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+    await prisma.visitStock.create({
+      data: {
+        visitId: priorVisit.id,
+        skuId: ghostSku.id,
+        unitsAvailable: 50,
+        lastStockinDate: new Date('2026-07-01T00:00:00.000Z'),
+        daysOutOfStock: 0,
+        velocityAvg: 0,
+        coverageDaysPredicted: 0,
+      },
+    });
+
+    const currentVisit = await prisma.visit.create({
+      data: {
+        outletId: outlet.id,
+        agentId,
+        clientId,
+        checkinTs: new Date('2026-07-04T00:00:00.000Z'), // 3 days after priorVisit
+        checkinLat: -26.2041,
+        checkinLng: 28.0473,
+        geofencePass: true,
+        status: 'in_progress',
+      },
+    });
+
+    // Server should compute: velocityAvg 0 (only 1 prior row, needs 2 for a
+    // rate) and daysOutOfStock 3 (days since priorVisit's in-stock reading).
+    // The request instead sends 999/999 for both -- values that could never
+    // arise from this history -- to prove they're discarded, not honoured.
+    const res = await request(app)
+      .post('/stock')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({
+        visitId: currentVisit.id,
+        items: [
+          {
+            skuId: ghostSku.id,
+            unitsAvailable: 40,
+            lastStockinDate: '2026-07-04T00:00:00.000Z',
+            daysOutOfStock: 999,
+            velocityAvg: 999,
+          },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body[0].velocityAvg).toBe(0);
+    expect(res.body[0].daysOutOfStock).toBe(3);
+    expect(res.body[0].coverageDaysPredicted).toBe(0);
+  });
+
   it('auto-creates a stockout Task for an out-of-stock item and dedupes on re-submit (#47)', async () => {
     const outOfStock = { ...validItem(), unitsAvailable: 0 };
 
