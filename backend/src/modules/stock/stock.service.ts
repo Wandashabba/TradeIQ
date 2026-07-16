@@ -1,6 +1,11 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { predictCoverageDays } from '../../services/forecast.service';
+import {
+  computeDaysOutOfStock,
+  computeVelocityAvg,
+  fetchStockHistoryForOutlet,
+} from '../../services/stock-derived.service';
 import { computeSlaDueAt } from '../../lib/slaClock';
 import { kpiThreshold } from '../../lib/kpiThresholds';
 
@@ -14,10 +19,8 @@ export interface StockItemInput {
   skuId: string;
   unitsAvailable: number;
   lastStockinDate: string; // ISO
-  daysOutOfStock: number;
-  velocityAvg: number;
-  salesActual: number;
-  salesTarget: number;
+  salesActual?: number;
+  salesTarget?: number;
 }
 
 export interface RecordStockInput {
@@ -28,11 +31,8 @@ export interface RecordStockInput {
 
 // predictCoverageDays returns Infinity when velocityAvg <= 0, which a Postgres
 // Float column can't store — clamp it to 0 (route validation also guards this).
-function coverageFor(item: StockItemInput): number {
-  const coverage = predictCoverageDays({
-    unitsAvailable: item.unitsAvailable,
-    velocityAvg: item.velocityAvg,
-  });
+function coverageFor(unitsAvailable: number, velocityAvg: number): number {
+  const coverage = predictCoverageDays({ unitsAvailable, velocityAvg });
   return Number.isFinite(coverage) ? coverage : 0;
 }
 
@@ -66,22 +66,30 @@ export async function recordStock(input: RecordStockInput) {
     throw new NotFoundError(`SKU not found: ${unknown}`);
   }
 
+  // daysOutOfStock/velocityAvg are neither observable at a shelf nor
+  // trustworthy when field-agent-typed — derive both server-side from the
+  // outlet's VisitStock history instead (#112).
+  const historyBySku = await fetchStockHistoryForOutlet(visit.outletId, input.clientId);
+
   const rows = await prisma.$transaction(
-    input.items.map((item) =>
-      prisma.visitStock.create({
+    input.items.map((item) => {
+      const history = historyBySku.get(item.skuId) ?? [];
+      const daysOutOfStock = computeDaysOutOfStock(history, visit.checkinTs);
+      const velocityAvg = computeVelocityAvg(history);
+      return prisma.visitStock.create({
         data: {
           visitId: input.visitId,
           skuId: item.skuId,
           unitsAvailable: item.unitsAvailable,
           lastStockinDate: new Date(item.lastStockinDate),
-          daysOutOfStock: item.daysOutOfStock,
-          velocityAvg: item.velocityAvg,
-          coverageDaysPredicted: coverageFor(item),
-          salesActual: item.salesActual,
-          salesTarget: item.salesTarget,
+          daysOutOfStock,
+          velocityAvg,
+          coverageDaysPredicted: coverageFor(item.unitsAvailable, velocityAvg),
+          salesActual: item.salesActual ?? null,
+          salesTarget: item.salesTarget ?? null,
         },
-      }),
-    ),
+      });
+    }),
   );
 
   // Auto-create a follow-up Task for every out-of-stock SKU, mirroring the

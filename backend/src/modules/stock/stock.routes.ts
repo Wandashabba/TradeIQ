@@ -6,19 +6,14 @@ import { listStockForVisit, recordStock, StockItemInput } from './stock.service'
 export const stockRouter = Router();
 stockRouter.use(requireAuth);
 
-const REQUIRED_NUMERIC: Array<keyof StockItemInput> = [
-  'unitsAvailable',
-  'daysOutOfStock',
-  'velocityAvg',
-  'salesActual',
-  'salesTarget',
-];
-
 function isValidItem(item: unknown): item is StockItemInput {
   if (typeof item !== 'object' || item === null) return false;
   const i = item as Record<string, unknown>;
   if (typeof i.skuId !== 'string' || typeof i.lastStockinDate !== 'string') return false;
-  return REQUIRED_NUMERIC.every((k) => typeof i[k] === 'number');
+  if (typeof i.unitsAvailable !== 'number') return false;
+  if (i.salesActual !== undefined && i.salesActual !== null && typeof i.salesActual !== 'number') return false;
+  if (i.salesTarget !== undefined && i.salesTarget !== null && typeof i.salesTarget !== 'number') return false;
+  return true;
 }
 
 stockRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {

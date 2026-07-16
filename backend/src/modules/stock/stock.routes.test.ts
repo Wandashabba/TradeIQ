@@ -54,10 +54,11 @@ describe('stock routes', () => {
   });
 
   afterAll(async () => {
-    // Delete auto-created follow-up tasks (issue #47) before visits so the
-    // Task -> Visit FK doesn't block cleanup.
+    // Delete auto-created follow-up tasks (issue #47) and stock rows (including
+    // the extra visits the #112 history test creates) before visits so the
+    // Task/VisitStock -> Visit FKs don't block cleanup.
     await prisma.task.deleteMany({ where: { visit: { clientId } } });
-    await prisma.visitStock.deleteMany({ where: { visitId } });
+    await prisma.visitStock.deleteMany({ where: { visit: { clientId } } });
     await prisma.visit.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId } });
     await prisma.sku.deleteMany({ where: { clientId } });
@@ -70,13 +71,9 @@ describe('stock routes', () => {
     skuId,
     unitsAvailable: 20,
     lastStockinDate: '2026-07-01T00:00:00.000Z',
-    daysOutOfStock: 0,
-    velocityAvg: 4,
-    salesActual: 100,
-    salesTarget: 120,
   });
 
-  it('records stock rows and computes coverage days (201)', async () => {
+  it('records stock rows with zero coverage when there is no prior history (201)', async () => {
     const res = await request(app)
       .post('/stock')
       .set('Authorization', `Bearer ${agentToken}`)
@@ -84,7 +81,90 @@ describe('stock routes', () => {
 
     expect(res.status).toBe(201);
     expect(res.body).toHaveLength(1);
-    expect(res.body[0].coverageDaysPredicted).toBeCloseTo(5); // 20 / 4
+    expect(res.body[0].daysOutOfStock).toBe(0);
+    expect(res.body[0].velocityAvg).toBe(0);
+    expect(res.body[0].coverageDaysPredicted).toBe(0);
+    expect(res.body[0].salesActual).toBeNull();
+    expect(res.body[0].salesTarget).toBeNull();
+  });
+
+  it('accepts explicit null for salesActual/salesTarget as absent, not invalid (201)', async () => {
+    const res = await request(app)
+      .post('/stock')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ visitId, items: [{ ...validItem(), salesActual: null, salesTarget: null }] });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].salesActual).toBeNull();
+    expect(res.body[0].salesTarget).toBeNull();
+  });
+
+  it('computes daysOutOfStock/velocityAvg from prior visits to the same outlet (#112)', async () => {
+    const historySku = await prisma.sku.create({
+      data: { clientId, name: 'History Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 9.99 },
+    });
+    const outlet = await prisma.outlet.findFirstOrThrow({ where: { clientId } });
+
+    const visitA = await prisma.visit.create({
+      data: {
+        outletId: outlet.id,
+        agentId: (await prisma.user.findFirstOrThrow({ where: { clientId } })).id,
+        clientId,
+        checkinTs: new Date('2026-06-21T00:00:00.000Z'),
+        checkinLat: -26.2041,
+        checkinLng: 28.0473,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+    await prisma.visitStock.create({
+      data: {
+        visitId: visitA.id,
+        skuId: historySku.id,
+        unitsAvailable: 100,
+        lastStockinDate: new Date('2026-06-21T00:00:00.000Z'),
+        daysOutOfStock: 0,
+        velocityAvg: 0,
+        coverageDaysPredicted: 0,
+      },
+    });
+
+    const visitB = await prisma.visit.create({
+      data: {
+        outletId: outlet.id,
+        agentId: visitA.agentId,
+        clientId,
+        checkinTs: new Date('2026-06-26T00:00:00.000Z'), // 5 days after visitA
+        checkinLat: -26.2041,
+        checkinLng: 28.0473,
+        geofencePass: true,
+        status: 'in_progress',
+      },
+    });
+
+    const res = await request(app)
+      .post('/stock')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({
+        visitId: visitB.id,
+        items: [{ skuId: historySku.id, unitsAvailable: 80, lastStockinDate: '2026-06-26T00:00:00.000Z' }],
+      });
+
+    expect(res.status).toBe(201);
+    // History fetched for this write is the rows that existed *before* this
+    // submission — just visitA's single row. computeVelocityAvg needs an
+    // adjacent pair to derive a rate, so one history row is never enough:
+    // velocityAvg is 0 here (see stock-derived.service.ts's <2-row case).
+    expect(res.body[0].velocityAvg).toBe(0);
+    // computeDaysOutOfStock measures days since the most recent *historical*
+    // in-stock row to this visit's own checkinTs — it does not look at
+    // whether the item being submitted (80 units) is itself in stock.
+    // visitA (100 units, in stock) was 5 days before visitB's checkinTs.
+    expect(res.body[0].daysOutOfStock).toBe(5);
+    // With velocityAvg 0, predictCoverageDays returns Infinity, which
+    // coverageFor clamps to 0 (a Postgres Float column can't store Infinity).
+    expect(res.body[0].coverageDaysPredicted).toBe(0);
   });
 
   it('auto-creates a stockout Task for an out-of-stock item and dedupes on re-submit (#47)', async () => {
