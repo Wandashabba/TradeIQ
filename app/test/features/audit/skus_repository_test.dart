@@ -3,17 +3,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 
 class _FakeSkusRepository implements SkusRepository {
+  String? receivedOutletId;
+
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => const [
-        Sku(id: 's1', name: 'Test Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99,
-            daysOutOfStock: 2, velocityAvg: 3.5),
-      ];
+  Future<List<Sku>> listSkus({required String outletId}) async {
+    receivedOutletId = outletId;
+    return const [
+      Sku(id: 's1', name: 'Test Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99,
+          daysOutOfStock: 2, velocityAvg: 3.5),
+    ];
+  }
 }
 
 void main() {
   test('skusListProvider resolves the repository result for the given outlet', () async {
+    final fake = _FakeSkusRepository();
     final container = ProviderContainer(
-      overrides: [skusRepositoryProvider.overrideWithValue(_FakeSkusRepository())],
+      overrides: [skusRepositoryProvider.overrideWithValue(fake)],
     );
     addTearDown(container.dispose);
 
@@ -23,6 +29,7 @@ void main() {
     expect(skus.first.name, 'Test Cola');
     expect(skus.first.daysOutOfStock, 2);
     expect(skus.first.velocityAvg, 3.5);
+    expect(fake.receivedOutletId, 'outlet-1');
   });
 
   test('Sku.fromJson parses numeric fields', () {
