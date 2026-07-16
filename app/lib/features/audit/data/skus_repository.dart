@@ -10,6 +10,7 @@ class Sku {
     required this.rrp,
     required this.daysOutOfStock,
     required this.velocityAvg,
+    required this.effectivePrice,
   });
   final String id;
   final String name;
@@ -18,6 +19,7 @@ class Sku {
   final double rrp;
   final int daysOutOfStock;
   final double velocityAvg;
+  final double effectivePrice;
 
   factory Sku.fromJson(Map<String, dynamic> json) => Sku(
         id: json['id'] as String,
@@ -27,6 +29,7 @@ class Sku {
         rrp: (json['rrp'] as num).toDouble(),
         daysOutOfStock: (json['daysOutOfStock'] as num).toInt(),
         velocityAvg: (json['velocityAvg'] as num).toDouble(),
+        effectivePrice: (json['effectivePrice'] as num).toDouble(),
       );
 }
 

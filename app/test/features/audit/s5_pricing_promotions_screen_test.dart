@@ -16,6 +16,7 @@ class _FakeSkusRepository implements SkusRepository {
           rrp: 19.99,
           daysOutOfStock: 0,
           velocityAvg: 0,
+          effectivePrice: 19.99,
         ),
       ];
 }

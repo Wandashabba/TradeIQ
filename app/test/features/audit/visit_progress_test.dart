@@ -24,6 +24,7 @@ class _FakeSkusRepository implements SkusRepository {
             minFacingsStandard: 2,
             daysOutOfStock: 0,
             velocityAvg: 0,
+            effectivePrice: 10,
           ),
       ];
 }

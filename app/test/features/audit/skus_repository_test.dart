@@ -10,7 +10,7 @@ class _FakeSkusRepository implements SkusRepository {
     receivedOutletId = outletId;
     return const [
       Sku(id: 's1', name: 'Test Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99,
-          daysOutOfStock: 2, velocityAvg: 3.5),
+          daysOutOfStock: 2, velocityAvg: 3.5, effectivePrice: 19.99),
     ];
   }
 }
@@ -36,10 +36,12 @@ void main() {
     final sku = Sku.fromJson({
       'id': 's2', 'name': 'Water 1L', 'category': 'Beverages',
       'minFacingsStandard': 3, 'rrp': 12.5, 'daysOutOfStock': 1, 'velocityAvg': 6.0,
+      'effectivePrice': 11.0,
     });
     expect(sku.minFacingsStandard, 3);
     expect(sku.rrp, 12.5);
     expect(sku.daysOutOfStock, 1);
     expect(sku.velocityAvg, 6.0);
+    expect(sku.effectivePrice, 11.0);
   });
 }

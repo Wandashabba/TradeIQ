@@ -19,6 +19,7 @@ class _FakeSkusRepository implements SkusRepository {
           rrp: 24.99,
           daysOutOfStock: 0,
           velocityAvg: 0,
+          effectivePrice: 24.99,
         ),
         Sku(
           id: 'sku-2',
@@ -28,6 +29,7 @@ class _FakeSkusRepository implements SkusRepository {
           rrp: 12.50,
           daysOutOfStock: 0,
           velocityAvg: 0,
+          effectivePrice: 12.50,
         ),
       ];
 }

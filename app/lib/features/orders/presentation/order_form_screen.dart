@@ -33,7 +33,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
   double _total(List<Sku> skus) {
     var total = 0.0;
     for (final sku in skus) {
-      total += (_qty[sku.id] ?? 0) * sku.rrp;
+      total += (_qty[sku.id] ?? 0) * sku.effectivePrice;
     }
     return total;
   }
@@ -46,7 +46,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
     final lines = <OrderLine>[
       for (final sku in skus)
         if ((_qty[sku.id] ?? 0) > 0)
-          OrderLine(skuId: sku.id, quantity: _qty[sku.id]!, unitPrice: sku.rrp),
+          OrderLine(skuId: sku.id, quantity: _qty[sku.id]!, unitPrice: sku.effectivePrice),
     ];
     if (lines.isEmpty) {
       _snack('Add at least one line item.');

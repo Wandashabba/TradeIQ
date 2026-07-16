@@ -9,7 +9,7 @@ class _FakeSkusRepository implements SkusRepository {
   @override
   Future<List<Sku>> listSkus({required String outletId}) async => const [
         Sku(id: 's1', name: 'Test Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99,
-            daysOutOfStock: 0, velocityAvg: 4.2),
+            daysOutOfStock: 0, velocityAvg: 4.2, effectivePrice: 19.99),
       ];
 }
 
@@ -21,7 +21,7 @@ class _FakeSkusRepositoryNoHistory implements SkusRepository {
   @override
   Future<List<Sku>> listSkus({required String outletId}) async => const [
         Sku(id: 's1', name: 'Test Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99,
-            daysOutOfStock: 5, velocityAvg: 0),
+            daysOutOfStock: 5, velocityAvg: 0, effectivePrice: 19.99),
       ];
 }
 

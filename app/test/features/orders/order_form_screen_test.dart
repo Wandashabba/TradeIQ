@@ -53,18 +53,20 @@ class _FakeSkusRepository implements SkusRepository {
           name: 'Cola 500ml',
           category: 'beverage',
           minFacingsStandard: 4,
-          rrp: 10,
+          rrp: 10.00,
           daysOutOfStock: 0,
           velocityAvg: 0,
+          effectivePrice: 8.00,
         ),
         Sku(
           id: 'sku2',
           name: 'Chips 100g',
           category: 'snack',
           minFacingsStandard: 2,
-          rrp: 5,
+          rrp: 5.00,
           daysOutOfStock: 0,
           velocityAvg: 0,
+          effectivePrice: 4.00,
         ),
       ];
 }
@@ -125,7 +127,9 @@ void main() {
 
     expect(
       tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
-      'Total: R 20.00',
+      // 2 x effectivePrice (8.00), not rrp (10.00) — the order form prices
+      // lines at the promo-discounted rate (#99).
+      'Total: R 16.00',
     );
 
     final save = find.byKey(const ValueKey<String>('order-save-button'));
@@ -138,7 +142,7 @@ void main() {
     expect(repo.lines!.length, 1);
     expect(repo.lines!.first.skuId, 'sku1');
     expect(repo.lines!.first.quantity, 2);
-    expect(repo.lines!.first.unitPrice, 10);
+    expect(repo.lines!.first.unitPrice, 8);
   });
 
   testWidgets('switching outlets clears previously entered quantities',
@@ -162,7 +166,7 @@ void main() {
 
     expect(
       tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
-      'Total: R 20.00',
+      'Total: R 16.00',
     );
 
     // Switching to a different outlet must not silently carry the quantity
