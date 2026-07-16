@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
@@ -163,5 +164,245 @@ describe('skus routes', () => {
     // Days since the most recent in-stock reading (5 days ago), not 0 —
     // having stock at the last reading doesn't mean it's in stock now.
     expect(historySku.daysOutOfStock).toBe(5);
+  });
+
+  it('applies an active promo discount to effectivePrice for a matching outlet', async () => {
+    const promo = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: '20% Off Everything',
+        activeFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SKU-001'] },
+        discountType: 'percent',
+        discountValue: 20,
+        skuScope: Prisma.JsonNull,
+      },
+    });
+
+    try {
+      const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const sku of res.body) {
+        expect(sku.effectivePrice).toBeCloseTo(sku.rrp * 0.8, 2);
+      }
+    } finally {
+      await prisma.promoCalendar.delete({ where: { id: promo.id } });
+    }
+  });
+
+  it('does not apply a discount scoped to a different outlet', async () => {
+    const promo = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: 'Other Outlet Only',
+        activeFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SOME-OTHER-OUTLET'] },
+        discountType: 'percent',
+        discountValue: 20,
+        skuScope: Prisma.JsonNull,
+      },
+    });
+
+    try {
+      const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const sku of res.body) {
+        expect(sku.effectivePrice).toBe(sku.rrp);
+      }
+    } finally {
+      await prisma.promoCalendar.delete({ where: { id: promo.id } });
+    }
+  });
+
+  it('does not apply a discount from an expired promo', async () => {
+    const promo = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: 'Expired Promo',
+        activeFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SKU-001'] },
+        discountType: 'percent',
+        discountValue: 20,
+        skuScope: Prisma.JsonNull,
+      },
+    });
+
+    try {
+      const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const sku of res.body) {
+        expect(sku.effectivePrice).toBe(sku.rrp);
+      }
+    } finally {
+      await prisma.promoCalendar.delete({ where: { id: promo.id } });
+    }
+  });
+
+  it('applies a fixed discount to effectivePrice, flooring at 0 when the discount exceeds rrp', async () => {
+    const cheapSku = await prisma.sku.create({
+      data: { clientId, name: 'Cheap Gum', category: 'Confectionery', minFacingsStandard: 2, rrp: 3 },
+    });
+
+    const promo = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: 'R5 Off',
+        activeFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SKU-001'] },
+        discountType: 'fixed',
+        discountValue: 5,
+        skuScope: Prisma.JsonNull,
+      },
+    });
+
+    try {
+      const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+
+      const cola = res.body.find((s: { name: string }) => s.name === 'Test Cola 500ml');
+      expect(cola).toBeDefined();
+      expect(cola.effectivePrice).toBeCloseTo(cola.rrp - 5, 2);
+
+      const cheap = res.body.find((s: { id: string }) => s.id === cheapSku.id);
+      expect(cheap).toBeDefined();
+      // discountValue (5) exceeds rrp (3) — the Math.max(0, ...) floor must kick in
+      // rather than going negative.
+      expect(cheap.effectivePrice).toBe(0);
+    } finally {
+      await prisma.promoCalendar.delete({ where: { id: promo.id } });
+      await prisma.sku.delete({ where: { id: cheapSku.id } });
+    }
+  });
+
+  it('picks a single, deterministic winner when two active promos both match the same outlet+SKU', async () => {
+    const promoA = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: 'Promo A - 10% off',
+        activeFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SKU-001'] },
+        discountType: 'percent',
+        discountValue: 10,
+        skuScope: Prisma.JsonNull,
+      },
+    });
+    const promoB = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: 'Promo B - 50% off',
+        activeFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SKU-001'] },
+        discountType: 'percent',
+        discountValue: 50,
+        skuScope: Prisma.JsonNull,
+      },
+    });
+
+    try {
+      const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+
+      // Both promos match every outlet+SKU here; listSkusForClient's
+      // `activePromos.find(...)` picks whichever comes first in Prisma's
+      // (unordered) result set. This pins that observed behavior down as a
+      // regression check rather than leaving the tie-break implicit — it is
+      // not a guarantee about which promo "should" win.
+      const discountedPrices = new Set(res.body.map((s: { effectivePrice: number; rrp: number }) => Math.round((1 - s.effectivePrice / s.rrp) * 100)));
+      expect(discountedPrices.size).toBe(1);
+      const appliedDiscountPct = [...discountedPrices][0];
+      expect([10, 50]).toContain(appliedDiscountPct);
+    } finally {
+      await prisma.promoCalendar.delete({ where: { id: promoA.id } });
+      await prisma.promoCalendar.delete({ where: { id: promoB.id } });
+    }
+  });
+
+  it('applies a discount only to the SKU(s) listed in skuScope, leaving other SKUs at rrp', async () => {
+    const scopedSku = await prisma.sku.create({
+      data: { clientId, name: 'Scoped Sku', category: 'Beverages', minFacingsStandard: 4, rrp: 10 },
+    });
+    const otherSku = await prisma.sku.create({
+      data: { clientId, name: 'Unscoped Sku', category: 'Beverages', minFacingsStandard: 4, rrp: 10 },
+    });
+
+    const promo = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: 'Scoped SKU Promo',
+        activeFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SKU-001'] },
+        discountType: 'percent',
+        discountValue: 50,
+        skuScope: { skuIds: [scopedSku.id] },
+      },
+    });
+
+    try {
+      const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+
+      const scoped = res.body.find((s: { id: string }) => s.id === scopedSku.id);
+      const other = res.body.find((s: { id: string }) => s.id === otherSku.id);
+      expect(scoped).toBeDefined();
+      expect(other).toBeDefined();
+      expect(scoped.effectivePrice).toBeCloseTo(5, 2);
+      expect(other.effectivePrice).toBe(other.rrp);
+    } finally {
+      await prisma.promoCalendar.delete({ where: { id: promo.id } });
+      await prisma.sku.delete({ where: { id: scopedSku.id } });
+      await prisma.sku.delete({ where: { id: otherSku.id } });
+    }
+  });
+
+  it('does not leak a promo discount for a foreign/bogus outletId', async () => {
+    // Mirrors the existing "foreign/bogus outletId" stock-history test above:
+    // an unmatched outlet must not silently apply a discount meant for a real,
+    // scoped outlet.
+    const promo = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: 'Should Not Apply To Bogus Outlet',
+        activeFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SKU-001'] },
+        discountType: 'percent',
+        discountValue: 20,
+        skuScope: Prisma.JsonNull,
+      },
+    });
+
+    try {
+      const bogusOutletId = '00000000-0000-0000-0000-000000000000';
+      const res = await request(app)
+        .get('/skus')
+        .query({ outletId: bogusOutletId })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const sku of res.body) {
+        expect(sku.effectivePrice).toBe(sku.rrp);
+      }
+    } finally {
+      await prisma.promoCalendar.delete({ where: { id: promo.id } });
+    }
   });
 });

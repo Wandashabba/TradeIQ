@@ -137,14 +137,17 @@ model PlanogramTemplate {
 }
 
 model PromoCalendar {
-  id           String   @id @default(uuid())
-  clientId     String   @map("client_id")
-  client       Client   @relation(fields: [clientId], references: [id])
-  promoName    String   @map("promo_name")
-  activeFrom   DateTime @map("active_from")
-  activeTo     DateTime @map("active_to")
-  requiredPosm Json     @map("required_posm")
-  outletScope  Json     @map("outlet_scope")
+  id            String   @id @default(uuid())
+  clientId      String   @map("client_id")
+  client        Client   @relation(fields: [clientId], references: [id])
+  promoName     String   @map("promo_name")
+  activeFrom    DateTime @map("active_from")
+  activeTo      DateTime @map("active_to")
+  requiredPosm  Json     @map("required_posm")
+  outletScope   Json     @map("outlet_scope")
+  discountType  String?  @map("discount_type") // 'percent' | 'fixed'
+  discountValue Float?   @map("discount_value")
+  skuScope      Json?    @map("sku_scope") // { skuIds: string[] } | null (null = every SKU)
 
   @@map("promo_calendar")
 }
