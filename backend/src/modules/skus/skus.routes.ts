@@ -6,6 +6,11 @@ export const skusRouter = Router();
 skusRouter.use(requireAuth);
 
 skusRouter.get('/', async (req: AuthedRequest, res) => {
-  const skus = await listSkusForClient(req.user!.clientId);
+  const { outletId } = req.query;
+  if (typeof outletId !== 'string' || outletId.length === 0) {
+    res.status(400).json({ error: 'outletId query param is required' });
+    return;
+  }
+  const skus = await listSkusForClient(req.user!.clientId, outletId);
   res.status(200).json(skus);
 });
