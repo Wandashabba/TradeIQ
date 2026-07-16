@@ -111,14 +111,11 @@ function stockWhere(filters: TrendFilters): Prisma.VisitStockWhereInput {
 }
 
 function visitWhere(filters: TrendFilters): Prisma.VisitWhereInput {
-  const where: Prisma.VisitWhereInput = { clientId: filters.clientId };
-  if (filters.from || filters.to) {
-    where.checkinTs = {
-      ...(filters.from ? { gte: filters.from } : {}),
-      ...(filters.to ? { lte: filters.to } : {}),
-    };
-  }
-  return where;
+  const checkinTs = resolveWindow(filters.from, filters.to);
+  return {
+    clientId: filters.clientId,
+    ...(checkinTs ? { checkinTs } : {}),
+  };
 }
 
 /**
