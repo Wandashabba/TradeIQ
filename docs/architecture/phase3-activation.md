@@ -82,6 +82,26 @@ rendering + validation of the form is an app concern.
 | GET | `/templates/:id` | any | Fetch one |
 | PATCH | `/templates/:id` | manager/admin | Update; a `schema` change bumps `version` |
 
+### Response persistence — `templateResponses` (added 2026-07-13)
+
+A `VisitTemplateResponse` model (`backend/prisma/migrations/20260713090000_visit_template_responses`)
+persists an agent's answers to a template, keyed by `(visitId, templateId)`
+and upserted so re-submitting the same template for the same visit is
+idempotent. The service validates both the visit and the template belong to
+the caller's tenant before writing.
+
+| Method | Path | Role | Purpose |
+|---|---|---|---|
+| POST | `/template-responses` | field_agent | Upsert `answers` for a `(visitId, templateId)` pair |
+| GET | `/template-responses` | any | Fetch one, by `visitId` + `templateId` query params |
+
+**This closes the "responses are not persisted" half of #32.** The half that
+remains open (#122): nothing in the app calls this endpoint, and nothing in
+`visits.routes.ts`/`visits.service.ts` connects a *selected* template to the
+S1–S10 audit flow the agent actually walks through — persistence exists, but
+has no caller yet, and the flow itself is still the hard-coded S1–S10 screens
+regardless of which template (if any) is associated with the visit.
+
 ## Trend analytics (issue #33) — `trends`
 
 Time series bucketed by `day` or `week` over the per-row `createdAt`
