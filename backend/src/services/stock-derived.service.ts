@@ -2,6 +2,7 @@
 // VisitStock history, replacing the field-agent-typed numbers the S2 stock-audit
 // screen used to ask for (neither is observable at a shelf). See #112.
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 export interface StockHistoryRow {
@@ -46,30 +47,49 @@ export function computeVelocityAvg(history: StockHistoryRow[]): number {
 
 const HISTORY_WINDOW = 5;
 
+interface RankedStockRow {
+  sku_id: string;
+  units_available: number;
+  checkin_ts: Date;
+}
+
 /**
  * One query for every SKU's stock history at this outlet, capped at the
- * last 5 VisitStock rows per SKU (newest-first). A single round trip
- * regardless of SKU-catalog size — fetch once, group in memory — matching
- * the pattern dashboard.service.ts's getDashboardByTerritory already
- * established, rather than one query per SKU (the #97 N+1 lesson).
+ * last 5 VisitStock rows per SKU (newest-first) via a window function --
+ * Postgres does the per-SKU capping, so this is a single bounded round trip
+ * regardless of how much history the outlet has accumulated (#120; the
+ * earlier fetch-all-then-slice-in-memory version had no bound on the initial
+ * fetch, matching the pattern dashboard.service.ts's getDashboardByTerritory
+ * uses for its own N+1 fix, #97, but without that fix's "small dataset"
+ * assumption holding here as history grows).
  */
 export async function fetchStockHistoryForOutlet(
   outletId: string,
   clientId: string,
 ): Promise<Map<string, StockHistoryRow[]>> {
-  const rows = await prisma.visitStock.findMany({
-    where: { visit: { outletId, clientId } },
-    orderBy: { visit: { checkinTs: 'desc' } },
-    select: { skuId: true, unitsAvailable: true, visit: { select: { checkinTs: true } } },
-  });
+  const rows = await prisma.$queryRaw<RankedStockRow[]>(
+    Prisma.sql`
+      SELECT sku_id, units_available, checkin_ts
+      FROM (
+        SELECT vs.sku_id, vs.units_available, v.checkin_ts,
+          ROW_NUMBER() OVER (
+            PARTITION BY vs.sku_id
+            ORDER BY v.checkin_ts DESC, vs.created_at DESC
+          ) AS rn
+        FROM visit_stock vs
+        JOIN visits v ON v.id = vs.visit_id
+        WHERE v.outlet_id = ${outletId} AND v.client_id = ${clientId}
+      ) ranked
+      WHERE rn <= ${HISTORY_WINDOW}
+      ORDER BY sku_id, checkin_ts DESC
+    `,
+  );
 
   const bySku = new Map<string, StockHistoryRow[]>();
   for (const row of rows) {
-    const list = bySku.get(row.skuId) ?? [];
-    if (list.length < HISTORY_WINDOW) {
-      list.push({ visitCheckinTs: row.visit.checkinTs, unitsAvailable: row.unitsAvailable });
-      bySku.set(row.skuId, list);
-    }
+    const list = bySku.get(row.sku_id) ?? [];
+    list.push({ visitCheckinTs: row.checkin_ts, unitsAvailable: row.units_available });
+    bySku.set(row.sku_id, list);
   }
   return bySku;
 }
