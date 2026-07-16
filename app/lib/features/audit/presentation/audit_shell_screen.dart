@@ -73,8 +73,10 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       AuditSection.stock => S2StockScreen(visitDraftId: visitDraftId),
       AuditSection.visibility =>
         S3S4VisibilityDisplayScreen(visitDraftId: visitDraftId),
-      AuditSection.pricing =>
-        S5PricingPromotionsScreen(visitDraftId: visitDraftId),
+      AuditSection.pricing => S5PricingPromotionsScreen(
+          visitDraftId: visitDraftId,
+          outletId: widget.outletId,
+        ),
       AuditSection.competitive => S6CompetitiveScreen(visitDraftId: visitDraftId),
       AuditSection.capability => S7CapabilityScreen(visitDraftId: visitDraftId),
       AuditSection.risks => S8RisksScreen(visitDraftId: visitDraftId),
@@ -112,6 +114,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       agentSectionRoute<bool>(
         SubmitGateScreen(
           visitDraftId: id,
+          outletId: outlet.id,
           outletName: outlet.name,
           checkinTs: _checkinTs,
           onConfirm: () => Navigator.of(context).pop(true),
@@ -189,7 +192,9 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
 
   Widget _hub(Outlet outlet) {
     final visitDraftId = _visitDraftId!;
-    final progressAsync = ref.watch(visitProgressProvider(visitDraftId));
+    final progressAsync = ref.watch(
+      visitProgressProvider((visitDraftId: visitDraftId, outletId: widget.outletId)),
+    );
 
     return progressAsync.when(
       loading: () => AgentScaffold(

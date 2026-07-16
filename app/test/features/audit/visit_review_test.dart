@@ -10,13 +10,15 @@ import 'package:tradeiq_app/features/audit/data/visit_review.dart';
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus() async => const [
+  Future<List<Sku>> listSkus({required String outletId}) async => const [
         Sku(
           id: 'sku-1',
           name: 'Fanta Orange 2L',
           category: 'CSD',
           minFacingsStandard: 3,
           rrp: 24.99,
+          daysOutOfStock: 0,
+          velocityAvg: 0,
         ),
         Sku(
           id: 'sku-2',
@@ -24,6 +26,8 @@ class _FakeSkusRepository implements SkusRepository {
           category: 'CSD',
           minFacingsStandard: 2,
           rrp: 12.50,
+          daysOutOfStock: 0,
+          velocityAvg: 0,
         ),
       ];
 }
@@ -42,6 +46,8 @@ Future<void> _queue(
           ),
         );
 
+const _key = (visitDraftId: 'v1', outletId: 'ou1');
+
 void main() {
   late LocalDb db;
   late ProviderContainer container;
@@ -56,7 +62,7 @@ void main() {
     );
     // Auto-dispose: without a listener the provider is torn down before it
     // yields, and `.future` never completes.
-    container.listen(visitReviewProvider('v1'), (_, _) {});
+    container.listen(visitReviewProvider(_key), (_, _) {});
   });
 
   tearDown(() async {
@@ -65,7 +71,7 @@ void main() {
   });
 
   Future<VisitReview> read() =>
-      container.read(visitReviewProvider('v1').future);
+      container.read(visitReviewProvider(_key).future);
 
   test('a SKU counted at zero is named as the finding it is', () async {
     await _queue(db, 'stock', {

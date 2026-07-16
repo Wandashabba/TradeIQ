@@ -76,7 +76,12 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
   @override
   Widget build(BuildContext context) {
     final outlets = ref.watch(outletsListProvider);
-    final skus = ref.watch(skusListProvider);
+    // SKUs are outlet-scoped now (#112) — there is nothing meaningful to show
+    // until an outlet is picked, so the list is only watched once one is.
+    final outletId = _outletId;
+    final skus = outletId == null
+        ? null
+        : ref.watch(skusListProvider(outletId));
 
     return Scaffold(
       appBar: AppBar(title: const Text('New Order')),
@@ -97,70 +102,84 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                   for (final o in list)
                     DropdownMenuItem(value: o.id, child: Text(o.name)),
                 ],
-                onChanged: (v) => setState(() => _outletId = v),
+                onChanged: (v) => setState(() {
+                  _outletId = v;
+                  _qty.clear();
+                }),
               ),
             ),
             const SizedBox(height: 20),
             const Text('Line items',
                 style: TextStyle(fontWeight: FontWeight.bold)),
-            skus.when(
-              loading: () => const Padding(
+            if (skus == null)
+              const Padding(
                 padding: EdgeInsets.all(12),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (err, _) => Text('Failed to load SKUs: $err'),
-              data: (list) => Column(
-                children: [
-                  for (final sku in list)
-                    ListTile(
-                      key: ValueKey<String>('sku-row-${sku.id}'),
-                      dense: true,
-                      title: Text(sku.name),
-                      subtitle: Text('R ${sku.rrp.toStringAsFixed(2)}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            key: ValueKey<String>('sku-dec-${sku.id}'),
-                            icon: const Icon(Icons.remove),
-                            onPressed: (_qty[sku.id] ?? 0) > 0
-                                ? () => _bump(sku.id, -1)
-                                : null,
-                          ),
-                          Text('${_qty[sku.id] ?? 0}',
-                              key: ValueKey<String>('sku-qty-${sku.id}')),
-                          IconButton(
-                            key: ValueKey<String>('sku-inc-${sku.id}'),
-                            icon: const Icon(Icons.add),
-                            onPressed: () => _bump(sku.id, 1),
-                          ),
-                        ],
+                child: Text('Select an outlet to see available SKUs.'),
+              )
+            else
+              skus.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (err, _) => Text('Failed to load SKUs: $err'),
+                data: (list) => Column(
+                  children: [
+                    for (final sku in list)
+                      ListTile(
+                        key: ValueKey<String>('sku-row-${sku.id}'),
+                        dense: true,
+                        title: Text(sku.name),
+                        subtitle: Text('R ${sku.rrp.toStringAsFixed(2)}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              key: ValueKey<String>('sku-dec-${sku.id}'),
+                              icon: const Icon(Icons.remove),
+                              onPressed: (_qty[sku.id] ?? 0) > 0
+                                  ? () => _bump(sku.id, -1)
+                                  : null,
+                            ),
+                            Text(
+                              '${_qty[sku.id] ?? 0}',
+                              key: ValueKey<String>('sku-qty-${sku.id}'),
+                            ),
+                            IconButton(
+                              key: ValueKey<String>('sku-inc-${sku.id}'),
+                              icon: const Icon(Icons.add),
+                              onPressed: () => _bump(sku.id, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const Divider(),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        'Total: R ${_total(list).toStringAsFixed(2)}',
+                        key: const ValueKey<String>('order-total'),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
-                  const Divider(),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Total: R ${_total(list).toStringAsFixed(2)}',
-                      key: const ValueKey<String>('order-total'),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      key: const ValueKey<String>('order-save-button'),
+                      onPressed: _submitting ? null : () => _submit(list),
+                      child: _submitting
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Create Order'),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    key: const ValueKey<String>('order-save-button'),
-                    onPressed: _submitting ? null : () => _submit(list),
-                    child: _submitting
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Create Order'),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

@@ -10,13 +10,18 @@ import '../../data/skus_repository.dart';
 /// promo active, comms rating); on save the entries are queued for sync
 /// (POST /pricing).
 class S5PricingPromotionsScreen extends ConsumerWidget {
-  const S5PricingPromotionsScreen({super.key, required this.visitDraftId});
+  const S5PricingPromotionsScreen({
+    super.key,
+    required this.visitDraftId,
+    required this.outletId,
+  });
 
   final String visitDraftId;
+  final String outletId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final skus = ref.watch(skusListProvider);
+    final skus = ref.watch(skusListProvider(outletId));
     return skus.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text('Failed to load SKUs: $err')),

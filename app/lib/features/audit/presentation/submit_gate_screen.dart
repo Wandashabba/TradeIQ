@@ -23,20 +23,23 @@ class SubmitGateScreen extends ConsumerWidget {
   const SubmitGateScreen({
     super.key,
     required this.visitDraftId,
+    required this.outletId,
     required this.outletName,
     required this.checkinTs,
     required this.onConfirm,
   });
 
   final String visitDraftId;
+  final String outletId;
   final String outletName;
   final DateTime? checkinTs;
   final VoidCallback onConfirm;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reviewAsync = ref.watch(visitReviewProvider(visitDraftId));
-    final progressAsync = ref.watch(visitProgressProvider(visitDraftId));
+    final key = (visitDraftId: visitDraftId, outletId: outletId);
+    final reviewAsync = ref.watch(visitReviewProvider(key));
+    final progressAsync = ref.watch(visitProgressProvider(key));
     final offline = ref.watch(syncStatusProvider).maybeWhen(
           data: (s) => s.pending.isNotEmpty,
           orElse: () => false,

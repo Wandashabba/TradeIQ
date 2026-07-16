@@ -14,9 +14,17 @@ class _FakeSkusRepository implements SkusRepository {
   final int count;
 
   @override
-  Future<List<Sku>> listSkus() async => [
+  Future<List<Sku>> listSkus({required String outletId}) async => [
         for (var i = 0; i < count; i++)
-          Sku(id: 's$i', name: 'SKU $i', category: 'c', rrp: 10, minFacingsStandard: 2),
+          Sku(
+            id: 's$i',
+            name: 'SKU $i',
+            category: 'c',
+            rrp: 10,
+            minFacingsStandard: 2,
+            daysOutOfStock: 0,
+            velocityAvg: 0,
+          ),
       ];
 }
 
@@ -59,12 +67,16 @@ void main() {
   /// `.future` on its own disposes the stream before it can emit. Listen the way
   /// a widget does, and take the first value that arrives.
   Future<VisitProgress> progress() async {
-    final skus = container.listen(skusListProvider, (_, _) {}, fireImmediately: true);
-    await container.read(skusListProvider.future);
+    final skus = container.listen(
+      skusListProvider('ou1'),
+      (_, _) {},
+      fireImmediately: true,
+    );
+    await container.read(skusListProvider('ou1').future);
 
     final completer = Completer<VisitProgress>();
     final sub = container.listen<AsyncValue<VisitProgress>>(
-      visitProgressProvider('v1'),
+      visitProgressProvider((visitDraftId: 'v1', outletId: 'ou1')),
       (_, next) {
         final value = next.value;
         if (value != null && !completer.isCompleted) completer.complete(value);

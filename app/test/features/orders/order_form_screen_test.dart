@@ -30,6 +30,7 @@ class _FakeOutletsRepository implements OutletsRepository {
   @override
   Future<List<Outlet>> listOutlets() async => const [
         Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
+        Outlet(id: 'ou2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
       ];
 
   @override
@@ -46,9 +47,25 @@ class _FakeOutletsRepository implements OutletsRepository {
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus() async => const [
-        Sku(id: 'sku1', name: 'Cola 500ml', category: 'beverage', minFacingsStandard: 4, rrp: 10),
-        Sku(id: 'sku2', name: 'Chips 100g', category: 'snack', minFacingsStandard: 2, rrp: 5),
+  Future<List<Sku>> listSkus({required String outletId}) async => const [
+        Sku(
+          id: 'sku1',
+          name: 'Cola 500ml',
+          category: 'beverage',
+          minFacingsStandard: 4,
+          rrp: 10,
+          daysOutOfStock: 0,
+          velocityAvg: 0,
+        ),
+        Sku(
+          id: 'sku2',
+          name: 'Chips 100g',
+          category: 'snack',
+          minFacingsStandard: 2,
+          rrp: 5,
+          daysOutOfStock: 0,
+          velocityAvg: 0,
+        ),
       ];
 }
 
@@ -62,6 +79,32 @@ Widget _app(_RecordingOrdersRepository repo) => ProviderScope(
     );
 
 void main() {
+  testWidgets('shows a placeholder instead of SKUs until an outlet is picked',
+      (tester) async {
+    final repo = _RecordingOrdersRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    // SKUs are outlet-scoped (#112) — there is nothing to show yet.
+    expect(
+      find.text('Select an outlet to see available SKUs.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey<String>('sku-row-sku1')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shop One').last);
+    await tester.pumpAndSettle();
+
+    // Once an outlet is picked, the placeholder is gone and SKUs appear.
+    expect(
+      find.text('Select an outlet to see available SKUs.'),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey<String>('sku-row-sku1')), findsOneWidget);
+  });
+
   testWidgets('captures outlet + line quantities and submits', (tester) async {
     final repo = _RecordingOrdersRepository();
     await tester.pumpWidget(_app(repo));
@@ -96,6 +139,49 @@ void main() {
     expect(repo.lines!.first.skuId, 'sku1');
     expect(repo.lines!.first.quantity, 2);
     expect(repo.lines!.first.unitPrice, 10);
+  });
+
+  testWidgets('switching outlets clears previously entered quantities',
+      (tester) async {
+    final repo = _RecordingOrdersRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shop One').last);
+    await tester.pumpAndSettle();
+
+    // 2x Cola at Shop One.
+    final inc1 = find.byKey(const ValueKey<String>('sku-inc-sku1'));
+    await tester.ensureVisible(inc1);
+    await tester.tap(inc1);
+    await tester.pump();
+    await tester.tap(inc1);
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
+      'Total: R 20.00',
+    );
+
+    // Switching to a different outlet must not silently carry the quantity
+    // over — the agent never entered anything for this outlet (#112: SKUs are
+    // now outlet-scoped, so a leftover _qty is no longer guaranteed to be
+    // harmless).
+    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shop Two').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey<String>('sku-qty-sku1'))).data,
+      '0',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey<String>('order-total'))).data,
+      'Total: R 0.00',
+    );
   });
 
   testWidgets('blocks submit with no line items', (tester) async {

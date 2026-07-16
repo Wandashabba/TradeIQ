@@ -70,12 +70,12 @@ class VisitReview {
 ///
 /// If either server rule changes, this must change with it, or the gate starts
 /// lying to the agent about what they are about to do.
-final visitReviewProvider =
-    StreamProvider.family<VisitReview, String>((ref, visitDraftId) {
+final visitReviewProvider = StreamProvider.family<VisitReview,
+    ({String visitDraftId, String outletId})>((ref, key) {
   final db = ref.read(localDbProvider);
   // SKU names, so a finding reads "Fanta Orange 2L is out of stock" rather than
   // "SKU 4f2c… is out of stock". An agent cannot check a uuid against a shelf.
-  final skuNames = ref.watch(skusListProvider).maybeWhen(
+  final skuNames = ref.watch(skusListProvider(key.outletId)).maybeWhen(
         data: (list) => {for (final sku in list) sku.id: sku.name},
         orElse: () => <String, String>{},
       );
@@ -89,7 +89,7 @@ final visitReviewProvider =
       } catch (_) {
         continue;
       }
-      if (payload['visitDraftId'] != visitDraftId) continue;
+      if (payload['visitDraftId'] != key.visitDraftId) continue;
       payloads.putIfAbsent(row.entityType, () => []).add(payload);
     }
 

@@ -116,12 +116,12 @@ class VisitProgress {
 /// Deriving it from the queue rather than from in-memory state is what makes it
 /// survive the app being killed mid-visit — which, in a shop with no signal and
 /// a cheap phone, happens.
-final visitProgressProvider =
-    StreamProvider.family<VisitProgress, String>((ref, visitDraftId) {
+final visitProgressProvider = StreamProvider.family<VisitProgress,
+    ({String visitDraftId, String outletId})>((ref, key) {
   final db = ref.read(localDbProvider);
   // Item counts are only meaningful against the SKU list; without it we can
   // still say done/not-started, just not "7 of 12".
-  final skuCount = ref.watch(skusListProvider).maybeWhen(
+  final skuCount = ref.watch(skusListProvider(key.outletId)).maybeWhen(
         data: (list) => list.length,
         orElse: () => 0,
       );
@@ -135,7 +135,7 @@ final visitProgressProvider =
       } catch (_) {
         continue;
       }
-      if (payload['visitDraftId'] != visitDraftId) continue;
+      if (payload['visitDraftId'] != key.visitDraftId) continue;
       payloads.putIfAbsent(row.entityType, () => []).add(payload);
     }
 

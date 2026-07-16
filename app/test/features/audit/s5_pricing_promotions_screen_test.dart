@@ -7,8 +7,16 @@ import 'package:tradeiq_app/features/audit/presentation/sections/s5_pricing_prom
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus() async => const [
-        Sku(id: 's1', name: 'Test Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99),
+  Future<List<Sku>> listSkus({required String outletId}) async => const [
+        Sku(
+          id: 's1',
+          name: 'Test Cola',
+          category: 'Beverages',
+          minFacingsStandard: 4,
+          rrp: 19.99,
+          daysOutOfStock: 0,
+          velocityAvg: 0,
+        ),
       ];
 }
 
@@ -34,7 +42,8 @@ void main() {
       ],
       child: const MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(child: S5PricingPromotionsScreen(visitDraftId: 'v1')),
+          body: SingleChildScrollView(
+              child: S5PricingPromotionsScreen(visitDraftId: 'v1', outletId: 'ou1')),
         ),
       ),
     ));
@@ -70,7 +79,8 @@ void main() {
       ],
       child: const MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(child: S5PricingPromotionsScreen(visitDraftId: 'v1')),
+          body: SingleChildScrollView(
+              child: S5PricingPromotionsScreen(visitDraftId: 'v1', outletId: 'ou1')),
         ),
       ),
     ));
