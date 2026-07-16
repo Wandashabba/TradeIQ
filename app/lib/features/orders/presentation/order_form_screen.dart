@@ -130,7 +130,7 @@ class _OrderFormScreenState extends ConsumerState<OrderFormScreen> {
                         key: ValueKey<String>('sku-row-${sku.id}'),
                         dense: true,
                         title: Text(sku.name),
-                        subtitle: Text('R ${sku.rrp.toStringAsFixed(2)}'),
+                        subtitle: Text('R ${sku.effectivePrice.toStringAsFixed(2)}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

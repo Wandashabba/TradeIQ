@@ -105,6 +105,12 @@ void main() {
       findsNothing,
     );
     expect(find.byKey(const ValueKey<String>('sku-row-sku1')), findsOneWidget);
+
+    // The per-line price shown to the agent must be the discounted
+    // effectivePrice (8.00), not the plain rrp (10.00) — the agent's mental
+    // math for the running total should match what they're actually charged.
+    expect(find.text('R 8.00'), findsOneWidget);
+    expect(find.text('R 10.00'), findsNothing);
   });
 
   testWidgets('captures outlet + line quantities and submits', (tester) async {
