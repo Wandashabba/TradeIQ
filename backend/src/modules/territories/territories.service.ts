@@ -86,7 +86,11 @@ export async function getTerritoryCoverage(
   const agents = assignments.map((assignment) => assignment.user);
 
   const outletIds = outlets.map((outlet) => outlet.id);
-  const visitWhere: Prisma.VisitWhereInput = { clientId, outletId: { in: outletIds } };
+  const visitWhere: Prisma.VisitWhereInput = {
+    clientId,
+    outletId: { in: outletIds },
+    status: 'submitted',
+  };
   if (from || to) {
     visitWhere.checkinTs = {
       ...(from ? { gte: from } : {}),

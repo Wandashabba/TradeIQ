@@ -281,6 +281,65 @@ describe('territories routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects an invalid to date with 400', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-BadTo', code: 'TERR-BADTO1' },
+    });
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .query({ to: 'not-a-date' })
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns zero coverage for a territory with no outlets', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-Empty', code: 'TERR-EMPTY1' },
+    });
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.outlets).toEqual([]);
+    expect(res.body.coverage).toEqual({ outletsVisited: 0, outletsTotal: 0, coverageRate: 0 });
+  });
+
+  it('does not count an outlet with only an in-progress visit as visited', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-InProgress', code: 'TERR-INPROG1' },
+    });
+    const outlet = await prisma.outlet.create({
+      data: {
+        name: 'TERR-Outlet-InProgress',
+        code: 'TERR-OUT-INPROG',
+        channelType: 'general_trade',
+        lat: -26.2,
+        lng: 28.04,
+        territoryId: territory.code,
+        clientId,
+      },
+    });
+    // Check-in started but never submitted — should not count toward coverage.
+    await prisma.visit.create({
+      data: {
+        outletId: outlet.id,
+        agentId,
+        clientId,
+        checkinTs: new Date('2026-07-01T09:00:00.000Z'),
+        checkinLat: -26.2,
+        checkinLng: 28.04,
+        geofencePass: true,
+        status: 'in_progress',
+      },
+    });
+
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.coverage).toEqual({ outletsVisited: 0, outletsTotal: 1, coverageRate: 0 });
+  });
+
   it('returns 404 coverage for a territory of another client', async () => {
     const otherTerritory = await prisma.territory.create({
       data: { clientId: otherClientId, name: 'TERR-Foreign', code: 'TERR-FGN1' },
