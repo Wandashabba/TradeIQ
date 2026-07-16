@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { NotFoundError } from '../../middleware/errorHandler';
+import { NotFoundError, ValidationError } from '../../middleware/errorHandler';
 import { predictCoverageDays } from '../../services/forecast.service';
 import {
   computeDaysOutOfStock,
@@ -29,6 +29,18 @@ export interface RecordStockInput {
   items: StockItemInput[];
 }
 
+// Shared between the route (a cheap, immediate 400 before any DB call) and
+// recordStock itself (the actual enforcement point, so the invariant holds
+// for any caller — script, admin tool, future bulk-import path — not just
+// the one route that happens to exist today, #121). Kept as one function so
+// the two call sites can't drift onto different definitions of "duplicate".
+export const DUPLICATE_SKU_ID_MESSAGE = 'items[] must not contain duplicate skuId values';
+
+export function hasDuplicateSkuIds(items: Pick<StockItemInput, 'skuId'>[]): boolean {
+  const skuIds = items.map((item) => item.skuId);
+  return new Set(skuIds).size !== skuIds.length;
+}
+
 // predictCoverageDays returns Infinity when velocityAvg <= 0, which a Postgres
 // Float column can't store — clamp it to 0 (route validation also guards this).
 function coverageFor(unitsAvailable: number, velocityAvg: number): number {
@@ -53,6 +65,10 @@ export async function recordStock(input: RecordStockInput) {
   });
   if (!visit) {
     throw new NotFoundError('Visit not found');
+  }
+
+  if (hasDuplicateSkuIds(input.items)) {
+    throw new ValidationError(DUPLICATE_SKU_ID_MESSAGE);
   }
 
   const skuIds = input.items.map((i) => i.skuId);

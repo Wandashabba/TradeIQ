@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { listStockForVisit, recordStock, StockItemInput } from './stock.service';
+import {
+  DUPLICATE_SKU_ID_MESSAGE,
+  hasDuplicateSkuIds,
+  listStockForVisit,
+  recordStock,
+  StockItemInput,
+} from './stock.service';
 
 export const stockRouter = Router();
 stockRouter.use(requireAuth);
@@ -21,6 +27,15 @@ stockRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res
 
   if (!visitId || !Array.isArray(items) || items.length === 0 || !items.every(isValidItem)) {
     res.status(400).json({ error: 'visitId and a non-empty items[] with all required fields are required' });
+    return;
+  }
+
+  // Fast-fail before touching the DB at all. recordStock enforces this same
+  // invariant independently (via the same hasDuplicateSkuIds check) for
+  // callers that bypass this route entirely — this is just a cheap,
+  // immediate 400 for the common HTTP path.
+  if (hasDuplicateSkuIds(items)) {
+    res.status(400).json({ error: DUPLICATE_SKU_ID_MESSAGE });
     return;
   }
 

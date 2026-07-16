@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { errorHandler, NotFoundError, NotImplementedError } from './errorHandler';
+import { errorHandler, NotFoundError, NotImplementedError, ValidationError } from './errorHandler';
 
 describe('errorHandler', () => {
   it('maps NotImplementedError to 501', async () => {
@@ -37,5 +37,17 @@ describe('errorHandler', () => {
     const res = await request(app).get('/boom');
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'missing thing' });
+  });
+
+  it('maps ValidationError to 400', async () => {
+    const app = express();
+    app.get('/boom', () => {
+      throw new ValidationError('bad input');
+    });
+    app.use(errorHandler);
+
+    const res = await request(app).get('/boom');
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'bad input' });
   });
 });

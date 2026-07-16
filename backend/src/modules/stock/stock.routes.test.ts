@@ -334,6 +334,26 @@ describe('stock routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects duplicate skuId within items[] with 400', async () => {
+    // skuId already has rows from earlier tests in this file, so "nothing was
+    // persisted" is checked as a before/after count, not an absolute zero.
+    const before = await prisma.visitStock.count({ where: { visitId, skuId } });
+
+    const res = await request(app)
+      .post('/stock')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ visitId, items: [validItem(), { ...validItem(), unitsAvailable: 5 }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'items[] must not contain duplicate skuId values' });
+
+    // Proves the guard runs before any write is attempted -- the count is
+    // unchanged from before the request. (This isn't an atomicity test --
+    // there's no partial-write path here to test atomicity against.)
+    const after = await prisma.visitStock.count({ where: { visitId, skuId } });
+    expect(after).toBe(before);
+  });
+
   it('forbids a manager from recording stock with 403', async () => {
     const res = await request(app)
       .post('/stock')
