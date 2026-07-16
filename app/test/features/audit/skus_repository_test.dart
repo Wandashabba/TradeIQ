@@ -4,33 +4,35 @@ import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus() async => const [
-        Sku(id: 's1', name: 'Test Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99),
+  Future<List<Sku>> listSkus({required String outletId}) async => const [
+        Sku(id: 's1', name: 'Test Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99,
+            daysOutOfStock: 2, velocityAvg: 3.5),
       ];
 }
 
 void main() {
-  test('skusListProvider resolves the repository result', () async {
+  test('skusListProvider resolves the repository result for the given outlet', () async {
     final container = ProviderContainer(
       overrides: [skusRepositoryProvider.overrideWithValue(_FakeSkusRepository())],
     );
     addTearDown(container.dispose);
 
-    final skus = await container.read(skusListProvider.future);
+    final skus = await container.read(skusListProvider('outlet-1').future);
 
     expect(skus, hasLength(1));
     expect(skus.first.name, 'Test Cola');
+    expect(skus.first.daysOutOfStock, 2);
+    expect(skus.first.velocityAvg, 3.5);
   });
 
   test('Sku.fromJson parses numeric fields', () {
     final sku = Sku.fromJson({
-      'id': 's2',
-      'name': 'Water 1L',
-      'category': 'Beverages',
-      'minFacingsStandard': 3,
-      'rrp': 12.5,
+      'id': 's2', 'name': 'Water 1L', 'category': 'Beverages',
+      'minFacingsStandard': 3, 'rrp': 12.5, 'daysOutOfStock': 1, 'velocityAvg': 6.0,
     });
     expect(sku.minFacingsStandard, 3);
     expect(sku.rrp, 12.5);
+    expect(sku.daysOutOfStock, 1);
+    expect(sku.velocityAvg, 6.0);
   });
 }
