@@ -10,6 +10,7 @@ describe('dashboard routes', () => {
   let managerToken: string;
   let agentToken: string;
   let emptyManagerToken: string;
+  let territory1Id: string;
 
   beforeAll(async () => {
     const client = await prisma.client.create({
@@ -45,6 +46,15 @@ describe('dashboard routes', () => {
         clientId,
       },
     });
+
+    // A real Territory row, distinct id vs code, so territoryId filtering can
+    // be tested against the actual client-facing contract (Territory.id in,
+    // resolved to Territory.code internally) rather than the free-text code
+    // directly — see the id/code doc comment on the Territory model.
+    const territory1 = await prisma.territory.create({
+      data: { clientId, name: 'DASH-Territory 1', code: 'dash-t1' },
+    });
+    territory1Id = territory1.id;
 
     const sku = await prisma.sku.create({
       data: { clientId, name: 'DASH-Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99 },
@@ -264,6 +274,7 @@ describe('dashboard routes', () => {
     await prisma.visitPricing.deleteMany({ where: { visit: { clientId: { in: clientIds } } } });
     await prisma.visitCompetitive.deleteMany({ where: { visit: { clientId: { in: clientIds } } } });
     await prisma.visit.deleteMany({ where: { clientId: { in: clientIds } } });
+    await prisma.territory.deleteMany({ where: { clientId: { in: clientIds } } });
     await prisma.sku.deleteMany({ where: { clientId: { in: clientIds } } });
     await prisma.outlet.deleteMany({ where: { clientId: { in: clientIds } } });
     await prisma.user.deleteMany({ where: { clientId: { in: clientIds } } });
@@ -291,7 +302,7 @@ describe('dashboard routes', () => {
   it('filters by territoryId (visits and outlet denominator)', async () => {
     const res = await request(app)
       .get('/dashboard')
-      .query({ territoryId: 'dash-t1' })
+      .query({ territoryId: territory1Id })
       .set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
@@ -301,6 +312,16 @@ describe('dashboard routes', () => {
     expect(res.body.kpis.perfectStoreRate).toBe(0); // the t1 visit is amber
     // Client B also has a visit in territory dash-t1 — it must not leak in.
     expect(res.body.kpis.osaPct).toBe(50);
+  });
+
+  it('returns all-zero KPIs for a territoryId that does not exist for this client', async () => {
+    const res = await request(app)
+      .get('/dashboard')
+      .query({ territoryId: 'no-such-territory-id' })
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.totals).toEqual({ visits: 0, outletsVisited: 0, outletsTotal: 0 });
   });
 
   it('filters by from date', async () => {

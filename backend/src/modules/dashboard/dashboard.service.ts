@@ -154,20 +154,34 @@ function computeKpisFromScope(outlets: ScopedOutlet[], visits: ScopedVisit[]): D
 }
 
 export async function getDashboardSummary(filters: DashboardFilters): Promise<DashboardSummary> {
+  // filters.territoryId is a Territory.id (the client-facing contract), but
+  // Outlet.territoryId is free-text storing Territory.code — never id (see
+  // the doc comment on getDashboardByTerritory and on the Territory model in
+  // schema.prisma). Resolve id -> code before filtering. A territoryId that
+  // doesn't resolve (bogus id, or another client's territory) intentionally
+  // matches nothing rather than accidentally matching everything.
+  let territoryCode: string | undefined;
+  if (filters.territoryId) {
+    const territory = await prisma.territory.findFirst({
+      where: { id: filters.territoryId, clientId: filters.clientId },
+    });
+    territoryCode = territory?.code ?? '__no-such-territory__';
+  }
+
   // Outlet scope — the distribution denominator honours the same
   // territory/outlet filters as the visit scope.
   const outletWhere: Prisma.OutletWhereInput = { clientId: filters.clientId };
-  if (filters.territoryId) {
-    outletWhere.territoryId = filters.territoryId;
+  if (territoryCode) {
+    outletWhere.territoryId = territoryCode;
   }
   if (filters.outletId) {
     outletWhere.id = filters.outletId;
   }
 
   const visitWhere: Prisma.VisitWhereInput = { clientId: filters.clientId };
-  if (filters.territoryId || filters.outletId) {
+  if (territoryCode || filters.outletId) {
     visitWhere.outlet = {
-      ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
+      ...(territoryCode ? { territoryId: territoryCode } : {}),
       ...(filters.outletId ? { id: filters.outletId } : {}),
     };
   }
