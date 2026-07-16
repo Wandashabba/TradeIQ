@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { facingsTotal, mean, pct, round2 } from '../../lib/kpiMath';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -25,19 +26,6 @@ export interface TrendPoint {
 export interface TrendSeries {
   interval: TrendInterval;
   points: TrendPoint[];
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function mean(values: number[]): number {
-  return values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
-}
-
-/** Ratio helper that returns 0 (never NaN) on an empty denominator. */
-function pct(numerator: number, denominator: number): number {
-  return denominator > 0 ? (100 * numerator) / denominator : 0;
 }
 
 /**
@@ -122,6 +110,17 @@ function stockWhere(filters: TrendFilters): Prisma.VisitStockWhereInput {
   };
 }
 
+function visitWhere(filters: TrendFilters): Prisma.VisitWhereInput {
+  const where: Prisma.VisitWhereInput = { clientId: filters.clientId };
+  if (filters.from || filters.to) {
+    where.checkinTs = {
+      ...(filters.from ? { gte: filters.from } : {}),
+      ...(filters.to ? { lte: filters.to } : {}),
+    };
+  }
+  return where;
+}
+
 /**
  * Mean weighted scorecard total per bucket. `value` = mean weightedTotal,
  * `count` = number of scorecards in the bucket.
@@ -170,5 +169,42 @@ export async function getPerfectStoreTrend(filters: TrendFilters): Promise<Trend
     filters.interval,
     (row) => row.createdAt,
     (bucket) => pct(bucket.filter((row) => row.ratingBand === 'green').length, bucket.length),
+  );
+}
+
+/**
+ * Share-of-shelf per bucket: `value` = 100 * ownFacings / (ownFacings +
+ * competitorFacings), the same formula as `dashboard.service.ts`'s
+ * `computeKpisFromScope`, just bucketed over time instead of computed once
+ * over a scope. Sharing `pct`/`facingsTotal` with that file guarantees the
+ * numbers can never drift apart the way #93 already burned this codebase.
+ */
+export async function getShareOfShelfTrend(filters: TrendFilters): Promise<TrendSeries> {
+  const visits = await prisma.visit.findMany({
+    where: visitWhere(filters),
+    select: {
+      // Visit has no `createdAt` column (only `checkinTs`, the device's
+      // clock — see the doc comment on `Visit.submittedAtClient`), so bucket
+      // on the same field `visitWhere` already filters on.
+      checkinTs: true,
+      visibility: { select: { facingsCount: true } },
+      competitive: { select: { facingsCount: true } },
+    },
+  });
+  return buildSeries(
+    visits,
+    filters.interval,
+    (visit) => visit.checkinTs,
+    (bucket) => {
+      const ownFacings = bucket.reduce(
+        (sum, visit) => sum + (visit.visibility ? facingsTotal(visit.visibility.facingsCount) : 0),
+        0,
+      );
+      const competitorFacings = bucket.reduce(
+        (sum, visit) => sum + visit.competitive.reduce((n, row) => n + row.facingsCount, 0),
+        0,
+      );
+      return pct(ownFacings, ownFacings + competitorFacings);
+    },
   );
 }

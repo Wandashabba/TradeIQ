@@ -7,6 +7,7 @@ import {
   getAvailabilityTrend,
   getPerfectStoreTrend,
   getScorecardsTrend,
+  getShareOfShelfTrend,
 } from './trends.service';
 
 export const trendsRouter = Router();
@@ -66,3 +67,4 @@ function trendRoute(path: string, handler: TrendHandler): void {
 trendRoute('/scorecards', getScorecardsTrend);
 trendRoute('/availability', getAvailabilityTrend);
 trendRoute('/perfect-store', getPerfectStoreTrend);
+trendRoute('/share-of-shelf', getShareOfShelfTrend);

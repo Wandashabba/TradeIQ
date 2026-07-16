@@ -137,6 +137,55 @@ describe('trends routes', () => {
       ],
     });
 
+    // Share-of-shelf fixtures live only on week A's visits (visitA1, visitA2):
+    // ownFacings = 8 + 4 = 12, competitorFacings = 2 + 1 = 3,
+    // so week A's share-of-shelf = 100 * 12 / 15 = 80. Week B intentionally has
+    // no visibility/competitive rows at all, to exercise the empty-bucket case
+    // (0, not NaN). Bucketing keys off each visit's own checkinTs (Visit has no
+    // createdAt column).
+    await prisma.visitVisibility.createMany({
+      data: [
+        {
+          visitId: visitA1,
+          brandingElements: {},
+          planogramCompliancePct: 80,
+          facingsCount: { total: 8 },
+          highTrafficPass: true,
+          cleanlinessScore: 4,
+        },
+        {
+          visitId: visitA2,
+          brandingElements: {},
+          planogramCompliancePct: 80,
+          facingsCount: { total: 4 },
+          highTrafficPass: true,
+          cleanlinessScore: 4,
+        },
+      ],
+    });
+    await prisma.visitCompetitive.createMany({
+      data: [
+        {
+          visitId: visitA1,
+          competitorSku: 'TREND-Rival A',
+          competitorPrice: 17.99,
+          competitorPosmType: 'shelf_strip',
+          competitorPromoterPresent: false,
+          facingsCount: 2,
+          geotag: {},
+        },
+        {
+          visitId: visitA2,
+          competitorSku: 'TREND-Rival B',
+          competitorPrice: 18.49,
+          competitorPosmType: 'poster',
+          competitorPromoterPresent: true,
+          facingsCount: 1,
+          geotag: {},
+        },
+      ],
+    });
+
     // Second client with a green scorecard + in-stock row in week A: must never
     // leak into client A's series.
     const otherClient = await prisma.client.create({
@@ -192,6 +241,8 @@ describe('trends routes', () => {
     const clientIds = [clientId, otherClientId];
     await prisma.scorecard.deleteMany({ where: { visit: { clientId: { in: clientIds } } } });
     await prisma.visitStock.deleteMany({ where: { visit: { clientId: { in: clientIds } } } });
+    await prisma.visitVisibility.deleteMany({ where: { visit: { clientId: { in: clientIds } } } });
+    await prisma.visitCompetitive.deleteMany({ where: { visit: { clientId: { in: clientIds } } } });
     await prisma.visit.deleteMany({ where: { clientId: { in: clientIds } } });
     await prisma.sku.deleteMany({ where: { clientId: { in: clientIds } } });
     await prisma.outlet.deleteMany({ where: { clientId: { in: clientIds } } });
@@ -235,6 +286,49 @@ describe('trends routes', () => {
       { period: WEEK_A_MONDAY, value: 50, count: 2 },
       { period: WEEK_B_MONDAY, value: 100, count: 2 },
     ]);
+  });
+
+  it('buckets share-of-shelf by week from own vs competitor facings', async () => {
+    const res = await request(app)
+      .get('/trends/share-of-shelf')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    // Week A: ownFacings 8+4=12, competitorFacings 2+1=3 -> 100*12/15 = 80.
+    expect(res.body.points).toContainEqual({ period: WEEK_A_MONDAY, value: 80, count: 2 });
+  });
+
+  it('returns 0, not NaN, for a bucket with no visibility/competitive rows', async () => {
+    const res = await request(app)
+      .get('/trends/share-of-shelf')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    // Week B has visits but no VisitVisibility/VisitCompetitive rows at all.
+    expect(res.body.points).toContainEqual({ period: WEEK_B_MONDAY, value: 0, count: 2 });
+  });
+
+  it('agrees with the dashboard shareOfShelf KPI for the same scope, proving they cannot drift', async () => {
+    const window = { from: WEEK_A_MONDAY, to: WEEK_B_MONDAY };
+    const [dashboardRes, trendRes] = await Promise.all([
+      request(app)
+        .get('/dashboard')
+        .query(window)
+        .set('Authorization', `Bearer ${managerToken}`),
+      request(app)
+        .get('/trends/share-of-shelf')
+        .query(window)
+        .set('Authorization', `Bearer ${managerToken}`),
+    ]);
+
+    expect(dashboardRes.status).toBe(200);
+    expect(trendRes.status).toBe(200);
+    // The window covers only week A's visits, so the trend collapses to a
+    // single bucket that must equal the dashboard's scope-wide KPI: both are
+    // computed from the same visits via the same shared `pct`/`facingsTotal`.
+    expect(trendRes.body.points).toEqual([{ period: WEEK_A_MONDAY, value: 80, count: 2 }]);
+    expect(dashboardRes.body.kpis.shareOfShelf).toBe(80);
+    expect(trendRes.body.points[0].value).toBe(dashboardRes.body.kpis.shareOfShelf);
   });
 
   it('buckets by day when interval=day', async () => {
