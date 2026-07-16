@@ -45,7 +45,9 @@ export async function getSkuForecast(filters: ForecastFilters): Promise<SkuForec
     select: { salesActual: true, unitsAvailable: true },
   });
 
-  const historyPoints = rows.map((row) => row.salesActual);
+  const historyPoints = rows
+    .map((row) => row.salesActual)
+    .filter((salesActual): salesActual is number => salesActual !== null);
   const latestUnitsAvailable = rows.length > 0 ? rows[rows.length - 1].unitsAvailable : 0;
 
   return {

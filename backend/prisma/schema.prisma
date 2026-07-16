@@ -203,8 +203,8 @@ model VisitStock {
   daysOutOfStock        Int      @map("days_out_of_stock")
   velocityAvg           Float    @map("velocity_avg")
   coverageDaysPredicted Float    @map("coverage_days_predicted")
-  salesActual           Float    @map("sales_actual")
-  salesTarget           Float    @map("sales_target")
+  salesActual           Float?   @map("sales_actual")
+  salesTarget           Float?   @map("sales_target")
   createdAt             DateTime @default(now()) @map("created_at")
 
   @@map("visit_stock")
