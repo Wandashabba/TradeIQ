@@ -474,9 +474,8 @@ class _TerritoryPanel extends ConsumerWidget {
   }
 }
 
-/// One `GET /dashboard?territoryId=…` per territory — see [territoryKpisProvider].
-/// Territories still loading are held back rather than plotted as zero, so the
-/// chart never shows a bar that isn't a real score.
+/// Fetches every territory's KPIs in a single `GET /dashboard/by-territory`
+/// call — see #97.
 class _TerritoryScoreBars extends ConsumerWidget {
   const _TerritoryScoreBars({required this.territories});
 
@@ -496,23 +495,22 @@ class _TerritoryScoreBars extends ConsumerWidget {
       );
     }
 
-    final points = <ChartPoint>[];
-    var pending = false;
-    for (final t in territories) {
-      final kpis = ref.watch(territoryKpisProvider(t.id));
-      kpis.when(
-        loading: () => pending = true,
-        error: (_, _) {},
-        data: (d) => points.add((label: t.name, value: d.executionScore)),
-      );
-    }
+    final byTerritoryAsync = ref.watch(dashboardByTerritoryProvider);
 
-    if (points.isEmpty) {
-      return _InlineLoader(height: pending ? 140 : 40);
-    }
-
-    points.sort((a, b) => b.value.compareTo(a.value));
-    return BarChart(points: points, target: 75);
+    return byTerritoryAsync.when(
+      loading: () => const _InlineLoader(height: 140),
+      error: (_, _) => const _InlineLoader(height: 40),
+      data: (summaries) {
+        final byId = {for (final s in summaries) s.territoryId: s};
+        final points = <ChartPoint>[
+          for (final t in territories)
+            if (byId[t.id] != null) (label: t.name, value: byId[t.id]!.kpis.executionScore),
+        ];
+        if (points.isEmpty) return const _InlineLoader(height: 40);
+        points.sort((a, b) => b.value.compareTo(a.value));
+        return BarChart(points: points, target: 75);
+      },
+    );
   }
 }
 

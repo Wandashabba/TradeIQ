@@ -14,6 +14,10 @@ import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 import '../../helpers/routed_app.dart';
 
 class _FakeDashboardRepository implements DashboardRepository {
+  _FakeDashboardRepository({this.byTerritory = const []});
+
+  final List<TerritoryDashboardKpis> byTerritory;
+
   @override
   Future<DashboardKpis> fetchKpis({
     String? territoryId,
@@ -30,6 +34,10 @@ class _FakeDashboardRepository implements DashboardRepository {
         shareOfShelf: 41.2,
         perfectStoreRate: 55.6,
       );
+
+  @override
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to}) async =>
+      byTerritory;
 }
 
 /// Returns a LOWER figure for the earlier window, so the console has a real rise
@@ -60,6 +68,9 @@ class _ImprovingDashboardRepository implements DashboardRepository {
       perfectStoreRate: perfect,
     );
   }
+
+  @override
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to}) async => const [];
 }
 
 class _ThrowingDashboardRepository implements DashboardRepository {
@@ -69,6 +80,10 @@ class _ThrowingDashboardRepository implements DashboardRepository {
     String? from,
     String? to,
   }) async =>
+      throw Exception('network down');
+
+  @override
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to}) async =>
       throw Exception('network down');
 }
 
@@ -327,6 +342,60 @@ void main() {
     expect(find.textContaining('Could not load KPIs'), findsWidgets);
     expect(find.text('Retry'), findsWidgets);
   });
+
+  testWidgets(
+    'plots the execution-score-by-territory bar chart from a single by-territory fetch',
+    (tester) async {
+      // Two territories, and a fetchByTerritory response keyed by
+      // Territory.id — proving the chart no longer needs one GET /dashboard
+      // call per territory (#97).
+      const territories = [
+        Territory(id: 't-north', name: 'North', code: 'north'),
+        Territory(id: 't-south', name: 'South', code: 'south'),
+      ];
+      const byTerritory = [
+        TerritoryDashboardKpis(
+          territoryId: 't-north',
+          territoryName: 'North',
+          kpis: DashboardKpis(
+            numericDistribution: 80,
+            weightedDistribution: 80,
+            osaPct: 80,
+            executionScore: 82.0,
+            priceCompliancePct: 80,
+            visibilityCompliancePct: 80,
+            shareOfShelf: 80,
+            perfectStoreRate: 80,
+          ),
+        ),
+        TerritoryDashboardKpis(
+          territoryId: 't-south',
+          territoryName: 'South',
+          kpis: DashboardKpis(
+            numericDistribution: 60,
+            weightedDistribution: 60,
+            osaPct: 60,
+            executionScore: 58.5,
+            priceCompliancePct: 60,
+            visibilityCompliancePct: 60,
+            shareOfShelf: 60,
+            perfectStoreRate: 60,
+          ),
+        ),
+      ];
+
+      await _pump(
+        tester,
+        _app(
+          territories: territories,
+          dashboard: _FakeDashboardRepository(byTerritory: byTerritory),
+        ),
+      );
+
+      expect(find.byType(BarChart), findsOneWidget);
+      expect(find.text('No territories defined'), findsNothing);
+    },
+  );
 
   testWidgets('renders the KPI filter bar (territory + date range)', (tester) async {
     await _pump(tester, _app());

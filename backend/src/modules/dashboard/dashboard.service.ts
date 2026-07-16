@@ -51,47 +51,30 @@ export interface DashboardSummary {
   };
 }
 
-export async function getDashboardSummary(filters: DashboardFilters): Promise<DashboardSummary> {
-  // Outlet scope — the distribution denominator honours the same
-  // territory/outlet filters as the visit scope.
-  const outletWhere: Prisma.OutletWhereInput = { clientId: filters.clientId };
-  if (filters.territoryId) {
-    outletWhere.territoryId = filters.territoryId;
-  }
-  if (filters.outletId) {
-    outletWhere.id = filters.outletId;
-  }
+/** The exact payload shape produced by the visit query's `include` below. */
+type ScopedVisit = Prisma.VisitGetPayload<{
+  include: {
+    stock: true;
+    visibility: true;
+    pricing: true;
+    competitive: true;
+    scorecard: true;
+  };
+}>;
 
-  const visitWhere: Prisma.VisitWhereInput = { clientId: filters.clientId };
-  if (filters.territoryId || filters.outletId) {
-    visitWhere.outlet = {
-      ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
-      ...(filters.outletId ? { id: filters.outletId } : {}),
-    };
-  }
-  if (filters.from || filters.to) {
-    visitWhere.checkinTs = {
-      ...(filters.from ? { gte: filters.from } : {}),
-      ...(filters.to ? { lte: filters.to } : {}),
-    };
-  }
+interface ScopedOutlet {
+  id: string;
+  acvWeight: number;
+}
 
-  const [outlets, visits] = await Promise.all([
-    // The ACV weights are needed for weighted distribution, so select the rows
-    // rather than just counting them.
-    prisma.outlet.findMany({ where: outletWhere, select: { id: true, acvWeight: true } }),
-    prisma.visit.findMany({
-      where: visitWhere,
-      include: {
-        stock: true,
-        visibility: true,
-        pricing: true,
-        competitive: true,
-        scorecard: true,
-      },
-    }),
-  ]);
-
+/**
+ * All of the KPI math, pulled out of `getDashboardSummary` so the
+ * single-scope endpoint and the per-territory rollup compute identically.
+ * This file has a `#93` history of near-duplicate KPI bugs from formulas
+ * drifting between copies — there must be exactly one implementation of this
+ * math, not one per caller.
+ */
+function computeKpisFromScope(outlets: ScopedOutlet[], visits: ScopedVisit[]): DashboardSummary {
   const outletsTotal = outlets.length;
   const visitedOutletIds = new Set(visits.map((visit) => visit.outletId));
   const outletsVisited = visitedOutletIds.size;
@@ -168,4 +151,109 @@ export async function getDashboardSummary(filters: DashboardFilters): Promise<Da
       outletsTotal,
     },
   };
+}
+
+export async function getDashboardSummary(filters: DashboardFilters): Promise<DashboardSummary> {
+  // Outlet scope — the distribution denominator honours the same
+  // territory/outlet filters as the visit scope.
+  const outletWhere: Prisma.OutletWhereInput = { clientId: filters.clientId };
+  if (filters.territoryId) {
+    outletWhere.territoryId = filters.territoryId;
+  }
+  if (filters.outletId) {
+    outletWhere.id = filters.outletId;
+  }
+
+  const visitWhere: Prisma.VisitWhereInput = { clientId: filters.clientId };
+  if (filters.territoryId || filters.outletId) {
+    visitWhere.outlet = {
+      ...(filters.territoryId ? { territoryId: filters.territoryId } : {}),
+      ...(filters.outletId ? { id: filters.outletId } : {}),
+    };
+  }
+  if (filters.from || filters.to) {
+    visitWhere.checkinTs = {
+      ...(filters.from ? { gte: filters.from } : {}),
+      ...(filters.to ? { lte: filters.to } : {}),
+    };
+  }
+
+  const [outlets, visits] = await Promise.all([
+    // The ACV weights are needed for weighted distribution, so select the rows
+    // rather than just counting them.
+    prisma.outlet.findMany({ where: outletWhere, select: { id: true, acvWeight: true } }),
+    prisma.visit.findMany({
+      where: visitWhere,
+      include: {
+        stock: true,
+        visibility: true,
+        pricing: true,
+        competitive: true,
+        scorecard: true,
+      },
+    }),
+  ]);
+
+  return computeKpisFromScope(outlets, visits);
+}
+
+export interface TerritoryDashboardSummary extends DashboardSummary {
+  territoryId: string;
+  territoryName: string;
+}
+
+/**
+ * One query pair for every territory, instead of the N+1 pattern of calling
+ * `getDashboardSummary` once per territory (#97). Also the source of truth
+ * for the id/code join: `Outlet.territoryId` is a free-text column that
+ * stores `Territory.code`, never `Territory.id` — see the doc comment on the
+ * `Territory` model in schema.prisma. Matching on `territory.id` here would
+ * silently zero out every KPI below, exactly as the original per-territory
+ * bug did.
+ */
+export async function getDashboardByTerritory(filters: {
+  clientId: string;
+  from?: Date;
+  to?: Date;
+}): Promise<TerritoryDashboardSummary[]> {
+  const territories = await prisma.territory.findMany({ where: { clientId: filters.clientId } });
+
+  const visitWhere: Prisma.VisitWhereInput = { clientId: filters.clientId };
+  if (filters.from || filters.to) {
+    visitWhere.checkinTs = {
+      ...(filters.from ? { gte: filters.from } : {}),
+      ...(filters.to ? { lte: filters.to } : {}),
+    };
+  }
+
+  const [outlets, visits] = await Promise.all([
+    prisma.outlet.findMany({
+      where: { clientId: filters.clientId },
+      select: { id: true, acvWeight: true, territoryId: true },
+    }),
+    prisma.visit.findMany({
+      where: visitWhere,
+      include: {
+        stock: true,
+        visibility: true,
+        pricing: true,
+        competitive: true,
+        scorecard: true,
+      },
+    }),
+  ]);
+
+  return territories.map((territory) => {
+    // Outlets link to a territory by Outlet.territoryId equalling
+    // Territory.code (a deliberate, pre-existing design), NOT Territory.id.
+    const scopedOutlets = outlets.filter((outlet) => outlet.territoryId === territory.code);
+    const scopedOutletIds = new Set(scopedOutlets.map((outlet) => outlet.id));
+    const scopedVisits = visits.filter((visit) => scopedOutletIds.has(visit.outletId));
+
+    return {
+      territoryId: territory.id,
+      territoryName: territory.name,
+      ...computeKpisFromScope(scopedOutlets, scopedVisits),
+    };
+  });
 }

@@ -98,8 +98,33 @@ class DashboardFilter {
       );
 }
 
+/// One territory's KPI block, as returned by GET /dashboard/by-territory.
+class TerritoryDashboardKpis {
+  const TerritoryDashboardKpis({
+    required this.territoryId,
+    required this.territoryName,
+    required this.kpis,
+  });
+  final String territoryId;
+  final String territoryName;
+  final DashboardKpis kpis;
+
+  factory TerritoryDashboardKpis.fromJson(Map<String, dynamic> json) => TerritoryDashboardKpis(
+        territoryId: json['territoryId'] as String,
+        territoryName: json['territoryName'] as String,
+        // DashboardKpis.fromJson reads json['kpis'], so passing the whole
+        // per-territory object (not just its kpis sub-map) is correct here.
+        kpis: DashboardKpis.fromJson(json),
+      );
+}
+
 abstract class DashboardRepository {
   Future<DashboardKpis> fetchKpis({String? territoryId, String? from, String? to});
+
+  /// Every territory's KPI block in a single request — see
+  /// [dashboardByTerritoryProvider] for why this replaced one `fetchKpis`
+  /// call per territory (#97).
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to});
 }
 
 class DioDashboardRepository implements DashboardRepository {
@@ -111,6 +136,17 @@ class DioDashboardRepository implements DashboardRepository {
     if (to != null) query['to'] = to;
     final response = await dio.get('/dashboard', queryParameters: query);
     return DashboardKpis.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to}) async {
+    final query = <String, dynamic>{};
+    if (from != null) query['from'] = from;
+    if (to != null) query['to'] = to;
+    final response = await dio.get('/dashboard/by-territory', queryParameters: query);
+    return (response.data as List)
+        .map((json) => TerritoryDashboardKpis.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 }
 
@@ -204,21 +240,18 @@ final dashboardKpisProvider = FutureProvider<DashboardKpis>(
   (ref) async => (await ref.watch(dashboardSnapshotProvider.future)).current,
 );
 
-/// KPIs scoped to a single territory.
-///
-/// `GET /territories/:id/coverage` returns outlet and agent *lists*, not a
-/// score, so the only honest way to rank territories by execution score is to
-/// re-query `GET /dashboard` per territory. That is one request per territory —
-/// acceptable at the current scale, but a server-side rollup is the right fix
-/// if the list grows (#97).
-final territoryKpisProvider =
-    FutureProvider.family<DashboardKpis, String>((ref, territoryId) {
+/// Every territory's KPIs in a single `GET /dashboard/by-territory` call —
+/// see #97. This replaced one `GET /dashboard?territoryId=…` request per
+/// territory, which was both an N+1 query pattern and, more seriously,
+/// silently broken: it filtered outlets by `Territory.id`, a UUID that never
+/// matches the free-text `Outlet.territoryId` column (which stores
+/// `Territory.code`), so every per-territory figure was a quiet zero.
+final dashboardByTerritoryProvider = FutureProvider<List<TerritoryDashboardKpis>>((ref) {
   final filter = ref.watch(dashboardFilterProvider);
   final now = ref.read(nowProvider)();
   final (from, to) = filter.range.window(now);
 
-  return ref.read(dashboardRepositoryProvider).fetchKpis(
-        territoryId: territoryId,
+  return ref.read(dashboardRepositoryProvider).fetchByTerritory(
         from: from?.toIso8601String(),
         to: to.toIso8601String(),
       );
