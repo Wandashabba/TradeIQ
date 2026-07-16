@@ -2,6 +2,8 @@
 // VisitStock history, replacing the field-agent-typed numbers the S2 stock-audit
 // screen used to ask for (neither is observable at a shelf). See #112.
 
+import { prisma } from '../lib/prisma';
+
 export interface StockHistoryRow {
   visitCheckinTs: Date;
   unitsAvailable: number;
@@ -40,4 +42,34 @@ export function computeVelocityAvg(history: StockHistoryRow[]): number {
   }
   if (rates.length === 0) return 0;
   return Math.round((rates.reduce((sum, r) => sum + r, 0) / rates.length) * 100) / 100;
+}
+
+const HISTORY_WINDOW = 5;
+
+/**
+ * One query for every SKU's stock history at this outlet, capped at the
+ * last 5 VisitStock rows per SKU (newest-first). A single round trip
+ * regardless of SKU-catalog size — fetch once, group in memory — matching
+ * the pattern dashboard.service.ts's getDashboardByTerritory already
+ * established, rather than one query per SKU (the #97 N+1 lesson).
+ */
+export async function fetchStockHistoryForOutlet(
+  outletId: string,
+  clientId: string,
+): Promise<Map<string, StockHistoryRow[]>> {
+  const rows = await prisma.visitStock.findMany({
+    where: { visit: { outletId, clientId } },
+    orderBy: { visit: { checkinTs: 'desc' } },
+    select: { skuId: true, unitsAvailable: true, visit: { select: { checkinTs: true } } },
+  });
+
+  const bySku = new Map<string, StockHistoryRow[]>();
+  for (const row of rows) {
+    const list = bySku.get(row.skuId) ?? [];
+    if (list.length < HISTORY_WINDOW) {
+      list.push({ visitCheckinTs: row.visit.checkinTs, unitsAvailable: row.unitsAvailable });
+      bySku.set(row.skuId, list);
+    }
+  }
+  return bySku;
 }
