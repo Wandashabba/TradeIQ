@@ -37,7 +37,7 @@ class _FakeOutletsRepository implements OutletsRepository {
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus() async => const [];
+  Future<List<Sku>> listSkus({required String outletId}) async => const [];
 }
 
 class _SucceedingVisitsRepository implements VisitsRepository {

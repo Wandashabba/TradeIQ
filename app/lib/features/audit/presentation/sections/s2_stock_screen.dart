@@ -9,13 +9,14 @@ import '../../data/stock_repository.dart';
 /// S2 — Stock & Availability capture. One row per client SKU; on save the
 /// entries are persisted locally and queued for sync (POST /stock).
 class S2StockScreen extends ConsumerWidget {
-  const S2StockScreen({super.key, required this.visitDraftId});
+  const S2StockScreen({super.key, required this.visitDraftId, required this.outletId});
 
   final String visitDraftId;
+  final String outletId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final skus = ref.watch(skusListProvider);
+    final skus = ref.watch(skusListProvider(outletId));
     return skus.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text('Failed to load SKUs: $err')),
@@ -39,10 +40,6 @@ class _StockFormState extends ConsumerState<_StockForm> {
   /// and the one that raises a stockout task. Null means "not counted yet",
   /// which is a different thing from zero.
   final _units = <String, int?>{};
-  final _oos = <String, TextEditingController>{};
-  final _velocity = <String, TextEditingController>{};
-  final _salesActual = <String, TextEditingController>{};
-  final _salesTarget = <String, TextEditingController>{};
   final _lastStockin = <String, DateTime>{};
   bool _saved = false;
 
@@ -51,20 +48,8 @@ class _StockFormState extends ConsumerState<_StockForm> {
     super.initState();
     for (final sku in widget.skus) {
       _units[sku.id] = null;
-      _oos[sku.id] = TextEditingController(text: '0');
-      _velocity[sku.id] = TextEditingController();
-      _salesActual[sku.id] = TextEditingController();
-      _salesTarget[sku.id] = TextEditingController();
       _lastStockin[sku.id] = DateTime.now();
     }
-  }
-
-  @override
-  void dispose() {
-    for (final c in [..._oos.values, ..._velocity.values, ..._salesActual.values, ..._salesTarget.values]) {
-      c.dispose();
-    }
-    super.dispose();
   }
 
   Future<void> _save() async {
@@ -76,10 +61,6 @@ class _StockFormState extends ConsumerState<_StockForm> {
         // every SKU has actually been counted.
         unitsAvailable: _units[sku.id] ?? 0,
         lastStockinDate: _lastStockin[sku.id]!,
-        daysOutOfStock: int.tryParse(_oos[sku.id]!.text) ?? 0,
-        velocityAvg: double.tryParse(_velocity[sku.id]!.text) ?? 0.0,
-        salesActual: double.tryParse(_salesActual[sku.id]!.text) ?? 0.0,
-        salesTarget: double.tryParse(_salesTarget[sku.id]!.text) ?? 0.0,
       );
     }).toList();
 
@@ -102,16 +83,14 @@ class _StockFormState extends ConsumerState<_StockForm> {
     }
   }
 
-  Widget _numField(String label, Key key, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: TextField(
-        key: key,
-        controller: controller,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(labelText: label, isDense: true),
-      ),
-    );
+  /// "selling ~4/day · 12 days cover" — read-only server context, not agent
+  /// input (#112: an agent standing at a shelf cannot observe either number).
+  String _contextLine(Sku sku) {
+    final velocity = sku.velocityAvg > 0
+        ? 'Selling ~${sku.velocityAvg.toStringAsFixed(1)}/day'
+        : 'No sales history yet';
+    final oos = sku.daysOutOfStock > 0 ? ' · out of stock ${sku.daysOutOfStock}d' : '';
+    return '$velocity$oos';
   }
 
   @override
@@ -148,12 +127,15 @@ class _StockFormState extends ConsumerState<_StockForm> {
                       ),
                       Text(
                         'RRP ${sku.rrp.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.ink3,
-                        ),
+                        style: const TextStyle(fontSize: 12, color: AppColors.ink3),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _contextLine(sku),
+                    key: ValueKey('context-${sku.id}'),
+                    style: const TextStyle(fontSize: 12, color: AppColors.ink3),
                   ),
                   const SizedBox(height: 10),
                   CountStepper(
@@ -168,27 +150,17 @@ class _StockFormState extends ConsumerState<_StockForm> {
                       padding: EdgeInsets.only(top: 10),
                       child: Row(
                         children: [
-                          Icon(Icons.warning_amber_outlined,
-                              size: 15, color: AppColors.crit),
+                          Icon(Icons.warning_amber_outlined, size: 15, color: AppColors.crit),
                           SizedBox(width: 7),
                           Expanded(
                             child: Text(
                               'Out of stock — this raises a task for the manager',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.crit,
-                              ),
+                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.crit),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  const SizedBox(height: 6),
-                  _numField('Days out of stock', ValueKey('oos-${sku.id}'), _oos[sku.id]!),
-                  _numField('Avg daily velocity', ValueKey('vel-${sku.id}'), _velocity[sku.id]!),
-                  _numField('Sales actual', ValueKey('sactual-${sku.id}'), _salesActual[sku.id]!),
-                  _numField('Sales target', ValueKey('starget-${sku.id}'), _salesTarget[sku.id]!),
                 ],
               ),
             ),
@@ -237,20 +209,13 @@ class _CountInputDialogState extends State<_CountInputDialog> {
         controller: _controller,
         autofocus: true,
         keyboardType: TextInputType.number,
-        decoration: const InputDecoration(
-          labelText: 'Units on shelf',
-          isDense: true,
-        ),
+        decoration: const InputDecoration(labelText: 'Units on shelf', isDense: true),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
         ElevatedButton(
           key: ValueKey('units-confirm-${widget.sku.id}'),
-          onPressed: () =>
-              Navigator.of(context).pop(int.tryParse(_controller.text.trim())),
+          onPressed: () => Navigator.of(context).pop(int.tryParse(_controller.text.trim())),
           child: const Text('Set'),
         ),
       ],

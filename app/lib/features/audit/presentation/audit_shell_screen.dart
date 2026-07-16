@@ -70,7 +70,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   Widget _sectionBody(AuditSection section, String visitDraftId) {
     return switch (section) {
       AuditSection.outletInfo => S1OutletInfoScreen(checkinTs: _checkinTs),
-      AuditSection.stock => S2StockScreen(visitDraftId: visitDraftId),
+      AuditSection.stock => S2StockScreen(visitDraftId: visitDraftId, outletId: widget.outletId),
       AuditSection.visibility =>
         S3S4VisibilityDisplayScreen(visitDraftId: visitDraftId),
       AuditSection.pricing => S5PricingPromotionsScreen(
