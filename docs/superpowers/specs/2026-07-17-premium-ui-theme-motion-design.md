@@ -18,9 +18,11 @@ toggle), smooth the page-to-page and hamburger-drawer motion, and polish surface
 - **Drawer:** keep Material's slide physics; add a deeper scrim (no `BackdropFilter` blur —
   real perf tax on Flutter web, where managers live) and a ~20ms-per-row staggered fade-up on
   nav items as the drawer opens.
-- **Agent side stays pinned dark** in this pass. The field-agent flow (AgentScaffold screens,
-  login/landing) wraps itself in the dark theme, so ~20 agent screens need no light migration
-  now. Agent light mode is a separate later ticket.
+- **Agent side joins the redesign** (added mid-brainstorm by the user). The agent flow is
+  pinned dark only *transitionally* (so the build stays shippable between tasks); the final
+  task migrates the agent widget kit and screens to the scheme, adds the theme toggle to
+  `AgentScaffold`, and removes the pin. Only the branded pre-auth screens (landing/login,
+  with their video background) remain permanently pinned dark.
 
 ## 1. Theme architecture
 

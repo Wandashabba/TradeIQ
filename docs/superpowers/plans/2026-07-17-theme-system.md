@@ -1025,6 +1025,109 @@ git commit -m "design: light-mode token block mirroring TiqColors.light"
 
 ---
 
+### Task 6: Agent side follows the theme (un-pin, migrate, toggle)
+
+Added when the user expanded scope mid-execution: the field-agent flow joins the
+redesign instead of staying dark-only. The `PinnedDark` wrap from Task 2 was the
+transitional state; this task ends it.
+
+**Files:**
+- Modify: `app/lib/core/widgets/agent_scaffold.dart` (remove `PinnedDark`, migrate 5 refs, add toggle)
+- Modify: `app/lib/core/widgets/agent_kit.dart` (35 refs)
+- Modify: `app/lib/core/widgets/agent_motion.dart` (2 refs)
+- Modify: `app/lib/core/widgets/photo_capture_field.dart` (5 refs)
+- Modify: `app/lib/features/audit/presentation/audit_shell_screen.dart` (34 refs)
+- Modify: `app/lib/features/audit/presentation/visit_outcome_screen.dart` (24 refs)
+- Modify: `app/lib/features/audit/presentation/submit_gate_screen.dart` (19 refs)
+- Modify: `app/lib/features/beatplans/presentation/today_screen.dart` (25 refs)
+- Modify: `app/lib/features/audit/presentation/sections/s2_stock_screen.dart` (6 refs)
+- Test: `app/test/core/theme/theme_mode_controller_test.dart` (flip the pinning assertion)
+
+**Deliberately NOT migrated:**
+- `primary_gradient_button.dart` — its blue gradient is fixed brand identity (like the
+  logo), legible on both grounds; it keeps the static consts on purpose.
+- `login_screen.dart` / `landing_screen.dart` — branded pre-auth surfaces (video
+  background); they keep their `PinnedDark` wrap permanently.
+- `app_colors.dart` / `app_theme.dart` — the static table itself.
+
+- [ ] **Step 1: Migrate the agent widget kit and screens**
+
+Apply Task 3's Rules 1–3 to every file listed above, exactly as in Tasks 3/4 (imports,
+`const` dropped only where forced, static lookups become `colorOf(TiqColors)`-shaped
+methods, painters take colors via constructor and compare them in `shouldRepaint`).
+`agent_kit.dart`'s `BannerLevel`-style lookups are Rule 2 territory.
+
+- [ ] **Step 2: Un-pin `AgentScaffold` and add the toggle**
+
+In `agent_scaffold.dart`: remove the `PinnedDark` import and wrap (restore `Scaffold` as
+the top-level widget); migrate its own 5 refs (`AppColors.plane` → `context.colors.plane`
+etc.); add the same theme-toggle `IconButton` the manager bar got in Task 2 — key
+`ValueKey('theme-toggle-agent')`, placed in `actions` before the logout button, identical
+`themeModeProvider` wiring (AgentScaffold is already a `ConsumerWidget`).
+
+- [ ] **Step 3: Flip the pinning test**
+
+In `app/test/core/theme/theme_mode_controller_test.dart`, the Task 2 test
+`'PinnedDark keeps its subtree dark under a light ambient theme'` stays (PinnedDark still
+exists for pre-auth), but add:
+
+```dart
+  testWidgets('AgentScaffold follows the ambient theme (no longer pinned)',
+      (tester) async {
+    late TiqColors seen;
+    await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+        theme: AppTheme.light(),
+        home: AgentScaffold(
+          title: 'T',
+          showSyncChip: false,
+          body: Builder(builder: (context) {
+            seen = context.colors;
+            return const SizedBox();
+          }),
+        ),
+      ),
+    ));
+    expect(seen, same(TiqColors.light));
+  });
+```
+
+(`showSyncChip: false` avoids the local-DB dependency noted in `test/helpers/routed_app.dart`.
+`AgentScaffold` needs a `MaterialApp` ancestor only — it calls `GoRouterState.of` inside a
+try/catch, so no router is required. Add the needed imports: `agent_scaffold.dart`,
+`flutter_riverpod`.)
+
+- [ ] **Step 4: Verify zero statics remain outside the sanctioned set**
+
+Run:
+```bash
+cd app && grep -rl "AppColors\." lib --include="*.dart" | sort
+```
+Expected output — exactly:
+```
+lib/core/theme/app_colors.dart
+lib/core/theme/app_theme.dart
+lib/core/widgets/primary_gradient_button.dart
+lib/features/auth/presentation/landing_screen.dart
+lib/features/auth/presentation/login_screen.dart
+```
+
+- [ ] **Step 5: Run the full suite**
+
+Run: `cd app && flutter analyze && flutter test`
+Expected: clean and green — existing agent-screen tests run under the default dark theme
+where every migrated value is identical. Same rule as Tasks 3/4: a failure is a migration
+typo; fix the migration, never the test.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add -A app
+git commit -m "feat(app): agent flow follows the theme — un-pinned, migrated, toggleable"
+```
+
+---
+
 ## Out of scope for this plan (Plan B, separate)
 
 Shared-axis page transitions, drawer scrim/stagger polish, panel shadows, and
