@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { mean } from '../../lib/kpiMath';
 import { NotFoundError } from '../../middleware/errorHandler';
 
 /** The performance metrics an incentive scheme can reward against. */
@@ -114,42 +115,71 @@ export async function computeEarnedIncentives(clientId: string): Promise<EarnedI
     }),
   ]);
 
-  const earned: EarnedIncentive[] = [];
+  const agentIds = agents.map((a) => a.id);
+  if (schemes.length === 0 || agentIds.length === 0) {
+    return [];
+  }
 
+  // There are only three distinct metrics, so each is computed ONCE per agent
+  // (constant query count) rather than once per (scheme, agent) pair. Every
+  // scheme's threshold is then evaluated against these maps in memory. Mirrors
+  // the leaderboard's groupBy + narrow scorecard fetch: Scorecard has no
+  // agentId scalar (it links via visit.agentId), so it cannot be groupBy'd —
+  // fetch narrowly and reduce into per-agent lists.
+  const [visitGroups, taskGroups, scorecardRows] = await Promise.all([
+    prisma.visit.groupBy({
+      by: ['agentId'],
+      where: { clientId, agentId: { in: agentIds }, status: 'submitted' },
+      _count: { _all: true },
+    }),
+    prisma.task.groupBy({
+      by: ['ownerId'],
+      where: { ownerId: { in: agentIds }, status: 'closed', outlet: { clientId } },
+      _count: { _all: true },
+    }),
+    prisma.scorecard.findMany({
+      where: { visit: { clientId, agentId: { in: agentIds } } },
+      select: { weightedTotal: true, visit: { select: { agentId: true } } },
+    }),
+  ]);
+
+  const visitsBy = new Map(visitGroups.map((g) => [g.agentId, g._count._all]));
+  const tasksBy = new Map(taskGroups.map((g) => [g.ownerId, g._count._all]));
+  const scoreLists = new Map<string, number[]>();
+  for (const s of scorecardRows) {
+    const id = s.visit.agentId;
+    const list = scoreLists.get(id) ?? [];
+    list.push(s.weightedTotal);
+    scoreLists.set(id, list);
+  }
+
+  // mean() is round2(sum/n) with mean([]) === 0, matching the old per-agent
+  // round2(_avg.weightedTotal ?? 0): same rows agree to round2.
+  function metricValue(metric: IncentiveMetric, agentId: string): number {
+    if (metric === 'scorecard') {
+      return mean(scoreLists.get(agentId) ?? []);
+    }
+    if (metric === 'tasks_closed') {
+      return tasksBy.get(agentId) ?? 0;
+    }
+    return visitsBy.get(agentId) ?? 0; // 'visits'
+  }
+
+  // Preserve the exact row order of the old nested loop: scheme-outer (schemes
+  // in createdAt-desc order), agent-inner (agents in findMany order).
+  const earned: EarnedIncentive[] = [];
   for (const scheme of schemes) {
     const metric = scheme.metric as IncentiveMetric;
-
-    const values = await Promise.all(
-      agents.map(async (agent) => {
-        let metricValue: number;
-        if (metric === 'scorecard') {
-          const agg = await prisma.scorecard.aggregate({
-            where: { visit: { clientId, agentId: agent.id } },
-            _avg: { weightedTotal: true },
-          });
-          metricValue = round2(agg._avg.weightedTotal ?? 0);
-        } else if (metric === 'tasks_closed') {
-          metricValue = await prisma.task.count({
-            where: { ownerId: agent.id, status: 'closed', outlet: { clientId } },
-          });
-        } else {
-          metricValue = await prisma.visit.count({
-            where: { clientId, agentId: agent.id, status: 'submitted' },
-          });
-        }
-        return { agent, metricValue };
-      }),
-    );
-
-    for (const { agent, metricValue } of values) {
-      if (metricValue >= scheme.threshold) {
+    for (const agent of agents) {
+      const value = metricValue(metric, agent.id);
+      if (value >= scheme.threshold) {
         earned.push({
           schemeId: scheme.id,
           schemeName: scheme.name,
           metric,
           agentId: agent.id,
           email: agent.email,
-          metricValue,
+          metricValue: value,
           rewardPoints: scheme.rewardPoints,
         });
       }
