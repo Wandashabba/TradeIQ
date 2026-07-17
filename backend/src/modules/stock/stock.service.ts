@@ -26,6 +26,7 @@ export interface StockItemInput {
 export interface RecordStockInput {
   visitId: string;
   clientId: string;
+  agentId: string;
   items: StockItemInput[];
 }
 
@@ -61,7 +62,7 @@ export async function listStockForVisit(visitId: string, clientId: string) {
 
 export async function recordStock(input: RecordStockInput) {
   const visit = await prisma.visit.findFirst({
-    where: { id: input.visitId, clientId: input.clientId },
+    where: { id: input.visitId, clientId: input.clientId, agentId: input.agentId },
   });
   if (!visit) {
     throw new NotFoundError('Visit not found');

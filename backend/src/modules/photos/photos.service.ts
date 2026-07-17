@@ -5,6 +5,7 @@ import { NotFoundError } from '../../middleware/errorHandler';
 export interface CreatePhotoInput {
   visitId: string;
   clientId: string;
+  agentId: string;
   section: string;
   dataUrl: string;
   gpsTag: Prisma.InputJsonValue;
@@ -13,7 +14,7 @@ export interface CreatePhotoInput {
 
 export async function createPhoto(input: CreatePhotoInput) {
   const visit = await prisma.visit.findFirst({
-    where: { id: input.visitId, clientId: input.clientId },
+    where: { id: input.visitId, clientId: input.clientId, agentId: input.agentId },
     select: { id: true },
   });
   if (!visit) {

@@ -13,6 +13,7 @@ export interface CompetitiveItemInput {
 export interface RecordCompetitiveInput {
   visitId: string;
   clientId: string;
+  agentId: string;
   items: CompetitiveItemInput[];
 }
 
@@ -29,7 +30,7 @@ export async function listCompetitiveForVisit(visitId: string, clientId: string)
 
 export async function recordCompetitive(input: RecordCompetitiveInput) {
   const visit = await prisma.visit.findFirst({
-    where: { id: input.visitId, clientId: input.clientId },
+    where: { id: input.visitId, clientId: input.clientId, agentId: input.agentId },
   });
   if (!visit) {
     throw new NotFoundError('Visit not found');

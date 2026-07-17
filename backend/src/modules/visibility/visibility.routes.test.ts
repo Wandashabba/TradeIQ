@@ -6,6 +6,7 @@ import { issueToken } from '../auth/auth.service';
 describe('visibility routes', () => {
   let clientId: string;
   let agentToken: string;
+  let agentBToken: string;
   let managerToken: string;
   let visitId: string;
   let emptyVisitId: string;
@@ -21,6 +22,11 @@ describe('visibility routes', () => {
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
     managerToken = issueToken({ userId: 'vis-manager', role: 'manager', clientId });
+
+    const agentB = await prisma.user.create({
+      data: { email: 'vis-agent-b@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentBToken = issueToken({ userId: agentB.id, role: 'field_agent', clientId });
 
     const outlet = await prisma.outlet.create({
       data: {
@@ -103,6 +109,14 @@ describe('visibility routes', () => {
 
     const rows = await prisma.visitVisibility.findMany({ where: { visitId } });
     expect(rows).toHaveLength(1);
+  });
+
+  it("forbids an agent from writing visibility onto another agent's visit (404)", async () => {
+    const res = await request(app)
+      .post('/visibility')
+      .set('Authorization', `Bearer ${agentBToken}`)
+      .send(validBody());
+    expect(res.status).toBe(404);
   });
 
   it('returns 404 for a visit belonging to another client', async () => {

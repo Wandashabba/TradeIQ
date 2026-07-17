@@ -31,6 +31,7 @@ capabilityRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
   const capability = await recordCapability({
     visitId,
     clientId: req.user!.clientId,
+    agentId: req.user!.userId,
     staffHeadcountConfirmed,
     repTrainingStatus: repTrainingStatus as Prisma.InputJsonValue,
     quizScore,

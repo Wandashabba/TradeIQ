@@ -110,7 +110,10 @@ export async function comparePassword(plain: string, hash: string): Promise<bool
 const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8gr5J8Xj3GVj0mLKfsYnZ5ZUq0/UZK';
 
 export async function authenticateUser(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    omit: { passwordHash: false },
+  });
   const passwordValid = await comparePassword(password, user?.passwordHash ?? DUMMY_HASH);
   // Deactivated accounts are rejected as if the credentials were bad — the
   // bcrypt comparison above has already run, so timing stays indistinguishable

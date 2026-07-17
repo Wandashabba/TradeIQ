@@ -10,6 +10,7 @@ import { recordStock } from './stock.service';
 // admin tool, or future bulk-import path might (#121).
 describe('stock service: recordStock', () => {
   let clientId: string;
+  let agentId: string;
   let visitId: string;
   let skuId: string;
 
@@ -22,6 +23,7 @@ describe('stock service: recordStock', () => {
     const agent = await prisma.user.create({
       data: { email: 'stock-service-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
     });
+    agentId = agent.id;
 
     const outlet = await prisma.outlet.create({
       data: {
@@ -78,6 +80,7 @@ describe('stock service: recordStock', () => {
       recordStock({
         visitId,
         clientId,
+        agentId,
         items: [validItem(), { ...validItem(), unitsAvailable: 5 }],
       }),
     ).rejects.toThrow(ValidationError);

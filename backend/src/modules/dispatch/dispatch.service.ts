@@ -28,8 +28,11 @@ export async function rankAgentsForOutlet(
     throw new NotFoundError('Outlet not found');
   }
 
+  // Select only the fields DispatchCandidate projects — matching the hand-picked
+  // selects in dashboard/gamification rather than fetching every User column.
   const agents = await prisma.user.findMany({
     where: { clientId, role: 'field_agent' },
+    select: { id: true, email: true, lastLat: true, lastLng: true, lastSeenAt: true },
   });
 
   // The outlet links to a Territory by free-text code equalling Outlet.territoryId

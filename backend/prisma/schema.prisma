@@ -83,6 +83,7 @@ model User {
   messagesReceived Message[]        @relation("MessageRecipient")
   announcements    Announcement[]
 
+  @@index([clientId, role])
   @@map("users")
 }
 
@@ -109,6 +110,8 @@ model Outlet {
   checkInAttempts CheckInAttempt[]
   orders          Order[]
 
+  @@index([clientId])
+  @@index([territoryId])
   @@map("outlets")
 }
 
@@ -124,6 +127,7 @@ model Sku {
   visitPricing       VisitPricing[]
   orderLines         OrderLine[]
 
+  @@index([clientId])
   @@map("skus")
 }
 
@@ -149,6 +153,7 @@ model PromoCalendar {
   discountValue Float?   @map("discount_value")
   skuScope      Json?    @map("sku_scope") // { skuIds: string[] } | null (null = every SKU)
 
+  @@index([clientId])
   @@map("promo_calendar")
 }
 
@@ -192,6 +197,10 @@ model Visit {
 
   templateResponses VisitTemplateResponse[]
 
+  @@index([clientId, status])
+  @@index([clientId, checkinTs])
+  @@index([outletId])
+  @@index([agentId])
   @@map("visits")
 }
 
@@ -210,6 +219,8 @@ model VisitStock {
   salesTarget           Float?   @map("sales_target")
   createdAt             DateTime @default(now()) @map("created_at")
 
+  @@index([visitId])
+  @@index([skuId])
   @@map("visit_stock")
 }
 
@@ -241,6 +252,7 @@ model VisitPricing {
   commsRating            Int      @map("comms_rating")
   createdAt              DateTime @default(now()) @map("created_at")
 
+  @@index([visitId])
   @@map("visit_pricing")
 }
 
@@ -262,6 +274,7 @@ model VisitCompetitive {
   geotag                    Json
   createdAt                 DateTime @default(now()) @map("created_at")
 
+  @@index([visitId])
   @@map("visit_competitive")
 }
 
@@ -286,6 +299,7 @@ model VisitRisk {
   note      String
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([visitId])
   @@map("visit_risks")
 }
 
@@ -306,6 +320,9 @@ model Task {
   closureVerified Boolean      @default(false) @map("closure_verified")
   createdAt       DateTime     @default(now()) @map("created_at")
 
+  @@index([ownerId, status])
+  @@index([outletId])
+  @@index([visitId])
   @@map("tasks")
 }
 
@@ -319,6 +336,7 @@ model Photo {
   timestamp DateTime
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([visitId])
   @@map("photos")
 }
 
@@ -331,6 +349,7 @@ model Scorecard {
   ratingBand      String   @map("rating_band")
   createdAt       DateTime @default(now()) @map("created_at")
 
+  @@index([createdAt])
   @@map("scorecards")
 }
 
@@ -380,6 +399,7 @@ model Campaign {
   createdAt DateTime         @default(now()) @map("created_at")
   outlets   CampaignOutlet[]
 
+  @@index([clientId])
   @@map("campaigns")
 }
 
@@ -411,6 +431,8 @@ model BeatPlan {
   createdAt     DateTime       @default(now()) @map("created_at")
   stops         BeatPlanStop[]
 
+  @@index([clientId])
+  @@index([agentId])
   @@map("beat_plans")
 }
 
@@ -439,6 +461,7 @@ model AlertRule {
   createdAt DateTime @default(now()) @map("created_at")
   alerts    Alert[]
 
+  @@index([clientId])
   @@map("alert_rules")
 }
 
@@ -457,6 +480,7 @@ model Alert {
   acknowledged Boolean    @default(false)
   createdAt    DateTime   @default(now()) @map("created_at")
 
+  @@index([clientId, acknowledged])
   @@map("alerts")
 }
 
@@ -517,6 +541,8 @@ model CheckInAttempt {
   passed    Boolean
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([clientId, passed])
+  @@index([agentId, outletId])
   @@map("check_in_attempts")
 }
 
@@ -536,6 +562,7 @@ model Order {
   createdAt DateTime    @default(now()) @map("created_at")
   lines     OrderLine[]
 
+  @@index([clientId])
   @@map("orders")
 }
 
@@ -565,6 +592,8 @@ model Message {
   readAt      DateTime? @map("read_at")
   createdAt   DateTime  @default(now()) @map("created_at")
 
+  @@index([clientId])
+  @@index([recipientId])
   @@map("messages")
 }
 
@@ -579,6 +608,7 @@ model Announcement {
   body      String
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([clientId])
   @@map("announcements")
 }
 
@@ -594,6 +624,7 @@ model Webhook {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([clientId, event, active])
   @@map("webhooks")
 }
 
@@ -609,6 +640,7 @@ model ReportDefinition {
   createdAt DateTime         @default(now()) @map("created_at")
   schedules ReportSchedule[]
 
+  @@index([clientId])
   @@map("report_definitions")
 }
 
@@ -626,6 +658,7 @@ model IncentiveScheme {
   active       Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at")
 
+  @@index([clientId, active])
   @@map("incentive_schemes")
 }
 
@@ -643,5 +676,6 @@ model ReportSchedule {
   active             Boolean          @default(true)
   createdAt          DateTime         @default(now()) @map("created_at")
 
+  @@index([clientId])
   @@map("report_schedules")
 }

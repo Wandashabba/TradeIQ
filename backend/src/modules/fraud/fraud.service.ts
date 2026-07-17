@@ -191,13 +191,16 @@ export function computeFraudSignals(
 }
 
 // The Visit shape (with every section + photos) loaded for scoring.
-const fraudVisitInclude = {
+export const fraudVisitInclude = {
   stock: true,
   visibility: true,
   pricing: true,
   competitive: true,
   capability: true,
-  photos: true,
+  // Fraud only inspects each photo's gpsTag (see FraudRelatedInput). Selecting
+  // the base64 `url` too meant listFlagged detoasted every stored image — MBs
+  // per row — only to discard them. Select the one field we read.
+  photos: { select: { gpsTag: true } },
 } as const satisfies Prisma.VisitInclude;
 
 type FraudVisitPayload = Prisma.VisitGetPayload<{ include: typeof fraudVisitInclude }>;

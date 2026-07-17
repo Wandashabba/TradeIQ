@@ -8,6 +8,7 @@ describe('incentives routes', () => {
   let otherClientId: string;
   let agentAId: string;
   let agentBId: string;
+  let agentCId: string;
   let agentAToken: string;
   let managerToken: string;
   let otherManagerToken: string;
@@ -62,6 +63,11 @@ describe('incentives routes', () => {
     });
     agentBId = agentB.id;
 
+    const agentC = await prisma.user.create({
+      data: { email: 'INC-agent-c@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentCId = agentC.id;
+
     const outlet = await prisma.outlet.create({
       data: {
         name: 'INC Outlet',
@@ -92,6 +98,13 @@ describe('incentives routes', () => {
 
     // agentB: mean scorecard 50 — below the 85 threshold.
     await seedScoredVisit(agentBId, 50);
+
+    // agentC: three scored visits (70, 80, 85) → mean 235/3 = 78.33 (a
+    // non-terminating mean, so the JS mean() reduce is exercised on the same
+    // fractional value the old Postgres AVG produced). No tasks; 3 submitted visits.
+    await seedScoredVisit(agentCId, 70);
+    await seedScoredVisit(agentCId, 80);
+    await seedScoredVisit(agentCId, 85);
 
     // A second tenant + its own scheme, to prove list/tenant scoping.
     const otherClient = await prisma.client.create({
@@ -198,6 +211,71 @@ describe('incentives routes', () => {
       (r: { schemeId: string; agentId: string }) => r.schemeId === schemeId && r.agentId === agentBId,
     );
     expect(agentBRows).toHaveLength(0);
+  });
+
+  it('earned: exact rows across all three metrics, in scheme-outer/agent-inner order', async () => {
+    // One active scheme per metric. Thresholds picked so a different subset of
+    // agents qualifies for each, and one qualifier (agentC @ scorecard) rides
+    // on the non-terminating mean 235/3 = 78.33.
+    const score = await prisma.incentiveScheme.create({
+      data: { clientId, name: 'INC Score 78', metric: 'scorecard', threshold: 78, rewardPoints: 100 },
+    });
+    const tasks = await prisma.incentiveScheme.create({
+      data: { clientId, name: 'INC Tasks 1', metric: 'tasks_closed', threshold: 1, rewardPoints: 50 },
+    });
+    const visits = await prisma.incentiveScheme.create({
+      data: { clientId, name: 'INC Visits 3', metric: 'visits', threshold: 3, rewardPoints: 20 },
+    });
+    const myIds = [score.id, tasks.id, visits.id];
+
+    const res = await request(app)
+      .get('/incentives/earned')
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(200);
+    const rows = res.body.filter((r: { schemeId: string }) => myIds.includes(r.schemeId));
+
+    // Rebuild the exact contract order independently: schemes in the same
+    // createdAt-desc order the service reads them, agents in the same
+    // field-agent findMany order, scheme-outer / agent-inner. metricValues are
+    // hard-known from the seed, so this pins values AND ordering, not just a set.
+    const schemesDesc = await prisma.incentiveScheme.findMany({
+      where: { clientId, active: true, id: { in: myIds } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const agentOrder = await prisma.user.findMany({
+      where: { clientId, role: 'field_agent' },
+      select: { id: true, email: true },
+    });
+    const metricValues: Record<string, Record<string, number>> = {
+      scorecard: { [agentAId]: 85, [agentBId]: 50, [agentCId]: 78.33 },
+      tasks_closed: { [agentAId]: 1, [agentBId]: 0, [agentCId]: 0 },
+      visits: { [agentAId]: 2, [agentBId]: 1, [agentCId]: 3 },
+    };
+    const expected: unknown[] = [];
+    for (const scheme of schemesDesc) {
+      for (const agent of agentOrder) {
+        const value = metricValues[scheme.metric][agent.id];
+        if (value >= scheme.threshold) {
+          expected.push({
+            schemeId: scheme.id,
+            schemeName: scheme.name,
+            metric: scheme.metric,
+            agentId: agent.id,
+            email: agent.email,
+            metricValue: value,
+            rewardPoints: scheme.rewardPoints,
+          });
+        }
+      }
+    }
+    expect(rows).toEqual(expected);
+    // Explicitly assert the fractional-mean qualifier survived round2.
+    expect(rows).toContainEqual(
+      expect.objectContaining({ schemeId: score.id, agentId: agentCId, metricValue: 78.33 }),
+    );
+
+    // Drop these schemes so later tests' earned output is unchanged.
+    await prisma.incentiveScheme.deleteMany({ where: { id: { in: myIds } } });
   });
 
   it('excludes inactive schemes from earned', async () => {

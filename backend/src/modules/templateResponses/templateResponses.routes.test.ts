@@ -6,6 +6,7 @@ import { issueToken } from '../auth/auth.service';
 describe('template-responses routes', () => {
   let clientId: string;
   let agentToken: string;
+  let agentBToken: string;
   let managerToken: string;
   let visitId: string;
   let templateId: string;
@@ -31,6 +32,11 @@ describe('template-responses routes', () => {
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
     managerToken = issueToken({ userId: 'tmplresp-manager', role: 'manager', clientId });
+
+    const agentB = await prisma.user.create({
+      data: { email: 'tmplresp-agent-b@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentBToken = issueToken({ userId: agentB.id, role: 'field_agent', clientId });
 
     const outlet = await prisma.outlet.create({
       data: {
@@ -118,6 +124,14 @@ describe('template-responses routes', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.templateVersion).toBe(2);
+  });
+
+  it("forbids an agent from writing a template response onto another agent's visit (404)", async () => {
+    const res = await request(app)
+      .post('/template-responses')
+      .set('Authorization', `Bearer ${agentBToken}`)
+      .send(validBody());
+    expect(res.status).toBe(404);
   });
 
   it('returns 404 for a visit belonging to another client', async () => {

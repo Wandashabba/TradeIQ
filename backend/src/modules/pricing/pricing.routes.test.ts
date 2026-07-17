@@ -6,6 +6,7 @@ import { issueToken } from '../auth/auth.service';
 describe('pricing routes', () => {
   let clientId: string;
   let agentToken: string;
+  let agentBToken: string;
   let managerToken: string;
   let visitId: string;
   let skuId: string;
@@ -21,6 +22,11 @@ describe('pricing routes', () => {
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
     managerToken = issueToken({ userId: 'pricing-manager', role: 'manager', clientId });
+
+    const agentB = await prisma.user.create({
+      data: { email: 'pricing-agent-b@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentBToken = issueToken({ userId: agentB.id, role: 'field_agent', clientId });
 
     const outlet = await prisma.outlet.create({
       data: {
@@ -154,6 +160,14 @@ describe('pricing routes', () => {
     } finally {
       await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: {} } });
     }
+  });
+
+  it("forbids an agent from writing pricing onto another agent's visit (404)", async () => {
+    const res = await request(app)
+      .post('/pricing')
+      .set('Authorization', `Bearer ${agentBToken}`)
+      .send({ visitId, items: [validItem()] });
+    expect(res.status).toBe(404);
   });
 
   it('returns 404 for a visit belonging to another client', async () => {
