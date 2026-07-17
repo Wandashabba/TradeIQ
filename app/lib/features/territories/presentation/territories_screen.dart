@@ -9,11 +9,10 @@ import '../../../core/widgets/worklist.dart';
 import '../../users/data/users_repository.dart';
 import '../data/territories_repository.dart';
 import 'territory_form_screen.dart';
+import 'territory_map_screen.dart';
 
-/// Coverage for one territory. Kept per-id and cached by Riverpod so a row that
-/// rebuilds does not re-fetch. `GET /territories/:id/coverage` returns the
-/// outlet and agent *lists*, so all we can honestly show is their counts —
-/// there is no coverage rate to report.
+/// Coverage for one territory. Kept per-id and cached by Riverpod so a row
+/// that rebuilds does not re-fetch.
 final _coverageProvider =
     FutureProvider.family<TerritoryCoverage, String>((ref, id) {
   return ref.read(territoriesRepositoryProvider).getCoverage(id);
@@ -59,7 +58,7 @@ class TerritoriesScreen extends ConsumerWidget {
             builder: (list) => PanelCard(
               title: '${list.length} '
                   '${list.length == 1 ? 'territory' : 'territories'}',
-              subtitle: 'Outlet and agent counts, not a coverage rate',
+              subtitle: 'Outlet and agent counts, plus coverage rate',
               padded: false,
               child: list.isEmpty
                   ? const EmptyState(
@@ -109,7 +108,8 @@ class _TerritoryRow extends ConsumerWidget {
             }
             final coverage = snapshot.data!;
             return Text(
-              'Outlets: ${coverage.outletCount}   Agents: ${coverage.agentCount}',
+              'Outlets: ${coverage.outletCount}   Agents: ${coverage.agentCount}\n'
+              'Coverage: ${coverage.coverageRate.round()}%',
             );
           },
         ),
@@ -147,7 +147,8 @@ class _TerritoryRow extends ConsumerWidget {
 
     final figures = switch (coverage) {
       AsyncData(:final value) =>
-        '${value.outletCount} outlets · ${value.agentCount} agents',
+        '${value.outletCount} outlets · ${value.agentCount} agents · '
+            '${value.coverageRate.round()}% covered',
       AsyncError() => 'Coverage unavailable',
       _ => 'Loading coverage…',
     };
@@ -175,6 +176,15 @@ class _TerritoryRow extends ConsumerWidget {
       statusLabel: status,
       onTap: () => _showCoverage(context, ref),
       actions: [
+        RowAction(
+          key: ValueKey<String>('territory-map-${territory.id}'),
+          label: 'Map',
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => TerritoryMapScreen(territory: territory),
+            ),
+          ),
+        ),
         if (canManage)
           RowAction(
             key: ValueKey<String>('territory-assign-${territory.id}'),

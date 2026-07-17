@@ -28,8 +28,13 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
   Future<List<Territory>> listTerritories() async => const [_north, _south];
 
   @override
-  Future<TerritoryCoverage> getCoverage(String id) async =>
-      const TerritoryCoverage(outletCount: 3, agentCount: 2);
+  Future<TerritoryCoverage> getCoverage(String id) async => const TerritoryCoverage(
+        outletCount: 3,
+        agentCount: 2,
+        outletsVisited: 2,
+        outletsTotal: 3,
+        coverageRate: 66.67,
+      );
 
   @override
   Future<Territory> createTerritory({
@@ -156,5 +161,34 @@ void main() {
 
     expect(repo.assignedTerritoryId, 'ter-1');
     expect(repo.assignedUserId, 'a1');
+  });
+
+  testWidgets('shows the coverage rate in the row figures', (tester) async {
+    await tester.pumpWidget(_app(_FakeTerritoriesRepository()));
+    await tester.pumpAndSettle();
+
+    // The fake repo returns the same coverage for every territory id, so
+    // both rows show "67% covered" — scope to one row to assert unambiguously.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('territory-ter-1')),
+        matching: find.textContaining('67% covered'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the "Map" action opens the territory map screen', (tester) async {
+    await tester.pumpWidget(_app(_FakeTerritoriesRepository()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('territory-map-ter-1')));
+    // A screen containing FlutterMap: pump a bounded number of frames rather
+    // than pumpAndSettle, which never settles while flutter_map's TileLayer
+    // keeps retrying its (test-environment-blocked) network tile fetch.
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Gauteng North — Map'), findsOneWidget);
   });
 }
