@@ -11,9 +11,10 @@ export interface AuthTokenPayload {
   clientId: string;
 }
 
-// Secrets we ship in the repo or that are common placeholders. `.env.example`
-// carries `dev-only-change-me` and the onboarding doc says to copy it, so the
-// value is public — anyone could forge a token for any tenant and role.
+// Every entry here is already shorter than MIN_SECRET_LENGTH, so the length
+// floor below would reject it anyway. The list exists to name the mistake
+// precisely ("you shipped the repo's placeholder") instead of emitting a
+// generic length error — and to catch any future default that IS long enough.
 const KNOWN_DEFAULT_SECRETS = new Set([
   'dev-only-change-me',
   'change-me',

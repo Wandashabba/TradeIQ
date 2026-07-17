@@ -1,5 +1,7 @@
+import { spawnSync } from 'child_process';
+import * as path from 'path';
 import jwt from 'jsonwebtoken';
-import { assertJwtSecretUsable, issueToken, verifyToken } from './auth.service';
+import { issueToken, verifyToken } from './auth.service';
 
 describe('auth.service', () => {
   const payload = { userId: 'user-1', role: 'field_agent' as const, clientId: 'client-1' };
@@ -108,16 +110,42 @@ describe('auth.service', () => {
       expect(() => issueToken(payload)).toThrow('JWT_SECRET is not set');
     });
 
-    it('assertJwtSecretUsable throws on a known default outside dev/test', () => {
-      process.env.NODE_ENV = 'production';
-      process.env.JWT_SECRET = 'dev-only-change-me';
-      expect(() => assertJwtSecretUsable()).toThrow(/known default/i);
-    });
-
-    it('assertJwtSecretUsable passes on a strong secret outside dev/test', () => {
-      process.env.NODE_ENV = 'production';
-      process.env.JWT_SECRET = 'S'.repeat(32);
-      expect(() => assertJwtSecretUsable()).not.toThrow();
-    });
+    // Pins the WIRING, not just the export. `assertJwtSecretUsable()` only
+    // protects anything if server.ts actually calls it before listen(), and no
+    // in-process test can see that — server.ts is imported by zero suites, so
+    // deleting the call left the entire suite green. Boot the real entrypoint
+    // in a child process instead. Mutation-checked: removing the call from
+    // server.ts makes this fail.
+    it(
+      'server.ts refuses to boot on a known-default secret',
+      () => {
+        const res = spawnSync('npx', ['ts-node', 'src/server.ts'], {
+          cwd: path.resolve(__dirname, '../../..'),
+          env: {
+            ...process.env,
+            NODE_ENV: 'production',
+            JWT_SECRET: 'dev-only-change-me',
+            // PORT=0 so that if the guard regresses, the child binds an
+            // ephemeral port rather than fighting a real dev server on 4000 —
+            // an EADDRINUSE exit would look like a pass and hide the regression.
+            PORT: '0',
+          },
+          encoding: 'utf8',
+          // Bounded: a regressed build listens forever, so kill it rather than
+          // hang the suite and leak a bound port. Kept comfortably under the
+          // jest timeout below so spawnSync always reaps the child itself —
+          // if jest timed out first, the server process would leak.
+          timeout: 100000,
+        });
+        // Assert on the output, not just the exit code: a timeout-killed child
+        // reports status `null`, which would satisfy `not.toBe(0)` on its own.
+        expect(res.stderr).toMatch(/known default/i);
+        expect(res.stdout).not.toMatch(/listening on port/);
+        expect(res.status).not.toBe(0);
+      },
+      // ts-node compiles the whole app here; this box has hit 45s wall under
+      // load, so leave generous headroom over the 20000ms file default.
+      180000,
+    );
   });
 });
