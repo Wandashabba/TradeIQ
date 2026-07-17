@@ -69,4 +69,27 @@ void main() {
     ));
     expect(seen, same(TiqColors.light));
   });
+
+  testWidgets('context.colors falls back to dark when no theme is registered',
+      (tester) async {
+    late TiqColors seen;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(builder: (context) {
+        seen = context.colors;
+        return const SizedBox();
+      }),
+    ));
+    expect(seen, same(TiqColors.dark));
+  });
+
+  test('lerp interpolates every slot instead of snapping', () {
+    expect(TiqColors.dark.lerp(TiqColors.light, 0.0).plane,
+        TiqColors.dark.plane);
+    expect(TiqColors.dark.lerp(TiqColors.light, 1.0).plane,
+        TiqColors.light.plane);
+    final mid = TiqColors.dark.lerp(TiqColors.light, 0.5).plane;
+    expect(mid, Color.lerp(TiqColors.dark.plane, TiqColors.light.plane, 0.5));
+    expect(mid, isNot(TiqColors.dark.plane));
+    expect(mid, isNot(TiqColors.light.plane));
+  });
 }

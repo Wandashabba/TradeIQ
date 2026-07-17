@@ -134,12 +134,41 @@ class TiqColors extends ThemeExtension<TiqColors> {
   TiqColors copyWith() => this; // slots only ever swap wholesale by mode
 
   @override
-  TiqColors lerp(TiqColors? other, double t) =>
-      t < 0.5 ? this : (other ?? this);
+  TiqColors lerp(TiqColors? other, double t) {
+    if (other is! TiqColors) return this;
+    return TiqColors(
+      brightness: t < 0.5 ? brightness : other.brightness,
+      plane: Color.lerp(plane, other.plane, t)!,
+      surface1: Color.lerp(surface1, other.surface1, t)!,
+      surface2: Color.lerp(surface2, other.surface2, t)!,
+      surface3: Color.lerp(surface3, other.surface3, t)!,
+      line: Color.lerp(line, other.line, t)!,
+      lineStrong: Color.lerp(lineStrong, other.lineStrong, t)!,
+      ink1: Color.lerp(ink1, other.ink1, t)!,
+      ink2: Color.lerp(ink2, other.ink2, t)!,
+      ink3: Color.lerp(ink3, other.ink3, t)!,
+      brand: Color.lerp(brand, other.brand, t)!,
+      brandHover: Color.lerp(brandHover, other.brandHover, t)!,
+      series1: Color.lerp(series1, other.series1, t)!,
+      series2: Color.lerp(series2, other.series2, t)!,
+      series3: Color.lerp(series3, other.series3, t)!,
+      good: Color.lerp(good, other.good, t)!,
+      warn: Color.lerp(warn, other.warn, t)!,
+      crit: Color.lerp(crit, other.crit, t)!,
+      grid: Color.lerp(grid, other.grid, t)!,
+      axis: Color.lerp(axis, other.axis, t)!,
+      shadow: Color.lerp(shadow, other.shadow, t)!,
+      scrim: Color.lerp(scrim, other.scrim, t)!,
+    );
+  }
 }
 
 /// `context.colors.ink1` — the migration target for every `AppColors.x` read
 /// in theme-following (manager/shared) code.
 extension TiqColorsContext on BuildContext {
-  TiqColors get colors => Theme.of(this).extension<TiqColors>()!;
+  /// Falls back to dark — the app's historical palette — when no theme is
+  /// registered (bare MaterialApp in widget tests). Unthemed pumps therefore
+  /// see exactly the pre-migration values.
+  TiqColors get colors =>
+      Theme.of(this).extension<TiqColors>() ?? TiqColors.dark;
 }

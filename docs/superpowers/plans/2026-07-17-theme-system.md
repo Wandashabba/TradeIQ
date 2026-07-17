@@ -242,14 +242,43 @@ class TiqColors extends ThemeExtension<TiqColors> {
   TiqColors copyWith() => this; // slots only ever swap wholesale by mode
 
   @override
-  TiqColors lerp(TiqColors? other, double t) =>
-      t < 0.5 ? this : (other ?? this);
+  TiqColors lerp(TiqColors? other, double t) {
+    if (other is! TiqColors) return this;
+    return TiqColors(
+      brightness: t < 0.5 ? brightness : other.brightness,
+      plane: Color.lerp(plane, other.plane, t)!,
+      surface1: Color.lerp(surface1, other.surface1, t)!,
+      surface2: Color.lerp(surface2, other.surface2, t)!,
+      surface3: Color.lerp(surface3, other.surface3, t)!,
+      line: Color.lerp(line, other.line, t)!,
+      lineStrong: Color.lerp(lineStrong, other.lineStrong, t)!,
+      ink1: Color.lerp(ink1, other.ink1, t)!,
+      ink2: Color.lerp(ink2, other.ink2, t)!,
+      ink3: Color.lerp(ink3, other.ink3, t)!,
+      brand: Color.lerp(brand, other.brand, t)!,
+      brandHover: Color.lerp(brandHover, other.brandHover, t)!,
+      series1: Color.lerp(series1, other.series1, t)!,
+      series2: Color.lerp(series2, other.series2, t)!,
+      series3: Color.lerp(series3, other.series3, t)!,
+      good: Color.lerp(good, other.good, t)!,
+      warn: Color.lerp(warn, other.warn, t)!,
+      crit: Color.lerp(crit, other.crit, t)!,
+      grid: Color.lerp(grid, other.grid, t)!,
+      axis: Color.lerp(axis, other.axis, t)!,
+      shadow: Color.lerp(shadow, other.shadow, t)!,
+      scrim: Color.lerp(scrim, other.scrim, t)!,
+    );
+  }
 }
 
 /// `context.colors.ink1` — the migration target for every `AppColors.x` read
 /// in theme-following (manager/shared) code.
 extension TiqColorsContext on BuildContext {
-  TiqColors get colors => Theme.of(this).extension<TiqColors>()!;
+  /// Falls back to dark — the app's historical palette — when no theme is
+  /// registered (bare MaterialApp in widget tests). Unthemed pumps therefore
+  /// see exactly the pre-migration values.
+  TiqColors get colors =>
+      Theme.of(this).extension<TiqColors>() ?? TiqColors.dark;
 }
 ```
 
@@ -470,6 +499,11 @@ class AppTheme {
           color: isDark ? c.ink1 : Colors.white,
           fontSize: 11.5,
         ),
+      ),
+      // M3's default linearTrackColor falls back to colorScheme.secondary
+      // (= series1) — blue-on-blue reads as a full bar. Use a neutral track.
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        linearTrackColor: c.surface3,
       ),
       drawerTheme: DrawerThemeData(scrimColor: c.scrim),
       useMaterial3: true,
@@ -886,7 +920,7 @@ Expected: `0` for every file (grep exits non-zero on zero matches — that's the
 - [ ] **Step 6: Run the full suite**
 
 Run: `cd app && flutter analyze && flutter test`
-Expected: clean and green. Existing tests run under the default dark theme, where every migrated value is identical — a failure here means a migration typo, not a needed test change. Do not "fix" a test to make this pass; fix the migration.
+Expected: clean and green. Existing tests pump without a theme; `context.colors` falls back to `TiqColors.dark` there, so every migrated value is identical to the old static — a failure here means a migration typo, not a needed test change. Do not "fix" a test to make this pass; fix the migration.
 
 - [ ] **Step 7: Commit**
 
@@ -1115,8 +1149,9 @@ lib/features/auth/presentation/login_screen.dart
 - [ ] **Step 5: Run the full suite**
 
 Run: `cd app && flutter analyze && flutter test`
-Expected: clean and green — existing agent-screen tests run under the default dark theme
-where every migrated value is identical. Same rule as Tasks 3/4: a failure is a migration
+Expected: clean and green — existing agent-screen tests pump without a theme;
+`context.colors` falls back to `TiqColors.dark` there, so every migrated value is
+identical to the old static. Same rule as Tasks 3/4: a failure is a migration
 typo; fix the migration, never the test.
 
 - [ ] **Step 6: Commit**

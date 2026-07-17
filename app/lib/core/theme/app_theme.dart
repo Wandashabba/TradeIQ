@@ -17,6 +17,8 @@ class AppTheme {
     Radius.circular(AppColors.radiusPanel),
   );
 
+  // Cached: stable identity for rebuilds/tests. Theme edits need hot RESTART,
+  // not reload.
   static final ThemeData _dark = _base(TiqColors.dark);
   static final ThemeData _light = _base(TiqColors.light);
 
@@ -210,6 +212,9 @@ class AppTheme {
           color: isDark ? c.ink1 : Colors.white,
           fontSize: 11.5,
         ),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        linearTrackColor: c.surface3,
       ),
       drawerTheme: DrawerThemeData(scrimColor: c.scrim),
       useMaterial3: true,
