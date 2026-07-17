@@ -43,6 +43,7 @@ templateResponsesRouter.post(
       visitId,
       templateId,
       clientId: req.user!.clientId,
+      agentId: req.user!.userId,
       answers,
     });
     res.status(201).json(response);

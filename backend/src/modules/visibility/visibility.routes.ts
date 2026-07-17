@@ -71,6 +71,7 @@ visibilityRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
   const visibility = await recordVisibility({
     visitId,
     clientId: req.user!.clientId,
+    agentId: req.user!.userId,
     highTrafficPass,
     photoUrl: hasPhoto ? (photoUrl as string) : undefined,
     templateId: typeof templateId === 'string' ? templateId : undefined,

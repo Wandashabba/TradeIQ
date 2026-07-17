@@ -27,7 +27,7 @@ competitiveRouter.post('/', requireRole('field_agent'), async (req: AuthedReques
     return;
   }
 
-  const rows = await recordCompetitive({ visitId, clientId: req.user!.clientId, items });
+  const rows = await recordCompetitive({ visitId, clientId: req.user!.clientId, agentId: req.user!.userId, items });
   res.status(201).json(rows);
 });
 

@@ -41,11 +41,12 @@ function asNumberRecord(value: unknown): Record<string, number> {
 export interface GenerateScorecardInput {
   visitId: string;
   clientId: string;
+  agentId: string;
 }
 
 export async function generateScorecard(input: GenerateScorecardInput) {
   const visit = await prisma.visit.findFirst({
-    where: { id: input.visitId, clientId: input.clientId },
+    where: { id: input.visitId, clientId: input.clientId, agentId: input.agentId },
     include: {
       client: true,
       stock: true,

@@ -5,6 +5,7 @@ import { NotFoundError } from '../../middleware/errorHandler';
 export interface RecordCapabilityInput {
   visitId: string;
   clientId: string;
+  agentId: string;
   staffHeadcountConfirmed: number;
   repTrainingStatus: Prisma.InputJsonValue;
   quizScore: number;
@@ -23,7 +24,7 @@ export async function listCapabilityForVisit(visitId: string, clientId: string) 
 
 export async function recordCapability(input: RecordCapabilityInput) {
   const visit = await prisma.visit.findFirst({
-    where: { id: input.visitId, clientId: input.clientId },
+    where: { id: input.visitId, clientId: input.clientId, agentId: input.agentId },
   });
   if (!visit) {
     throw new NotFoundError('Visit not found');

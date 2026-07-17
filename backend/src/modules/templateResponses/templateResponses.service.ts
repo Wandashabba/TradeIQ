@@ -6,6 +6,7 @@ export interface RecordTemplateResponseInput {
   visitId: string;
   templateId: string;
   clientId: string;
+  agentId: string;
   // Free-form answers keyed by the template schema's field ids. Stored as-is,
   // mirroring how AuditTemplate.schema itself is stored.
   answers: Prisma.InputJsonValue;
@@ -35,7 +36,7 @@ export async function listTemplateResponsesForVisit(input: ListTemplateResponses
 
 export async function recordTemplateResponse(input: RecordTemplateResponseInput) {
   const visit = await prisma.visit.findFirst({
-    where: { id: input.visitId, clientId: input.clientId },
+    where: { id: input.visitId, clientId: input.clientId, agentId: input.agentId },
   });
   if (!visit) {
     throw new NotFoundError('Visit not found');

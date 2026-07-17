@@ -45,6 +45,7 @@ photosRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
   const photo = await createPhoto({
     visitId,
     clientId: req.user!.clientId,
+    agentId: req.user!.userId,
     section,
     dataUrl,
     gpsTag: gpsTag as Prisma.InputJsonValue,

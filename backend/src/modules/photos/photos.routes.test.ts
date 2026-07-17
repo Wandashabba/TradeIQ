@@ -6,6 +6,7 @@ import { issueToken } from '../auth/auth.service';
 describe('photos routes', () => {
   let clientId: string;
   let agentToken: string;
+  let agentBToken: string;
   let managerToken: string;
   let visitId: string;
 
@@ -25,6 +26,11 @@ describe('photos routes', () => {
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
     managerToken = issueToken({ userId: 'PHOTO-manager', role: 'manager', clientId });
+
+    const agentB = await prisma.user.create({
+      data: { email: 'PHOTO-agent-b@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentBToken = issueToken({ userId: agentB.id, role: 'field_agent', clientId });
 
     const outlet = await prisma.outlet.create({
       data: {
@@ -80,6 +86,14 @@ describe('photos routes', () => {
     expect(res.body.url).toBe('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD');
     expect(res.body.section).toBe('visibility');
     expect(res.body.createdAt).toBeDefined();
+  });
+
+  it("forbids an agent from uploading a photo onto another agent's visit (404)", async () => {
+    const res = await request(app)
+      .post('/photos')
+      .set('Authorization', `Bearer ${agentBToken}`)
+      .send(validBody());
+    expect(res.status).toBe(404);
   });
 
   it('returns 404 for a visit belonging to another client', async () => {

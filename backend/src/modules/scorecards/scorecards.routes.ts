@@ -19,7 +19,7 @@ scorecardsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
     return;
   }
 
-  const scorecard = await generateScorecard({ visitId, clientId: req.user!.clientId });
+  const scorecard = await generateScorecard({ visitId, clientId: req.user!.clientId, agentId: req.user!.userId });
   res.status(201).json(scorecard);
 });
 

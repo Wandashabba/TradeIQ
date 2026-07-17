@@ -6,6 +6,7 @@ import { issueToken } from '../auth/auth.service';
 describe('scorecards routes', () => {
   let clientId: string;
   let agentToken: string;
+  let agentBToken: string;
   let managerToken: string;
   let visitId: string;
   let emptyVisitId: string;
@@ -39,6 +40,11 @@ describe('scorecards routes', () => {
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
     managerToken = issueToken({ userId: 'score-manager', role: 'manager', clientId });
+
+    const agentB = await prisma.user.create({
+      data: { email: 'score-agent-b@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentBToken = issueToken({ userId: agentB.id, role: 'field_agent', clientId });
 
     const outlet = await prisma.outlet.create({
       data: {
@@ -229,6 +235,14 @@ describe('scorecards routes', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Scorecard not found');
+  });
+
+  it("forbids an agent from generating a scorecard on another agent's visit (404)", async () => {
+    const res = await request(app)
+      .post('/scorecards')
+      .set('Authorization', `Bearer ${agentBToken}`)
+      .send({ visitId });
+    expect(res.status).toBe(404);
   });
 
   it('returns 404 for a visit belonging to another client', async () => {

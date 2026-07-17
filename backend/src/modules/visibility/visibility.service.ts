@@ -12,6 +12,7 @@ import {
 export interface RecordVisibilityInput {
   visitId: string;
   clientId: string;
+  agentId: string;
   // highTrafficPass is a manual field in both the vision-assisted and
   // manual-entry paths.
   highTrafficPass: boolean;
@@ -37,7 +38,7 @@ interface VisibilityFields {
 
 export async function recordVisibility(input: RecordVisibilityInput) {
   const visit = await prisma.visit.findFirst({
-    where: { id: input.visitId, clientId: input.clientId },
+    where: { id: input.visitId, clientId: input.clientId, agentId: input.agentId },
   });
   if (!visit) {
     throw new NotFoundError('Visit not found');
