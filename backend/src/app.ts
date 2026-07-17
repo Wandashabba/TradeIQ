@@ -26,7 +26,10 @@ import { fraudRouter } from './modules/fraud/fraud.routes';
 import { dispatchRouter } from './modules/dispatch/dispatch.routes';
 import { forecastRouter } from './modules/forecast/forecast.routes';
 import { ordersRouter } from './modules/orders/orders.routes';
-import { collaborationRouter } from './modules/collaboration/collaboration.routes';
+import {
+  announcementsRouter,
+  messagesRouter,
+} from './modules/collaboration/collaboration.routes';
 import { webhooksRouter } from './modules/webhooks/webhooks.routes';
 import { gamificationRouter } from './modules/gamification/gamification.routes';
 import { reportsRouter } from './modules/reports/reports.routes';
@@ -86,7 +89,13 @@ app.use('/fraud', fraudRouter);
 app.use('/dispatch', dispatchRouter);
 app.use('/forecast', forecastRouter);
 app.use('/orders', ordersRouter);
-app.use('/', collaborationRouter);
+// Mounted at the two real prefixes rather than at '/'. A root mount made
+// collaboration's own `requireAuth` run for EVERY path that reached it, so an
+// unknown route answered 401 instead of 404 and anything mounted below
+// inherited auth. The Flutter client calls /messages and /announcements, so
+// those paths must not change.
+app.use('/messages', messagesRouter);
+app.use('/announcements', announcementsRouter);
 app.use('/webhooks', webhooksRouter);
 app.use('/gamification', gamificationRouter);
 app.use('/reports', reportsRouter);
@@ -94,5 +103,11 @@ app.use('/clients', clientsRouter);
 app.use('/users', usersRouter);
 app.use('/incentives', incentivesRouter);
 app.use('/report-schedules', reportSchedulesRouter);
+
+// Every route is mounted above. Anything reaching here does not exist — say so,
+// rather than letting it fall through to a misleading 401.
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
 
 app.use(errorHandler);

@@ -171,13 +171,56 @@ describe('territories routes', () => {
 
     const res = await request(app)
       .get(`/territories/${territory.id}/coverage`)
-      .set('Authorization', `Bearer ${agentToken}`);
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
     expect(res.body.territory.id).toBe(territory.id);
     const outletIds = (res.body.outlets as Array<{ id: string }>).map((o) => o.id);
     expect(outletIds).toEqual([outlet.id]);
     const agentIds = (res.body.agents as Array<{ id: string }>).map((a) => a.id);
     expect(agentIds).toContain(managerId);
+  });
+
+  it('never exposes passwordHash on the agents in a coverage response', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-NoHash', code: 'TERR-NOHASH' },
+    });
+    const assigned = await prisma.user.create({
+      data: {
+        email: 'TERR-hash-victim@example.com',
+        passwordHash: 'super-secret-bcrypt-hash',
+        role: 'manager',
+        clientId,
+      },
+    });
+    await prisma.userTerritory.create({
+      data: { userId: assigned.id, territoryId: territory.id },
+    });
+
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    const agents = res.body.agents as Array<Record<string, unknown>>;
+    expect(agents.length).toBeGreaterThan(0);
+    for (const agent of agents) {
+      expect(agent).not.toHaveProperty('passwordHash');
+    }
+    // The whole serialized body, not just the parsed field — a hash must not
+    // reach the wire by any path.
+    expect(JSON.stringify(res.body)).not.toContain('super-secret-bcrypt-hash');
+  });
+
+  it('forbids a field agent from reading territory coverage', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-AgentForbidden', code: 'TERR-FORBID' },
+    });
+
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .set('Authorization', `Bearer ${agentToken}`);
+
+    expect(res.status).toBe(403);
   });
 
   it('returns coverageRate computed from distinct visited outlets', async () => {
@@ -257,7 +300,7 @@ describe('territories routes', () => {
 
     const res = await request(app)
       .get(`/territories/${territory.id}/coverage`)
-      .set('Authorization', `Bearer ${agentToken}`);
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
     expect(res.body.coverage).toEqual({ outletsVisited: 2, outletsTotal: 3, coverageRate: 66.67 });
 
@@ -265,7 +308,7 @@ describe('territories routes', () => {
     const windowed = await request(app)
       .get(`/territories/${territory.id}/coverage`)
       .query({ from: '2026-07-01T00:00:00.000Z', to: '2026-07-04T00:00:00.000Z' })
-      .set('Authorization', `Bearer ${agentToken}`);
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(windowed.status).toBe(200);
     expect(windowed.body.coverage).toEqual({ outletsVisited: 1, outletsTotal: 3, coverageRate: 33.33 });
   });
@@ -311,7 +354,7 @@ describe('territories routes', () => {
 
     const res = await request(app)
       .get(`/territories/${territory.id}/coverage`)
-      .set('Authorization', `Bearer ${agentToken}`);
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
     const byId = new Map(
       (res.body.outlets as Array<{ id: string; visited: boolean }>).map((o) => [o.id, o.visited]),
@@ -327,7 +370,7 @@ describe('territories routes', () => {
     const res = await request(app)
       .get(`/territories/${territory.id}/coverage`)
       .query({ from: 'not-a-date' })
-      .set('Authorization', `Bearer ${agentToken}`);
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(400);
   });
 
@@ -338,7 +381,7 @@ describe('territories routes', () => {
     const res = await request(app)
       .get(`/territories/${territory.id}/coverage`)
       .query({ to: 'not-a-date' })
-      .set('Authorization', `Bearer ${agentToken}`);
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(400);
   });
 
@@ -348,7 +391,7 @@ describe('territories routes', () => {
     });
     const res = await request(app)
       .get(`/territories/${territory.id}/coverage`)
-      .set('Authorization', `Bearer ${agentToken}`);
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
     expect(res.body.outlets).toEqual([]);
     expect(res.body.coverage).toEqual({ outletsVisited: 0, outletsTotal: 0, coverageRate: 0 });
@@ -385,7 +428,7 @@ describe('territories routes', () => {
 
     const res = await request(app)
       .get(`/territories/${territory.id}/coverage`)
-      .set('Authorization', `Bearer ${agentToken}`);
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
     expect(res.body.coverage).toEqual({ outletsVisited: 0, outletsTotal: 1, coverageRate: 0 });
   });

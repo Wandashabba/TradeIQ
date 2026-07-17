@@ -59,12 +59,48 @@ describe('webhooks routes', () => {
     webhookId = res.body.id;
   });
 
-  it("rejects a url that doesn't start with http (400)", async () => {
+  it('rejects a url whose protocol is not http(s) (400)', async () => {
     const res = await request(app)
       .post('/webhooks')
       .set('Authorization', `Bearer ${managerToken}`)
       .send({ url: 'ftp://example.com/hook', event: 'order.created' });
     expect(res.status).toBe(400);
+  });
+
+  it.each([
+    'http://169.254.169.254/latest/meta-data/', // AWS/GCP/Azure metadata
+    'http://100.100.100.200/latest/meta-data/', // Alibaba Cloud metadata (CGNAT space)
+    'http://127.0.0.1:6379/',
+    'http://localhost:6379/',
+    'http://10.0.0.5/internal',
+    'http://[fe90::1]/', // link-local above fe80::/16
+    'http://[64:ff9b::7f00:1]/', // NAT64 onto 127.0.0.1
+  ])('rejects the SSRF target %s', async (url) => {
+    const res = await request(app)
+      .post('/webhooks')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ url, event: 'order.created' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an SSRF target on PATCH too', async () => {
+    const created = await request(app)
+      .post('/webhooks')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ url: 'https://example.com/hook', event: 'order.created' });
+    expect(created.status).toBe(201);
+
+    const res = await request(app)
+      .patch(`/webhooks/${created.body.id}`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ url: 'http://169.254.169.254/' });
+    expect(res.status).toBe(400);
+
+    // Leave no active subscriber behind: the dispatch test at the end of this
+    // file fans out for this client, and a surviving row would make it fetch.
+    await request(app)
+      .delete(`/webhooks/${created.body.id}`)
+      .set('Authorization', `Bearer ${managerToken}`);
   });
 
   it('rejects a missing event (400)', async () => {

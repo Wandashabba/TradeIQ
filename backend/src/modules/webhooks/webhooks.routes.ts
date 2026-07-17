@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePublicHttpUrl } from '../../lib/urlGuard';
 import {
   createWebhook,
   deleteWebhook,
@@ -21,14 +22,14 @@ webhooksRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedRequ
 
   if (
     typeof url !== 'string' ||
-    !url.startsWith('http') ||
+    parsePublicHttpUrl(url) === null ||
     typeof event !== 'string' ||
     event.length === 0 ||
     (secret !== undefined && typeof secret !== 'string')
   ) {
     res.status(400).json({
       error:
-        "url (must start with 'http') and event are required; secret must be a string when given",
+        'url must be a public http(s) URL (private and link-local addresses are rejected) and event is required; secret must be a string when given',
     });
     return;
   }
@@ -56,12 +57,12 @@ webhooksRouter.patch('/:id', requireRole('manager', 'admin'), async (req: Authed
 
   if (
     (active !== undefined && typeof active !== 'boolean') ||
-    (url !== undefined && (typeof url !== 'string' || !url.startsWith('http'))) ||
+    (url !== undefined && (typeof url !== 'string' || parsePublicHttpUrl(url) === null)) ||
     (event !== undefined && (typeof event !== 'string' || event.length === 0))
   ) {
     res.status(400).json({
       error:
-        "active must be a boolean, url (when given) must start with 'http', and event must be a non-empty string",
+        'active must be a boolean, url (when given) must be a public http(s) URL, and event must be a non-empty string',
     });
     return;
   }

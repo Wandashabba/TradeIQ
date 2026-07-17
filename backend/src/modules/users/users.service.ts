@@ -5,15 +5,19 @@ import { hashPassword } from '../auth/auth.service';
 
 export type Role = 'field_agent' | 'manager' | 'admin';
 
-// The public shape of a user — everything except the passwordHash, which must
-// never leave the service layer.
-const safeUserSelect = {
+// The only user fields that may reach the wire. Withholds passwordHash
+// (credential) and clientId/lastLat/lastLng (tenant + agent GPS). Adding a
+// field here widens /users AND /territories/:id/coverage.
+export const safeUserSelect = {
   id: true,
   email: true,
   role: true,
   active: true,
   lastSeenAt: true,
 } satisfies Prisma.UserSelect;
+
+/** A user as it may be exposed over the wire — never carries passwordHash. */
+export type SafeUser = Prisma.UserGetPayload<{ select: typeof safeUserSelect }>;
 
 export interface CreateUserInput {
   clientId: string;

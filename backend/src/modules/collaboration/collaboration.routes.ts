@@ -9,10 +9,13 @@ import {
   markMessageRead,
 } from './collaboration.service';
 
-export const collaborationRouter = Router();
-collaborationRouter.use(requireAuth);
+export const messagesRouter = Router();
+messagesRouter.use(requireAuth);
 
-collaborationRouter.post('/messages', async (req: AuthedRequest, res) => {
+export const announcementsRouter = Router();
+announcementsRouter.use(requireAuth);
+
+messagesRouter.post('/', async (req: AuthedRequest, res) => {
   const { body, recipientId } = req.body as {
     body?: unknown;
     recipientId?: unknown;
@@ -38,7 +41,7 @@ collaborationRouter.post('/messages', async (req: AuthedRequest, res) => {
   res.status(201).json(message);
 });
 
-collaborationRouter.get('/messages', async (req: AuthedRequest, res) => {
+messagesRouter.get('/', async (req: AuthedRequest, res) => {
   const messages = await listMessages({
     clientId: req.user!.clientId,
     userId: req.user!.userId,
@@ -46,7 +49,7 @@ collaborationRouter.get('/messages', async (req: AuthedRequest, res) => {
   res.status(200).json(messages);
 });
 
-collaborationRouter.patch('/messages/:id/read', async (req: AuthedRequest, res) => {
+messagesRouter.patch('/:id/read', async (req: AuthedRequest, res) => {
   const { id: messageId } = req.params as { id: string };
   const message = await markMessageRead({
     messageId,
@@ -56,7 +59,7 @@ collaborationRouter.patch('/messages/:id/read', async (req: AuthedRequest, res) 
   res.status(200).json(message);
 });
 
-collaborationRouter.post('/announcements', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
+announcementsRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
   const { title, body } = req.body as {
     title?: unknown;
     body?: unknown;
@@ -81,7 +84,7 @@ collaborationRouter.post('/announcements', requireRole('manager', 'admin'), asyn
   res.status(201).json(announcement);
 });
 
-collaborationRouter.get('/announcements', async (req: AuthedRequest, res) => {
+announcementsRouter.get('/', async (req: AuthedRequest, res) => {
   const announcements = await listAnnouncements(req.user!.clientId);
   res.status(200).json(announcements);
 });
