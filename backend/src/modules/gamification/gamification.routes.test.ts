@@ -299,3 +299,95 @@ describe('gamification routes', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// Isolated client + single agent so the non-terminating mean is exercised
+// without perturbing the ordering/length assertions above. Three scorecards
+// 70/80/85 give a mean of 235/3 = 78.3333… -> round2 -> 78.33, which the
+// integer-only seeds in the main block never reach.
+describe('gamification leaderboard — fractional mean', () => {
+  let clientId: string;
+  let managerToken: string;
+  let agentId: string;
+
+  beforeAll(async () => {
+    const client = await prisma.client.create({
+      data: { name: 'GAME-Frac Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+    });
+    clientId = client.id;
+
+    const manager = await prisma.user.create({
+      data: { email: 'game-frac-manager@example.com', passwordHash: 'x', role: 'manager', clientId },
+    });
+    managerToken = issueToken({ userId: manager.id, role: 'manager', clientId });
+
+    const agent = await prisma.user.create({
+      data: { email: 'game-frac-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentId = agent.id;
+
+    const outlet = await prisma.outlet.create({
+      data: {
+        name: 'GAME-Frac Outlet',
+        code: 'GAME-FRAC-001',
+        channelType: 'hypermarket',
+        lat: -26.2041,
+        lng: 28.0473,
+        territoryId: 'game-frac-t1',
+        clientId,
+      },
+    });
+
+    // Three submitted visits, each with one scorecard: 70, 80, 85. No tasks.
+    for (const weightedTotal of [70, 80, 85]) {
+      const visit = await prisma.visit.create({
+        data: {
+          outletId: outlet.id,
+          agentId: agent.id,
+          clientId,
+          checkinTs: new Date('2026-07-01T09:00:00.000Z'),
+          checkinLat: -26.2041,
+          checkinLng: 28.0473,
+          geofencePass: true,
+          status: 'submitted',
+        },
+      });
+      await prisma.scorecard.create({
+        data: {
+          visitId: visit.id,
+          dimensionScores: {},
+          weightedTotal,
+          ratingBand: 'amber',
+          createdAt: new Date('2026-07-01T09:00:00.000Z'),
+        },
+      });
+    }
+  });
+
+  afterAll(async () => {
+    await prisma.scorecard.deleteMany({ where: { visit: { clientId } } });
+    await prisma.visit.deleteMany({ where: { clientId } });
+    await prisma.outlet.deleteMany({ where: { clientId } });
+    await prisma.user.deleteMany({ where: { clientId } });
+    await prisma.client.deleteMany({ where: { id: clientId } });
+    await prisma.$disconnect();
+  });
+
+  it('round2s a non-terminating scorecard mean (235/3 -> 78.33)', async () => {
+    const res = await request(app)
+      .get('/gamification/leaderboard')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    // mean(70, 80, 85) = 78.3333… -> 78.33; points = 78.33 + 0*5 + 3*2 = 84.33.
+    expect(res.body[0]).toEqual({
+      agentId,
+      email: 'game-frac-agent@example.com',
+      visitsSubmitted: 3,
+      tasksClosed: 0,
+      avgScorecard: 78.33,
+      points: 84.33,
+      rank: 1,
+    });
+  });
+});

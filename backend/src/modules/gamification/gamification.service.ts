@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { mean } from '../../lib/kpiMath';
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -86,20 +87,21 @@ export async function computeLeaderboard(
 
   const visitCount = new Map(visitGroups.map((g) => [g.agentId, g._count._all]));
   const taskCount = new Map(taskGroups.map((g) => [g.ownerId, g._count._all]));
-  const scoreSum = new Map<string, { sum: number; n: number }>();
+  const scoreLists = new Map<string, number[]>();
   for (const s of scorecardRows) {
     const id = s.visit.agentId;
-    const acc = scoreSum.get(id) ?? { sum: 0, n: 0 };
-    acc.sum += s.weightedTotal;
-    acc.n += 1;
-    scoreSum.set(id, acc);
+    const list = scoreLists.get(id) ?? [];
+    list.push(s.weightedTotal);
+    scoreLists.set(id, list);
   }
 
   const rows = agents.map((agent) => {
     const visitsSubmitted = visitCount.get(agent.id) ?? 0;
     const tasksClosed = taskCount.get(agent.id) ?? 0;
-    const acc = scoreSum.get(agent.id);
-    const avgScorecard = acc && acc.n > 0 ? round2(acc.sum / acc.n) : 0;
+    // avgScorecard via mean() (sum/n in JS) replaces the old per-agent Postgres
+    // AVG; weightedTotal is a Float, so these match to round2 for real data.
+    // mean([]) === 0 preserves the old `?? 0` empty-window behavior.
+    const avgScorecard = mean(scoreLists.get(agent.id) ?? []);
     const points = round2(avgScorecard + tasksClosed * 5 + visitsSubmitted * 2);
 
     return {
