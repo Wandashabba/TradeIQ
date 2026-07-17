@@ -52,48 +52,65 @@ export async function computeLeaderboard(
     select: { id: true, email: true },
   });
 
-  const rows = await Promise.all(
-    agents.map(async (agent) => {
-      const visitWhere: Prisma.VisitWhereInput = {
-        clientId,
-        agentId: agent.id,
-        status: 'submitted',
-      };
-      if (checkinRange) {
-        visitWhere.checkinTs = checkinRange;
-      }
+  const agentIds = agents.map((a) => a.id);
+  if (agentIds.length === 0) {
+    return [];
+  }
 
-      const scorecardWhere: Prisma.ScorecardWhereInput = {
-        visit: { clientId, agentId: agent.id },
-      };
-      if (createdRange) {
-        scorecardWhere.createdAt = createdRange;
-      }
+  const visitWhere: Prisma.VisitWhereInput = {
+    clientId,
+    agentId: { in: agentIds },
+    status: 'submitted',
+    ...(checkinRange ? { checkinTs: checkinRange } : {}),
+  };
 
-      const [visitsSubmitted, tasksClosed, scorecardAgg] = await Promise.all([
-        prisma.visit.count({ where: visitWhere }),
-        prisma.task.count({
-          where: { ownerId: agent.id, status: 'closed', outlet: { clientId } },
-        }),
-        prisma.scorecard.aggregate({
-          where: scorecardWhere,
-          _avg: { weightedTotal: true },
-        }),
-      ]);
-
-      const avgScorecard = round2(scorecardAgg._avg.weightedTotal ?? 0);
-      const points = round2(avgScorecard + tasksClosed * 5 + visitsSubmitted * 2);
-
-      return {
-        agentId: agent.id,
-        email: agent.email,
-        visitsSubmitted,
-        tasksClosed,
-        avgScorecard,
-        points,
-      };
+  // Constant query count regardless of agent count: two groupBy aggregates
+  // plus one scoped scorecard fetch, joined in JS below. Scorecard has no
+  // agentId scalar (it links via visit.agentId), so it cannot be grouped by
+  // Prisma groupBy — fetch narrowly and reduce.
+  const [visitGroups, taskGroups, scorecardRows] = await Promise.all([
+    prisma.visit.groupBy({ by: ['agentId'], where: visitWhere, _count: { _all: true } }),
+    prisma.task.groupBy({
+      by: ['ownerId'],
+      where: { ownerId: { in: agentIds }, status: 'closed', outlet: { clientId } },
+      _count: { _all: true },
     }),
-  );
+    prisma.scorecard.findMany({
+      where: {
+        visit: { clientId, agentId: { in: agentIds } },
+        ...(createdRange ? { createdAt: createdRange } : {}),
+      },
+      select: { weightedTotal: true, visit: { select: { agentId: true } } },
+    }),
+  ]);
+
+  const visitCount = new Map(visitGroups.map((g) => [g.agentId, g._count._all]));
+  const taskCount = new Map(taskGroups.map((g) => [g.ownerId, g._count._all]));
+  const scoreSum = new Map<string, { sum: number; n: number }>();
+  for (const s of scorecardRows) {
+    const id = s.visit.agentId;
+    const acc = scoreSum.get(id) ?? { sum: 0, n: 0 };
+    acc.sum += s.weightedTotal;
+    acc.n += 1;
+    scoreSum.set(id, acc);
+  }
+
+  const rows = agents.map((agent) => {
+    const visitsSubmitted = visitCount.get(agent.id) ?? 0;
+    const tasksClosed = taskCount.get(agent.id) ?? 0;
+    const acc = scoreSum.get(agent.id);
+    const avgScorecard = acc && acc.n > 0 ? round2(acc.sum / acc.n) : 0;
+    const points = round2(avgScorecard + tasksClosed * 5 + visitsSubmitted * 2);
+
+    return {
+      agentId: agent.id,
+      email: agent.email,
+      visitsSubmitted,
+      tasksClosed,
+      avgScorecard,
+      points,
+    };
+  });
 
   // Highest points first; email breaks ties for a stable, deterministic order.
   rows.sort((a, b) => b.points - a.points || a.email.localeCompare(b.email));
