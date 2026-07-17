@@ -4,7 +4,10 @@ import { prisma } from '../../lib/prisma';
 
 export interface AuthTokenPayload {
   userId: string;
-  role: 'field_agent' | 'manager' | 'admin';
+  // Derived from ROLES so the runtime guard and the compile-time type cannot
+  // drift apart in either direction: a role the array lacks is not assignable,
+  // and a role the array gains is automatically accepted by the type.
+  role: (typeof ROLES)[number];
   clientId: string;
 }
 
