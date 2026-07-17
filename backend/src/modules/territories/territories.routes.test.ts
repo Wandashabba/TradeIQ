@@ -270,6 +270,56 @@ describe('territories routes', () => {
     expect(windowed.body.coverage).toEqual({ outletsVisited: 1, outletsTotal: 3, coverageRate: 33.33 });
   });
 
+  it('tags each outlet in the response with a visited boolean', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-Visited', code: 'TERR-VIS1' },
+    });
+    const visitedOutlet = await prisma.outlet.create({
+      data: {
+        name: 'TERR-Outlet-Visited',
+        code: 'TERR-OUT-VISITED',
+        channelType: 'general_trade',
+        lat: -26.2,
+        lng: 28.04,
+        territoryId: territory.code,
+        clientId,
+      },
+    });
+    const unvisitedOutlet = await prisma.outlet.create({
+      data: {
+        name: 'TERR-Outlet-Unvisited',
+        code: 'TERR-OUT-UNVISITED',
+        channelType: 'general_trade',
+        lat: -26.2,
+        lng: 28.04,
+        territoryId: territory.code,
+        clientId,
+      },
+    });
+    await prisma.visit.create({
+      data: {
+        outletId: visitedOutlet.id,
+        agentId,
+        clientId,
+        checkinTs: new Date('2026-07-01T09:00:00.000Z'),
+        checkinLat: -26.2,
+        checkinLng: 28.04,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(res.status).toBe(200);
+    const byId = new Map(
+      (res.body.outlets as Array<{ id: string; visited: boolean }>).map((o) => [o.id, o.visited]),
+    );
+    expect(byId.get(visitedOutlet.id)).toBe(true);
+    expect(byId.get(unvisitedOutlet.id)).toBe(false);
+  });
+
   it('rejects an invalid from date with 400', async () => {
     const territory = await prisma.territory.create({
       data: { clientId, name: 'TERR-BadFrom', code: 'TERR-BADFROM1' },

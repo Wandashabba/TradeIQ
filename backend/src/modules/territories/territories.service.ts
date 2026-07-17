@@ -67,7 +67,7 @@ export async function getTerritoryCoverage(
   to?: Date,
 ): Promise<{
   territory: Territory;
-  outlets: Outlet[];
+  outlets: (Outlet & { visited: boolean })[];
   agents: User[];
   coverage: { outletsVisited: number; outletsTotal: number; coverageRate: number };
 }> {
@@ -105,5 +105,18 @@ export async function getTerritoryCoverage(
   const outletsVisited = visitedOutlets.length;
   const coverageRate = outletsTotal > 0 ? Math.round((100 * outletsVisited / outletsTotal) * 100) / 100 : 0;
 
-  return { territory, outlets, agents, coverage: { outletsVisited, outletsTotal, coverageRate } };
+  // Tag each outlet with whether it was visited, so a map view can color
+  // individual pins instead of only knowing the aggregate rate above.
+  const visitedOutletIds = new Set(visitedOutlets.map((visit) => visit.outletId));
+  const outletsWithVisited = outlets.map((outlet) => ({
+    ...outlet,
+    visited: visitedOutletIds.has(outlet.id),
+  }));
+
+  return {
+    territory,
+    outlets: outletsWithVisited,
+    agents,
+    coverage: { outletsVisited, outletsTotal, coverageRate },
+  };
 }
