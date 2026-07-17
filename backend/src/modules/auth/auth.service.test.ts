@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { issueToken, verifyToken } from './auth.service';
+import { assertJwtSecretUsable, issueToken, verifyToken } from './auth.service';
 
 describe('auth.service', () => {
   const payload = { userId: 'user-1', role: 'field_agent' as const, clientId: 'client-1' };
@@ -106,6 +106,18 @@ describe('auth.service', () => {
     it('still throws when the secret is absent entirely', () => {
       delete process.env.JWT_SECRET;
       expect(() => issueToken(payload)).toThrow('JWT_SECRET is not set');
+    });
+
+    it('assertJwtSecretUsable throws on a known default outside dev/test', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'dev-only-change-me';
+      expect(() => assertJwtSecretUsable()).toThrow(/known default/i);
+    });
+
+    it('assertJwtSecretUsable passes on a strong secret outside dev/test', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'S'.repeat(32);
+      expect(() => assertJwtSecretUsable()).not.toThrow();
     });
   });
 });

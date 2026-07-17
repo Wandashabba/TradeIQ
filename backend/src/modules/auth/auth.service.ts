@@ -48,6 +48,19 @@ function getSecret(): string {
   return secret;
 }
 
+/**
+ * Validates the JWT secret at startup so a misconfigured deploy dies loudly.
+ *
+ * `getSecret()` is otherwise only reached lazily from issueToken/verifyToken,
+ * which meant a bad secret let the process boot, serve /health, and then fail
+ * every login with a 500 and every authed request with a 401 — with the reason
+ * swallowed by requireAuth's catch. A bad secret should stop the process, not
+ * produce a healthy-looking service that cannot authenticate anyone.
+ */
+export function assertJwtSecretUsable(): void {
+  getSecret();
+}
+
 export function issueToken(payload: AuthTokenPayload): string {
   return jwt.sign(payload, getSecret(), { expiresIn: '12h' });
 }
