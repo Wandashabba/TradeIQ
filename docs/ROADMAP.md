@@ -40,6 +40,29 @@ allowlist, and fixes the `dispatch.service.ts:31` over-fetch for free. It is
 allowlist also withholds `clientId`/GPS. `omit` is the floor; the allowlist is
 the deliberate public ceiling.
 
+**Known residual after Plan 1 — webhook SSRF is narrowed, not sealed.** Plan 1
+blocks `169.254.169.254`, `localhost`, RFC1918, `[::1]` and every obfuscated
+encoding (`new URL()` normalises decimal/octal/hex/IDNA before the guard sees
+them), catches pre-existing private URLs at dispatch, kills redirect-to-metadata
+via `redirect: 'manual'`, and caps the 300s hang at 5s. Two gaps remain:
+
+1. **DNS rebinding (TOCTOU).** `assertPublicHostname` and `fetch` perform two
+   *independent* resolutions, so an attacker with authoritative DNS and TTL=0
+   flips the answer between check and connect. Proven end-to-end against the
+   real `urlGuard` during review: the guard passed on `93.184.216.34` while the
+   fetch returned attacker content. Re-resolving closes *registration→fire*
+   drift, not *check→connect* drift. **Fix:** an undici `Agent` with a custom
+   `connect.lookup` that runs `isPrivateAddress` on the address actually handed
+   to the socket, so validation and connection share one resolution. Needs
+   `undici` as a direct dependency — a deliberate decision, hence deferred. Do
+   NOT hand-roll a substitute: resolving then fetching the raw IP breaks TLS SNI
+   and certificate validation for https.
+2. `::7f00:1` (IPv4-compatible IPv6) classifies as public. Deprecated and
+   verified `EHOSTUNREACH` in practice; left alone deliberately.
+
+Exploiting either requires a manager/admin role, so this is a real but
+materially harder attack than the one Plan 1 closed.
+
 **Other small items logged during Plan 1:**
 - `dispatch.service.ts:31` — `findMany` with no `select` loads `passwordHash`
   into memory. Projected into `DispatchCandidate` before serializing, so it is
