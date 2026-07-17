@@ -185,6 +185,12 @@ function csvCell(value: unknown): string {
   } else {
     cell = String(value);
   }
+  // Formula-injection guard (CWE-1236): a spreadsheet treats a cell beginning
+  // with = + - @ (or a leading tab/CR) as a formula. Prefix with an apostrophe
+  // so it is rendered as text. Applied before CSV quoting.
+  if (/^[=+\-@\t\r]/.test(cell)) {
+    cell = `'${cell}`;
+  }
   return /[",\n\r]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
 }
 
