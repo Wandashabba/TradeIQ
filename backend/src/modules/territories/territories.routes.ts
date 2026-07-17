@@ -73,8 +73,9 @@ territoriesRouter.post('/:id/agents', requireRole('manager', 'admin'), async (re
 });
 
 // Coverage exposes per-agent assignment and outlet-level visit data — a
-// management view. The other mutating routes on this router are already
-// manager/admin; this read was the one that was missed.
+// management view, unlike the plain territory list above. The router's
+// requireAuth alone does not scope it; it needs the role guard to stay
+// manager/admin.
 territoriesRouter.get(
   '/:id/coverage',
   requireRole('manager', 'admin'),

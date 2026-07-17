@@ -80,10 +80,9 @@ export async function getTerritoryCoverage(
     where: { territoryId: territory.code, clientId },
   });
 
-  // `include: { user: true }` selects EVERY User scalar — passwordHash included
-  // — and this endpoint returned it to any authenticated caller. Select the
-  // same allowlist /users uses, so one definition governs every user-shaped
-  // response.
+  // Never `include: { user: true }` here — it selects every User scalar,
+  // passwordHash included. /users' allowlist is the one definition of a
+  // wire-safe user.
   const assignments = await prisma.userTerritory.findMany({
     where: { territoryId: territory.id },
     select: { user: { select: safeUserSelect } },

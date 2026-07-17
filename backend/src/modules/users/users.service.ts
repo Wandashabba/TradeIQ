@@ -5,8 +5,9 @@ import { hashPassword } from '../auth/auth.service';
 
 export type Role = 'field_agent' | 'manager' | 'admin';
 
-// The public shape of a user — everything except the passwordHash, which must
-// never leave the service layer.
+// The only user fields that may reach the wire. Withholds passwordHash
+// (credential) and clientId/lastLat/lastLng (tenant + agent GPS). Adding a
+// field here widens /users AND /territories/:id/coverage.
 export const safeUserSelect = {
   id: true,
   email: true,

@@ -121,6 +121,9 @@ describe('users routes', () => {
     for (const user of res.body) {
       expect(user.passwordHash).toBeUndefined();
       expect(typeof user.active).toBe('boolean');
+      // Pin the whole allowlist, not just the hash's absence: safeUserSelect is
+      // shared with /territories/:id/coverage, so widening it here widens both.
+      expect(Object.keys(user).sort()).toEqual(['active', 'email', 'id', 'lastSeenAt', 'role']);
     }
     const emails = res.body.map((u: { email: string }) => u.email);
     expect(emails).toContain('USERS-admin@example.com');
