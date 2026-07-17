@@ -3,8 +3,25 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/widgets/worklist.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/territories_repository.dart';
+
+/// Coverage for one territory, kept per-id and cached by Riverpod so a
+/// rebuild (e.g. the map panning) does not re-fetch and reset the camera.
+///
+/// Retries are disabled: Riverpod's default retry policy backs off silently
+/// for several seconds (up to 10 attempts) before surfacing an error, which
+/// would leave the screen showing a bare spinner with no explanation. Failing
+/// fast and offering [AsyncSection]'s explicit Retry button is the better
+/// trade for a screen the user is actively looking at.
+final _territoryCoverageProvider =
+    FutureProvider.family<TerritoryCoverage, String>(
+  (ref, territoryId) {
+    return ref.read(territoriesRepositoryProvider).getCoverage(territoryId);
+  },
+  retry: (retryCount, error) => null,
+);
 
 /// A pin map of one territory's outlets — green if visited, red if not,
 /// within the coverage query's default window. Reached from a "Map" action
@@ -17,20 +34,15 @@ class TerritoryMapScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final coverage = ref.watch(_territoryCoverageProvider(territory.id));
     return Scaffold(
       appBar: AppBar(title: Text('${territory.name} — Map')),
-      body: FutureBuilder<TerritoryCoverage>(
-        future: ref.read(territoriesRepositoryProvider).getCoverage(territory.id),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Failed to load coverage: ${snapshot.error}'),
-            );
-          }
-          final outlets = snapshot.data!.outlets;
+      body: AsyncSection<TerritoryCoverage>(
+        value: coverage,
+        label: 'territory coverage',
+        onRetry: () => ref.invalidate(_territoryCoverageProvider(territory.id)),
+        builder: (data) {
+          final outlets = data.outlets;
           if (outlets.isEmpty) {
             return const Center(
               child: Text('No outlets in this territory yet.'),
@@ -76,6 +88,13 @@ class TerritoryMapScreen extends ConsumerWidget {
                       ),
                     ),
                 ],
+              ),
+              // Required by OSM's ODbL license — visible attribution is
+              // separate from (and in addition to) the TileLayer's
+              // userAgentPackageName, which only satisfies the tile-usage
+              // policy, not the license itself.
+              const SimpleAttributionWidget(
+                source: Text('OpenStreetMap contributors'),
               ),
             ],
           );

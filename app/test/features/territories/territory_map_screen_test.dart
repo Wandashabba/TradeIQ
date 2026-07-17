@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,14 +29,23 @@ const _unvisited = Outlet(
 );
 
 class _FakeTerritoriesRepository implements TerritoriesRepository {
-  const _FakeTerritoriesRepository(this.coverage);
-  final TerritoryCoverage coverage;
+  const _FakeTerritoriesRepository({this.coverage, this.coverageFuture});
+
+  /// A synchronously-available coverage result.
+  final TerritoryCoverage? coverage;
+
+  /// Overrides [coverage] when set — lets a test hand `getCoverage` a
+  /// future that never completes (loading) or that throws (error).
+  final Future<TerritoryCoverage> Function()? coverageFuture;
 
   @override
   Future<List<Territory>> listTerritories() async => const [_territory];
 
   @override
-  Future<TerritoryCoverage> getCoverage(String id) async => coverage;
+  Future<TerritoryCoverage> getCoverage(String id) {
+    if (coverageFuture != null) return coverageFuture!();
+    return Future.value(coverage);
+  }
 
   @override
   Future<Territory> createTerritory({
@@ -52,8 +63,9 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
 Widget _app(TerritoryCoverage coverage) => routedApp(
       const TerritoryMapScreen(territory: _territory),
       overrides: [
-        territoriesRepositoryProvider
-            .overrideWithValue(_FakeTerritoriesRepository(coverage)),
+        territoriesRepositoryProvider.overrideWithValue(
+          _FakeTerritoriesRepository(coverage: coverage),
+        ),
       ],
     );
 
@@ -111,5 +123,46 @@ void main() {
 
     expect(find.text('No outlets in this territory yet.'), findsOneWidget);
     expect(find.byType(FlutterMap), findsNothing);
+  });
+
+  testWidgets('shows a spinner while coverage is loading', (tester) async {
+    final app = routedApp(
+      const TerritoryMapScreen(territory: _territory),
+      overrides: [
+        territoriesRepositoryProvider.overrideWithValue(
+          _FakeTerritoriesRepository(
+            coverageFuture: () => Completer<TerritoryCoverage>().future,
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(app);
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('shows an error message when coverage fails to load',
+      (tester) async {
+    final app = routedApp(
+      const TerritoryMapScreen(territory: _territory),
+      overrides: [
+        territoriesRepositoryProvider.overrideWithValue(
+          _FakeTerritoriesRepository(
+            coverageFuture: () => Future<TerritoryCoverage>.error(
+              Exception('network down'),
+            ),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(app);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.textContaining('Failed to load territory coverage'),
+      findsOneWidget,
+    );
   });
 }
