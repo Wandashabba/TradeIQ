@@ -49,4 +49,63 @@ describe('auth.service', () => {
     const forged = jwt.sign('just-a-string', process.env.JWT_SECRET!);
     expect(() => verifyToken(forged)).toThrow('Malformed token payload');
   });
+
+  describe('secret strength', () => {
+    const originalSecret = process.env.JWT_SECRET;
+    const originalEnv = process.env.NODE_ENV;
+
+    // `process.env.X = undefined` stores the STRING "undefined" rather than
+    // unsetting the variable. A naive restore of a var that started out unset
+    // would therefore leave NODE_ENV="undefined" behind and leak into every
+    // later test in this file. Delete when the captured value was undefined.
+    function restoreEnv(key: 'JWT_SECRET' | 'NODE_ENV', value: string | undefined): void {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+
+    afterEach(() => {
+      restoreEnv('JWT_SECRET', originalSecret);
+      restoreEnv('NODE_ENV', originalEnv);
+    });
+
+    it('refuses the published example default outside dev/test', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'dev-only-change-me';
+      expect(() => issueToken(payload)).toThrow(/known default/i);
+    });
+
+    it('refuses a too-short secret outside dev/test', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'short';
+      expect(() => issueToken(payload)).toThrow(/at least 32 characters/i);
+    });
+
+    // An unset NODE_ENV is the likeliest production misconfiguration, so the
+    // check must FAIL SAFE — enforce unless dev/test is explicitly declared.
+    it('enforces the check when NODE_ENV is unset', () => {
+      delete process.env.NODE_ENV;
+      process.env.JWT_SECRET = 'dev-only-change-me';
+      expect(() => issueToken(payload)).toThrow(/known default/i);
+    });
+
+    it('accepts a strong secret outside dev/test', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'S'.repeat(32);
+      expect(() => issueToken(payload)).not.toThrow();
+    });
+
+    it('still allows the weak dev secret when NODE_ENV=test', () => {
+      process.env.NODE_ENV = 'test';
+      process.env.JWT_SECRET = 'dev-only-change-me';
+      expect(() => issueToken(payload)).not.toThrow();
+    });
+
+    it('still throws when the secret is absent entirely', () => {
+      delete process.env.JWT_SECRET;
+      expect(() => issueToken(payload)).toThrow('JWT_SECRET is not set');
+    });
+  });
 });

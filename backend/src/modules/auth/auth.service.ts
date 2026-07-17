@@ -11,10 +11,39 @@ export interface AuthTokenPayload {
   clientId: string;
 }
 
+// Secrets we ship in the repo or that are common placeholders. `.env.example`
+// carries `dev-only-change-me` and the onboarding doc says to copy it, so the
+// value is public — anyone could forge a token for any tenant and role.
+const KNOWN_DEFAULT_SECRETS = new Set([
+  'dev-only-change-me',
+  'change-me',
+  'changeme',
+  'secret',
+  'ci-test-secret',
+]);
+const MIN_SECRET_LENGTH = 32;
+
+// Fail SAFE: only an explicit dev/test declaration relaxes the check. An unset
+// NODE_ENV — the likeliest production misconfiguration — is treated as prod.
+function secretChecksRelaxed(): boolean {
+  const env = process.env.NODE_ENV;
+  return env === 'development' || env === 'test';
+}
+
 function getSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error('JWT_SECRET is not set');
+  }
+  if (!secretChecksRelaxed()) {
+    if (KNOWN_DEFAULT_SECRETS.has(secret)) {
+      throw new Error(
+        'JWT_SECRET is a known default published in this repository. Set a unique, random secret (32+ chars).',
+      );
+    }
+    if (secret.length < MIN_SECRET_LENGTH) {
+      throw new Error(`JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
+    }
   }
   return secret;
 }
