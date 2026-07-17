@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/session_controller.dart';
 import '../theme/app_colors.dart';
+import '../theme/theme_mode_controller.dart';
 
 /// A console destination. Grouped by verb — a manager scanning nineteen flat
 /// rows has to *read* the menu; three verbs let them scan it.
@@ -101,6 +102,20 @@ class ManagerScaffold extends ConsumerWidget {
         title: Text(title),
         actions: [
           ...?actions,
+          IconButton(
+            key: const ValueKey('theme-toggle'),
+            icon: Icon(
+              ref.watch(themeModeProvider) == ThemeMode.dark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+              size: 18,
+            ),
+            tooltip: ref.watch(themeModeProvider) == ThemeMode.dark
+                ? 'Switch to light theme'
+                : 'Switch to dark theme',
+            onPressed: () =>
+                ref.read(themeModeProvider.notifier).toggle(),
+          ),
           IconButton(
             icon: const Icon(Icons.logout, size: 18),
             tooltip: 'Log out',
