@@ -8,6 +8,7 @@ class Outlet {
     required this.code,
     required this.lat,
     required this.lng,
+    this.visited = false,
   });
   final String id;
   final String name;
@@ -15,12 +16,19 @@ class Outlet {
   final double lat;
   final double lng;
 
+  /// Whether this outlet had at least one submitted visit within the
+  /// coverage query's date window. Only meaningful on an `Outlet` that came
+  /// from `GET /territories/:id/coverage` — plain `/outlets` responses leave
+  /// this at its default of `false`.
+  final bool visited;
+
   factory Outlet.fromJson(Map<String, dynamic> json) => Outlet(
         id: json['id'] as String,
         name: json['name'] as String,
         code: json['code'] as String,
         lat: (json['lat'] as num).toDouble(),
         lng: (json['lng'] as num).toDouble(),
+        visited: json['visited'] as bool? ?? false,
       );
 }
 

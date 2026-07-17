@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../outlets/data/outlets_repository.dart' show Outlet;
 
 /// A sales territory returned by GET /territories.
 class Territory {
@@ -27,15 +28,35 @@ class TerritoryCoverage {
   const TerritoryCoverage({
     required this.outletCount,
     required this.agentCount,
+    this.outlets = const [],
+    this.outletsVisited = 0,
+    this.outletsTotal = 0,
+    this.coverageRate = 0,
   });
   final int outletCount;
   final int agentCount;
 
-  factory TerritoryCoverage.fromJson(Map<String, dynamic> json) =>
-      TerritoryCoverage(
-        outletCount: (json['outlets'] as List?)?.length ?? 0,
-        agentCount: (json['agents'] as List?)?.length ?? 0,
-      );
+  /// The outlets themselves, each tagged with whether it was visited — the
+  /// data the territory map screen renders as pins.
+  final List<Outlet> outlets;
+  final int outletsVisited;
+  final int outletsTotal;
+  final double coverageRate;
+
+  factory TerritoryCoverage.fromJson(Map<String, dynamic> json) {
+    final coverage = json['coverage'] as Map<String, dynamic>?;
+    return TerritoryCoverage(
+      outletCount: (json['outlets'] as List?)?.length ?? 0,
+      agentCount: (json['agents'] as List?)?.length ?? 0,
+      outlets: (json['outlets'] as List?)
+              ?.map((o) => Outlet.fromJson(o as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      outletsVisited: coverage?['outletsVisited'] as int? ?? 0,
+      outletsTotal: coverage?['outletsTotal'] as int? ?? 0,
+      coverageRate: (coverage?['coverageRate'] as num?)?.toDouble() ?? 0,
+    );
+  }
 }
 
 abstract class TerritoriesRepository {
