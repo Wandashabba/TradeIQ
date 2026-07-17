@@ -1163,6 +1163,18 @@ git commit -m "feat(app): agent flow follows the theme — un-pinned, migrated, 
 
 ---
 
+## Pre-merge polish items (from Task 2 code review — do before the branch merges)
+
+- Seed the initial ThemeMode by reading the store in `main()` before `runApp` (provider
+  override), so a light-preference manager on desktop web doesn't get a dark first-frame
+  flash on every cold load. (~10 lines; pointless until the migration tasks land, mandatory
+  before merge.)
+- Add `debugPrint('themeMode persistence failed: $e')` inside both swallowed catches in
+  `theme_mode_controller.dart` — keychain/libsecret failures otherwise make "toggle doesn't
+  stick" undiagnosable.
+- The branch merges to main as a unit — the toggle must never reach main ahead of the
+  migration tasks.
+
 ## Out of scope for this plan (Plan B, separate)
 
 Shared-axis page transitions, drawer scrim/stagger polish, panel shadows, and
