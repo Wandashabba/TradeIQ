@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { assertPublicHostname } from '../../lib/urlGuard';
 
 export interface CreateWebhookInput {
   clientId: string;
@@ -113,7 +114,22 @@ export async function dispatchWebhookEvent(
             `sha256=${signWebhookBody(webhook.secret, timestamp, body)}`;
         }
 
-        await fetch(webhook.url, { method: 'POST', headers, body });
+        // The real SSRF boundary. A name that was public at registration can
+        // point at 169.254.169.254 by the time the event fires, so re-resolve
+        // here. `redirect: 'manual'` matters just as much: Node follows
+        // redirects by default, so a 302 to the metadata service would walk
+        // straight through a hostname check.
+        await assertPublicHostname(new URL(webhook.url).hostname);
+        await fetch(webhook.url, {
+          method: 'POST',
+          headers,
+          body,
+          redirect: 'manual',
+          // Without this, undici waits ~300s for headers. Visit submit awaits
+          // this dispatch, so one hung subscriber held a field agent's submit
+          // open for five minutes (audit H7).
+          signal: AbortSignal.timeout(5000),
+        });
       } catch {
         // Best-effort: a failing subscriber must never break the caller.
       }

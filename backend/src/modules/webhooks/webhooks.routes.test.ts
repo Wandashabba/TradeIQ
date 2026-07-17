@@ -67,6 +67,39 @@ describe('webhooks routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it.each([
+    'http://169.254.169.254/latest/meta-data/',
+    'http://127.0.0.1:6379/',
+    'http://localhost:6379/',
+    'http://10.0.0.5/internal',
+  ])('rejects the SSRF target %s', async (url) => {
+    const res = await request(app)
+      .post('/webhooks')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ url, event: 'order.created' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an SSRF target on PATCH too', async () => {
+    const created = await request(app)
+      .post('/webhooks')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ url: 'https://example.com/hook', event: 'order.created' });
+    expect(created.status).toBe(201);
+
+    const res = await request(app)
+      .patch(`/webhooks/${created.body.id}`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ url: 'http://169.254.169.254/' });
+    expect(res.status).toBe(400);
+
+    // Leave no active subscriber behind: the dispatch test at the end of this
+    // file fans out for this client, and a surviving row would make it fetch.
+    await request(app)
+      .delete(`/webhooks/${created.body.id}`)
+      .set('Authorization', `Bearer ${managerToken}`);
+  });
+
   it('rejects a missing event (400)', async () => {
     const res = await request(app)
       .post('/webhooks')
