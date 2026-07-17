@@ -34,14 +34,36 @@ catches a **removed** role (via `auth.routes.ts:20` feeding `UserRole` into
 obvious-looking cleanup — silently removes the add-direction guard. Consolidate
 deliberately, with a test, or not at all.
 
-**Testing constraint — do not run two test processes at once.** `jest.global-setup.ts`
-runs `TRUNCATE TABLE ... RESTART IDENTITY CASCADE` across every table on *every*
-`npm test` invocation, and all runs share one `tradeiq_test` database. Two
-concurrent runs truncate each other's fixtures mid-flight, producing bogus 404s
-and a different failure set each time. This looks exactly like flaky tests and
-is not: the suite is deterministic when run alone (verified, 3 consecutive green
-runs at 505/505). A stray `ts-node-dev` from a manual boot check causes the same
-symptom. Serialize test runs.
+**Testing constraint — verify with `npx jest --runInBand`, not `npm test`.**
+
+The suite reports mass phantom failures at default parallelism on a loaded
+machine, and they look exactly like real regressions. They are not. Measured on
+byte-identical code:
+
+| Command | Result |
+|---|---|
+| `npm test` (default ~7 workers, host load ~30) | 366 failed, then 74 failed |
+| `npx jest --maxWorkers=2` | 1 failed (a phantom 400 from a truncated request body) |
+| **`npx jest --runInBand`** | **513 passed, 54 suites, 45s** |
+
+Serialized is both deterministic *and* fastest here — parallel runs took 876s
+while failing. Two independent causes, both real:
+
+1. **Resource starvation (dominant).** `tradeiq-postgres-1` shares a ~3.8 GiB /
+   8-vCPU Docker VM with an unrelated 10-container Supabase stack. Jest's
+   default worker count starves it: failures are `Exceeded timeout of 20000 ms`,
+   `Can't reach database server`, and HTTP-level `Parse Error` / truncated
+   bodies surfacing as bogus 400s. Zero are assertion failures.
+2. **Cross-run truncation.** `jest.global-setup.ts` runs `TRUNCATE TABLE ...
+   RESTART IDENTITY CASCADE` across every table on *every* invocation against
+   one shared `tradeiq_test` DB. Two concurrent runs — or a stray `ts-node-dev`
+   from a manual boot check — wipe each other's fixtures mid-flight, giving
+   bogus 404s and a different failure set each time.
+
+Never run two test processes at once, and treat a suspicious mass failure as
+environmental until reproduced with `--runInBand`. Adding `maxWorkers` to
+`jest.config.js` is worth considering, but CI's runner is not this machine —
+decide it deliberately rather than pinning a laptop's constraint into CI.
 
 **Deferred with a reason — not forgotten:**
 
