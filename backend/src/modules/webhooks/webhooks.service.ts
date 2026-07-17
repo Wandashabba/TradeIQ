@@ -114,11 +114,18 @@ export async function dispatchWebhookEvent(
             `sha256=${signWebhookBody(webhook.secret, timestamp, body)}`;
         }
 
-        // The real SSRF boundary. A name that was public at registration can
-        // point at 169.254.169.254 by the time the event fires, so re-resolve
-        // here. `redirect: 'manual'` matters just as much: Node follows
-        // redirects by default, so a 302 to the metadata service would walk
-        // straight through a hostname check.
+        // Re-resolve here because DNS can change between registration and fire —
+        // a host that was public when registered can point at 169.254.169.254 by
+        // now.
+        //
+        // This does NOT close DNS rebinding: this lookup and fetch's own lookup
+        // are two separate resolutions, so an attacker with TTL=0 DNS can flip
+        // the answer between them. Closing that needs the address validated at
+        // connect time (undici Agent + connect.lookup) — tracked for Plan 2.
+        //
+        // `redirect: 'manual'` matters too: Node follows redirects by default,
+        // so a 302 to the metadata service would walk straight through a
+        // hostname check.
         await assertPublicHostname(new URL(webhook.url).hostname);
         await fetch(webhook.url, {
           method: 'POST',

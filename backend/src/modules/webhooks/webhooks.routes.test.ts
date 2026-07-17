@@ -59,7 +59,7 @@ describe('webhooks routes', () => {
     webhookId = res.body.id;
   });
 
-  it("rejects a url that doesn't start with http (400)", async () => {
+  it('rejects a url whose protocol is not http(s) (400)', async () => {
     const res = await request(app)
       .post('/webhooks')
       .set('Authorization', `Bearer ${managerToken}`)
@@ -68,10 +68,13 @@ describe('webhooks routes', () => {
   });
 
   it.each([
-    'http://169.254.169.254/latest/meta-data/',
+    'http://169.254.169.254/latest/meta-data/', // AWS/GCP/Azure metadata
+    'http://100.100.100.200/latest/meta-data/', // Alibaba Cloud metadata (CGNAT space)
     'http://127.0.0.1:6379/',
     'http://localhost:6379/',
     'http://10.0.0.5/internal',
+    'http://[fe90::1]/', // link-local above fe80::/16
+    'http://[64:ff9b::7f00:1]/', // NAT64 onto 127.0.0.1
   ])('rejects the SSRF target %s', async (url) => {
     const res = await request(app)
       .post('/webhooks')
