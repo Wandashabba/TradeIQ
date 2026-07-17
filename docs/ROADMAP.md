@@ -8,7 +8,7 @@ Scope authority: `docs/superpowers/specs/2026-07-02-tradeiq-scaffold-design.md`
 (§2 reconciles the detailed build prompt with the pitch deck). Real-vs-stubbed
 detail: `docs/architecture/stubs-and-interfaces.md`.
 
-## Active — remediation of the 2026-07-17 audit — 🔴 in progress
+## Active — remediation of the 2026-07-17 audit — 🟢 Plan 1 done, 2–4 pending
 
 A full-codebase audit on 2026-07-17 found 2 Critical and ~13 High issues. The
 phases below describe what is *built*; this section tracks what must be *fixed*
@@ -16,9 +16,16 @@ before Phase 1 can honestly be called shippable. Work is split into four plans
 so each produces working, testable software on its own. **Execute in order — the
 sequence is by exploitability, not convenience.**
 
+**Plan 1 is complete** on branch `fix/security-critical-audit` (both Criticals +
+three Highs closed, 575 tests green, every finding proven end-to-end against the
+real app). Not yet merged. Residuals it deliberately left open — token
+revocation (H2), the webhook DNS-rebinding TOCTOU, and the structural `omit`
+floor — are recorded below and carried into Plan 2. Plans 2–4 are not yet
+written.
+
 | # | Plan | Covers | Status |
 |---|---|---|---|
-| 1 | `docs/superpowers/plans/2026-07-17-security-critical.md` | C3 JWT payload cast → cross-tenant read · H1 published default secret · C1 bcrypt-hash disclosure · H6 webhook SSRF (+H7 timeout) · N8 401-instead-of-404 | 🔴 planned |
+| 1 | `docs/superpowers/plans/2026-07-17-security-critical.md` | C3 JWT payload cast → cross-tenant read · H1 published default secret · C1 bcrypt-hash disclosure · H6 webhook SSRF (+H7 timeout) · N8 401-instead-of-404 | ✅ **done** (branch `fix/security-critical-audit`; 575 tests green, proven end-to-end) |
 | 2 | `2026-07-17-backend-scale.md` (not yet written) | H3 zero DB indexes · H4 zero pagination (66 `findMany`, 1 `take`) · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · M1 capture paths not agent-scoped · M4/N7 global uniqueness on `Outlet.code` / `User.email` · M5 CSV formula injection · N5 kpiMath drift · N9 dead `JWT_SECRET` in `backend-ci.yml:28` · **role-union consolidation (see below)** | ⚪ not started |
 | 3 | `2026-07-17-flutter-shipblockers.md` (not yet written) | H8 no INTERNET permission in release · H9 debug signing keys · C2 (leak half) clear DB on logout + user-scope the outbox · H10 no 401 handling / no `exp` check · H12 web token key beside ciphertext · M11 no Dio timeouts · M12 `_rememberMe` no-op · M14 `allowBackup` | ⚪ not started |
 | 4 | `2026-07-17-design-integration.md` (not yet written) | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ⚪ not started |

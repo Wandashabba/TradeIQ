@@ -1,6 +1,6 @@
 # Security Critical Remediation — Plan 1 of 4
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Close the four exploitable security holes found in the 2026-07-17 audit — the JWT payload cast that yields cross-tenant reads, the published default secret that makes tokens forgeable, the bcrypt-hash disclosure on the territory coverage endpoint, and the webhook SSRF — plus the 401-instead-of-404 masking that hides route mistakes.
 
@@ -45,7 +45,7 @@
 - Modify: `backend/src/modules/auth/auth.service.ts:1-25`
 - Test: `backend/src/modules/auth/auth.service.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Replace the entire contents of `backend/src/modules/auth/auth.service.test.ts` with:
 
@@ -104,7 +104,7 @@ describe('auth.service', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 cd backend && npx jest src/modules/auth/auth.service.test.ts
@@ -112,7 +112,7 @@ cd backend && npx jest src/modules/auth/auth.service.test.ts
 
 Expected: the first two tests PASS; the five new ones FAIL — they currently return a cast object instead of throwing (e.g. `Expected substring: "Malformed token payload"` / `Received function did not throw`).
 
-- [ ] **Step 3: Implement the validation**
+- [x] **Step 3: Implement the validation**
 
 In `backend/src/modules/auth/auth.service.ts`, replace the `verifyToken` function (lines 23-25) with:
 
@@ -149,7 +149,7 @@ export function verifyToken(token: string): AuthTokenPayload {
 
 No caller changes are needed: `requireAuth` (`src/middleware/auth.ts:14-19`) already wraps `verifyToken` in try/catch and answers 401 on any throw.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 ```bash
 cd backend && npx jest src/modules/auth/auth.service.test.ts
@@ -157,7 +157,7 @@ cd backend && npx jest src/modules/auth/auth.service.test.ts
 
 Expected: 7 passed.
 
-- [ ] **Step 5: Run the full backend suite — nothing else may break**
+- [x] **Step 5: Run the full backend suite — nothing else may break**
 
 ```bash
 cd backend && npm test
@@ -165,7 +165,7 @@ cd backend && npm test
 
 Expected: all suites pass. The 16 cross-tenant tests that mint `issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' })` still pass — that payload is well-formed (all three fields are non-empty strings with a valid role); it just names a tenant with no rows, which is exactly what those tests assert.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/src/modules/auth/auth.service.ts backend/src/modules/auth/auth.service.test.ts
@@ -190,7 +190,7 @@ query into a cross-tenant read. Parse the payload; reject malformed."
 - Modify: `backend/package.json:8` (the `dev` script)
 - Test: `backend/src/modules/auth/auth.service.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append these tests inside the `describe('auth.service', ...)` block in `backend/src/modules/auth/auth.service.test.ts`, after the last test:
 
@@ -243,7 +243,7 @@ Append these tests inside the `describe('auth.service', ...)` block in `backend/
   });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 cd backend && npx jest src/modules/auth/auth.service.test.ts -t "secret strength"
@@ -251,7 +251,7 @@ cd backend && npx jest src/modules/auth/auth.service.test.ts -t "secret strength
 
 Expected: the four enforcement tests FAIL (`Received function did not throw`); the two permissive ones pass.
 
-- [ ] **Step 3: Implement the guard**
+- [x] **Step 3: Implement the guard**
 
 In `backend/src/modules/auth/auth.service.ts`, replace `getSecret` (lines 11-17) with:
 
@@ -294,7 +294,7 @@ function getSecret(): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 ```bash
 cd backend && npx jest src/modules/auth/auth.service.test.ts
@@ -302,7 +302,7 @@ cd backend && npx jest src/modules/auth/auth.service.test.ts
 
 Expected: 13 passed.
 
-- [ ] **Step 5: Make `npm run dev` declare its environment**
+- [x] **Step 5: Make `npm run dev` declare its environment**
 
 In `backend/package.json`, change the `dev` script from:
 
@@ -318,7 +318,7 @@ to:
 
 Without this, local dev has an unset `NODE_ENV` and the new fail-safe guard would reject the `dev-only-change-me` in `backend/.env`.
 
-- [ ] **Step 6: Verify local dev still boots**
+- [x] **Step 6: Verify local dev still boots**
 
 ```bash
 cd backend && timeout 10 npm run dev
@@ -326,7 +326,7 @@ cd backend && timeout 10 npm run dev
 
 Expected: `TradeIQ backend listening on port 4000`. (Requires Postgres up: `docker compose up -d`.) Ctrl-C / timeout ends it.
 
-- [ ] **Step 7: Document the production requirement**
+- [x] **Step 7: Document the production requirement**
 
 In `.env.example`, replace the `JWT_SECRET` line with:
 
@@ -337,7 +337,7 @@ In `.env.example`, replace the `JWT_SECRET` line with:
 JWT_SECRET="dev-only-change-me"
 ```
 
-- [ ] **Step 8: Run the full suite and commit**
+- [x] **Step 8: Run the full suite and commit**
 
 ```bash
 cd backend && npm test
@@ -363,7 +363,7 @@ That also makes the `.env.example` line Task 2 Step 7 dictated ("The backend REF
 - Modify: `backend/src/server.ts`
 - Test: `backend/src/modules/auth/auth.service.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append inside the `describe('secret strength', ...)` block in `backend/src/modules/auth/auth.service.test.ts`:
 
@@ -383,7 +383,7 @@ Append inside the `describe('secret strength', ...)` block in `backend/src/modul
 
 Add `assertJwtSecretUsable` to the import at the top of the file.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```bash
 npx jest src/modules/auth/auth.service.test.ts -t "assertJwtSecretUsable"
@@ -391,7 +391,7 @@ npx jest src/modules/auth/auth.service.test.ts -t "assertJwtSecretUsable"
 
 Expected: FAIL — `assertJwtSecretUsable is not a function` / not exported.
 
-- [ ] **Step 3: Export the assertion**
+- [x] **Step 3: Export the assertion**
 
 In `backend/src/modules/auth/auth.service.ts`, add directly beneath `getSecret`:
 
@@ -410,7 +410,7 @@ export function assertJwtSecretUsable(): void {
 }
 ```
 
-- [ ] **Step 4: Call it before listening**
+- [x] **Step 4: Call it before listening**
 
 In `backend/src/server.ts`, replace the file with:
 
@@ -430,7 +430,7 @@ app.listen(port, () => {
 });
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 ```bash
 npx jest src/modules/auth/auth.service.test.ts
@@ -438,7 +438,7 @@ npx jest src/modules/auth/auth.service.test.ts
 
 Expected: 15 passed.
 
-- [ ] **Step 6: Prove the boot actually fails now**
+- [x] **Step 6: Prove the boot actually fails now**
 
 ```bash
 cd backend && NODE_ENV=production JWT_SECRET=dev-only-change-me npx ts-node src/server.ts; echo "exit=$?"
@@ -454,7 +454,7 @@ cd backend && timeout 10 npm run dev
 
 Expected: `TradeIQ backend listening on port 4000`.
 
-- [ ] **Step 7: Run the suite and commit**
+- [x] **Step 7: Run the suite and commit**
 
 ```bash
 npm run lint && npm test
@@ -482,7 +482,7 @@ listen() so a misconfigured deploy dies loudly, which is also what
 - Modify: `backend/src/modules/territories/territories.routes.ts:75`
 - Test: `backend/src/modules/territories/territories.routes.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `backend/src/modules/territories/territories.routes.test.ts`, add these two tests immediately after the `'returns coverage with matching outlets and assigned agents'` test (which ends around line 185):
 
@@ -531,7 +531,7 @@ In `backend/src/modules/territories/territories.routes.test.ts`, add these two t
   });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 cd backend && npx jest src/modules/territories --runInBand
@@ -539,7 +539,7 @@ cd backend && npx jest src/modules/territories --runInBand
 
 Expected: `'never exposes passwordHash'` FAILS (`expect(received).not.toHaveProperty("passwordHash")`); `'forbids a field agent'` FAILS (`Expected: 403, Received: 200`).
 
-- [ ] **Step 3: Export the safe user shape from the users module**
+- [x] **Step 3: Export the safe user shape from the users module**
 
 In `backend/src/modules/users/users.service.ts`, change line 10 from:
 
@@ -560,7 +560,7 @@ Then add this type export directly beneath the `satisfies Prisma.UserSelect;` li
 export type SafeUser = Prisma.UserGetPayload<{ select: typeof safeUserSelect }>;
 ```
 
-- [ ] **Step 4: Use the safe select in territory coverage**
+- [x] **Step 4: Use the safe select in territory coverage**
 
 In `backend/src/modules/territories/territories.service.ts`:
 
@@ -608,7 +608,7 @@ with:
 
 **(d)** If `User` is now an unused import from `@prisma/client`, remove it from the import list — `npm run lint` will flag it.
 
-- [ ] **Step 5: Add the missing role guard**
+- [x] **Step 5: Add the missing role guard**
 
 In `backend/src/modules/territories/territories.routes.ts`, change line 75 from:
 
@@ -635,7 +635,7 @@ and close the new argument list — change the route's final line (currently `})
 );
 ```
 
-- [ ] **Step 6: Update the 8 coverage tests that used an agent token**
+- [x] **Step 6: Update the 8 coverage tests that used an agent token**
 
 `requireRole('manager','admin')` now 403s a field agent. Eight existing coverage assertions mint `agentToken`. In `backend/src/modules/territories/territories.routes.test.ts`, change `Bearer ${agentToken}` to `Bearer ${managerToken}` on these lines **only** — they are all `/coverage` requests:
 
@@ -643,7 +643,7 @@ and close the new argument list — change the route's final line (currently `})
 
 Leave every other `agentToken` use untouched (lines 92 and 108 test `GET /territories` list access for agents, which is still allowed and must keep passing).
 
-- [ ] **Step 7: Run the territory tests to verify they pass**
+- [x] **Step 7: Run the territory tests to verify they pass**
 
 ```bash
 cd backend && npx jest src/modules/territories --runInBand
@@ -651,7 +651,7 @@ cd backend && npx jest src/modules/territories --runInBand
 
 Expected: all pass, including the two new tests.
 
-- [ ] **Step 8: Run the full suite, lint, and commit**
+- [x] **Step 8: Run the full suite, lint, and commit**
 
 ```bash
 cd backend && npm run lint && npm test
@@ -681,7 +681,7 @@ which already treats /territories as manager-only."
 - Modify: `backend/src/modules/webhooks/webhooks.routes.ts:22-34` and `:57-67`
 - Modify: `backend/src/modules/webhooks/webhooks.service.ts:99-120`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `backend/src/lib/urlGuard.test.ts`:
 
@@ -782,7 +782,7 @@ describe('assertPublicHostname', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 cd backend && npx jest src/lib/urlGuard.test.ts
@@ -790,7 +790,7 @@ cd backend && npx jest src/lib/urlGuard.test.ts
 
 Expected: FAIL — `Cannot find module './urlGuard'`.
 
-- [ ] **Step 3: Implement the guard**
+- [x] **Step 3: Implement the guard**
 
 Create `backend/src/lib/urlGuard.ts`:
 
@@ -905,7 +905,7 @@ export async function assertPublicHostname(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 ```bash
 cd backend && npx jest src/lib/urlGuard.test.ts
@@ -913,7 +913,7 @@ cd backend && npx jest src/lib/urlGuard.test.ts
 
 Expected: all pass.
 
-- [ ] **Step 5: Write the failing route tests**
+- [x] **Step 5: Write the failing route tests**
 
 In `backend/src/modules/webhooks/webhooks.routes.test.ts`, add these tests inside the `POST /webhooks` describe block, right after the existing `'rejects a non-http url'` test (around line 66):
 
@@ -946,7 +946,7 @@ In `backend/src/modules/webhooks/webhooks.routes.test.ts`, add these tests insid
     });
 ```
 
-- [ ] **Step 6: Run them to verify they fail**
+- [x] **Step 6: Run them to verify they fail**
 
 ```bash
 cd backend && npx jest src/modules/webhooks --runInBand
@@ -954,7 +954,7 @@ cd backend && npx jest src/modules/webhooks --runInBand
 
 Expected: the five new cases FAIL with `Expected: 400, Received: 201` / `200` — `startsWith('http')` accepts every one.
 
-- [ ] **Step 7: Use the guard in both routes**
+- [x] **Step 7: Use the guard in both routes**
 
 In `backend/src/modules/webhooks/webhooks.routes.ts`:
 
@@ -1001,7 +1001,7 @@ and update that handler's error message (line 64-65) to:
         'active must be a boolean, url (when given) must be a public http(s) URL, and event must be a non-empty string',
 ```
 
-- [ ] **Step 8: Harden the dispatch itself**
+- [x] **Step 8: Harden the dispatch itself**
 
 In `backend/src/modules/webhooks/webhooks.service.ts`:
 
@@ -1034,7 +1034,7 @@ import { assertPublicHostname } from '../../lib/urlGuard';
 
 The surrounding `try { … } catch { /* best-effort */ }` (lines 101, 117-119) already swallows the throw, so a rejected host silently skips that subscriber without breaking the caller — which is the existing, documented contract.
 
-- [ ] **Step 9: Run the webhook tests to verify they pass**
+- [x] **Step 9: Run the webhook tests to verify they pass**
 
 ```bash
 cd backend && npx jest src/modules/webhooks --runInBand
@@ -1042,7 +1042,7 @@ cd backend && npx jest src/modules/webhooks --runInBand
 
 Expected: all pass. The existing `'rejects a non-http url'` test (`ftp://example.com/hook`) still passes — `parsePublicHttpUrl` rejects a non-http(s) protocol. Existing `https://example.com/hook` registrations still succeed: registration does no DNS.
 
-- [ ] **Step 10: Run the full suite and commit**
+- [x] **Step 10: Run the full suite and commit**
 
 ```bash
 cd backend && npm run lint && npm test
@@ -1069,7 +1069,7 @@ caps the 300s tail a hung subscriber put on visit submit."
 - Modify: `backend/src/app.ts:89`, and the end of the file
 - Test: `backend/src/app.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `backend/src/app.test.ts`, add:
 
@@ -1088,7 +1088,7 @@ In `backend/src/app.test.ts`, add:
 
 (If `request` and `app` are not already imported in this file, add `import request from 'supertest';` and `import { app } from './app';`.)
 
-- [ ] **Step 2: Run them to verify the first fails**
+- [x] **Step 2: Run them to verify the first fails**
 
 ```bash
 cd backend && npx jest src/app.test.ts
@@ -1096,7 +1096,7 @@ cd backend && npx jest src/app.test.ts
 
 Expected: `'answers 404'` FAILS with `Expected: 404, Received: 401`. The 401 test passes.
 
-- [ ] **Step 3: Namespace the collaboration mount**
+- [x] **Step 3: Namespace the collaboration mount**
 
 In `backend/src/app.ts`, replace line 89:
 
@@ -1118,7 +1118,7 @@ app.use('/announcements', collaborationRouter);
 
 This works because the router's own routes are declared as `/messages`, `/messages/:id/read` and `/announcements` — mounting it at `/messages` would make those `/messages/messages`. So the router's internal paths must be re-rooted in Step 4.
 
-- [ ] **Step 4: Re-root the collaboration router's own paths**
+- [x] **Step 4: Re-root the collaboration router's own paths**
 
 In `backend/src/modules/collaboration/collaboration.routes.ts`, the router is now mounted at each prefix, so its paths become relative. Change:
 
@@ -1167,7 +1167,7 @@ app.use('/messages', messagesRouter);
 app.use('/announcements', announcementsRouter);
 ```
 
-- [ ] **Step 5: Add the catch-all 404**
+- [x] **Step 5: Add the catch-all 404**
 
 In `backend/src/app.ts`, insert this immediately **before** `app.use(errorHandler);` (line 98):
 
@@ -1181,7 +1181,7 @@ app.use((_req, res) => {
 
 Order matters: this must sit after all routers and before `errorHandler`.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 ```bash
 cd backend && npx jest src/app.test.ts src/modules/collaboration --runInBand
@@ -1189,7 +1189,7 @@ cd backend && npx jest src/app.test.ts src/modules/collaboration --runInBand
 
 Expected: all pass — including the existing collaboration tests, which call `/messages` and `/announcements` and must be unaffected.
 
-- [ ] **Step 7: Run the full suite, lint, and commit**
+- [x] **Step 7: Run the full suite, lint, and commit**
 
 ```bash
 cd backend && npm run lint && npm test
@@ -1207,7 +1207,7 @@ prefixes and add a catch-all 404 before the error handler. The client's
 
 ### Task 6: Verify the whole plan end-to-end
 
-- [ ] **Step 1: Full gate**
+- [x] **Step 1: Full gate**
 
 ```bash
 cd backend && npm run lint && npm run typecheck && npm test
@@ -1215,7 +1215,7 @@ cd backend && npm run lint && npm run typecheck && npm test
 
 Expected: lint clean, typecheck clean, all suites pass.
 
-- [ ] **Step 2: Prove C1 is actually closed against a running server**
+- [x] **Step 2: Prove C1 is actually closed against a running server**
 
 ```bash
 cd backend && docker compose -f ../docker-compose.yml up -d && npm run dev &
@@ -1225,7 +1225,7 @@ curl -s localhost:4000/territories/<id>/coverage -H "Authorization: Bearer <agen
 
 Expected: `{"error":"Forbidden"}` with status 403 — not a body containing `passwordHash`.
 
-- [ ] **Step 3: Prove C3 is closed**
+- [x] **Step 3: Prove C3 is closed**
 
 ```bash
 cd backend && node -e "
@@ -1238,7 +1238,7 @@ curl -s -o /dev/null -w "%{http_code}\n" localhost:4000/outlets -H "Authorizatio
 
 Expected: `401`. Before this plan it returned `200` with every tenant's outlets.
 
-- [ ] **Step 4: Update the status doc**
+- [x] **Step 4: Update the status doc**
 
 Tick the Plan 1 rows in `docs/ROADMAP.md` under "Security remediation (2026-07-17 audit)".
 
