@@ -352,6 +352,124 @@ relaxed only when NODE_ENV is explicitly development or test."
 
 ---
 
+### Task 2b: H1 (cont.) — make the guard actually fail at boot
+
+**Added 2026-07-17 during execution.** Task 2 shipped the guard, but the implementer proved the task title was a lie: `getSecret()` is only reached lazily from `issueToken`/`verifyToken`, so with a bad secret the server **boots normally**, answers `/health` 200, and only fails at first token use — a login 500s and every authed request 401s, with `requireAuth`'s bare `catch {}` swallowing the reason so **nothing reaches the logs**. An operator deploying with the published secret sees a healthy service and mystery 401s.
+
+That also makes the `.env.example` line Task 2 Step 7 dictated ("The backend REFUSES to start with this placeholder") factually false. This task makes it true.
+
+**Files:**
+- Modify: `backend/src/modules/auth/auth.service.ts` (export an assertion)
+- Modify: `backend/src/server.ts`
+- Test: `backend/src/modules/auth/auth.service.test.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+Append inside the `describe('secret strength', ...)` block in `backend/src/modules/auth/auth.service.test.ts`:
+
+```ts
+    it('assertJwtSecretUsable throws on a known default outside dev/test', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'dev-only-change-me';
+      expect(() => assertJwtSecretUsable()).toThrow(/known default/i);
+    });
+
+    it('assertJwtSecretUsable passes on a strong secret outside dev/test', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'S'.repeat(32);
+      expect(() => assertJwtSecretUsable()).not.toThrow();
+    });
+```
+
+Add `assertJwtSecretUsable` to the import at the top of the file.
+
+- [ ] **Step 2: Run it to verify it fails**
+
+```bash
+npx jest src/modules/auth/auth.service.test.ts -t "assertJwtSecretUsable"
+```
+
+Expected: FAIL — `assertJwtSecretUsable is not a function` / not exported.
+
+- [ ] **Step 3: Export the assertion**
+
+In `backend/src/modules/auth/auth.service.ts`, add directly beneath `getSecret`:
+
+```ts
+/**
+ * Validates the JWT secret at startup so a misconfigured deploy dies loudly.
+ *
+ * `getSecret()` is otherwise only reached lazily from issueToken/verifyToken,
+ * which meant a bad secret let the process boot, serve /health, and then fail
+ * every login with a 500 and every authed request with a 401 — with the reason
+ * swallowed by requireAuth's catch. A bad secret should stop the process, not
+ * produce a healthy-looking service that cannot authenticate anyone.
+ */
+export function assertJwtSecretUsable(): void {
+  getSecret();
+}
+```
+
+- [ ] **Step 4: Call it before listening**
+
+In `backend/src/server.ts`, replace the file with:
+
+```ts
+import 'dotenv/config';
+import { app } from './app';
+import { assertJwtSecretUsable } from './modules/auth/auth.service';
+
+// Fail fast and loudly: a published or weak JWT_SECRET must stop the process
+// here, not surface later as unexplainable 401s.
+assertJwtSecretUsable();
+
+const port = process.env.PORT ? Number(process.env.PORT) : 4000;
+
+app.listen(port, () => {
+  console.log(`TradeIQ backend listening on port ${port}`);
+});
+```
+
+- [ ] **Step 5: Run the tests to verify they pass**
+
+```bash
+npx jest src/modules/auth/auth.service.test.ts
+```
+
+Expected: 15 passed.
+
+- [ ] **Step 6: Prove the boot actually fails now**
+
+```bash
+cd backend && NODE_ENV=production JWT_SECRET=dev-only-change-me npx ts-node src/server.ts; echo "exit=$?"
+```
+
+Expected: a thrown `JWT_SECRET is a known default published in this repository...`, a non-zero exit, and **no** "listening on port" line.
+
+Then confirm normal dev still boots:
+
+```bash
+cd backend && timeout 10 npm run dev
+```
+
+Expected: `TradeIQ backend listening on port 4000`.
+
+- [ ] **Step 7: Run the suite and commit**
+
+```bash
+npm run lint && npm test
+git add backend/src/modules/auth/auth.service.ts backend/src/modules/auth/auth.service.test.ts backend/src/server.ts
+git commit -m "fix(backend): fail at boot on a bad JWT secret, not at first login
+
+The Task 2 guard was only reached lazily from issueToken/verifyToken, so a
+published secret let the server boot healthy and then 500 every login and
+401 every request with the reason swallowed. Assert the secret before
+listen() so a misconfigured deploy dies loudly, which is also what
+.env.example now promises."
+```
+
+---
+
 ### Task 3: C1 — stop returning every agent's bcrypt hash from territory coverage
 
 **Why:** `getTerritoryCoverage` does `include: { user: true }`, which selects **every** `User` scalar including `passwordHash` (`prisma/schema.prisma:66`), types the result `agents: User[]`, and returns it verbatim. `GET /territories/:id/coverage` has router-level `requireAuth` but **no `requireRole`** — so any field agent dumps every colleague's bcrypt hash (offline-crackable → manager/admin takeover) plus last-known GPS. The other three routes on this router *are* role-guarded; this one was missed. `/users` already defines a `safeUserSelect` to hide exactly this field — we reuse it so one allowlist governs every user-shaped response.

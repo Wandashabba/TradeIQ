@@ -19,9 +19,29 @@ sequence is by exploitability, not convenience.**
 | # | Plan | Covers | Status |
 |---|---|---|---|
 | 1 | `docs/superpowers/plans/2026-07-17-security-critical.md` | C3 JWT payload cast → cross-tenant read · H1 published default secret · C1 bcrypt-hash disclosure · H6 webhook SSRF (+H7 timeout) · N8 401-instead-of-404 | 🔴 planned |
-| 2 | `2026-07-17-backend-scale.md` (not yet written) | H3 zero DB indexes · H4 zero pagination (66 `findMany`, 1 `take`) · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · M1 capture paths not agent-scoped · M4/N7 global uniqueness on `Outlet.code` / `User.email` · M5 CSV formula injection · N5 kpiMath drift | ⚪ not started |
+| 2 | `2026-07-17-backend-scale.md` (not yet written) | H3 zero DB indexes · H4 zero pagination (66 `findMany`, 1 `take`) · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · M1 capture paths not agent-scoped · M4/N7 global uniqueness on `Outlet.code` / `User.email` · M5 CSV formula injection · N5 kpiMath drift · N9 dead `JWT_SECRET` in `backend-ci.yml:28` · **role-union consolidation (see below)** | ⚪ not started |
 | 3 | `2026-07-17-flutter-shipblockers.md` (not yet written) | H8 no INTERNET permission in release · H9 debug signing keys · C2 (leak half) clear DB on logout + user-scope the outbox · H10 no 401 handling / no `exp` check · H12 web token key beside ciphertext · M11 no Dio timeouts · M12 `_rememberMe` no-op · M14 `allowBackup` | ⚪ not started |
 | 4 | `2026-07-17-design-integration.md` (not yet written) | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ⚪ not started |
+
+**Trap discovered during Plan 1 — read before touching roles.** There are three
+declarations of the role union: `ROLES` in `auth.service.ts` (now the source of
+truth for `AuthTokenPayload['role']`), the Prisma `UserRole` enum, and a
+hand-written literal union in `middleware/roleGuard.ts:4`. Drift is currently
+closed in both directions, but by two *different* mechanisms: the Prisma link
+catches a **removed** role (via `auth.routes.ts:20` feeding `UserRole` into
+`issueToken`), while an **added** role is caught only incidentally by
+`roleGuard.ts:4`. Retyping `roleGuard.ts:4` as `AuthTokenPayload['role']` — the
+obvious-looking cleanup — silently removes the add-direction guard. Consolidate
+deliberately, with a test, or not at all.
+
+**Testing constraint — do not run two test processes at once.** `jest.global-setup.ts`
+runs `TRUNCATE TABLE ... RESTART IDENTITY CASCADE` across every table on *every*
+`npm test` invocation, and all runs share one `tradeiq_test` database. Two
+concurrent runs truncate each other's fixtures mid-flight, producing bogus 404s
+and a different failure set each time. This looks exactly like flaky tests and
+is not: the suite is deterministic when run alone (verified, 3 consecutive green
+runs at 505/505). A stray `ts-node-dev` from a manual boot check causes the same
+symptom. Serialize test runs.
 
 **Deferred with a reason — not forgotten:**
 
