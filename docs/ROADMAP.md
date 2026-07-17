@@ -23,6 +23,31 @@ sequence is by exploitability, not convenience.**
 | 3 | `2026-07-17-flutter-shipblockers.md` (not yet written) | H8 no INTERNET permission in release · H9 debug signing keys · C2 (leak half) clear DB on logout + user-scope the outbox · H10 no 401 handling / no `exp` check · H12 web token key beside ciphertext · M11 no Dio timeouts · M12 `_rememberMe` no-op · M14 `allowBackup` | ⚪ not started |
 | 4 | `2026-07-17-design-integration.md` (not yet written) | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ⚪ not started |
 
+**Structural follow-up worth taking — global Prisma `omit`.** Verified working on
+the installed Prisma 6.19.3 (GA, no preview flag needed):
+
+```ts
+export const prisma = new PrismaClient({ omit: { user: { passwordHash: true } } });
+```
+
+Confirmed empirically: `include: { user: true }` then returns without
+`passwordHash`, auth's legitimate read still works via `omit: { passwordHash:
+false }`, and — critically — forgetting the opt-out is a **compile error**
+(TS2339), not a silent `undefined`. Two lines total. This makes C1's whole bug
+class structurally impossible rather than relying on every author remembering an
+allowlist, and fixes the `dispatch.service.ts:31` over-fetch for free. It is
+**not** a replacement for `safeUserSelect`: `omit` only hides the hash, while the
+allowlist also withholds `clientId`/GPS. `omit` is the floor; the allowlist is
+the deliberate public ceiling.
+
+**Other small items logged during Plan 1:**
+- `dispatch.service.ts:31` — `findMany` with no `select` loads `passwordHash`
+  into memory. Projected into `DispatchCandidate` before serializing, so it is
+  an over-fetch, **not** a disclosure. Low priority; global `omit` fixes it.
+- `territories.routes.ts:44` — `GET /territories` has no `requireRole`. Returns
+  no user data, so not a leak, but it is inconsistent with the rest of that
+  router now that `/coverage` is gated.
+
 **Trap discovered during Plan 1 — read before touching roles.** There are three
 declarations of the role union: `ROLES` in `auth.service.ts` (now the source of
 truth for `AuthTokenPayload['role']`), the Prisma `UserRole` enum, and a
@@ -64,6 +89,15 @@ Never run two test processes at once, and treat a suspicious mass failure as
 environmental until reproduced with `--runInBand`. Adding `maxWorkers` to
 `jest.config.js` is worth considering, but CI's runner is not this machine —
 decide it deliberately rather than pinning a laptop's constraint into CI.
+
+`--runInBand` removes parallel contention but **is not immune** to the starved
+VM: one serialized run still failed `trends.routes.test.ts` with `Can't reach
+database server at localhost:5432` ×26, while `tradeiq-postgres-1` showed
+`RestartCount=0`, stayed `healthy`, and was reachable immediately after — a
+transient Docker Desktop port-forwarding stall, not a crash. A `Can't reach
+database server` failure on this box should be re-run before being believed.
+The real fix is host-side: stop the unrelated Supabase stack, or give Docker
+more headroom.
 
 **Deferred with a reason — not forgotten:**
 
