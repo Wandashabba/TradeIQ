@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { facingsTotal, round2 } from '../../lib/kpiMath';
 
 export const SCORECARD_DIMENSIONS = [
   'availability',
@@ -18,19 +19,6 @@ const DEFAULT_AMBER_THRESHOLD = 60;
 
 function clamp(value: number, min = 0, max = 100): number {
   return Math.min(max, Math.max(min, value));
-}
-
-/** Safely read `.total` out of the facingsCount Json column. */
-function facingsTotal(value: Prisma.JsonValue): number {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return 0;
-  }
-  const total = (value as Record<string, unknown>).total;
-  return typeof total === 'number' && Number.isFinite(total) ? total : 0;
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
 }
 
 /**
