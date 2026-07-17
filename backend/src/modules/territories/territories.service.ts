@@ -1,6 +1,7 @@
-import { Prisma, Territory, User, Outlet } from '@prisma/client';
+import { Prisma, Territory, Outlet } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { safeUserSelect, SafeUser } from '../users/users.service';
 
 export interface CreateTerritoryInput {
   clientId: string;
@@ -68,7 +69,7 @@ export async function getTerritoryCoverage(
 ): Promise<{
   territory: Territory;
   outlets: (Outlet & { visited: boolean })[];
-  agents: User[];
+  agents: SafeUser[];
   coverage: { outletsVisited: number; outletsTotal: number; coverageRate: number };
 }> {
   const territory = await findTerritoryForClient(territoryId, clientId);
@@ -79,9 +80,13 @@ export async function getTerritoryCoverage(
     where: { territoryId: territory.code, clientId },
   });
 
+  // `include: { user: true }` selects EVERY User scalar — passwordHash included
+  // — and this endpoint returned it to any authenticated caller. Select the
+  // same allowlist /users uses, so one definition governs every user-shaped
+  // response.
   const assignments = await prisma.userTerritory.findMany({
     where: { territoryId: territory.id },
-    include: { user: true },
+    select: { user: { select: safeUserSelect } },
   });
   const agents = assignments.map((assignment) => assignment.user);
 

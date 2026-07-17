@@ -7,13 +7,16 @@ export type Role = 'field_agent' | 'manager' | 'admin';
 
 // The public shape of a user — everything except the passwordHash, which must
 // never leave the service layer.
-const safeUserSelect = {
+export const safeUserSelect = {
   id: true,
   email: true,
   role: true,
   active: true,
   lastSeenAt: true,
 } satisfies Prisma.UserSelect;
+
+/** A user as it may be exposed over the wire — never carries passwordHash. */
+export type SafeUser = Prisma.UserGetPayload<{ select: typeof safeUserSelect }>;
 
 export interface CreateUserInput {
   clientId: string;

@@ -72,27 +72,34 @@ territoriesRouter.post('/:id/agents', requireRole('manager', 'admin'), async (re
   }
 });
 
-territoriesRouter.get('/:id/coverage', async (req: AuthedRequest, res) => {
-  const { id: territoryId } = req.params as { id: string };
-  const { from, to } = req.query as { from?: string; to?: string };
+// Coverage exposes per-agent assignment and outlet-level visit data — a
+// management view. The other mutating routes on this router are already
+// manager/admin; this read was the one that was missed.
+territoriesRouter.get(
+  '/:id/coverage',
+  requireRole('manager', 'admin'),
+  async (req: AuthedRequest, res) => {
+    const { id: territoryId } = req.params as { id: string };
+    const { from, to } = req.query as { from?: string; to?: string };
 
-  let fromDate: Date | undefined;
-  let toDate: Date | undefined;
-  if (from !== undefined) {
-    fromDate = new Date(from);
-    if (Number.isNaN(fromDate.getTime())) {
-      res.status(400).json({ error: 'from must be a valid ISO date' });
-      return;
+    let fromDate: Date | undefined;
+    let toDate: Date | undefined;
+    if (from !== undefined) {
+      fromDate = new Date(from);
+      if (Number.isNaN(fromDate.getTime())) {
+        res.status(400).json({ error: 'from must be a valid ISO date' });
+        return;
+      }
     }
-  }
-  if (to !== undefined) {
-    toDate = new Date(to);
-    if (Number.isNaN(toDate.getTime())) {
-      res.status(400).json({ error: 'to must be a valid ISO date' });
-      return;
+    if (to !== undefined) {
+      toDate = new Date(to);
+      if (Number.isNaN(toDate.getTime())) {
+        res.status(400).json({ error: 'to must be a valid ISO date' });
+        return;
+      }
     }
-  }
 
-  const coverage = await getTerritoryCoverage(territoryId, req.user!.clientId, fromDate, toDate);
-  res.status(200).json(coverage);
-});
+    const coverage = await getTerritoryCoverage(territoryId, req.user!.clientId, fromDate, toDate);
+    res.status(200).json(coverage);
+  },
+);
