@@ -339,6 +339,35 @@ describe('beatplans routes', () => {
       expect(res.body.adherence.adherenceRate).toBe(0);
     });
 
+    it('rounds a fractional adherence rate to 2dp (2 of 3 visited → 66.67)', async () => {
+      // A 2/3 ratio is the classic repeating decimal; adherenceRate must be
+      // rounded like every other rate rather than emitting 66.66666666666667.
+      const plan = await prisma.beatPlan.create({
+        data: {
+          clientId,
+          agentId: agentAId,
+          name: 'BEAT-Plan-Rounding',
+          scheduledDate: new Date('2026-07-06T00:00:00.000Z'),
+          stops: {
+            create: [
+              { outletId: outlet1Id, sequence: 1, visited: true },
+              { outletId: outlet2Id, sequence: 2, visited: true },
+              { outletId: outlet1Id, sequence: 3, visited: false },
+            ],
+          },
+        },
+      });
+
+      const res = await request(app)
+        .get(`/beatplans/${plan.id}`)
+        .set('Authorization', `Bearer ${tokenA}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.adherence.stopsTotal).toBe(3);
+      expect(res.body.adherence.stopsVisited).toBe(2);
+      expect(res.body.adherence.adherenceRate).toBe(66.67);
+    });
+
     it('returns 404 to a field agent reading another agent plan', async () => {
       const res = await request(app)
         .get(`/beatplans/${planAId}`)
