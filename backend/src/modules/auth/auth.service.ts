@@ -20,8 +20,33 @@ export function issueToken(payload: AuthTokenPayload): string {
   return jwt.sign(payload, getSecret(), { expiresIn: '12h' });
 }
 
+const ROLES = ['field_agent', 'manager', 'admin'] as const;
+
+// `jwt.verify` proves the token was signed by us. It proves NOTHING about the
+// payload's shape — the old `as AuthTokenPayload` cast simply asserted it.
+// That mattered because Prisma DROPS `undefined` filters from a `where`
+// clause: a signed token without `clientId` turned `where: { clientId }` into
+// "return every tenant's rows". So we parse, never cast.
+function parseTokenPayload(decoded: unknown): AuthTokenPayload {
+  if (typeof decoded !== 'object' || decoded === null) {
+    throw new Error('Malformed token payload');
+  }
+  const { userId, role, clientId } = decoded as Record<string, unknown>;
+  if (
+    typeof userId !== 'string' ||
+    userId.length === 0 ||
+    typeof clientId !== 'string' ||
+    clientId.length === 0 ||
+    typeof role !== 'string' ||
+    !(ROLES as readonly string[]).includes(role)
+  ) {
+    throw new Error('Malformed token payload');
+  }
+  return { userId, clientId, role: role as AuthTokenPayload['role'] };
+}
+
 export function verifyToken(token: string): AuthTokenPayload {
-  return jwt.verify(token, getSecret()) as AuthTokenPayload;
+  return parseTokenPayload(jwt.verify(token, getSecret()));
 }
 
 export async function hashPassword(plain: string): Promise<string> {
