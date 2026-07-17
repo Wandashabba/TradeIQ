@@ -8,6 +8,41 @@ Scope authority: `docs/superpowers/specs/2026-07-02-tradeiq-scaffold-design.md`
 (§2 reconciles the detailed build prompt with the pitch deck). Real-vs-stubbed
 detail: `docs/architecture/stubs-and-interfaces.md`.
 
+## Active — remediation of the 2026-07-17 audit — 🔴 in progress
+
+A full-codebase audit on 2026-07-17 found 2 Critical and ~13 High issues. The
+phases below describe what is *built*; this section tracks what must be *fixed*
+before Phase 1 can honestly be called shippable. Work is split into four plans
+so each produces working, testable software on its own. **Execute in order — the
+sequence is by exploitability, not convenience.**
+
+| # | Plan | Covers | Status |
+|---|---|---|---|
+| 1 | `docs/superpowers/plans/2026-07-17-security-critical.md` | C3 JWT payload cast → cross-tenant read · H1 published default secret · C1 bcrypt-hash disclosure · H6 webhook SSRF (+H7 timeout) · N8 401-instead-of-404 | 🔴 planned |
+| 2 | `2026-07-17-backend-scale.md` (not yet written) | H3 zero DB indexes · H4 zero pagination (66 `findMany`, 1 `take`) · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · M1 capture paths not agent-scoped · M4/N7 global uniqueness on `Outlet.code` / `User.email` · M5 CSV formula injection · N5 kpiMath drift | ⚪ not started |
+| 3 | `2026-07-17-flutter-shipblockers.md` (not yet written) | H8 no INTERNET permission in release · H9 debug signing keys · C2 (leak half) clear DB on logout + user-scope the outbox · H10 no 401 handling / no `exp` check · H12 web token key beside ciphertext · M11 no Dio timeouts · M12 `_rememberMe` no-op · M14 `allowBackup` | ⚪ not started |
+| 4 | `2026-07-17-design-integration.md` (not yet written) | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ⚪ not started |
+
+**Deferred with a reason — not forgotten:**
+
+- **H2 — no token revocation.** A valid JWT for a deactivated or demoted user
+  keeps working for up to 12h; `requireAuth` never re-checks the DB. The fix
+  needs a lookup in `requireAuth`, which turns the fabricated-userId tokens in
+  19 test files into 401s — including the 16 cross-tenant tests that rely on
+  `clientId: 'no-such-client'`. Multi-day change; own plan. **This is the
+  largest auth gap remaining after Plan 1.**
+- **H11 photos → object storage** — already tracked as #65 (ADR 0007 commits to
+  it). Independently urgent: `tasks.service.ts:98` matches on the base64 `url`
+  column, which is unindexable (btree caps ~2704 bytes), so closing one task
+  seq-scans every photo. Needs the breaking `closurePhotoUrl → closurePhotoId`
+  API change regardless of storage.
+- **Durable webhook outbox** — related to #62. Plan 1 adds the 5s timeout that
+  caps the 300s hang; the retry/outbox half stays ticketed.
+- **C2 (encryption half) — SQLCipher at rest for the Drift DB.** Not yet
+  ticketed. The offline DB holds GPS trails and base64 shelf photos in plain
+  SQLite. Plan 3 closes the *leak* half (clear on logout, user-scope the
+  outbox); encryption at rest needs its own ticket.
+
 ## Phase 1 — Foundation (months 1-3) — ✅ implemented
 
 The field-agent offline-first audit app + manager dashboard, on lean infra
@@ -15,7 +50,7 @@ The field-agent offline-first audit app + manager dashboard, on lean infra
 
 | Capability | Status |
 |---|---|
-| Auth (JWT, bcrypt, rate-limited login, RBAC route guards) | ✅ (admin role actually reachable since #118 — see note below) |
+| Auth (JWT, bcrypt, rate-limited login, RBAC route guards) | ⚠️ built, but **not shippable** — the 2026-07-17 audit found the JWT payload is cast not validated (cross-tenant read), the default secret is published, and there is no revocation. See "Active — remediation" above. |
 | Outlet registry + create + haversine geofence check-in | ✅ |
 | S1-S10 audit capture (offline-first Drift + sync queue) | ✅ |
 | S2 stock (coverage-days, server-derived — see note below), S3-4 visibility (vision-stub wired), S5 pricing (OCR-stub wired) | ✅ |
