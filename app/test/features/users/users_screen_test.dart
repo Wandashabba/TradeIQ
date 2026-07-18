@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/features/users/presentation/users_screen.dart';
 
@@ -71,14 +72,22 @@ class _ThrowingUsersRepository implements UsersRepository {
       throw UnimplementedError();
 }
 
-Widget _app(UsersRepository repo) => routedApp(
+Widget _app(UsersRepository repo, {ThemeData? theme}) => routedApp(
       const UsersScreen(),
+      theme: theme,
       overrides: [
         usersRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeUsersRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(UsersScreen), findsOneWidget);
+  });
+
   testWidgets('renders user emails once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeUsersRepository()));
     await tester.pumpAndSettle();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/dispatch/data/dispatch_repository.dart';
 import 'package:tradeiq_app/features/dispatch/presentation/dispatch_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -38,8 +39,9 @@ class _FakeDispatchRepository implements DispatchRepository {
   Future<DispatchResult> dispatch(String outletId) async => _result;
 }
 
-Widget _app() => routedApp(
+Widget _app({ThemeData? theme}) => routedApp(
       const DispatchScreen(),
+      theme: theme,
       overrides: [
         outletsListProvider.overrideWith((ref) async => _outlets),
         dispatchRepositoryProvider
@@ -48,6 +50,13 @@ Widget _app() => routedApp(
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(DispatchScreen), findsOneWidget);
+  });
+
   testWidgets('renders the outlet dropdown and Dispatch app bar',
       (tester) async {
     await tester.pumpWidget(_app());

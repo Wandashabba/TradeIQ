@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/campaigns/data/campaigns_repository.dart';
 import 'package:tradeiq_app/features/campaigns/presentation/campaigns_screen.dart';
 
@@ -93,14 +94,22 @@ class _ThrowingCampaignsRepository implements CampaignsRepository {
       throw Exception('boom');
 }
 
-Widget _app(CampaignsRepository repo) => routedApp(
+Widget _app(CampaignsRepository repo, {ThemeData? theme}) => routedApp(
       const CampaignsScreen(),
+      theme: theme,
       overrides: [
         campaignsRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeCampaignsRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(CampaignsScreen), findsOneWidget);
+  });
+
   testWidgets('renders campaign names once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeCampaignsRepository()));
     await tester.pumpAndSettle();

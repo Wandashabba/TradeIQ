@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -27,10 +27,10 @@ class _DispatchScreenState extends ConsumerState<DispatchScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Agents are ranked in-territory first, then by distance from their '
             'last known location.',
-            style: TextStyle(fontSize: 12, color: AppColors.ink3),
+            style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
           PanelCard(
@@ -44,8 +44,8 @@ class _DispatchScreenState extends ConsumerState<DispatchScreen> {
                 key: const ValueKey<String>('outlet-select'),
                 initialValue: _selectedOutletId,
                 decoration: const InputDecoration(labelText: 'Outlet'),
-                dropdownColor: AppColors.surface2,
-                style: const TextStyle(fontSize: 13, color: AppColors.ink1),
+                dropdownColor: context.colors.surface2,
+                style: TextStyle(fontSize: 13, color: context.colors.ink1),
                 items: [
                   for (final outlet in list)
                     DropdownMenuItem<String>(

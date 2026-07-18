@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/incentives/data/incentives_repository.dart';
 import 'package:tradeiq_app/features/incentives/presentation/incentives_screen.dart';
 
@@ -97,14 +98,22 @@ class _ThrowingIncentivesRepository implements IncentivesRepository {
       throw UnimplementedError();
 }
 
-Widget _app(IncentivesRepository repo) => routedApp(
+Widget _app(IncentivesRepository repo, {ThemeData? theme}) => routedApp(
       const IncentivesScreen(),
+      theme: theme,
       overrides: [
         incentivesRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeIncentivesRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(IncentivesScreen), findsOneWidget);
+  });
+
   testWidgets('renders scheme names once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeIncentivesRepository()));
     await tester.pumpAndSettle();

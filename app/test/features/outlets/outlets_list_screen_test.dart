@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/outlets/presentation/outlets_list_screen.dart';
 
@@ -34,14 +35,22 @@ class FakeOutletsRepository implements OutletsRepository {
 
 /// OutletsListScreen now uses ManagerScaffold, which reads GoRouterState — a
 /// bare MaterialApp(home:) throws, so it must be pumped under a real route.
-Widget _app() => routedApp(
+Widget _app({ThemeData? theme}) => routedApp(
       const OutletsListScreen(),
+      theme: theme,
       overrides: [
         outletsRepositoryProvider.overrideWithValue(FakeOutletsRepository()),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(OutletsListScreen), findsOneWidget);
+  });
+
   testWidgets('renders outlet names once loaded', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();

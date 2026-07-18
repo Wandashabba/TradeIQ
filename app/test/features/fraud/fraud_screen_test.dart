@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/fraud/data/fraud_repository.dart';
 import 'package:tradeiq_app/features/fraud/presentation/fraud_screen.dart';
 
@@ -36,14 +37,22 @@ class _ThrowingFraudRepository implements FraudRepository {
       throw Exception('boom');
 }
 
-Widget _app(FraudRepository repo) => routedApp(
+Widget _app(FraudRepository repo, {ThemeData? theme}) => routedApp(
       const FraudScreen(),
+      theme: theme,
       overrides: [
         fraudRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeFraudRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(FraudScreen), findsOneWidget);
+  });
+
   testWidgets('renders risk score and signal codes for flagged visits',
       (tester) async {
     await tester.pumpWidget(_app(_FakeFraudRepository()));

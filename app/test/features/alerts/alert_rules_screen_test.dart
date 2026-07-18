@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alert_rules_screen.dart';
 
@@ -114,14 +115,22 @@ class _ThrowingAlertRulesRepository implements AlertRulesRepository {
       throw Exception('boom');
 }
 
-Widget _app(AlertRulesRepository repo) => routedApp(
+Widget _app(AlertRulesRepository repo, {ThemeData? theme}) => routedApp(
       const AlertRulesScreen(),
+      theme: theme,
       overrides: [
         alertRulesRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeAlertRulesRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(AlertRulesScreen), findsOneWidget);
+  });
+
   testWidgets('lists every rule, active and paused alike', (tester) async {
     await tester.pumpWidget(_app(_FakeAlertRulesRepository()));
     await tester.pumpAndSettle();

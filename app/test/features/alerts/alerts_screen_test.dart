@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
 
@@ -60,14 +61,22 @@ class _ThrowingAlertsRepository implements AlertsRepository {
       throw Exception('boom');
 }
 
-Widget _app(AlertsRepository repo) => routedApp(
+Widget _app(AlertsRepository repo, {ThemeData? theme}) => routedApp(
       const AlertsScreen(),
+      theme: theme,
       overrides: [
         alertsRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeAlertsRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(AlertsScreen), findsOneWidget);
+  });
+
   testWidgets('opens on the triage list — what is still open', (tester) async {
     await tester.pumpWidget(_app(_FakeAlertsRepository()));
     await tester.pumpAndSettle();

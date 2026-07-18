@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/territories/presentation/territories_screen.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
@@ -103,9 +104,11 @@ class _RoleSession extends SessionController {
 Widget _app(
   TerritoriesRepository repo, {
   String? role,
+  ThemeData? theme,
 }) =>
     routedApp(
       const TerritoriesScreen(),
+      theme: theme,
       overrides: [
         territoriesRepositoryProvider.overrideWithValue(repo),
         usersRepositoryProvider.overrideWithValue(_FakeUsersRepository()),
@@ -114,6 +117,13 @@ Widget _app(
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeTerritoriesRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TerritoriesScreen), findsOneWidget);
+  });
+
   testWidgets('renders territory names once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeTerritoriesRepository()));
     await tester.pumpAndSettle();

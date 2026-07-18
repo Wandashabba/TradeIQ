@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
@@ -207,9 +208,11 @@ Widget _app({
   List<AlertItem> alerts = const [],
   List<TaskItem> tasks = const [],
   List<TrendPoint> scorecards = const [],
+  ThemeData? theme,
 }) =>
     routedApp(
       const DashboardShellScreen(),
+      theme: theme,
       overrides: [
         dashboardRepositoryProvider
             .overrideWithValue(dashboard ?? _FakeDashboardRepository()),
@@ -225,6 +228,12 @@ Widget _app({
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await _pump(tester, _app(theme: AppTheme.light()));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(DashboardShellScreen), findsOneWidget);
+  });
+
   testWidgets('leads with the execution score as the hero figure', (tester) async {
     await _pump(tester, _app());
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 import 'package:tradeiq_app/features/trends/presentation/trends_screen.dart';
@@ -42,8 +43,9 @@ class _ThrowingTrendsRepository implements TrendsRepository {
   Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
 }
 
-Widget _app(TrendsRepository repo) => routedApp(
+Widget _app(TrendsRepository repo, {ThemeData? theme}) => routedApp(
       const TrendsScreen(),
+      theme: theme,
       overrides: [
         trendsRepositoryProvider.overrideWithValue(repo),
       ],
@@ -61,6 +63,12 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 }
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await _pump(tester, _app(_FakeTrendsRepository(), theme: AppTheme.light()));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TrendsScreen), findsOneWidget);
+  });
+
   testWidgets('renders the three trend sections as charts', (tester) async {
     await _pump(tester, _app(_FakeTrendsRepository()));
 

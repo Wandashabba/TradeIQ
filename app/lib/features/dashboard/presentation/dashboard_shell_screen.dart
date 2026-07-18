@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/theme/tiq_geometry.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -396,12 +397,12 @@ class _KpiStrip extends ConsumerWidget {
                                     right: BorderSide(
                                       color: c == rows[r].length - 1
                                           ? Colors.transparent
-                                          : AppColors.line,
+                                          : context.colors.line,
                                     ),
                                     bottom: BorderSide(
                                       color: r == rows.length - 1
                                           ? Colors.transparent
-                                          : AppColors.line,
+                                          : context.colors.line,
                                     ),
                                   ),
                                 ),
@@ -484,12 +485,12 @@ class _TerritoryScoreBars extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (territories.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
         child: Center(
           child: Text(
             'No territories defined',
-            style: TextStyle(fontSize: 12, color: AppColors.ink3),
+            style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
         ),
       );
@@ -551,6 +552,7 @@ class _FilterBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
     final filter = ref.watch(dashboardFilterProvider);
     final territories = ref.watch(territoriesListProvider);
 
@@ -564,8 +566,8 @@ class _FilterBar extends ConsumerWidget {
         hint: const Text('All territories'),
         underline: const SizedBox.shrink(),
         isDense: true,
-        style: const TextStyle(fontSize: 12.5, color: AppColors.ink1),
-        dropdownColor: AppColors.surface2,
+        style: TextStyle(fontSize: 12.5, color: c.ink1),
+        dropdownColor: c.surface2,
         items: [
           const DropdownMenuItem<String?>(
             value: null,
@@ -586,9 +588,9 @@ class _FilterBar extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.surface1,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+        color: c.surface1,
+        border: Border.all(color: c.line),
+        borderRadius: BorderRadius.circular(TiqGeometry.panel),
       ),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
@@ -620,10 +622,11 @@ class _RangeControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+        border: Border.all(color: c.lineStrong),
+        borderRadius: BorderRadius.circular(TiqGeometry.control),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -638,13 +641,13 @@ class _RangeControl extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                 decoration: BoxDecoration(
                   color: r == selected
-                      ? AppColors.surface3
+                      ? c.surface3
                       : Colors.transparent,
                   border: Border(
                     right: BorderSide(
                       color: i == DashboardRange.values.length - 1
                           ? Colors.transparent
-                          : AppColors.lineStrong,
+                          : c.lineStrong,
                     ),
                   ),
                 ),
@@ -653,7 +656,7 @@ class _RangeControl extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: r == selected ? AppColors.ink1 : AppColors.ink2,
+                    color: r == selected ? c.ink1 : c.ink2,
                   ),
                 ),
               ),
@@ -673,10 +676,10 @@ class _StubCaveat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
+    return Text(
       'Visibility compliance and share of shelf are derived from the Phase-1 '
       'computer-vision stub — see docs/architecture/stubs-and-interfaces.md.',
-      style: TextStyle(fontSize: 11, color: AppColors.ink3),
+      style: TextStyle(fontSize: 11, color: context.colors.ink3),
     );
   }
 }
@@ -718,7 +721,7 @@ class _InlineError extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(fontSize: 12, color: AppColors.ink2),
+              style: TextStyle(fontSize: 12, color: context.colors.ink2),
             ),
           ),
           if (onRetry != null)

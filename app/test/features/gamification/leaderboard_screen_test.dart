@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/gamification/data/gamification_repository.dart';
 import 'package:tradeiq_app/features/gamification/presentation/leaderboard_screen.dart';
 
@@ -37,14 +38,22 @@ class _FailingGamificationRepository implements GamificationRepository {
       throw Exception('boom');
 }
 
-Widget _app(GamificationRepository repo) => routedApp(
+Widget _app(GamificationRepository repo, {ThemeData? theme}) => routedApp(
       const LeaderboardScreen(),
+      theme: theme,
       overrides: [
         gamificationRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeGamificationRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(LeaderboardScreen), findsOneWidget);
+  });
+
   testWidgets('renders leaderboard entry emails once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeGamificationRepository()));
     await tester.pumpAndSettle();

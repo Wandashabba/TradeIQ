@@ -987,7 +987,7 @@ cd app && grep -rl "AppColors\." lib --include="*.dart" | sort
 Expected output — exactly this set and nothing else:
 ```
 lib/core/theme/app_colors.dart
-lib/core/theme/app_theme.dart
+lib/core/theme/tiq_colors.dart
 lib/core/widgets/agent_kit.dart
 lib/core/widgets/agent_motion.dart
 lib/core/widgets/agent_scaffold.dart
@@ -1001,7 +1001,10 @@ lib/features/auth/presentation/landing_screen.dart
 lib/features/auth/presentation/login_screen.dart
 lib/features/beatplans/presentation/today_screen.dart
 ```
-(`app_theme.dart` appears only for the two `AppColors.radius*` geometry consts — that's fine.)
+(This list originally carried `app_theme.dart` for its two `AppColors.radius*`
+geometry consts, but the Task 3 hygiene round moved those to `TiqGeometry` and
+dropped the import; `tiq_colors.dart` matches instead — a `[AppColors]`
+doc-comment link only, not a code read.)
 
 - [ ] **Step 4: Run the full suite**
 

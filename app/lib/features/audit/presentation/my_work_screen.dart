@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/sync/sync_status.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/theme/tiq_geometry.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
@@ -66,20 +67,22 @@ class MyWorkScreen extends ConsumerWidget {
               _Group(items: s.sent.take(20).toList()),
             ],
             if (s.pending.isEmpty && s.sent.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 48),
                 child: Center(
                   child: Text(
                     'Nothing captured yet',
-                    style: TextStyle(fontSize: 14, color: AppColors.ink3),
+                    style:
+                        TextStyle(fontSize: 14, color: context.colors.ink3),
                   ),
                 ),
               ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Captures send themselves when you have signal — you never have to '
               'remember to do it. Nothing here is ever lost.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.ink3, height: 1.5),
+              style: TextStyle(
+                  fontSize: 12.5, color: context.colors.ink3, height: 1.5),
             ),
           ],
         ),
@@ -152,11 +155,11 @@ class _Heading extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.9,
-          color: AppColors.ink3,
+          color: context.colors.ink3,
         ),
       ),
     );
@@ -171,11 +174,12 @@ class _Group extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface1,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+        color: c.surface1,
+        border: Border.all(color: c.line),
+        borderRadius: BorderRadius.circular(TiqGeometry.panel),
       ),
       child: Column(
         children: [
@@ -207,14 +211,15 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final (icon, color, state) = switch (item) {
-      SyncItem(synced: true) => (Icons.check, AppColors.good, 'Sent'),
+      SyncItem(synced: true) => (Icons.check, c.good, 'Sent'),
       SyncItem(needsAttention: true) => (
           Icons.warning_amber_outlined,
-          AppColors.crit,
+          c.crit,
           'Failed',
         ),
-      _ => (Icons.schedule, AppColors.warn, 'Waiting'),
+      _ => (Icons.schedule, c.warn, 'Waiting'),
     };
 
     return Container(
@@ -223,7 +228,7 @@ class _Row extends StatelessWidget {
       decoration: BoxDecoration(
         border: last
             ? null
-            : const Border(bottom: BorderSide(color: AppColors.line)),
+            : Border(bottom: BorderSide(color: c.line)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,7 +241,7 @@ class _Row extends StatelessWidget {
               children: [
                 Text(
                   item.label,
-                  style: const TextStyle(fontSize: 14, color: AppColors.ink1),
+                  style: TextStyle(fontSize: 14, color: c.ink1),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -247,7 +252,7 @@ class _Row extends StatelessWidget {
                       : formatAgo(item.queuedAt),
                   style: TextStyle(
                     fontSize: 12,
-                    color: showError ? AppColors.crit : AppColors.ink3,
+                    color: showError ? c.crit : c.ink3,
                   ),
                 ),
               ],

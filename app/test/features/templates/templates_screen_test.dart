@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 import 'package:tradeiq_app/features/templates/presentation/templates_screen.dart';
 
@@ -40,14 +41,22 @@ class _FailingTemplatesRepository implements TemplatesRepository {
       throw UnimplementedError();
 }
 
-Widget _app(TemplatesRepository repo) => routedApp(
+Widget _app(TemplatesRepository repo, {ThemeData? theme}) => routedApp(
       const TemplatesScreen(),
+      theme: theme,
       overrides: [
         templatesRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeTemplatesRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TemplatesScreen), findsOneWidget);
+  });
+
   testWidgets('renders template names once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeTemplatesRepository()));
     await tester.pumpAndSettle();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/beatplans/data/beatplans_repository.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/beatplans_screen.dart';
 
@@ -69,8 +70,9 @@ class _FakeBeatPlansRepository implements BeatPlansRepository {
       _plans.first;
 }
 
-Widget _listApp(_FakeBeatPlansRepository repo) => routedApp(
+Widget _listApp(_FakeBeatPlansRepository repo, {ThemeData? theme}) => routedApp(
       const BeatPlansScreen(),
+      theme: theme,
       overrides: [
         beatPlansRepositoryProvider.overrideWithValue(repo),
       ],
@@ -84,6 +86,13 @@ Widget _detailApp(_FakeBeatPlansRepository repo) => routedApp(
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_listApp(_FakeBeatPlansRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(BeatPlansScreen), findsOneWidget);
+  });
+
   testWidgets('renders beat plan names once loaded', (tester) async {
     await tester.pumpWidget(_listApp(_FakeBeatPlansRepository()));
     await tester.pumpAndSettle();

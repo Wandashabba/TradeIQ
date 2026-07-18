@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 import 'package:tradeiq_app/features/tasks/presentation/tasks_screen.dart';
@@ -134,9 +135,11 @@ Widget _app(
   _FakeTasksAdminRepository tasksRepo,
   _RecordingPhotosRepository photosRepo, {
   bool cameraCancels = false,
+  ThemeData? theme,
 }) =>
     routedApp(
       const TasksScreen(),
+      theme: theme,
       overrides: [
         tasksAdminRepositoryProvider.overrideWithValue(tasksRepo),
         photosRepositoryProvider.overrideWithValue(photosRepo),
@@ -147,6 +150,17 @@ Widget _app(
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(
+      _FakeTasksAdminRepository(),
+      _RecordingPhotosRepository(),
+      theme: AppTheme.light(),
+    ));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(TasksScreen), findsOneWidget);
+  });
+
   testWidgets('opens on the still-open tasks', (tester) async {
     await tester.pumpWidget(_app(
       _FakeTasksAdminRepository(),

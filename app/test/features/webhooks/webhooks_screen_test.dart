@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/webhooks/data/webhooks_repository.dart';
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
 
@@ -73,14 +74,22 @@ class _ThrowingWebhooksRepository implements WebhooksRepository {
       throw UnimplementedError();
 }
 
-Widget _app(WebhooksRepository repo) => routedApp(
+Widget _app(WebhooksRepository repo, {ThemeData? theme}) => routedApp(
       const WebhooksScreen(),
+      theme: theme,
       overrides: [
         webhooksRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeWebhooksRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(WebhooksScreen), findsOneWidget);
+  });
+
   testWidgets('renders webhook events once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeWebhooksRepository()));
     await tester.pumpAndSettle();

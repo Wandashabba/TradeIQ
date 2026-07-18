@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/clients/data/clients_repository.dart';
 import 'package:tradeiq_app/features/clients/presentation/client_config_screen.dart';
 
@@ -90,8 +91,14 @@ class _FixedSessionController extends SessionController {
 
 /// Defaults to an admin: PATCH /clients/me is admin-only, so that is the role
 /// the editing tests are about.
-Widget _app(ClientsRepository repo, {String role = 'admin'}) => routedApp(
+Widget _app(
+  ClientsRepository repo, {
+  String role = 'admin',
+  ThemeData? theme,
+}) =>
+    routedApp(
       const ClientConfigScreen(),
+      theme: theme,
       overrides: [
         clientsRepositoryProvider.overrideWithValue(repo),
         sessionControllerProvider.overrideWith(
@@ -110,6 +117,12 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 }
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await _pump(tester, _app(_FakeClientsRepository(), theme: AppTheme.light()));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ClientConfigScreen), findsOneWidget);
+  });
+
   testWidgets('renders a weight field for each scorecard weight', (tester) async {
     await _pump(tester, _app(_FakeClientsRepository()));
 

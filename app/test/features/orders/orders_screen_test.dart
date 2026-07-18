@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/orders/presentation/orders_screen.dart';
 
@@ -47,14 +48,22 @@ class _FailingOrdersRepository implements OrdersRepository {
       throw Exception('boom');
 }
 
-Widget _app(OrdersRepository repo) => routedApp(
+Widget _app(OrdersRepository repo, {ThemeData? theme}) => routedApp(
       const OrdersScreen(),
+      theme: theme,
       overrides: [
         ordersRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeOrdersRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(OrdersScreen), findsOneWidget);
+  });
+
   testWidgets('renders both orders once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeOrdersRepository()));
     await tester.pumpAndSettle();

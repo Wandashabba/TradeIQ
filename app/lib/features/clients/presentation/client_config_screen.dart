@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 
 import '../../../core/auth/session_controller.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/theme/tiq_geometry.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -153,11 +154,12 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'Weights are relative, not percentages: the score is the weighted '
           'average divided by the total weight, so doubling every weight changes '
           'nothing. A dimension weighted 0 is dropped from the score entirely.',
-          style: TextStyle(fontSize: 11.5, color: AppColors.ink3, height: 1.5),
+          style:
+              TextStyle(fontSize: 11.5, color: context.colors.ink3, height: 1.5),
         ),
         const SizedBox(height: 16),
         _ThresholdsPanel(thresholds: widget.config.kpiThresholds),
@@ -220,6 +222,7 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -233,8 +236,8 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
               for (final t in KpiThreshold.values)
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 9),
-                  decoration: const BoxDecoration(
-                    border: Border(top: BorderSide(color: AppColors.line)),
+                  decoration: BoxDecoration(
+                    border: Border(top: BorderSide(color: c.line)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,17 +249,17 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
                           children: [
                             Text(
                               t.label,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.ink1,
+                                color: c.ink1,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               t.help,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: AppColors.ink3,
+                                color: c.ink3,
                                 height: 1.4,
                               ),
                             ),
@@ -301,11 +304,11 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'These four keys are the whole contract — the engine reads nothing '
           'else. Changing a band re-grades new scorecards only; it does not '
           'retroactively re-score past visits.',
-          style: TextStyle(fontSize: 11.5, color: AppColors.ink3, height: 1.5),
+          style: TextStyle(fontSize: 11.5, color: c.ink3, height: 1.5),
         ),
       ],
     );
@@ -329,13 +332,14 @@ class _WeightRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final excluded = weight <= 0;
     final share = (excluded || total <= 0) ? 0.0 : (weight / total) * 100;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.line)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: c.line)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -344,7 +348,7 @@ class _WeightRow extends StatelessWidget {
             flex: 5,
             child: Text(
               _humanise(dimension),
-              style: const TextStyle(fontSize: 13, color: AppColors.ink1),
+              style: TextStyle(fontSize: 13, color: c.ink1),
             ),
           ),
           Expanded(
@@ -367,11 +371,11 @@ class _WeightRow extends StatelessWidget {
                   ? const StatusChip(label: 'Excluded', level: StatusLevel.warning)
                   : Text(
                       '${share.toStringAsFixed(1)}%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.ink1,
-                        fontFeatures: [FontFeature.tabularFigures()],
+                        color: c.ink1,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
             ),
@@ -420,25 +424,26 @@ class ReadOnlyNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       key: const ValueKey<String>('read-only-notice'),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface2,
-        border: Border.all(color: AppColors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+        color: c.surface2,
+        border: Border.all(color: c.lineStrong),
+        borderRadius: BorderRadius.circular(TiqGeometry.control),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.lock_outline, size: 15, color: AppColors.ink3),
-          SizedBox(width: 9),
+          Icon(Icons.lock_outline, size: 15, color: c.ink3),
+          const SizedBox(width: 9),
           Expanded(
             child: Text(
               'Read-only. Only an administrator can change scoring config — '
               'these figures are shown because they explain your scores.',
               style: TextStyle(
                 fontSize: 12,
-                color: AppColors.ink3,
+                color: c.ink3,
                 height: 1.45,
               ),
             ),

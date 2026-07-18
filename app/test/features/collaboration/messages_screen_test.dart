@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/collaboration/data/collaboration_repository.dart';
 import 'package:tradeiq_app/features/collaboration/presentation/messages_screen.dart';
 
@@ -68,8 +69,14 @@ class _ThrowingCollaborationRepository implements CollaborationRepository {
       throw Exception('boom');
 }
 
-Widget _app(CollaborationRepository repo, {String role = 'manager'}) => routedApp(
+Widget _app(
+  CollaborationRepository repo, {
+  String role = 'manager',
+  ThemeData? theme,
+}) =>
+    routedApp(
       const MessagesScreen(),
+      theme: theme,
       overrides: [
         collaborationRepositoryProvider.overrideWithValue(repo),
         sessionControllerProvider.overrideWith(
@@ -85,6 +92,13 @@ Future<void> _openAnnouncements(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('renders under the light theme', (tester) async {
+    await tester.pumpWidget(_app(_FakeCollaborationRepository(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(MessagesScreen), findsOneWidget);
+  });
+
   testWidgets('renders message bodies once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeCollaborationRepository()));
     await tester.pumpAndSettle();

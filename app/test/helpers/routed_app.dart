@@ -16,10 +16,12 @@ Widget routedApp(
   Widget screen, {
   List<Override> overrides = const [],
   String path = '/screen',
+  ThemeData? theme,
 }) =>
     ProviderScope(
       overrides: overrides,
       child: MaterialApp.router(
+        theme: theme,
         routerConfig: GoRouter(
           initialLocation: path,
           routes: [GoRoute(path: path, builder: (context, state) => screen)],

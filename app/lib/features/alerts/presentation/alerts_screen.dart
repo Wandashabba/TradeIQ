@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/theme/tiq_geometry.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -36,10 +37,10 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           // fired" should be able to go and see (or silence) the rule itself.
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Rules evaluate on every visit submit.',
-                  style: TextStyle(fontSize: 12, color: AppColors.ink3),
+                  style: TextStyle(fontSize: 12, color: context.colors.ink3),
                 ),
               ),
               RowAction(
@@ -152,8 +153,8 @@ class _Filters extends StatelessWidget {
           hint: const Text('All severities'),
           underline: const SizedBox.shrink(),
           isDense: true,
-          style: const TextStyle(fontSize: 12.5, color: AppColors.ink1),
-          dropdownColor: AppColors.surface2,
+          style: TextStyle(fontSize: 12.5, color: context.colors.ink1),
+          dropdownColor: context.colors.surface2,
           items: const [
             DropdownMenuItem<String?>(value: null, child: Text('All severities')),
             DropdownMenuItem<String?>(value: 'critical', child: Text('Critical')),
@@ -189,10 +190,11 @@ class _Segmented<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+        border: Border.all(color: c.lineStrong),
+        borderRadius: BorderRadius.circular(TiqGeometry.control),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -205,13 +207,13 @@ class _Segmented<T> extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                 decoration: BoxDecoration(
                   color: segments[i].value == selected
-                      ? AppColors.surface3
+                      ? c.surface3
                       : Colors.transparent,
                   border: Border(
                     right: BorderSide(
                       color: i == segments.length - 1
                           ? Colors.transparent
-                          : AppColors.lineStrong,
+                          : c.lineStrong,
                     ),
                   ),
                 ),
@@ -221,8 +223,8 @@ class _Segmented<T> extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: segments[i].value == selected
-                        ? AppColors.ink1
-                        : AppColors.ink2,
+                        ? c.ink1
+                        : c.ink2,
                   ),
                 ),
               ),
