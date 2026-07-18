@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/tiq_colors.dart';
 import 'console.dart';
 
 /// The shared list/worklist pattern for the manager console.
@@ -33,6 +34,7 @@ class AsyncSection<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return value.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 40),
@@ -54,7 +56,7 @@ class AsyncSection<T> extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Failed to load $label: $err',
-              style: const TextStyle(fontSize: 12.5, color: AppColors.ink2),
+              style: TextStyle(fontSize: 12.5, color: colors.ink2),
             ),
             const SizedBox(height: 10),
             OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
@@ -76,6 +78,7 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
       child: Column(
@@ -84,14 +87,14 @@ class EmptyState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: AppColors.ink2),
+            style: TextStyle(fontSize: 13, color: colors.ink2),
           ),
           if (hint != null) ...[
             const SizedBox(height: 4),
             Text(
               hint!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
+              style: TextStyle(fontSize: 11.5, color: colors.ink3),
             ),
           ],
         ],
@@ -114,6 +117,7 @@ class TriageStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final cells = <Widget>[
       for (final c in counts)
         _TriageCell(
@@ -130,7 +134,7 @@ class TriageStrip extends StatelessWidget {
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.4,
-                  color: c.count == 0 ? AppColors.ink3 : c.level.color,
+                  color: c.count == 0 ? colors.ink3 : c.level.colorOf(colors),
                 ),
               ),
             ],
@@ -153,7 +157,7 @@ class TriageStrip extends StatelessWidget {
                       right: BorderSide(
                         color: i == cells.length - 1
                             ? Colors.transparent
-                            : AppColors.line,
+                            : colors.line,
                       ),
                     ),
                   ),
@@ -214,9 +218,10 @@ class WorklistRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final row = Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: colors.line)),
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -225,7 +230,7 @@ class WorklistRow extends StatelessWidget {
             // Channel 1: the edge bar.
             Container(
               width: 3,
-              color: resolved ? AppColors.lineStrong : level.color,
+              color: resolved ? colors.lineStrong : level.colorOf(colors),
             ),
             Expanded(
               child: Padding(
@@ -244,14 +249,14 @@ class WorklistRow extends StatelessWidget {
                               fontSize: 13,
                               fontWeight:
                                   resolved ? FontWeight.w400 : FontWeight.w500,
-                              color: AppColors.ink1,
+                              color: colors.ink1,
                             ),
                           ),
                           const SizedBox(height: 2),
                           DefaultTextStyle(
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11.5,
-                              color: AppColors.ink3,
+                              color: colors.ink3,
                             ),
                             child: meta,
                           ),
@@ -274,9 +279,9 @@ class WorklistRow extends StatelessWidget {
                           when!,
                           softWrap: false,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11.5,
-                            color: AppColors.ink3,
+                            color: colors.ink3,
                           ),
                         ),
                       ),
@@ -307,19 +312,20 @@ class CodeToken extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: AppColors.surface2,
-        border: Border.all(color: AppColors.line),
+        color: colors.surface2,
+        border: Border.all(color: colors.line),
         borderRadius: BorderRadius.circular(2),
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'monospace',
           fontSize: 10.5,
-          color: AppColors.ink3,
+          color: colors.ink3,
         ),
       ),
     );
@@ -341,6 +347,7 @@ class RowAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.only(left: 8),
       child: OutlinedButton(
@@ -348,7 +355,7 @@ class RowAction extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
           foregroundColor:
-              tone == StatusLevel.neutral ? AppColors.ink1 : tone.color,
+              tone == StatusLevel.neutral ? colors.ink1 : tone.colorOf(colors),
           textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
         ),
         child: Text(label),
@@ -367,11 +374,12 @@ class FilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.surface1,
-        border: Border.all(color: AppColors.line),
+        color: colors.surface1,
+        border: Border.all(color: colors.line),
         borderRadius: BorderRadius.circular(AppColors.radiusPanel),
       ),
       child: Wrap(
