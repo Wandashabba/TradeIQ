@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/tiq_colors.dart';
 
 /// Shared building blocks for the manager console.
 ///
@@ -13,17 +13,26 @@ import '../theme/app_colors.dart';
 ///   numbers use proportional digits; only values that must align vertically
 ///   (table rows, ledger columns) use [FontFeature.tabularFigures].
 
+/// Panel corner radius — mirrors the `radiusPanel` geometry token.
+const double _radiusPanel = 4;
+
 /// Severity/state of a row. The colour is looked up from the reserved status
 /// palette — these are never used as series colours.
 enum StatusLevel { critical, warning, good, neutral }
 
 extension StatusLevelColor on StatusLevel {
-  Color get color => switch (this) {
-        StatusLevel.critical => AppColors.crit,
-        StatusLevel.warning => AppColors.warn,
-        StatusLevel.good => AppColors.good,
-        StatusLevel.neutral => AppColors.ink3,
+  /// Themed lookup — resolve with `colorOf(context.colors)` so the mapping
+  /// follows the active theme.
+  Color colorOf(TiqColors c) => switch (this) {
+        StatusLevel.critical => c.crit,
+        StatusLevel.warning => c.warn,
+        StatusLevel.good => c.good,
+        StatusLevel.neutral => c.ink3,
       };
+
+  /// Context-free lookup against the historical (dark) palette. Prefer
+  /// [colorOf] in widget code.
+  Color get color => colorOf(TiqColors.dark);
 }
 
 /// A small uppercase label that heads a section or a column.
@@ -41,7 +50,7 @@ class SectionLabel extends StatelessWidget {
         fontSize: 10,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.9,
-        color: color ?? AppColors.ink3,
+        color: color ?? context.colors.ink3,
       ),
     );
   }
@@ -73,18 +82,18 @@ class PanelCard extends StatelessWidget {
         ? null
         : Container(
             padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.line)),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: context.colors.line)),
             ),
             child: Row(
               children: [
                 Flexible(
                   child: Text(
                     title!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.ink1,
+                      color: context.colors.ink1,
                     ),
                   ),
                 ),
@@ -93,7 +102,7 @@ class PanelCard extends StatelessWidget {
                   Flexible(
                     child: Text(
                       subtitle!,
-                      style: const TextStyle(fontSize: 11, color: AppColors.ink3),
+                      style: TextStyle(fontSize: 11, color: context.colors.ink3),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -106,9 +115,9 @@ class PanelCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface1,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+        color: context.colors.surface1,
+        border: Border.all(color: context.colors.line),
+        borderRadius: BorderRadius.circular(_radiusPanel),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -132,10 +141,11 @@ class DeltaText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final (glyph, color) = switch (value) {
-      > 0 => ('▲', AppColors.good),
-      < 0 => ('▼', AppColors.crit),
-      _ => ('–', AppColors.ink3),
+      > 0 => ('▲', c.good),
+      < 0 => ('▼', c.crit),
+      _ => ('–', c.ink3),
     };
     final magnitude = value.abs().toStringAsFixed(1);
     return Text(
@@ -159,7 +169,7 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = level.color;
+    final color = level.colorOf(context.colors);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -226,7 +236,7 @@ class StatTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11, color: AppColors.ink2),
+            style: TextStyle(fontSize: 11, color: context.colors.ink2),
           ),
           const SizedBox(height: 5),
           Row(
@@ -238,12 +248,12 @@ class StatTile extends StatelessWidget {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     height: 1.1,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.4,
-                    color: AppColors.ink1,
+                    color: context.colors.ink1,
                   ),
                 ),
               ),
@@ -260,7 +270,7 @@ class StatTile extends StatelessWidget {
               note!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10.5, color: AppColors.ink3),
+              style: TextStyle(fontSize: 10.5, color: context.colors.ink3),
             ),
           ],
         ],
@@ -296,7 +306,7 @@ class AttentionRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         decoration: BoxDecoration(
           border: showDivider
-              ? const Border(bottom: BorderSide(color: AppColors.line))
+              ? Border(bottom: BorderSide(color: context.colors.line))
               : null,
         ),
         child: Row(
@@ -309,7 +319,7 @@ class AttentionRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: level.color,
+                  color: level.colorOf(context.colors),
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -321,22 +331,22 @@ class AttentionRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.ink1,
+                      color: context.colors.ink1,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     meta,
-                    style: const TextStyle(fontSize: 11, color: AppColors.ink3),
+                    style: TextStyle(fontSize: 11, color: context.colors.ink3),
                   ),
                 ],
               ),
             ),
             if (onTap != null)
-              const Icon(Icons.chevron_right, size: 14, color: AppColors.ink3),
+              Icon(Icons.chevron_right, size: 14, color: context.colors.ink3),
           ],
         ),
       ),

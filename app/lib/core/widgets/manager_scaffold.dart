@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/session_controller.dart';
-import '../theme/app_colors.dart';
 import '../theme/theme_mode_controller.dart';
+import '../theme/tiq_colors.dart';
 
 /// A console destination. Grouped by verb — a manager scanning nineteen flat
 /// rows has to *read* the menu; three verbs let them scan it.
@@ -80,12 +80,12 @@ class ManagerScaffold extends ConsumerWidget {
     void logout() => ref.read(sessionControllerProvider.notifier).logout();
 
     return Scaffold(
-      backgroundColor: AppColors.plane,
+      backgroundColor: context.colors.plane,
       // The drawer only exists at phone width — on desktop the rail is always
       // visible, so there is nothing to open.
       drawer: useDrawer
           ? Drawer(
-              backgroundColor: AppColors.surface1,
+              backgroundColor: context.colors.surface1,
               child: _NavRail(
                 location: location,
                 collapsed: false,
@@ -136,7 +136,7 @@ class ManagerScaffold extends ConsumerWidget {
                   onLogout: logout,
                   onNavigate: context.go,
                 ),
-                const VerticalDivider(width: 1, color: AppColors.line),
+                VerticalDivider(width: 1, color: context.colors.line),
                 Expanded(child: body),
               ],
             ),
@@ -161,7 +161,7 @@ class _NavRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: collapsed ? 60 : 232,
-      color: AppColors.surface1,
+      color: context.colors.surface1,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -172,22 +172,22 @@ class _NavRail extends StatelessWidget {
                 children: [
                   for (final (heading, destinations) in _groups) ...[
                     if (collapsed)
-                      const Divider(
+                      Divider(
                         height: 17,
                         indent: 16,
                         endIndent: 16,
-                        color: AppColors.line,
+                        color: context.colors.line,
                       )
                     else
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 5),
                         child: Text(
                           heading.toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.9,
-                            color: AppColors.ink3,
+                            color: context.colors.ink3,
                           ),
                         ),
                       ),
@@ -203,7 +203,7 @@ class _NavRail extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1, color: AppColors.line),
+            Divider(height: 1, color: context.colors.line),
             _RailFoot(collapsed: collapsed, onLogout: onLogout),
           ],
         ),
@@ -231,10 +231,10 @@ class _NavRow extends StatelessWidget {
     // reads as position, which is what it means.
     final row = Container(
       decoration: BoxDecoration(
-        color: selected ? AppColors.surface2 : null,
+        color: selected ? context.colors.surface2 : null,
         border: Border(
           left: BorderSide(
-            color: selected ? AppColors.brand : Colors.transparent,
+            color: selected ? context.colors.brand : Colors.transparent,
             width: 3,
           ),
         ),
@@ -247,7 +247,7 @@ class _NavRow extends StatelessWidget {
           Icon(
             destination.icon,
             size: 15,
-            color: selected ? AppColors.series1 : AppColors.ink3,
+            color: selected ? context.colors.series1 : context.colors.ink3,
           ),
           if (!collapsed) ...[
             const SizedBox(width: 9),
@@ -258,7 +258,7 @@ class _NavRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? AppColors.ink1 : AppColors.ink2,
+                  color: selected ? context.colors.ink1 : context.colors.ink2,
                 ),
               ),
             ),
@@ -293,14 +293,14 @@ class _RailFoot extends ConsumerWidget {
       height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.surface3,
-        border: Border.all(color: AppColors.lineStrong),
+        color: context.colors.surface3,
+        border: Border.all(color: context.colors.lineStrong),
         borderRadius: BorderRadius.circular(2),
       ),
       child: Icon(
         Icons.person_outline,
         size: 14,
-        color: AppColors.ink2,
+        color: context.colors.ink2,
       ),
     );
 
@@ -321,16 +321,16 @@ class _RailFoot extends ConsumerWidget {
             child: Text(
               role.isEmpty ? 'Signed in' : _humanRole(role),
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppColors.ink1,
+                color: context.colors.ink1,
               ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.logout, size: 15),
-            color: AppColors.ink3,
+            color: context.colors.ink3,
             tooltip: 'Log out',
             onPressed: onLogout,
           ),
