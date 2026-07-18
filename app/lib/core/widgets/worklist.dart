@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/tiq_colors.dart';
+import '../theme/tiq_geometry.dart';
 import 'console.dart';
 
 /// The shared list/worklist pattern for the manager console.
@@ -9,9 +10,6 @@ import 'console.dart';
 /// Every manager screen is some variant of *triage a list*: see how bad it is,
 /// narrow it, act on a row. These are the pieces that make all of them behave
 /// the same way — so learning Alerts teaches you Tasks, Orders and Users.
-
-/// Panel corner radius — mirrors the `radiusPanel` geometry token.
-const double _radiusPanel = 4;
 
 /// Wraps an [AsyncValue] in the console's loading / error / empty states.
 ///
@@ -380,7 +378,7 @@ class FilterRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.surface1,
         border: Border.all(color: context.colors.line),
-        borderRadius: BorderRadius.circular(_radiusPanel),
+        borderRadius: BorderRadius.circular(TiqGeometry.panel),
       ),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,

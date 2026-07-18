@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'tiq_geometry.dart';
+
 /// TradeIQ palette — a dark instrument panel for retail execution.
 ///
 /// The three series hues and the status steps were validated against the
@@ -55,10 +57,10 @@ class AppColors {
 
   // ── Geometry ─────────────────────────────────────────────────────────
   /// Controls (buttons, inputs). Squared off — nothing is a pill.
-  static const double radiusControl = 3;
+  static const double radiusControl = TiqGeometry.control;
 
   /// Panels and cards.
-  static const double radiusPanel = 4;
+  static const double radiusPanel = TiqGeometry.panel;
 
   // ── Back-compat aliases ──────────────────────────────────────────────
   // Existing feature code references these names. They keep compiling; only

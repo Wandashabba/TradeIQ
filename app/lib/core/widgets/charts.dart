@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/tiq_colors.dart';
+import '../theme/tiq_geometry.dart';
 
 /// The console's chart set. Hand-rolled on [CustomPainter] — the shapes needed
 /// are simple, and a package would still have to be fought into this spec.
@@ -22,9 +23,6 @@ import '../theme/tiq_colors.dart';
 /// One (label, value) pair. Deliberately not tied to the trends DTO so charts
 /// stay usable from any feature.
 typedef ChartPoint = ({String label, double value});
-
-/// Control corner radius — mirrors the `radiusControl` geometry token.
-const double _radiusControl = 3;
 
 TextStyle _labelStyle(TiqColors c) => TextStyle(fontSize: 10, color: c.ink3);
 
@@ -821,6 +819,7 @@ class _Tooltip extends StatelessWidget {
   Widget build(BuildContext context) {
     const w = 136.0;
     final left = (x + 12).clamp(0.0, math.max(0.0, plotWidth - w)).toDouble();
+    final isDark = context.colors.brightness == Brightness.dark;
     return Stack(
       children: [
         Positioned(
@@ -830,9 +829,12 @@ class _Tooltip extends StatelessWidget {
             width: w,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF05060A),
+              // Inverted tooltip, matching the theme's tooltipTheme: near-black
+              // in dark mode (pixel-identical to before), ink in light mode so
+              // the readout stays readable on white panels.
+              color: isDark ? const Color(0xFF05060A) : context.colors.ink1,
               border: Border.all(color: context.colors.lineStrong),
-              borderRadius: BorderRadius.circular(_radiusControl),
+              borderRadius: BorderRadius.circular(TiqGeometry.control),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -852,7 +854,7 @@ class _Tooltip extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: context.colors.ink1,
+                    color: isDark ? context.colors.ink1 : Colors.white,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
@@ -924,6 +926,7 @@ class _ScrubReadout extends StatelessWidget {
     const w = 150.0;
     final left = (x + 12).clamp(0.0, math.max(0.0, plotWidth - w)).toDouble();
     final delta = previous == null ? null : point.value - previous!;
+    final isDark = context.colors.brightness == Brightness.dark;
 
     return Stack(
       children: [
@@ -934,9 +937,12 @@ class _ScrubReadout extends StatelessWidget {
             width: w,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF05060A),
+              // Inverted tooltip, matching the theme's tooltipTheme: near-black
+              // in dark mode (pixel-identical to before), ink in light mode so
+              // the readout stays readable on white panels.
+              color: isDark ? const Color(0xFF05060A) : context.colors.ink1,
               border: Border.all(color: context.colors.lineStrong),
-              borderRadius: BorderRadius.circular(_radiusControl),
+              borderRadius: BorderRadius.circular(TiqGeometry.control),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,7 +966,7 @@ class _ScrubReadout extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: context.colors.ink1,
+                        color: isDark ? context.colors.ink1 : Colors.white,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),

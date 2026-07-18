@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
 import 'tiq_colors.dart';
+import 'tiq_geometry.dart';
 
 /// The TradeIQ themes — one `_base` parameterized by [TiqColors], so light and
 /// dark cannot drift component-by-component.
@@ -11,10 +11,10 @@ class AppTheme {
   AppTheme._();
 
   static const _control = BorderRadius.all(
-    Radius.circular(AppColors.radiusControl),
+    Radius.circular(TiqGeometry.control),
   );
   static const _panel = BorderRadius.all(
-    Radius.circular(AppColors.radiusPanel),
+    Radius.circular(TiqGeometry.panel),
   );
 
   // Cached: stable identity for rebuilds/tests. Theme edits need hot RESTART,

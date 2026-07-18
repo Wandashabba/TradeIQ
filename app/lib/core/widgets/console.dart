@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tiq_colors.dart';
+import '../theme/tiq_geometry.dart';
 
 /// Shared building blocks for the manager console.
 ///
@@ -12,9 +13,6 @@ import '../theme/tiq_colors.dart';
 /// * **Figures are proportional, columns are tabular.** Large standalone
 ///   numbers use proportional digits; only values that must align vertically
 ///   (table rows, ledger columns) use [FontFeature.tabularFigures].
-
-/// Panel corner radius — mirrors the `radiusPanel` geometry token.
-const double _radiusPanel = 4;
 
 /// Severity/state of a row. The colour is looked up from the reserved status
 /// palette — these are never used as series colours.
@@ -29,10 +27,6 @@ extension StatusLevelColor on StatusLevel {
         StatusLevel.good => c.good,
         StatusLevel.neutral => c.ink3,
       };
-
-  /// Context-free lookup against the historical (dark) palette. Prefer
-  /// [colorOf] in widget code.
-  Color get color => colorOf(TiqColors.dark);
 }
 
 /// A small uppercase label that heads a section or a column.
@@ -117,7 +111,7 @@ class PanelCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.surface1,
         border: Border.all(color: context.colors.line),
-        borderRadius: BorderRadius.circular(_radiusPanel),
+        borderRadius: BorderRadius.circular(TiqGeometry.panel),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

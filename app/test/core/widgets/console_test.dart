@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -54,10 +55,10 @@ void main() {
     });
 
     testWidgets('each level takes its reserved status hue', (tester) async {
-      expect(StatusLevel.critical.color, AppColors.crit);
-      expect(StatusLevel.warning.color, AppColors.warn);
-      expect(StatusLevel.good.color, AppColors.good);
-      expect(StatusLevel.neutral.color, AppColors.ink3);
+      expect(StatusLevel.critical.colorOf(TiqColors.dark), AppColors.crit);
+      expect(StatusLevel.warning.colorOf(TiqColors.dark), AppColors.warn);
+      expect(StatusLevel.good.colorOf(TiqColors.dark), AppColors.good);
+      expect(StatusLevel.neutral.colorOf(TiqColors.dark), AppColors.ink3);
     });
   });
 
