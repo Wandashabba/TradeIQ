@@ -285,7 +285,7 @@ class _NavRailState extends State<_NavRail>
   }
 }
 
-class _NavRow extends StatelessWidget {
+class _NavRow extends StatefulWidget {
   const _NavRow({
     required this.destination,
     required this.selected,
@@ -299,13 +299,36 @@ class _NavRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_NavRow> createState() => _NavRowState();
+}
+
+class _NavRowState extends State<_NavRow> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     // The active row is a rule plus a weight change — not a filled pill. It
     // reads as position, which is what it means.
     final colors = context.colors;
-    final row = Container(
+    final destination = widget.destination;
+    final selected = widget.selected;
+    final collapsed = widget.collapsed;
+    // The hover/pressed wash sits UNDER the selected state: the current
+    // destination keeps its surface2 fill (and brand rule) no matter what the
+    // pointer is doing. Only unselected rows answer it.
+    final wash = _pressed
+        ? colors.surface3
+        : _hovered
+            ? colors.surface2
+            : Colors.transparent;
+    final row = AnimatedContainer(
+      duration: reduceMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
       decoration: BoxDecoration(
-        color: selected ? colors.surface2 : null,
+        color: selected ? colors.surface2 : wash,
         border: Border(
           left: BorderSide(
             color: selected ? colors.brand : Colors.transparent,
@@ -345,10 +368,14 @@ class _NavRow extends StatelessWidget {
       // Key preserved from the drawer implementation — navigation tests and
       // anything else keyed on a destination keep working.
       key: ValueKey('nav-${destination.path}'),
-      onTap: onTap,
-      // Sits on top of the selected wash: hover/pressed read on both states.
-      hoverColor: colors.surface2,
-      highlightColor: colors.surface3,
+      onTap: widget.onTap,
+      // The wash is painted by the row's own decoration (above) — ink on the
+      // ancestor Material would be buried under the rail's surface1 fill.
+      onHover: (hovered) => setState(() => _hovered = hovered),
+      onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
+      hoverColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      splashColor: Colors.transparent,
       child: collapsed
           ? Tooltip(message: destination.label, child: row)
           : row,
