@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/territories_repository.dart';
@@ -82,7 +83,9 @@ class TerritoryMapScreen extends ConsumerWidget {
                         child: Icon(
                           Icons.location_on,
                           key: ValueKey<String>('outlet-pin-icon-${outlet.id}'),
-                          color: outlet.visited ? Colors.green : Colors.red,
+                          color: outlet.visited
+                              ? context.colors.good
+                              : context.colors.crit,
                           size: 32,
                         ),
                       ),

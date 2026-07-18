@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/territories/presentation/territory_map_screen.dart';
@@ -90,8 +91,10 @@ void main() {
     final unvisitedPin = tester.widget<Icon>(
       find.byKey(const ValueKey<String>('outlet-pin-icon-o2')),
     );
-    expect(visitedPin.color, Colors.green);
-    expect(unvisitedPin.color, Colors.red);
+    // Unthemed pump -> context.colors falls back to TiqColors.dark; the
+    // meaning (visited = good, unvisited = crit) rides the semantic slots.
+    expect(visitedPin.color, TiqColors.dark.good);
+    expect(unvisitedPin.color, TiqColors.dark.crit);
   });
 
   testWidgets('tapping a pin shows the outlet info sheet', (tester) async {

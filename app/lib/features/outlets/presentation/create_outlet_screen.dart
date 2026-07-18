@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/location/location_service.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../data/outlets_repository.dart';
 
 class CreateOutletScreen extends ConsumerStatefulWidget {
@@ -110,13 +111,13 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
                         ])
                       : _locationError != null
                           ? Row(children: [
-                              const Icon(Icons.location_off, color: Colors.red),
+                              Icon(Icons.location_off, color: context.colors.crit),
                               const SizedBox(width: 8),
-                              Expanded(child: Text(_locationError!, style: const TextStyle(color: Colors.red))),
+                              Expanded(child: Text(_locationError!, style: TextStyle(color: context.colors.crit))),
                               TextButton(onPressed: _fetchLocation, child: const Text('Retry')),
                             ])
                           : Row(children: [
-                              const Icon(Icons.location_on, color: Colors.green),
+                              Icon(Icons.location_on, color: context.colors.good),
                               const SizedBox(width: 8),
                               Text('${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}'),
                             ]),
