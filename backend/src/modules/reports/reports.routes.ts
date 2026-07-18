@@ -61,6 +61,8 @@ reportsRouter.get('/:id/generate', async (req: AuthedRequest, res) => {
   const result = await generateReport(id, req.user!.clientId);
 
   if (req.query.format === 'csv') {
+    // Force download rather than inline render (defense-in-depth for CWE-1236).
+    res.setHeader('Content-Disposition', 'attachment; filename="report.csv"');
     res.status(200).type('text/csv').send(rowsToCsv(result.rows));
     return;
   }
