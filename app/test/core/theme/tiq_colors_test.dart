@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
@@ -50,5 +52,53 @@ void main() {
       expect(copied.brand, const Color(0xFF123456));
       expect(copied.plane, TiqColors.dark.plane);
     });
+  });
+
+  group('TiqColors.light chart palette contrast', () {
+    // WCAG 2.x relative luminance + contrast ratio, written out in full so a
+    // palette regression fails with the actual ratio in the message.
+    // Color.r/.g/.b are already 0..1 doubles on current Flutter.
+    double linearize(double channel) => channel <= 0.04045
+        ? channel / 12.92
+        : math.pow((channel + 0.055) / 1.055, 2.4).toDouble();
+
+    double relativeLuminance(Color c) =>
+        0.2126 * linearize(c.r) + 0.7152 * linearize(c.g) + 0.0722 * linearize(c.b);
+
+    double contrastRatio(Color a, Color b) {
+      final la = relativeLuminance(a);
+      final lb = relativeLuminance(b);
+      final hi = math.max(la, lb);
+      final lo = math.min(la, lb);
+      return (hi + 0.05) / (lo + 0.05);
+    }
+
+    const white = Color(0xFFFFFFFF);
+    const l = TiqColors.light;
+
+    // Charts draw on surface1 (#FFFFFF in light). Series and status colors
+    // must clear 3:1 there (spec §2). If any value here fails: darken it until
+    // it passes, then update BOTH the spec value and TiqColors.light.
+    final palette = <String, Color>{
+      'series1': l.series1, // #2069C9 ≈ 5.0:1
+      'series2': l.series2, // #177A57 ≈ 5.3:1
+      'series3': l.series3, // #9A6700 ≈ 4.9:1
+      'good': l.good, //       #0B7A0B ≈ 5.5:1
+      'warn': l.warn, //       #935F00 ≈ 5.4:1
+      'crit': l.crit, //       #B32E2E ≈ 6.3:1
+    };
+
+    for (final entry in palette.entries) {
+      test('${entry.key} clears 3:1 against white', () {
+        final ratio = contrastRatio(entry.value, white);
+        expect(
+          ratio,
+          greaterThanOrEqualTo(3.0),
+          reason: '${entry.key} is $ratio:1 on white — darken it and update '
+              'the spec (docs/superpowers/specs/2026-07-17-premium-ui-theme-'
+              'motion-design.md §2) to the passing value.',
+        );
+      });
+    }
   });
 }
