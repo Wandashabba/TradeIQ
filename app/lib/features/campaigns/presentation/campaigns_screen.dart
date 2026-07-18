@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -91,7 +91,7 @@ class _CampaignRow extends ConsumerWidget {
     return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface1,
+        backgroundColor: context.colors.surface1,
         title: Text(campaign.name),
         content: FutureBuilder<CampaignCompliance>(
           future: future,

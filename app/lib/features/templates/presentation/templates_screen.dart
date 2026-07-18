@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -20,9 +20,9 @@ class TemplatesScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'A template is the form an agent fills in on a visit.',
-            style: TextStyle(fontSize: 12, color: AppColors.ink3),
+            style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
           AsyncSection<List<AuditTemplate>>(
