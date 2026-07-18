@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -30,10 +31,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Risks, stockouts and price deviations open a task automatically, '
             'with an SLA due date set by priority.',
-            style: TextStyle(fontSize: 12, color: AppColors.ink3),
+            style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
           AsyncSection<List<TaskItem>>(
@@ -78,11 +79,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                         const SizedBox(height: 3),
                         Text(
                           '${closed.where((t) => !t.closureVerified).length}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -0.4,
-                            color: AppColors.ink1,
+                            color: context.colors.ink1,
                           ),
                         ),
                       ],
@@ -144,9 +145,10 @@ class _Segmented<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.lineStrong),
+        border: Border.all(color: colors.lineStrong),
         borderRadius: BorderRadius.circular(AppColors.radiusControl),
       ),
       child: Row(
@@ -160,13 +162,13 @@ class _Segmented<T> extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                 decoration: BoxDecoration(
                   color: segments[i].value == selected
-                      ? AppColors.surface3
+                      ? colors.surface3
                       : Colors.transparent,
                   border: Border(
                     right: BorderSide(
                       color: i == segments.length - 1
                           ? Colors.transparent
-                          : AppColors.lineStrong,
+                          : colors.lineStrong,
                     ),
                   ),
                 ),
@@ -176,8 +178,8 @@ class _Segmented<T> extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: segments[i].value == selected
-                        ? AppColors.ink1
-                        : AppColors.ink2,
+                        ? colors.ink1
+                        : colors.ink2,
                   ),
                 ),
               ),
@@ -268,11 +270,11 @@ class _TaskRow extends ConsumerWidget {
           ),
           if (task.closureVerified) ...[
             const SizedBox(width: 8),
-            const Icon(Icons.verified_outlined, size: 12, color: AppColors.good),
+            Icon(Icons.verified_outlined, size: 12, color: context.colors.good),
             const SizedBox(width: 3),
-            const Text(
+            Text(
               'Verified',
-              style: TextStyle(fontSize: 11, color: AppColors.good),
+              style: TextStyle(fontSize: 11, color: context.colors.good),
             ),
           ],
         ],
@@ -316,8 +318,9 @@ class _ClosurePhotoDialogState extends State<_ClosurePhotoDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return AlertDialog(
-      backgroundColor: AppColors.surface1,
+      backgroundColor: colors.surface1,
       title: const Text('Close with photo', style: TextStyle(fontSize: 15)),
       content: SizedBox(
         width: 360,
@@ -327,7 +330,7 @@ class _ClosurePhotoDialogState extends State<_ClosurePhotoDialog> {
           children: [
             Text(
               widget.task.requiredFix,
-              style: const TextStyle(fontSize: 12.5, color: AppColors.ink2),
+              style: TextStyle(fontSize: 12.5, color: colors.ink2),
             ),
             const SizedBox(height: 14),
             PhotoCaptureField(

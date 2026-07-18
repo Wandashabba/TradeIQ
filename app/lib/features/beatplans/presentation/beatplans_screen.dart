@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -130,7 +130,7 @@ class BeatPlanDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(beatPlanDetailProvider(planId));
     return Scaffold(
-      backgroundColor: AppColors.plane,
+      backgroundColor: context.colors.plane,
       appBar: AppBar(title: const Text('Beat Plan')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -163,13 +163,13 @@ class BeatPlanDetailScreen extends ConsumerWidget {
                       ),
                       subtitle: Text(
                         '${(data.adherenceRate * 100).toStringAsFixed(0)}% adherence',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11.5,
-                          color: AppColors.ink3,
+                          color: context.colors.ink3,
                         ),
                       ),
                     ),
-                    const Divider(height: 1, color: AppColors.line),
+                    Divider(height: 1, color: context.colors.line),
                     for (final stop in data.stops)
                       CheckboxListTile(
                         key: ValueKey<String>('stop-${stop.id}'),

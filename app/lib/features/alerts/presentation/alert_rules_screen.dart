@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -69,10 +69,10 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Rules evaluate on every visit submit. Where two active rules share '
             'a metric, the newest one wins.',
-            style: TextStyle(fontSize: 12, color: AppColors.ink3),
+            style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
           AsyncSection<List<AlertRule>>(
@@ -150,8 +150,8 @@ class _Filters extends StatelessWidget {
           hint: const Text('All metrics'),
           underline: const SizedBox.shrink(),
           isDense: true,
-          style: const TextStyle(fontSize: 12.5, color: AppColors.ink1),
-          dropdownColor: AppColors.surface2,
+          style: TextStyle(fontSize: 12.5, color: context.colors.ink1),
+          dropdownColor: context.colors.surface2,
           items: [
             const DropdownMenuItem<String?>(
               value: null,
