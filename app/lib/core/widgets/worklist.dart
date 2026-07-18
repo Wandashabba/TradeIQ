@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/tiq_colors.dart';
+import 'agent_motion.dart' show reduceMotion;
 import 'console.dart';
 
 /// The shared list/worklist pattern for the manager console.
@@ -188,7 +189,12 @@ class _TriageCell extends StatelessWidget {
 /// Severity rides on three channels at once — a coloured bar down the left
 /// edge, the [StatusChip]'s mark, and its word — so the row still reads in
 /// greyscale, in print, and under colour-vision deficiency.
-class WorklistRow extends StatelessWidget {
+///
+/// A tappable row answers the pointer with a wash — [TiqColors.surface2] on
+/// hover, [TiqColors.surface3] while pressed, 150ms — behind the content.
+/// The wash is feedback, not meaning: the severity channels above are never
+/// touched by it.
+class WorklistRow extends StatefulWidget {
   const WorklistRow({
     super.key,
     required this.title,
@@ -298,7 +304,13 @@ class WorklistRow extends StatelessWidget {
     if (onTap == null) return Opacity(opacity: resolved ? 0.6 : 1, child: row);
     return Opacity(
       opacity: resolved ? 0.6 : 1,
-      child: InkWell(onTap: onTap, child: row),
+      child: InkWell(
+        onTap: onTap,
+        // Explicit state feedback: a row is a target, and it should say so.
+        hoverColor: colors.surface2,
+        highlightColor: colors.surface3,
+        child: row,
+      ),
     );
   }
 }

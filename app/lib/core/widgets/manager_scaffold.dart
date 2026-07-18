@@ -346,6 +346,9 @@ class _NavRow extends StatelessWidget {
       // anything else keyed on a destination keep working.
       key: ValueKey('nav-${destination.path}'),
       onTap: onTap,
+      // Sits on top of the selected wash: hover/pressed read on both states.
+      hoverColor: colors.surface2,
+      highlightColor: colors.surface3,
       child: collapsed
           ? Tooltip(message: destination.label, child: row)
           : row,
