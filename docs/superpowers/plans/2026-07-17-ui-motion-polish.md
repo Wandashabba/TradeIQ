@@ -1,6 +1,6 @@
 # UI Motion & Polish (Plan B of 2) — Shared-Axis Transitions, Drawer Stagger, Elevation
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (`- [x]`) syntax.
 
 **Goal:** Add the premium motion and polish layer on top of the merged theme system (Plan A): Material shared-axis page transitions for the manager console, a deeper drawer scrim with a staggered nav fade-up, and light-mode elevation (soft shadows) plus hover/pressed/focus interaction states — all reduced-motion-aware, with dark mode visually unchanged.
 
@@ -46,13 +46,13 @@
 
 **Files:** Modify `app/pubspec.yaml`.
 
-- [ ] **Step 1:** In `pubspec.yaml` under `dependencies:` (after `go_router: ^17.3.0`), add:
+- [x] **Step 1:** In `pubspec.yaml` under `dependencies:` (after `go_router: ^17.3.0`), add:
 ```yaml
   animations: ^2.0.11
 ```
-- [ ] **Step 2:** `cd app && flutter pub get` — expect `Got dependencies!` (or `Changed N dependencies!`). If `2.0.11` is unavailable for this Flutter/Dart, use the latest `^2.0.x` `flutter pub get` resolves to and note it.
-- [ ] **Step 3:** `flutter analyze` → `No issues found!` (nothing uses it yet; confirms resolution is clean).
-- [ ] **Step 4:** Commit:
+- [x] **Step 2:** `cd app && flutter pub get` — expect `Got dependencies!` (or `Changed N dependencies!`). If `2.0.11` is unavailable for this Flutter/Dart, use the latest `^2.0.x` `flutter pub get` resolves to and note it.
+- [x] **Step 3:** `flutter analyze` → `No issues found!` (nothing uses it yet; confirms resolution is clean).
+- [x] **Step 4:** Commit:
 ```bash
 git add pubspec.yaml pubspec.lock
 git commit -m "build(app): add the animations package for shared-axis transitions
@@ -70,7 +70,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:** Create `app/lib/core/router/manager_page.dart`; Test `app/test/core/router/manager_page_test.dart`.
 
-- [ ] **Step 1: Write the failing test** — `app/test/core/router/manager_page_test.dart`:
+- [x] **Step 1: Write the failing test** — `app/test/core/router/manager_page_test.dart`:
 ```dart
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
@@ -127,9 +127,9 @@ void main() {
 ```
 (Confirm the package name in imports is `trade_iq` — check an existing test's import prefix and match it.)
 
-- [ ] **Step 2:** `flutter test test/core/router/manager_page_test.dart` → FAIL (`manager_page.dart` missing).
+- [x] **Step 2:** `flutter test test/core/router/manager_page_test.dart` → FAIL (`manager_page.dart` missing).
 
-- [ ] **Step 3: Create `app/lib/core/router/manager_page.dart`:**
+- [x] **Step 3: Create `app/lib/core/router/manager_page.dart`:**
 ```dart
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
@@ -167,13 +167,13 @@ CustomTransitionPage<void> managerPage(Widget child, {LocalKey? key}) {
 }
 ```
 
-- [ ] **Step 4:** `flutter test test/core/router/manager_page_test.dart` → both pass. `flutter analyze` → clean.
+- [x] **Step 4:** `flutter test test/core/router/manager_page_test.dart` → both pass. `flutter analyze` → clean.
 
-- [ ] **Step 5: Wire the 22 manager routes.** In `app_router.dart`, for each manager route in the list above, change `builder: (context, state) => const XScreen(),` to `pageBuilder: (context, state) => managerPage(const XScreen()),`. Add `import '../router/manager_page.dart';` (adjust path — it's the same dir, so `'manager_page.dart'`). Leave the 7 agent/public routes on `builder:`. For the two parameterized manager routes (`/audit-templates/:templateId/preview` and any with args) pass the built widget: `pageBuilder: (context, state) => managerPage(TemplateFormScreen(...))`.
+- [x] **Step 5: Wire the 22 manager routes.** In `app_router.dart`, for each manager route in the list above, change `builder: (context, state) => const XScreen(),` to `pageBuilder: (context, state) => managerPage(const XScreen()),`. Add `import '../router/manager_page.dart';` (adjust path — it's the same dir, so `'manager_page.dart'`). Leave the 7 agent/public routes on `builder:`. For the two parameterized manager routes (`/audit-templates/:templateId/preview` and any with args) pass the built widget: `pageBuilder: (context, state) => managerPage(TemplateFormScreen(...))`.
 
-- [ ] **Step 6:** `flutter analyze` → clean. Targeted: `flutter test test/core/router/` → green. Then a nav-driving screen test to catch pump issues: `flutter test test/features/dashboard/ test/core/widgets/manager_scaffold_test.dart` → green (add `pumpAndSettle()` only if a test that navigates now hangs on the 250ms transition; do not change assertions).
+- [x] **Step 6:** `flutter analyze` → clean. Targeted: `flutter test test/core/router/` → green. Then a nav-driving screen test to catch pump issues: `flutter test test/features/dashboard/ test/core/widgets/manager_scaffold_test.dart` → green (add `pumpAndSettle()` only if a test that navigates now hangs on the 250ms transition; do not change assertions).
 
-- [ ] **Step 7:** Commit:
+- [x] **Step 7:** Commit:
 ```bash
 git add lib/core/router/ test/core/router/
 git commit -m "feat(app): shared-axis page transitions for manager routes
@@ -191,15 +191,15 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:** Modify `app/lib/core/widgets/manager_scaffold.dart`; Test `manager_scaffold_test.dart`.
 
-- [ ] **Step 1:** In `ManagerScaffold.build`, on the `Scaffold` that carries `drawer:`, add:
+- [x] **Step 1:** In `ManagerScaffold.build`, on the `Scaffold` that carries `drawer:`, add:
 ```dart
       drawerScrimColor: context.colors.scrim,
 ```
 (`context.colors` is available — the scaffold already reads it after Plan A. In dark this is `black54` = unchanged; in light it is the deeper `rgba(16,24,40,.60)`.)
 
-- [ ] **Step 2:** Add a test to `manager_scaffold_test.dart` asserting the scaffold's `drawerScrimColor` resolves to `TiqColors.dark.scrim` under the dark theme (pump the scaffold at drawer width, find the `Scaffold`, read `drawerScrimColor`).
+- [x] **Step 2:** Add a test to `manager_scaffold_test.dart` asserting the scaffold's `drawerScrimColor` resolves to `TiqColors.dark.scrim` under the dark theme (pump the scaffold at drawer width, find the `Scaffold`, read `drawerScrimColor`).
 
-- [ ] **Step 3:** `flutter analyze` clean; `flutter test test/core/widgets/manager_scaffold_test.dart` green. Commit:
+- [x] **Step 3:** `flutter analyze` clean; `flutter test test/core/widgets/manager_scaffold_test.dart` green. Commit:
 ```bash
 git add lib/core/widgets/manager_scaffold.dart test/core/widgets/manager_scaffold_test.dart
 git commit -m "feat(app): drawer scrim reads context.colors.scrim (deeper in light)
@@ -213,7 +213,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:** Modify `manager_scaffold.dart` (`_NavRail`/`_NavRow`).
 
-- [ ] **Step 1:** Make `_NavRail` a `StatefulWidget` with a single `AnimationController` (duration `20ms*rows + 150ms`), started in `initState` **only when rendered inside the drawer** (pass a `staggered: bool` flag from `ManagerScaffold` — true for the `drawer:` instance, false for the persistent rail). Each `_NavRow` gets an interval-based `FadeTransition` + slight upward `SlideTransition` (e.g. `Tween(begin: Offset(0,0.06), end: Offset.zero)`), its interval offset by `index * 20ms`. Under `reduceMotion(context)`, skip the controller and render rows at full opacity/position (no animation).
+- [x] **Step 1:** Make `_NavRail` a `StatefulWidget` with a single `AnimationController` (duration `20ms*rows + 150ms`), started in `initState` **only when rendered inside the drawer** (pass a `staggered: bool` flag from `ManagerScaffold` — true for the `drawer:` instance, false for the persistent rail). Each `_NavRow` gets an interval-based `FadeTransition` + slight upward `SlideTransition` (e.g. `Tween(begin: Offset(0,0.06), end: Offset.zero)`), its interval offset by `index * 20ms`. Under `reduceMotion(context)`, skip the controller and render rows at full opacity/position (no animation).
 
 Exact shape:
 ```dart
@@ -236,11 +236,11 @@ Widget _staggered(BuildContext context, int index, int count, Widget row) {
 ```
 Reuse `reduceMotion` from `agent_motion.dart`.
 
-- [ ] **Step 2:** Wire `staggered: true` on the `Drawer`'s `_NavRail`, `false` on the persistent side rail (`body:` branch).
+- [x] **Step 2:** Wire `staggered: true` on the `Drawer`'s `_NavRail`, `false` on the persistent side rail (`body:` branch).
 
-- [ ] **Step 3:** Add a widget test: with `disableAnimations: true`, opening the drawer shows all nav rows immediately (no `FadeTransition` wrapping them, or opacity 1). With motion on, the controller exists. `flutter analyze` clean; targeted test green.
+- [x] **Step 3:** Add a widget test: with `disableAnimations: true`, opening the drawer shows all nav rows immediately (no `FadeTransition` wrapping them, or opacity 1). With motion on, the controller exists. `flutter analyze` clean; targeted test green.
 
-- [ ] **Step 4:** Commit:
+- [x] **Step 4:** Commit:
 ```bash
 git add lib/core/widgets/manager_scaffold.dart test/core/widgets/manager_scaffold_test.dart
 git commit -m "feat(app): staggered nav fade-up when the drawer opens
@@ -257,7 +257,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:** Modify `app/lib/core/widgets/console.dart`.
 
-- [ ] **Step 1:** In `PanelCard` (and the KPI `StatTile` if it has its own container), add a `BoxShadow` list driven by `context.colors.shadow`. Translate the spec's CSS (`rest 0 1px 2px @6%`, `hover 0 4px 12px @10%`) to Flutter. Since `context.colors.shadow` already encodes the base alpha (transparent in dark, `rgba(16,24,40,.08)` in light), use it directly and scale via `blurRadius`/`offset`:
+- [x] **Step 1:** In `PanelCard` (and the KPI `StatTile` if it has its own container), add a `BoxShadow` list driven by `context.colors.shadow`. Translate the spec's CSS (`rest 0 1px 2px @6%`, `hover 0 4px 12px @10%`) to Flutter. Since `context.colors.shadow` already encodes the base alpha (transparent in dark, `rgba(16,24,40,.08)` in light), use it directly and scale via `blurRadius`/`offset`:
 ```dart
 // rest state
 boxShadow: [
@@ -270,9 +270,9 @@ boxShadow: [
 ```
 For a hover-aware card, wrap in a `MouseRegion`/`StatefulWidget` that swaps to the lifted shadow (`blurRadius: 12, offset: Offset(0,4)`, and a slightly stronger color if desired) on hover, animated via `AnimatedContainer(duration: 150ms)`. In dark, `shadow` is transparent so both states render invisibly — dark is unchanged.
 
-- [ ] **Step 2:** Ensure the `PanelCard` container is an `AnimatedContainer` (150ms) if adding hover; otherwise a plain `Container`/`DecoratedBox` with the rest shadow. Keep the existing border + radius.
+- [x] **Step 2:** Ensure the `PanelCard` container is an `AnimatedContainer` (150ms) if adding hover; otherwise a plain `Container`/`DecoratedBox` with the rest shadow. Keep the existing border + radius.
 
-- [ ] **Step 3:** `flutter analyze` clean. Targeted: `flutter test test/core/widgets/console_test.dart` — existing assertions (border, colors) must stay green; the shadow is additive. Commit:
+- [x] **Step 3:** `flutter analyze` clean. Targeted: `flutter test test/core/widgets/console_test.dart` — existing assertions (border, colors) must stay green; the shadow is additive. Commit:
 ```bash
 git add lib/core/widgets/console.dart
 git commit -m "feat(app): PanelCard elevation via context.colors.shadow
@@ -289,9 +289,9 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:** Modify `app/lib/core/widgets/worklist.dart` (`WorklistRow`) and `manager_scaffold.dart` (`_NavRow`).
 
-- [ ] **Step 1:** `WorklistRow`: wrap its tap surface in an `InkWell`/`Material` (or `MouseRegion` + `AnimatedContainer` 150ms) so hover paints `context.colors.surface2` and pressed paints `context.colors.surface3`. Keep the existing edge-bar/mark/word severity encoding untouched.
-- [ ] **Step 2:** `_NavRow`: same hover (`surface2`) / pressed (`surface3`) wash, 150ms, on top of the existing selected state.
-- [ ] **Step 3:** `flutter analyze` clean; `flutter test test/core/widgets/ test/features/tasks/ test/features/alerts/` green (worklist is exercised via those screens). Commit:
+- [x] **Step 1:** `WorklistRow`: wrap its tap surface in an `InkWell`/`Material` (or `MouseRegion` + `AnimatedContainer` 150ms) so hover paints `context.colors.surface2` and pressed paints `context.colors.surface3`. Keep the existing edge-bar/mark/word severity encoding untouched.
+- [x] **Step 2:** `_NavRow`: same hover (`surface2`) / pressed (`surface3`) wash, 150ms, on top of the existing selected state.
+- [x] **Step 3:** `flutter analyze` clean; `flutter test test/core/widgets/ test/features/tasks/ test/features/alerts/` green (worklist is exercised via those screens). Commit:
 ```bash
 git add lib/core/widgets/worklist.dart lib/core/widgets/manager_scaffold.dart
 git commit -m "feat(app): hover/pressed washes on WorklistRow and nav items (150ms)
@@ -305,8 +305,8 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 **Files:** Modify `app/lib/core/theme/app_theme.dart`.
 
-- [ ] **Step 1:** In `_base`, add a `focusColor` / and where components define focus, standardize a visible ring on `c.brand` at 1.5px. For buttons/inputs the `focusedBorder` already uses `brand` 1.5px (Plan A). Add `focusColor: c.brand.withValues(alpha: 0.12)` to the theme and ensure `WidgetStateProperty` overlay for focus on the nav/worklist uses `c.brand`. Keep it minimal — the goal is a consistent keyboard-focus affordance.
-- [ ] **Step 2:** `flutter analyze` clean; `flutter test test/core/theme/` green (dark assertions unchanged). Commit:
+- [x] **Step 1:** In `_base`, add a `focusColor` / and where components define focus, standardize a visible ring on `c.brand` at 1.5px. For buttons/inputs the `focusedBorder` already uses `brand` 1.5px (Plan A). Add `focusColor: c.brand.withValues(alpha: 0.12)` to the theme and ensure `WidgetStateProperty` overlay for focus on the nav/worklist uses `c.brand`. Keep it minimal — the goal is a consistent keyboard-focus affordance.
+- [x] **Step 2:** `flutter analyze` clean; `flutter test test/core/theme/` green (dark assertions unchanged). Commit:
 ```bash
 git add lib/core/theme/app_theme.dart
 git commit -m "feat(app): standardize keyboard focus ring on brand 1.5px
@@ -318,10 +318,10 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ### Task 8: Verify — full suite + analyze checkpoint
 
-- [ ] **Step 1:** `cd app && flutter analyze` → `No issues found!`.
-- [ ] **Step 2:** Full suite: `flutter test` → `All tests passed!` (388 + any new motion tests). If a navigation-driving test hangs on the 250ms transition, add `await tester.pumpAndSettle()` after the nav call (do NOT change assertions). If a test fails because a widget it queried is now wrapped in an animation, adjust the finder, not the assertion.
-- [ ] **Step 3:** Manually reason about reduced motion: confirm `managerPage` fades and the drawer stagger is skipped under `disableAnimations` (covered by the Task 2/4 tests).
-- [ ] **Step 4:** Push the branch and open a PR to main. Do NOT merge.
+- [x] **Step 1:** `cd app && flutter analyze` → `No issues found!`.
+- [x] **Step 2:** Full suite: `flutter test` → `All tests passed!` (388 + any new motion tests). If a navigation-driving test hangs on the 250ms transition, add `await tester.pumpAndSettle()` after the nav call (do NOT change assertions). If a test fails because a widget it queried is now wrapped in an animation, adjust the finder, not the assertion.
+- [x] **Step 3:** Manually reason about reduced motion: confirm `managerPage` fades and the drawer stagger is skipped under `disableAnimations` (covered by the Task 2/4 tests).
+- [x] **Step 4:** Push the branch and open a PR to main. Do NOT merge.
 
 ---
 
@@ -334,3 +334,30 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 **Risk.** The main risk is existing tests that drive navigation now needing `pumpAndSettle()` for the 250ms transition — Task 2 Step 6 and Task 8 Step 2 handle this by settling, never by weakening assertions. Most screen tests pump one screen directly and are unaffected.
 
 **Deferred / not in scope.** Agent-side motion (untouched), `ThemeMode.system`, backdrop blur (web perf), any layout/nav/copy change.
+
+---
+
+## Outcome (2026-07-18)
+
+Merged to main as `b9790ee` via PR #136. Verification gate at the merged tree:
+`flutter analyze` → `No issues found!`; `flutter test` → `All tests passed!`
+(395 tests = 388 baseline + 7 added by Tasks 2–5).
+
+Two deviations from the plan as written, recorded so the history reads honestly:
+
+1. **Task 6 landed across three commits** (`e96b17c`, `4dad329`, `da313de`)
+   rather than the single commit the plan specifies. Two sessions implemented
+   it concurrently: an initial `InkWell` `hoverColor`/`highlightColor` approach
+   landed first, then was replaced. The replacement was necessary — ink renders
+   on the nearest ancestor `Material`, which sits *behind* `PanelCard`'s opaque
+   `surface1` container and the rail's fill, so the wash was invisible; pressed
+   ink also painted over the nav's selected state, violating "selected wins".
+   The shipped version paints the wash in an `AnimatedContainer` (150ms,
+   collapsing to zero under reduced motion) and neutralises the ink with
+   `Colors.transparent` — those transparent overrides are deliberate, not
+   leftovers.
+
+2. **Task 4's controller is built eagerly in `initState`**, not via the plan's
+   `late final` field initialiser. With a lazy `late final`, the non-staggered
+   rail never touches the controller until `dispose()`, and initialising it
+   there triggers an ancestor lookup on a deactivated element.
