@@ -223,10 +223,33 @@ class WorklistRow extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
+  State<WorklistRow> createState() => _WorklistRowState();
+}
+
+class _WorklistRowState extends State<WorklistRow> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final row = Container(
+    final resolved = widget.resolved;
+    final interactive = widget.onTap != null;
+    // Pressed wins over hover; both are painted by the row itself, behind its
+    // content — an ink splash on an ancestor Material would hide under the
+    // panel's own surface.
+    final wash = _pressed
+        ? colors.surface3
+        : _hovered
+            ? colors.surface2
+            : Colors.transparent;
+    final row = AnimatedContainer(
+      duration: reduceMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
       decoration: BoxDecoration(
+        color: interactive ? wash : null,
         border: Border(bottom: BorderSide(color: colors.line)),
       ),
       child: IntrinsicHeight(
@@ -236,7 +259,7 @@ class WorklistRow extends StatefulWidget {
             // Channel 1: the edge bar.
             Container(
               width: 3,
-              color: resolved ? colors.lineStrong : level.colorOf(colors),
+              color: resolved ? colors.lineStrong : widget.level.colorOf(colors),
             ),
             Expanded(
               child: Padding(
@@ -250,7 +273,7 @@ class WorklistRow extends StatefulWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            title,
+                            widget.title,
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight:
@@ -264,25 +287,25 @@ class WorklistRow extends StatefulWidget {
                               fontSize: 11.5,
                               color: colors.ink3,
                             ),
-                            child: meta,
+                            child: widget.meta,
                           ),
                         ],
                       ),
                     ),
                     // Channels 2 + 3: the mark and the word.
-                    if (statusLabel != null)
+                    if (widget.statusLabel != null)
                       SizedBox(
                         width: 116,
                         child: StatusChip(
-                          label: statusLabel!,
-                          level: resolved ? StatusLevel.neutral : level,
+                          label: widget.statusLabel!,
+                          level: resolved ? StatusLevel.neutral : widget.level,
                         ),
                       ),
-                    if (when != null)
+                    if (widget.when != null)
                       SizedBox(
                         width: 92,
                         child: Text(
-                          when!,
+                          widget.when!,
                           softWrap: false,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -291,7 +314,7 @@ class WorklistRow extends StatefulWidget {
                           ),
                         ),
                       ),
-                    ...actions,
+                    ...widget.actions,
                   ],
                 ),
               ),
@@ -301,14 +324,21 @@ class WorklistRow extends StatefulWidget {
       ),
     );
 
-    if (onTap == null) return Opacity(opacity: resolved ? 0.6 : 1, child: row);
+    if (!interactive) {
+      return Opacity(opacity: resolved ? 0.6 : 1, child: row);
+    }
     return Opacity(
       opacity: resolved ? 0.6 : 1,
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
         // Explicit state feedback: a row is a target, and it should say so.
-        hoverColor: colors.surface2,
-        highlightColor: colors.surface3,
+        // The wash lives in the row's own decoration (above), so it cannot be
+        // buried under an opaque panel surface.
+        onHover: (hovered) => setState(() => _hovered = hovered),
+        onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
+        hoverColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        splashColor: Colors.transparent,
         child: row,
       ),
     );
