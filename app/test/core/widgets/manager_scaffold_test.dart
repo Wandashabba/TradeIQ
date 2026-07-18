@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/manager_scaffold.dart';
 
 import '../../helpers/routed_app.dart';
@@ -86,6 +87,83 @@ void main() {
         reason: 'missing destination $path',
       );
     }
+  });
+
+  testWidgets('the drawer scrim comes from the theme, not Flutter\'s default', (
+    tester,
+  ) async {
+    await _pumpAt(tester, 600);
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    // Dark keeps black54 — identical to the default, so dark is unchanged.
+    // Light swaps in a deeper slate, which is the point of reading the token.
+    expect(scaffold.drawerScrimColor, TiqColors.dark.scrim);
+  });
+
+  testWidgets('drawer nav rows stagger in when motion is on', (tester) async {
+    await _pumpAt(tester, 600);
+
+    tester.firstState<ScaffoldState>(find.byType(Scaffold)).openDrawer();
+    await tester.pump(); // build the drawer; the stagger controller starts
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Mid-stagger the first row is animating: neither hidden nor landed.
+    final fadeFinder = find.ancestor(
+      of: find.byKey(const ValueKey('nav-/dashboard')),
+      matching: find.byType(FadeTransition),
+    );
+    final fade = tester.widget<FadeTransition>(fadeFinder.first);
+    expect(fade.opacity.value, greaterThan(0));
+    expect(fade.opacity.value, lessThan(1));
+
+    // Once the stagger runs out, every row has fully landed.
+    await tester.pumpAndSettle();
+    final settled = tester.widget<FadeTransition>(fadeFinder.first);
+    expect(settled.opacity.value, 1.0);
+    expect(find.text('Dashboard'), findsOneWidget);
+  });
+
+  testWidgets('under reduced motion the drawer rows appear at once', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+    await _pumpAt(tester, 600);
+    tester.firstState<ScaffoldState>(find.byType(Scaffold)).openDrawer();
+    await tester.pumpAndSettle();
+
+    // Rows render unwrapped — no fade, no slide, full opacity from frame one.
+    expect(find.byKey(const ValueKey('nav-/dashboard')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.byType(FadeTransition),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.byType(SlideTransition),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('the persistent rail never staggers', (tester) async {
+    await _pumpAt(tester, 1400);
+
+    // The rail is furniture, not an event — its rows are never animated.
+    expect(
+      find.descendant(
+        of: find.byType(ListView),
+        matching: find.byType(FadeTransition),
+      ),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('nav-/dashboard')), findsOneWidget);
   });
 
   testWidgets('page actions render alongside logout', (tester) async {

@@ -60,6 +60,10 @@ class AppTheme {
       extensions: <ThemeExtension<dynamic>>[c],
       scaffoldBackgroundColor: c.plane,
       canvasColor: c.surface1,
+      // Keyboard focus is a brand-tinted wash, so a manager tabbing through the
+      // console can always see where they are. Inputs additionally draw the
+      // 1.5px brand ring via focusedBorder below.
+      focusColor: c.brand.withValues(alpha: 0.12),
       colorScheme: colorScheme,
       textTheme: TextTheme(
         // Large standalone figures use proportional digits — tabular figures

@@ -1,6 +1,8 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -157,6 +159,44 @@ void main() {
       expect(find.text('Execution score'), findsOneWidget);
       expect(find.text('Weighted S2–S8'), findsOneWidget);
       expect(find.text('body'), findsOneWidget);
+    });
+
+    testWidgets('rests on a barely-there shadow that lifts on hover', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(const SizedBox(width: 320, child: PanelCard(child: Text('body')))),
+      );
+
+      BoxDecoration decorationOf() {
+        final container = tester.widget<AnimatedContainer>(
+          find.ancestor(
+            of: find.text('body'),
+            matching: find.byType(AnimatedContainer),
+          ),
+        );
+        return container.decoration! as BoxDecoration;
+      }
+
+      // Rest: 0 1px 2px. In the default (dark) theme the colour is
+      // transparent, so dark renders exactly as before.
+      final rest = decorationOf().boxShadow!.single;
+      expect(rest.offset, const Offset(0, 1));
+      expect(rest.blurRadius, 2);
+      expect(rest.color, TiqColors.dark.shadow);
+
+      // Hover: lifts to 0 4px 12px.
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(find.byType(PanelCard)));
+      await tester.pumpAndSettle();
+
+      final hovered = decorationOf().boxShadow!.single;
+      expect(hovered.offset, const Offset(0, 4));
+      expect(hovered.blurRadius, 12);
     });
   });
 }
