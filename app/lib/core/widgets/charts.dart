@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/tiq_colors.dart';
 
 /// The console's chart set. Hand-rolled on [CustomPainter] — the shapes needed
 /// are simple, and a package would still have to be fought into this spec.
@@ -23,9 +24,9 @@ import '../theme/app_colors.dart';
 /// stay usable from any feature.
 typedef ChartPoint = ({String label, double value});
 
-const _labelStyle = TextStyle(fontSize: 10, color: AppColors.ink3);
+TextStyle _labelStyle(TiqColors c) => TextStyle(fontSize: 10, color: c.ink3);
 
-TextPainter _text(String s, {TextStyle style = _labelStyle}) {
+TextPainter _text(String s, {required TextStyle style}) {
   final tp = TextPainter(
     text: TextSpan(text: s, style: style),
     textDirection: TextDirection.ltr,
@@ -95,6 +96,7 @@ class _LineChartState extends State<LineChart> {
       return _EmptyPlot(height: widget.height, message: 'Not enough data to plot');
     }
 
+    final colors = context.colors;
     final scale = _niceScale(
       widget.points.map((p) => p.value),
       forceMin: widget.target,
@@ -124,6 +126,7 @@ class _LineChartState extends State<LineChart> {
                 hover: _hover,
                 valueSuffix: widget.valueSuffix,
                 progress: t,
+                colors: colors,
               );
 
               return MouseRegion(
@@ -185,6 +188,7 @@ class _LinePainter extends CustomPainter {
     required this.target,
     required this.hover,
     required this.valueSuffix,
+    required this.colors,
     this.progress = 1,
   });
 
@@ -193,6 +197,7 @@ class _LinePainter extends CustomPainter {
   final double? target;
   final int? hover;
   final String valueSuffix;
+  final TiqColors colors;
 
   /// 0 → 1 as the series draws itself in. The chrome (grid, axes, target rule)
   /// is painted immediately: the frame of reference should never be the thing
@@ -225,14 +230,14 @@ class _LinePainter extends CustomPainter {
     final baseY = size.height - _pad.bottom;
 
     final hair = Paint()
-      ..color = AppColors.grid
+      ..color = colors.grid
       ..strokeWidth = 1;
 
     // y gridlines + ticks
     for (var v = scale.min; v <= scale.max + 1e-9; v += scale.step) {
       final y = _yFor(v, size.height);
       canvas.drawLine(Offset(_pad.left, y), Offset(_pad.left + innerW, y), hair);
-      final tp = _text(_trim(v));
+      final tp = _text(_trim(v), style: _labelStyle(colors));
       tp.paint(canvas, Offset(_pad.left - 8 - tp.width, y - tp.height / 2));
     }
 
@@ -240,12 +245,12 @@ class _LinePainter extends CustomPainter {
     if (target != null) {
       final y = _yFor(target!, size.height);
       final dash = Paint()
-        ..color = AppColors.ink3
+        ..color = colors.ink3
         ..strokeWidth = 1;
       for (var x = _pad.left; x < _pad.left + innerW; x += 6) {
         canvas.drawLine(Offset(x, y), Offset(math.min(x + 3, _pad.left + innerW), y), dash);
       }
-      final tp = _text('Target');
+      final tp = _text('Target', style: _labelStyle(colors));
       tp.paint(canvas, Offset(_pad.left + innerW + 5, y - tp.height / 2));
     }
 
@@ -264,11 +269,11 @@ class _LinePainter extends CustomPainter {
     canvas.clipRect(
       Rect.fromLTWH(_pad.left, 0, innerW * progress.clamp(0, 1), size.height),
     );
-    canvas.drawPath(area, Paint()..color = AppColors.series1.withValues(alpha: 0.14));
+    canvas.drawPath(area, Paint()..color = colors.series1.withValues(alpha: 0.14));
     canvas.drawPath(
       path,
       Paint()
-        ..color = AppColors.series1
+        ..color = colors.series1
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
         ..strokeJoin = StrokeJoin.round
@@ -281,11 +286,11 @@ class _LinePainter extends CustomPainter {
       Offset(_pad.left, baseY),
       Offset(_pad.left + innerW, baseY),
       Paint()
-        ..color = AppColors.axis
+        ..color = colors.axis
         ..strokeWidth = 1,
     );
     for (final i in {0, points.length ~/ 2, points.length - 1}) {
-      final tp = _text(points[i].label);
+      final tp = _text(points[i].label, style: _labelStyle(colors));
       final x = xFor(i, size.width);
       final dx = i == 0
           ? x
@@ -300,21 +305,21 @@ class _LinePainter extends CustomPainter {
     if (progress < 0.995) return;
     final last = points.length - 1;
     final lastO = Offset(xFor(last, size.width), _yFor(points[last].value, size.height));
-    canvas.drawCircle(lastO, 4, Paint()..color = AppColors.series1);
+    canvas.drawCircle(lastO, 4, Paint()..color = colors.series1);
     canvas.drawCircle(
       lastO,
       4,
       Paint()
-        ..color = AppColors.surface1
+        ..color = colors.surface1
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );
     final lbl = _text(
       '${_trim(points[last].value)}$valueSuffix',
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w600,
-        color: AppColors.ink2,
+        color: colors.ink2,
       ),
     );
     lbl.paint(canvas, Offset(lastO.dx - lbl.width, lastO.dy - lbl.height - 7));
@@ -326,16 +331,16 @@ class _LinePainter extends CustomPainter {
         Offset(hx, _pad.top),
         Offset(hx, baseY),
         Paint()
-          ..color = AppColors.axis
+          ..color = colors.axis
           ..strokeWidth = 1,
       );
       final ho = Offset(hx, _yFor(points[hover!].value, size.height));
-      canvas.drawCircle(ho, 4.5, Paint()..color = AppColors.series1);
+      canvas.drawCircle(ho, 4.5, Paint()..color = colors.series1);
       canvas.drawCircle(
         ho,
         4.5,
         Paint()
-          ..color = AppColors.surface1
+          ..color = colors.surface1
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
@@ -347,7 +352,8 @@ class _LinePainter extends CustomPainter {
       old.points != points ||
       old.hover != hover ||
       old.target != target ||
-      old.progress != progress;
+      old.progress != progress ||
+      old.colors != colors;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -418,6 +424,7 @@ class _ColumnChartState extends State<ColumnChart>
     if (widget.points.isEmpty) {
       return _EmptyPlot(height: widget.height, message: 'No data in range');
     }
+    final colors = context.colors;
     final scale = _niceScale(widget.points.map((p) => p.value));
 
     return SizedBox(
@@ -429,6 +436,7 @@ class _ColumnChartState extends State<ColumnChart>
             scale: scale,
             hover: _hover,
             progress: _progress,
+            colors: colors,
           );
           return MouseRegion(
             onHover: (e) {
@@ -461,6 +469,7 @@ class _ColumnPainter extends CustomPainter {
     required this.points,
     required this.scale,
     required this.hover,
+    required this.colors,
     this.progress = 1,
   });
 
@@ -468,6 +477,7 @@ class _ColumnPainter extends CustomPainter {
   final ({double min, double max, double step}) scale;
   final int? hover;
   final double progress;
+  final TiqColors colors;
 
   static const _pad = EdgeInsets.fromLTRB(38, 12, 10, 24);
 
@@ -491,14 +501,14 @@ class _ColumnPainter extends CustomPainter {
     final barW = math.min(30.0, step - 8);
 
     final hair = Paint()
-      ..color = AppColors.grid
+      ..color = colors.grid
       ..strokeWidth = 1;
 
     for (var v = scale.min; v <= scale.max + 1e-9; v += scale.step) {
       final t = (v - scale.min) / (scale.max - scale.min);
       final y = _pad.top + (baseY - _pad.top) - t * (baseY - _pad.top);
       canvas.drawLine(Offset(_pad.left, y), Offset(_pad.left + innerW, y), hair);
-      final tp = _text(_trim(v));
+      final tp = _text(_trim(v), style: _labelStyle(colors));
       tp.paint(canvas, Offset(_pad.left - 8 - tp.width, y - tp.height / 2));
     }
 
@@ -517,11 +527,11 @@ class _ColumnPainter extends CustomPainter {
         rect,
         Paint()
           ..color = hover == null || hover == i
-              ? AppColors.series1
-              : AppColors.series1.withValues(alpha: 0.55),
+              ? colors.series1
+              : colors.series1.withValues(alpha: 0.55),
       );
 
-      final tp = _text(points[i].label);
+      final tp = _text(points[i].label, style: _labelStyle(colors));
       tp.paint(
         canvas,
         Offset(centerOf(i, size.width) - tp.width / 2, size.height - _pad.bottom + 7),
@@ -532,14 +542,17 @@ class _ColumnPainter extends CustomPainter {
       Offset(_pad.left, baseY),
       Offset(_pad.left + innerW, baseY),
       Paint()
-        ..color = AppColors.axis
+        ..color = colors.axis
         ..strokeWidth = 1,
     );
   }
 
   @override
   bool shouldRepaint(_ColumnPainter old) =>
-      old.points != points || old.hover != hover || old.progress != progress;
+      old.points != points ||
+      old.hover != hover ||
+      old.progress != progress ||
+      old.colors != colors;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -561,12 +574,17 @@ class BarChart extends StatelessWidget {
   final double target;
   final double max;
 
-  static Widget legend() => Row(
-        children: const [
-          _LegendItem(color: AppColors.series1, label: 'Meets target'),
-          SizedBox(width: 14),
-          _LegendItem(color: AppColors.crit, label: 'Below target'),
-        ],
+  static Widget legend() => Builder(
+        builder: (context) {
+          final colors = context.colors;
+          return Row(
+            children: [
+              _LegendItem(color: colors.series1, label: 'Meets target'),
+              const SizedBox(width: 14),
+              _LegendItem(color: colors.crit, label: 'Below target'),
+            ],
+          );
+        },
       );
 
   @override
@@ -593,6 +611,7 @@ class BarChart extends StatelessWidget {
             target: target,
             max: max,
             progress: t,
+            colors: context.colors,
           ),
         ),
       ),
@@ -605,6 +624,7 @@ class _BarPainter extends CustomPainter {
     required this.points,
     required this.target,
     required this.max,
+    required this.colors,
     this.progress = 1,
   });
 
@@ -612,6 +632,7 @@ class _BarPainter extends CustomPainter {
   final double target;
   final double max;
   final double progress;
+  final TiqColors colors;
 
   static const _pad = EdgeInsets.fromLTRB(92, 6, 46, 22);
   static const _rowH = 30.0;
@@ -624,18 +645,18 @@ class _BarPainter extends CustomPainter {
     final plotH = points.length * _rowH;
 
     final hair = Paint()
-      ..color = AppColors.grid
+      ..color = colors.grid
       ..strokeWidth = 1;
 
     for (final v in [0.0, max * .25, max * .5, max * .75, max]) {
       canvas.drawLine(Offset(x(v), _pad.top), Offset(x(v), _pad.top + plotH), hair);
-      final tp = _text(_trim(v));
+      final tp = _text(_trim(v), style: _labelStyle(colors));
       tp.paint(canvas, Offset(x(v) - tp.width / 2, _pad.top + plotH + 6));
     }
 
     // Target rule.
     final dash = Paint()
-      ..color = AppColors.ink3
+      ..color = colors.ink3
       ..strokeWidth = 1;
     for (var y = _pad.top; y < _pad.top + plotH; y += 6) {
       canvas.drawLine(
@@ -652,7 +673,7 @@ class _BarPainter extends CustomPainter {
 
       final name = _text(
         p.label,
-        style: const TextStyle(fontSize: 11.5, color: AppColors.ink2),
+        style: TextStyle(fontSize: 11.5, color: colors.ink2),
       );
       name.paint(canvas, Offset(_pad.left - 10 - name.width, y + (barH - name.height) / 2));
 
@@ -662,7 +683,7 @@ class _BarPainter extends CustomPainter {
           Rect.fromLTWH(_pad.left, y, innerW, barH),
           const Radius.circular(1),
         ),
-        Paint()..color = AppColors.grid,
+        Paint()..color = colors.grid,
       );
       final grown = (x(p.value) - _pad.left) * progress.clamp(0, 1);
       canvas.drawRRect(
@@ -670,7 +691,7 @@ class _BarPainter extends CustomPainter {
           Rect.fromLTWH(_pad.left, y, math.max(2, grown), barH),
           const Radius.circular(1),
         ),
-        Paint()..color = p.value < target ? AppColors.crit : AppColors.series1,
+        Paint()..color = p.value < target ? colors.crit : colors.series1,
       );
 
       // The figure only appears once its bar has arrived under it.
@@ -678,10 +699,10 @@ class _BarPainter extends CustomPainter {
 
       final val = _text(
         p.value.toStringAsFixed(1),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: AppColors.ink2,
+          color: colors.ink2,
         ),
       );
       val.paint(canvas, Offset(x(p.value) + 7, y + (barH - val.height) / 2));
@@ -692,7 +713,8 @@ class _BarPainter extends CustomPainter {
   bool shouldRepaint(_BarPainter old) =>
       old.points != points ||
       old.target != target ||
-      old.progress != progress;
+      old.progress != progress ||
+      old.colors != colors;
 }
 
 class _LegendItem extends StatelessWidget {
@@ -703,12 +725,13 @@ class _LegendItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(width: 9, height: 9, color: color),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.ink2)),
+        Text(label, style: TextStyle(fontSize: 11.5, color: colors.ink2)),
       ],
     );
   }
@@ -731,15 +754,16 @@ class Sparkline extends StatelessWidget {
     return SizedBox(
       width: width,
       height: height,
-      child: CustomPaint(painter: _SparkPainter(values)),
+      child: CustomPaint(painter: _SparkPainter(values, context.colors)),
     );
   }
 }
 
 class _SparkPainter extends CustomPainter {
-  _SparkPainter(this.values);
+  _SparkPainter(this.values, this.colors);
 
   final List<double> values;
+  final TiqColors colors;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -759,17 +783,18 @@ class _SparkPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = AppColors.series1
+        ..color = colors.series1
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5
         ..strokeJoin = StrokeJoin.round
         ..strokeCap = StrokeCap.round,
     );
-    canvas.drawCircle(at(values.length - 1), 2.5, Paint()..color = AppColors.series1);
+    canvas.drawCircle(at(values.length - 1), 2.5, Paint()..color = colors.series1);
   }
 
   @override
-  bool shouldRepaint(_SparkPainter old) => old.values != values;
+  bool shouldRepaint(_SparkPainter old) =>
+      old.values != values || old.colors != colors;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -778,6 +803,11 @@ class _SparkPainter extends CustomPainter {
 
 /// Hover readout. It *enhances* — every value it shows is also reachable from
 /// the axis or the table-view twin, so nothing is gated behind a pointer.
+///
+/// The readout surface is deliberately the fixed dark instrument panel in both
+/// themes (matching tooltipTheme in app_theme.dart) — an inverted readout on a
+/// light chart is the premium convention, and it keeps hover legible without a
+/// second derivation. Hence AppColors statics, not context.colors.
 class _Tooltip extends StatelessWidget {
   const _Tooltip({
     required this.point,
@@ -854,12 +884,13 @@ class _EmptyPlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return SizedBox(
       height: height,
       child: Center(
         child: Text(
           message,
-          style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+          style: TextStyle(fontSize: 12, color: colors.ink3),
         ),
       ),
     );
@@ -981,7 +1012,7 @@ class DeltaBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final up = value >= 0;
-    final color = up ? AppColors.good : AppColors.crit;
+    final color = up ? context.colors.good : context.colors.crit;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
