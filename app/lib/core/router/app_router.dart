@@ -31,6 +31,7 @@ import '../../features/templates/presentation/templates_screen.dart';
 import '../../features/dispatch/presentation/dispatch_screen.dart';
 import '../../features/trends/presentation/trends_screen.dart';
 import '../auth/session_controller.dart';
+import 'manager_page.dart';
 import 'session_refresh_listenable.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -98,7 +99,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) => const DashboardShellScreen(),
+        pageBuilder: (context, state) => managerPage(const DashboardShellScreen()),
       ),
       // The field agent's home: their route for the day.
       GoRoute(path: '/today', builder: (context, state) => const TodayScreen()),
@@ -129,80 +130,91 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/outlets',
-        builder: (context, state) => const OutletsListScreen(),
+        pageBuilder: (context, state) => managerPage(const OutletsListScreen()),
       ),
       GoRoute(
         path: '/outlets/create',
-        builder: (context, state) => const CreateOutletScreen(),
+        pageBuilder: (context, state) => managerPage(const CreateOutletScreen()),
       ),
-      GoRoute(path: '/tasks', builder: (context, state) => const TasksScreen()),
+      GoRoute(
+        path: '/tasks',
+        pageBuilder: (context, state) => managerPage(const TasksScreen()),
+      ),
       GoRoute(
         path: '/campaigns',
-        builder: (context, state) => const CampaignsScreen(),
+        pageBuilder: (context, state) => managerPage(const CampaignsScreen()),
       ),
       GoRoute(
         path: '/alerts',
-        builder: (context, state) => const AlertsScreen(),
+        pageBuilder: (context, state) => managerPage(const AlertsScreen()),
       ),
       GoRoute(
         path: '/alert-rules',
-        builder: (context, state) => const AlertRulesScreen(),
+        pageBuilder: (context, state) => managerPage(const AlertRulesScreen()),
       ),
       GoRoute(
         path: '/territories',
-        builder: (context, state) => const TerritoriesScreen(),
+        pageBuilder: (context, state) => managerPage(const TerritoriesScreen()),
       ),
       GoRoute(
         path: '/orders',
-        builder: (context, state) => const OrdersScreen(),
+        pageBuilder: (context, state) => managerPage(const OrdersScreen()),
       ),
       GoRoute(
         path: '/beatplans',
-        builder: (context, state) => const BeatPlansScreen(),
+        pageBuilder: (context, state) => managerPage(const BeatPlansScreen()),
       ),
       GoRoute(
         path: '/leaderboard',
-        builder: (context, state) => const LeaderboardScreen(),
+        pageBuilder: (context, state) => managerPage(const LeaderboardScreen()),
       ),
-      GoRoute(path: '/fraud', builder: (context, state) => const FraudScreen()),
+      GoRoute(
+        path: '/fraud',
+        pageBuilder: (context, state) => managerPage(const FraudScreen()),
+      ),
       GoRoute(
         path: '/reports',
-        builder: (context, state) => const ReportsScreen(),
+        pageBuilder: (context, state) => managerPage(const ReportsScreen()),
       ),
       GoRoute(
         path: '/messages',
-        builder: (context, state) => const MessagesScreen(),
+        pageBuilder: (context, state) => managerPage(const MessagesScreen()),
       ),
-      GoRoute(path: '/users', builder: (context, state) => const UsersScreen()),
+      GoRoute(
+        path: '/users',
+        pageBuilder: (context, state) => managerPage(const UsersScreen()),
+      ),
       GoRoute(
         path: '/incentives',
-        builder: (context, state) => const IncentivesScreen(),
+        pageBuilder: (context, state) => managerPage(const IncentivesScreen()),
       ),
       GoRoute(
         path: '/webhooks',
-        builder: (context, state) => const WebhooksScreen(),
+        pageBuilder: (context, state) => managerPage(const WebhooksScreen()),
       ),
       GoRoute(
         path: '/client-config',
-        builder: (context, state) => const ClientConfigScreen(),
+        pageBuilder: (context, state) => managerPage(const ClientConfigScreen()),
       ),
       GoRoute(
         path: '/audit-templates',
-        builder: (context, state) => const TemplatesScreen(),
+        pageBuilder: (context, state) => managerPage(const TemplatesScreen()),
       ),
       GoRoute(
         path: '/audit-templates/:templateId/preview',
-        builder: (context, state) => TemplateFormScreen(
-          templateId: state.pathParameters['templateId']!,
+        pageBuilder: (context, state) => managerPage(
+          TemplateFormScreen(
+            templateId: state.pathParameters['templateId']!,
+          ),
         ),
       ),
       GoRoute(
         path: '/dispatch',
-        builder: (context, state) => const DispatchScreen(),
+        pageBuilder: (context, state) => managerPage(const DispatchScreen()),
       ),
       GoRoute(
         path: '/trends',
-        builder: (context, state) => const TrendsScreen(),
+        pageBuilder: (context, state) => managerPage(const TrendsScreen()),
       ),
     ],
   );
