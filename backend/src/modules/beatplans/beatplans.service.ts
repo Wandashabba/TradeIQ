@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { round2 } from '../../lib/kpiMath';
 import { NotFoundError } from '../../middleware/errorHandler';
 import type { AuthTokenPayload } from '../auth/auth.service';
 
@@ -10,7 +11,7 @@ export type BeatPlanStatus = 'planned' | 'in_progress' | 'completed';
 function computeAdherence(stops: ReadonlyArray<{ visited: boolean }>) {
   const stopsTotal = stops.length;
   const stopsVisited = stops.filter((stop) => stop.visited).length;
-  const adherenceRate = stopsTotal === 0 ? 0 : (100 * stopsVisited) / stopsTotal;
+  const adherenceRate = stopsTotal === 0 ? 0 : round2((100 * stopsVisited) / stopsTotal);
   return { stopsTotal, stopsVisited, adherenceRate };
 }
 

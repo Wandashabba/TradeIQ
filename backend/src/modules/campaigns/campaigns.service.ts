@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { mean, pct } from '../../lib/kpiMath';
 import { NotFoundError } from '../../middleware/errorHandler';
 
 export type CampaignStatus = 'draft' | 'active' | 'completed';
@@ -30,19 +31,6 @@ export interface CampaignCompliance {
   avgPlanogramCompliancePct: number;
   avgAbsPriceDeviationPct: number;
   promoComplianceRate: number;
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-/** Ratio helper that returns 0 (never NaN) on an empty denominator. */
-function pct(numerator: number, denominator: number): number {
-  return denominator > 0 ? round2((100 * numerator) / denominator) : 0;
-}
-
-function mean(values: number[]): number {
-  return values.length > 0 ? round2(values.reduce((sum, v) => sum + v, 0) / values.length) : 0;
 }
 
 export async function createCampaign(input: CreateCampaignInput) {

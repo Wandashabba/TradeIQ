@@ -8,7 +8,7 @@ Scope authority: `docs/superpowers/specs/2026-07-02-tradeiq-scaffold-design.md`
 (§2 reconciles the detailed build prompt with the pitch deck). Real-vs-stubbed
 detail: `docs/architecture/stubs-and-interfaces.md`.
 
-## Active — remediation of the 2026-07-17 audit — 🟢 Plan 1 done, 2–4 pending
+## Active — remediation of the 2026-07-17 audit — 🟢 Plans 1 & 2 merged; 2b–4 pending
 
 A full-codebase audit on 2026-07-17 found 2 Critical and ~13 High issues. The
 phases below describe what is *built*; this section tracks what must be *fixed*
@@ -26,7 +26,7 @@ written.
 | # | Plan | Covers | Status |
 |---|---|---|---|
 | 1 | `docs/superpowers/plans/2026-07-17-security-critical.md` | C3 JWT payload cast → cross-tenant read · H1 published default secret · C1 bcrypt-hash disclosure · H6 webhook SSRF (+H7 timeout) · N8 401-instead-of-404 | ✅ **done** (branch `fix/security-critical-audit`; 575 tests green, proven end-to-end) |
-| 2 | `2026-07-17-backend-scale.md` | **backend-only, non-breaking** — H3 zero DB indexes · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · dispatch over-fetch · global Prisma `omit` floor · M1 capture paths not agent-scoped · M5 CSV formula injection · N5 kpiMath drift · N9 dead `JWT_SECRET` in `backend-ci.yml` | 🟡 written, not started |
+| 2 | `2026-07-17-backend-scale.md` | **backend-only, non-breaking** — H3 zero DB indexes · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · dispatch over-fetch · global Prisma `omit` floor · M1 capture paths not agent-scoped · M5 CSV formula injection · N5 kpiMath drift · N9 dead `JWT_SECRET` in `backend-ci.yml` | ✅ **done** — Tasks 1–7 merged via PR #130; Tasks 8–11 (CSV, kpiMath, CI, docs) in follow-up branch `fix/plan2-remainder` |
 | 2b | `2026-07-17-pagination-uniqueness.md` (not yet written) | **coordinated backend + Flutter** (contract-breaking, split out of Plan 2) — H4 pagination (`?limit`/cursor + `{data,nextCursor}`, every list repository + screen) · M4/N7 per-tenant uniqueness migrations on `Outlet.code` / `User.email` | ⚪ not started |
 | 3 | `2026-07-17-flutter-shipblockers.md` (not yet written) | H8 no INTERNET permission in release · H9 debug signing keys · C2 (leak half) clear DB on logout + user-scope the outbox · H10 no 401 handling / no `exp` check · H12 web token key beside ciphertext · M11 no Dio timeouts · M12 `_rememberMe` no-op · M14 `allowBackup` | ⚪ not started |
 | 4 | `2026-07-17-design-integration.md` (not yet written) | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ⚪ not started |

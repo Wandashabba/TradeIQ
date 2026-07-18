@@ -1,10 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { mean } from '../../lib/kpiMath';
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
+import { mean, round2 } from '../../lib/kpiMath';
 
 /** Build a date-range filter, or undefined when no bounds are given. */
 function dateRange(from?: Date, to?: Date): { gte?: Date; lte?: Date } | undefined {

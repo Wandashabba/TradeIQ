@@ -2,6 +2,8 @@
 // the Phase 1 spec. Per-SKU ML demand forecasting is Phase 2+ (tracked in
 // docs/architecture/stubs-and-interfaces.md).
 
+import { round2 } from '../lib/kpiMath';
+
 export function predictCoverageDays(input: { unitsAvailable: number; velocityAvg: number }): number {
   if (input.velocityAvg <= 0) return Infinity;
   return input.unitsAvailable / input.velocityAvg;
@@ -22,10 +24,6 @@ export function coverageStatus(coverageDays: number): CoverageStatus {
 // method — Simple Exponential Smoothing (SES) over the SKU's realised sales
 // history — so recent demand is weighted more heavily than stale observations
 // while still using the whole series (not just the latest reading).
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
 
 /**
  * Simple Exponential Smoothing (SES). Returns the smoothed forecast for the

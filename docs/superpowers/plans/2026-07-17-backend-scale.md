@@ -1,6 +1,6 @@
 # Backend Scale & Efficiency Remediation — Plan 2 of 4
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make the backend survive production data volume without changing any API contract — add the missing database indexes, kill the two worst N+1 loops and the fraud base64 over-fetch, close the intra-tenant capture-write gap and CSV formula injection, and remove the duplicated KPI math and dead CI config the audit flagged.
 
@@ -58,7 +58,7 @@ Each task lists the exact files it touches. New test files are created next to t
 - Modify: `backend/prisma/schema.prisma`
 - Create: `backend/prisma/migrations/<generated>/migration.sql` (Prisma generates it)
 
-- [ ] **Step 1: Add `@@index` blocks to the schema**
+- [x] **Step 1: Add `@@index` blocks to the schema**
 
 For each model below, add the `@@index` line(s) immediately above the existing `@@map(...)` line. Do not remove or alter any existing `@@unique`/`@@map`. Field names are the Prisma (camelCase) names, not the `@map` column names.
 
@@ -148,7 +148,7 @@ For each model below, add the `@@index` line(s) immediately above the existing `
 
 Note: `VisitVisibility`, `VisitCapability`, `Scorecard` already have `@unique` on `visitId`, which creates an index — do not add a duplicate `@@index([visitId])` to those three.
 
-- [ ] **Step 2: Generate the migration**
+- [x] **Step 2: Generate the migration**
 
 ```bash
 cd backend && npx prisma migrate dev --name add_indexes
@@ -156,7 +156,7 @@ cd backend && npx prisma migrate dev --name add_indexes
 
 This creates `prisma/migrations/<timestamp>_add_indexes/migration.sql` containing `CREATE INDEX` statements, applies it to the dev DB, and regenerates the client. If it prompts to reset, say NO and investigate — a reset means schema drift that must be understood first.
 
-- [ ] **Step 3: Verify the SQL is index-only**
+- [x] **Step 3: Verify the SQL is index-only**
 
 ```bash
 grep -c "CREATE INDEX" prisma/migrations/*_add_indexes/migration.sql
@@ -165,7 +165,7 @@ grep -iE "DROP|ALTER TABLE.*DROP|DELETE" prisma/migrations/*_add_indexes/migrati
 
 Expected: a count matching the number of `@@index` lines added (~30), and no destructive statements. A migration that drops or alters a column means the schema drifted — stop and investigate.
 
-- [ ] **Step 4: Prove an index is actually used**
+- [x] **Step 4: Prove an index is actually used**
 
 Pick the hottest query and confirm Postgres uses an index rather than a sequential scan:
 
@@ -175,7 +175,7 @@ psql "$DATABASE_URL" -c "EXPLAIN SELECT * FROM visits WHERE client_id = '0000000
 
 Expected: the plan shows `Index Scan` / `Bitmap Index Scan` using an index on `visits`, not `Seq Scan`. (On an empty table Postgres may still choose a seq scan — if so, note it and rely on the migration SQL as evidence; the index exists regardless.)
 
-- [ ] **Step 5: Run the full suite — nothing should change behaviorally**
+- [x] **Step 5: Run the full suite — nothing should change behaviorally**
 
 ```bash
 npx jest --runInBand
@@ -183,7 +183,7 @@ npx jest --runInBand
 
 Expected: the recorded baseline, all green. Indexes change performance, not results.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add prisma/schema.prisma prisma/migrations/
@@ -207,7 +207,7 @@ End the commit message with a blank line then: `Co-Authored-By: Claude Opus 4.8 
 - Modify: `backend/src/modules/fraud/fraud.service.ts`
 - Test: `backend/src/modules/fraud/fraud.dwell.test.ts` (add an assertion) or a new focused test
 
-- [ ] **Step 1: Write a failing test proving the select is narrowed**
+- [x] **Step 1: Write a failing test proving the select is narrowed**
 
 The cleanest behavioral test is that fraud scoring still works with photos that have a `gpsTag` but whose `url` is never needed. Add to `backend/src/modules/fraud/fraud.service.test.ts` (create it if absent; if fraud tests live only in `fraud.routes.test.ts`, add there instead and adapt). First, prove the current shape leaks by asserting the Prisma include used at runtime selects only `gpsTag`. Because that is an implementation detail, prefer a behavioral test: seed a visit with a photo carrying a large `url` and a `gpsTag`, call `getVisitFraud`, and assert it returns a score (i.e. it read `gpsTag`) — then assert, via a spy on `prisma.photo`/query logging if available, that `url` was not selected. If spying is impractical, make this a **refactor-safe** change: keep the existing behavioral fraud tests green and add a unit assertion on the exported include shape.
 
@@ -228,7 +228,7 @@ it('fraud scoring selects only gpsTag from photos, never the base64 url', () => 
 });
 ```
 
-- [ ] **Step 2: Run it — expect FAIL**
+- [x] **Step 2: Run it — expect FAIL**
 
 ```bash
 npx jest src/modules/fraud/fraud.service.test.ts --runInBand
@@ -236,7 +236,7 @@ npx jest src/modules/fraud/fraud.service.test.ts --runInBand
 
 Expected: FAIL — `photos` is currently `true`, so `photos.select` is `undefined`.
 
-- [ ] **Step 3: Narrow the select**
+- [x] **Step 3: Narrow the select**
 
 In `backend/src/modules/fraud/fraud.service.ts`, change the `photos: true` line in `fraudVisitInclude` (line 200) to:
 
@@ -249,7 +249,7 @@ In `backend/src/modules/fraud/fraud.service.ts`, change the `photos: true` line 
 
 Ensure `fraudVisitInclude` is exported (`export const fraudVisitInclude = ...`) if the test imports it.
 
-- [ ] **Step 4: Run the fraud tests — all green**
+- [x] **Step 4: Run the fraud tests — all green**
 
 ```bash
 npx jest src/modules/fraud --runInBand
@@ -257,7 +257,7 @@ npx jest src/modules/fraud --runInBand
 
 Expected: all pass, including the existing dwell/flagged tests — the consumer never read `url`, so behavior is identical.
 
-- [ ] **Step 5: Full suite + commit**
+- [x] **Step 5: Full suite + commit**
 
 ```bash
 npx jest --runInBand
@@ -282,7 +282,7 @@ Blank line, then the Co-Authored-By trailer.
 - Modify: `backend/src/modules/auth/auth.service.ts` (opt back in where the hash is genuinely needed)
 - Test: `backend/src/lib/prisma.test.ts` (new)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/src/lib/prisma.test.ts`:
 
@@ -307,13 +307,13 @@ describe('global passwordHash omit', () => {
 });
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (`passwordHash` currently present).
+- [x] **Step 2: Run — expect FAIL** (`passwordHash` currently present).
 
 ```bash
 npx jest src/lib/prisma.test.ts --runInBand
 ```
 
-- [ ] **Step 3: Add the global omit**
+- [x] **Step 3: Add the global omit**
 
 In `backend/src/lib/prisma.ts`, replace:
 
@@ -332,7 +332,7 @@ export const prisma = new PrismaClient({
 });
 ```
 
-- [ ] **Step 4: Opt back in where the hash is legitimately needed**
+- [x] **Step 4: Opt back in where the hash is legitimately needed**
 
 `authenticateUser` compares the hash, so it must read it. In `backend/src/modules/auth/auth.service.ts`, find the `prisma.user.findUnique({ where: { email } })` call in `authenticateUser` and change it to:
 
@@ -345,7 +345,7 @@ export const prisma = new PrismaClient({
 
 Run `npx tsc --noEmit` — if any OTHER call site read `passwordHash`, it will now be a compile error naming the exact line. There should be exactly one (authenticateUser). If tsc flags others, report them — do not blindly opt them in.
 
-- [ ] **Step 5: Run auth + prisma tests, then the full suite**
+- [x] **Step 5: Run auth + prisma tests, then the full suite**
 
 ```bash
 npx jest src/lib/prisma.test.ts src/modules/auth --runInBand
@@ -354,7 +354,7 @@ npx jest --runInBand
 
 Expected: login still works (auth suite green), the new omit test passes, full suite green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/prisma.ts src/modules/auth/auth.service.ts src/lib/prisma.test.ts
@@ -376,11 +376,11 @@ Blank line, then the Co-Authored-By trailer.
 - Modify: `backend/src/modules/dispatch/dispatch.service.ts`
 - Test: existing `dispatch.routes.test.ts` must stay green (behavior unchanged)
 
-- [ ] **Step 1: Read the current query and its consumer**
+- [x] **Step 1: Read the current query and its consumer**
 
 Open `backend/src/modules/dispatch/dispatch.service.ts`. Find the `prisma.user.findMany` around line 31 and note exactly which fields `rankAgentsForOutlet` reads off each agent (it projects into `DispatchCandidate` — `agentId`, `email`, `distanceM`, `inTerritory`, `lastSeenAt`, and the `lastLat`/`lastLng` used to compute distance).
 
-- [ ] **Step 2: Add an explicit select**
+- [x] **Step 2: Add an explicit select**
 
 Change the `findMany` to select only what the projection uses:
 
@@ -393,7 +393,7 @@ Change the `findMany` to select only what the projection uses:
 
 Adjust field references if the code used `agent.id` vs a destructured name — keep it compiling. Do NOT change the ranking logic.
 
-- [ ] **Step 3: Run dispatch tests + typecheck**
+- [x] **Step 3: Run dispatch tests + typecheck**
 
 ```bash
 npx jest src/modules/dispatch --runInBand
@@ -402,7 +402,7 @@ npx tsc --noEmit
 
 Expected: green — the ranking output is identical, only the columns fetched changed.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/modules/dispatch/
@@ -423,7 +423,7 @@ Blank line, then the Co-Authored-By trailer.
 - Modify: `backend/src/modules/gamification/gamification.service.ts`
 - Test: `backend/src/modules/gamification/gamification.routes.test.ts` (existing — must stay green; the numbers must be identical)
 
-- [ ] **Step 1: Characterize current output with a test**
+- [x] **Step 1: Characterize current output with a test**
 
 Read `gamification.routes.test.ts`. Confirm there is a test asserting concrete leaderboard numbers (points, visitsSubmitted, tasksClosed, avgScorecard) for a seeded fixture. If the existing coverage is thin, ADD a test that seeds 2 agents with known visits/tasks/scorecards and asserts the exact computed `points` and ordering — this is the safety net that proves the `groupBy` rewrite produces identical results. Run it green against the CURRENT code first.
 
@@ -431,7 +431,7 @@ Read `gamification.routes.test.ts`. Confirm there is a test asserting concrete l
 npx jest src/modules/gamification --runInBand
 ```
 
-- [ ] **Step 2: Rewrite `computeLeaderboard` with `groupBy`**
+- [x] **Step 2: Rewrite `computeLeaderboard` with `groupBy`**
 
 Replace the `Promise.all(agents.map(async (agent) => { … }))` block in `computeLeaderboard` with three aggregate queries over the whole agent set, then join in JS. The metric definitions must match exactly: `visitsSubmitted` = count of the agent's submitted visits in the check-in window; `tasksClosed` = count of tasks the agent owns with status `closed` (scoped to the client via the outlet relation); `avgScorecard` = mean of the agent's `Scorecard.weightedTotal` in the created window; `points = round2(avgScorecard + tasksClosed*5 + visitsSubmitted*2)`.
 
@@ -517,7 +517,7 @@ Then build lookup maps and assemble the rows:
 
 Keep the existing sort (`b.points - a.points || a.email.localeCompare(b.email)`). This takes the query count from `1 + 3N` to a constant **4** (agents + 3 aggregates).
 
-- [ ] **Step 3: Run the gamification tests — numbers must be identical**
+- [x] **Step 3: Run the gamification tests — numbers must be identical**
 
 ```bash
 npx jest src/modules/gamification --runInBand
@@ -525,7 +525,7 @@ npx jest src/modules/gamification --runInBand
 
 Expected: green, including the concrete-number test from Step 1. If any number differs, the reduce logic diverged from the old per-agent aggregate — reconcile before proceeding.
 
-- [ ] **Step 4: Full suite + commit**
+- [x] **Step 4: Full suite + commit**
 
 ```bash
 npx jest --runInBand
@@ -548,7 +548,7 @@ Blank line, then the Co-Authored-By trailer.
 - Modify: `backend/src/modules/incentives/incentives.service.ts`
 - Test: `backend/src/modules/incentives/incentives.routes.test.ts` (existing — numbers must stay identical)
 
-- [ ] **Step 1: Pin current output**
+- [x] **Step 1: Pin current output**
 
 Read `incentives.routes.test.ts`. Ensure a test seeds multiple schemes (across different metrics) and multiple agents and asserts the exact `earned` rows. Add one if coverage is thin. Green against current code first.
 
@@ -556,7 +556,7 @@ Read `incentives.routes.test.ts`. Ensure a test seeds multiple schemes (across d
 npx jest src/modules/incentives --runInBand
 ```
 
-- [ ] **Step 2: Compute each metric once per agent, then evaluate thresholds in JS**
+- [x] **Step 2: Compute each metric once per agent, then evaluate thresholds in JS**
 
 Replace the `for (const scheme … Promise.all(agents.map(async …)))` block. Compute all three per-agent metric maps up front (reusing the same aggregation the leaderboard uses — consider extracting a shared helper if it reads cleanly, but do NOT over-abstract), then iterate schemes and agents purely in memory:
 
@@ -619,7 +619,7 @@ Replace the `for (const scheme … Promise.all(agents.map(async …)))` block. C
 
 This is a constant **3** queries regardless of scheme/agent count. The per-metric values match the old per-(scheme,agent) computation exactly because the underlying aggregations are identical.
 
-- [ ] **Step 3: Run incentives tests — identical rows**
+- [x] **Step 3: Run incentives tests — identical rows**
 
 ```bash
 npx jest src/modules/incentives --runInBand
@@ -627,7 +627,7 @@ npx jest src/modules/incentives --runInBand
 
 Expected: green, same `earned` rows and order.
 
-- [ ] **Step 4: Full suite + commit**
+- [x] **Step 4: Full suite + commit**
 
 ```bash
 npx jest --runInBand
@@ -657,13 +657,13 @@ Blank line, then the Co-Authored-By trailer.
 - `backend/src/modules/scorecards/{scorecards.service.ts, scorecards.routes.ts}`
 - Tests: each module's `.routes.test.ts`
 
-- [ ] **Step 1: Verify no legitimate manager-capture flow exists**
+- [x] **Step 1: Verify no legitimate manager-capture flow exists**
 
 Before scoping by `agentId`, confirm these capture routes are only ever used by the owning field agent. For each `.routes.ts`, check the guards: capture should be `requireAuth` with the agent acting on their own visit. If any capture route is intentionally `requireRole('manager', …)` (a manager editing an agent's capture), scoping by `agentId` would break it — STOP and report. Also confirm the Flutter app only captures as the acting agent (it does — the audit flow is agent-only), so no client breakage.
 
 Record the finding explicitly in your report. Assuming (as the audit found) all capture is agent-self:
 
-- [ ] **Step 2: Write a failing cross-agent test for ONE module first (stock)**
+- [x] **Step 2: Write a failing cross-agent test for ONE module first (stock)**
 
 In `backend/src/modules/stock/stock.routes.test.ts`, add a test: seed two agents in the same client, agent A creates an in-progress visit, agent B (their token) attempts `POST /stock` for A's visit, assert **404** (matching `submitVisit`'s "Visit not found" for a foreign agent):
 
@@ -680,7 +680,7 @@ In `backend/src/modules/stock/stock.routes.test.ts`, add a test: seed two agents
 
 Adapt fixtures to the file's existing conventions (read its `beforeAll`). Run it — expect FAIL (currently 200/201, because only `clientId` is checked).
 
-- [ ] **Step 3: Thread `agentId` through the stock route and service**
+- [x] **Step 3: Thread `agentId` through the stock route and service**
 
 In `stock.routes.ts`, pass the acting agent:
 
@@ -703,7 +703,7 @@ In `stock.service.ts`, add `agentId: string` to `RecordStockInput` and scope the
 
 Do the same for `listStockForVisit` if the audit intends reads to be agent-scoped too — BUT note: reads may legitimately be manager-visible. Scope **writes** by `agentId`; leave **reads** (`listStockForVisit` and the manager GET listings) scoped by `clientId` only, matching the existing manager-facing read pattern. Confirm which functions are writes vs reads before changing each.
 
-- [ ] **Step 4: Green for stock, then repeat the identical pattern for the other 7 modules**
+- [x] **Step 4: Green for stock, then repeat the identical pattern for the other 7 modules**
 
 ```bash
 npx jest src/modules/stock --runInBand
@@ -711,7 +711,7 @@ npx jest src/modules/stock --runInBand
 
 Then apply the same write-scoping to pricing, competitive, capability, visibility, photos, templateResponses, scorecards — each: add `agentId` to the write input, pass `req.user!.userId` from the route, add `agentId` to the write's `findFirst` where clause, and add the cross-agent 404 test. Keep manager-facing reads scoped by `clientId` only.
 
-- [ ] **Step 5: Full suite + commit**
+- [x] **Step 5: Full suite + commit**
 
 ```bash
 npx jest --runInBand
@@ -735,7 +735,7 @@ Blank line, then the Co-Authored-By trailer.
 - Modify: `backend/src/modules/reports/reports.service.ts`
 - Test: `backend/src/modules/reports/reports.service.test.ts` (new or existing)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { rowsToCsv } from './reports.service';
@@ -757,9 +757,9 @@ it('leaves ordinary cells untouched', () => {
 });
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (dangerous cells currently emitted raw).
+- [x] **Step 2: Run — expect FAIL** (dangerous cells currently emitted raw).
 
-- [ ] **Step 3: Prefix formula-triggering cells before quoting**
+- [x] **Step 3: Prefix formula-triggering cells before quoting**
 
 In `reports.service.ts`, in the `csvCell` function, immediately before the final `return /[",\n\r]/.test(cell) ? … : cell;`, add:
 
@@ -774,14 +774,14 @@ In `reports.service.ts`, in the `csvCell` function, immediately before the final
 
 Also set a download disposition so the CSV is treated as an attachment, not rendered — in `reports.routes.ts`, where the CSV is sent (`.type('text/csv')`), add `res.setHeader('Content-Disposition', 'attachment; filename="report.csv"')` if not already present. Confirm the route first; if it already sets a filename, leave it.
 
-- [ ] **Step 4: Run report tests + full suite**
+- [x] **Step 4: Run report tests + full suite**
 
 ```bash
 npx jest src/modules/reports --runInBand
 npx jest --runInBand
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/modules/reports/
@@ -806,7 +806,7 @@ Blank line, then the Co-Authored-By trailer.
 - Modify: `backend/src/services/forecast.service.ts`
 - Modify: `backend/src/modules/beatplans/beatplans.service.ts`
 
-- [ ] **Step 1: Write a failing test for the beatplans rounding drift**
+- [x] **Step 1: Write a failing test for the beatplans rounding drift**
 
 In `beatplans` tests, assert `adherenceRate` is 2dp for a fixture that currently produces a long float (e.g. 2 of 3 stops visited → expect `66.67`, currently `66.66666666666667`):
 
@@ -820,7 +820,7 @@ In `beatplans` tests, assert `adherenceRate` is 2dp for a fixture that currently
 
 Run — expect FAIL (`66.66666666666667`).
 
-- [ ] **Step 2: Replace each local definition with an import**
+- [x] **Step 2: Replace each local definition with an import**
 
 In each of `incentives.service.ts`, `gamification.service.ts`, `campaigns.service.ts`, `services/forecast.service.ts`: delete the local `round2` (and in campaigns, the local `pct`/`mean`) and add `import { round2 } from '../../lib/kpiMath';` (adjust the relative path — `services/forecast.service.ts` is `../lib/kpiMath`). For campaigns, import `{ round2, pct, mean }`.
 
@@ -828,7 +828,7 @@ If Tasks 5/6 already changed gamification/incentives, they may still carry the l
 
 In `beatplans.service.ts:13`, wrap the rate: `const adherenceRate = stopsTotal === 0 ? 0 : round2((100 * stopsVisited) / stopsTotal);` and import `round2`.
 
-- [ ] **Step 3: Typecheck + run the affected suites**
+- [x] **Step 3: Typecheck + run the affected suites**
 
 ```bash
 npx tsc --noEmit
@@ -837,7 +837,7 @@ npx jest src/modules/incentives src/modules/gamification src/modules/campaigns s
 
 Expected: green, and the beatplans rate is now `66.67`.
 
-- [ ] **Step 4: Full suite + commit**
+- [x] **Step 4: Full suite + commit**
 
 ```bash
 npx jest --runInBand
@@ -860,22 +860,22 @@ Blank line, then the Co-Authored-By trailer.
 **Files:**
 - Modify: `backend/.github/workflows/backend-ci.yml` (repo root `.github/`, verify the path)
 
-- [ ] **Step 1: Confirm it is genuinely dead**
+- [x] **Step 1: Confirm it is genuinely dead**
 
 Verify: `jest.setup-env.ts` loads `.env.test` with `override: true`; `backend/.env.test` is tracked (`git ls-files backend/.env.test`); no CI step other than `npm test` reads `JWT_SECRET` (`npm run build` is `tsc`; `prisma migrate deploy` doesn't need it). If all hold, it is safe to remove. If `backend/.env.test` is NOT tracked, STOP — the workflow value is load-bearing and must stay.
 
-- [ ] **Step 2: Remove the line**
+- [x] **Step 2: Remove the line**
 
 In `.github/workflows/backend-ci.yml`, delete the `JWT_SECRET: ci-test-secret` line from the job `env:` block. Leave `DATABASE_URL` (that one is used by `prisma migrate deploy`, which runs before jest loads `.env.test`). If removing `JWT_SECRET` leaves the migrate step without a secret it never needed, that's fine — verify by reading the workflow.
 
-- [ ] **Step 3: Sanity-check the workflow still parses**
+- [x] **Step 3: Sanity-check the workflow still parses**
 
 ```bash
 cd backend && npx --yes js-yaml ../.github/workflows/backend-ci.yml > /dev/null && echo "yaml valid" || echo "check yaml"
 ```
 (If `js-yaml` isn't handy, just re-read the file and confirm indentation is intact.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add ../.github/workflows/backend-ci.yml
@@ -891,18 +891,18 @@ Blank line, then the Co-Authored-By trailer.
 
 ### Task 11: Verify the whole plan
 
-- [ ] **Step 1: Full gate**
+- [x] **Step 1: Full gate**
 
 ```bash
 cd backend && npx jest --runInBand && npx tsc --noEmit && npm run lint && npm run build
 ```
 Expected: all green, typecheck/lint/build clean.
 
-- [ ] **Step 2: Confirm the query-count wins with a smoke check**
+- [x] **Step 2: Confirm the query-count wins with a smoke check**
 
 With the dev server up (`npm run dev`) and a seeded client, hit `GET /gamification/leaderboard` and `GET /incentives/earned` and confirm they return the same shape as before at a fraction of the query count (enable Prisma query logging via `DEBUG` or a temporary `log: ['query']` if you want to count — revert any such debug change). This is a sanity check, not a committed test.
 
-- [ ] **Step 3: Update the status doc**
+- [x] **Step 3: Update the status doc**
 
 In `docs/ROADMAP.md`, mark Plan 2 done in the remediation table and note the branch.
 
