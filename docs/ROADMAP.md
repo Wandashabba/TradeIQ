@@ -16,20 +16,29 @@ before Phase 1 can honestly be called shippable. Work is split into four plans
 so each produces working, testable software on its own. **Execute in order — the
 sequence is by exploitability, not convenience.**
 
-**Plan 1 is complete** on branch `fix/security-critical-audit` (both Criticals +
-three Highs closed, 575 tests green, every finding proven end-to-end against the
-real app). Not yet merged. Residuals it deliberately left open — token
-revocation (H2), the webhook DNS-rebinding TOCTOU, and the structural `omit`
-floor — are recorded below and carried into Plan 2. Plans 2–4 are not yet
-written.
+**Plans 1 and 2 are merged.** Plan 1 closed both Criticals + three Highs (JWT
+payload cast, published default secret, bcrypt-hash disclosure, webhook SSRF,
+401-vs-404), proven end-to-end. Plan 2 closed the scale and correctness set (34
+DB indexes, two N+1 rewrites, agent-scoped capture writes, CSV formula
+injection, kpiMath drift). Residuals deliberately left open are recorded below
+and **now tracked as issues**: token revocation (#142), the webhook
+DNS-rebinding TOCTOU (#143), and assorted small cleanups (#145).
+
+**Plans 2b, 3 and 4 are ticketed, not scheduled** — see the issue links in the
+table. Of these, **#137 is the most urgent**: the release build has no INTERNET
+permission and is signed with debug keys, so it cannot ship at all.
+
+**Separate workstream — premium UI** (not audit remediation): the dual light/dark
+theme system (spec §1–3) is merged; motion & polish (spec §4–5) is in PR #136.
+See `docs/superpowers/specs/2026-07-17-premium-ui-theme-motion-design.md`.
 
 | # | Plan | Covers | Status |
 |---|---|---|---|
 | 1 | `docs/superpowers/plans/2026-07-17-security-critical.md` | C3 JWT payload cast → cross-tenant read · H1 published default secret · C1 bcrypt-hash disclosure · H6 webhook SSRF (+H7 timeout) · N8 401-instead-of-404 | ✅ **done** (branch `fix/security-critical-audit`; 575 tests green, proven end-to-end) |
 | 2 | `2026-07-17-backend-scale.md` | **backend-only, non-breaking** — H3 zero DB indexes · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · dispatch over-fetch · global Prisma `omit` floor · M1 capture paths not agent-scoped · M5 CSV formula injection · N5 kpiMath drift · N9 dead `JWT_SECRET` in `backend-ci.yml` | ✅ **done** — Tasks 1–7 merged via PR #130; Tasks 8–11 (CSV, kpiMath, CI, docs) in follow-up branch `fix/plan2-remainder` |
-| 2b | `2026-07-17-pagination-uniqueness.md` (not yet written) | **coordinated backend + Flutter** (contract-breaking, split out of Plan 2) — H4 pagination (`?limit`/cursor + `{data,nextCursor}`, every list repository + screen) · M4/N7 per-tenant uniqueness migrations on `Outlet.code` / `User.email` | ⚪ not started |
-| 3 | `2026-07-17-flutter-shipblockers.md` (not yet written) | H8 no INTERNET permission in release · H9 debug signing keys · C2 (leak half) clear DB on logout + user-scope the outbox · H10 no 401 handling / no `exp` check · H12 web token key beside ciphertext · M11 no Dio timeouts · M12 `_rememberMe` no-op · M14 `allowBackup` | ⚪ not started |
-| 4 | `2026-07-17-design-integration.md` (not yet written) | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ⚪ not started |
+| 2b | **#141** | **coordinated backend + Flutter** (contract-breaking, split out of Plan 2) — H4 pagination (`?limit`/cursor + `{data,nextCursor}`, every list repository + screen) · M4/N7 per-tenant uniqueness migrations on `Outlet.code` / `User.email` | ⚪ ticketed |
+| 3 | **#137 #138 #139 #140** | Flutter ship-blockers & client security — **#137 (CRITICAL)** H8 no INTERNET permission in release + H9 debug signing keys · **#138** C2 offline DB unencrypted/never cleared/outbox not user-scoped · **#139** H10 no 401 handling or `exp` check + H12 web token key beside ciphertext + M12 `_rememberMe` no-op · **#140** M11 no Dio timeouts + M14 `allowBackup` + M15 volatile web DB | ⚪ ticketed |
+| 4 | **#144** | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ⚪ ticketed |
 
 **Structural follow-up worth taking — global Prisma `omit`.** Verified working on
 the installed Prisma 6.19.3 (GA, no preview flag needed):
@@ -48,7 +57,7 @@ allowlist, and fixes the `dispatch.service.ts:31` over-fetch for free. It is
 allowlist also withholds `clientId`/GPS. `omit` is the floor; the allowlist is
 the deliberate public ceiling.
 
-**Known residual after Plan 1 — webhook SSRF is narrowed, not sealed.** Plan 1
+**Known residual after Plan 1 — webhook SSRF is narrowed, not sealed** (→ **#143**). Plan 1
 blocks `169.254.169.254`, `localhost`, RFC1918, `[::1]` and every obfuscated
 encoding (`new URL()` normalises decimal/octal/hex/IDNA before the guard sees
 them), catches pre-existing private URLs at dispatch, kills redirect-to-metadata
@@ -71,7 +80,7 @@ via `redirect: 'manual'`, and caps the 300s hang at 5s. Two gaps remain:
 Exploiting either requires a manager/admin role, so this is a real but
 materially harder attack than the one Plan 1 closed.
 
-**Other small items logged during Plan 1:**
+**Other small items logged during Plan 1** (→ **#145**):
 - `dispatch.service.ts:31` — `findMany` with no `select` loads `passwordHash`
   into memory. Projected into `DispatchCandidate` before serializing, so it is
   an over-fetch, **not** a disclosure. Low priority; global `omit` fixes it.
@@ -79,7 +88,7 @@ materially harder attack than the one Plan 1 closed.
   no user data, so not a leak, but it is inconsistent with the rest of that
   router now that `/coverage` is gated.
 
-**Trap discovered during Plan 1 — read before touching roles.** There are three
+**Trap discovered during Plan 1 — read before touching roles** (→ **#145**). There are three
 declarations of the role union: `ROLES` in `auth.service.ts` (now the source of
 truth for `AuthTokenPayload['role']`), the Prisma `UserRole` enum, and a
 hand-written literal union in `middleware/roleGuard.ts:4`. Drift is currently
@@ -132,7 +141,7 @@ more headroom.
 
 **Deferred with a reason — not forgotten:**
 
-- **H2 — no token revocation.** A valid JWT for a deactivated or demoted user
+- **H2 — no token revocation** (→ **#142**). A valid JWT for a deactivated or demoted user
   keeps working for up to 12h; `requireAuth` never re-checks the DB. The fix
   needs a lookup in `requireAuth`, which turns the fabricated-userId tokens in
   19 test files into 401s — including the 16 cross-tenant tests that rely on
