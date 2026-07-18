@@ -44,12 +44,58 @@
   --grid:         #22252d;
   --axis:         #2f333e;
 
+  /* Elevation & overlay. Dark: transparent shadow (borders carry elevation)
+     and the default black54 scrim — appearance unchanged. */
+  --shadow:       transparent;
+  --scrim:        rgba(0, 0, 0, 0.54);
+
   /* Geometry — squared off. Nothing is a pill. */
   --r-control:    3px;
   --r-panel:      4px;
 
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+/* ── Paper & Ink — the light scheme ─────────────────────────────────────
+   Mirrors TiqColors.light in app/lib/core/theme/tiq_colors.dart. The dark
+   ink #14161c is carried forward as primary text so the two modes read as
+   one product. Series/status steps are darkened variants of the same hues,
+   asserted ≥3:1 against #ffffff by app/test/core/theme/tiq_colors_test.dart. */
+[data-theme='light'] {
+  --plane:        #f7f8fa;
+  --surface-1:    #ffffff;
+  --surface-2:    #f1f3f6;
+  --surface-3:    #e8ebf0;
+
+  --line:         #e3e5ea;
+  --line-strong:  #d2d6de;
+
+  --ink-1:        #14161c;
+  --ink-2:        #4c5560;
+  --ink-3:        #6a7280;
+
+  --brand:        #0a6cf0;
+  --brand-hover:  #0857c4;
+  --brand-quiet:  rgba(32, 105, 201, 0.10);
+
+  --series-1:     #2069c9;
+  --series-2:     #177a57;
+  --series-3:     #9a6700;
+  --series-1-fill: rgba(32, 105, 201, 0.10);
+
+  --good:         #0b7a0b;
+  --warn:         #935f00;
+  --crit:         #b32e2e;
+  --good-quiet:   rgba(11, 122, 11, 0.10);
+  --warn-quiet:   rgba(147, 95, 0, 0.10);
+  --crit-quiet:   rgba(179, 46, 46, 0.10);
+
+  --grid:         #eceef2;
+  --axis:         #d2d6de;
+
+  --shadow:       rgba(16, 24, 40, 0.08);
+  --scrim:        rgba(16, 24, 40, 0.60);
 }
 
 * { box-sizing: border-box; }

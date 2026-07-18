@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -295,11 +296,12 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final ready = _titleCtrl.text.trim().isNotEmpty &&
         _bodyCtrl.text.trim().isNotEmpty;
 
     return AlertDialog(
-      backgroundColor: AppColors.surface1,
+      backgroundColor: colors.surface1,
       title: const Text('New announcement', style: TextStyle(fontSize: 15)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -308,7 +310,7 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
             key: const ValueKey<String>('announcement-title'),
             controller: _titleCtrl,
             autofocus: true,
-            style: const TextStyle(fontSize: 13, color: AppColors.ink1),
+            style: TextStyle(fontSize: 13, color: colors.ink1),
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               labelText: 'Title',
@@ -320,7 +322,7 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
             key: const ValueKey<String>('announcement-body'),
             controller: _bodyCtrl,
             maxLines: 4,
-            style: const TextStyle(fontSize: 13, color: AppColors.ink1),
+            style: TextStyle(fontSize: 13, color: colors.ink1),
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               labelText: 'Body',
@@ -352,11 +354,12 @@ class _Composer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface1,
-        border: Border(top: BorderSide(color: AppColors.line)),
+      decoration: BoxDecoration(
+        color: colors.surface1,
+        border: Border(top: BorderSide(color: colors.line)),
       ),
       child: Row(
         children: [
@@ -364,15 +367,16 @@ class _Composer extends StatelessWidget {
             child: TextField(
               key: const ValueKey<String>('message-body'),
               controller: controller,
-              style: const TextStyle(fontSize: 13, color: AppColors.ink1),
+              style: TextStyle(fontSize: 13, color: colors.ink1),
               onSubmitted: (_) => onSend(),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Message the team',
                 isDense: true,
                 filled: true,
-                fillColor: AppColors.surface2,
-                hintStyle: TextStyle(fontSize: 13, color: AppColors.ink3),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                fillColor: colors.surface2,
+                hintStyle: TextStyle(fontSize: 13, color: colors.ink3),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               ),
             ),
           ),
@@ -380,7 +384,7 @@ class _Composer extends StatelessWidget {
           IconButton(
             key: const ValueKey<String>('send-message'),
             icon: const Icon(Icons.send, size: 18),
-            color: AppColors.ink1,
+            color: colors.ink1,
             tooltip: 'Send',
             onPressed: onSend,
           ),
@@ -404,9 +408,10 @@ class _Segmented<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.lineStrong),
+        border: Border.all(color: colors.lineStrong),
         borderRadius: BorderRadius.circular(AppColors.radiusControl),
       ),
       child: Row(
@@ -420,13 +425,13 @@ class _Segmented<T> extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                 decoration: BoxDecoration(
                   color: segments[i].value == selected
-                      ? AppColors.surface3
+                      ? colors.surface3
                       : Colors.transparent,
                   border: Border(
                     right: BorderSide(
                       color: i == segments.length - 1
                           ? Colors.transparent
-                          : AppColors.lineStrong,
+                          : colors.lineStrong,
                     ),
                   ),
                 ),
@@ -436,8 +441,8 @@ class _Segmented<T> extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: segments[i].value == selected
-                        ? AppColors.ink1
-                        : AppColors.ink2,
+                        ? colors.ink1
+                        : colors.ink2,
                   ),
                 ),
               ),
