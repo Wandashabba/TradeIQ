@@ -7,6 +7,7 @@ import '../sync/sync_status.dart';
 import '../theme/app_colors.dart';
 import 'agent_kit.dart';
 import 'agent_motion.dart';
+import 'pinned_dark.dart';
 
 /// The field agent's shell.
 ///
@@ -50,72 +51,74 @@ class AgentScaffold extends ConsumerWidget {
     // already answered that question, and must never ask.
     final isRoot = onBack == null && _matchedLocation(context) == '/today';
 
-    return Scaffold(
-      backgroundColor: AppColors.plane,
-      appBar: AppBar(
-        toolbarHeight: subtitle == null ? 56 : 64,
-        leading: isRoot && onBack == null
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.arrow_back, size: 22),
-                tooltip: 'Back',
-                onPressed: onBack ?? () => context.go('/today'),
-              ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.2,
-                color: AppColors.ink1,
-              ),
-            ),
-            if (subtitle != null)
+    return PinnedDark(
+      child: Scaffold(
+        backgroundColor: AppColors.plane,
+        appBar: AppBar(
+          toolbarHeight: subtitle == null ? 56 : 64,
+          leading: isRoot && onBack == null
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back, size: 22),
+                  tooltip: 'Back',
+                  onPressed: onBack ?? () => context.go('/today'),
+                ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Text(
-                subtitle!,
+                title,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: AppColors.ink1,
+                ),
               ),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+                ),
+            ],
+          ),
+          actions: [
+            ...?actions,
+            IconButton(
+              icon: const Icon(Icons.logout, size: 20),
+              tooltip: 'Log out',
+              onPressed: () =>
+                  ref.read(sessionControllerProvider.notifier).logout(),
+            ),
           ],
         ),
-        actions: [
-          ...?actions,
-          IconButton(
-            icon: const Icon(Icons.logout, size: 20),
-            tooltip: 'Log out',
-            onPressed: () =>
-                ref.read(sessionControllerProvider.notifier).logout(),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (showSyncChip)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: SyncChip(),
-            ),
-          Expanded(child: body),
-        ],
-      ),
-      bottomNavigationBar: bottomAction == null
-          ? null
-          : Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              decoration: const BoxDecoration(
-                // Opaque, never a fade — the note explaining why an action is
-                // disabled has to stay readable over whatever is scrolling
-                // underneath it.
-                color: AppColors.surface1,
-                border: Border(top: BorderSide(color: AppColors.line)),
+        body: Column(
+          children: [
+            if (showSyncChip)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: SyncChip(),
               ),
-              child: SafeArea(top: false, child: bottomAction!),
-            ),
+            Expanded(child: body),
+          ],
+        ),
+        bottomNavigationBar: bottomAction == null
+            ? null
+            : Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                decoration: const BoxDecoration(
+                  // Opaque, never a fade — the note explaining why an action is
+                  // disabled has to stay readable over whatever is scrolling
+                  // underneath it.
+                  color: AppColors.surface1,
+                  border: Border(top: BorderSide(color: AppColors.line)),
+                ),
+                child: SafeArea(top: false, child: bottomAction!),
+              ),
+      ),
     );
   }
 }
