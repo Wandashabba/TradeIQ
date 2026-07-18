@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -18,9 +19,9 @@ class TrendsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             'Server-side buckets — weeks start Monday, UTC.',
-            style: TextStyle(fontSize: 12, color: AppColors.ink3),
+            style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
           const _TrendFilters(),
@@ -134,9 +135,10 @@ class _ViewToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return DecoratedBox(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.lineStrong),
+        border: Border.all(color: colors.lineStrong),
         borderRadius: BorderRadius.circular(AppColors.radiusControl),
       ),
       child: Row(
@@ -150,11 +152,11 @@ class _ViewToggle extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isTable == asTable
-                      ? AppColors.surface3
+                      ? colors.surface3
                       : Colors.transparent,
                   border: Border(
                     right: BorderSide(
-                      color: isTable ? Colors.transparent : AppColors.lineStrong,
+                      color: isTable ? Colors.transparent : colors.lineStrong,
                     ),
                   ),
                 ),
@@ -163,7 +165,7 @@ class _ViewToggle extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: isTable == asTable ? AppColors.ink1 : AppColors.ink2,
+                    color: isTable == asTable ? colors.ink1 : colors.ink2,
                   ),
                 ),
               ),
@@ -182,6 +184,7 @@ class _TrendTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -198,24 +201,24 @@ class _TrendTable extends StatelessWidget {
         for (final p in points)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 7),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.line)),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: colors.line)),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     p.period,
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.ink2),
+                    style: TextStyle(fontSize: 12.5, color: colors.ink2),
                   ),
                 ),
                 Text(
                   '${_trim(p.value)}$suffix',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.ink1,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                    color: colors.ink1,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ],
@@ -240,6 +243,7 @@ class _TrendFilters extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
     final query = ref.watch(trendQueryProvider);
 
     void update(TrendQuery next) =>
@@ -265,7 +269,7 @@ class _TrendFilters extends ConsumerWidget {
         const SectionLabel('Bucket'),
         DecoratedBox(
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.lineStrong),
+            border: Border.all(color: colors.lineStrong),
             borderRadius: BorderRadius.circular(AppColors.radiusControl),
           ),
           child: Row(
@@ -284,13 +288,13 @@ class _TrendFilters extends ConsumerWidget {
                         const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                     decoration: BoxDecoration(
                       color: interval == query.interval
-                          ? AppColors.surface3
+                          ? colors.surface3
                           : Colors.transparent,
                       border: Border(
                         right: BorderSide(
                           color: interval == TrendInterval.values.last
                               ? Colors.transparent
-                              : AppColors.lineStrong,
+                              : colors.lineStrong,
                         ),
                       ),
                     ),
@@ -300,8 +304,8 @@ class _TrendFilters extends ConsumerWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: interval == query.interval
-                            ? AppColors.ink1
-                            : AppColors.ink2,
+                            ? colors.ink1
+                            : colors.ink2,
                       ),
                     ),
                   ),
