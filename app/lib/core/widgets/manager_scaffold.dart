@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../auth/session_controller.dart';
 import '../theme/theme_mode_controller.dart';
 import '../theme/tiq_colors.dart';
+import 'agent_motion.dart' show reduceMotion;
 
 /// A console destination. Grouped by verb — a manager scanning nineteen flat
 /// rows has to *read* the menu; three verbs let them scan it.
@@ -95,6 +96,9 @@ class ManagerScaffold extends ConsumerWidget {
               child: _NavRail(
                 location: location,
                 collapsed: false,
+                // The drawer arrives as an event, so its rows are allowed an
+                // entrance; the persistent rail is furniture and gets none.
+                staggered: true,
                 onLogout: logout,
                 onNavigate: (path) {
                   Navigator.of(context).pop();
@@ -138,6 +142,7 @@ class ManagerScaffold extends ConsumerWidget {
                 _NavRail(
                   location: location,
                   collapsed: collapsed,
+                  staggered: false,
                   onLogout: logout,
                   onNavigate: context.go,
                 ),
@@ -149,22 +154,80 @@ class ManagerScaffold extends ConsumerWidget {
   }
 }
 
-class _NavRail extends StatelessWidget {
+class _NavRail extends StatefulWidget {
   const _NavRail({
     required this.location,
     required this.collapsed,
+    required this.staggered,
     required this.onNavigate,
     required this.onLogout,
   });
 
   final String location;
   final bool collapsed;
+
+  /// True only for the drawer instance: its rows fade-up in a 20ms-per-row
+  /// stagger as the drawer opens. The persistent rail never animates.
+  final bool staggered;
+
   final void Function(String path) onNavigate;
   final VoidCallback onLogout;
 
   @override
+  State<_NavRail> createState() => _NavRailState();
+}
+
+class _NavRailState extends State<_NavRail>
+    with SingleTickerProviderStateMixin {
+  /// Every destination across the three groups — the stagger walks them in
+  /// visual order, one 20ms step apiece.
+  static final int _rowCount =
+      _groups.fold(0, (total, group) => total + group.$2.length);
+
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 20 * _rowCount + 150),
+    );
+    if (widget.staggered) _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Wraps a nav row in its slice of the one shared controller: each row fades
+  /// in and rises 6% of its own height, starting 20ms after the row above it.
+  /// Under reduced motion — or on the persistent rail — the row is returned
+  /// untouched, at full opacity, exactly where it belongs.
+  Widget _staggeredRow(BuildContext context, int index, Widget row) {
+    if (!widget.staggered || reduceMotion(context)) return row;
+    final start = (index * 20) / (_rowCount * 20 + 150);
+    final anim = CurvedAnimation(
+      parent: _controller,
+      curve: Interval(start.clamp(0.0, 1.0), 1, curve: Curves.easeOut),
+    );
+    return FadeTransition(
+      opacity: anim,
+      child: SlideTransition(
+        position: Tween(begin: const Offset(0, 0.06), end: Offset.zero)
+            .animate(anim),
+        child: row,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final collapsed = widget.collapsed;
+    var rowIndex = 0;
     return Container(
       width: collapsed ? 60 : 232,
       color: colors.surface1,
@@ -198,19 +261,23 @@ class _NavRail extends StatelessWidget {
                         ),
                       ),
                     for (final d in destinations)
-                      _NavRow(
-                        destination: d,
-                        selected: location == d.path ||
-                            location.startsWith('${d.path}/'),
-                        collapsed: collapsed,
-                        onTap: () => onNavigate(d.path),
+                      _staggeredRow(
+                        context,
+                        rowIndex++,
+                        _NavRow(
+                          destination: d,
+                          selected: widget.location == d.path ||
+                              widget.location.startsWith('${d.path}/'),
+                          collapsed: collapsed,
+                          onTap: () => widget.onNavigate(d.path),
+                        ),
                       ),
                   ],
                 ],
               ),
             ),
             Divider(height: 1, color: colors.line),
-            _RailFoot(collapsed: collapsed, onLogout: onLogout),
+            _RailFoot(collapsed: collapsed, onLogout: widget.onLogout),
           ],
         ),
       ),
