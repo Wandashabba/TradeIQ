@@ -84,6 +84,9 @@ class ManagerScaffold extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: colors.plane,
+      // black54 in dark (Flutter's default, so dark is unchanged); deeper in
+      // light, where a pale scrim would not separate the drawer from the page.
+      drawerScrimColor: colors.scrim,
       // The drawer only exists at phone width — on desktop the rail is always
       // visible, so there is nothing to open.
       drawer: useDrawer

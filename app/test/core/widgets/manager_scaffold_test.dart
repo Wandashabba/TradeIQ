@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/manager_scaffold.dart';
 
 import '../../helpers/routed_app.dart';
@@ -86,6 +87,17 @@ void main() {
         reason: 'missing destination $path',
       );
     }
+  });
+
+  testWidgets('the drawer scrim comes from the theme, not Flutter\'s default', (
+    tester,
+  ) async {
+    await _pumpAt(tester, 600);
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    // Dark keeps black54 — identical to the default, so dark is unchanged.
+    // Light swaps in a deeper slate, which is the point of reading the token.
+    expect(scaffold.drawerScrimColor, TiqColors.dark.scrim);
   });
 
   testWidgets('page actions render alongside logout', (tester) async {
