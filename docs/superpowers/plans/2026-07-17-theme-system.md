@@ -143,6 +143,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
     required this.axis,
     required this.shadow,
     required this.scrim,
+    required this.tooltipBg,
+    required this.tooltipFg,
   });
 
   final Brightness brightness;
@@ -186,6 +188,13 @@ class TiqColors extends ThemeExtension<TiqColors> {
   /// Drawer/backdrop scrim (alpha baked in).
   final Color scrim;
 
+  /// Inverted tooltip/readout surface — near-black in dark mode, ink in light
+  /// mode, so a floating readout stays readable on any panel in both modes.
+  final Color tooltipBg;
+
+  /// Text on [tooltipBg].
+  final Color tooltipFg;
+
   /// Today's palette, exactly — mirrors the static AppColors table.
   static const dark = TiqColors(
     brightness: Brightness.dark,
@@ -210,6 +219,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
     axis: Color(0xFF2F333E),
     shadow: Color(0x00000000),
     scrim: Color(0x99000000),
+    tooltipBg: Color(0xFF05060A),
+    tooltipFg: Color(0xFFE9EBEE), // == ink1
   );
 
   /// Paper & Ink. Same geometry, same brand blue, the dark theme's ink as text.
@@ -236,6 +247,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
     axis: Color(0xFFD2D6DE),
     shadow: Color(0xFF14161C), // applied at low opacity by the shadow tokens
     scrim: Color(0x8014161C),
+    tooltipBg: Color(0xFF14161C), // == ink1 — the inverted surface
+    tooltipFg: Color(0xFFFFFFFF),
   );
 
   @override
@@ -267,6 +280,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
       axis: Color.lerp(axis, other.axis, t)!,
       shadow: Color.lerp(shadow, other.shadow, t)!,
       scrim: Color.lerp(scrim, other.scrim, t)!,
+      tooltipBg: Color.lerp(tooltipBg, other.tooltipBg, t)!,
+      tooltipFg: Color.lerp(tooltipFg, other.tooltipFg, t)!,
     );
   }
 }
@@ -959,6 +974,8 @@ git commit -m "refactor(app): core manager widgets read TiqColors, not statics"
 
 Apply Task 3's Rules 1 and 2 (Rule 3 will not come up — these screens have no painters; if one appears, apply Rule 3). Same absolute constraints: no dark-mode behavior change, drop `const` only where forced, do not restructure.
 
+Convention: hoist `final c = context.colors;` when a build method reads ≥3 slots; inline reads are fine below that. Also: every migrated screen's test file should include at least one pump under `AppTheme.light()` — the dark fallback means unthemed pumps can't catch light-mode regressions.
+
 - [ ] **Step 1: Migrate the 6 heavier files** (trends, dashboard_shell, messages, client_config, tasks, my_work)
 - [ ] **Step 2: Migrate the remaining 14 light files**
 - [ ] **Step 3: Verify zero statics remain in manager/shared code**
@@ -1036,6 +1053,7 @@ At the end of the file, add:
   --axis: #d2d6de;
   --shadow: rgba(20, 22, 28, 0.06);
   --scrim: rgba(20, 22, 28, 0.5);
+  /* Also add --tooltip-bg / --tooltip-fg to BOTH mode blocks (mirror TiqColors.tooltipBg/tooltipFg). */
 }
 ```
 

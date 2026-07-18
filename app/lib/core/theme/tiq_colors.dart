@@ -35,6 +35,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
     required this.axis,
     required this.shadow,
     required this.scrim,
+    required this.tooltipBg,
+    required this.tooltipFg,
   });
 
   final Brightness brightness;
@@ -78,6 +80,13 @@ class TiqColors extends ThemeExtension<TiqColors> {
   /// Drawer/backdrop scrim (alpha baked in).
   final Color scrim;
 
+  /// Inverted tooltip/readout surface — near-black in dark mode, ink in light
+  /// mode, so a floating readout stays readable on any panel in both modes.
+  final Color tooltipBg;
+
+  /// Text on [tooltipBg].
+  final Color tooltipFg;
+
   /// Today's palette, exactly — mirrors the static AppColors table.
   static const dark = TiqColors(
     brightness: Brightness.dark,
@@ -102,6 +111,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
     axis: Color(0xFF2F333E),
     shadow: Color(0x00000000),
     scrim: Color(0x99000000),
+    tooltipBg: Color(0xFF05060A),
+    tooltipFg: Color(0xFFE9EBEE), // == ink1
   );
 
   /// Paper & Ink. Same geometry, same brand blue, the dark theme's ink as text.
@@ -128,6 +139,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
     axis: Color(0xFFD2D6DE),
     shadow: Color(0xFF14161C), // applied at low opacity by the shadow tokens
     scrim: Color(0x8014161C),
+    tooltipBg: Color(0xFF14161C), // == ink1 — the inverted surface
+    tooltipFg: Color(0xFFFFFFFF),
   );
 
   @override
@@ -159,6 +172,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
       axis: Color.lerp(axis, other.axis, t)!,
       shadow: Color.lerp(shadow, other.shadow, t)!,
       scrim: Color.lerp(scrim, other.scrim, t)!,
+      tooltipBg: Color.lerp(tooltipBg, other.tooltipBg, t)!,
+      tooltipFg: Color.lerp(tooltipFg, other.tooltipFg, t)!,
     );
   }
 }

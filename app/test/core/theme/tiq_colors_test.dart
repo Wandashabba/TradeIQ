@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_colors.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 
@@ -48,6 +49,29 @@ void main() {
     expect(c.brand, const Color(0xFF0A6CF0));
     expect(c.series1, const Color(0xFF3987E5));
     expect(c.good, const Color(0xFF0CA30C));
+  });
+
+  test('TiqColors.dark mirrors the AppColors statics until AppColors dies', () {
+    const c = TiqColors.dark;
+    expect(c.plane, AppColors.plane);
+    expect(c.surface1, AppColors.surface1);
+    expect(c.surface2, AppColors.surface2);
+    expect(c.surface3, AppColors.surface3);
+    expect(c.line, AppColors.line);
+    expect(c.lineStrong, AppColors.lineStrong);
+    expect(c.ink1, AppColors.ink1);
+    expect(c.ink2, AppColors.ink2);
+    expect(c.ink3, AppColors.ink3);
+    expect(c.brand, AppColors.brand);
+    expect(c.brandHover, AppColors.brandHover);
+    expect(c.series1, AppColors.series1);
+    expect(c.series2, AppColors.series2);
+    expect(c.series3, AppColors.series3);
+    expect(c.good, AppColors.good);
+    expect(c.warn, AppColors.warn);
+    expect(c.crit, AppColors.crit);
+    expect(c.grid, AppColors.grid);
+    expect(c.axis, AppColors.axis);
   });
 
   test('both themes register the TiqColors extension and correct brightness', () {

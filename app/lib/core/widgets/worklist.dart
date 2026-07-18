@@ -115,25 +115,24 @@ class TriageStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final cells = <Widget>[
-      for (final c in counts)
+      for (final t in counts)
         _TriageCell(
-          key: ValueKey('triage-${c.label.toLowerCase()}'),
+          key: ValueKey('triage-${t.label.toLowerCase()}'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              StatusChip(label: c.label, level: c.level),
+              StatusChip(label: t.label, level: t.level),
               const SizedBox(height: 3),
               Text(
-                '${c.count}',
+                '${t.count}',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.4,
-                  color: c.count == 0
-                      ? context.colors.ink3
-                      : c.level.colorOf(context.colors),
+                  color: t.count == 0 ? c.ink3 : t.level.colorOf(c),
                 ),
               ),
             ],
@@ -156,7 +155,7 @@ class TriageStrip extends StatelessWidget {
                       right: BorderSide(
                         color: i == cells.length - 1
                             ? Colors.transparent
-                            : context.colors.line,
+                            : c.line,
                       ),
                     ),
                   ),
@@ -217,9 +216,10 @@ class WorklistRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final row = Container(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: context.colors.line)),
+        border: Border(bottom: BorderSide(color: c.line)),
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -228,9 +228,7 @@ class WorklistRow extends StatelessWidget {
             // Channel 1: the edge bar.
             Container(
               width: 3,
-              color: resolved
-                  ? context.colors.lineStrong
-                  : level.colorOf(context.colors),
+              color: resolved ? c.lineStrong : level.colorOf(c),
             ),
             Expanded(
               child: Padding(
@@ -249,14 +247,14 @@ class WorklistRow extends StatelessWidget {
                               fontSize: 13,
                               fontWeight:
                                   resolved ? FontWeight.w400 : FontWeight.w500,
-                              color: context.colors.ink1,
+                              color: c.ink1,
                             ),
                           ),
                           const SizedBox(height: 2),
                           DefaultTextStyle(
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: context.colors.ink3,
+                              color: c.ink3,
                             ),
                             child: meta,
                           ),
@@ -281,7 +279,7 @@ class WorklistRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11.5,
-                            color: context.colors.ink3,
+                            color: c.ink3,
                           ),
                         ),
                       ),
@@ -312,11 +310,12 @@ class CodeToken extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: context.colors.surface2,
-        border: Border.all(color: context.colors.line),
+        color: c.surface2,
+        border: Border.all(color: c.line),
         borderRadius: BorderRadius.circular(2),
       ),
       child: Text(
@@ -324,7 +323,7 @@ class CodeToken extends StatelessWidget {
         style: TextStyle(
           fontFamily: 'monospace',
           fontSize: 10.5,
-          color: context.colors.ink3,
+          color: c.ink3,
         ),
       ),
     );

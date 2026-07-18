@@ -26,7 +26,6 @@ class AppTheme {
   static ThemeData light() => _light;
 
   static ThemeData _base(TiqColors c) {
-    final isDark = c.brightness == Brightness.dark;
     final fieldBorder = OutlineInputBorder(
       borderRadius: _control,
       borderSide: BorderSide(color: c.lineStrong),
@@ -204,12 +203,12 @@ class AppTheme {
       // Inverted tooltip: readable on any surface, in both modes.
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF05060A) : c.ink1,
+          color: c.tooltipBg,
           border: Border.fromBorderSide(BorderSide(color: c.lineStrong)),
           borderRadius: _control,
         ),
         textStyle: TextStyle(
-          color: isDark ? c.ink1 : Colors.white,
+          color: c.tooltipFg,
           fontSize: 11.5,
         ),
       ),

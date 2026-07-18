@@ -72,6 +72,7 @@ class ManagerScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
     final location = GoRouterState.of(context).matchedLocation;
     final width = MediaQuery.sizeOf(context).width;
     final useDrawer = width < _drawerBreakpoint;
@@ -80,12 +81,12 @@ class ManagerScaffold extends ConsumerWidget {
     void logout() => ref.read(sessionControllerProvider.notifier).logout();
 
     return Scaffold(
-      backgroundColor: context.colors.plane,
+      backgroundColor: c.plane,
       // The drawer only exists at phone width — on desktop the rail is always
       // visible, so there is nothing to open.
       drawer: useDrawer
           ? Drawer(
-              backgroundColor: context.colors.surface1,
+              backgroundColor: c.surface1,
               child: _NavRail(
                 location: location,
                 collapsed: false,
@@ -136,7 +137,7 @@ class ManagerScaffold extends ConsumerWidget {
                   onLogout: logout,
                   onNavigate: context.go,
                 ),
-                VerticalDivider(width: 1, color: context.colors.line),
+                VerticalDivider(width: 1, color: c.line),
                 Expanded(child: body),
               ],
             ),
@@ -159,9 +160,10 @@ class _NavRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       width: collapsed ? 60 : 232,
-      color: context.colors.surface1,
+      color: c.surface1,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -176,7 +178,7 @@ class _NavRail extends StatelessWidget {
                         height: 17,
                         indent: 16,
                         endIndent: 16,
-                        color: context.colors.line,
+                        color: c.line,
                       )
                     else
                       Padding(
@@ -187,7 +189,7 @@ class _NavRail extends StatelessWidget {
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.9,
-                            color: context.colors.ink3,
+                            color: c.ink3,
                           ),
                         ),
                       ),
@@ -203,7 +205,7 @@ class _NavRail extends StatelessWidget {
                 ],
               ),
             ),
-            Divider(height: 1, color: context.colors.line),
+            Divider(height: 1, color: c.line),
             _RailFoot(collapsed: collapsed, onLogout: onLogout),
           ],
         ),
@@ -227,14 +229,15 @@ class _NavRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     // The active row is a rule plus a weight change — not a filled pill. It
     // reads as position, which is what it means.
     final row = Container(
       decoration: BoxDecoration(
-        color: selected ? context.colors.surface2 : null,
+        color: selected ? c.surface2 : null,
         border: Border(
           left: BorderSide(
-            color: selected ? context.colors.brand : Colors.transparent,
+            color: selected ? c.brand : Colors.transparent,
             width: 3,
           ),
         ),
@@ -247,7 +250,7 @@ class _NavRow extends StatelessWidget {
           Icon(
             destination.icon,
             size: 15,
-            color: selected ? context.colors.series1 : context.colors.ink3,
+            color: selected ? c.series1 : c.ink3,
           ),
           if (!collapsed) ...[
             const SizedBox(width: 9),
@@ -258,7 +261,7 @@ class _NavRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? context.colors.ink1 : context.colors.ink2,
+                  color: selected ? c.ink1 : c.ink2,
                 ),
               ),
             ),
@@ -287,20 +290,21 @@ class _RailFoot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
     final role = ref.watch(sessionControllerProvider).value?.role ?? '';
     final avatar = Container(
       width: 26,
       height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: context.colors.surface3,
-        border: Border.all(color: context.colors.lineStrong),
+        color: c.surface3,
+        border: Border.all(color: c.lineStrong),
         borderRadius: BorderRadius.circular(2),
       ),
       child: Icon(
         Icons.person_outline,
         size: 14,
-        color: context.colors.ink2,
+        color: c.ink2,
       ),
     );
 
@@ -324,13 +328,13 @@ class _RailFoot extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: context.colors.ink1,
+                color: c.ink1,
               ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.logout, size: 15),
-            color: context.colors.ink3,
+            color: c.ink3,
             tooltip: 'Log out',
             onPressed: onLogout,
           ),

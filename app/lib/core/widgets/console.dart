@@ -72,12 +72,13 @@ class PanelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final head = title == null
         ? null
         : Container(
             padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: context.colors.line)),
+              border: Border(bottom: BorderSide(color: c.line)),
             ),
             child: Row(
               children: [
@@ -87,7 +88,7 @@ class PanelCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
-                      color: context.colors.ink1,
+                      color: c.ink1,
                     ),
                   ),
                 ),
@@ -96,7 +97,7 @@ class PanelCard extends StatelessWidget {
                   Flexible(
                     child: Text(
                       subtitle!,
-                      style: TextStyle(fontSize: 11, color: context.colors.ink3),
+                      style: TextStyle(fontSize: 11, color: c.ink3),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -109,8 +110,8 @@ class PanelCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: context.colors.surface1,
-        border: Border.all(color: context.colors.line),
+        color: c.surface1,
+        border: Border.all(color: c.line),
         borderRadius: BorderRadius.circular(TiqGeometry.panel),
       ),
       child: Column(
@@ -220,6 +221,7 @@ class StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Column(
@@ -230,7 +232,7 @@ class StatTile extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 11, color: context.colors.ink2),
+            style: TextStyle(fontSize: 11, color: c.ink2),
           ),
           const SizedBox(height: 5),
           Row(
@@ -247,7 +249,7 @@ class StatTile extends StatelessWidget {
                     height: 1.1,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.4,
-                    color: context.colors.ink1,
+                    color: c.ink1,
                   ),
                 ),
               ),
@@ -264,7 +266,7 @@ class StatTile extends StatelessWidget {
               note!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10.5, color: context.colors.ink3),
+              style: TextStyle(fontSize: 10.5, color: c.ink3),
             ),
           ],
         ],
@@ -294,13 +296,14 @@ class AttentionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         decoration: BoxDecoration(
           border: showDivider
-              ? Border(bottom: BorderSide(color: context.colors.line))
+              ? Border(bottom: BorderSide(color: c.line))
               : null,
         ),
         child: Row(
@@ -313,7 +316,7 @@ class AttentionRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: level.colorOf(context.colors),
+                  color: level.colorOf(c),
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -328,19 +331,19 @@ class AttentionRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
-                      color: context.colors.ink1,
+                      color: c.ink1,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     meta,
-                    style: TextStyle(fontSize: 11, color: context.colors.ink3),
+                    style: TextStyle(fontSize: 11, color: c.ink3),
                   ),
                 ],
               ),
             ),
             if (onTap != null)
-              Icon(Icons.chevron_right, size: 14, color: context.colors.ink3),
+              Icon(Icons.chevron_right, size: 14, color: c.ink3),
           ],
         ),
       ),

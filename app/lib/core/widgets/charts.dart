@@ -819,7 +819,7 @@ class _Tooltip extends StatelessWidget {
   Widget build(BuildContext context) {
     const w = 136.0;
     final left = (x + 12).clamp(0.0, math.max(0.0, plotWidth - w)).toDouble();
-    final isDark = context.colors.brightness == Brightness.dark;
+    final c = context.colors;
     return Stack(
       children: [
         Positioned(
@@ -829,11 +829,9 @@ class _Tooltip extends StatelessWidget {
             width: w,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              // Inverted tooltip, matching the theme's tooltipTheme: near-black
-              // in dark mode (pixel-identical to before), ink in light mode so
-              // the readout stays readable on white panels.
-              color: isDark ? const Color(0xFF05060A) : context.colors.ink1,
-              border: Border.all(color: context.colors.lineStrong),
+              // Inverted readout, same slots as the theme's tooltipTheme.
+              color: c.tooltipBg,
+              border: Border.all(color: c.lineStrong),
               borderRadius: BorderRadius.circular(TiqGeometry.control),
             ),
             child: Column(
@@ -845,7 +843,7 @@ class _Tooltip extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     letterSpacing: 0.6,
-                    color: context.colors.ink3,
+                    color: c.ink3,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -854,14 +852,14 @@ class _Tooltip extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? context.colors.ink1 : Colors.white,
+                    color: c.tooltipFg,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
                 if (seriesName.isNotEmpty)
                   Text(
                     seriesName,
-                    style: TextStyle(fontSize: 11, color: context.colors.ink3),
+                    style: TextStyle(fontSize: 11, color: c.ink3),
                   ),
               ],
             ),
@@ -926,7 +924,7 @@ class _ScrubReadout extends StatelessWidget {
     const w = 150.0;
     final left = (x + 12).clamp(0.0, math.max(0.0, plotWidth - w)).toDouble();
     final delta = previous == null ? null : point.value - previous!;
-    final isDark = context.colors.brightness == Brightness.dark;
+    final c = context.colors;
 
     return Stack(
       children: [
@@ -937,11 +935,9 @@ class _ScrubReadout extends StatelessWidget {
             width: w,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              // Inverted tooltip, matching the theme's tooltipTheme: near-black
-              // in dark mode (pixel-identical to before), ink in light mode so
-              // the readout stays readable on white panels.
-              color: isDark ? const Color(0xFF05060A) : context.colors.ink1,
-              border: Border.all(color: context.colors.lineStrong),
+              // Inverted readout, same slots as the theme's tooltipTheme.
+              color: c.tooltipBg,
+              border: Border.all(color: c.lineStrong),
               borderRadius: BorderRadius.circular(TiqGeometry.control),
             ),
             child: Column(
@@ -953,7 +949,7 @@ class _ScrubReadout extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     letterSpacing: 0.6,
-                    color: context.colors.ink3,
+                    color: c.ink3,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -966,7 +962,7 @@ class _ScrubReadout extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? context.colors.ink1 : Colors.white,
+                        color: c.tooltipFg,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
@@ -981,7 +977,7 @@ class _ScrubReadout extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       seriesName,
-                      style: TextStyle(fontSize: 11, color: context.colors.ink3),
+                      style: TextStyle(fontSize: 11, color: c.ink3),
                     ),
                   ),
               ],
