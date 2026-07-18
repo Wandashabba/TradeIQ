@@ -37,7 +37,9 @@ to a runtime toggle. The fix:
   `ThemeData _base(TiqColors c)` so component themes (inputs, buttons, cards, appbar, chips…)
   cannot drift between modes. The extension is registered on both.
 - **`context.colors`** — a one-line `BuildContext` extension returning
-  `Theme.of(this).extension<TiqColors>()!`. Feature code migrates mechanically:
+  `Theme.of(this).extension<TiqColors>() ?? TiqColors.dark` (the fallback keeps
+  the 22 pre-existing bare-`MaterialApp` test pumps green; production themes
+  always register the extension). Feature code migrates mechanically:
   `AppColors.x` → `context.colors.x`.
 - **Migration scope:** core widgets shared by the manager console (`worklist.dart`,
   `console.dart`, `manager_scaffold.dart`, `charts.dart`) and
