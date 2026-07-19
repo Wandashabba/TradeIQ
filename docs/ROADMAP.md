@@ -29,7 +29,9 @@ table. Of these, **#137 is the most urgent**: the release build has no INTERNET
 permission and is signed with debug keys, so it cannot ship at all.
 
 **Separate workstream — premium UI** (not audit remediation): the dual light/dark
-theme system (spec §1–3) is merged; motion & polish (spec §4–5) is in PR #136.
+theme system (spec §1–3) is merged; motion & polish (spec §4–5) is **also
+merged** (PR #136, 2026-07-18) — shared-axis manager transitions, drawer scrim
+and staggered nav, elevation, hover/pressed/focus states. 395 app tests green.
 See `docs/superpowers/specs/2026-07-17-premium-ui-theme-motion-design.md`.
 
 | # | Plan | Covers | Status |
@@ -154,10 +156,11 @@ more headroom.
   API change regardless of storage.
 - **Durable webhook outbox** — related to #62. Plan 1 adds the 5s timeout that
   caps the 300s hang; the retry/outbox half stays ticketed.
-- **C2 (encryption half) — SQLCipher at rest for the Drift DB.** Not yet
-  ticketed. The offline DB holds GPS trails and base64 shelf photos in plain
-  SQLite. Plan 3 closes the *leak* half (clear on logout, user-scope the
-  outbox); encryption at rest needs its own ticket.
+- **C2 (encryption half) — SQLCipher at rest for the Drift DB** (→ **#138**).
+  The offline DB holds GPS trails and base64 shelf photos in plain SQLite.
+  #138 covers both halves: the *leak* half (clear on logout, user-scope the
+  outbox) and encryption at rest via `sqlcipher_flutter_libs` with the key in
+  `flutter_secure_storage`. It does **not** need a separate ticket.
 
 ## Phase 1 — Foundation (months 1-3) — ✅ implemented
 
@@ -298,8 +301,11 @@ detail: `docs/architecture/phase3-activation.md`.
    endpoint** (#122) — the S1–S10 audit flow is still hard-coded, so selecting
    a template still has zero effect on what the agent sees or where answers go.
 5. Trend analytics (#33) — ✅ scorecards / availability / perfect-store series,
-   ✅ charts in-app. **🔴 No campaign-ROI trend** (#94), **🔴 no share-of-shelf
-   trend** (#95), **🔴 no benchmark comparison** (#123) — those endpoints do
+   ✅ charts in-app, **✅ share-of-shelf** (`GET /trends/share-of-shelf`, closed
+   by #95 on 2026-07-16 — bucketed day/week like its siblings, and `round2`/
+   `pct`/`mean`/`facingsTotal` now live once in `lib/kpiMath.ts` so the
+   dashboard KPI and the trend endpoint cannot drift). **🔴 No campaign-ROI
+   trend** (#94) and **🔴 no benchmark comparison** (#123) — those endpoints do
    not exist.
 
 **Tier 2:**
@@ -307,14 +313,20 @@ detail: `docs/architecture/phase3-activation.md`.
    reward schemes, ✅ app UIs. **🔴 No badges, contests, or persisted points
    model, and retailer/trade loyalty is absent** (#124) — incentives reward
    *agents* only, not the retailers the pitch names.
-7. Territory management & coverage (#35) — ✅ CRUD, agent assignment, app UI.
-   **🔴 No heatmap and no coverage rate** (#96): `/territories/:id/coverage`
-   returns outlet and agent *lists*, and `Outlet.lat/lng` is not used for any
-   geographic analytics. App UI: #54.
-8. In-store order-taking / sell-in capture (#36) — ✅ backend + app UI.
+7. Territory management & coverage (#35) — ✅ CRUD, agent assignment, app UI,
+   **✅ coverage rate** (#96, closed 2026-07-16 — `/territories/:id/coverage`
+   returns `{outletsVisited, outletsTotal, coverageRate}` with optional
+   `from`/`to`, counting `distinct` outlets and only `status: 'submitted'`
+   check-ins, so abandoned offline drafts don't inflate it). **✅ Heatmap**
+   (#127, split out of #96 so it wouldn't be lost, since closed). App UI: #54.
+8. In-store order-taking / sell-in capture (#36) — ✅ backend + app UI,
+   **✅ promo pricing** (#99, closed 2026-07-16 — `PromoCalendar` gained
+   `discountType`/`discountValue`/`skuScope`, `GET /skus?outletId=` serves
+   `effectivePrice`, and both the running total and the submitted
+   `OrderLine.unitPrice` price at the discount. `matchesScope` fails *closed* on
+   a malformed scope, so a typo cannot silently discount every outlet).
    **🔴 No campaign attribution** (`Order` has no `campaignId` — tracked under
-   #94, the same root cause as campaign ROI) and **🔴 no promo pricing** (#99
-   — `unitPrice` is hand-entered; `PromoCalendar` is never consulted).
+   #94, the same root cause as campaign ROI).
 9. In-app messaging & announcements (#37) — ✅ backend, ✅ messages + announcements
    UI. **🔴 No attachments** (#125).
 10. Integrations & webhooks (#38) — ✅ `modules/webhooks`, firing on
@@ -335,8 +347,11 @@ Sequencing note: #35 (territories) underpins #30 (beat planning); #29→#33/#94
 (campaign → ROI) is the tightest activation feedback loop — and it is the one
 that is **not built on either side**, so it is the highest-value Phase-3 gap.
 
-**Dead models:** `PlanogramTemplate` and `PromoCalendar` are in the schema and
-seeded, but no module, route or service reads them.
+**Dead model:** `PlanogramTemplate` is in the schema and seeded, but no module,
+route or service reads it — verified by grep across `backend/src/` and
+`app/lib/` on 2026-07-19. Tracked as **#150** (wire it or drop it).
+`PromoCalendar` used to be listed here too; #99 gave it real discount fields and
+wired it into order pricing, so it is no longer dead.
 
 ## Phase 4 — Scale & Optimise (months 10-12) — 🟣 ticketed
 
