@@ -9,6 +9,7 @@ Welcome to TradeIQ. Start here, in order:
 5. [`docs/architecture/stubs-and-interfaces.md`](docs/architecture/stubs-and-interfaces.md) — what's real vs. stubbed, and why
 6. [`docs/adr/`](docs/adr/) — why key decisions were made (Flutter for mobile+web, lean Phase 1 infra, Node/Express, Riverpod, offline-first Drift sync, Prisma)
 7. [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to add a module/feature, commit style, PR checks
+8. [`docs/onboarding/release-builds.md`](docs/onboarding/release-builds.md) — release signing and building for a real device
 
 Then look at `backend/src/modules/outlets/` and `app/lib/features/outlets/`
 — the one fully-wired vertical slice — as the template for building out the

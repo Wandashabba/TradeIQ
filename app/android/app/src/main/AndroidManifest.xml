@@ -1,6 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Must live in the MAIN manifest, not just debug/profile. Flutter's
+         template ships INTERNET in src/debug and src/profile only, so a release
+         build silently loses all network access: the app installs and runs, and
+         every API call fails. See #137. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Declared for the closure and S3-S4/S5 section photo capture (#41).
+         image_picker delegates to the system camera app, so this is belt-and-
+         braces rather than strictly required — but it is declared deliberately
+         instead of relying on intent behaviour. See #148. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="tradeiq_app"
         android:name="${applicationName}"
