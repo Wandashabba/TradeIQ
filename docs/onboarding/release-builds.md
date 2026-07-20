@@ -18,10 +18,23 @@ keytool -genkey -v -keystore ~/tradeiq-upload-keystore.jks \
 Then copy `app/android/key.properties.example` to `app/android/key.properties`
 and fill in the four values.
 
-**Keep the keystore and its password safe permanently.** Once an app is
-published under an application id, losing the key means you can never ship an
-update to it — Google will not re-key it for you. Back it up somewhere durable
-that is not this repo.
+**Back up the keystore and its password.** Store the `.jks` somewhere durable
+that is not this repo, and the password in a password manager. Recording the
+certificate's SHA-256 fingerprint is worth it too — some Google services ask for
+it during setup, and it is how you prove a build came from your key.
+
+How bad losing it is depends on which signing scheme the app uses:
+
+- **Play App Signing** (the default for apps first published since August 2021):
+  Google holds the real app signing key, and yours is only an *upload* key. Lose
+  it and you request an upload-key reset from Google — disruptive, but
+  recoverable.
+- **Legacy self-signed:** the key *is* the app's identity. Lose it and you can
+  never ship an update under that application id. Not recoverable.
+
+TradeIQ has not been published yet, so it will land on Play App Signing. Treat
+the key as precious anyway — the recovery path is a support round-trip you would
+rather not spend a release on.
 
 ### What happens if it's missing
 
