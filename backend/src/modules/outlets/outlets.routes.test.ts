@@ -18,10 +18,17 @@ describe('outlets routes', () => {
     });
     clientId = client.id;
     token = issueToken({ userId: 'seed-user', role: 'manager', clientId });
+
+    // Outlet creation now requires territoryId to name a real territory of the
+    // caller's client, so the territory these tests post has to exist.
+    await prisma.territory.create({
+      data: { clientId, name: 'Territory One', code: 'territory-1' },
+    });
   });
 
   afterAll(async () => {
     await prisma.outlet.deleteMany({ where: { clientId } });
+    await prisma.territory.deleteMany({ where: { clientId } });
     await prisma.client.delete({ where: { id: clientId } });
     await prisma.$disconnect();
   });
@@ -134,6 +141,83 @@ describe('outlets routes', () => {
     expect(secondRes.status).toBe(409);
   });
 
+  it('rejects an outlet whose territory does not exist', async () => {
+    // Previously accepted with 201. The outlet was then silently absent from
+    // coverage counts and every territory-scoped view, with nothing to explain
+    // why — the failure looked like missing data, not bad input.
+    const res = await request(app)
+      .post('/outlets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Typo Outlet',
+        code: 'TYPO-001',
+        channelType: 'convenience',
+        lat: -26.1,
+        lng: 28.0,
+        territoryId: 'terrritory-1',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('terrritory-1');
+  });
+
+  it('rejects a territory NAME where a code is required', async () => {
+    // The mistake seen in real use: an outlet created against territory
+    // "Hurlingham" whose actual code was "2773u". Looks right to a human,
+    // matches nothing.
+    const res = await request(app)
+      .post('/outlets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Name Not Code',
+        code: 'NNC-001',
+        channelType: 'convenience',
+        lat: -26.1,
+        lng: 28.0,
+        territoryId: 'Territory One',
+      });
+
+    expect(res.status).toBe(400);
+    // The message has to name the distinction, or the caller retries the same
+    // string and concludes the API is broken.
+    expect(res.body.error).toContain('code');
+  });
+
+  it('rejects a territory belonging to a different client', async () => {
+    const clientC = await prisma.client.create({
+      data: {
+        name: 'Third Client',
+        industry: 'FMCG',
+        scorecardWeights: {},
+        kpiThresholds: {},
+      },
+    });
+    await prisma.territory.create({
+      data: { clientId: clientC.id, name: 'Foreign', code: 'foreign-territory' },
+    });
+
+    try {
+      const res = await request(app)
+        .post('/outlets')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          name: 'Cross Tenant',
+          code: 'XT-001',
+          channelType: 'convenience',
+          lat: -26.1,
+          lng: 28.0,
+          territoryId: 'foreign-territory',
+        });
+
+      // The lookup is scoped by clientId, so another tenant's territory code is
+      // as unknown as one that does not exist anywhere.
+      expect(res.status).toBe(400);
+    } finally {
+      await prisma.territory.deleteMany({ where: { clientId: clientC.id } });
+      await prisma.client.delete({ where: { id: clientC.id } });
+    }
+  });
+
   it('does not leak outlets across clients', async () => {
     const clientB = await prisma.client.create({
       data: {
@@ -144,6 +228,9 @@ describe('outlets routes', () => {
       },
     });
     const tokenB = issueToken({ userId: 'seed-user-b', role: 'manager', clientId: clientB.id });
+    await prisma.territory.create({
+      data: { clientId: clientB.id, name: 'Territory Two', code: 'territory-2' },
+    });
 
     try {
       const createResB = await request(app)
@@ -168,6 +255,7 @@ describe('outlets routes', () => {
       expect(listResA.body.some((outlet: { code: string }) => outlet.code === 'CB-001')).toBe(false);
     } finally {
       await prisma.outlet.deleteMany({ where: { clientId: clientB.id } });
+      await prisma.territory.deleteMany({ where: { clientId: clientB.id } });
       await prisma.client.delete({ where: { id: clientB.id } });
     }
   });
