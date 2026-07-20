@@ -1,0 +1,22 @@
+# Keep the build context small and, more importantly, keep secrets out of the
+# image. .env in particular must never be baked in — config comes from the
+# runtime environment (Fly secrets), not from a file in the layer.
+.env
+.env.*
+node_modules
+dist
+coverage
+
+# Tests and tooling never run in the shipped image.
+**/*.test.ts
+jest.config.js
+jest.global-setup.ts
+jest.setup-env.ts
+.eslintrc*
+eslint.config.*
+
+.git
+.gitignore
+Dockerfile
+.dockerignore
+*.md

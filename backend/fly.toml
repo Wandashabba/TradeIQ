@@ -1,0 +1,46 @@
+# Fly.io config for the TradeIQ backend.
+#
+# Region is jnb (Johannesburg) deliberately: the users are field agents in
+# Gauteng on mobile data, and it is the only major provider region on the
+# continent. Frankfurt would add ~150ms to every check-in and photo upload.
+#
+# Secrets are NOT set here. Use `fly secrets set` so they live encrypted in
+# Fly rather than in a committed file:
+#   fly secrets set DATABASE_URL="..." JWT_SECRET="..." CORS_ORIGINS="..."
+
+app = "tradeiq-backend"
+primary_region = "jnb"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Applies migrations before any new version takes traffic. If it fails, the
+# deploy aborts and the old version keeps serving — a broken migration should
+# never become a broken site.
+[deploy]
+  release_command = "npx prisma migrate deploy"
+
+[env]
+  PORT = "4000"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Zero is deliberate for a test backend: it costs nothing while idle and
+  # cold-starts on the first request. Raise to 1 before real field testing —
+  # an agent standing in a store should not wait on a cold start.
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
