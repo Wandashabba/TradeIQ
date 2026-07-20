@@ -1,0 +1,18 @@
+# Copy to android/key.properties and fill in. That file is gitignored —
+# never commit it, and never commit the .jks it points at.
+#
+# Full instructions: docs/onboarding/release-builds.md
+#
+# Generate the keystore (once, and keep it safe forever — losing it means you
+# can never publish an update to an app already on the Play Store under this
+# application id):
+#
+#   keytool -genkey -v -keystore ~/tradeiq-upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# storeFile may be absolute, or relative to android/app/.
+
+storePassword=<the password you chose>
+keyPassword=<the key password you chose>
+keyAlias=upload
+storeFile=/absolute/path/to/tradeiq-upload-keystore.jks
