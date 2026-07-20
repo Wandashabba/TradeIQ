@@ -40,6 +40,37 @@ class _FakeDashboardRepository implements DashboardRepository {
       byTerritory;
 }
 
+/// Serves whatever [score] currently holds, so a test can change the server's
+/// answer between fetches and prove the screen went back for it rather than
+/// replaying a cached one.
+class _MutableDashboardRepository implements DashboardRepository {
+  double score = 10.0;
+
+  @override
+  Future<DashboardKpis> fetchKpis({
+    String? territoryId,
+    String? from,
+    String? to,
+  }) async =>
+      DashboardKpis(
+        numericDistribution: 72.5,
+        weightedDistribution: 81.3,
+        osaPct: 93.1,
+        executionScore: score,
+        priceCompliancePct: 88.0,
+        visibilityCompliancePct: 76.4,
+        shareOfShelf: 41.2,
+        perfectStoreRate: 55.6,
+      );
+
+  @override
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({
+    String? from,
+    String? to,
+  }) async =>
+      const [];
+}
+
 /// Returns a LOWER figure for the earlier window, so the console has a real rise
 /// to report rather than an invented one.
 class _ImprovingDashboardRepository implements DashboardRepository {
@@ -447,5 +478,27 @@ void main() {
     // The fake returns the same numbers for both windows, so nothing moved —
     // and a 0.0 delta is not movement. No arrow is the honest rendering.
     expect(find.byType(DeltaText), findsNothing);
+  });
+
+  testWidgets('the refresh action refetches instead of replaying cache', (
+    tester,
+  ) async {
+    // The regression this guards: dashboardSnapshotProvider is a plain
+    // FutureProvider, so once it resolves it caches for the life of the app.
+    // A manager watching agents sync work in would have seen the numbers from
+    // whenever they opened the screen, with nothing on screen admitting it.
+    final repo = _MutableDashboardRepository();
+    await _pump(tester, _app(dashboard: repo));
+
+    expect(find.text('10.0'), findsOneWidget);
+
+    // The server's answer changes — an agent submitted a visit.
+    repo.score = 42.0;
+
+    await tester.tap(find.byKey(const ValueKey('dashboard-refresh')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('42.0'), findsOneWidget);
+    expect(find.text('10.0'), findsNothing);
   });
 }
