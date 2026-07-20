@@ -48,7 +48,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // submission has happened.
   bool _isSubmitting = false;
   bool _obscurePassword = true;
-  bool _rememberMe = false;
+  /// Defaults to on, matching what the app has always done: the session was
+  /// persisted unconditionally, checkbox or not. Honouring the box while
+  /// leaving it unticked by default would silently switch every field agent to
+  /// re-logging in each morning — a regression dressed up as a fix.
+  bool _rememberMe = true;
 
   @override
   void dispose() {
@@ -64,7 +68,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isSubmitting = true);
     await ref
         .read(sessionControllerProvider.notifier)
-        .login(_emailController.text, _passwordController.text);
+        .login(
+          _emailController.text,
+          _passwordController.text,
+          rememberMe: _rememberMe,
+        );
     if (mounted) {
       setState(() => _isSubmitting = false);
     }

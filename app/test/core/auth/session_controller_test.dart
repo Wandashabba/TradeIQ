@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/auth_repository.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/auth/token_store.dart';
+import 'package:tradeiq_app/core/network/api_client.dart';
 
 class FakeAuthRepository implements AuthRepository {
   @override
@@ -124,4 +127,124 @@ void main() {
 
     expect(await store.read(), isNull);
   });
+
+  test('an expired stored token does not restore a session', () async {
+    // The backend issues a 12h JWT and has no refresh endpoint, so this is
+    // every user every day, not an edge case. Restoring it would produce a
+    // logged-in shell where every screen errors and nothing offers a way out.
+    final store = FakeTokenStore(
+      StoredSession(token: _jwtExpiringAt(_hoursFromNow(-1)), role: 'manager'),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        tokenStoreProvider.overrideWithValue(store),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final session = await container.read(sessionControllerProvider.future);
+
+    expect(session.role, isNull);
+    expect(session.token, isNull);
+    // And the dead token is cleared rather than left to be retried forever.
+    expect(await store.read(), isNull);
+  });
+
+  test('a stored token still in date restores normally', () async {
+    final token = _jwtExpiringAt(_hoursFromNow(6));
+    final store = FakeTokenStore(StoredSession(token: token, role: 'manager'));
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        tokenStoreProvider.overrideWithValue(store),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final session = await container.read(sessionControllerProvider.future);
+
+    expect(session.role, 'manager');
+    expect(session.token, token);
+  });
+
+  test('login without rememberMe keeps the session out of storage', () async {
+    final store = FakeTokenStore();
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        tokenStoreProvider.overrideWithValue(store),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(sessionControllerProvider.future);
+    await container
+        .read(sessionControllerProvider.notifier)
+        .login('a@b.com', 'pw', rememberMe: false);
+
+    // Signed in for this run...
+    expect(container.read(sessionControllerProvider).value?.role, 'manager');
+    // ...but nothing survives the app closing, which is what unticking asks for.
+    expect(await store.read(), isNull);
+  });
+
+  test('login without rememberMe clears a previously persisted session', () async {
+    // Otherwise unticking the box on a shared phone leaves the last user's
+    // token on disk and the control is still lying.
+    final store = FakeTokenStore(
+      const StoredSession(token: 'older-token', role: 'field_agent'),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        tokenStoreProvider.overrideWithValue(store),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(sessionControllerProvider.future);
+    await container
+        .read(sessionControllerProvider.notifier)
+        .login('a@b.com', 'pw', rememberMe: false);
+
+    expect(await store.read(), isNull);
+  });
+
+  test('a 401 on an authenticated request signs the session out', () async {
+    final store = FakeTokenStore();
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        tokenStoreProvider.overrideWithValue(store),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(sessionControllerProvider.future);
+    await container
+        .read(sessionControllerProvider.notifier)
+        .login('a@b.com', 'pw');
+    expect(container.read(sessionControllerProvider).value?.role, 'manager');
+
+    // What the Dio error interceptor does when the server rejects the token.
+    onUnauthorized!();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(container.read(sessionControllerProvider).value?.role, isNull);
+    expect(await store.read(), isNull);
+  });
+}
+
+DateTime _hoursFromNow(int hours) =>
+    DateTime.now().toUtc().add(Duration(hours: hours));
+
+/// A structurally real JWT — only the payload matters, since nothing client
+/// side verifies the signature.
+String _jwtExpiringAt(DateTime expiry) {
+  String seg(Map<String, dynamic> m) =>
+      base64Url.encode(utf8.encode(json.encode(m))).replaceAll('=', '');
+  final header = seg({'alg': 'HS256', 'typ': 'JWT'});
+  final payload = seg({'exp': expiry.millisecondsSinceEpoch ~/ 1000});
+  return '$header.$payload.signature';
 }
