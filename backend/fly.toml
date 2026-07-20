@@ -1,0 +1,51 @@
+# Fly.io config for the TradeIQ backend.
+#
+# Region is lhr (London), chosen to sit beside the Supabase database in
+# eu-west-1 (Ireland) — roughly 10ms apart. Co-locating the app and the
+# database matters more than putting either near Johannesburg: one HTTP
+# request makes several queries, so a split would pay the long hop repeatedly.
+#
+# Supabase has no African region, so ~170ms from a Gauteng phone is the floor
+# for now. Fly has a jnb region; moving there is worth it only once the
+# database can follow, otherwise it makes things worse rather than better.
+#
+# Secrets are NOT set here. Use `fly secrets set` so they live encrypted in
+# Fly rather than in a committed file:
+#   fly secrets set DATABASE_URL="..." JWT_SECRET="..." CORS_ORIGINS="..."
+
+app = "tradeiq-backend"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Applies migrations before any new version takes traffic. If it fails, the
+# deploy aborts and the old version keeps serving — a broken migration should
+# never become a broken site.
+[deploy]
+  release_command = "npx prisma migrate deploy"
+
+[env]
+  PORT = "4000"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Zero is deliberate for a test backend: it costs nothing while idle and
+  # cold-starts on the first request. Raise to 1 before real field testing —
+  # an agent standing in a store should not wait on a cold start.
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

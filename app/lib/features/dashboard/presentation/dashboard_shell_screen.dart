@@ -25,40 +25,77 @@ class DashboardShellScreen extends ConsumerWidget {
   /// breakpoint so the layout never fights the nav.
   static const _wide = 1080.0;
 
+  /// Refetches every panel together.
+  ///
+  /// All of them, not just the one that looks stale: panels that refreshed at
+  /// different moments would quietly disagree with each other, and a dashboard
+  /// that contradicts itself is worse than one that is uniformly a minute old.
+  ///
+  /// [dashboardFilterProvider] is deliberately excluded — it holds the
+  /// manager's filter selection rather than server data, and resetting it here
+  /// would silently throw away what they asked to see.
+  static Future<void> _refresh(WidgetRef ref) async {
+    ref.invalidate(dashboardByTerritoryProvider);
+    ref.invalidate(scorecardsTrendProvider);
+    ref.invalidate(perfectStoreTrendProvider);
+    ref.invalidate(availabilityTrendProvider);
+    ref.invalidate(alertsListProvider);
+    ref.invalidate(tasksListProvider);
+    ref.invalidate(territoriesListProvider);
+    // Awaited last so the progress indicator tracks the headline number; the
+    // rest refetch in parallel behind it.
+    ref.invalidate(dashboardSnapshotProvider);
+    await ref.read(dashboardSnapshotProvider.future);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshot = ref.watch(dashboardSnapshotProvider);
 
     return ManagerScaffold(
       title: 'Execution overview',
+      // Managers are on Flutter web, where pull-to-refresh is neither obvious
+      // nor comfortable with a mouse — so the gesture below is the shortcut and
+      // this button is the actual affordance.
+      actions: [
+        IconButton(
+          key: const ValueKey<String>('dashboard-refresh'),
+          icon: const Icon(Icons.refresh, size: 18),
+          tooltip: 'Refresh',
+          onPressed: () => _refresh(ref),
+        ),
+      ],
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= _wide;
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const _FilterBar(),
-              const SizedBox(height: 12),
-              _TwoColumn(
-                wide: wide,
-                leftFlex: 19,
-                rightFlex: 10,
-                left: _ExecutionScorePanel(snapshot: snapshot),
-                right: const _NeedsAttentionPanel(),
-              ),
-              const SizedBox(height: 12),
-              _KpiStrip(snapshot: snapshot),
-              const SizedBox(height: 12),
-              const _TwoColumn(
-                wide: true,
-                leftFlex: 1,
-                rightFlex: 1,
-                left: _TerritoryPanel(),
-                right: _AvailabilityPanel(),
-              ),
-              const SizedBox(height: 12),
-              const _StubCaveat(),
-            ],
+          return RefreshIndicator(
+            onRefresh: () => _refresh(ref),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const _FilterBar(),
+                const SizedBox(height: 12),
+                _TwoColumn(
+                  wide: wide,
+                  leftFlex: 19,
+                  rightFlex: 10,
+                  left: _ExecutionScorePanel(snapshot: snapshot),
+                  right: const _NeedsAttentionPanel(),
+                ),
+                const SizedBox(height: 12),
+                _KpiStrip(snapshot: snapshot),
+                const SizedBox(height: 12),
+                const _TwoColumn(
+                  wide: true,
+                  leftFlex: 1,
+                  rightFlex: 1,
+                  left: _TerritoryPanel(),
+                  right: _AvailabilityPanel(),
+                ),
+                const SizedBox(height: 12),
+                const _StubCaveat(),
+              ],
+            ),
           );
         },
       ),
@@ -142,7 +179,8 @@ class _ExecutionScorePanel extends ConsumerWidget {
                   TweenAnimationBuilder<double>(
                     key: const ValueKey('kpi-execution-score'),
                     tween: Tween(begin: 0, end: snap.current.executionScore),
-                    duration: (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+                    duration:
+                        (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
                         ? Duration.zero
                         : const Duration(milliseconds: 700),
                     curve: Curves.easeOutCubic,
@@ -157,9 +195,9 @@ class _ExecutionScorePanel extends ConsumerWidget {
                   // is answering one question consistently.
                   switch (snap.of((k) => k.executionScore)) {
                     final d when d.hasDelta => DeltaBadge(
-                        value: d.change!,
-                        fontSize: 13,
-                      ),
+                      value: d.change!,
+                      fontSize: 13,
+                    ),
                     _ => const SizedBox.shrink(),
                   },
                 ],
@@ -218,8 +256,9 @@ class _NeedsAttentionPanel extends ConsumerWidget {
             ),
             data: (list) {
               final open = list.where((a) => !a.acknowledged).toList();
-              final critical =
-                  open.where((a) => a.severity == 'critical').length;
+              final critical = open
+                  .where((a) => a.severity == 'critical')
+                  .length;
               final warning = open.length - critical;
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -260,7 +299,9 @@ class _NeedsAttentionPanel extends ConsumerWidget {
             // computable client-side. Report what we can actually stand behind.
             data: (list) {
               final open = list.where((t) => t.status != 'closed').toList();
-              final critical = open.where((t) => t.priority == 'critical').length;
+              final critical = open
+                  .where((t) => t.priority == 'critical')
+                  .length;
               return AttentionRow(
                 key: const ValueKey('attention-open-tasks'),
                 count: open.length,
@@ -304,9 +345,17 @@ typedef _Kpi = ({
 
 const _kpis = <_Kpi>[
   (label: 'On-shelf availability', read: _osa, note: 'of all SKU checks'),
-  (label: 'Perfect-store rate', read: _perfect, note: 'outlets passing every gate'),
+  (
+    label: 'Perfect-store rate',
+    read: _perfect,
+    note: 'outlets passing every gate',
+  ),
   (label: 'Price compliance', read: _price, note: 'within tolerance of RRP'),
-  (label: 'Visibility compliance', read: _visibility, note: 'planogram threshold'),
+  (
+    label: 'Visibility compliance',
+    read: _visibility,
+    note: 'planogram threshold',
+  ),
   (label: 'Share of shelf', read: _sos, note: 'vs. observed competitors'),
   (label: 'Weighted distribution', read: _weighted, note: 'volume-weighted'),
   (label: 'Numeric distribution', read: _numeric, note: 'outlets stocking'),
@@ -332,10 +381,10 @@ class _KpiStrip extends ConsumerWidget {
   /// the most confident-looking lie on the screen.
   List<double>? _series(WidgetRef ref, String label) {
     List<double>? read(AsyncValue<List<TrendPoint>> v) => v.maybeWhen(
-          data: (points) =>
-              points.length < 2 ? null : [for (final p in points) p.value],
-          orElse: () => null,
-        );
+      data: (points) =>
+          points.length < 2 ? null : [for (final p in points) p.value],
+      orElse: () => null,
+    );
 
     return switch (label) {
       'On-shelf availability' => read(ref.watch(availabilityTrendProvider)),
@@ -370,16 +419,14 @@ class _KpiStrip extends ConsumerWidget {
               final columns = constraints.maxWidth >= 1120
                   ? 4
                   : constraints.maxWidth >= 620
-                      ? 3
-                      : 2;
+                  ? 3
+                  : 2;
 
               // Chunk into rows and let each row divide the full width, so a
               // short final row fills instead of leaving a ragged empty cell.
               final rows = <List<(String, String, String, KpiDelta)>>[];
               for (var i = 0; i < tiles.length; i += columns) {
-                rows.add(
-                  tiles.sublist(i, math.min(i + columns, tiles.length)),
-                );
+                rows.add(tiles.sublist(i, math.min(i + columns, tiles.length)));
               }
 
               return Column(
@@ -506,7 +553,8 @@ class _TerritoryScoreBars extends ConsumerWidget {
         final byId = {for (final s in summaries) s.territoryId: s};
         final points = <ChartPoint>[
           for (final t in territories)
-            if (byId[t.id] != null) (label: t.name, value: byId[t.id]!.kpis.executionScore),
+            if (byId[t.id] != null)
+              (label: t.name, value: byId[t.id]!.kpis.executionScore),
         ];
         if (points.isEmpty) return const _InlineLoader(height: 40);
         points.sort((a, b) => b.value.compareTo(a.value));
@@ -533,9 +581,7 @@ class _AvailabilityPanel extends ConsumerWidget {
           onRetry: () => ref.invalidate(availabilityTrendProvider),
         ),
         data: (points) => ColumnChart(
-          points: [
-            for (final p in points) (label: p.period, value: p.value),
-          ],
+          points: [for (final p in points) (label: p.period, value: p.value)],
           valueSuffix: '%',
           seriesName: 'On-shelf availability',
         ),
@@ -616,7 +662,11 @@ class _FilterBar extends ConsumerWidget {
 }
 
 class _RangeControl extends StatelessWidget {
-  const _RangeControl({super.key, required this.selected, required this.onChanged});
+  const _RangeControl({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
 
   final DashboardRange selected;
   final ValueChanged<DashboardRange> onChanged;
@@ -638,12 +688,12 @@ class _RangeControl extends StatelessWidget {
               onTap: () => onChanged(r),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: r == selected
-                      ? colors.surface3
-                      : Colors.transparent,
+                  color: r == selected ? colors.surface3 : Colors.transparent,
                   border: Border(
                     right: BorderSide(
                       color: i == DashboardRange.values.length - 1
