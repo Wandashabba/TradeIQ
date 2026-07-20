@@ -749,16 +749,34 @@ async function main() {
     });
   }
 
+  // Dated to whenever the seed runs, not a fixed day.
+  //
+  // The agent's home screen shows the plan whose *local* date is today and
+  // otherwise says nobody planned a route. A hardcoded date therefore left
+  // every demo and every tester looking at an empty home screen on every day
+  // but one — which reads as "the app is broken", not "no route today".
+  //
+  // 06:00 UTC is 08:00 SAST: inside the working day in the tenant's timezone,
+  // so the local-date comparison lands on the intended day rather than
+  // slipping either side of midnight.
+  const now = new Date();
+  const beatPlanDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6, 0, 0),
+  );
+
   await prisma.beatPlan.upsert({
     where: { id: 'demo-beatplan-1' },
-    update: {},
+    // Re-dated on every reseed. With `update: {}` an already-seeded database
+    // would keep its original date forever, so the fix would never reach the
+    // environments that need it most.
+    update: { scheduledDate: beatPlanDate },
     create: {
       id: 'demo-beatplan-1',
       clientId: client.id,
       agentId: agent.id,
       territoryId: territory.id,
       name: 'Gauteng North — Mon route',
-      scheduledDate: new Date('2026-07-13T06:00:00.000Z'),
+      scheduledDate: beatPlanDate,
       status: 'planned',
     },
   });
