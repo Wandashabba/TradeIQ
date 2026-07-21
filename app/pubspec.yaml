@@ -79,8 +79,26 @@ flutter:
 
   assets:
     - assets/images/tradeiq-ti-monogram.png
-    - assets/images/grocery-store-background.jpeg
     - assets/videos/Steadycam_gliding_down_aisle_202607102247.mp4
+
+  # Inter is bundled, not fetched: field agents work offline in shops with no
+  # signal, so a runtime download (the google_fonts default) would mean the
+  # theme's typeface — whose metrics every letterSpacing and font-size token
+  # was tuned against — simply isn't there. Static TTFs, not the variable
+  # font: Flutter only maps FontWeight to distinct font files, not to a
+  # variable wght axis. Weights match what lib/ actually uses (400/500/600/
+  # 700). SIL OFL 1.1 — licence at assets/fonts/OFL.txt.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:
