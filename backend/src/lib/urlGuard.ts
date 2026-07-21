@@ -10,11 +10,15 @@ import { isIP } from 'net';
  *   - `assertPublicHostname` — re-checked immediately before `fetch`. Takes an
  *     injected lookup so it unit-tests offline.
  *
- * Known gap: neither layer closes DNS rebinding. `assertPublicHostname` and
- * `fetch` resolve the name independently, so an attacker serving TTL=0 DNS can
- * answer public for our check and private for the connect. Closing it requires
- * validating the address at connect time (undici Agent + `connect.lookup`), so
- * that one resolution is both checked and used — tracked for Plan 2.
+ * DNS rebinding is closed by a third layer, `ssrfAgent.ts`, which validates the
+ * address inside undici's connector so that one resolution is both checked and
+ * used. These two layers are still necessary rather than redundant:
+ *
+ *   - undici skips `connect.lookup` entirely when the host is a literal IP,
+ *     so the connector never sees `http://169.254.169.254/`. Only
+ *     `parsePublicHttpUrl` / `assertPublicHostname` catch that.
+ *   - failing at registration gives the user a clear error, where a connector
+ *     refusal surfaces much later as an ordinary delivery failure.
  */
 
 export type LookupFn = (
