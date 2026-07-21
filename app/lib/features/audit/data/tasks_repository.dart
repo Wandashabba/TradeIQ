@@ -20,10 +20,10 @@ class TaskDraft {
   final String priority;
 
   Map<String, dynamic> toJson() => {
-        'findingType': findingType,
-        'requiredFix': requiredFix,
-        'priority': priority,
-      };
+    'findingType': findingType,
+    'requiredFix': requiredFix,
+    'priority': priority,
+  };
 }
 
 abstract class TasksRepository {
@@ -47,15 +47,15 @@ class DriftTasksRepository implements TasksRepository {
     required String outletId,
     required TaskDraft task,
   }) async {
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'task',
-          entityId: _uuid.v4(),
-          payloadJson: jsonEncode({
-            'visitDraftId': visitDraftId,
-            'outletId': outletId,
-            ...task.toJson(),
-          }),
-        ));
+    await db.enqueue(
+      entityType: 'task',
+      entityId: _uuid.v4(),
+      payloadJson: jsonEncode({
+        'visitDraftId': visitDraftId,
+        'outletId': outletId,
+        ...task.toJson(),
+      }),
+    );
 
     try {
       await syncService.flushPending();
@@ -65,7 +65,9 @@ class DriftTasksRepository implements TasksRepository {
   }
 }
 
-final tasksRepositoryProvider = Provider<TasksRepository>((ref) => DriftTasksRepository(
-      db: ref.read(localDbProvider),
-      syncService: ref.read(syncServiceProvider),
-    ));
+final tasksRepositoryProvider = Provider<TasksRepository>(
+  (ref) => DriftTasksRepository(
+    db: ref.read(localDbProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);

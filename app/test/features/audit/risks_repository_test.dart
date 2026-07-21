@@ -14,36 +14,49 @@ class _RecordingFlusher implements QueueFlusher {
 }
 
 void main() {
-  test('saveRisks enqueues one risk item with the entries and flushes', () async {
-    final db = LocalDb(NativeDatabase.memory());
-    addTearDown(db.close);
-    final flusher = _RecordingFlusher();
-    final repo = DriftRisksRepository(
-      db: db,
-      syncService: SyncService(db: db, flusher: flusher),
-    );
+  // Queued rows are stamped with their owner and only that owner's rows
+  // flush, so these tests need somebody signed in — as the app does.
+  setUp(() => currentLocalUserId = 'user-a');
+  tearDown(() => currentLocalUserId = null);
 
-    await repo.saveRisks(
-      visitDraftId: 'visit-1',
-      entries: const [
-        RiskEntry(flagType: 'expiredStock', severity: 'critical', note: 'Two cases past date'),
-        RiskEntry(flagType: 'posmDamaged', severity: 'normal', note: ''),
-      ],
-    );
+  test(
+    'saveRisks enqueues one risk item with the entries and flushes',
+    () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      final flusher = _RecordingFlusher();
+      final repo = DriftRisksRepository(
+        db: db,
+        syncService: SyncService(db: db, flusher: flusher),
+      );
 
-    final items = await db.select(db.syncQueueItems).get();
-    expect(items, hasLength(1));
-    expect(items.first.entityType, 'risk');
+      await repo.saveRisks(
+        visitDraftId: 'visit-1',
+        entries: const [
+          RiskEntry(
+            flagType: 'expiredStock',
+            severity: 'critical',
+            note: 'Two cases past date',
+          ),
+          RiskEntry(flagType: 'posmDamaged', severity: 'normal', note: ''),
+        ],
+      );
 
-    final payload = jsonDecode(items.first.payloadJson) as Map<String, dynamic>;
-    expect(payload['visitDraftId'], 'visit-1');
-    expect((payload['risks'] as List), hasLength(2));
-    final first = (payload['risks'] as List).first as Map<String, dynamic>;
-    expect(first['flagType'], 'expiredStock');
-    expect(first['severity'], 'critical');
-    expect(first['note'], 'Two cases past date');
+      final items = await db.select(db.syncQueueItems).get();
+      expect(items, hasLength(1));
+      expect(items.first.entityType, 'risk');
 
-    expect(flusher.flushed, hasLength(1));
-    expect(flusher.flushed.first.entityType, 'risk');
-  });
+      final payload =
+          jsonDecode(items.first.payloadJson) as Map<String, dynamic>;
+      expect(payload['visitDraftId'], 'visit-1');
+      expect((payload['risks'] as List), hasLength(2));
+      final first = (payload['risks'] as List).first as Map<String, dynamic>;
+      expect(first['flagType'], 'expiredStock');
+      expect(first['severity'], 'critical');
+      expect(first['note'], 'Two cases past date');
+
+      expect(flusher.flushed, hasLength(1));
+      expect(flusher.flushed.first.entityType, 'risk');
+    },
+  );
 }

@@ -16,7 +16,7 @@ class LocalDb extends _$LocalDb {
   LocalDb([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -38,10 +38,50 @@ class LocalDb extends _$LocalDb {
             await m.addColumn(syncQueueItems, syncQueueItems.lastError);
             await m.addColumn(syncQueueItems, syncQueueItems.lastAttemptAt);
           }
+          if (from < 7) {
+            // Additive, and deliberately left NULL for existing rows. Their
+            // owner is unrecoverable, and backfilling them to whoever happens
+            // to migrate the database would recreate the exact bug this column
+            // exists to prevent. Unowned rows are never flushed.
+            await m.addColumn(syncQueueItems, syncQueueItems.userId);
+          }
         },
       );
 
   static QueryExecutor _openConnection() => openDbConnection();
+}
+
+/// The user whose captures are currently being queued, from the `userId` claim
+/// of their token. Set by the session controller on login and restore, cleared
+/// on logout.
+///
+/// A global for the same reason `currentAuthToken` is one: the outbox is
+/// written from a dozen repositories that have no business each being handed a
+/// session, and threading one through them all would guarantee that some future
+/// insert forgets. Stamping it in [LocalDbSyncQueue.enqueue] means an unowned
+/// row can only be a pre-migration one.
+String? currentLocalUserId;
+
+extension LocalDbSyncQueue on LocalDb {
+  /// Queues a mutation for the sync service, stamped with its owner.
+  ///
+  /// The single write path into the outbox, on purpose. Twelve call sites
+  /// constructing companions by hand is twelve chances to omit the owner, and
+  /// an unowned row is one that will never send.
+  Future<void> enqueue({
+    required String entityType,
+    required String entityId,
+    required String payloadJson,
+  }) {
+    return into(syncQueueItems).insert(
+      SyncQueueItemsCompanion.insert(
+        entityType: entityType,
+        entityId: entityId,
+        payloadJson: payloadJson,
+        userId: Value(currentLocalUserId),
+      ),
+    );
+  }
 }
 
 final localDbProvider = Provider<LocalDb>((ref) => LocalDb());

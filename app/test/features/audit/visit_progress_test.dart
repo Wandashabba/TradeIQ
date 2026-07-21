@@ -15,18 +15,18 @@ class _FakeSkusRepository implements SkusRepository {
 
   @override
   Future<List<Sku>> listSkus({required String outletId}) async => [
-        for (var i = 0; i < count; i++)
-          Sku(
-            id: 's$i',
-            name: 'SKU $i',
-            category: 'c',
-            rrp: 10,
-            minFacingsStandard: 2,
-            daysOutOfStock: 0,
-            velocityAvg: 0,
-            effectivePrice: 10,
-          ),
-      ];
+    for (var i = 0; i < count; i++)
+      Sku(
+        id: 's$i',
+        name: 'SKU $i',
+        category: 'c',
+        rrp: 10,
+        minFacingsStandard: 2,
+        daysOutOfStock: 0,
+        velocityAvg: 0,
+        effectivePrice: 10,
+      ),
+  ];
 }
 
 Future<void> _enqueue(
@@ -34,13 +34,11 @@ Future<void> _enqueue(
   String entityType,
   Map<String, dynamic> payload,
 ) async {
-  await db.into(db.syncQueueItems).insert(
-        SyncQueueItemsCompanion.insert(
-          entityType: entityType,
-          entityId: '$entityType-1',
-          payloadJson: jsonEncode(payload),
-        ),
-      );
+  await db.enqueue(
+    entityType: entityType,
+    entityId: '$entityType-1',
+    payloadJson: jsonEncode(payload),
+  );
 }
 
 void main() {
@@ -100,67 +98,73 @@ void main() {
     expect(p.canSubmit, isFalse);
   });
 
-  test('submit is blocked on exactly the required sections, and names them',
-      () async {
-    final p = await progress();
+  test(
+    'submit is blocked on exactly the required sections, and names them',
+    () async {
+      final p = await progress();
 
-    // These four are what the server's scorecard scores. Without them a visit
-    // lands with a dimension at zero and the store is marked down for work the
-    // agent never did.
-    expect(
-      p.blocking,
-      containsAll([
-        AuditSection.stock,
-        AuditSection.visibility,
-        AuditSection.pricing,
-        AuditSection.capability,
-      ]),
-    );
+      // These four are what the server's scorecard scores. Without them a visit
+      // lands with a dimension at zero and the store is marked down for work the
+      // agent never did.
+      expect(
+        p.blocking,
+        containsAll([
+          AuditSection.stock,
+          AuditSection.visibility,
+          AuditSection.pricing,
+          AuditSection.capability,
+        ]),
+      );
 
-    // Competitive is NOT required: an outlet with no competitor on shelf is a
-    // real outcome, and the server treats that dimension as unmeasurable
-    // rather than zero (#93).
-    expect(p.blocking, isNot(contains(AuditSection.competitive)));
-    expect(p.blocking, isNot(contains(AuditSection.risks)));
-  });
+      // Competitive is NOT required: an outlet with no competitor on shelf is a
+      // real outcome, and the server treats that dimension as unmeasurable
+      // rather than zero (#93).
+      expect(p.blocking, isNot(contains(AuditSection.competitive)));
+      expect(p.blocking, isNot(contains(AuditSection.risks)));
+    },
+  );
 
-  test('a per-SKU section covering only some SKUs is PARTIAL, not done',
-      () async {
-    // 2 of 4 SKUs priced. Calling this "done" would let an incomplete visit
-    // through the submit gate.
-    await _enqueue(db, 'pricing', {
-      'visitDraftId': 'v1',
-      'items': [
-        {'skuId': 's0'},
-        {'skuId': 's1'},
-      ],
-    });
+  test(
+    'a per-SKU section covering only some SKUs is PARTIAL, not done',
+    () async {
+      // 2 of 4 SKUs priced. Calling this "done" would let an incomplete visit
+      // through the submit gate.
+      await _enqueue(db, 'pricing', {
+        'visitDraftId': 'v1',
+        'items': [
+          {'skuId': 's0'},
+          {'skuId': 's1'},
+        ],
+      });
 
-    final p = await progress();
+      final p = await progress();
 
-    expect(p.stateOf(AuditSection.pricing), SectionState.partial);
-    expect(p.details[AuditSection.pricing], '2 of 4 SKUs');
-    expect(p.blocking, contains(AuditSection.pricing));
-  });
+      expect(p.stateOf(AuditSection.pricing), SectionState.partial);
+      expect(p.details[AuditSection.pricing], '2 of 4 SKUs');
+      expect(p.blocking, contains(AuditSection.pricing));
+    },
+  );
 
-  test('counting every SKU completes the section and says what was found',
-      () async {
-    await _enqueue(db, 'stock', {
-      'visitDraftId': 'v1',
-      'items': [
-        {'skuId': 's0', 'unitsAvailable': 12},
-        {'skuId': 's1', 'unitsAvailable': 0},
-        {'skuId': 's2', 'unitsAvailable': 4},
-        {'skuId': 's3', 'unitsAvailable': 0},
-      ],
-    });
+  test(
+    'counting every SKU completes the section and says what was found',
+    () async {
+      await _enqueue(db, 'stock', {
+        'visitDraftId': 'v1',
+        'items': [
+          {'skuId': 's0', 'unitsAvailable': 12},
+          {'skuId': 's1', 'unitsAvailable': 0},
+          {'skuId': 's2', 'unitsAvailable': 4},
+          {'skuId': 's3', 'unitsAvailable': 0},
+        ],
+      });
 
-    final p = await progress();
+      final p = await progress();
 
-    expect(p.stateOf(AuditSection.stock), SectionState.done);
-    // Out-of-stock is the finding, so the hub says so rather than just "done".
-    expect(p.details[AuditSection.stock], '4 SKUs · 2 out of stock');
-  });
+      expect(p.stateOf(AuditSection.stock), SectionState.done);
+      // Out-of-stock is the finding, so the hub says so rather than just "done".
+      expect(p.details[AuditSection.stock], '4 SKUs · 2 out of stock');
+    },
+  );
 
   test('a capture for another visit is ignored', () async {
     await _enqueue(db, 'capability', {'visitDraftId': 'someone-else'});

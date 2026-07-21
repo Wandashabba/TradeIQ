@@ -22,16 +22,19 @@ class VisibilityCapture {
   final int cleanlinessScore;
 
   Map<String, dynamic> toPayloadFields() => {
-        'brandingElements': brandingElements,
-        'planogramCompliancePct': planogramCompliancePct,
-        'facingsCount': {'total': facingsCount},
-        'highTrafficPass': highTrafficPass,
-        'cleanlinessScore': cleanlinessScore,
-      };
+    'brandingElements': brandingElements,
+    'planogramCompliancePct': planogramCompliancePct,
+    'facingsCount': {'total': facingsCount},
+    'highTrafficPass': highTrafficPass,
+    'cleanlinessScore': cleanlinessScore,
+  };
 }
 
 abstract class VisibilityRepository {
-  Future<void> saveVisibility({required String visitDraftId, required VisibilityCapture capture});
+  Future<void> saveVisibility({
+    required String visitDraftId,
+    required VisibilityCapture capture,
+  });
 }
 
 class DriftVisibilityRepository implements VisibilityRepository {
@@ -42,12 +45,18 @@ class DriftVisibilityRepository implements VisibilityRepository {
   static const _uuid = Uuid();
 
   @override
-  Future<void> saveVisibility({required String visitDraftId, required VisibilityCapture capture}) async {
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'visibility',
-          entityId: _uuid.v4(),
-          payloadJson: jsonEncode({'visitDraftId': visitDraftId, ...capture.toPayloadFields()}),
-        ));
+  Future<void> saveVisibility({
+    required String visitDraftId,
+    required VisibilityCapture capture,
+  }) async {
+    await db.enqueue(
+      entityType: 'visibility',
+      entityId: _uuid.v4(),
+      payloadJson: jsonEncode({
+        'visitDraftId': visitDraftId,
+        ...capture.toPayloadFields(),
+      }),
+    );
 
     try {
       await syncService.flushPending();
@@ -57,7 +66,9 @@ class DriftVisibilityRepository implements VisibilityRepository {
   }
 }
 
-final visibilityRepositoryProvider = Provider<VisibilityRepository>((ref) => DriftVisibilityRepository(
-      db: ref.read(localDbProvider),
-      syncService: ref.read(syncServiceProvider),
-    ));
+final visibilityRepositoryProvider = Provider<VisibilityRepository>(
+  (ref) => DriftVisibilityRepository(
+    db: ref.read(localDbProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);

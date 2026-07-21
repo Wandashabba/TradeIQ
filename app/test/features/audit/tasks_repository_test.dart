@@ -16,6 +16,11 @@ class _RecordingFlusher implements QueueFlusher {
 }
 
 void main() {
+  // Queued rows are stamped with their owner and only that owner's rows
+  // flush, so these tests need somebody signed in — as the app does.
+  setUp(() => currentLocalUserId = 'user-a');
+  tearDown(() => currentLocalUserId = null);
+
   test('saveTask enqueues one task item with the fields and flushes', () async {
     final db = LocalDb(NativeDatabase.memory());
     addTearDown(db.close);

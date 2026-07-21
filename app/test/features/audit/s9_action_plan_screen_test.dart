@@ -22,23 +22,30 @@ class _SpyTasksRepository implements TasksRepository {
 }
 
 void main() {
-  testWidgets('captures a manual task and calls saveTask on Add task', (tester) async {
+  testWidgets('captures a manual task and calls saveTask on Add task', (
+    tester,
+  ) async {
     final spy = _SpyTasksRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [tasksRepositoryProvider.overrideWithValue(spy)],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: S9ActionPlanScreen(visitDraftId: 'v1', outletId: 'o1'),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [tasksRepositoryProvider.overrideWithValue(spy)],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S9ActionPlanScreen(visitDraftId: 'v1', outletId: 'o1'),
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const ValueKey('task-type')), 'oos');
-    await tester.enterText(find.byKey(const ValueKey('task-fix')), 'Restock shelf');
+    await tester.enterText(
+      find.byKey(const ValueKey('task-fix')),
+      'Restock shelf',
+    );
 
     await tester.ensureVisible(find.byKey(const ValueKey('task-priority')));
     await tester.tap(find.byKey(const ValueKey('task-priority')));

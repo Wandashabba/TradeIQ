@@ -39,7 +39,11 @@ abstract class VisitsRepository {
 }
 
 class DriftVisitsRepository implements VisitsRepository {
-  DriftVisitsRepository({required this.db, required this.locationService, required this.syncService});
+  DriftVisitsRepository({
+    required this.db,
+    required this.locationService,
+    required this.syncService,
+  });
 
   final LocalDb db;
   final LocationService locationService;
@@ -56,9 +60,17 @@ class DriftVisitsRepository implements VisitsRepository {
     final locationResult = await locationService.getCurrentPosition();
 
     return switch (locationResult) {
-      LocationDenied() => CheckInLocationUnavailable('Location permission denied'),
+      LocationDenied() => CheckInLocationUnavailable(
+        'Location permission denied',
+      ),
       LocationError(:final message) => CheckInLocationUnavailable(message),
-      LocationGranted(:final lat, :final lng) => await _checkInAt(outletId, outletLat, outletLng, lat, lng),
+      LocationGranted(:final lat, :final lng) => await _checkInAt(
+        outletId,
+        outletLat,
+        outletLng,
+        lat,
+        lng,
+      ),
     };
   }
 
@@ -80,25 +92,29 @@ class DriftVisitsRepository implements VisitsRepository {
     final id = _uuid.v4();
     final checkinTs = DateTime.now();
     await db.transaction(() async {
-      await db.into(db.visitDrafts).insert(VisitDraftsCompanion.insert(
-            id: id,
-            outletId: outletId,
-            checkinTs: checkinTs,
-            checkinLat: lat,
-            checkinLng: lng,
-            geofencePass: true,
-          ));
-      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-            entityType: 'visit',
-            entityId: id,
-            payloadJson: jsonEncode({
-              'outletId': outletId,
-              'lat': lat,
-              'lng': lng,
-              'checkinTs': checkinTs.toUtc().toIso8601String(),
-              'geofencePass': true,
-            }),
-          ));
+      await db
+          .into(db.visitDrafts)
+          .insert(
+            VisitDraftsCompanion.insert(
+              id: id,
+              outletId: outletId,
+              checkinTs: checkinTs,
+              checkinLat: lat,
+              checkinLng: lng,
+              geofencePass: true,
+            ),
+          );
+      await db.enqueue(
+        entityType: 'visit',
+        entityId: id,
+        payloadJson: jsonEncode({
+          'outletId': outletId,
+          'lat': lat,
+          'lng': lng,
+          'checkinTs': checkinTs.toUtc().toIso8601String(),
+          'geofencePass': true,
+        }),
+      );
     });
 
     try {
@@ -116,18 +132,18 @@ class DriftVisitsRepository implements VisitsRepository {
     await db.transaction(() async {
       await (db.update(db.visitDrafts)..where((t) => t.id.equals(visitDraftId)))
           .write(const VisitDraftsCompanion(status: Value('submitted')));
-      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-            entityType: 'visit_submit',
-            entityId: _uuid.v4(),
-            payloadJson: jsonEncode({
-              'visitDraftId': visitDraftId,
-              // Stamped NOW, on the device — the moment the agent actually
-              // finished, not whenever the outbox happens to flush. Dwell time
-              // is only meaningful measured on one clock, and this is the same
-              // clock that produced checkinTs (#101).
-              'submittedAtClient': DateTime.now().toUtc().toIso8601String(),
-            }),
-          ));
+      await db.enqueue(
+        entityType: 'visit_submit',
+        entityId: _uuid.v4(),
+        payloadJson: jsonEncode({
+          'visitDraftId': visitDraftId,
+          // Stamped NOW, on the device — the moment the agent actually
+          // finished, not whenever the outbox happens to flush. Dwell time
+          // is only meaningful measured on one clock, and this is the same
+          // clock that produced checkinTs (#101).
+          'submittedAtClient': DateTime.now().toUtc().toIso8601String(),
+        }),
+      );
 
       // Ask the server to score it. This used to happen only if the agent went
       // into the Score section and tapped "Finalize" — so a visit submitted
@@ -136,11 +152,11 @@ class DriftVisitsRepository implements VisitsRepository {
       //
       // Queued after the submit (the outbox flushes in id order) so the visit
       // is already `submitted` when the server scores it.
-      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-            entityType: 'scorecard',
-            entityId: _uuid.v4(),
-            payloadJson: jsonEncode({'visitDraftId': visitDraftId}),
-          ));
+      await db.enqueue(
+        entityType: 'scorecard',
+        entityId: _uuid.v4(),
+        payloadJson: jsonEncode({'visitDraftId': visitDraftId}),
+      );
     });
 
     try {
@@ -151,8 +167,10 @@ class DriftVisitsRepository implements VisitsRepository {
   }
 }
 
-final visitsRepositoryProvider = Provider<VisitsRepository>((ref) => DriftVisitsRepository(
-      db: ref.read(localDbProvider),
-      locationService: ref.read(locationServiceProvider),
-      syncService: ref.read(syncServiceProvider),
-    ));
+final visitsRepositoryProvider = Provider<VisitsRepository>(
+  (ref) => DriftVisitsRepository(
+    db: ref.read(localDbProvider),
+    locationService: ref.read(locationServiceProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);

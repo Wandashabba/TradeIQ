@@ -70,85 +70,90 @@ class VisitReview {
 ///
 /// If either server rule changes, this must change with it, or the gate starts
 /// lying to the agent about what they are about to do.
-final visitReviewProvider = StreamProvider.family<VisitReview,
-    ({String visitDraftId, String outletId})>((ref, key) {
-  final db = ref.read(localDbProvider);
-  // SKU names, so a finding reads "Fanta Orange 2L is out of stock" rather than
-  // "SKU 4f2c… is out of stock". An agent cannot check a uuid against a shelf.
-  final skuNames = ref.watch(skusListProvider(key.outletId)).maybeWhen(
-        data: (list) => {for (final sku in list) sku.id: sku.name},
-        orElse: () => <String, String>{},
-      );
+final visitReviewProvider =
+    StreamProvider.family<
+      VisitReview,
+      ({String visitDraftId, String outletId})
+    >((ref, key) {
+      final db = ref.read(localDbProvider);
+      // SKU names, so a finding reads "Fanta Orange 2L is out of stock" rather than
+      // "SKU 4f2c… is out of stock". An agent cannot check a uuid against a shelf.
+      final skuNames = ref
+          .watch(skusListProvider(key.outletId))
+          .maybeWhen(
+            data: (list) => {for (final sku in list) sku.id: sku.name},
+            orElse: () => <String, String>{},
+          );
 
-  return db.select(db.syncQueueItems).watch().map((rows) {
-    final payloads = <String, List<Map<String, dynamic>>>{};
-    for (final row in rows) {
-      final Map<String, dynamic> payload;
-      try {
-        payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
-      } catch (_) {
-        continue;
-      }
-      if (payload['visitDraftId'] != key.visitDraftId) continue;
-      payloads.putIfAbsent(row.entityType, () => []).add(payload);
-    }
+      return db.select(db.syncQueueItems).watch().map((rows) {
+        final payloads = <String, List<Map<String, dynamic>>>{};
+        for (final row in rows) {
+          final Map<String, dynamic> payload;
+          try {
+            payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+          } catch (_) {
+            continue;
+          }
+          if (payload['visitDraftId'] != key.visitDraftId) continue;
+          payloads.putIfAbsent(row.entityType, () => []).add(payload);
+        }
 
-    List<Map<String, dynamic>> itemsOf(String type) => (payloads[type] ?? const [])
-        .expand((p) => (p['items'] as List? ?? const []))
-        .whereType<Map<String, dynamic>>()
-        .toList();
+        List<Map<String, dynamic>> itemsOf(String type) =>
+            (payloads[type] ?? const [])
+                .expand((p) => (p['items'] as List? ?? const []))
+                .whereType<Map<String, dynamic>>()
+                .toList();
 
-    final stock = itemsOf('stock');
-    final pricing = itemsOf('pricing');
-    final competitive = itemsOf('competitive');
-    final risks = (payloads['risk'] ?? const [])
-        .expand((p) => (p['risks'] as List? ?? const []))
-        .whereType<Map<String, dynamic>>()
-        .toList();
-    final actionPlan = payloads['task'] ?? const [];
+        final stock = itemsOf('stock');
+        final pricing = itemsOf('pricing');
+        final competitive = itemsOf('competitive');
+        final risks = (payloads['risk'] ?? const [])
+            .expand((p) => (p['risks'] as List? ?? const []))
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        final actionPlan = payloads['task'] ?? const [];
 
-    final stockouts = stock
-        .where((i) => (i['unitsAvailable'] as num?) == 0)
-        .toList();
+        final stockouts = stock
+            .where((i) => (i['unitsAvailable'] as num?) == 0)
+            .toList();
 
-    final willRaise = <RaisedTask>[
-      for (final item in stockouts)
-        RaisedTask(
-          title:
-              '${skuNames[item['skuId']] ?? 'This SKU'} is out of stock',
-          reason: 'You counted zero on shelf',
-          priority: 'high',
-        ),
-      for (final risk in risks)
-        RaisedTask(
-          title: (risk['note'] as String?)?.trim().isNotEmpty == true
-              ? risk['note'] as String
-              : '${risk['flagType'] ?? 'Risk'} flagged',
-          reason: 'Risk you raised · ${risk['flagType'] ?? 'flagged'}',
-          priority: (risk['severity'] as String?) ?? 'normal',
-        ),
-      for (final task in actionPlan)
-        RaisedTask(
-          title: (task['requiredFix'] as String?) ?? 'Action you asked for',
-          reason: 'Action plan you wrote',
-          priority: (task['priority'] as String?) ?? 'normal',
-        ),
-    ]..sort((a, b) => _rank(b.priority).compareTo(_rank(a.priority)));
+        final willRaise = <RaisedTask>[
+          for (final item in stockouts)
+            RaisedTask(
+              title: '${skuNames[item['skuId']] ?? 'This SKU'} is out of stock',
+              reason: 'You counted zero on shelf',
+              priority: 'high',
+            ),
+          for (final risk in risks)
+            RaisedTask(
+              title: (risk['note'] as String?)?.trim().isNotEmpty == true
+                  ? risk['note'] as String
+                  : '${risk['flagType'] ?? 'Risk'} flagged',
+              reason: 'Risk you raised · ${risk['flagType'] ?? 'flagged'}',
+              priority: (risk['severity'] as String?) ?? 'normal',
+            ),
+          for (final task in actionPlan)
+            RaisedTask(
+              title: (task['requiredFix'] as String?) ?? 'Action you asked for',
+              reason: 'Action plan you wrote',
+              priority: (task['priority'] as String?) ?? 'normal',
+            ),
+        ]..sort((a, b) => _rank(b.priority).compareTo(_rank(a.priority)));
 
-    return VisitReview(
-      skusCounted: stock.length,
-      outOfStock: stockouts.length,
-      skusPriced: pricing.length,
-      competitors: competitive.length,
-      photos: (payloads['photo'] ?? const []).length,
-      willRaise: willRaise,
-    );
-  });
-});
+        return VisitReview(
+          skusCounted: stock.length,
+          outOfStock: stockouts.length,
+          skusPriced: pricing.length,
+          competitors: competitive.length,
+          photos: (payloads['photo'] ?? const []).length,
+          willRaise: willRaise,
+        );
+      });
+    });
 
 int _rank(String priority) => switch (priority) {
-      'critical' => 3,
-      'high' => 2,
-      'normal' => 1,
-      _ => 0,
-    };
+  'critical' => 3,
+  'high' => 2,
+  'normal' => 1,
+  _ => 0,
+};

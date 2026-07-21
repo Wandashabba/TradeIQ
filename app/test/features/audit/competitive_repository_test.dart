@@ -14,42 +14,51 @@ class _RecordingFlusher implements QueueFlusher {
 }
 
 void main() {
-  test('saveCompetitive enqueues one competitive item with the entries and flushes', () async {
-    final db = LocalDb(NativeDatabase.memory());
-    addTearDown(db.close);
-    final flusher = _RecordingFlusher();
-    final repo = DriftCompetitiveRepository(
-      db: db,
-      syncService: SyncService(db: db, flusher: flusher),
-    );
+  // Queued rows are stamped with their owner and only that owner's rows
+  // flush, so these tests need somebody signed in — as the app does.
+  setUp(() => currentLocalUserId = 'user-a');
+  tearDown(() => currentLocalUserId = null);
 
-    await repo.saveCompetitive(
-      visitDraftId: 'visit-1',
-      entries: const [
-        CompetitiveEntry(
-          competitorSku: 'Rival Cola 500ml',
-          competitorPrice: 12.5,
-          competitorPosmType: 'poster',
-          competitorPromoterPresent: true,
-        ),
-      ],
-    );
+  test(
+    'saveCompetitive enqueues one competitive item with the entries and flushes',
+    () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+      final flusher = _RecordingFlusher();
+      final repo = DriftCompetitiveRepository(
+        db: db,
+        syncService: SyncService(db: db, flusher: flusher),
+      );
 
-    final items = await db.select(db.syncQueueItems).get();
-    expect(items, hasLength(1));
-    expect(items.first.entityType, 'competitive');
+      await repo.saveCompetitive(
+        visitDraftId: 'visit-1',
+        entries: const [
+          CompetitiveEntry(
+            competitorSku: 'Rival Cola 500ml',
+            competitorPrice: 12.5,
+            competitorPosmType: 'poster',
+            competitorPromoterPresent: true,
+          ),
+        ],
+      );
 
-    final payload = jsonDecode(items.first.payloadJson) as Map<String, dynamic>;
-    expect(payload['visitDraftId'], 'visit-1');
-    expect((payload['items'] as List), hasLength(1));
-    final first = (payload['items'] as List).first as Map<String, dynamic>;
-    expect(first['competitorSku'], 'Rival Cola 500ml');
-    expect(first['competitorPrice'], 12.5);
-    expect(first['competitorPosmType'], 'poster');
-    expect(first['competitorPromoterPresent'], true);
-    expect(first['geotag'], isEmpty);
+      final items = await db.select(db.syncQueueItems).get();
+      expect(items, hasLength(1));
+      expect(items.first.entityType, 'competitive');
 
-    expect(flusher.flushed, hasLength(1));
-    expect(flusher.flushed.first.entityType, 'competitive');
-  });
+      final payload =
+          jsonDecode(items.first.payloadJson) as Map<String, dynamic>;
+      expect(payload['visitDraftId'], 'visit-1');
+      expect((payload['items'] as List), hasLength(1));
+      final first = (payload['items'] as List).first as Map<String, dynamic>;
+      expect(first['competitorSku'], 'Rival Cola 500ml');
+      expect(first['competitorPrice'], 12.5);
+      expect(first['competitorPosmType'], 'poster');
+      expect(first['competitorPromoterPresent'], true);
+      expect(first['geotag'], isEmpty);
+
+      expect(flusher.flushed, hasLength(1));
+      expect(flusher.flushed.first.entityType, 'competitive');
+    },
+  );
 }

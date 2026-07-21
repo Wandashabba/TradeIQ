@@ -19,14 +19,17 @@ class RiskEntry {
   final String note;
 
   Map<String, dynamic> toJson() => {
-        'flagType': flagType,
-        'severity': severity,
-        'note': note,
-      };
+    'flagType': flagType,
+    'severity': severity,
+    'note': note,
+  };
 }
 
 abstract class RisksRepository {
-  Future<void> saveRisks({required String visitDraftId, required List<RiskEntry> entries});
+  Future<void> saveRisks({
+    required String visitDraftId,
+    required List<RiskEntry> entries,
+  });
 }
 
 class DriftRisksRepository implements RisksRepository {
@@ -37,15 +40,18 @@ class DriftRisksRepository implements RisksRepository {
   static const _uuid = Uuid();
 
   @override
-  Future<void> saveRisks({required String visitDraftId, required List<RiskEntry> entries}) async {
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'risk',
-          entityId: _uuid.v4(),
-          payloadJson: jsonEncode({
-            'visitDraftId': visitDraftId,
-            'risks': entries.map((e) => e.toJson()).toList(),
-          }),
-        ));
+  Future<void> saveRisks({
+    required String visitDraftId,
+    required List<RiskEntry> entries,
+  }) async {
+    await db.enqueue(
+      entityType: 'risk',
+      entityId: _uuid.v4(),
+      payloadJson: jsonEncode({
+        'visitDraftId': visitDraftId,
+        'risks': entries.map((e) => e.toJson()).toList(),
+      }),
+    );
 
     try {
       await syncService.flushPending();
@@ -55,7 +61,9 @@ class DriftRisksRepository implements RisksRepository {
   }
 }
 
-final risksRepositoryProvider = Provider<RisksRepository>((ref) => DriftRisksRepository(
-      db: ref.read(localDbProvider),
-      syncService: ref.read(syncServiceProvider),
-    ));
+final risksRepositoryProvider = Provider<RisksRepository>(
+  (ref) => DriftRisksRepository(
+    db: ref.read(localDbProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);

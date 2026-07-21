@@ -82,7 +82,9 @@ void main() {
     expect(find.textContaining('(66)'), findsOneWidget);
   });
 
-  testWidgets('held on the phone: no score at all, rather than a guess', (tester) async {
+  testWidgets('held on the phone: no score at all, rather than a guess', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(const VisitOutcome(score: null, previous: null)),
     );

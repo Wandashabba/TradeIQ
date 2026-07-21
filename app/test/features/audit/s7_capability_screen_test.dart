@@ -9,24 +9,33 @@ class _SpyCapabilityRepository implements CapabilityRepository {
   CapabilityCapture? capture;
 
   @override
-  Future<void> saveCapability({required String visitDraftId, required CapabilityCapture capture}) async {
+  Future<void> saveCapability({
+    required String visitDraftId,
+    required CapabilityCapture capture,
+  }) async {
     this.visitDraftId = visitDraftId;
     this.capture = capture;
   }
 }
 
 void main() {
-  testWidgets('captures capability and calls saveCapability on Save', (tester) async {
+  testWidgets('captures capability and calls saveCapability on Save', (
+    tester,
+  ) async {
     final spy = _SpyCapabilityRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [capabilityRepositoryProvider.overrideWithValue(spy)],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(child: S7CapabilityScreen(visitDraftId: 'v1')),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [capabilityRepositoryProvider.overrideWithValue(spy)],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S7CapabilityScreen(visitDraftId: 'v1'),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const ValueKey('headcount')), '5');

@@ -9,24 +9,33 @@ class _SpyVisibilityRepository implements VisibilityRepository {
   VisibilityCapture? capture;
 
   @override
-  Future<void> saveVisibility({required String visitDraftId, required VisibilityCapture capture}) async {
+  Future<void> saveVisibility({
+    required String visitDraftId,
+    required VisibilityCapture capture,
+  }) async {
     this.visitDraftId = visitDraftId;
     this.capture = capture;
   }
 }
 
 void main() {
-  testWidgets('captures visibility and calls saveVisibility on Save', (tester) async {
+  testWidgets('captures visibility and calls saveVisibility on Save', (
+    tester,
+  ) async {
     final spy = _SpyVisibilityRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [visibilityRepositoryProvider.overrideWithValue(spy)],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(child: S3S4VisibilityDisplayScreen(visitDraftId: 'v1')),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [visibilityRepositoryProvider.overrideWithValue(spy)],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S3S4VisibilityDisplayScreen(visitDraftId: 'v1'),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('branding-poster')));

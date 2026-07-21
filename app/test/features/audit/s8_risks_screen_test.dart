@@ -9,36 +9,51 @@ class _SpyRisksRepository implements RisksRepository {
   List<RiskEntry>? entries;
 
   @override
-  Future<void> saveRisks({required String visitDraftId, required List<RiskEntry> entries}) async {
+  Future<void> saveRisks({
+    required String visitDraftId,
+    required List<RiskEntry> entries,
+  }) async {
     this.visitDraftId = visitDraftId;
     this.entries = entries;
   }
 }
 
 void main() {
-  testWidgets('captures risk entries and calls saveRisks on Save', (tester) async {
+  testWidgets('captures risk entries and calls saveRisks on Save', (
+    tester,
+  ) async {
     final spy = _SpyRisksRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [risksRepositoryProvider.overrideWithValue(spy)],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(child: S8RisksScreen(visitDraftId: 'v1')),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [risksRepositoryProvider.overrideWithValue(spy)],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S8RisksScreen(visitDraftId: 'v1'),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Flag a risk'));
     await tester.pump();
 
-    await tester.enterText(find.byKey(const ValueKey('risk-type-0')), 'expiredStock');
+    await tester.enterText(
+      find.byKey(const ValueKey('risk-type-0')),
+      'expiredStock',
+    );
     await tester.ensureVisible(find.byKey(const ValueKey('risk-severity-0')));
     await tester.tap(find.byKey(const ValueKey('risk-severity-0')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('critical').last);
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('risk-note-0')), 'Two cases past date');
+    await tester.enterText(
+      find.byKey(const ValueKey('risk-note-0')),
+      'Two cases past date',
+    );
     await tester.pump();
 
     await tester.ensureVisible(find.text('Save risks'));
@@ -51,7 +66,9 @@ void main() {
     expect(spy.entries!.first.severity, 'critical');
     expect(spy.entries!.first.note, 'Two cases past date');
     expect(
-      find.text('Risks saved — queued for sync; follow-up tasks will be auto-created'),
+      find.text(
+        'Risks saved — queued for sync; follow-up tasks will be auto-created',
+      ),
       findsOneWidget,
     );
   });
@@ -59,14 +76,18 @@ void main() {
   testWidgets('skips rows without a flag type on Save', (tester) async {
     final spy = _SpyRisksRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [risksRepositoryProvider.overrideWithValue(spy)],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(child: S8RisksScreen(visitDraftId: 'v1')),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [risksRepositoryProvider.overrideWithValue(spy)],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S8RisksScreen(visitDraftId: 'v1'),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Flag a risk'));

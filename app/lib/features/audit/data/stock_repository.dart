@@ -21,14 +21,17 @@ class StockEntry {
   final DateTime lastStockinDate;
 
   Map<String, dynamic> toJson() => {
-        'skuId': skuId,
-        'unitsAvailable': unitsAvailable,
-        'lastStockinDate': lastStockinDate.toUtc().toIso8601String(),
-      };
+    'skuId': skuId,
+    'unitsAvailable': unitsAvailable,
+    'lastStockinDate': lastStockinDate.toUtc().toIso8601String(),
+  };
 }
 
 abstract class StockRepository {
-  Future<void> saveStock({required String visitDraftId, required List<StockEntry> entries});
+  Future<void> saveStock({
+    required String visitDraftId,
+    required List<StockEntry> entries,
+  });
 }
 
 class DriftStockRepository implements StockRepository {
@@ -39,26 +42,33 @@ class DriftStockRepository implements StockRepository {
   static const _uuid = Uuid();
 
   @override
-  Future<void> saveStock({required String visitDraftId, required List<StockEntry> entries}) async {
+  Future<void> saveStock({
+    required String visitDraftId,
+    required List<StockEntry> entries,
+  }) async {
     final batchId = _uuid.v4();
     await db.transaction(() async {
       for (final entry in entries) {
-        await db.into(db.stockDrafts).insert(StockDraftsCompanion.insert(
-              id: _uuid.v4(),
-              visitDraftId: visitDraftId,
-              skuId: entry.skuId,
-              unitsAvailable: entry.unitsAvailable,
-              lastStockinDate: entry.lastStockinDate,
-            ));
+        await db
+            .into(db.stockDrafts)
+            .insert(
+              StockDraftsCompanion.insert(
+                id: _uuid.v4(),
+                visitDraftId: visitDraftId,
+                skuId: entry.skuId,
+                unitsAvailable: entry.unitsAvailable,
+                lastStockinDate: entry.lastStockinDate,
+              ),
+            );
       }
-      await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-            entityType: 'stock',
-            entityId: batchId,
-            payloadJson: jsonEncode({
-              'visitDraftId': visitDraftId,
-              'items': entries.map((e) => e.toJson()).toList(),
-            }),
-          ));
+      await db.enqueue(
+        entityType: 'stock',
+        entityId: batchId,
+        payloadJson: jsonEncode({
+          'visitDraftId': visitDraftId,
+          'items': entries.map((e) => e.toJson()).toList(),
+        }),
+      );
     });
 
     try {
@@ -69,7 +79,9 @@ class DriftStockRepository implements StockRepository {
   }
 }
 
-final stockRepositoryProvider = Provider<StockRepository>((ref) => DriftStockRepository(
-      db: ref.read(localDbProvider),
-      syncService: ref.read(syncServiceProvider),
-    ));
+final stockRepositoryProvider = Provider<StockRepository>(
+  (ref) => DriftStockRepository(
+    db: ref.read(localDbProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);

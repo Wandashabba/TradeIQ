@@ -63,4 +63,17 @@ class SyncQueueItems extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
   DateTimeColumn get lastAttemptAt => dateTime().nullable()();
+
+  /// Who queued this, from the `userId` claim of their token.
+  ///
+  /// Field devices get shared. Without this the flusher sent every unsynced
+  /// row under whichever token happened to be current, so agent B logging in
+  /// after agent A would push A's captures to the server as their own — a
+  /// disclosure and an attribution bug at once, feeding scorecards and fraud
+  /// signals with work the named agent never did.
+  ///
+  /// Nullable only because rows queued before this column existed cannot have
+  /// their owner recovered. Those are deliberately never flushed: guessing an
+  /// owner is precisely the bug being fixed here.
+  TextColumn get userId => text().nullable()();
 }

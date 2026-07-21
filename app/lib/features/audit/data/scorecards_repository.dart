@@ -19,7 +19,8 @@ const kDimensionLabels = <String, String>{
 /// Why a dimension could not be scored — in the agent's terms, so an unscored
 /// dimension reads as a fact about the store, not a failure of theirs.
 const kUnmeasurableReasons = <String, String>{
-  'competitive': 'No competitor on shelf to measure against — not counted against you.',
+  'competitive':
+      'No competitor on shelf to measure against — not counted against you.',
   'salesCapability': 'No staff on shift to assess — not counted against you.',
 };
 
@@ -100,8 +101,9 @@ class DioScorecardsRepository implements ScorecardsRepository {
   }
 }
 
-final scorecardsRepositoryProvider =
-    Provider<ScorecardsRepository>((ref) => DioScorecardsRepository());
+final scorecardsRepositoryProvider = Provider<ScorecardsRepository>(
+  (ref) => DioScorecardsRepository(),
+);
 
 /// How the visit ended.
 class VisitOutcome {
@@ -132,46 +134,48 @@ class VisitOutcome {
 /// sitting in it — without that, a visit submitted on good signal would still
 /// say "held on this phone" for as long as it took the next flush to come round.
 final visitOutcomeProvider =
-    FutureProvider.family<VisitOutcome, ({String visitDraftId, String outletId})>(
-        (ref, args) async {
-  final db = ref.read(localDbProvider);
-  final repo = ref.read(scorecardsRepositoryProvider);
+    FutureProvider.family<
+      VisitOutcome,
+      ({String visitDraftId, String outletId})
+    >((ref, args) async {
+      final db = ref.read(localDbProvider);
+      final repo = ref.read(scorecardsRepositoryProvider);
 
-  try {
-    await ref.read(syncNowProvider)();
-  } catch (_) {
-    // No signal. That is the offline path, not a failure — fall through and let
-    // the outcome say "held on this phone".
-  }
+      try {
+        await ref.read(syncNowProvider)();
+      } catch (_) {
+        // No signal. That is the offline path, not a failure — fall through and let
+        // the outcome say "held on this phone".
+      }
 
-  final draft = await (db.select(db.visitDrafts)
-        ..where((t) => t.id.equals(args.visitDraftId)))
-      .getSingleOrNull();
-  final remoteId = draft?.remoteId;
-  if (remoteId == null) {
-    return const VisitOutcome(score: null, previous: null);
-  }
+      final draft = await (db.select(
+        db.visitDrafts,
+      )..where((t) => t.id.equals(args.visitDraftId))).getSingleOrNull();
+      final remoteId = draft?.remoteId;
+      if (remoteId == null) {
+        return const VisitOutcome(score: null, previous: null);
+      }
 
-  ServerScorecard? score;
-  List<ServerScorecard> history = const [];
-  try {
-    score = await repo.getForVisit(remoteId);
-    history = await repo.historyForOutlet(args.outletId);
-  } on DioException {
-    // The captures are safe in the outbox either way. A network failure here
-    // costs the agent a number on a screen, not their work.
-    return VisitOutcome(score: score, previous: null);
-  }
+      ServerScorecard? score;
+      List<ServerScorecard> history = const [];
+      try {
+        score = await repo.getForVisit(remoteId);
+        history = await repo.historyForOutlet(args.outletId);
+      } on DioException {
+        // The captures are safe in the outbox either way. A network failure here
+        // costs the agent a number on a screen, not their work.
+        return VisitOutcome(score: score, previous: null);
+      }
 
-  // The visit that just ended is in its own history — the comparison is against
-  // the one before it.
-  ServerScorecard? previous;
-  for (final card in history) {
-    if (card.visitId != remoteId) {
-      previous = card;
-      break;
-    }
-  }
+      // The visit that just ended is in its own history — the comparison is against
+      // the one before it.
+      ServerScorecard? previous;
+      for (final card in history) {
+        if (card.visitId != remoteId) {
+          previous = card;
+          break;
+        }
+      }
 
-  return VisitOutcome(score: score, previous: previous);
-});
+      return VisitOutcome(score: score, previous: previous);
+    });

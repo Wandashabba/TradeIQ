@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:drift/drift.dart';
+
 import '../network/api_client.dart';
+import '../storage/local_db.dart';
 import 'auth_repository.dart';
 import 'jwt.dart';
 import 'token_store.dart';
@@ -42,6 +45,7 @@ class SessionController extends AsyncNotifier<SessionState> {
           return const SessionState();
         }
         currentAuthToken = stored.token;
+        currentLocalUserId = jwtUserId(stored.token);
         return SessionState(role: stored.role, token: stored.token);
       }
     } catch (_) {
@@ -63,6 +67,9 @@ class SessionController extends AsyncNotifier<SessionState> {
       final repo = ref.read(authRepositoryProvider);
       final result = await repo.login(email, password);
       currentAuthToken = result.token;
+      // Everything queued from here belongs to this user, and only they can
+      // flush it. Set before any capture is possible, not after.
+      currentLocalUserId = jwtUserId(result.token);
       if (rememberMe) {
         // Best-effort persist: a storage failure must not fail an otherwise
         // successful login.
@@ -88,7 +95,9 @@ class SessionController extends AsyncNotifier<SessionState> {
   }
 
   Future<void> logout() async {
+    final departing = currentLocalUserId;
     currentAuthToken = null;
+    currentLocalUserId = null;
     // Clear in-memory state first so the UI/router react immediately; the
     // persisted copy is cleared best-effort afterwards.
     state = const AsyncData(SessionState());
@@ -96,6 +105,30 @@ class SessionController extends AsyncNotifier<SessionState> {
       await ref.read(tokenStoreProvider).clear();
     } catch (_) {
       // ignore — worst case the stale token is overwritten on next login
+    }
+    await _dropSyncedRows(departing);
+  }
+
+  /// Deletes this user's already-sent outbox rows on the way out.
+  ///
+  /// Only the sent ones. Wiping the whole queue would be the stronger privacy
+  /// story and the wrong call: an agent who audits a store with no signal and
+  /// then logs out would lose the visit outright, and the offline-first design
+  /// promises the opposite. Unsent rows stay, and the userId column means no
+  /// one else can see or flush them — the leak is closed by ownership, not by
+  /// destroying an agent's afternoon.
+  ///
+  /// Best-effort throughout: a failure here must never strand someone in a
+  /// half-logged-out state.
+  Future<void> _dropSyncedRows(String? userId) async {
+    if (userId == null) return;
+    try {
+      final db = ref.read(localDbProvider);
+      await (db.delete(db.syncQueueItems)
+            ..where((t) => t.synced.equals(true) & t.userId.equals(userId)))
+          .go();
+    } catch (_) {
+      // ignore — these rows are already on the server; they are litter, not data
     }
   }
 }
