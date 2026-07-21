@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { foreignTenant, userIn } from '../../test-utils/tenants';
 
 describe('competitive routes', () => {
   let clientId: string;
@@ -20,7 +21,7 @@ describe('competitive routes', () => {
       data: { email: 'competitive-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
-    managerToken = issueToken({ userId: 'competitive-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const agentB = await prisma.user.create({
       data: { email: 'competitive-agent-b@example.com', passwordHash: 'x', role: 'field_agent', clientId },
@@ -91,7 +92,7 @@ describe('competitive routes', () => {
   });
 
   it('returns 404 for a visit belonging to another client', async () => {
-    const otherToken = issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' });
+    const otherToken = (await foreignTenant('field_agent')).token;
     const res = await request(app)
       .post('/competitive')
       .set('Authorization', `Bearer ${otherToken}`)
@@ -157,7 +158,7 @@ describe('competitive routes', () => {
   });
 
   it('returns 404 for a GET on a visit belonging to another client', async () => {
-    const otherToken = issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' });
+    const otherToken = (await foreignTenant('field_agent')).token;
     const res = await request(app)
       .get('/competitive')
       .query({ visitId })

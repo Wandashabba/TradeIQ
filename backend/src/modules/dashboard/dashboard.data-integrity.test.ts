@@ -1,7 +1,8 @@
 import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
-import { issueToken } from '../auth/auth.service';
+
+import { userIn } from '../../test-utils/tenants';
 
 /**
  * #93 — two dashboard KPIs were proxies dressed as measurements:
@@ -21,7 +22,7 @@ describe('dashboard KPI integrity (#93)', () => {
       data: { name: 'DI-Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     clientId = client.id;
-    managerToken = issueToken({ userId: 'di-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const agent = await prisma.user.create({
       data: { email: 'di-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },

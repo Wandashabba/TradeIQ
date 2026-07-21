@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { foreignTenant, userIn } from '../../test-utils/tenants';
 
 describe('stock routes', () => {
   let clientId: string;
@@ -21,7 +22,7 @@ describe('stock routes', () => {
       data: { email: 'stock-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
-    managerToken = issueToken({ userId: 'stock-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const agentB = await prisma.user.create({
       data: { email: 'stock-agent-b@example.com', passwordHash: 'x', role: 'field_agent', clientId },
@@ -324,7 +325,7 @@ describe('stock routes', () => {
   });
 
   it('returns 404 for a visit belonging to another client', async () => {
-    const otherToken = issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' });
+    const otherToken = (await foreignTenant('field_agent')).token;
     const res = await request(app)
       .post('/stock')
       .set('Authorization', `Bearer ${otherToken}`)
@@ -413,7 +414,7 @@ describe('stock routes', () => {
   });
 
   it('returns 404 for a GET on a visit belonging to another client', async () => {
-    const otherToken = issueToken({ userId: 'x', role: 'field_agent', clientId: 'no-such-client' });
+    const otherToken = (await foreignTenant('field_agent')).token;
     const res = await request(app)
       .get('/stock')
       .query({ visitId })

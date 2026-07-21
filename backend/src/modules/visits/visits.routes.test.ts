@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { userIn } from '../../test-utils/tenants';
 
 describe('visits routes', () => {
   let clientId: string;
@@ -45,7 +46,7 @@ describe('visits routes', () => {
     agentBId = agentB.id;
     agentBToken = issueToken({ userId: agentB.id, role: 'field_agent', clientId });
 
-    managerToken = issueToken({ userId: 'VISITS-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const outlet = await prisma.outlet.create({
       data: {
@@ -311,7 +312,7 @@ describe('visits routes', () => {
       .send({ outletId, lat: -26.20400, lng: 28.0473 });
     const visitId = createRes.body.id;
 
-    const otherAgentToken = issueToken({ userId: 'different-agent', role: 'field_agent', clientId });
+    const otherAgentToken = (await userIn(clientId, 'field_agent')).token;
     const res = await request(app)
       .post(`/visits/${visitId}/submit`)
       .set('Authorization', `Bearer ${otherAgentToken}`);
