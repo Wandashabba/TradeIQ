@@ -2,7 +2,8 @@ import request from 'supertest';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
-import { issueToken } from '../auth/auth.service';
+
+import { userIn } from '../../test-utils/tenants';
 
 describe('skus routes', () => {
   let clientId: string;
@@ -15,7 +16,7 @@ describe('skus routes', () => {
       data: { name: 'Sku Test Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     clientId = client.id;
-    token = issueToken({ userId: 'sku-agent', role: 'field_agent', clientId });
+    token = (await userIn(clientId, 'field_agent')).token;
 
     const agent = await prisma.user.create({
       data: { email: 'sku-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
@@ -71,12 +72,15 @@ describe('skus routes', () => {
     const clientB = await prisma.client.create({
       data: { name: 'Sku Client B', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
-    const tokenB = issueToken({ userId: 'sku-agent-b', role: 'field_agent', clientId: clientB.id });
+    const tokenB = (await userIn(clientB.id, 'field_agent')).token;
     try {
       const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${tokenB}`);
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(0);
     } finally {
+      // The cross-tenant token belongs to a real user now, and the FK blocks
+      // deleting a client that still has one.
+      await prisma.user.deleteMany({ where: { clientId: clientB.id } });
       await prisma.client.delete({ where: { id: clientB.id } });
     }
   });

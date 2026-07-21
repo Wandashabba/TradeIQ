@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { userIn } from '../../test-utils/tenants';
 
 interface TerritoryDashboardResponseItem {
   territoryId: string;
@@ -52,7 +53,7 @@ describe('dashboard by-territory route (#97)', () => {
       data: { name: 'DASHT-Client A', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     clientId = client.id;
-    managerToken = issueToken({ userId: 'dasht-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const agent = await prisma.user.create({
       data: { email: 'dasht-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },

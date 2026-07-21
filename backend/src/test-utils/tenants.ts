@@ -1,0 +1,73 @@
+import { prisma } from '../lib/prisma';
+import { Role, issueToken } from '../modules/auth/auth.service';
+
+let counter = 0;
+
+/**
+ * A real, authenticatable user in a real tenant.
+ *
+ * `requireAuth` re-reads the user on every request, so a token minted for a
+ * fabricated `userId` is now a 401 — correctly, since revocation is exactly
+ * that lookup. Tests therefore need people who actually exist.
+ *
+ * This matters most for the cross-tenant cases. They assert that another
+ * client's data is invisible (404), and letting those become 401s would leave
+ * them passing while the scoping logic they exist to prove was never reached.
+ * A foreign tenant has to authenticate successfully and *then* be denied data.
+ */
+export interface TestUser {
+  userId: string;
+  clientId: string;
+  token: string;
+}
+
+/** Creates a user in an existing tenant and returns a usable bearer token. */
+export async function userIn(
+  clientId: string,
+  role: Role = 'manager',
+): Promise<TestUser> {
+  counter += 1;
+  const user = await prisma.user.create({
+    data: {
+      email: `test-${role}-${counter}-${Date.now()}@example.test`,
+      passwordHash: 'not-a-real-hash',
+      role,
+      clientId,
+    },
+  });
+  return {
+    userId: user.id,
+    clientId,
+    token: issueToken({ userId: user.id, role, clientId }),
+  };
+}
+
+/**
+ * Creates a whole separate tenant with one user in it — the stand-in for
+ * "somebody else's company", replacing tokens that named `clientId:
+ * 'no-such-client'`.
+ *
+ * Returns a `cleanup` rather than relying on the caller's afterAll, because the
+ * user must be deleted before its client or the foreign key blocks it.
+ */
+export async function foreignTenant(
+  role: Role = 'field_agent',
+): Promise<TestUser & { cleanup: () => Promise<void> }> {
+  counter += 1;
+  const client = await prisma.client.create({
+    data: {
+      name: `FOREIGN-${counter}-${Date.now()}`,
+      industry: 'FMCG',
+      scorecardWeights: {},
+      kpiThresholds: {},
+    },
+  });
+  const user = await userIn(client.id, role);
+  return {
+    ...user,
+    cleanup: async () => {
+      await prisma.user.deleteMany({ where: { clientId: client.id } });
+      await prisma.client.delete({ where: { id: client.id } });
+    },
+  };
+}

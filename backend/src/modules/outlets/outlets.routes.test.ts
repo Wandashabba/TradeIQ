@@ -1,7 +1,8 @@
 import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
-import { issueToken } from '../auth/auth.service';
+
+import { userIn } from '../../test-utils/tenants';
 
 describe('outlets routes', () => {
   let clientId: string;
@@ -17,7 +18,7 @@ describe('outlets routes', () => {
       },
     });
     clientId = client.id;
-    token = issueToken({ userId: 'seed-user', role: 'manager', clientId });
+    token = (await userIn(clientId, 'manager')).token;
 
     // Outlet creation now requires territoryId to name a real territory of the
     // caller's client, so the territory these tests post has to exist.
@@ -29,6 +30,9 @@ describe('outlets routes', () => {
   afterAll(async () => {
     await prisma.outlet.deleteMany({ where: { clientId } });
     await prisma.territory.deleteMany({ where: { clientId } });
+    // userIn() puts a real user in this tenant now, and the FK blocks
+    // deleting a client that still has one.
+    await prisma.user.deleteMany({ where: { clientId: clientId } });
     await prisma.client.delete({ where: { id: clientId } });
     await prisma.$disconnect();
   });
@@ -82,7 +86,7 @@ describe('outlets routes', () => {
   });
 
   it('forbids a field agent from creating an outlet with 403', async () => {
-    const agentToken = issueToken({ userId: 'seed-agent', role: 'field_agent', clientId });
+    const agentToken = (await userIn(clientId, 'field_agent')).token;
     const res = await request(app)
       .post('/outlets')
       .set('Authorization', `Bearer ${agentToken}`)
@@ -214,6 +218,9 @@ describe('outlets routes', () => {
       expect(res.status).toBe(400);
     } finally {
       await prisma.territory.deleteMany({ where: { clientId: clientC.id } });
+      // userIn() puts a real user in this tenant now, and the FK blocks
+      // deleting a client that still has one.
+      await prisma.user.deleteMany({ where: { clientId: clientC.id } });
       await prisma.client.delete({ where: { id: clientC.id } });
     }
   });
@@ -227,7 +234,7 @@ describe('outlets routes', () => {
         kpiThresholds: {},
       },
     });
-    const tokenB = issueToken({ userId: 'seed-user-b', role: 'manager', clientId: clientB.id });
+    const tokenB = (await userIn(clientB.id, 'manager')).token;
     await prisma.territory.create({
       data: { clientId: clientB.id, name: 'Territory Two', code: 'territory-2' },
     });
@@ -256,6 +263,9 @@ describe('outlets routes', () => {
     } finally {
       await prisma.outlet.deleteMany({ where: { clientId: clientB.id } });
       await prisma.territory.deleteMany({ where: { clientId: clientB.id } });
+      // userIn() puts a real user in this tenant now, and the FK blocks
+      // deleting a client that still has one.
+      await prisma.user.deleteMany({ where: { clientId: clientB.id } });
       await prisma.client.delete({ where: { id: clientB.id } });
     }
   });

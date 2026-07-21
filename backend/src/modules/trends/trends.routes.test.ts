@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { userIn } from '../../test-utils/tenants';
 
 // Two distinct, fixed 2026 weeks so day/week bucketing is deterministic.
 // Monday of week A is 2026-03-02; Monday of week B is 2026-03-09 (both UTC).
@@ -25,7 +26,7 @@ describe('trends routes', () => {
       data: { name: 'TREND-Client A', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     clientId = client.id;
-    managerToken = issueToken({ userId: 'trend-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const agent = await prisma.user.create({
       data: { email: 'trend-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },

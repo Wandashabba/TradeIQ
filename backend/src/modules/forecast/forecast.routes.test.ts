@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { userIn } from '../../test-utils/tenants';
 
 describe('forecast routes', () => {
   let clientId: string;
@@ -18,7 +19,7 @@ describe('forecast routes', () => {
       data: { name: 'FCAST-Client A', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     clientId = client.id;
-    managerToken = issueToken({ userId: 'fcast-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const agent = await prisma.user.create({
       data: { email: 'fcast-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },

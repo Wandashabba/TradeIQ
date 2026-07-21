@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { foreignTenant, userIn } from '../../test-utils/tenants';
 
 describe('scorecards routes', () => {
   let clientId: string;
@@ -39,7 +40,7 @@ describe('scorecards routes', () => {
       },
     });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
-    managerToken = issueToken({ userId: 'score-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const agentB = await prisma.user.create({
       data: { email: 'score-agent-b@example.com', passwordHash: 'x', role: 'field_agent', clientId },
@@ -246,11 +247,7 @@ describe('scorecards routes', () => {
   });
 
   it('returns 404 for a visit belonging to another client', async () => {
-    const otherToken = issueToken({
-      userId: 'x',
-      role: 'field_agent',
-      clientId: 'no-such-client',
-    });
+    const otherToken = (await foreignTenant('field_agent')).token;
 
     const postRes = await request(app)
       .post('/scorecards')

@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { userIn } from '../../test-utils/tenants';
 
 describe('templates routes', () => {
   let clientId: string;
@@ -131,17 +132,16 @@ describe('templates routes', () => {
     const otherClient = await prisma.client.create({
       data: { name: 'TMPL-Other Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
-    const otherToken = issueToken({
-      userId: 'tmpl-other-agent',
-      role: 'field_agent',
-      clientId: otherClient.id,
-    });
+    const otherToken = (await userIn(otherClient.id, 'field_agent')).token;
     try {
       const crossRes = await request(app)
         .get(`/templates/${template.id}`)
         .set('Authorization', `Bearer ${otherToken}`);
       expect(crossRes.status).toBe(404);
     } finally {
+      // The cross-tenant token belongs to a real user now, and the FK blocks
+      // deleting a client that still has one.
+      await prisma.user.deleteMany({ where: { clientId: otherClient.id } });
       await prisma.client.delete({ where: { id: otherClient.id } });
     }
   });

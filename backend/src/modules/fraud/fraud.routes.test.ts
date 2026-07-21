@@ -4,6 +4,7 @@ import { prisma } from '../../lib/prisma';
 import { errorHandler } from '../../middleware/errorHandler';
 import { issueToken } from '../auth/auth.service';
 import { fraudRouter } from './fraud.routes';
+import { userIn } from '../../test-utils/tenants';
 
 // The fraud router is mounted on a local app here rather than the shared
 // `src/app.ts`, because wiring it into app.ts is out of this change's scope
@@ -49,7 +50,7 @@ describe('fraud routes', () => {
     });
     agentId = agent.id;
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
-    managerToken = issueToken({ userId: 'FRAUD-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const outlet = await prisma.outlet.create({
       data: {

@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { foreignTenant, userIn } from '../../test-utils/tenants';
 
 const WINDOW_START = '2026-07-01T00:00:00.000Z';
 const WINDOW_END = '2026-07-31T23:59:59.000Z';
@@ -35,7 +36,7 @@ describe('campaigns routes', () => {
     });
     agentId = agent.id;
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
-    managerToken = issueToken({ userId: 'camp-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const outlet1 = await prisma.outlet.create({
       data: {
@@ -200,7 +201,7 @@ describe('campaigns routes', () => {
   });
 
   it('returns 404 for a campaign belonging to another client', async () => {
-    const otherToken = issueToken({ userId: 'x', role: 'manager', clientId: 'no-such-client' });
+    const otherToken = (await foreignTenant('manager')).token;
     const res = await request(app)
       .get(`/campaigns/${baseCampaignId}`)
       .set('Authorization', `Bearer ${otherToken}`);

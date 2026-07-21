@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
+import { userIn } from '../../test-utils/tenants';
 
 describe('dashboard routes', () => {
   let clientId: string;
@@ -17,7 +18,7 @@ describe('dashboard routes', () => {
       data: { name: 'DASH-Client A', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     clientId = client.id;
-    managerToken = issueToken({ userId: 'dash-manager', role: 'manager', clientId });
+    managerToken = (await userIn(clientId, 'manager')).token;
 
     const agent = await prisma.user.create({
       data: { email: 'dash-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
@@ -259,11 +260,7 @@ describe('dashboard routes', () => {
       data: { name: 'DASH-Client C', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     emptyClientId = emptyClient.id;
-    emptyManagerToken = issueToken({
-      userId: 'dash-manager-c',
-      role: 'manager',
-      clientId: emptyClientId,
-    });
+    emptyManagerToken = (await userIn(emptyClientId, 'manager')).token;
   });
 
   afterAll(async () => {
