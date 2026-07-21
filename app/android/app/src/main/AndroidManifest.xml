@@ -11,9 +11,19 @@
          braces rather than strictly required — but it is declared deliberately
          instead of relying on intent behaviour. See #148. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Backup is off deliberately. Android copies app data to the user's Google
+         account by default, which would sweep up tradeiq_local.sqlite — GPS
+         check-in trails and base64 shelf photos, in plain SQLite (#138) — to
+         somewhere this app cannot reach, audit, or delete.
+
+         allowBackup covers Android 11 and below; dataExtractionRules governs
+         cloud backup and device-to-device transfer on Android 12+, where
+         allowBackup alone no longer decides transfer. Both are needed. -->
     <application
         android:label="tradeiq_app"
         android:name="${applicationName}"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

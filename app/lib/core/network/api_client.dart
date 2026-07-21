@@ -19,7 +19,27 @@ const apiBaseUrl = String.fromEnvironment(
 /// every test that touches the client.
 void Function()? onUnauthorized;
 
-final dio = Dio(BaseOptions(baseUrl: apiBaseUrl))
+/// Long enough for a rural 2G handshake, short enough that an agent knows the
+/// attempt failed rather than watching a spinner.
+const _connectTimeout = Duration(seconds: 30);
+
+/// Applies between chunks, not to the whole transfer, so a slow 8 MB shelf
+/// photo on a weak signal is not cut off merely for being large — only a
+/// connection that has genuinely stopped moving is.
+const _transferTimeout = Duration(seconds: 60);
+
+final dio = Dio(BaseOptions(
+  baseUrl: apiBaseUrl,
+  // Dio's defaults are null, meaning wait forever. On the flaky connectivity
+  // this app is built for, that is a request that never returns and a UI that
+  // spins until the agent force-quits — losing the queued work they were
+  // trying to send. It also left login_screen's timeout messages unreachable:
+  // it maps connectionTimeout/sendTimeout/receiveTimeout to a "check your
+  // connection" message that could never fire, because none could occur.
+  connectTimeout: _connectTimeout,
+  receiveTimeout: _transferTimeout,
+  sendTimeout: _transferTimeout,
+))
   ..interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) {
       final token = currentAuthToken;
