@@ -31,7 +31,8 @@ void main() {
     expect(t.chipTheme.backgroundColor, const Color(0xFF1A1D25));
     expect(t.textTheme.bodyMedium?.color, const Color(0xFFE9EBEE));
     expect(t.textTheme.bodySmall?.color, const Color(0xFF99A1AD));
-    expect(t.textTheme.labelSmall?.color, const Color(0xFF6A7280));
+    // ink3, post-M6: labelSmall is 10px text, so it rides the 4.5:1 value.
+    expect(t.textTheme.labelSmall?.color, const Color(0xFF838D9E));
   });
 
   test('light derives the same component themes from TiqColors.light', () {

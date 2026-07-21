@@ -245,7 +245,9 @@ class _LinePainter extends CustomPainter {
     if (target != null) {
       final y = _yFor(target!, size.height);
       final dash = Paint()
-        ..color = colors.ink3
+        // ink4: a stroke, not text — 3:1 is the bar, and the quieter weight
+        // keeps the rule behind the data.
+        ..color = colors.ink4
         ..strokeWidth = 1;
       for (var x = _pad.left; x < _pad.left + innerW; x += 6) {
         canvas.drawLine(Offset(x, y), Offset(math.min(x + 3, _pad.left + innerW), y), dash);
@@ -654,9 +656,9 @@ class _BarPainter extends CustomPainter {
       tp.paint(canvas, Offset(x(v) - tp.width / 2, _pad.top + plotH + 6));
     }
 
-    // Target rule.
+    // Target rule. ink4: a stroke, not text — 3:1 suffices, quiet by design.
     final dash = Paint()
-      ..color = colors.ink3
+      ..color = colors.ink4
       ..strokeWidth = 1;
     for (var y = _pad.top; y < _pad.top + plotH; y += 6) {
       canvas.drawLine(

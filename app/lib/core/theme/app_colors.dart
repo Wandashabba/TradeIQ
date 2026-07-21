@@ -33,7 +33,17 @@ class AppColors {
   // ── Ink ──────────────────────────────────────────────────────────────
   static const ink1 = Color(0xFFE9EBEE); // primary
   static const ink2 = Color(0xFF99A1AD); // secondary
-  static const ink3 = Color(0xFF6A7280); // muted: axis ticks, labels
+
+  /// Muted text: hints, captions, tick labels. ~66 call sites render this at
+  /// 10–13px, which makes it *text* under WCAG — so it must clear 4.5:1, not
+  /// the 3:1 graphical bar. The old #6A7280 bottomed out at 3.16:1 on
+  /// [surface3]; this value clears 4.5:1 on all four surfaces (4.58:1 worst).
+  static const ink3 = Color(0xFF838D9E);
+
+  /// The old ink3, kept for graphical marks only — dashed target rules and
+  /// other non-text strokes that need 3:1, where the dimmer weight is the
+  /// point. Never put words in this color.
+  static const ink4 = Color(0xFF6A7280);
 
   // ── Brand — identity and interactive affordances only. ───────────────
   static const brand = Color(0xFF0A6CF0);
@@ -48,6 +58,12 @@ class AppColors {
   static const good = Color(0xFF0CA30C);
   static const warn = Color(0xFFFAB219);
   static const crit = Color(0xFFD03B3B);
+
+  /// [crit] as *text*. crit itself is a mark color — as the StatusBanner
+  /// title over its own 12% wash it reads at 3.74:1, on the one banner that
+  /// tells an agent their captures will not send. This tint keeps the hue and
+  /// clears 4.5:1 over the crit wash on every surface (4.74:1 worst).
+  static const critText = Color(0xFFE87370);
 
   // ── Chart chrome ─────────────────────────────────────────────────────
   static const grid = Color(0xFF22252D);

@@ -19,7 +19,8 @@
   /* Ink */
   --ink-1:        #e9ebee;  /* primary */
   --ink-2:        #99a1ad;  /* secondary */
-  --ink-3:        #6a7280;  /* muted: axis ticks, labels */
+  --ink-3:        #838d9e;  /* muted text — 4.5:1 on every surface (was #6a7280, 3.16:1 on surface-3) */
+  --ink-4:        #6a7280;  /* graphical marks only (dashed target rules) — 3:1, never text */
 
   /* Brand — reserved for identity + interactive affordances only. */
   --brand:        #0a6cf0;
@@ -36,6 +37,7 @@
   --good:         #0ca30c;
   --warn:         #fab219;
   --crit:         #d03b3b;
+  --crit-text:    #e87370;  /* crit as words — crit itself is 3.74:1 over its own wash */
   --good-quiet:   rgba(12,163,12,0.13);
   --warn-quiet:   rgba(250,178,25,0.13);
   --crit-quiet:   rgba(208,59,59,0.14);
@@ -73,7 +75,8 @@
 
   --ink-1:        #14161c;
   --ink-2:        #4c5560;
-  --ink-3:        #6a7280;
+  --ink-3:        #5f6875;  /* 4.72:1 on surface-3 — the shared #6a7280 failed light's tinted grounds */
+  --ink-4:        #6a7280;  /* graphical marks only — 3:1 */
 
   --brand:        #0a6cf0;
   --brand-hover:  #0857c4;
@@ -87,6 +90,7 @@
   --good:         #0b7a0b;
   --warn:         #935f00;
   --crit:         #b32e2e;
+  --crit-text:    #a52a2a;  /* crit as words — 4.94:1 over its wash on surface-3 */
   --good-quiet:   rgba(11, 122, 11, 0.10);
   --warn-quiet:   rgba(147, 95, 0, 0.10);
   --crit-quiet:   rgba(179, 46, 46, 0.10);
