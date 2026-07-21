@@ -5,6 +5,14 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
+  # Nothing verified main after a merge: a PR could go green, land, and
+  # break on main with no signal at all. Same paths, so it stays quiet
+  # for changes that cannot affect this job.
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
 
 jobs:
   test:
@@ -37,6 +45,9 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npx prisma migrate deploy
+      # Fails the build on a high/critical advisory in a shipped dependency.
+      # Currently clean, so it starts as a ratchet rather than noise.
+      - run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run build
       - run: npm test

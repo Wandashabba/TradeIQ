@@ -41,7 +41,15 @@ territoriesRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedR
   }
 });
 
-territoriesRouter.get('/', async (req: AuthedRequest, res) => {
+// Gated to match the rest of this router. Territories are a planning
+// construct: every route that reads or writes them is manager/admin, and this
+// one was open only by omission.
+//
+// No agent flow loses anything. Its two callers in the app — the outlet form
+// and the beat-plan form — are both manager/admin actions at the write end
+// (`POST /outlets`, `POST /beatplans`), so an agent reaching either could only
+// ever be refused on submit.
+territoriesRouter.get('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
   const territories = await listTerritoriesForClient(req.user!.clientId);
   res.status(200).json(territories);
 });

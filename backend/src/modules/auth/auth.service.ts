@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import type { UserRole } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 
 export interface AuthTokenPayload {
@@ -7,7 +8,7 @@ export interface AuthTokenPayload {
   // Derived from ROLES so the runtime guard and the compile-time type cannot
   // drift apart in either direction: a role the array lacks is not assignable,
   // and a role the array gains is automatically accepted by the type.
-  role: (typeof ROLES)[number];
+  role: Role;
   clientId: string;
 }
 
@@ -66,7 +67,33 @@ export function issueToken(payload: AuthTokenPayload): string {
   return jwt.sign(payload, getSecret(), { expiresIn: '12h' });
 }
 
-const ROLES = ['field_agent', 'manager', 'admin'] as const;
+/// The roles this system recognises — the single source of truth, exported so
+/// nothing else has to restate the list.
+export const ROLES = ['field_agent', 'manager', 'admin'] as const;
+
+export type Role = (typeof ROLES)[number];
+
+/// Compile-time proof that [ROLES] and Prisma's `UserRole` describe the *same*
+/// set, checked in both directions.
+///
+/// This assertion is load-bearing. Before it, drift was caught by two unrelated
+/// accidents: a role *removed* from ROLES failed because `auth.routes.ts` feeds
+/// Prisma's `UserRole` into `issueToken`, and a role *added* to ROLES failed
+/// only incidentally, because `roleGuard` restated the union as a literal and
+/// `.includes()` then rejected the wider type.
+///
+/// That made the obvious cleanup — retyping roleGuard to use the shared type —
+/// silently delete the add-direction guard. Asserting mutual assignability here
+/// means the shared type is now safe to use everywhere, because adding a role
+/// to one declaration and not the other stops compiling at this line rather
+/// than somewhere unrelated, or nowhere.
+type AssertTrue<T extends true> = T;
+// A role in ROLES that Prisma does not have.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _EveryRoleExistsInPrisma = AssertTrue<Role extends UserRole ? true : false>;
+// A role in Prisma that ROLES does not have.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _EveryPrismaRoleIsKnown = AssertTrue<UserRole extends Role ? true : false>;
 
 // `jwt.verify` proves the token was signed by us. It proves NOTHING about the
 // payload's shape — the old `as AuthTokenPayload` cast simply asserted it.
