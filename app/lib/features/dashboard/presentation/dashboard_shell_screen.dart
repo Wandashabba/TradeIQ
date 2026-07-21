@@ -548,7 +548,13 @@ class _TerritoryScoreBars extends ConsumerWidget {
 
     return byTerritoryAsync.when(
       loading: () => const _InlineLoader(height: 140),
-      error: (_, _) => const _InlineLoader(height: 40),
+      // An error must never render as a loader: a spinner reads as "still
+      // loading" and never recovers. Say what failed and offer the way back,
+      // like every sibling panel.
+      error: (_, _) => _InlineError(
+        message: 'Could not load territory scores',
+        onRetry: () => ref.invalidate(dashboardByTerritoryProvider),
+      ),
       data: (summaries) {
         final byId = {for (final s in summaries) s.territoryId: s};
         final points = <ChartPoint>[

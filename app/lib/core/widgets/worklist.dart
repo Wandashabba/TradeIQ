@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../network/human_error.dart';
 import '../theme/app_colors.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_motion.dart' show reduceMotion;
@@ -14,9 +15,12 @@ import 'console.dart';
 
 /// Wraps an [AsyncValue] in the console's loading / error / empty states.
 ///
-/// The error copy is deliberately `Failed to load <label>: <err>` — that
-/// wording is asserted across the screen tests, and it is also just the clearest
-/// thing to say. Always offer the retry: a dead-end error state is a bug.
+/// The error copy is deliberately `Failed to load <label>. <human reason>` —
+/// the `Failed to load <label>` prefix is asserted across the screen tests, and
+/// the reason comes from [humanErrorMessage], never from the exception itself:
+/// every console screen inherits this widget, so one raw `$err` here would put
+/// a DioException dump on ~20 screens at once. Always offer the retry: a
+/// dead-end error state is a bug.
 class AsyncSection<T> extends StatelessWidget {
   const AsyncSection({
     super.key,
@@ -56,7 +60,7 @@ class AsyncSection<T> extends StatelessWidget {
             const StatusChip(label: 'Error', level: StatusLevel.critical),
             const SizedBox(height: 8),
             Text(
-              'Failed to load $label: $err',
+              'Failed to load $label. ${humanErrorMessage(err)}',
               style: TextStyle(fontSize: 12.5, color: colors.ink2),
             ),
             const SizedBox(height: 10),
