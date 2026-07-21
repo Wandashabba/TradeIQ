@@ -14,6 +14,15 @@ class NoopFlusher implements QueueFlusher {
   }
 }
 
+/// Records exactly which entities were sent, which is the question the
+/// ownership tests ask: not "did it flush" but "whose".
+class RecordingFlusher implements QueueFlusher {
+  final List<String> sent = [];
+
+  @override
+  Future<void> flush(SyncQueueItem item) async => sent.add(item.entityId);
+}
+
 class _FailFirstFlusher implements QueueFlusher {
   final List<String> attempted = [];
 
@@ -50,7 +59,8 @@ class _FakeAdapter implements HttpClientAdapter {
   }
 }
 
-VisitDraftsCompanion _visitDraft(String id, {String? remoteId}) => VisitDraftsCompanion.insert(
+VisitDraftsCompanion _visitDraft(String id, {String? remoteId}) =>
+    VisitDraftsCompanion.insert(
       id: id,
       outletId: 'o1',
       checkinTs: DateTime(2026, 1, 1),
@@ -65,26 +75,31 @@ SyncQueueItem _queueItem({
   required String entityId,
   required String payloadJson,
   int id = 1,
-}) =>
-    SyncQueueItem(
-      id: id,
-      entityType: entityType,
-      entityId: entityId,
-      payloadJson: payloadJson,
-      queuedAt: DateTime(2026, 1, 1),
-      synced: false,
-      attempts: 0,
-    );
+}) => SyncQueueItem(
+  id: id,
+  entityType: entityType,
+  entityId: entityId,
+  payloadJson: payloadJson,
+  queuedAt: DateTime(2026, 1, 1),
+  synced: false,
+  attempts: 0,
+);
 
 void main() {
+  // The outbox is owned: rows are stamped with whoever queued them and only
+  // that user's rows flush. Tests therefore need somebody signed in, exactly
+  // as the app does.
+  setUp(() => currentLocalUserId = 'user-a');
+  tearDown(() => currentLocalUserId = null);
+
   test('flushPending marks queued items as synced', () async {
     final db = LocalDb(NativeDatabase.memory());
     addTearDown(db.close);
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'visit',
-          entityId: 'visit-1',
-          payloadJson: '{}',
-        ));
+    await db.enqueue(
+      entityType: 'visit',
+      entityId: 'visit-1',
+      payloadJson: '{}',
+    );
 
     final flusher = NoopFlusher();
     final service = SyncService(db: db, flusher: flusher);
@@ -95,89 +110,114 @@ void main() {
     expect(rows.first.synced, isTrue);
   });
 
-  test('flushPending does not let one failing item block the rest of the queue', () async {
-    final db = LocalDb(NativeDatabase.memory());
-    addTearDown(db.close);
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'visit',
-          entityId: 'visit-1',
-          payloadJson: '{}',
-        ));
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'visit',
-          entityId: 'visit-2',
-          payloadJson: '{}',
-        ));
-
-    final flusher = _FailFirstFlusher();
-    final service = SyncService(db: db, flusher: flusher);
-    await service.flushPending();
-
-    expect(flusher.attempted, ['visit-1', 'visit-2']);
-    final rows = await db.select(db.syncQueueItems).get();
-    final byEntityId = {for (final row in rows) row.entityId: row.synced};
-    expect(byEntityId['visit-1'], isFalse);
-    expect(byEntityId['visit-2'], isTrue);
-  });
-
-  group('HttpQueueFlusher', () {
-    test('posts /visits and records the server id on the visit draft', () async {
+  test(
+    'flushPending does not let one failing item block the rest of the queue',
+    () async {
       final db = LocalDb(NativeDatabase.memory());
       addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('visit-1'));
-
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))..httpClientAdapter = _FakeAdapter(201);
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
-
-      await flusher.flush(_queueItem(
+      await db.enqueue(
         entityType: 'visit',
         entityId: 'visit-1',
-        payloadJson: '{"outletId":"o1","lat":1.0,"lng":2.0}',
-      ));
+        payloadJson: '{}',
+      );
+      await db.enqueue(
+        entityType: 'visit',
+        entityId: 'visit-2',
+        payloadJson: '{}',
+      );
 
-      final draft = await (db.select(db.visitDrafts)..where((t) => t.id.equals('visit-1'))).getSingle();
-      expect(draft.remoteId, 'remote-visit-1');
-    });
+      final flusher = _FailFirstFlusher();
+      final service = SyncService(db: db, flusher: flusher);
+      await service.flushPending();
+
+      expect(flusher.attempted, ['visit-1', 'visit-2']);
+      final rows = await db.select(db.syncQueueItems).get();
+      final byEntityId = {for (final row in rows) row.entityId: row.synced};
+      expect(byEntityId['visit-1'], isFalse);
+      expect(byEntityId['visit-2'], isTrue);
+    },
+  );
+
+  group('HttpQueueFlusher', () {
+    test(
+      'posts /visits and records the server id on the visit draft',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db.into(db.visitDrafts).insert(_visitDraft('visit-1'));
+
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = _FakeAdapter(201);
+        final flusher = HttpQueueFlusher(db: db, dio: dio);
+
+        await flusher.flush(
+          _queueItem(
+            entityType: 'visit',
+            entityId: 'visit-1',
+            payloadJson: '{"outletId":"o1","lat":1.0,"lng":2.0}',
+          ),
+        );
+
+        final draft = await (db.select(
+          db.visitDrafts,
+        )..where((t) => t.id.equals('visit-1'))).getSingle();
+        expect(draft.remoteId, 'remote-visit-1');
+      },
+    );
 
     test('throws when the backend rejects the check-in with 422', () async {
       final db = LocalDb(NativeDatabase.memory());
       addTearDown(db.close);
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))..httpClientAdapter = _FakeAdapter(422);
+      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+        ..httpClientAdapter = _FakeAdapter(422);
       final flusher = HttpQueueFlusher(db: db, dio: dio);
 
       await expectLater(
-        flusher.flush(_queueItem(
-          entityType: 'visit',
-          entityId: 'visit-1',
-          payloadJson: '{"outletId":"o1","lat":1.0,"lng":2.0}',
-        )),
+        flusher.flush(
+          _queueItem(
+            entityType: 'visit',
+            entityId: 'visit-1',
+            payloadJson: '{"outletId":"o1","lat":1.0,"lng":2.0}',
+          ),
+        ),
         throwsA(isA<DioException>()),
       );
     });
 
-    test('stock flush resolves the remote visit id and posts to /stock', () async {
-      final db = LocalDb(NativeDatabase.memory());
-      addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+    test(
+      'stock flush resolves the remote visit id and posts to /stock',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(_visitDraft('v1', remoteId: 'remote-v1'));
 
-      final captured = <dynamic>[];
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _FakeAdapter(201, '{}')
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          captured.add(options.data);
-          handler.next(options);
-        }));
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
+        final captured = <dynamic>[];
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = _FakeAdapter(201, '{}')
+          ..interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                captured.add(options.data);
+                handler.next(options);
+              },
+            ),
+          );
+        final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_queueItem(
-        entityType: 'stock',
-        entityId: 'batch-1',
-        payloadJson: '{"visitDraftId":"v1","items":[{"skuId":"s1"}]}',
-      ));
+        await flusher.flush(
+          _queueItem(
+            entityType: 'stock',
+            entityId: 'batch-1',
+            payloadJson: '{"visitDraftId":"v1","items":[{"skuId":"s1"}]}',
+          ),
+        );
 
-      expect(captured, hasLength(1));
-      expect((captured.first as Map)['visitId'], 'remote-v1');
-    });
+        expect(captured, hasLength(1));
+        expect((captured.first as Map)['visitId'], 'remote-v1');
+      },
+    );
 
     test('stock flush throws when the visit has not synced yet', () async {
       final db = LocalDb(NativeDatabase.memory());
@@ -186,162 +226,227 @@ void main() {
 
       final flusher = HttpQueueFlusher(db: db, dio: Dio());
       await expectLater(
-        flusher.flush(_queueItem(
-          entityType: 'stock',
-          entityId: 'batch-1',
-          payloadJson: '{"visitDraftId":"v1","items":[]}',
-        )),
+        flusher.flush(
+          _queueItem(
+            entityType: 'stock',
+            entityId: 'batch-1',
+            payloadJson: '{"visitDraftId":"v1","items":[]}',
+          ),
+        ),
         throwsA(isA<StateError>()),
       );
     });
 
-    test('photo flush resolves the remote visit id and posts to /photos', () async {
-      final db = LocalDb(NativeDatabase.memory());
-      addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+    test(
+      'photo flush resolves the remote visit id and posts to /photos',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(_visitDraft('v1', remoteId: 'remote-v1'));
 
-      final captured = <dynamic>[];
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _FakeAdapter(201, '{"id":"p1","url":"u"}')
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          captured.add(options.data);
-          handler.next(options);
-        }));
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
+        final captured = <dynamic>[];
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = _FakeAdapter(201, '{"id":"p1","url":"u"}')
+          ..interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                captured.add(options.data);
+                handler.next(options);
+              },
+            ),
+          );
+        final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_queueItem(
-        entityType: 'photo',
-        entityId: 'photo-1',
-        payloadJson:
-            '{"visitDraftId":"v1","section":"visibility","dataUrl":"data:image/jpeg;base64,AAA",'
-            '"gpsTag":{},"timestamp":"2026-07-13T09:00:00.000Z"}',
-      ));
+        await flusher.flush(
+          _queueItem(
+            entityType: 'photo',
+            entityId: 'photo-1',
+            payloadJson:
+                '{"visitDraftId":"v1","section":"visibility","dataUrl":"data:image/jpeg;base64,AAA",'
+                '"gpsTag":{},"timestamp":"2026-07-13T09:00:00.000Z"}',
+          ),
+        );
 
-      expect(captured, hasLength(1));
-      final body = captured.first as Map;
-      expect(body['visitId'], 'remote-v1');
-      expect(body['section'], 'visibility');
-      expect(body['dataUrl'], 'data:image/jpeg;base64,AAA');
-      // visitDraftId is a local id — it must never leak to the server.
-      expect(body.containsKey('visitDraftId'), isFalse);
-    });
+        expect(captured, hasLength(1));
+        final body = captured.first as Map;
+        expect(body['visitId'], 'remote-v1');
+        expect(body['section'], 'visibility');
+        expect(body['dataUrl'], 'data:image/jpeg;base64,AAA');
+        // visitDraftId is a local id — it must never leak to the server.
+        expect(body.containsKey('visitDraftId'), isFalse);
+      },
+    );
 
-    test('photo flush waits for its visit, so an offline capture is not lost', () async {
-      final db = LocalDb(NativeDatabase.memory());
-      addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1')); // remoteId null
+    test(
+      'photo flush waits for its visit, so an offline capture is not lost',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(_visitDraft('v1')); // remoteId null
 
-      // A shelf photo taken in a dead aisle stays queued until the visit that
-      // owns it exists on the server — it is retried, never dropped.
-      final flusher = HttpQueueFlusher(db: db, dio: Dio());
-      await expectLater(
-        flusher.flush(_queueItem(
-          entityType: 'photo',
-          entityId: 'photo-1',
-          payloadJson: '{"visitDraftId":"v1","section":"pricing","dataUrl":"x","gpsTag":{},"timestamp":"t"}',
-        )),
-        throwsA(isA<StateError>()),
-      );
-    });
+        // A shelf photo taken in a dead aisle stays queued until the visit that
+        // owns it exists on the server — it is retried, never dropped.
+        final flusher = HttpQueueFlusher(db: db, dio: Dio());
+        await expectLater(
+          flusher.flush(
+            _queueItem(
+              entityType: 'photo',
+              entityId: 'photo-1',
+              payloadJson:
+                  '{"visitDraftId":"v1","section":"pricing","dataUrl":"x","gpsTag":{},"timestamp":"t"}',
+            ),
+          ),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
 
-    test('visit_submit flush resolves the remote id and posts to /visits/:id/submit', () async {
-      final db = LocalDb(NativeDatabase.memory());
-      addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+    test(
+      'visit_submit flush resolves the remote id and posts to /visits/:id/submit',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(_visitDraft('v1', remoteId: 'remote-v1'));
 
-      final paths = <String>[];
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _FakeAdapter(200, '{}')
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          paths.add(options.path);
-          handler.next(options);
-        }));
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
+        final paths = <String>[];
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = _FakeAdapter(200, '{}')
+          ..interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                paths.add(options.path);
+                handler.next(options);
+              },
+            ),
+          );
+        final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_queueItem(
-        entityType: 'visit_submit',
-        entityId: 'submit-1',
-        payloadJson: '{"visitDraftId":"v1"}',
-      ));
+        await flusher.flush(
+          _queueItem(
+            entityType: 'visit_submit',
+            entityId: 'submit-1',
+            payloadJson: '{"visitDraftId":"v1"}',
+          ),
+        );
 
-      expect(paths.single, '/visits/remote-v1/submit');
-    });
+        expect(paths.single, '/visits/remote-v1/submit');
+      },
+    );
 
-    test('visibility flush resolves the remote id and posts to /visibility', () async {
-      final db = LocalDb(NativeDatabase.memory());
-      addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+    test(
+      'visibility flush resolves the remote id and posts to /visibility',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(_visitDraft('v1', remoteId: 'remote-v1'));
 
-      final captured = <dynamic>[];
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _FakeAdapter(201, '{}')
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          captured.add(options.data);
-          handler.next(options);
-        }));
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
+        final captured = <dynamic>[];
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = _FakeAdapter(201, '{}')
+          ..interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                captured.add(options.data);
+                handler.next(options);
+              },
+            ),
+          );
+        final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_queueItem(
-        entityType: 'visibility',
-        entityId: 'vis-1',
-        payloadJson: '{"visitDraftId":"v1","planogramCompliancePct":80,"highTrafficPass":true}',
-      ));
+        await flusher.flush(
+          _queueItem(
+            entityType: 'visibility',
+            entityId: 'vis-1',
+            payloadJson:
+                '{"visitDraftId":"v1","planogramCompliancePct":80,"highTrafficPass":true}',
+          ),
+        );
 
-      final body = captured.single as Map;
-      expect(body['visitId'], 'remote-v1');
-      expect(body['planogramCompliancePct'], 80);
-      expect(body.containsKey('visitDraftId'), isFalse);
-    });
+        final body = captured.single as Map;
+        expect(body['visitId'], 'remote-v1');
+        expect(body['planogramCompliancePct'], 80);
+        expect(body.containsKey('visitDraftId'), isFalse);
+      },
+    );
 
-    test('pricing flush resolves the remote id and posts items to /pricing', () async {
-      final db = LocalDb(NativeDatabase.memory());
-      addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+    test(
+      'pricing flush resolves the remote id and posts items to /pricing',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(_visitDraft('v1', remoteId: 'remote-v1'));
 
-      final captured = <dynamic>[];
-      final paths = <String>[];
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _FakeAdapter(201, '{}')
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          captured.add(options.data);
-          paths.add(options.path);
-          handler.next(options);
-        }));
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
+        final captured = <dynamic>[];
+        final paths = <String>[];
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = _FakeAdapter(201, '{}')
+          ..interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                captured.add(options.data);
+                paths.add(options.path);
+                handler.next(options);
+              },
+            ),
+          );
+        final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_queueItem(
-        entityType: 'pricing',
-        entityId: 'p1',
-        payloadJson: '{"visitDraftId":"v1","items":[{"skuId":"s1","priceActual":19.99}]}',
-      ));
+        await flusher.flush(
+          _queueItem(
+            entityType: 'pricing',
+            entityId: 'p1',
+            payloadJson:
+                '{"visitDraftId":"v1","items":[{"skuId":"s1","priceActual":19.99}]}',
+          ),
+        );
 
-      expect(paths.single, '/pricing');
-      final body = captured.single as Map;
-      expect(body['visitId'], 'remote-v1');
-      expect(body['items'], hasLength(1));
-    });
+        expect(paths.single, '/pricing');
+        final body = captured.single as Map;
+        expect(body['visitId'], 'remote-v1');
+        expect(body['items'], hasLength(1));
+      },
+    );
 
     test('risk flush resolves the remote id and posts risks to /risks', () async {
       final db = LocalDb(NativeDatabase.memory());
       addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+      await db
+          .into(db.visitDrafts)
+          .insert(_visitDraft('v1', remoteId: 'remote-v1'));
 
       final captured = <dynamic>[];
       final paths = <String>[];
       final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
         ..httpClientAdapter = _FakeAdapter(201, '{}')
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          captured.add(options.data);
-          paths.add(options.path);
-          handler.next(options);
-        }));
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              captured.add(options.data);
+              paths.add(options.path);
+              handler.next(options);
+            },
+          ),
+        );
       final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_queueItem(
-        entityType: 'risk',
-        entityId: 'r1',
-        payloadJson: '{"visitDraftId":"v1","risks":[{"flagType":"stockout","severity":"high","note":"empty shelf"}]}',
-      ));
+      await flusher.flush(
+        _queueItem(
+          entityType: 'risk',
+          entityId: 'r1',
+          payloadJson:
+              '{"visitDraftId":"v1","risks":[{"flagType":"stockout","severity":"high","note":"empty shelf"}]}',
+        ),
+      );
 
       expect(paths.single, '/risks');
       final body = captured.single as Map;
@@ -349,62 +454,84 @@ void main() {
       expect(body['risks'], hasLength(1));
     });
 
-    test('task flush resolves the remote id and posts the task fields to /tasks', () async {
-      final db = LocalDb(NativeDatabase.memory());
-      addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+    test(
+      'task flush resolves the remote id and posts the task fields to /tasks',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(_visitDraft('v1', remoteId: 'remote-v1'));
 
-      final captured = <dynamic>[];
-      final paths = <String>[];
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _FakeAdapter(201, '{}')
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          captured.add(options.data);
-          paths.add(options.path);
-          handler.next(options);
-        }));
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
+        final captured = <dynamic>[];
+        final paths = <String>[];
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = _FakeAdapter(201, '{}')
+          ..interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                captured.add(options.data);
+                paths.add(options.path);
+                handler.next(options);
+              },
+            ),
+          );
+        final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_queueItem(
-        entityType: 'task',
-        entityId: 't1',
-        payloadJson:
-            '{"visitDraftId":"v1","outletId":"o1","findingType":"damage","requiredFix":"replace strip","priority":"normal"}',
-      ));
+        await flusher.flush(
+          _queueItem(
+            entityType: 'task',
+            entityId: 't1',
+            payloadJson:
+                '{"visitDraftId":"v1","outletId":"o1","findingType":"damage","requiredFix":"replace strip","priority":"normal"}',
+          ),
+        );
 
-      expect(paths.single, '/tasks');
-      final body = captured.single as Map;
-      expect(body['visitId'], 'remote-v1');
-      expect(body['outletId'], 'o1');
-      expect(body['priority'], 'normal');
-      expect(body.containsKey('visitDraftId'), isFalse);
-    });
+        expect(paths.single, '/tasks');
+        final body = captured.single as Map;
+        expect(body['visitId'], 'remote-v1');
+        expect(body['outletId'], 'o1');
+        expect(body['priority'], 'normal');
+        expect(body.containsKey('visitDraftId'), isFalse);
+      },
+    );
 
-    test('scorecard flush resolves the remote id and posts to /scorecards', () async {
-      final db = LocalDb(NativeDatabase.memory());
-      addTearDown(db.close);
-      await db.into(db.visitDrafts).insert(_visitDraft('v1', remoteId: 'remote-v1'));
+    test(
+      'scorecard flush resolves the remote id and posts to /scorecards',
+      () async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(_visitDraft('v1', remoteId: 'remote-v1'));
 
-      final captured = <dynamic>[];
-      final paths = <String>[];
-      final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
-        ..httpClientAdapter = _FakeAdapter(201, '{}')
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          captured.add(options.data);
-          paths.add(options.path);
-          handler.next(options);
-        }));
-      final flusher = HttpQueueFlusher(db: db, dio: dio);
+        final captured = <dynamic>[];
+        final paths = <String>[];
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = _FakeAdapter(201, '{}')
+          ..interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                captured.add(options.data);
+                paths.add(options.path);
+                handler.next(options);
+              },
+            ),
+          );
+        final flusher = HttpQueueFlusher(db: db, dio: dio);
 
-      await flusher.flush(_queueItem(
-        entityType: 'scorecard',
-        entityId: 'sc1',
-        payloadJson: '{"visitDraftId":"v1"}',
-      ));
+        await flusher.flush(
+          _queueItem(
+            entityType: 'scorecard',
+            entityId: 'sc1',
+            payloadJson: '{"visitDraftId":"v1"}',
+          ),
+        );
 
-      expect(paths.single, '/scorecards');
-      expect((captured.single as Map)['visitId'], 'remote-v1');
-    });
+        expect(paths.single, '/scorecards');
+        expect((captured.single as Map)['visitId'], 'remote-v1');
+      },
+    );
 
     test('throws UnimplementedError for an unhandled entity type', () async {
       final db = LocalDb(NativeDatabase.memory());
@@ -413,9 +540,91 @@ void main() {
       // 'photo' used to stand in for "unhandled" here — it is wired now (#41),
       // so this needs a type the flusher genuinely does not know.
       await expectLater(
-        flusher.flush(_queueItem(entityType: 'sasquatch', entityId: 'x1', payloadJson: '{}')),
+        flusher.flush(
+          _queueItem(
+            entityType: 'sasquatch',
+            entityId: 'x1',
+            payloadJson: '{}',
+          ),
+        ),
         throwsA(isA<UnimplementedError>()),
       );
+    });
+  });
+
+  group('outbox ownership', () {
+    test('never flushes another user\'s queued captures', () async {
+      // The bug this exists for: field devices are shared. Agent A queues a
+      // visit offline, logs out, agent B logs in — and every one of A's
+      // captures used to flush under B's token, landing on the server as work
+      // B never did. A disclosure and an attribution bug at once.
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      currentLocalUserId = 'agent-a';
+      await db.enqueue(
+        entityType: 'visit',
+        entityId: 'a-visit',
+        payloadJson: '{}',
+      );
+
+      currentLocalUserId = 'agent-b';
+      await db.enqueue(
+        entityType: 'visit',
+        entityId: 'b-visit',
+        payloadJson: '{}',
+      );
+
+      final flusher = RecordingFlusher();
+      await SyncService(db: db, flusher: flusher).flushPending();
+
+      expect(flusher.sent, ['b-visit']);
+
+      // A's row is untouched — still pending, still theirs. Not destroyed:
+      // it flushes when A signs back in.
+      final rows = await db.select(db.syncQueueItems).get();
+      final a = rows.firstWhere((r) => r.entityId == 'a-visit');
+      expect(a.synced, isFalse);
+      expect(a.userId, 'agent-a');
+    });
+
+    test('flushes nothing when nobody is signed in', () async {
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      currentLocalUserId = 'agent-a';
+      await db.enqueue(
+        entityType: 'visit',
+        entityId: 'a-visit',
+        payloadJson: '{}',
+      );
+
+      currentLocalUserId = null;
+      final flusher = RecordingFlusher();
+      await SyncService(db: db, flusher: flusher).flushPending();
+
+      expect(flusher.sent, isEmpty);
+    });
+
+    test('leaves pre-migration rows with no owner alone', () async {
+      // Rows queued before the userId column existed cannot have their owner
+      // recovered. Handing them to whoever signs in next is precisely the bug,
+      // so they are never sent.
+      final db = LocalDb(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      currentLocalUserId = null;
+      await db.enqueue(
+        entityType: 'visit',
+        entityId: 'orphan',
+        payloadJson: '{}',
+      );
+
+      currentLocalUserId = 'agent-a';
+      final flusher = RecordingFlusher();
+      await SyncService(db: db, flusher: flusher).flushPending();
+
+      expect(flusher.sent, isEmpty);
     });
   });
 }

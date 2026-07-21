@@ -7,51 +7,23 @@ import 'skus_repository.dart' show skusListProvider;
 
 /// One section of the audit, as the agent sees it.
 enum AuditSection {
-  outletInfo(
-    label: 'Outlet info',
-    entityType: null,
-    required: false,
-  ),
-  stock(
-    label: 'Stock & availability',
-    entityType: 'stock',
-    required: true,
-  ),
+  outletInfo(label: 'Outlet info', entityType: null, required: false),
+  stock(label: 'Stock & availability', entityType: 'stock', required: true),
   visibility(
     label: 'Visibility & display',
     entityType: 'visibility',
     required: true,
   ),
-  pricing(
-    label: 'Pricing & promotions',
-    entityType: 'pricing',
-    required: true,
-  ),
-  competitive(
-    label: 'Competitive',
-    entityType: 'competitive',
-    required: false,
-  ),
+  pricing(label: 'Pricing & promotions', entityType: 'pricing', required: true),
+  competitive(label: 'Competitive', entityType: 'competitive', required: false),
   capability(
     label: 'Team capability',
     entityType: 'capability',
     required: true,
   ),
-  risks(
-    label: 'Risks',
-    entityType: 'risk',
-    required: false,
-  ),
-  actionPlan(
-    label: 'Action plan',
-    entityType: 'task',
-    required: false,
-  ),
-  score(
-    label: 'Score',
-    entityType: null,
-    required: false,
-  );
+  risks(label: 'Risks', entityType: 'risk', required: false),
+  actionPlan(label: 'Action plan', entityType: 'task', required: false),
+  score(label: 'Score', entityType: null, required: false);
 
   const AuditSection({
     required this.label,
@@ -91,8 +63,7 @@ class VisitProgress {
   /// what was captured, not just that something was.
   final Map<AuditSection, String> details;
 
-  SectionState stateOf(AuditSection s) =>
-      states[s] ?? SectionState.notStarted;
+  SectionState stateOf(AuditSection s) => states[s] ?? SectionState.notStarted;
 
   /// Required sections that are not finished. The submit button is blocked on
   /// exactly this, and it names them rather than just going grey.
@@ -116,68 +87,70 @@ class VisitProgress {
 /// Deriving it from the queue rather than from in-memory state is what makes it
 /// survive the app being killed mid-visit — which, in a shop with no signal and
 /// a cheap phone, happens.
-final visitProgressProvider = StreamProvider.family<VisitProgress,
-    ({String visitDraftId, String outletId})>((ref, key) {
-  final db = ref.read(localDbProvider);
-  // Item counts are only meaningful against the SKU list; without it we can
-  // still say done/not-started, just not "7 of 12".
-  final skuCount = ref.watch(skusListProvider(key.outletId)).maybeWhen(
-        data: (list) => list.length,
-        orElse: () => 0,
-      );
+final visitProgressProvider =
+    StreamProvider.family<
+      VisitProgress,
+      ({String visitDraftId, String outletId})
+    >((ref, key) {
+      final db = ref.read(localDbProvider);
+      // Item counts are only meaningful against the SKU list; without it we can
+      // still say done/not-started, just not "7 of 12".
+      final skuCount = ref
+          .watch(skusListProvider(key.outletId))
+          .maybeWhen(data: (list) => list.length, orElse: () => 0);
 
-  return db.select(db.syncQueueItems).watch().map((rows) {
-    final payloads = <String, List<Map<String, dynamic>>>{};
-    for (final row in rows) {
-      final Map<String, dynamic> payload;
-      try {
-        payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
-      } catch (_) {
-        continue;
-      }
-      if (payload['visitDraftId'] != key.visitDraftId) continue;
-      payloads.putIfAbsent(row.entityType, () => []).add(payload);
-    }
+      return db.select(db.syncQueueItems).watch().map((rows) {
+        final payloads = <String, List<Map<String, dynamic>>>{};
+        for (final row in rows) {
+          final Map<String, dynamic> payload;
+          try {
+            payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+          } catch (_) {
+            continue;
+          }
+          if (payload['visitDraftId'] != key.visitDraftId) continue;
+          payloads.putIfAbsent(row.entityType, () => []).add(payload);
+        }
 
-    final states = <AuditSection, SectionState>{};
-    final details = <AuditSection, String>{};
+        final states = <AuditSection, SectionState>{};
+        final details = <AuditSection, String>{};
 
-    // Outlet info is confirmed by the act of checking in — there is nothing to
-    // capture, so it is done the moment the agent is inside the fence.
-    states[AuditSection.outletInfo] = SectionState.done;
-    details[AuditSection.outletInfo] = 'Confirmed at check-in';
+        // Outlet info is confirmed by the act of checking in — there is nothing to
+        // capture, so it is done the moment the agent is inside the fence.
+        states[AuditSection.outletInfo] = SectionState.done;
+        details[AuditSection.outletInfo] = 'Confirmed at check-in';
 
-    for (final section in AuditSection.values) {
-      final type = section.entityType;
-      if (type == null) continue;
+        for (final section in AuditSection.values) {
+          final type = section.entityType;
+          if (type == null) continue;
 
-      final captured = payloads[type] ?? const [];
-      if (captured.isEmpty) {
-        states[section] = SectionState.notStarted;
-        continue;
-      }
+          final captured = payloads[type] ?? const [];
+          if (captured.isEmpty) {
+            states[section] = SectionState.notStarted;
+            continue;
+          }
 
-      final items = captured
-          .expand((p) => (p['items'] as List? ?? const []))
-          .length;
+          final items = captured
+              .expand((p) => (p['items'] as List? ?? const []))
+              .length;
 
-      // A per-SKU section that covers only some of the SKUs is PARTIAL, not
-      // done. Saying "done" when five SKUs were never priced would quietly let
-      // an incomplete visit through the submit gate.
-      final perSku =
-          section == AuditSection.stock || section == AuditSection.pricing;
-      if (perSku && skuCount > 0 && items < skuCount) {
-        states[section] = SectionState.partial;
-        details[section] = '$items of $skuCount SKUs';
-      } else {
-        states[section] = SectionState.done;
-        details[section] = _describe(section, captured, items);
-      }
-    }
+          // A per-SKU section that covers only some of the SKUs is PARTIAL, not
+          // done. Saying "done" when five SKUs were never priced would quietly let
+          // an incomplete visit through the submit gate.
+          final perSku =
+              section == AuditSection.stock || section == AuditSection.pricing;
+          if (perSku && skuCount > 0 && items < skuCount) {
+            states[section] = SectionState.partial;
+            details[section] = '$items of $skuCount SKUs';
+          } else {
+            states[section] = SectionState.done;
+            details[section] = _describe(section, captured, items);
+          }
+        }
 
-    return VisitProgress(states: states, details: details);
-  });
-});
+        return VisitProgress(states: states, details: details);
+      });
+    });
 
 String _describe(
   AuditSection section,

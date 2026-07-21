@@ -11,12 +11,16 @@ class _NoopFlusher implements QueueFlusher {
   Future<void> flush(SyncQueueItem item) async {}
 }
 
-Future<void> _enqueue(LocalDb db, String entityType, Map<String, dynamic> payload) {
-  return db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-        entityType: entityType,
-        entityId: 'e-$entityType-${payload.hashCode}',
-        payloadJson: jsonEncode(payload),
-      ));
+Future<void> _enqueue(
+  LocalDb db,
+  String entityType,
+  Map<String, dynamic> payload,
+) {
+  return db.enqueue(
+    entityType: entityType,
+    entityId: 'e-$entityType-${payload.hashCode}',
+    payloadJson: jsonEncode(payload),
+  );
 }
 
 void main() {
@@ -79,26 +83,29 @@ void main() {
     expect(scorecard.ratingBand, 'amber');
   });
 
-  test('competitive is our share of shelf, not "captured anything at all"', () async {
-    await _enqueue(db, 'visibility', {
-      'visitDraftId': 'visit-1',
-      'planogramCompliancePct': 80,
-      'cleanlinessScore': 4,
-      'facingsCount': {'total': 30},
-    });
-    await _enqueue(db, 'competitive', {
-      'visitDraftId': 'visit-1',
-      'items': [
-        {'competitorSku': 'Rival', 'facingsCount': 10},
-      ],
-    });
+  test(
+    'competitive is our share of shelf, not "captured anything at all"',
+    () async {
+      await _enqueue(db, 'visibility', {
+        'visitDraftId': 'visit-1',
+        'planogramCompliancePct': 80,
+        'cleanlinessScore': 4,
+        'facingsCount': {'total': 30},
+      });
+      await _enqueue(db, 'competitive', {
+        'visitDraftId': 'visit-1',
+        'items': [
+          {'competitorSku': 'Rival', 'facingsCount': 10},
+        ],
+      });
 
-    final scorecard = await service.computeForVisit('visit-1');
+      final scorecard = await service.computeForVisit('visit-1');
 
-    // 30 of ours against 10 of theirs. The old rule scored a flat 100 for having
-    // typed a single row — it measured data entry, not the store.
-    expect(scorecard.dimensionScores['competitive'], 75.0);
-  });
+      // 30 of ours against 10 of theirs. The old rule scored a flat 100 for having
+      // typed a single row — it measured data entry, not the store.
+      expect(scorecard.dimensionScores['competitive'], 75.0);
+    },
+  );
 
   test('a competitor with more shelf than us scores us down', () async {
     await _enqueue(db, 'visibility', {

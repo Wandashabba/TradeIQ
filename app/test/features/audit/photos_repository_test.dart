@@ -44,7 +44,8 @@ void main() {
       expect(queued, hasLength(1));
       expect(queued.single.entityType, 'photo');
 
-      final payload = jsonDecode(queued.single.payloadJson) as Map<String, dynamic>;
+      final payload =
+          jsonDecode(queued.single.payloadJson) as Map<String, dynamic>;
       // The visit may not exist on the server yet — the photo carries the local
       // draft id and the flusher resolves it at send time.
       expect(payload['visitDraftId'], 'local-v1');

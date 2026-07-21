@@ -22,16 +22,19 @@ class PricingEntry {
   final int commsRating;
 
   Map<String, dynamic> toJson() => {
-        'skuId': skuId,
-        'priceActual': priceActual,
-        'promoActive': promoActive,
-        'promoMaterialsDetected': promoMaterialsDetected,
-        'commsRating': commsRating,
-      };
+    'skuId': skuId,
+    'priceActual': priceActual,
+    'promoActive': promoActive,
+    'promoMaterialsDetected': promoMaterialsDetected,
+    'commsRating': commsRating,
+  };
 }
 
 abstract class PricingRepository {
-  Future<void> savePricing({required String visitDraftId, required List<PricingEntry> entries});
+  Future<void> savePricing({
+    required String visitDraftId,
+    required List<PricingEntry> entries,
+  });
 }
 
 class DriftPricingRepository implements PricingRepository {
@@ -42,15 +45,18 @@ class DriftPricingRepository implements PricingRepository {
   static const _uuid = Uuid();
 
   @override
-  Future<void> savePricing({required String visitDraftId, required List<PricingEntry> entries}) async {
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'pricing',
-          entityId: _uuid.v4(),
-          payloadJson: jsonEncode({
-            'visitDraftId': visitDraftId,
-            'items': entries.map((e) => e.toJson()).toList(),
-          }),
-        ));
+  Future<void> savePricing({
+    required String visitDraftId,
+    required List<PricingEntry> entries,
+  }) async {
+    await db.enqueue(
+      entityType: 'pricing',
+      entityId: _uuid.v4(),
+      payloadJson: jsonEncode({
+        'visitDraftId': visitDraftId,
+        'items': entries.map((e) => e.toJson()).toList(),
+      }),
+    );
 
     try {
       await syncService.flushPending();
@@ -60,7 +66,9 @@ class DriftPricingRepository implements PricingRepository {
   }
 }
 
-final pricingRepositoryProvider = Provider<PricingRepository>((ref) => DriftPricingRepository(
-      db: ref.read(localDbProvider),
-      syncService: ref.read(syncServiceProvider),
-    ));
+final pricingRepositoryProvider = Provider<PricingRepository>(
+  (ref) => DriftPricingRepository(
+    db: ref.read(localDbProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);

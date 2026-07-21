@@ -96,7 +96,12 @@ class SyncStatus {
 final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
   final db = ref.read(localDbProvider);
 
+  // Only ever the signed-in agent's own queue. Listing another user's pending
+  // captures would disclose where they have been and what they photographed,
+  // and no agent can act on work that is not theirs anyway.
+  final owner = currentLocalUserId;
   final query = db.select(db.syncQueueItems)
+    ..where((t) => owner == null ? const Constant(false) : t.userId.equals(owner))
     ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)]);
 
   return query.watch().map((rows) {

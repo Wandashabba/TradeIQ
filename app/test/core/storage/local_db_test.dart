@@ -7,11 +7,11 @@ void main() {
     final db = LocalDb(NativeDatabase.memory());
     addTearDown(db.close);
 
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'visit',
-          entityId: 'visit-1',
-          payloadJson: '{"outletId":"outlet-1"}',
-        ));
+    await db.enqueue(
+      entityType: 'visit',
+      entityId: 'visit-1',
+      payloadJson: '{"outletId":"outlet-1"}',
+    );
 
     final rows = await db.select(db.syncQueueItems).get();
     expect(rows, hasLength(1));
@@ -22,13 +22,17 @@ void main() {
     final db = LocalDb(NativeDatabase.memory());
     addTearDown(db.close);
 
-    await db.into(db.stockDrafts).insert(StockDraftsCompanion.insert(
-          id: 's1',
-          visitDraftId: 'v1',
-          skuId: 'sku1',
-          unitsAvailable: 20,
-          lastStockinDate: DateTime(2026, 7, 1),
-        ));
+    await db
+        .into(db.stockDrafts)
+        .insert(
+          StockDraftsCompanion.insert(
+            id: 's1',
+            visitDraftId: 'v1',
+            skuId: 'sku1',
+            unitsAvailable: 20,
+            lastStockinDate: DateTime(2026, 7, 1),
+          ),
+        );
 
     final rows = await db.select(db.stockDrafts).get();
     expect(rows, hasLength(1));

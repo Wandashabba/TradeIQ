@@ -8,17 +8,17 @@ import 'package:tradeiq_app/features/audit/presentation/sections/s5_pricing_prom
 class _FakeSkusRepository implements SkusRepository {
   @override
   Future<List<Sku>> listSkus({required String outletId}) async => const [
-        Sku(
-          id: 's1',
-          name: 'Test Cola',
-          category: 'Beverages',
-          minFacingsStandard: 4,
-          rrp: 19.99,
-          daysOutOfStock: 0,
-          velocityAvg: 0,
-          effectivePrice: 19.99,
-        ),
-      ];
+    Sku(
+      id: 's1',
+      name: 'Test Cola',
+      category: 'Beverages',
+      minFacingsStandard: 4,
+      rrp: 19.99,
+      daysOutOfStock: 0,
+      velocityAvg: 0,
+      effectivePrice: 19.99,
+    ),
+  ];
 }
 
 class _SpyPricingRepository implements PricingRepository {
@@ -26,28 +26,39 @@ class _SpyPricingRepository implements PricingRepository {
   List<PricingEntry>? entries;
 
   @override
-  Future<void> savePricing({required String visitDraftId, required List<PricingEntry> entries}) async {
+  Future<void> savePricing({
+    required String visitDraftId,
+    required List<PricingEntry> entries,
+  }) async {
     this.visitDraftId = visitDraftId;
     this.entries = entries;
   }
 }
 
 void main() {
-  testWidgets('captures pricing entries and calls savePricing on Save', (tester) async {
+  testWidgets('captures pricing entries and calls savePricing on Save', (
+    tester,
+  ) async {
     final spy = _SpyPricingRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-        pricingRepositoryProvider.overrideWithValue(spy),
-      ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-              child: S5PricingPromotionsScreen(visitDraftId: 'v1', outletId: 'ou1')),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
+          pricingRepositoryProvider.overrideWithValue(spy),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S5PricingPromotionsScreen(
+                visitDraftId: 'v1',
+                outletId: 'ou1',
+              ),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const ValueKey('price-s1')), '18.50');
@@ -73,18 +84,24 @@ void main() {
   testWidgets('skips SKUs without a price on Save', (tester) async {
     final spy = _SpyPricingRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-        pricingRepositoryProvider.overrideWithValue(spy),
-      ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-              child: S5PricingPromotionsScreen(visitDraftId: 'v1', outletId: 'ou1')),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
+          pricingRepositoryProvider.overrideWithValue(spy),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S5PricingPromotionsScreen(
+                visitDraftId: 'v1',
+                outletId: 'ou1',
+              ),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Save pricing'));

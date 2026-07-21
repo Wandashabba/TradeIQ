@@ -22,15 +22,15 @@ class Sku {
   final double effectivePrice;
 
   factory Sku.fromJson(Map<String, dynamic> json) => Sku(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        category: json['category'] as String,
-        minFacingsStandard: (json['minFacingsStandard'] as num).toInt(),
-        rrp: (json['rrp'] as num).toDouble(),
-        daysOutOfStock: (json['daysOutOfStock'] as num).toInt(),
-        velocityAvg: (json['velocityAvg'] as num).toDouble(),
-        effectivePrice: (json['effectivePrice'] as num).toDouble(),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    category: json['category'] as String,
+    minFacingsStandard: (json['minFacingsStandard'] as num).toInt(),
+    rrp: (json['rrp'] as num).toDouble(),
+    daysOutOfStock: (json['daysOutOfStock'] as num).toInt(),
+    velocityAvg: (json['velocityAvg'] as num).toDouble(),
+    effectivePrice: (json['effectivePrice'] as num).toDouble(),
+  );
 }
 
 abstract class SkusRepository {
@@ -40,15 +40,21 @@ abstract class SkusRepository {
 class DioSkusRepository implements SkusRepository {
   @override
   Future<List<Sku>> listSkus({required String outletId}) async {
-    final response = await dio.get('/skus', queryParameters: {'outletId': outletId});
+    final response = await dio.get(
+      '/skus',
+      queryParameters: {'outletId': outletId},
+    );
     return (response.data as List)
         .map((json) => Sku.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 }
 
-final skusRepositoryProvider = Provider<SkusRepository>((ref) => DioSkusRepository());
+final skusRepositoryProvider = Provider<SkusRepository>(
+  (ref) => DioSkusRepository(),
+);
 
 final skusListProvider = FutureProvider.family<List<Sku>, String>(
-  (ref, outletId) => ref.read(skusRepositoryProvider).listSkus(outletId: outletId),
+  (ref, outletId) =>
+      ref.read(skusRepositoryProvider).listSkus(outletId: outletId),
 );

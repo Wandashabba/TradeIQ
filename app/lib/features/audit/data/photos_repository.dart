@@ -8,18 +8,12 @@ import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_service.dart';
 
 class PhotoUploadResult {
-  const PhotoUploadResult({
-    required this.id,
-    required this.url,
-  });
+  const PhotoUploadResult({required this.id, required this.url});
   final String id;
   final String url;
 
   factory PhotoUploadResult.fromJson(Map<String, dynamic> json) =>
-      PhotoUploadResult(
-        id: json['id'] as String,
-        url: json['url'] as String,
-      );
+      PhotoUploadResult(id: json['id'] as String, url: json['url'] as String);
 }
 
 /// Direct upload — used where the caller already holds a *server* visit id and
@@ -43,19 +37,23 @@ class DioPhotosRepository implements PhotosRepository {
     required Map<String, dynamic> gpsTag,
     required String timestamp,
   }) async {
-    final response = await dio.post('/photos', data: {
-      'visitId': visitId,
-      'section': section,
-      'dataUrl': dataUrl,
-      'gpsTag': gpsTag,
-      'timestamp': timestamp,
-    });
+    final response = await dio.post(
+      '/photos',
+      data: {
+        'visitId': visitId,
+        'section': section,
+        'dataUrl': dataUrl,
+        'gpsTag': gpsTag,
+        'timestamp': timestamp,
+      },
+    );
     return PhotoUploadResult.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
-final photosRepositoryProvider =
-    Provider<PhotosRepository>((ref) => DioPhotosRepository());
+final photosRepositoryProvider = Provider<PhotosRepository>(
+  (ref) => DioPhotosRepository(),
+);
 
 /// Offline-first upload — used by the field agent mid-audit.
 ///
@@ -88,19 +86,17 @@ class DriftQueuedPhotosRepository implements QueuedPhotosRepository {
     required String dataUrl,
     Map<String, dynamic> gpsTag = const {},
   }) async {
-    await db.into(db.syncQueueItems).insert(
-          SyncQueueItemsCompanion.insert(
-            entityType: 'photo',
-            entityId: _uuid.v4(),
-            payloadJson: jsonEncode({
-              'visitDraftId': visitDraftId,
-              'section': section,
-              'dataUrl': dataUrl,
-              'gpsTag': gpsTag,
-              'timestamp': DateTime.now().toIso8601String(),
-            }),
-          ),
-        );
+    await db.enqueue(
+      entityType: 'photo',
+      entityId: _uuid.v4(),
+      payloadJson: jsonEncode({
+        'visitDraftId': visitDraftId,
+        'section': section,
+        'dataUrl': dataUrl,
+        'gpsTag': gpsTag,
+        'timestamp': DateTime.now().toIso8601String(),
+      }),
+    );
 
     try {
       await syncService.flushPending();

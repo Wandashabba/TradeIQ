@@ -42,7 +42,9 @@ class _FakeScorecardService extends ScorecardService {
 }
 
 void main() {
-  testWidgets('renders dimension scores, total and band; finalize queues', (tester) async {
+  testWidgets('renders dimension scores, total and band; finalize queues', (
+    tester,
+  ) async {
     final db = LocalDb(NativeDatabase.memory());
     addTearDown(db.close);
     final fake = _FakeScorecardService(
@@ -50,14 +52,18 @@ void main() {
       syncService: SyncService(db: db, flusher: _NoopFlusher()),
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [scorecardServiceProvider.overrideWithValue(fake)],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(child: S10ScorecardScreen(visitDraftId: 'v1')),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [scorecardServiceProvider.overrideWithValue(fake)],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S10ScorecardScreen(visitDraftId: 'v1'),
+            ),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('S10 Scorecard'), findsOneWidget);

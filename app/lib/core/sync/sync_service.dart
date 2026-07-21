@@ -124,8 +124,13 @@ class SyncService {
   final QueueFlusher flusher;
 
   Future<void> flushPending() async {
+    // Nobody is signed in, so nothing is ours to send. Flushing here would
+    // push captures under whatever token happened to be lying around.
+    final owner = currentLocalUserId;
+    if (owner == null) return;
+
     final pending = await (db.select(db.syncQueueItems)
-          ..where((tbl) => tbl.synced.equals(false))
+          ..where((tbl) => tbl.synced.equals(false) & tbl.userId.equals(owner))
           ..orderBy([(tbl) => OrderingTerm(expression: tbl.id)]))
         .get();
 

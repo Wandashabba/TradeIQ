@@ -29,18 +29,21 @@ class CompetitiveEntry {
   final int facingsCount;
 
   Map<String, dynamic> toJson() => {
-        'competitorSku': competitorSku,
-        'competitorPrice': competitorPrice,
-        'competitorPosmType': competitorPosmType,
-        'competitorPromoterPresent': competitorPromoterPresent,
-        'facingsCount': facingsCount,
-        // Phase-1: empty geotag object — the check-in GPS is the visit-level geotag.
-        'geotag': const <String, double>{},
-      };
+    'competitorSku': competitorSku,
+    'competitorPrice': competitorPrice,
+    'competitorPosmType': competitorPosmType,
+    'competitorPromoterPresent': competitorPromoterPresent,
+    'facingsCount': facingsCount,
+    // Phase-1: empty geotag object — the check-in GPS is the visit-level geotag.
+    'geotag': const <String, double>{},
+  };
 }
 
 abstract class CompetitiveRepository {
-  Future<void> saveCompetitive({required String visitDraftId, required List<CompetitiveEntry> entries});
+  Future<void> saveCompetitive({
+    required String visitDraftId,
+    required List<CompetitiveEntry> entries,
+  });
 }
 
 class DriftCompetitiveRepository implements CompetitiveRepository {
@@ -51,15 +54,18 @@ class DriftCompetitiveRepository implements CompetitiveRepository {
   static const _uuid = Uuid();
 
   @override
-  Future<void> saveCompetitive({required String visitDraftId, required List<CompetitiveEntry> entries}) async {
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'competitive',
-          entityId: _uuid.v4(),
-          payloadJson: jsonEncode({
-            'visitDraftId': visitDraftId,
-            'items': entries.map((e) => e.toJson()).toList(),
-          }),
-        ));
+  Future<void> saveCompetitive({
+    required String visitDraftId,
+    required List<CompetitiveEntry> entries,
+  }) async {
+    await db.enqueue(
+      entityType: 'competitive',
+      entityId: _uuid.v4(),
+      payloadJson: jsonEncode({
+        'visitDraftId': visitDraftId,
+        'items': entries.map((e) => e.toJson()).toList(),
+      }),
+    );
 
     try {
       await syncService.flushPending();
@@ -69,7 +75,9 @@ class DriftCompetitiveRepository implements CompetitiveRepository {
   }
 }
 
-final competitiveRepositoryProvider = Provider<CompetitiveRepository>((ref) => DriftCompetitiveRepository(
-      db: ref.read(localDbProvider),
-      syncService: ref.read(syncServiceProvider),
-    ));
+final competitiveRepositoryProvider = Provider<CompetitiveRepository>(
+  (ref) => DriftCompetitiveRepository(
+    db: ref.read(localDbProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);

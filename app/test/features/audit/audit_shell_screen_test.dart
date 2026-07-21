@@ -1,4 +1,4 @@
-﻿import 'package:drift/native.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -20,8 +20,14 @@ import '../../helpers/routed_app.dart';
 class _FakeOutletsRepository implements OutletsRepository {
   @override
   Future<List<Outlet>> listOutlets() async => const [
-        Outlet(id: 'o1', name: 'Test Outlet', code: 'TO-001', lat: -26.2041, lng: 28.0473),
-      ];
+    Outlet(
+      id: 'o1',
+      name: 'Test Outlet',
+      code: 'TO-001',
+      lat: -26.2041,
+      lng: 28.0473,
+    ),
+  ];
 
   @override
   Future<Outlet> createOutlet({
@@ -31,8 +37,7 @@ class _FakeOutletsRepository implements OutletsRepository {
     required double lat,
     required double lng,
     required String territoryId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 class _FakeSkusRepository implements SkusRepository {
@@ -48,11 +53,11 @@ class _SucceedingVisitsRepository implements VisitsRepository {
     required String outletId,
     required double outletLat,
     required double outletLng,
-  }) async =>
-      CheckInSucceeded('visit-1');
+  }) async => CheckInSucceeded('visit-1');
 
   @override
-  Future<void> submitVisit(String visitDraftId) async => submittedId = visitDraftId;
+  Future<void> submitVisit(String visitDraftId) async =>
+      submittedId = visitDraftId;
 }
 
 class _GeofenceFailingVisitsRepository implements VisitsRepository {
@@ -61,8 +66,7 @@ class _GeofenceFailingVisitsRepository implements VisitsRepository {
     required String outletId,
     required double outletLat,
     required double outletLng,
-  }) async =>
-      CheckInGeofenceFailed(650);
+  }) async => CheckInGeofenceFailed(650);
 
   @override
   Future<void> submitVisit(String visitDraftId) async {}
@@ -74,8 +78,7 @@ class _LocationUnavailableVisitsRepository implements VisitsRepository {
     required String outletId,
     required double outletLat,
     required double outletLng,
-  }) async =>
-      CheckInLocationUnavailable('Location permission denied');
+  }) async => CheckInLocationUnavailable('Location permission denied');
 
   @override
   Future<void> submitVisit(String visitDraftId) async {}
@@ -101,32 +104,31 @@ List<Override> _overrides(
   VisitsRepository visitsRepository,
   LocalDb db, {
   VisitProgress progress = _nothingDone,
-}) =>
-    [
-      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-      visitsRepositoryProvider.overrideWithValue(visitsRepository),
-      skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-      localDbProvider.overrideWithValue(db),
-      // Drift's watch() reschedules a zero-duration timer on every tick, so
-      // pumpAndSettle never settles against a real stream. Widget tests stub the
-      // derived providers; visit_progress_test and sync_status_test cover the
-      // real queries against a real database.
-      syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
-      visitProgressProvider.overrideWith((ref, arg) => Stream.value(progress)),
-      // The submit gate reads the outbox too — same rule, same reason.
-      visitReviewProvider.overrideWith(
-        (ref, arg) => Stream.value(
-          const VisitReview(
-            skusCounted: 12,
-            outOfStock: 0,
-            skusPriced: 12,
-            competitors: 0,
-            photos: 0,
-            willRaise: [],
-          ),
-        ),
+}) => [
+  outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+  visitsRepositoryProvider.overrideWithValue(visitsRepository),
+  skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
+  localDbProvider.overrideWithValue(db),
+  // Drift's watch() reschedules a zero-duration timer on every tick, so
+  // pumpAndSettle never settles against a real stream. Widget tests stub the
+  // derived providers; visit_progress_test and sync_status_test cover the
+  // real queries against a real database.
+  syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
+  visitProgressProvider.overrideWith((ref, arg) => Stream.value(progress)),
+  // The submit gate reads the outbox too — same rule, same reason.
+  visitReviewProvider.overrideWith(
+    (ref, arg) => Stream.value(
+      const VisitReview(
+        skusCounted: 12,
+        outOfStock: 0,
+        skusPriced: 12,
+        competitors: 0,
+        photos: 0,
+        willRaise: [],
       ),
-    ];
+    ),
+  ),
+];
 
 Widget _appWith(VisitsRepository visitsRepository, LocalDb db) {
   return routedApp(
@@ -144,25 +146,27 @@ LocalDb _testDb() {
 /// The hub plus the two places a submit can land: the outcome (on confirm) and
 /// the picker (on back out).
 GoRouter _submitRouter() => GoRouter(
-      initialLocation: '/audit/o1',
-      routes: [
-        GoRoute(
-          path: '/audit',
-          builder: (context, state) => const Text('Outlet Picker'),
-        ),
-        GoRoute(
-          path: '/audit/:outletId',
-          builder: (context, state) => const AuditShellScreen(outletId: 'o1'),
-        ),
-        GoRoute(
-          path: '/audit/:outletId/done',
-          builder: (context, state) => const Text('Outcome'),
-        ),
-      ],
-    );
+  initialLocation: '/audit/o1',
+  routes: [
+    GoRoute(
+      path: '/audit',
+      builder: (context, state) => const Text('Outlet Picker'),
+    ),
+    GoRoute(
+      path: '/audit/:outletId',
+      builder: (context, state) => const AuditShellScreen(outletId: 'o1'),
+    ),
+    GoRoute(
+      path: '/audit/:outletId/done',
+      builder: (context, state) => const Text('Outcome'),
+    ),
+  ],
+);
 
 void main() {
-  testWidgets('shows the audit as a named checklist after a successful check-in', (tester) async {
+  testWidgets('shows the audit as a named checklist after a successful check-in', (
+    tester,
+  ) async {
     await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
@@ -175,21 +179,30 @@ void main() {
     expect(find.byKey(const ValueKey('visit-progress')), findsOneWidget);
   });
 
-  testWidgets('submit is blocked until the required sections are done, and says which', (tester) async {
-    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'submit is blocked until the required sections are done, and says which',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWith(_SucceedingVisitsRepository(), _testDb()),
+      );
+      await tester.pumpAndSettle();
 
-    // Submitting without them lands a visit with a scorecard dimension at zero,
-    // marking the store down for work the agent never did.
-    final button = tester.widget<AgentButton>(
-      find.byKey(const ValueKey('submit-visit')),
+      // Submitting without them lands a visit with a scorecard dimension at zero,
+      // marking the store down for work the agent never did.
+      final button = tester.widget<AgentButton>(
+        find.byKey(const ValueKey('submit-visit')),
+      );
+      expect(button.onPressed, isNull);
+      expect(find.textContaining('to submit'), findsWidgets);
+    },
+  );
+
+  testWidgets('shows a blocking error when the check-in fails the geofence', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWith(_GeofenceFailingVisitsRepository(), _testDb()),
     );
-    expect(button.onPressed, isNull);
-    expect(find.textContaining('to submit'), findsWidgets);
-  });
-
-  testWidgets('shows a blocking error when the check-in fails the geofence', (tester) async {
-    await tester.pumpWidget(_appWith(_GeofenceFailingVisitsRepository(), _testDb()));
     await tester.pumpAndSettle();
 
     // The measured distance against the threshold — not a bare "too far".
@@ -197,8 +210,12 @@ void main() {
     expect(find.text('Stock & availability'), findsNothing);
   });
 
-  testWidgets('shows a retry action when location is unavailable', (tester) async {
-    await tester.pumpWidget(_appWith(_LocationUnavailableVisitsRepository(), _testDb()));
+  testWidgets('shows a retry action when location is unavailable', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWith(_LocationUnavailableVisitsRepository(), _testDb()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Location permission denied'), findsOneWidget);
@@ -217,13 +234,17 @@ void main() {
     expect(container.read(sessionControllerProvider).value?.role, isNull);
   });
 
-  testWidgets('submit opens the gate first — it does not submit on one tap', (tester) async {
+  testWidgets('submit opens the gate first — it does not submit on one tap', (
+    tester,
+  ) async {
     final repo = _SucceedingVisitsRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
-      child: MaterialApp.router(routerConfig: _submitRouter()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
+        child: MaterialApp.router(routerConfig: _submitRouter()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Submit visit'));
@@ -236,13 +257,17 @@ void main() {
     expect(find.textContaining('cannot change it'), findsOneWidget);
   });
 
-  testWidgets('confirming at the gate submits and ends on the outcome', (tester) async {
+  testWidgets('confirming at the gate submits and ends on the outcome', (
+    tester,
+  ) async {
     final repo = _SucceedingVisitsRepository();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
-      child: MaterialApp.router(routerConfig: _submitRouter()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
+        child: MaterialApp.router(routerConfig: _submitRouter()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Submit visit'));
@@ -257,33 +282,38 @@ void main() {
     expect(find.text('Outcome'), findsOneWidget);
   });
 
-  testWidgets('the check-in timestamp does not drift when you leave a section and come back', (tester) async {
-    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'the check-in timestamp does not drift when you leave a section and come back',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWith(_SucceedingVisitsRepository(), _testDb()),
+      );
+      await tester.pumpAndSettle();
 
-    // The check-in time is evidence: it is half of the dwell measurement the
-    // fraud engine reasons over. It must be stamped once, at check-in, and never
-    // re-derived on a rebuild.
-    await tester.tap(find.byKey(const ValueKey('section-outletInfo')));
-    await tester.pumpAndSettle();
+      // The check-in time is evidence: it is half of the dwell measurement the
+      // fraud engine reasons over. It must be stamped once, at check-in, and never
+      // re-derived on a rebuild.
+      await tester.tap(find.byKey(const ValueKey('section-outletInfo')));
+      await tester.pumpAndSettle();
 
-    // Opening a section pushes it full-screen — one thing at a time.
-    expect(find.text('S1 Outlet Information'), findsOneWidget);
+      // Opening a section pushes it full-screen — one thing at a time.
+      expect(find.text('S1 Outlet Information'), findsOneWidget);
 
-    final first = tester
-        .widget<Text>(find.textContaining('Checked in at').first)
-        .data;
+      final first = tester
+          .widget<Text>(find.textContaining('Checked in at').first)
+          .data;
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('section-outletInfo')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('section-outletInfo')));
+      await tester.pumpAndSettle();
 
-    final second = tester
-        .widget<Text>(find.textContaining('Checked in at').first)
-        .data;
+      final second = tester
+          .widget<Text>(find.textContaining('Checked in at').first)
+          .data;
 
-    expect(second, first);
-  });
+      expect(second, first);
+    },
+  );
 }

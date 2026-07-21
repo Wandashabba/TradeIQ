@@ -56,8 +56,12 @@ class ScorecardService {
       // Pricing needs deviation vs RRP, which the client doesn't know —
       // Phase-1 local proxy: 100 if any pricing items were captured, else 0
       // (the server-side scorecard computes the true deviation-based score).
-      'pricing': _anyItemsCaptured(payloadsByType['pricing'] ?? const []) ? 100 : 0,
-      'salesCapability': _salesCapability(payloadsByType['capability'] ?? const []),
+      'pricing': _anyItemsCaptured(payloadsByType['pricing'] ?? const [])
+          ? 100
+          : 0,
+      'salesCapability': _salesCapability(
+        payloadsByType['capability'] ?? const [],
+      ),
     };
 
     // Competitive is our share of shelf, mirroring the server (#93). It used to
@@ -82,7 +86,9 @@ class ScorecardService {
       weightedSum += dimensions[entry.key]! * entry.value;
       weightSum += entry.value;
     }
-    final total = weightSum == 0 ? 0.0 : ((weightedSum / weightSum) * 100).round() / 100;
+    final total = weightSum == 0
+        ? 0.0
+        : ((weightedSum / weightSum) * 100).round() / 100;
 
     return LocalScorecard(
       dimensionScores: dimensions,
@@ -126,11 +132,11 @@ class ScorecardService {
   /// Enqueues the finalize marker; the server recomputes the scorecard
   /// authoritatively from the persisted rows.
   Future<void> finalizeScorecard(String visitDraftId) async {
-    await db.into(db.syncQueueItems).insert(SyncQueueItemsCompanion.insert(
-          entityType: 'scorecard',
-          entityId: _uuid.v4(),
-          payloadJson: jsonEncode({'visitDraftId': visitDraftId}),
-        ));
+    await db.enqueue(
+      entityType: 'scorecard',
+      entityId: _uuid.v4(),
+      payloadJson: jsonEncode({'visitDraftId': visitDraftId}),
+    );
 
     try {
       await syncService.flushPending();
@@ -154,10 +160,13 @@ class ScorecardService {
     return _clamp(100 * inStock / total);
   }
 
-  static Map<String, double> _visibilityAndDisplay(List<Map<String, dynamic>> payloads) {
+  static Map<String, double> _visibilityAndDisplay(
+    List<Map<String, dynamic>> payloads,
+  ) {
     if (payloads.isEmpty) return const {'visibility': 0, 'display': 0};
     final payload = payloads.last;
-    final planogram = ((payload['planogramCompliancePct'] as num?) ?? 0).toDouble();
+    final planogram = ((payload['planogramCompliancePct'] as num?) ?? 0)
+        .toDouble();
     final cleanliness = ((payload['cleanlinessScore'] as num?) ?? 0).toDouble();
     return {
       'visibility': _clamp(planogram),
@@ -165,8 +174,8 @@ class ScorecardService {
     };
   }
 
-  static bool _anyItemsCaptured(List<Map<String, dynamic>> payloads) =>
-      payloads.any((payload) => ((payload['items'] as List?) ?? const []).isNotEmpty);
+  static bool _anyItemsCaptured(List<Map<String, dynamic>> payloads) => payloads
+      .any((payload) => ((payload['items'] as List?) ?? const []).isNotEmpty);
 
   static double _salesCapability(List<Map<String, dynamic>> payloads) {
     if (payloads.isEmpty) return 0;
@@ -177,7 +186,9 @@ class ScorecardService {
   static double _clamp(double value) => value.clamp(0, 100).toDouble();
 }
 
-final scorecardServiceProvider = Provider<ScorecardService>((ref) => ScorecardService(
-      db: ref.read(localDbProvider),
-      syncService: ref.read(syncServiceProvider),
-    ));
+final scorecardServiceProvider = Provider<ScorecardService>(
+  (ref) => ScorecardService(
+    db: ref.read(localDbProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);

@@ -9,8 +9,14 @@ import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 class FakeOutletsRepository implements OutletsRepository {
   @override
   Future<List<Outlet>> listOutlets() async => const [
-        Outlet(id: 'o1', name: 'Test Outlet', code: 'TO-001', lat: -26.2041, lng: 28.0473),
-      ];
+    Outlet(
+      id: 'o1',
+      name: 'Test Outlet',
+      code: 'TO-001',
+      lat: -26.2041,
+      lng: 28.0473,
+    ),
+  ];
 
   @override
   Future<Outlet> createOutlet({
@@ -20,19 +26,24 @@ class FakeOutletsRepository implements OutletsRepository {
     required double lat,
     required double lng,
     required String territoryId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 }
 
 void main() {
-  testWidgets('renders outlets and navigates to the audit shell on Start Visit', (tester) async {
+  testWidgets('renders outlets and navigates to the audit shell on Start Visit', (
+    tester,
+  ) async {
     final router = GoRouter(
       initialLocation: '/audit',
       routes: [
-        GoRoute(path: '/audit', builder: (context, state) => const VisitOutletPickerScreen()),
+        GoRoute(
+          path: '/audit',
+          builder: (context, state) => const VisitOutletPickerScreen(),
+        ),
         GoRoute(
           path: '/audit/:outletId',
-          builder: (context, state) => Text('Visit ${state.pathParameters['outletId']}'),
+          builder: (context, state) =>
+              Text('Visit ${state.pathParameters['outletId']}'),
         ),
       ],
     );
@@ -45,7 +56,9 @@ void main() {
           // Drift stream. Drift's watch() reschedules a zero-duration timer on
           // every tick, so pumpAndSettle never settles against a real one — a
           // widget test stubs the provider rather than the database.
-          syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
+          syncStatusProvider.overrideWith(
+            (ref) => Stream.value(SyncStatus.empty),
+          ),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),
