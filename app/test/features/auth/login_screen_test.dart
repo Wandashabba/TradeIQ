@@ -79,7 +79,7 @@ void main() {
       'manager@tradeiq.com',
     );
     await tester.enterText(find.byType(TextFormField).at(1), 'password123');
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign in'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pump();
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -89,7 +89,7 @@ void main() {
   testWidgets('shows validation errors when fields are empty', (tester) async {
     await tester.pumpWidget(_wrap(FakeAuthRepository()));
 
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign in'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pump();
 
     expect(find.text('Email is required'), findsOneWidget);
@@ -106,7 +106,7 @@ void main() {
       'manager@tradeiq.com',
     );
     await tester.enterText(find.byType(TextFormField).at(1), 'wrong-password');
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign in'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
 
     expect(find.text('Invalid credentials'), findsOneWidget);
@@ -122,7 +122,7 @@ void main() {
       'manager@tradeiq.com',
     );
     await tester.enterText(find.byType(TextFormField).at(1), 'password123');
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign in'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Could not reach the server'), findsOneWidget);
