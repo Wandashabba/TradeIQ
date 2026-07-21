@@ -118,6 +118,29 @@ class _ThrowingDashboardRepository implements DashboardRepository {
       throw Exception('network down');
 }
 
+/// Fails only the by-territory fetch while the KPI fetch keeps succeeding —
+/// isolating the territory-scores panel's error handling from the rest of the
+/// dashboard. The failure persists until the test flips [failing] off:
+/// Riverpod 3 auto-retries a failed provider, so a fail-once fake would be
+/// quietly healed by the automatic retry before the error state could ever be
+/// asserted.
+class _ByTerritoryFailingRepository extends _FakeDashboardRepository {
+  _ByTerritoryFailingRepository({required super.byTerritory});
+
+  bool failing = true;
+
+  @override
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({
+    String? from,
+    String? to,
+  }) async {
+    if (failing) {
+      throw Exception('network down');
+    }
+    return super.fetchByTerritory(from: from, to: to);
+  }
+}
+
 class _FakeTerritoriesRepository implements TerritoriesRepository {
   _FakeTerritoriesRepository([this.territories = const []]);
 
@@ -425,6 +448,54 @@ void main() {
 
       expect(find.byType(BarChart), findsOneWidget);
       expect(find.text('No territories defined'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a failed by-territory fetch shows an error with Retry, not an eternal spinner',
+    (tester) async {
+      // The regression this guards: the by-territory error arm rendered
+      // _InlineLoader, so a failed fetch spun forever — reading as "still
+      // loading" — while every sibling panel named the failure and offered a
+      // Retry. (An eternal spinner would also hang the pumpAndSettle in
+      // _pump, so merely reaching these asserts proves the panel settled.)
+      const territories = [
+        Territory(id: 't-north', name: 'North', code: 'north'),
+      ];
+      const byTerritory = [
+        TerritoryDashboardKpis(
+          territoryId: 't-north',
+          territoryName: 'North',
+          kpis: DashboardKpis(
+            numericDistribution: 80,
+            weightedDistribution: 80,
+            osaPct: 80,
+            executionScore: 82.0,
+            priceCompliancePct: 80,
+            visibilityCompliancePct: 80,
+            shareOfShelf: 80,
+            perfectStoreRate: 80,
+          ),
+        ),
+      ];
+      final repo = _ByTerritoryFailingRepository(byTerritory: byTerritory);
+
+      await _pump(
+        tester,
+        _app(territories: territories, dashboard: repo),
+      );
+
+      expect(find.text('Could not load territory scores'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      // The server is back. Retry must refetch and recover the chart — a
+      // dead-end error state is as much a bug as the spinner was.
+      repo.failing = false;
+      await tester.tap(find.widgetWithText(TextButton, 'Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could not load territory scores'), findsNothing);
+      expect(find.byType(BarChart), findsOneWidget);
     },
   );
 

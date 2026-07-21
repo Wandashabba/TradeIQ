@@ -4,30 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/pinned_dark.dart';
 import '../../../core/widgets/primary_gradient_button.dart';
 import '../../../core/widgets/trade_iq_logo.dart';
 
-/// Maps a login failure to a user-facing message. Distinguishes bad
-/// credentials (the backend's 401) from connectivity/server problems so the
-/// user isn't told their password is wrong when the server is unreachable.
+/// Maps a login failure to a user-facing message. A 401 here means bad
+/// credentials — the one place in the app where it does. Everywhere else a 401
+/// is an expired session (the api_client interceptor signs the user out), so
+/// the shared [humanErrorMessage] says "session expired"; saying that on the
+/// login screen would tell the user the wrong story. Everything that is not a
+/// 401 — connectivity, timeouts, server errors — is delegated so login and the
+/// rest of the app speak with the same voice.
 String loginErrorMessage(Object error) {
-  if (error is DioException) {
-    if (error.response?.statusCode == 401) {
-      return 'Invalid credentials';
-    }
-    switch (error.type) {
-      case DioExceptionType.connectionError:
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return 'Could not reach the server. Check your connection and try again.';
-      default:
-        return 'Something went wrong. Please try again.';
-    }
+  if (error is DioException && error.response?.statusCode == 401) {
+    return 'Invalid credentials';
   }
-  return 'Something went wrong. Please try again.';
+  return humanErrorMessage(error);
 }
 
 class LoginScreen extends ConsumerStatefulWidget {
