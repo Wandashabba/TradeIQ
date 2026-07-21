@@ -25,6 +25,15 @@ extension BannerLevelStyle on BannerLevel {
       };
 
   Color get wash => color.withValues(alpha: 0.12);
+
+  /// What the banner's words are set in. crit is a mark color — as text over
+  /// its own wash it reads at 3.74:1, on the one banner that tells an agent
+  /// their captures will not send. The dot and border keep carrying crit;
+  /// only the words shift to the readable tint.
+  Color get textColor => switch (this) {
+        BannerLevel.bad => AppColors.critText,
+        _ => color,
+      };
 }
 
 /// A status line the agent reads before anything else on the screen.
@@ -78,7 +87,7 @@ class StatusBanner extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: color,
+                      color: level.textColor,
                     ),
                   ),
                 ),

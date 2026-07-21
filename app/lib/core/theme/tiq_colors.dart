@@ -29,6 +29,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
     required this.ink1,
     required this.ink2,
     required this.ink3,
+    required this.ink4,
     required this.brand,
     required this.brandHover,
     required this.series1,
@@ -37,6 +38,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
     required this.good,
     required this.warn,
     required this.crit,
+    required this.critText,
     required this.grid,
     required this.axis,
     required this.shadow,
@@ -58,6 +60,9 @@ class TiqColors extends ThemeExtension<TiqColors> {
   final Color ink2;
   final Color ink3;
 
+  /// Graphical marks only (dashed target rules) — 3:1, never text.
+  final Color ink4;
+
   // ── Brand ────────────────────────────────────────────────────────────
   final Color brand;
   final Color brandHover;
@@ -71,6 +76,10 @@ class TiqColors extends ThemeExtension<TiqColors> {
   final Color good;
   final Color warn;
   final Color crit;
+
+  /// [crit] when it has to carry words — clears 4.5:1 over the crit wash,
+  /// which crit itself (a mark color) does not.
+  final Color critText;
 
   // ── Chart chrome ─────────────────────────────────────────────────────
   final Color grid;
@@ -97,6 +106,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
     ink1: AppColors.ink1,
     ink2: AppColors.ink2,
     ink3: AppColors.ink3,
+    ink4: AppColors.ink4,
     brand: AppColors.brand,
     brandHover: AppColors.brandHover,
     series1: AppColors.series1,
@@ -105,15 +115,18 @@ class TiqColors extends ThemeExtension<TiqColors> {
     good: AppColors.good,
     warn: AppColors.warn,
     crit: AppColors.crit,
+    critText: AppColors.critText,
     grid: AppColors.grid,
     axis: AppColors.axis,
     shadow: Color(0x00000000),
     scrim: Color(0x8A000000), // == Colors.black54
   );
 
-  /// Paper & Ink. ink3 and brand are shared with dark deliberately — both
-  /// clear contrast on white (4.85:1 and 4.98:1), and shared anchors keep the
-  /// two modes reading as one product.
+  /// Paper & Ink. brand is shared with dark deliberately (4.98:1 on white);
+  /// ink3 no longer is — dark's #838D9E is unreadable on paper (2.80:1 on
+  /// surface3), and even the old shared #6A7280 quietly failed light's
+  /// tinted surfaces (4.06:1 on surface3). Each mode now carries the muted
+  /// ink its own grounds demand; tiq_colors_test.dart holds both above 4.5:1.
   static const light = TiqColors(
     plane: Color(0xFFF7F8FA),
     surface1: Color(0xFFFFFFFF),
@@ -123,7 +136,8 @@ class TiqColors extends ThemeExtension<TiqColors> {
     lineStrong: Color(0xFFD2D6DE),
     ink1: Color(0xFF14161C), // the dark theme's ink, carried forward
     ink2: Color(0xFF4C5560),
-    ink3: Color(0xFF6A7280),
+    ink3: Color(0xFF5F6875), // 4.72:1 on surface3, the palest ground it meets
+    ink4: Color(0xFF6A7280), // marks only — 4.06:1 on surface3 clears the 3:1 bar
     brand: Color(0xFF0A6CF0),
     brandHover: Color(0xFF0857C4), // hover darkens on a light ground
     series1: Color(0xFF2069C9),
@@ -132,6 +146,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
     good: Color(0xFF0B7A0B),
     warn: Color(0xFF935F00),
     crit: Color(0xFFB32E2E),
+    critText: Color(0xFFA52A2A), // crit deepened: 4.94:1 over its wash on surface3
     grid: Color(0xFFECEEF2),
     axis: Color(0xFFD2D6DE),
     shadow: Color(0x14101828), // 8% slate — Plan B layers opacities on top
@@ -149,6 +164,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
     Color? ink1,
     Color? ink2,
     Color? ink3,
+    Color? ink4,
     Color? brand,
     Color? brandHover,
     Color? series1,
@@ -157,6 +173,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
     Color? good,
     Color? warn,
     Color? crit,
+    Color? critText,
     Color? grid,
     Color? axis,
     Color? shadow,
@@ -172,6 +189,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
       ink1: ink1 ?? this.ink1,
       ink2: ink2 ?? this.ink2,
       ink3: ink3 ?? this.ink3,
+      ink4: ink4 ?? this.ink4,
       brand: brand ?? this.brand,
       brandHover: brandHover ?? this.brandHover,
       series1: series1 ?? this.series1,
@@ -180,6 +198,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
       good: good ?? this.good,
       warn: warn ?? this.warn,
       crit: crit ?? this.crit,
+      critText: critText ?? this.critText,
       grid: grid ?? this.grid,
       axis: axis ?? this.axis,
       shadow: shadow ?? this.shadow,
@@ -200,6 +219,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
       ink1: Color.lerp(ink1, other.ink1, t)!,
       ink2: Color.lerp(ink2, other.ink2, t)!,
       ink3: Color.lerp(ink3, other.ink3, t)!,
+      ink4: Color.lerp(ink4, other.ink4, t)!,
       brand: Color.lerp(brand, other.brand, t)!,
       brandHover: Color.lerp(brandHover, other.brandHover, t)!,
       series1: Color.lerp(series1, other.series1, t)!,
@@ -208,6 +228,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
       good: Color.lerp(good, other.good, t)!,
       warn: Color.lerp(warn, other.warn, t)!,
       crit: Color.lerp(crit, other.crit, t)!,
+      critText: Color.lerp(critText, other.critText, t)!,
       grid: Color.lerp(grid, other.grid, t)!,
       axis: Color.lerp(axis, other.axis, t)!,
       shadow: Color.lerp(shadow, other.shadow, t)!,
