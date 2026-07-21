@@ -1,7 +1,8 @@
 import { spawnSync } from 'child_process';
 import * as path from 'path';
 import jwt from 'jsonwebtoken';
-import { issueToken, verifyToken } from './auth.service';
+import { UserRole } from '@prisma/client';
+import { ROLES, issueToken, verifyToken } from './auth.service';
 
 describe('auth.service', () => {
   const payload = { userId: 'user-1', role: 'field_agent' as const, clientId: 'client-1' };
@@ -147,5 +148,19 @@ describe('auth.service', () => {
       // load, so leave generous headroom over the 20000ms file default.
       180000,
     );
+  });
+
+  describe('role union', () => {
+    // The compile-time assertion in auth.service.ts is the real guard; this is
+    // its legible twin. A type-level trick that nobody can read is one somebody
+    // deletes during a tidy-up — which is exactly how the previous, accidental
+    // guard was going to be lost.
+    it('matches Prisma UserRole exactly, in both directions', () => {
+      expect([...ROLES].sort()).toEqual(Object.values(UserRole).sort());
+    });
+
+    it('has no duplicates', () => {
+      expect(new Set(ROLES).size).toBe(ROLES.length);
+    });
   });
 });

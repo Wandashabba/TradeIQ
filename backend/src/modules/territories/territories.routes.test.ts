@@ -99,13 +99,15 @@ describe('territories routes', () => {
     expect(res.status).toBe(401);
   });
 
-  it("lists the client's territories ordered by name for any authenticated role", async () => {
+  it("lists the client's territories ordered by name for a manager", async () => {
     await request(app)
       .post('/territories')
       .set('Authorization', `Bearer ${managerToken}`)
       .send({ name: 'TERR-Alpha', code: 'TERR-A1' });
 
-    const res = await request(app).get('/territories').set('Authorization', `Bearer ${agentToken}`);
+    const res = await request(app)
+      .get('/territories')
+      .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     const names = (res.body as Array<{ name: string }>).map((t) => t.name);
@@ -113,6 +115,17 @@ describe('territories routes', () => {
     expect(names).toContain('TERR-Alpha');
     // ordered by name asc
     expect([...names].sort()).toEqual(names);
+  });
+
+  it('rejects a field agent listing territories with 403', async () => {
+    // Previously open by omission while every other route on this router was
+    // gated. Territories are a planning construct; no agent flow reads them,
+    // and both app screens that do are manager/admin actions at the write end.
+    const res = await request(app)
+      .get('/territories')
+      .set('Authorization', `Bearer ${agentToken}`);
+
+    expect(res.status).toBe(403);
   });
 
   it('assigns an agent to a territory', async () => {

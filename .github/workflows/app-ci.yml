@@ -5,6 +5,14 @@ on:
     paths:
       - 'app/**'
       - '.github/workflows/app-ci.yml'
+  # Nothing verified main after a merge: a PR could go green, land, and
+  # break on main with no signal at all. Same paths, so it stays quiet
+  # for changes that cannot affect this job.
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/app-ci.yml'
 
 jobs:
   test:
