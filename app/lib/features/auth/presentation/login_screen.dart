@@ -7,7 +7,7 @@ import '../../../core/auth/session_controller.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/pinned_dark.dart';
-import '../../../core/widgets/primary_gradient_button.dart';
+import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/trade_iq_logo.dart';
 
 /// Maps a login failure to a user-facing message. A 401 here means bad
@@ -273,11 +273,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                                   const SizedBox(height: 14),
                                 ],
-                                PrimaryGradientButton(
+                                PrimaryActionButton(
                                   label: 'Sign in',
                                   onPressed: _submit,
                                   isLoading: isLoading,
-                                  isGlass: true,
                                 ),
                               ],
                             ),
