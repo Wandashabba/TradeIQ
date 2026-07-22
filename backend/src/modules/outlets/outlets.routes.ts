@@ -11,7 +11,14 @@ export const outletsRouter = Router();
 outletsRouter.use(requireAuth);
 
 outletsRouter.get('/', async (req: AuthedRequest, res) => {
-  const outlets = await listOutletsForClient(req.user!.clientId);
+  // `?mine=true` narrows to the caller's assigned territories. Opt-in on
+  // purpose: the app asks for it as a default view, but any client can still
+  // see every outlet in the tenant, because being unable to check in at a
+  // store you are standing in is a worse failure than a long list.
+  const mine = req.query.mine === 'true';
+  const outlets = await listOutletsForClient(req.user!.clientId, {
+    assignedTo: mine ? req.user!.userId : undefined,
+  });
   res.status(200).json(outlets);
 });
 

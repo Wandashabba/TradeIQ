@@ -41,7 +41,7 @@ class _RecordingOutletsRepository implements OutletsRepository {
   String? sentTerritoryId;
 
   @override
-  Future<List<Outlet>> listOutlets() async => const [];
+  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [];
 
   @override
   Future<Outlet> createOutlet({

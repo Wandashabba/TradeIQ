@@ -33,7 +33,10 @@ class Outlet {
 }
 
 abstract class OutletsRepository {
-  Future<List<Outlet>> listOutlets();
+  /// When [mine] is true the backend narrows the list to the caller's assigned
+  /// territories. It is a filter, not a permission: the same call without it
+  /// still returns every outlet in the tenant.
+  Future<List<Outlet>> listOutlets({bool mine = false});
   Future<Outlet> createOutlet({
     required String name,
     required String code,
@@ -46,8 +49,11 @@ abstract class OutletsRepository {
 
 class DioOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets() async {
-    final response = await dio.get('/outlets');
+  Future<List<Outlet>> listOutlets({bool mine = false}) async {
+    final response = await dio.get(
+      '/outlets',
+      queryParameters: mine ? const {'mine': 'true'} : null,
+    );
     return (response.data as List)
         .map((json) => Outlet.fromJson(json as Map<String, dynamic>))
         .toList();
@@ -78,4 +84,33 @@ final outletsRepositoryProvider = Provider<OutletsRepository>((ref) => DioOutlet
 
 final outletsListProvider = FutureProvider<List<Outlet>>((ref) {
   return ref.read(outletsRepositoryProvider).listOutlets();
+});
+
+/// Whether the agent's picker is currently narrowed to their own territories.
+///
+/// Starts narrowed, because a shorter list of the right shops is the point of
+/// having territories at all. It is a view preference, not a permission — see
+/// [assignedOutletsProvider].
+class OnlyMyTerritoriesNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void set(bool value) => state = value;
+}
+
+final onlyMyTerritoriesProvider =
+    NotifierProvider<OnlyMyTerritoriesNotifier, bool>(
+      OnlyMyTerritoriesNotifier.new,
+    );
+
+/// The agent's outlet list, narrowed or not.
+///
+/// The narrowing lives here rather than in the backend's authorisation layer
+/// on purpose. Territory data is imperfect and field work is not: an agent
+/// covering a colleague's patch, or standing in a shop filed under the wrong
+/// territory, must still be able to check in. Hiding those outlets by policy
+/// would strand them somewhere they cannot fix it from.
+final assignedOutletsProvider = FutureProvider<List<Outlet>>((ref) {
+  final mine = ref.watch(onlyMyTerritoriesProvider);
+  return ref.read(outletsRepositoryProvider).listOutlets(mine: mine);
 });

@@ -11,7 +11,8 @@ class VisitOutletPickerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final outlets = ref.watch(outletsListProvider);
+    final onlyMine = ref.watch(onlyMyTerritoriesProvider);
+    final outlets = ref.watch(assignedOutletsProvider);
     return AgentScaffold(
       title: 'Select an Outlet',
       subtitle: 'Tap a store to start a visit',
@@ -22,14 +23,23 @@ class VisitOutletPickerScreen extends ConsumerWidget {
         secondary: true,
         onPressed: () async {
           await context.push('/outlets/create');
-          ref.invalidate(outletsListProvider);
+          ref.invalidate(assignedOutletsProvider);
         },
       ),
       body: outlets.when(
         data: (list) => ListView.builder(
-          itemCount: list.length,
+          // +1 for the scope row that sits above the stores.
+          itemCount: list.length + 1,
           itemBuilder: (context, index) {
-            final outlet = list[index];
+            if (index == 0) {
+              return _ScopeRow(
+                onlyMine: onlyMine,
+                count: list.length,
+                onChanged: (value) =>
+                    ref.read(onlyMyTerritoriesProvider.notifier).set(value),
+              );
+            }
+            final outlet = list[index - 1];
             return ListTile(
               title: Text(outlet.name),
               subtitle: Text(
@@ -44,6 +54,40 @@ class VisitOutletPickerScreen extends ConsumerWidget {
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Failed to load outlets: $err')),
+      ),
+    );
+  }
+}
+
+/// Says which stores are being shown, and offers the way out of that.
+///
+/// The list defaults to the agent's own territories, so it has to say so —
+/// a filtered list that looks like the whole list is how someone concludes a
+/// store is missing from the system. The switch is always present, because
+/// territory data is imperfect and an agent covering someone else's patch
+/// needs to reach those stores without finding an administrator first.
+class _ScopeRow extends StatelessWidget {
+  const _ScopeRow({
+    required this.onlyMine,
+    required this.count,
+    required this.onChanged,
+  });
+
+  final bool onlyMine;
+  final int count;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      key: const ValueKey<String>('only-my-territories'),
+      value: onlyMine,
+      onChanged: onChanged,
+      title: Text(onlyMine ? 'My territories' : 'All stores'),
+      subtitle: Text(
+        onlyMine
+            ? '$count in your territories — switch off to see every store'
+            : '$count stores across this client',
       ),
     );
   }
