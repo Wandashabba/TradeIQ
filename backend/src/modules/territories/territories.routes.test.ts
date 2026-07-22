@@ -398,6 +398,57 @@ describe('territories routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects a bare calendar date for from with 400', async () => {
+    // `new Date("2026-07-22")` parses fine but silently resolves to UTC
+    // midnight — a naive date must be rejected, not accepted with a hidden
+    // timezone.
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-BareDate', code: 'TERR-BAREDATE1' },
+    });
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .query({ from: '2026-07-22' })
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an offset-less datetime for from with 400', async () => {
+    // `new Date("2026-07-22T00:00")` parses fine but resolves against the
+    // server process's local `TZ` — invisible to the client and different
+    // between a dev machine and the deployed container.
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-NaiveDatetime', code: 'TERR-NAIVEDT1' },
+    });
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .query({ from: '2026-07-22T00:00' })
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts a valid ISO instant for from with 200', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-ValidInstant', code: 'TERR-VALIDINST1' },
+    });
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .query({ from: '2026-07-22T00:00:00Z' })
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('returns coverage with neither from nor to supplied', async () => {
+    // Guards the optionality of these params — unlike /agents/activity,
+    // this endpoint must keep working with no window at all.
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'TERR-NoWindow', code: 'TERR-NOWINDOW1' },
+    });
+    const res = await request(app)
+      .get(`/territories/${territory.id}/coverage`)
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(200);
+  });
+
   it('returns zero coverage for a territory with no outlets', async () => {
     const territory = await prisma.territory.create({
       data: { clientId, name: 'TERR-Empty', code: 'TERR-EMPTY1' },

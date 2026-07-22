@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parseIsoInstant } from '../../lib/parseIsoInstant';
 import { listAgentActivity } from './agents.service';
 
 export const agentsRouter = Router();
@@ -8,14 +9,6 @@ agentsRouter.use(requireAuth);
 
 /** Two days. See the range-cap note below. */
 const MAX_RANGE_MS = 48 * 60 * 60 * 1000;
-
-// A naive datetime (no `Z`, no numeric offset) would be resolved against the
-// server process's `TZ` — exactly the timezone reasoning this endpoint is
-// designed never to do. Reject anything short of a full instant before
-// `Date` gets a chance to guess. This does not by itself catch a
-// well-formed-but-impossible date (e.g. Feb 31) — the `Number.isNaN` check
-// below still does that.
-const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
 
 /**
  * Where each field agent has been confirmed present in a time window.
@@ -41,17 +34,15 @@ agentsRouter.get('/activity', requireRole('manager', 'admin'), async (req: Authe
     return;
   }
 
-  if (!ISO_INSTANT_RE.test(from) || !ISO_INSTANT_RE.test(to)) {
+  // parseIsoInstant requires a full instant (Z or numeric offset) and
+  // rejects well-formed-but-impossible dates (e.g. Feb 31) — see its
+  // comment for why a naive date/datetime can't be allowed here.
+  const fromDate = parseIsoInstant(from);
+  const toDate = parseIsoInstant(to);
+  if (fromDate === undefined || toDate === undefined) {
     res.status(400).json({
       error: 'from and to must be full ISO-8601 instants with a Z or numeric offset',
     });
-    return;
-  }
-
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
-  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
-    res.status(400).json({ error: 'from and to must be valid ISO-8601 instants' });
     return;
   }
 

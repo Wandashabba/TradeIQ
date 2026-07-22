@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parseIsoInstant } from '../../lib/parseIsoInstant';
 import {
   assignAgentToTerritory,
   createTerritory,
@@ -91,18 +92,25 @@ territoriesRouter.get(
     const { id: territoryId } = req.params as { id: string };
     const { from, to } = req.query as { from?: string; to?: string };
 
+    // Both optional — coverage works over all-time when neither is given.
+    // When supplied, each must be a full ISO-8601 instant (see
+    // parseIsoInstant): there is no `Client.timezone` and no timezone
+    // handling anywhere in this backend, so a naive date/datetime would be
+    // resolved as UTC or against the server process's `TZ` — either way,
+    // invisibly to the client and wrong for a South African field team on
+    // SAST.
     let fromDate: Date | undefined;
     let toDate: Date | undefined;
     if (from !== undefined) {
-      fromDate = new Date(from);
-      if (Number.isNaN(fromDate.getTime())) {
+      fromDate = parseIsoInstant(from);
+      if (fromDate === undefined) {
         res.status(400).json({ error: 'from must be a valid ISO date' });
         return;
       }
     }
     if (to !== undefined) {
-      toDate = new Date(to);
-      if (Number.isNaN(toDate.getTime())) {
+      toDate = parseIsoInstant(to);
+      if (toDate === undefined) {
         res.status(400).json({ error: 'to must be a valid ISO date' });
         return;
       }
