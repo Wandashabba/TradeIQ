@@ -18,8 +18,12 @@ export interface AgentStateResult {
 }
 
 /**
- * Derives where an agent is from their stops, which MUST be ordered by
- * `checkinTs` ascending.
+ * Derives where an agent is from their stops. Callers need not pre-sort —
+ * this function sorts a copy by `checkinTs` ascending internally, because a
+ * caller-trusted ordering that silently breaks (a missing `orderBy` in the
+ * query, or stops merged from two sources) would make this function report
+ * a confidently wrong outlet with no throw and no signal. A redundant sort
+ * over a day's worth of stops (tens of rows) is free next to that risk.
  *
  * Three states, not four. #153's sketch proposed an `offline` state, but T0
  * has no heartbeat — it cannot tell "phone is off" from "driving between
@@ -30,10 +34,12 @@ export function deriveAgentState(stops: VisitStop[]): AgentStateResult {
     return { state: 'idle', currentOutlet: null };
   }
 
+  const sorted = [...stops].sort((a, b) => a.checkinTs.getTime() - b.checkinTs.getTime());
+
   // Two open visits means the agent checked in somewhere without submitting
   // the previous one. Real data, not hypothetical. Take the latest: that is
   // where they most plausibly are now.
-  const open = stops.filter((s) => s.status === 'in_progress');
+  const open = sorted.filter((s) => s.status === 'in_progress');
   if (open.length > 0) {
     const latest = open[open.length - 1];
     return {
