@@ -674,6 +674,23 @@ AgentStop _latestStop(AgentActivity agent) {
   return sorted.last;
 }
 
+/// A stable fingerprint of where the pins actually are, for keying the map
+/// (see `_AgentMap`'s `LayoutBuilder` comment). Deliberately built from
+/// coordinates, not from `agentsWithStops` itself or the agents' identities:
+/// `agentActivityTodayProvider` returns a fresh `List<AgentActivity>` on
+/// every fetch (including the dashboard's own periodic/manual refresh) even
+/// when nobody has moved, and keying on that would remount the map — and
+/// throw away the manager's pan/zoom — on every refresh for no reason.
+/// Rounding to 4 decimal places (~11m) means floating-point noise or a
+/// re-fetch of the exact same check-ins can't remount it either; a territory
+/// filter change moving the pins to a different area still does.
+String _pointsSignature(List<LatLng> points) => points
+    .map(
+      (p) =>
+          '${p.latitude.toStringAsFixed(4)},${p.longitude.toStringAsFixed(4)}',
+    )
+    .join('|');
+
 /// Map + compact list, side by side — the map is the hero, the list is what
 /// keeps it honest.
 ///
@@ -855,12 +872,18 @@ class _AgentMap extends StatelessWidget {
       // near-zero zoom — a silent whole-world view in release builds, where
       // the debug assert that would catch a non-finite zoom is stripped.
       //
-      // A LayoutBuilder here, keyed on the resolved size, is the fix: a
-      // genuine size change (the panel's real first layout once scrolled
-      // into view, or a later resize) mounts a fresh State and therefore
-      // re-applies the fit fresh, against the viewport that actually
-      // matters. Skipping the map entirely on a degenerate pass means the
-      // one-shot fit is never spent on a viewport it can't fit against.
+      // A LayoutBuilder here, keyed on the resolved size PLUS a fingerprint
+      // of the plotted coordinates, is the fix: a genuine size change (the
+      // panel's real first layout once scrolled into view, or a later
+      // resize) mounts a fresh State and therefore re-applies the fit fresh,
+      // against the viewport that actually matters. The coordinate
+      // fingerprint covers the same one-shot gap for a same-size cause: the
+      // dashboard's territory filter sits a few hundred pixels above this
+      // panel, and switching it moves the pins to a different area without
+      // changing the panel's size at all — without this half of the key the
+      // camera would stay pointed at the old territory. Skipping the map
+      // entirely on a degenerate pass means the one-shot fit is never spent
+      // on a viewport it can't fit against.
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = constraints.biggest;
@@ -872,7 +895,7 @@ class _AgentMap extends StatelessWidget {
           if (degenerate) return const SizedBox.shrink();
 
           return FlutterMap(
-            key: ValueKey<Size>(size),
+            key: ValueKey<(Size, String)>((size, _pointsSignature(points))),
             options: MapOptions(
               initialCenter: points.first,
               initialZoom: 11,

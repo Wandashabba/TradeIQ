@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart';
+import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 
 import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
@@ -38,6 +39,22 @@ class _DayDependentAgentsRepository implements AgentsRepository {
     String? territoryId,
   }) async =>
       AgentActivityPage(agents: byDay[from.day] ?? const [], truncated: false);
+}
+
+/// Returns different agents depending on the requested territory (same day
+/// throughout) — just enough to prove the map re-fits when the territory
+/// filter changes, without a full backend fake.
+class _TerritoryAwareAgentsRepository implements AgentsRepository {
+  _TerritoryAwareAgentsRepository(this.byTerritory);
+  final Map<String?, List<AgentActivity>> byTerritory;
+
+  @override
+  Future<AgentActivityPage> listActivity({
+    required DateTime from,
+    required DateTime to,
+    String? territoryId,
+  }) async =>
+      AgentActivityPage(agents: byTerritory[territoryId] ?? const [], truncated: false);
 }
 
 class _ThrowingRepository implements AgentsRepository {
@@ -232,7 +249,7 @@ void main() {
   // that removes AsyncSection's loading interstitial (which today forces a
   // fresh FlutterMap mount on every family-provider switch, independently of
   // any key) doesn't silently reintroduce a stuck camera. Verified by
-  // temporarily deleting the `key: ValueKey<DateTime>(day)` line: the camera
+  // temporarily deleting the day+coordinate key on `FlutterMap`: the camera
   // assertion below still passed (the loading branch already remounts
   // FlutterMap on every day change here), so the key assertion is what
   // actually pins the fix — the camera check is real end-state coverage, not
@@ -276,7 +293,7 @@ void main() {
     expect(cameraBefore.latitude, closeTo(-26.10, 0.5));
     expect(
       tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
-      ValueKey<DateTime>(DateTime(2026, 7, 22)),
+      ValueKey<(DateTime, String)>((DateTime(2026, 7, 22), '-26.1000,28.0500')),
     );
 
     container.read(agentTrailDayProvider.notifier).state = DateTime(2026, 7, 23);
@@ -288,7 +305,7 @@ void main() {
     expect(cameraAfter.latitude, isNot(closeTo(cameraBefore.latitude, 1)));
     expect(
       tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
-      ValueKey<DateTime>(DateTime(2026, 7, 23)),
+      ValueKey<(DateTime, String)>((DateTime(2026, 7, 23), '-33.9000,18.4200')),
     );
   });
 
@@ -342,5 +359,54 @@ void main() {
         reason: 'disc $discColor vs numeral $numeralColor under ${theme.brightness}',
       );
     }
+  });
+
+  // Same one-shot-fit gap as the dashboard panel's territory-filter test:
+  // this screen's own provider (`agentActivityForDayProvider`) also watches
+  // `dashboardFilterProvider`, so switching territories without changing the
+  // date re-fetches a different set of pins on the SAME day — the day-only
+  // key would leave the camera pointed at the old territory.
+  testWidgets('re-fits the camera when a territory-filter change moves the pins, same day', (tester) async {
+    final jhb = [
+      AgentActivity(
+        agentId: 'a1',
+        name: 'thabo@example.com',
+        state: AgentState.inTransit,
+        stops: [_stop('v1', 'Sandton Spar', -26.10, 28.05, 8)],
+      ),
+    ];
+    final capeTown = [
+      AgentActivity(
+        agentId: 'a5',
+        name: 'zola@example.com',
+        state: AgentState.inTransit,
+        stops: [_stop('v20', 'V&A Waterfront', -33.90, 18.42, 9)],
+      ),
+    ];
+
+    await tester.pumpWidget(routedApp(
+      const AgentTrailScreen(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final before = MapCamera.of(tester.element(find.byType(TileLayer))).center;
+    expect(before.latitude, closeTo(-26.10, 0.5));
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AgentTrailScreen)),
+    );
+    container.read(dashboardFilterProvider.notifier).set(
+          const DashboardFilter(territoryId: 'cpt'),
+        );
+    await tester.pumpAndSettle();
+
+    final after = MapCamera.of(tester.element(find.byType(TileLayer))).center;
+    expect(after.latitude, closeTo(-33.90, 0.5));
+    expect(after.latitude, isNot(closeTo(before.latitude, 1)));
   });
 }

@@ -95,12 +95,19 @@ class AgentTrailScreen extends ConsumerWidget {
               _TrailLegend(truncated: page.truncated),
               Expanded(
                 child: FlutterMap(
-                  // Keyed on the day: flutter_map's `_initialCameraFitApplied`
+                  // Keyed on the day AND a fingerprint of the plotted
+                  // coordinates: flutter_map's `_initialCameraFitApplied`
                   // flag is one-shot per State (see its own widget.dart), so
-                  // without this key, picking a new day would rebuild the same
-                  // State and leave the camera pointed at the old day's
-                  // bounds — the pins would move, the camera would not.
-                  key: ValueKey<DateTime>(day),
+                  // without a key change, the camera never moves again once
+                  // set. The day alone isn't enough — this screen's provider
+                  // also watches `dashboardFilterProvider`, so a manager
+                  // switching territories without changing the date re-fetches
+                  // a completely different set of pins on the SAME day, and
+                  // the camera would stay pointed at the old territory. The
+                  // fingerprint is rounded (~11m) so a same-data re-fetch
+                  // (the screen's own refresh) can't remount the map and
+                  // throw away a pan/zoom for no reason.
+                  key: ValueKey<(DateTime, String)>((day, _pointsSignature(points))),
                   options: MapOptions(
                     initialCenter: points.first,
                     initialZoom: 13,
@@ -160,6 +167,20 @@ class AgentTrailScreen extends ConsumerWidget {
 }
 
 String _two(int n) => n.toString().padLeft(2, '0');
+
+/// A stable fingerprint of where the pins actually are, for keying the map
+/// alongside the day (see the `FlutterMap` key comment above). Built from
+/// coordinates rather than agent identity so a same-data re-fetch (this
+/// screen's own retry, or a background refresh) can't remount the map and
+/// throw away the manager's pan/zoom for no reason — only a real change in
+/// where the pins are should do that. Rounded to 4 decimal places (~11m) so
+/// floating-point noise can't cause a spurious remount either.
+String _pointsSignature(List<LatLng> points) => points
+    .map(
+      (p) =>
+          '${p.latitude.toStringAsFixed(4)},${p.longitude.toStringAsFixed(4)}',
+    )
+    .join('|');
 
 /// Says in words what the dashes mean. Without this the map still overstates
 /// its own certainty to anyone who does not read stroke styles as semantics.

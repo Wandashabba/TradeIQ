@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
+import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 
 import '../../helpers/routed_app.dart';
@@ -19,6 +21,22 @@ class _FakeAgentsRepository implements AgentsRepository {
     String? territoryId,
   }) async =>
       AgentActivityPage(agents: agents, truncated: truncated);
+}
+
+/// Returns different agents depending on the requested territory — just
+/// enough to prove the map re-fits when the territory filter changes,
+/// without a full backend fake.
+class _TerritoryAwareAgentsRepository implements AgentsRepository {
+  _TerritoryAwareAgentsRepository(this.byTerritory);
+  final Map<String?, List<AgentActivity>> byTerritory;
+
+  @override
+  Future<AgentActivityPage> listActivity({
+    required DateTime from,
+    required DateTime to,
+    String? territoryId,
+  }) async =>
+      AgentActivityPage(agents: byTerritory[territoryId] ?? const [], truncated: false);
 }
 
 class _FailingAgentsRepository implements AgentsRepository {
@@ -441,5 +459,74 @@ void main() {
     expect(camera.center.latitude, closeTo(-26.12, 1.0));
     expect(camera.center.longitude, closeTo(28.07, 1.0));
     expect(camera.zoom, greaterThan(8));
+  });
+
+  // Same one-shot-fit failure as the degenerate-viewport test above, reached
+  // a different way: the dashboard's territory filter sits a few hundred
+  // pixels above this panel, and switching it is an ordinary click that
+  // re-fetches with different agents in a different place — with the
+  // panel's own size unchanged throughout. Without a coordinate fingerprint
+  // in the map's key, the camera would stay pointed at the old territory.
+  testWidgets('re-fits the camera when a territory-filter change moves the pins', (tester) async {
+    final jhb = [
+      _agent(
+        id: 'a1',
+        name: 'a@x.com',
+        state: AgentState.atStore,
+        currentOutlet: 'Spar',
+        stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
+      ),
+      _agent(
+        id: 'a2',
+        name: 'b@x.com',
+        state: AgentState.atStore,
+        currentOutlet: 'Checkers',
+        stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
+      ),
+    ];
+    final capeTown = [
+      _agent(
+        id: 'a3',
+        name: 'c@x.com',
+        state: AgentState.atStore,
+        currentOutlet: 'Waterfront',
+        stops: [_stop('Waterfront', lat: -33.90, lng: 18.42)],
+      ),
+      _agent(
+        id: 'a4',
+        name: 'd@x.com',
+        state: AgentState.atStore,
+        currentOutlet: 'Canal Walk',
+        stops: [_stop('Canal Walk', lat: -33.89, lng: 18.51)],
+      ),
+    ];
+
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final before = MapCamera.of(tester.element(find.byType(MarkerLayer))).center;
+    expect(before.latitude, closeTo(-26.12, 1.0));
+
+    // The territory-filter click: same provider, same panel size, a
+    // completely different set of coordinates.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AgentActivityPanel)),
+    );
+    container.read(dashboardFilterProvider.notifier).set(
+          const DashboardFilter(territoryId: 'cpt'),
+        );
+    await tester.pumpAndSettle();
+
+    final after = MapCamera.of(tester.element(find.byType(MarkerLayer)));
+    expect(after.center.latitude, closeTo(-33.895, 1.0));
+    expect(after.center.longitude, closeTo(18.465, 1.0));
+    expect(after.zoom, greaterThan(8));
   });
 }
