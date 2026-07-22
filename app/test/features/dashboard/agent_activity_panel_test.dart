@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
+import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
 import '../../helpers/routed_app.dart';
 
@@ -157,6 +158,11 @@ void main() {
     expect(find.textContaining('No check-in'), findsOneWidget);
   });
 
+  // No territory filter is active here, so the territory cannot be the
+  // reason the list is empty — the wording must not imply one. This
+  // replaces the old fixed-string assertion (`textContaining('No agents')`):
+  // that string no longer applies once the empty state names or excludes a
+  // territory, so asserting it here would just be testing stale copy.
   testWidgets('shows an empty state when there are no agents', (tester) async {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
@@ -166,7 +172,66 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('No agents'), findsOneWidget);
+    expect(find.text('No field agents yet.'), findsOneWidget);
+  });
+
+  // The reported bug: a manager filtered to a territory nobody is assigned
+  // to, got a fixed "no agents" string, and filed it as broken. Naming the
+  // territory is what makes the empty state actionable.
+  testWidgets('names the filtered territory when the empty result is filtered', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
+        territoriesListProvider.overrideWith(
+          (ref) async => const [
+            Territory(id: 't1', name: 'Western Cspe', code: 'wc'),
+            Territory(id: 't2', name: 'Gauteng', code: 'gp'),
+          ],
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AgentActivityPanel)),
+    );
+    container.read(dashboardFilterProvider.notifier).set(
+          const DashboardFilter(territoryId: 'wc'),
+        );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No agents are assigned to Western Cspe.'), findsOneWidget);
+  });
+
+  // The code matches nothing in the loaded territory list (stale/deleted
+  // territory) — must fall back cleanly, never a blank, "null", or the raw
+  // code, which would read worse than the message this replaced.
+  testWidgets('falls back cleanly when the filtered code matches no territory', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
+        territoriesListProvider.overrideWith(
+          (ref) async => const [
+            Territory(id: 't1', name: 'Gauteng', code: 'gp'),
+          ],
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AgentActivityPanel)),
+    );
+    container.read(dashboardFilterProvider.notifier).set(
+          const DashboardFilter(territoryId: 'does-not-exist'),
+        );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No agents match this territory filter.'), findsOneWidget);
+    expect(find.textContaining('null'), findsNothing);
+    expect(find.textContaining('does-not-exist'), findsNothing);
   });
 
   // A cut list must never read as the whole team. Without this notice a

@@ -697,6 +697,42 @@ String _pointsSignature(List<LatLng> points) => points
     )
     .join('|');
 
+/// The empty-state copy for [AgentActivityPanel] when the filtered page has
+/// zero agents. An empty list with no explanation reads as "the app is
+/// broken" — which is exactly what got reported here: a manager filtered to
+/// a territory nobody happens to be assigned to, the query was correct, and
+/// the fixed string gave them no way to tell the two apart. Naming the
+/// territory turns a dead end into something actionable; when no filter is
+/// active, the territory cannot be the reason, so the wording does not
+/// imply one.
+///
+/// [DashboardFilter.territoryId] is a territory *code* (see
+/// [dashboardByTerritoryProvider]'s comment on the id/code split, #97), not
+/// a name, so the name has to come from [territoriesListProvider] — which
+/// is async and can still be loading or errored, and even once loaded may
+/// simply not contain the code (a
+/// deleted or stale territory). Every one of those cases falls back to
+/// wording that names no territory: a blank, "null", or the raw code would
+/// all be worse than the message this replaced.
+String _emptyActivityMessage(WidgetRef ref, String? territoryId) {
+  if (territoryId == null) return 'No field agents yet.';
+
+  final territories = ref.watch(territoriesListProvider);
+  final name = territories.maybeWhen(
+    data: (list) {
+      for (final t in list) {
+        if (t.code == territoryId) return t.name;
+      }
+      return null;
+    },
+    orElse: () => null,
+  );
+
+  return name == null
+      ? 'No agents match this territory filter.'
+      : 'No agents are assigned to $name.';
+}
+
 /// Map + compact list, side by side — the map is the hero, the list is what
 /// keeps it honest.
 ///
@@ -712,6 +748,7 @@ class AgentActivityPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activity = ref.watch(agentActivityTodayProvider);
+    final filter = ref.watch(dashboardFilterProvider);
 
     return PanelCard(
       title: 'Where are my agents',
@@ -730,9 +767,9 @@ class AgentActivityPanel extends ConsumerWidget {
           onRetry: () => ref.invalidate(agentActivityTodayProvider),
           builder: (page) {
             if (page.agents.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('No agents to show for this filter.'),
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(_emptyActivityMessage(ref, filter.territoryId)),
               );
             }
 
