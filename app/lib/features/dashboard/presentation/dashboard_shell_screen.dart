@@ -6,9 +6,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/agent_kit.dart' show formatAgo;
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/widgets/worklist.dart';
+import '../../agents/data/agents_repository.dart';
 import '../../alerts/data/alerts_repository.dart';
 import '../../tasks/data/tasks_admin_repository.dart';
 import '../../territories/data/territories_repository.dart';
@@ -42,6 +45,7 @@ class DashboardShellScreen extends ConsumerWidget {
     ref.invalidate(alertsListProvider);
     ref.invalidate(tasksListProvider);
     ref.invalidate(territoriesListProvider);
+    ref.invalidate(agentActivityTodayProvider);
     // Awaited last so the progress indicator tracks the headline number; the
     // rest refetch in parallel behind it.
     ref.invalidate(dashboardSnapshotProvider);
@@ -92,6 +96,8 @@ class DashboardShellScreen extends ConsumerWidget {
                   left: _TerritoryPanel(),
                   right: _AvailabilityPanel(),
                 ),
+                const SizedBox(height: 12),
+                const AgentActivityPanel(),
                 const SizedBox(height: 12),
                 const _StubCaveat(),
               ],
@@ -595,6 +601,161 @@ class _AvailabilityPanel extends ConsumerWidget {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Where are my agents — today's confirmed stops
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A list, deliberately — no map tiles on the manager's morning screen.
+///
+/// The question "which store is each agent at" is answered by text; rendering
+/// OpenStreetMap tiles to answer it would cost every dashboard load a set of
+/// network round-trips for information the list already carries. The map is
+/// one tap away for when geography actually matters.
+///
+/// Public rather than private so the widget test can pump it on its own.
+class AgentActivityPanel extends ConsumerWidget {
+  const AgentActivityPanel({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activity = ref.watch(agentActivityTodayProvider);
+
+    return PanelCard(
+      title: 'Where are my agents',
+      subtitle: "Today's check-ins",
+      padded: false,
+      trailing: TextButton(
+        key: const ValueKey<String>('agent-activity-view-map'),
+        onPressed: () => context.go('/agents/activity'),
+        child: const Text('View map'),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+        child: AsyncSection<AgentActivityPage>(
+          value: activity,
+          label: 'agent activity',
+          onRetry: () => ref.invalidate(agentActivityTodayProvider),
+          builder: (page) {
+            if (page.agents.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('No agents to show for this filter.'),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final agent in page.agents) _AgentRow(agent: agent),
+                // Never let a cut list read as the whole team. A manager who
+                // cannot see an agent concludes they did not work, not that
+                // the list ran out.
+                if (page.truncated)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Showing the first 200 agents. Filter by territory to narrow.',
+                      style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// One agent, one line.
+///
+/// Every row leads with WHEN, not just where. A row that says "Sandton Spar"
+/// with no age reads as live; this data is never live, and the age is the
+/// only thing that keeps the row honest.
+class _AgentRow extends StatelessWidget {
+  const _AgentRow({required this.agent});
+
+  final AgentActivity agent;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final (icon, label, color) = switch (agent.state) {
+      AgentState.atStore => (Icons.storefront, 'At store', colors.good),
+      AgentState.inTransit => (Icons.trending_flat, 'In transit', colors.warn),
+      AgentState.idle => (Icons.remove_circle_outline, 'No check-in', colors.ink4),
+    };
+
+    // Idle carries no location line: the age column already reads "no
+    // check-in today", and repeating that fact here would say the same thing
+    // twice in exactly the row where space is tightest.
+    final secondLine = switch (agent.state) {
+      AgentState.atStore =>
+        '$label · ${agent.currentOutletName ?? 'unknown store'}',
+      AgentState.inTransit =>
+        '$label · ${agent.lastOutletName == null ? 'in transit' : 'left ${agent.lastOutletName}'}',
+      AgentState.idle => label,
+    };
+
+    return Semantics(
+      label: '${agent.name}, $secondLine, ${_age(agent.lastSeenAt)}',
+      // The row underneath is three live Text widgets, each of which would
+      // otherwise contribute its own implicit semantics node — without this a
+      // screen reader announces the curated label, then reads the name,
+      // status line and age again on the next three swipes.
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              key: ValueKey<String>('agent-state-icon-${agent.agentId}'),
+              size: 16,
+              color: color,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // `name` is an email — one unbroken token — and outlet
+                  // names run long, so both lines must ellipsize rather than
+                  // paint past their bound; the age column stays unbounded
+                  // since it must never be the thing that gets clipped.
+                  Text(
+                    agent.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    secondLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: colors.ink3),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              _age(agent.lastSeenAt),
+              style: TextStyle(fontSize: 12, color: colors.ink3),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// How stale this row is, in words. Delegates to the same [formatAgo] every
+/// other "time since" line in the app uses (`agent_scaffold.dart`,
+/// `my_work_screen.dart`, `audit_shell_screen.dart`) — a second bucketing
+/// implementation here would silently drift from that wording. Only the
+/// "never checked in" case is specific to this panel.
+String _age(DateTime? at) => at == null ? 'no check-in today' : formatAgo(at);
 
 // ═══════════════════════════════════════════════════════════════════════
 // Filters — one row, above everything it scopes

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
+import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
@@ -82,6 +83,18 @@ class _FakeTemplatesRepository implements TemplatesRepository {
           ],
         },
       );
+}
+
+// Only needed so an unguarded /agents/activity would build without hitting
+// the network before the fix lands, not because the passing (post-fix) case
+// ever reaches AgentTrailScreen — the redirect happens first.
+class _FakeAgentsRepository implements AgentsRepository {
+  @override
+  Future<AgentActivityPage> listActivity({
+    required DateTime from,
+    required DateTime to,
+    String? territoryId,
+  }) async => const AgentActivityPage(agents: [], truncated: false);
 }
 
 class _FakeSucceedingVisitsRepository implements VisitsRepository {
@@ -376,6 +389,37 @@ void main() {
       // the screen is manager-only — an agent lands back on the outlet picker.
       expect(find.text('Today'), findsOneWidget);
       expect(find.text('Alert rules'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a field_agent navigating to /agents/activity is bounced to their route',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
+          agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository()),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/agents/activity');
+      await tester.pumpAndSettle();
+
+      // The trail map is manager/admin territory (requireRole on the
+      // backend), so the screen is manager-only — an agent lands back on
+      // their route for the day.
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Agent trail'), findsNothing);
     },
   );
 

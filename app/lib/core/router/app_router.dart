@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/agents/presentation/agent_trail_screen.dart';
 import '../../features/audit/presentation/audit_shell_screen.dart';
 import '../../features/audit/presentation/my_work_screen.dart';
 import '../../features/audit/presentation/visit_outcome_screen.dart';
@@ -68,6 +69,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/alerts',
         '/alert-rules',
         '/territories',
+        '/agents/activity',
         '/fraud',
         '/reports',
         '/users',
@@ -155,6 +157,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/territories',
         pageBuilder: (context, state) => managerPage(const TerritoriesScreen()),
+      ),
+      GoRoute(
+        path: '/agents/activity',
+        pageBuilder: (context, state) => managerPage(const AgentTrailScreen()),
       ),
       GoRoute(
         path: '/orders',
