@@ -29,6 +29,11 @@ describe('outlets routes', () => {
 
   afterAll(async () => {
     await prisma.outlet.deleteMany({ where: { clientId } });
+    // Assignments reference territories, so they go first — the ?mine=true
+    // tests create them.
+    await prisma.userTerritory.deleteMany({
+      where: { territory: { clientId } },
+    });
     await prisma.territory.deleteMany({ where: { clientId } });
     // userIn() puts a real user in this tenant now, and the FK blocks
     // deleting a client that still has one.
@@ -272,6 +277,99 @@ describe('outlets routes', () => {
       await prisma.user.deleteMany({ where: { clientId: otherClient.id } });
       await prisma.client.delete({ where: { id: otherClient.id } });
     }
+  });
+
+  describe('?mine=true — assigned territories', () => {
+    it('narrows the list to the caller\'s territories', async () => {
+      const agent = await userIn(clientId, 'field_agent');
+      const mineTerritory = await prisma.territory.create({
+        data: { clientId, name: 'Mine', code: 'mine-code' },
+      });
+      await prisma.territory.create({
+        data: { clientId, name: 'Theirs', code: 'theirs-code' },
+      });
+      await prisma.userTerritory.create({
+        data: { userId: agent.userId, territoryId: mineTerritory.id },
+      });
+
+      await prisma.outlet.createMany({
+        data: [
+          { name: 'In My Patch', code: 'MINE-1', channelType: 'convenience', lat: -26.1, lng: 28.0, territoryId: 'mine-code', clientId },
+          { name: 'Someone Else', code: 'THEIRS-1', channelType: 'convenience', lat: -26.2, lng: 28.1, territoryId: 'theirs-code', clientId },
+        ],
+      });
+
+      const res = await request(app)
+        .get('/outlets?mine=true')
+        .set('Authorization', `Bearer ${agent.token}`);
+
+      expect(res.status).toBe(200);
+      const names = (res.body as Array<{ name: string }>).map((o) => o.name);
+      expect(names).toContain('In My Patch');
+      expect(names).not.toContain('Someone Else');
+    });
+
+    it('matches on territory CODE, not id', async () => {
+      // The trap. Outlet.territoryId stores a Territory *code*; a filter
+      // written against Territory.id matches nothing and degrades to an empty
+      // list rather than erroring — which is exactly how #97 shipped a
+      // dashboard filter that silently returned all-zero KPIs.
+      const agent = await userIn(clientId, 'field_agent');
+      const territory = await prisma.territory.create({
+        data: { clientId, name: 'Code Not Id', code: 'code-not-id' },
+      });
+      await prisma.userTerritory.create({
+        data: { userId: agent.userId, territoryId: territory.id },
+      });
+      await prisma.outlet.create({
+        data: { name: 'Found By Code', code: 'CBC-1', channelType: 'convenience', lat: -26.1, lng: 28.0, territoryId: 'code-not-id', clientId },
+      });
+
+      const res = await request(app)
+        .get('/outlets?mine=true')
+        .set('Authorization', `Bearer ${agent.token}`);
+
+      // If this returns [] the filter is matching on id.
+      expect((res.body as unknown[]).length).toBeGreaterThan(0);
+      expect((res.body as Array<{ name: string }>).map((o) => o.name)).toContain('Found By Code');
+    });
+
+    it('falls back to every outlet when the agent has no assignments', async () => {
+      // An empty roster almost always means nobody has set assignments up yet,
+      // not that this agent is meant to visit nothing. Returning an empty list
+      // would strand them with no way to work and no explanation.
+      const agent = await userIn(clientId, 'field_agent');
+
+      const res = await request(app)
+        .get('/outlets?mine=true')
+        .set('Authorization', `Bearer ${agent.token}`);
+
+      expect(res.status).toBe(200);
+      expect((res.body as unknown[]).length).toBeGreaterThan(0);
+    });
+
+    it('still returns everything without the flag', async () => {
+      // The narrowing is a filter the caller asks for, never a wall. An agent
+      // covering a colleague's patch must still be able to reach that outlet.
+      const agent = await userIn(clientId, 'field_agent');
+      const territory = await prisma.territory.create({
+        data: { clientId, name: 'Narrow', code: 'narrow-code' },
+      });
+      await prisma.userTerritory.create({
+        data: { userId: agent.userId, territoryId: territory.id },
+      });
+
+      const scoped = await request(app)
+        .get('/outlets?mine=true')
+        .set('Authorization', `Bearer ${agent.token}`);
+      const all = await request(app)
+        .get('/outlets')
+        .set('Authorization', `Bearer ${agent.token}`);
+
+      expect((all.body as unknown[]).length).toBeGreaterThan(
+        (scoped.body as unknown[]).length,
+      );
+    });
   });
 
   it('does not leak outlets across clients', async () => {

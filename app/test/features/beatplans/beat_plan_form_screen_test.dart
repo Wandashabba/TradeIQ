@@ -85,7 +85,7 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
 
 class _FakeOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets() async => const [
+  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [
         Outlet(id: 'o1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
         Outlet(id: 'o2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
       ];

@@ -13,8 +13,47 @@ export interface CreateOutletInput {
   clientId: string;
 }
 
-export function listOutletsForClient(clientId: string) {
-  return prisma.outlet.findMany({ where: { clientId } });
+/**
+ * Outlets for a tenant, optionally narrowed to the ones in a user's assigned
+ * territories.
+ *
+ * The narrowing is a *filter the caller asks for*, never something imposed.
+ * Territory assignment should shorten an agent's list, not decide what work is
+ * possible: an agent covering a colleague's patch, or standing in a store
+ * filed under the wrong territory, must still be able to check in. In
+ * offline-first field software, "I am here and the app will not let me work"
+ * is a worse failure than a longer list.
+ *
+ * An agent with no assignments gets everything rather than nothing — an empty
+ * roster is far more likely to mean nobody has set assignments up yet than to
+ * mean this agent is meant to visit no outlets at all.
+ */
+export async function listOutletsForClient(
+  clientId: string,
+  options: { assignedTo?: string } = {},
+) {
+  const { assignedTo } = options;
+  if (!assignedTo) {
+    return prisma.outlet.findMany({ where: { clientId } });
+  }
+
+  const assignments = await prisma.userTerritory.findMany({
+    where: { userId: assignedTo, territory: { clientId } },
+    // NOTE: `Outlet.territoryId` stores a Territory *code*, not its id (see the
+    // comment on the Territory model). Matching on id here would silently
+    // return nothing — the exact bug #97 shipped once, where a territory
+    // filter degraded to all-zero KPIs rather than erroring.
+    select: { territory: { select: { code: true } } },
+  });
+
+  const codes = assignments.map((a) => a.territory.code);
+  if (codes.length === 0) {
+    return prisma.outlet.findMany({ where: { clientId } });
+  }
+
+  return prisma.outlet.findMany({
+    where: { clientId, territoryId: { in: codes } },
+  });
 }
 
 export async function createOutlet(input: CreateOutletInput) {

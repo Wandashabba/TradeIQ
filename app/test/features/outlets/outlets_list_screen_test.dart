@@ -7,7 +7,7 @@ import '../../helpers/routed_app.dart';
 
 class FakeOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets() async => const [
+  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [
         Outlet(
           id: 'o1',
           name: 'Test Hypermarket',
