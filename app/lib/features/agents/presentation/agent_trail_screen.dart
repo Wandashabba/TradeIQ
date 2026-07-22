@@ -75,89 +75,10 @@ class AgentTrailScreen extends ConsumerWidget {
             );
           }
 
-          final points = [
-            for (final a in withStops)
-              for (final s in a.stops) LatLng(s.lat, s.lng),
-          ];
-
-          // A single point has a zero-area bounds box, so centre on it rather
-          // than asking flutter_map to "fit" it — same reasoning as
-          // territory_map_screen.dart.
-          final cameraFit = points.length > 1
-              ? CameraFit.bounds(
-                  bounds: LatLngBounds.fromPoints(points),
-                  padding: const EdgeInsets.all(40),
-                )
-              : null;
-
           return Column(
             children: [
               _TrailLegend(truncated: page.truncated),
-              Expanded(
-                child: FlutterMap(
-                  // Keyed on the day AND a fingerprint of the plotted
-                  // coordinates: flutter_map's `_initialCameraFitApplied`
-                  // flag is one-shot per State (see its own widget.dart), so
-                  // without a key change, the camera never moves again once
-                  // set. The day alone isn't enough — this screen's provider
-                  // also watches `dashboardFilterProvider`, so a manager
-                  // switching territories without changing the date re-fetches
-                  // a completely different set of pins on the SAME day, and
-                  // the camera would stay pointed at the old territory. The
-                  // fingerprint is rounded (~11m) so a same-data re-fetch
-                  // (the screen's own refresh) can't remount the map and
-                  // throw away a pan/zoom for no reason.
-                  key: ValueKey<(DateTime, String)>((day, _pointsSignature(points))),
-                  options: MapOptions(
-                    initialCenter: points.first,
-                    initialZoom: 13,
-                    initialCameraFit: cameraFit,
-                  ),
-                  children: [
-                    const TiqTileLayer(),
-                    PolylineLayer(
-                      polylines: [
-                        for (final a in withStops)
-                          if (a.stops.length > 1)
-                            Polyline(
-                              points: [
-                                for (final s in a.stops) LatLng(s.lat, s.lng),
-                              ],
-                              strokeWidth: 3,
-                              color: context.colors.brand,
-                              // Dashed, deliberately. A solid line would claim
-                              // we know the route between two check-ins. We
-                              // know two points; the rest is inference, and
-                              // the stroke should look like inference.
-                              pattern: StrokePattern.dashed(segments: const [8.0, 6.0]),
-                            ),
-                      ],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        for (final a in withStops)
-                          for (var i = 0; i < a.stops.length; i++)
-                            Marker(
-                              point: LatLng(a.stops[i].lat, a.stops[i].lng),
-                              width: 34,
-                              height: 34,
-                              child: _StopPin(
-                                key: ValueKey<String>('agent-stop-${a.agentId}-$i'),
-                                agentName: a.name,
-                                stop: a.stops[i],
-                                ordinal: i + 1,
-                                isLast: i == a.stops.length - 1,
-                              ),
-                            ),
-                      ],
-                    ),
-                    // Required by CARTO's terms (and, through them, OSM's
-                    // ODbL licence) — separate from, and in addition to, the
-                    // TileLayer's userAgentPackageName.
-                    const TiqBasemapAttribution(),
-                  ],
-                ),
-              ),
+              Expanded(child: _TrailMap(day: day, withStops: withStops)),
             ],
           );
         },
@@ -181,6 +102,152 @@ String _pointsSignature(List<LatLng> points) => points
           '${p.latitude.toStringAsFixed(4)},${p.longitude.toStringAsFixed(4)}',
     )
     .join('|');
+
+/// The trail map's fixed fallback/single-pin zoom, shared between
+/// `MapOptions.initialZoom` and the `onMapReady` `move()` fallback (see
+/// `_TrailMap`'s doc comment) so the two can't drift apart.
+const _trailZoom = 13.0;
+
+/// The trail map itself. A `StatefulWidget`, not stateless: it owns a
+/// [MapController] so it can drive the bounds fit itself from
+/// [MapOptions.onMapReady] rather than via `initialCameraFit`.
+///
+/// `initialCameraFit` applies once, synchronously, against whatever
+/// `BoxConstraints` this widget's own first layout happens to report — fine
+/// on the Dart VM, but on Flutter web the FIRST frame flutter_map itself ever
+/// measures can still be `Size.zero` even once every layer above it (this
+/// screen is full-screen, so its own size is correct immediately) already
+/// reports the real, final size. `CameraFit.bounds` fit against that zero
+/// viewport computes a non-finite zoom, silently clamped in release/web
+/// builds to a near-world view — and since nothing about our own measured
+/// size changes afterwards, the day+coordinate key below never gets a reason
+/// to remount and give it a second chance. `onMapReady` — fired once
+/// flutter_map has actually initialised, scheduled from its own State's
+/// `initState` postFrameCallback so it runs after that first frame's real
+/// layout has landed — does not have that race, so the fit is driven from
+/// there via `fitCamera` instead. `initialCenter`/`initialZoom` stay as the
+/// pre-fit fallback in case `onMapReady` itself ever fires against a
+/// still-degenerate camera.
+///
+/// `onMapReady` also explicitly `move()`s to `initialCenter` in the
+/// single-point (no bounds fit) case, rather than relying on
+/// `MapOptions.initialCenter` alone: `_controller` is reused across
+/// remounts (constructed once in `_TrailMapState`), and flutter_map's
+/// `MapController.options` setter — read directly from its
+/// map_controller_impl.dart — only seeds the camera from
+/// `initialCenter`/`initialZoom` when the controller's camera is still
+/// null. On every remount after the very first, the controller already has
+/// a camera from before, so a new `initialCenter` is silently ignored and
+/// the OLD position carries over — the exact failure this fix exists to
+/// prevent, just for the one-pin case.
+class _TrailMap extends StatefulWidget {
+  const _TrailMap({required this.day, required this.withStops});
+
+  final DateTime day;
+
+  /// Must all have `stops.isNotEmpty` — the caller filters before
+  /// constructing.
+  final List<AgentActivity> withStops;
+
+  @override
+  State<_TrailMap> createState() => _TrailMapState();
+}
+
+class _TrailMapState extends State<_TrailMap> {
+  final _controller = MapController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final points = [
+      for (final a in widget.withStops)
+        for (final s in a.stops) LatLng(s.lat, s.lng),
+    ];
+
+    // A single point has a zero-area bounds box, so centre on it rather than
+    // asking flutter_map to "fit" it — same reasoning as
+    // territory_map_screen.dart.
+    final cameraFit = points.length > 1
+        ? CameraFit.bounds(
+            bounds: LatLngBounds.fromPoints(points),
+            padding: const EdgeInsets.all(40),
+          )
+        : null;
+
+    return FlutterMap(
+      // Keyed on the day AND a fingerprint of the plotted coordinates: a
+      // key change is what mounts a fresh State (re-running `initState`,
+      // and therefore re-firing `onMapReady` — confirmed by reading
+      // flutter_map's own widget.dart, not assumed). The day alone isn't
+      // enough — this screen's provider also watches
+      // `dashboardFilterProvider`, so a manager switching territories
+      // without changing the date re-fetches a completely different set of
+      // pins on the SAME day, and the camera would stay pointed at the old
+      // territory. The fingerprint is rounded (~11m) so a same-data
+      // re-fetch (this screen's own refresh) can't remount the map and
+      // throw away a pan/zoom for no reason.
+      key: ValueKey<(DateTime, String)>((widget.day, _pointsSignature(points))),
+      mapController: _controller,
+      options: MapOptions(
+        initialCenter: points.first,
+        initialZoom: _trailZoom,
+        onMapReady: () {
+          if (cameraFit != null) {
+            _controller.fitCamera(cameraFit);
+          } else {
+            _controller.move(points.first, _trailZoom);
+          }
+        },
+      ),
+      children: [
+        const TiqTileLayer(),
+        PolylineLayer(
+          polylines: [
+            for (final a in widget.withStops)
+              if (a.stops.length > 1)
+                Polyline(
+                  points: [for (final s in a.stops) LatLng(s.lat, s.lng)],
+                  strokeWidth: 3,
+                  color: context.colors.brand,
+                  // Dashed, deliberately. A solid line would claim we know
+                  // the route between two check-ins. We know two points; the
+                  // rest is inference, and the stroke should look like
+                  // inference.
+                  pattern: StrokePattern.dashed(segments: const [8.0, 6.0]),
+                ),
+          ],
+        ),
+        MarkerLayer(
+          markers: [
+            for (final a in widget.withStops)
+              for (var i = 0; i < a.stops.length; i++)
+                Marker(
+                  point: LatLng(a.stops[i].lat, a.stops[i].lng),
+                  width: 34,
+                  height: 34,
+                  child: _StopPin(
+                    key: ValueKey<String>('agent-stop-${a.agentId}-$i'),
+                    agentName: a.name,
+                    stop: a.stops[i],
+                    ordinal: i + 1,
+                    isLast: i == a.stops.length - 1,
+                  ),
+                ),
+          ],
+        ),
+        // Required by CARTO's terms (and, through them, OSM's ODbL licence)
+        // — separate from, and in addition to, the TileLayer's
+        // userAgentPackageName.
+        const TiqBasemapAttribution(),
+      ],
+    );
+  }
+}
 
 /// Says in words what the dashes mean. Without this the map still overstates
 /// its own certainty to anyone who does not read stroke styles as semantics.

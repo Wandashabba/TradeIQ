@@ -620,6 +620,11 @@ const _panelWide = 1080.0;
 /// short enough to still read as "one panel among several".
 const _mapHeight = 260.0;
 
+/// The panel's fixed fallback/single-pin zoom — close enough to read
+/// individual outlets, used both for `MapOptions.initialZoom` and the
+/// `onMapReady` `move()` fallback so the two never drift apart.
+const _mapZoom = 11.0;
+
 /// Icon, label and colour for one agent state — the single source both the
 /// list rows and the map pins read from, so the two halves of the panel can
 /// never quietly disagree about what a state looks like. Colour is never the
@@ -832,16 +837,33 @@ class _AgentList extends StatelessWidget {
 /// placed at their latest one. No polylines here: the drill-in trail map
 /// (`agent_trail_screen.dart`) carries the day's route, this one only answers
 /// "where are they now" (as of their last check-in).
-class _AgentMap extends StatelessWidget {
+///
+/// A `StatefulWidget`, not stateless: it owns a [MapController] so it can
+/// drive the bounds fit itself from [MapOptions.onMapReady] rather than via
+/// `initialCameraFit` — see the `onMapReady` comment below for why.
+class _AgentMap extends StatefulWidget {
   const _AgentMap({required this.agentsWithStops});
 
   /// Must all have `stops.isNotEmpty` — callers filter before constructing.
   final List<AgentActivity> agentsWithStops;
 
   @override
+  State<_AgentMap> createState() => _AgentMapState();
+}
+
+class _AgentMapState extends State<_AgentMap> {
+  final _controller = MapController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final points = [
-      for (final a in agentsWithStops)
+      for (final a in widget.agentsWithStops)
         LatLng(_latestStop(a).lat, _latestStop(a).lng),
     ];
     // A zero-area bounds box (one point, or several agents whose latest stop
@@ -863,27 +885,48 @@ class _AgentMap extends StatelessWidget {
       // This panel lives inside DashboardShellScreen's ListView, below the
       // fold on a typical screen — a scrollable can lay a child out before it
       // is ever scrolled into view, sometimes on a transient pass with a
-      // zero or unbounded size. flutter_map applies `initialCameraFit`
-      // exactly ONCE (`_initialCameraFitApplied`, a flag on the State — see
-      // flutter_map's widget.dart), against whatever constraints happen to
-      // exist at that first layout, and never retries. Feed it a degenerate
-      // viewport and it commits to that fit anyway: `CameraFit.bounds` needs
-      // real pixels to compute a zoom from, so a near-zero viewport yields a
-      // near-zero zoom — a silent whole-world view in release builds, where
-      // the debug assert that would catch a non-finite zoom is stripped.
+      // zero or unbounded size. The LayoutBuilder + degenerate guard below
+      // exist for that: skip the map entirely rather than mount it against a
+      // viewport it can't use.
       //
-      // A LayoutBuilder here, keyed on the resolved size PLUS a fingerprint
-      // of the plotted coordinates, is the fix: a genuine size change (the
-      // panel's real first layout once scrolled into view, or a later
-      // resize) mounts a fresh State and therefore re-applies the fit fresh,
-      // against the viewport that actually matters. The coordinate
-      // fingerprint covers the same one-shot gap for a same-size cause: the
-      // dashboard's territory filter sits a few hundred pixels above this
-      // panel, and switching it moves the pins to a different area without
-      // changing the panel's size at all — without this half of the key the
-      // camera would stay pointed at the old territory. Skipping the map
-      // entirely on a degenerate pass means the one-shot fit is never spent
-      // on a viewport it can't fit against.
+      // The fit itself does NOT use `initialCameraFit` any more. That option
+      // applies once, synchronously, against whatever `BoxConstraints` this
+      // widget's LayoutBuilder reports on its very first build — which is
+      // reliable on the Dart VM, but on Flutter web the FIRST frame flutter_map
+      // itself ever measures can still be `Size.zero` even though every layer
+      // above it (this LayoutBuilder included) already reports the correct,
+      // final size. `CameraFit.bounds` fit against that zero viewport computes
+      // a non-finite (in debug: assert-failing) zoom, which release/web builds
+      // silently clamp to a near-world view — and because our own measured
+      // size never changes afterwards, the size-based half of the key below
+      // never remounts the map to give it a second chance.
+      //
+      // `onMapReady` (fired once flutter_map has actually initialised —
+      // scheduled from its State's own `initState` postFrameCallback, so it
+      // runs after that first frame's real layout has landed) does not have
+      // that race, so the fit is driven from there instead via `fitCamera`.
+      // `initialCenter`/`initialZoom` stay as the pre-fit fallback in case
+      // `onMapReady` itself ever fires against a still-degenerate camera —
+      // Johannesburg at zoom 11 is a far safer failure than the whole world.
+      //
+      // The key is still keyed on size PLUS a fingerprint of the plotted
+      // coordinates: a genuine size change (the panel's real first layout
+      // once scrolled into view, or a later resize) or a moved set of pins
+      // (a territory-filter change, same size) mounts a fresh State, which
+      // re-runs `initState` and therefore re-fires `onMapReady` — confirmed
+      // by reading flutter_map's own widget.dart, not assumed.
+      //
+      // `onMapReady` must ALSO explicitly `move()` to `initialCenter` in the
+      // single-point (no bounds fit) case, not just rely on `initialCenter`
+      // itself: `_controller` is reused across remounts (constructed once
+      // in `_AgentMapState`), and flutter_map's `MapController.options`
+      // setter — read directly from its map_controller_impl.dart — only
+      // seeds the camera from `initialCenter`/`initialZoom` when the
+      // controller's camera is still null. On every remount after the very
+      // first, the controller already has a camera from before, so the new
+      // `MapOptions.initialCenter` is silently ignored and the OLD position
+      // carries over — the exact failure this fix exists to prevent, just
+      // for the case with only one pin to plot.
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = constraints.biggest;
@@ -896,16 +939,23 @@ class _AgentMap extends StatelessWidget {
 
           return FlutterMap(
             key: ValueKey<(Size, String)>((size, _pointsSignature(points))),
+            mapController: _controller,
             options: MapOptions(
               initialCenter: points.first,
-              initialZoom: 11,
-              initialCameraFit: cameraFit,
+              initialZoom: _mapZoom,
+              onMapReady: () {
+                if (cameraFit != null) {
+                  _controller.fitCamera(cameraFit);
+                } else {
+                  _controller.move(points.first, _mapZoom);
+                }
+              },
             ),
             children: [
               const TiqTileLayer(),
               MarkerLayer(
                 markers: [
-                  for (final a in agentsWithStops)
+                  for (final a in widget.agentsWithStops)
                     Marker(
                       point: LatLng(_latestStop(a).lat, _latestStop(a).lng),
                       width: 30,

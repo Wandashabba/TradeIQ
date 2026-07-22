@@ -529,4 +529,45 @@ void main() {
     expect(after.center.longitude, closeTo(18.465, 1.0));
     expect(after.zoom, greaterThan(8));
   });
+
+  // Unit-level guard for the `onMapReady` fix, as far as a widget test can
+  // reach it: `initialCameraFit` is fragile against Flutter web's first
+  // real layout (a race no widget test can reproduce — the Dart VM never
+  // reports the degenerate size web does), so the fit must be driven from
+  // `onMapReady`/`MapController.fitCamera` instead. This only proves the
+  // fragile option isn't wired up any more, and that our own controller
+  // (the one `onMapReady` acts on) is the one actually driving the map —
+  // not that the fix works on web. See the coordinator's diagnosis; the
+  // real verification for that is a browser run, not this suite.
+  testWidgets('drives the fit via onMapReady/MapController, not initialCameraFit', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'a@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Spar',
+              stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
+            ),
+            _agent(
+              id: 'a2',
+              name: 'b@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Checkers',
+              stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
+    expect(map.options.initialCameraFit, isNull);
+    expect(map.options.onMapReady, isNotNull);
+    expect(map.mapController, isNotNull);
+  });
 }
