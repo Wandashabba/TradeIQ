@@ -35,6 +35,21 @@ below: the three-state model, the dashed polyline, and leading every row with da
   manager's morning screen does not pay OSM tile loads to answer a question the list already
   answers. The map gets its own screen and its own real estate.
 
+  > **Reversed 2026-07-22, after T0 shipped for review.** The panel now carries a map
+  > alongside the list. The tile-load objection above was real but was the wrong thing to
+  > optimise for: geography is the point of the question "where are my agents", and a
+  > manager reading a list of store names has to reconstruct the map in their head.
+  >
+  > It is **map + list, not map alone.** Idle agents have no coordinates — an agent who has
+  > not checked in cannot be plotted — so a map-only panel would silently drop the single
+  > most actionable row on the whole feature ("Sipho has not checked in today"). The list
+  > keeps them visible and keeps the per-agent staleness age, which is the thing that stops
+  > the panel reading as live. The map is the hero; the list is what makes it honest.
+  >
+  > Plotting idle agents at a *previous* day's position was considered and rejected: it
+  > would show an agent at a store they are not at, which is precisely the
+  > stale-reads-as-live failure this whole feature is built to avoid.
+
 - **Data source: `Visit` rows only.** `CheckInAttempt` (which records failed geofence attempts,
   #44) was considered and rejected for T0. It would show "tried and failed" — genuinely useful
   for spotting bad outlet coordinates — but it doubles the query, introduces a second marker
@@ -51,6 +66,18 @@ below: the three-state model, the dashed polyline, and leading every row with da
 
 - **Map library: `flutter_map` + OpenStreetMap.** Not a new decision — inherited from the
   territory heatmap design (2026-07-17). Already a dependency.
+
+- **Basemap: CARTO `dark_all` / `light_all`, switched on theme brightness.** Stock OSM tiles
+  are cream and read as a bright rectangle pasted into a dark console — visibly wrong against
+  this app's chrome. CARTO's basemaps are free, need no API key and no billing account, which
+  is the same constraint that ruled out Google and Mapbox for the territory map.
+
+  Switched on `Theme.of(context).brightness` rather than hardcoded: the console has a
+  working light/dark toggle, and dark tiles in light mode is the same mismatch in reverse.
+
+  CARTO's terms require attributing **both** OpenStreetMap and CARTO, so the attribution
+  string changes from "OpenStreetMap contributors" to "OpenStreetMap contributors © CARTO"
+  wherever these tiles are used.
 
 ## Decision surfaced while writing this spec: the day boundary
 
