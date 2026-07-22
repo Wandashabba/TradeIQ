@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/territories_repository.dart';
@@ -23,8 +24,9 @@ final _territoryCoverageProvider =
   retry: (retryCount, error) => null,
 );
 
-/// A pin map of one territory's outlets — green if visited, red if not,
-/// within the coverage query's default window. Reached from a "Map" action
+/// A pin map of one territory's outlets — a check disc where a visit landed
+/// inside the coverage query's default window, a teardrop where one is still
+/// outstanding. Reached from a "Map" action
 /// on [TerritoriesScreen]; every role that can see the territories list can
 /// open it, since the underlying coverage endpoint has no role restriction.
 class TerritoryMapScreen extends ConsumerWidget {
@@ -75,15 +77,13 @@ class TerritoryMapScreen extends ConsumerWidget {
                   for (final outlet in outlets)
                     Marker(
                       point: LatLng(outlet.lat, outlet.lng),
-                      width: 32,
-                      height: 32,
+                      width: 34,
+                      height: 34,
                       child: GestureDetector(
                         onTap: () => _showOutletSheet(context, outlet),
-                        child: Icon(
-                          Icons.location_on,
-                          key: ValueKey<String>('outlet-pin-icon-${outlet.id}'),
-                          color: outlet.visited ? Colors.green : Colors.red,
-                          size: 32,
+                        child: _OutletPin(
+                          outlet: outlet,
+                          key: ValueKey<String>('outlet-pin-${outlet.id}'),
                         ),
                       ),
                     ),
@@ -121,6 +121,59 @@ class TerritoryMapScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(outlet.visited ? 'Visited' : 'Not visited'),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One outlet on the coverage map.
+///
+/// The pins used to be the same [Icons.location_on] in red or green, which
+/// broke the rule this codebase states in `console.dart` and `tiq_colors.dart`
+/// — *state is never colour alone* — and put the entire visited/not-visited
+/// distinction out of reach for a red-green colour-vision deficiency, the
+/// commonest kind. It also read poorly against OpenStreetMap tiles, which are
+/// busy and carry their own reds and greens.
+///
+/// Now the two states differ in **silhouette** first: a filled check disc for
+/// visited, the classic teardrop for outstanding. Colour still carries the
+/// same meaning for those who can see it, but nothing depends on it, and the
+/// pins survive greyscale.
+class _OutletPin extends StatelessWidget {
+  const _OutletPin({super.key, required this.outlet});
+
+  final Outlet outlet;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final visited = outlet.visited;
+
+    return Semantics(
+      button: true,
+      // Screen readers get the state in words. Without this the map is a set
+      // of identically-labelled buttons.
+      label: '${outlet.name}, ${visited ? 'visited' : 'not yet visited'}',
+      child: DecoratedBox(
+        // A white disc under the glyph. OSM tiles range from pale fields to
+        // dark roads and green parks, so a bare icon has no guaranteed
+        // contrast anywhere; the disc gives it one background it can rely on.
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.line, width: 1),
+          boxShadow: const [
+            BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1)),
+          ],
+        ),
+        child: Center(
+          child: Icon(
+            visited ? Icons.check_circle : Icons.location_on,
+            key: ValueKey<String>('outlet-pin-icon-${outlet.id}'),
+            color: visited ? colors.good : colors.crit,
+            size: 22,
+          ),
         ),
       ),
     );
