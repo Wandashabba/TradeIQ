@@ -1,0 +1,13 @@
+{
+  // scripts/ is not part of the build — dist/ must stay rooted at src/ so
+  // `node dist/server.js` (npm start, and the Dockerfile CMD) keeps working.
+  // But leaving scripts/ out of tsconfig.json entirely meant it was never
+  // typechecked at all: the seed broke against a schema change and `tsc`
+  // reported success. This config exists purely to check it.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["scripts", "src"]
+}
