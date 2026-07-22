@@ -10,6 +10,8 @@ import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart' show formatAgo;
+import '../../../core/widgets/agent_motion.dart' show Motion, reduceMotion;
+import '../../../core/widgets/agent_state_glyph.dart';
 import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
@@ -626,29 +628,18 @@ const _mapHeight = 260.0;
 /// `onMapReady` `move()` fallback so the two never drift apart.
 const _mapZoom = 11.0;
 
-/// Icon, label and colour for one agent state — the single source both the
-/// list rows and the map pins read from, so the two halves of the panel can
-/// never quietly disagree about what a state looks like. Colour is never the
-/// only carrier (#144): every state also gets a distinct icon and a word.
-({IconData icon, String label, Color color}) _agentStateVisual(
+/// Label and colour for one agent state — the single source both the list
+/// rows and the map pins read from, so the two halves of the panel can never
+/// quietly disagree about what a state looks like. Colour is never the only
+/// carrier (#144): every state also gets a distinct [AgentStateGlyph] shape
+/// (`core/widgets/agent_state_glyph.dart`) and a word.
+({String label, Color color}) _agentStateVisual(
   AgentState state,
   TiqColors colors,
 ) => switch (state) {
-  AgentState.atStore => (
-    icon: Icons.storefront,
-    label: 'At store',
-    color: colors.good,
-  ),
-  AgentState.inTransit => (
-    icon: Icons.trending_flat,
-    label: 'In transit',
-    color: colors.warn,
-  ),
-  AgentState.idle => (
-    icon: Icons.remove_circle_outline,
-    label: 'No check-in',
-    color: colors.ink4,
-  ),
+  AgentState.atStore => (label: 'At store', color: colors.good),
+  AgentState.inTransit => (label: 'In transit', color: colors.warn),
+  AgentState.idle => (label: 'No check-in', color: colors.ink4),
 };
 
 /// Glyph colour for the map pin specifically — fixed rather than read from
@@ -679,23 +670,6 @@ AgentStop _latestStop(AgentActivity agent) {
     ..sort((a, b) => a.checkinTs.compareTo(b.checkinTs));
   return sorted.last;
 }
-
-/// A stable fingerprint of where the pins actually are, for keying the map
-/// (see `_AgentMap`'s `LayoutBuilder` comment). Deliberately built from
-/// coordinates, not from `agentsWithStops` itself or the agents' identities:
-/// `agentActivityTodayProvider` returns a fresh `List<AgentActivity>` on
-/// every fetch (including the dashboard's own periodic/manual refresh) even
-/// when nobody has moved, and keying on that would remount the map — and
-/// throw away the manager's pan/zoom — on every refresh for no reason.
-/// Rounding to 4 decimal places (~11m) means floating-point noise or a
-/// re-fetch of the exact same check-ins can't remount it either; a territory
-/// filter change moving the pins to a different area still does.
-String _pointsSignature(List<LatLng> points) => points
-    .map(
-      (p) =>
-          '${p.latitude.toStringAsFixed(4)},${p.longitude.toStringAsFixed(4)}',
-    )
-    .join('|');
 
 /// The empty-state copy for [AgentActivityPanel] when the filtered page has
 /// zero agents. An empty list with no explanation reads as "the app is
@@ -766,6 +740,15 @@ class AgentActivityPanel extends ConsumerWidget {
           value: activity,
           label: 'agent activity',
           onRetry: () => ref.invalidate(agentActivityTodayProvider),
+          // A territory-filter change re-runs this provider (it watches
+          // `dashboardFilterProvider`) — without this, that reload would
+          // flash the whole panel back to the loading spinner, tearing the
+          // map down and rebuilding it fresh once the new page lands. That
+          // would make `_AgentMap`'s camera-easing a snap in practice: there
+          // would be nothing continuously mounted left to animate. Keeping
+          // the last page on screen during the refetch is what lets
+          // `_CameraDriver` travel the SAME map to the new fit instead.
+          skipLoadingOnReload: true,
           builder: (page) {
             if (page.agents.isEmpty) {
               return Padding(
@@ -913,16 +896,21 @@ class _AgentMap extends StatelessWidget {
       // `initialCenter`/`initialZoom`, values it applies synchronously and
       // unconditionally on every mount.
       //
-      // The key is still keyed on size PLUS a fingerprint of the plotted
+      // The key is now SIZE ONLY, not a fingerprint of the plotted
       // coordinates: a genuine size change (the panel's real first layout
-      // once scrolled into view, or a later resize) or a moved set of pins
-      // (a territory-filter change, same size) mounts a fresh State — and
-      // because we no longer hold or reuse our own `MapController` across
-      // mounts, flutter_map creates a brand new internal one each time,
-      // which always seeds its camera fresh from that mount's
-      // `initialCenter`/`initialZoom`. (The stale-controller trap the
-      // `onMapReady` version of this fix had — see git history — no longer
-      // applies: there is no persisted controller left to go stale.)
+      // once scrolled into view, or a later resize) still mounts a fresh
+      // State — flutter_map creates a brand new internal controller, which
+      // seeds its camera fresh from that mount's `initialCenter`/
+      // `initialZoom`, exactly as before. A moved set of pins (a
+      // territory-filter change, same size) no longer remounts anything:
+      // `_CameraDriver` below drives the SAME map's camera to the new
+      // `fitFor` target as an eased `MapController.move()` instead, so the
+      // camera travels rather than snaps. `fitFor` is still the only source
+      // of truth for WHERE the camera ends up; only how it gets there
+      // changed. (The stale-controller trap the `onMapReady` version of
+      // this fix had — see git history — still does not apply: nothing
+      // here holds `mapController:` on `FlutterMap` itself, so
+      // `map.mapController` stays null, as the tests pin down.)
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = constraints.biggest;
@@ -941,7 +929,7 @@ class _AgentMap extends StatelessWidget {
           );
 
           return FlutterMap(
-            key: ValueKey<(Size, String)>((size, _pointsSignature(points))),
+            key: ValueKey<Size>(size),
             options: MapOptions(
               initialCenter: center,
               initialZoom: zoom,
@@ -980,6 +968,15 @@ class _AgentMap extends StatelessWidget {
                 ],
               ),
               const TiqBasemapAttribution(),
+              // Not a visual layer — a headless widget living inside the
+              // `FlutterMap` subtree purely so it can reach
+              // `MapController.of(context)`, the map's own INTERNAL
+              // controller (we deliberately never pass `mapController:`
+              // above, which is what keeps `map.mapController` null for the
+              // regression test). It compares this build's `fitFor` target
+              // against the previous one and, when they differ, eases the
+              // SAME map's camera across via `.move()` instead of a snap.
+              _CameraDriver(target: (center, zoom)),
             ],
           );
         },
@@ -988,44 +985,153 @@ class _AgentMap extends StatelessWidget {
   }
 }
 
+/// Drives one mounted [FlutterMap]'s camera toward each new `fitFor` target
+/// as an eased travel rather than a snap, when [target] changes under an
+/// unchanged `FlutterMap` key (a territory-filter change moving the pins,
+/// not a real resize). See `_AgentMap`'s doc comment for why this is safe
+/// against the `onMapReady`/`mapController` timing bug this file's history
+/// already paid for: this never touches `FlutterMap.mapController`,
+/// `initialCameraFit`, or `onMapReady` — it only calls the public
+/// `MapController.of(context)`/`.move()` API from a descendant already
+/// inside the map's own subtree, after the map has already mounted with a
+/// correct `fitFor`-computed `initialCenter`/`initialZoom`.
+///
+/// Renders nothing — [build] returns [SizedBox.shrink].
+class _CameraDriver extends StatefulWidget {
+  const _CameraDriver({required this.target});
+
+  final (LatLng, double) target;
+
+  @override
+  State<_CameraDriver> createState() => _CameraDriverState();
+}
+
+class _CameraDriverState extends State<_CameraDriver>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _eased;
+  (LatLng, double)? _from;
+  (LatLng, double)? _to;
+
+  @override
+  void initState() {
+    super.initState();
+    // The map has ALREADY mounted with `initialCenter`/`initialZoom` equal
+    // to `widget.target` at this point (see `_AgentMap`) — nothing to
+    // travel on first build, only on a later target change.
+    _controller = AnimationController(vsync: this, duration: Motion.slow)
+      ..addListener(_onTick);
+    _eased = CurvedAnimation(parent: _controller, curve: Motion.enter);
+  }
+
+  @override
+  void didUpdateWidget(_CameraDriver old) {
+    super.didUpdateWidget(old);
+    if (old.target != widget.target) _travelTo(widget.target);
+  }
+
+  void _travelTo((LatLng, double) target) {
+    final controller = MapController.of(context);
+    if (reduceMotion(context)) {
+      controller.move(target.$1, target.$2);
+      return;
+    }
+    _from = (controller.camera.center, controller.camera.zoom);
+    _to = target;
+    _controller
+      ..stop()
+      ..value = 0
+      ..forward();
+  }
+
+  void _onTick() {
+    final from = _from;
+    final to = _to;
+    if (from == null || to == null) return;
+    final t = _eased.value;
+    final center = LatLng(
+      from.$1.latitude + (to.$1.latitude - from.$1.latitude) * t,
+      from.$1.longitude + (to.$1.longitude - from.$1.longitude) * t,
+    );
+    final zoom = from.$2 + (to.$2 - from.$2) * t;
+    MapController.of(context).move(center, zoom);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
 /// One agent's latest confirmed stop, on the panel's map.
 ///
 /// Deliberately not numbered like the trail screen's stops — this map shows
 /// one point per agent, not a sequence, so a plain state glyph says more than
 /// an ordinal would.
-class _AgentMapPin extends StatelessWidget {
+///
+/// Stateful only to track hover: the disc lifts a couple of pixels under the
+/// mouse, a real affordance on a web console driven with a pointer.  Gated
+/// on [reduceMotion] like every other transition in this file.
+class _AgentMapPin extends StatefulWidget {
   const _AgentMapPin({super.key, required this.agent});
 
   final AgentActivity agent;
 
   @override
+  State<_AgentMapPin> createState() => _AgentMapPinState();
+}
+
+class _AgentMapPinState extends State<_AgentMapPin> {
+  bool _hovering = false;
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final agent = widget.agent;
     final visual = _agentStateVisual(agent.state, colors);
     final stop = _latestStop(agent);
+    final lift = _hovering ? 3.0 : 0.0;
 
-    return Semantics(
-      label: '${agent.name}, ${visual.label}, ${stop.outletName}',
-      excludeSemantics: true,
-      child: DecoratedBox(
-        // A white disc under the glyph, same as agent_trail_screen.dart's
-        // _StopPin and territory_map_screen.dart's _OutletPin: CARTO's dark
-        // and light basemaps both range from near-black roads to pale open
-        // land, so a bare icon has no background it can rely on everywhere.
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: colors.line, width: 1),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x33000000),
-              blurRadius: 3,
-              offset: Offset(0, 1),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: Semantics(
+        label: '${agent.name}, ${visual.label}, ${stop.outletName}',
+        excludeSemantics: true,
+        child: AnimatedContainer(
+          duration: reduceMotion(context) ? Duration.zero : Motion.fast,
+          curve: Motion.enter,
+          transform: Matrix4.translationValues(0, -lift, 0),
+          transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            // A white disc under the glyph, same as agent_trail_screen.dart's
+            // _StopPin and territory_map_screen.dart's _OutletPin: CARTO's
+            // dark and light basemaps both range from near-black roads to
+            // pale open land, so a bare glyph has no background it can rely
+            // on everywhere.
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: colors.line, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0x33000000),
+                blurRadius: _hovering ? 6 : 3,
+                offset: Offset(0, _hovering ? 2 : 1),
+              ),
+            ],
+          ),
+          child: Center(
+            child: AgentStateGlyph(
+              state: agent.state,
+              color: _pinGlyphColor(agent.state),
+              size: 16,
+              pulse: true,
             ),
-          ],
-        ),
-        child: Center(
-          child: Icon(visual.icon, color: _pinGlyphColor(agent.state), size: 16),
+          ),
         ),
       ),
     );
@@ -1037,16 +1143,30 @@ class _AgentMapPin extends StatelessWidget {
 /// Every row leads with WHEN, not just where. A row that says "Sandton Spar"
 /// with no age reads as live; this data is never live, and the age is the
 /// only thing that keeps the row honest.
-class _AgentRow extends StatelessWidget {
+///
+/// Stateful only to track hover/press: a subtle surface change under the
+/// mouse and on press, the same web-console affordance the map pins get.
+/// Purely visual — the row has no `onTap` action of its own today — and
+/// gated on [reduceMotion] like every other transition in this file.
+class _AgentRow extends StatefulWidget {
   const _AgentRow({required this.agent});
 
   final AgentActivity agent;
 
   @override
+  State<_AgentRow> createState() => _AgentRowState();
+}
+
+class _AgentRowState extends State<_AgentRow> {
+  bool _hovering = false;
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final agent = widget.agent;
     final colors = context.colors;
     final visual = _agentStateVisual(agent.state, colors);
-    final (icon, label, color) = (visual.icon, visual.label, visual.color);
+    final (label, color) = (visual.label, visual.color);
 
     // Idle carries no location line: the age column already reads "no
     // check-in today", and repeating that fact here would say the same thing
@@ -1059,53 +1179,76 @@ class _AgentRow extends StatelessWidget {
       AgentState.idle => label,
     };
 
-    return Semantics(
-      label: '${agent.name}, $secondLine, ${_age(agent.lastSeenAt)}',
-      // The row underneath is three live Text widgets, each of which would
-      // otherwise contribute its own implicit semantics node — without this a
-      // screen reader announces the curated label, then reads the name,
-      // status line and age again on the next three swipes.
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              key: ValueKey<String>('agent-state-icon-${agent.agentId}'),
-              size: 16,
-              color: color,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // `name` is an email — one unbroken token — and outlet
-                  // names run long, so both lines must ellipsize rather than
-                  // paint past their bound; the age column stays unbounded
-                  // since it must never be the thing that gets clipped.
-                  Text(
-                    agent.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+    final background = _pressed
+        ? colors.surface3
+        : _hovering
+        ? colors.surface2
+        : Colors.transparent;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() {
+        _hovering = false;
+        _pressed = false;
+      }),
+      child: Listener(
+        onPointerDown: (_) => setState(() => _pressed = true),
+        onPointerUp: (_) => setState(() => _pressed = false),
+        onPointerCancel: (_) => setState(() => _pressed = false),
+        child: Semantics(
+          label: '${agent.name}, $secondLine, ${_age(agent.lastSeenAt)}',
+          // The row underneath is three live Text widgets, each of which
+          // would otherwise contribute its own implicit semantics node —
+          // without this a screen reader announces the curated label, then
+          // reads the name, status line and age again on the next three
+          // swipes.
+          excludeSemantics: true,
+          child: AnimatedContainer(
+            duration: reduceMotion(context) ? Duration.zero : Motion.fast,
+            curve: Motion.enter,
+            color: background,
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Row(
+              children: [
+                AgentStateGlyph(
+                  key: ValueKey<String>('agent-state-icon-${agent.agentId}'),
+                  state: agent.state,
+                  color: color,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // `name` is an email — one unbroken token — and outlet
+                      // names run long, so both lines must ellipsize rather
+                      // than paint past their bound; the age column stays
+                      // unbounded since it must never be the thing that
+                      // gets clipped.
+                      Text(
+                        agent.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        secondLine,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: colors.ink3),
+                      ),
+                    ],
                   ),
-                  Text(
-                    secondLine,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: colors.ink3),
-                  ),
-                ],
-              ),
+                ),
+                Text(
+                  _age(agent.lastSeenAt),
+                  style: TextStyle(fontSize: 12, color: colors.ink3),
+                ),
+              ],
             ),
-            Text(
-              _age(agent.lastSeenAt),
-              style: TextStyle(fontSize: 12, color: colors.ink3),
-            ),
-          ],
+          ),
         ),
       ),
     );

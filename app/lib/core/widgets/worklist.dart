@@ -28,6 +28,7 @@ class AsyncSection<T> extends StatelessWidget {
     required this.label,
     required this.onRetry,
     required this.builder,
+    this.skipLoadingOnReload = false,
   });
 
   final AsyncValue<T> value;
@@ -37,10 +38,24 @@ class AsyncSection<T> extends StatelessWidget {
   final VoidCallback onRetry;
   final Widget Function(T data) builder;
 
+  /// When true, a provider rebuild triggered by one of its OWN dependencies
+  /// changing (e.g. a filter) keeps rendering the last [data] instead of
+  /// flashing this whole section back to the loading spinner. Off by
+  /// default — every other caller still wants the spinner on every reload,
+  /// so this is opt-in per call site.
+  ///
+  /// `AgentActivityPanel` turns this on: without it, `dashboardFilterProvider`
+  /// changing tears the map down to a spinner and rebuilds it fresh once the
+  /// new page arrives, which would make the map's camera-easing (#153) a
+  /// snap in practice even though the animation code is correct — there
+  /// would be nothing continuously mounted left to animate.
+  final bool skipLoadingOnReload;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return value.when(
+      skipLoadingOnReload: skipLoadingOnReload,
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 40),
         child: Center(

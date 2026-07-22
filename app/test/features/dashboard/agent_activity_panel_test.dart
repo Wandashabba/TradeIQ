@@ -270,8 +270,16 @@ void main() {
   });
 
   // State must never be carried by colour alone (#144's N4 rule). Each state
-  // has a distinct icon AND a text label.
-  testWidgets('gives each state a distinct icon as well as a label', (tester) async {
+  // has a distinct SHAPE — not a stock Material icon any more, see
+  // `core/widgets/agent_state_glyph.dart` — AND a text label.
+  //
+  // This replaces the old assertion, which compared `Icon.icon` values
+  // across `find.byType(Icon)`: state glyphs are no longer drawn with
+  // Material `Icon`s at all, so that check genuinely no longer applies to
+  // the current implementation rather than being weakened — it is swapped
+  // for the equivalent check against the new representation, distinct
+  // `CustomPainter` identity per state.
+  testWidgets('gives each state a distinct glyph shape, not just colour', (tester) async {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
@@ -290,12 +298,25 @@ void main() {
     expect(find.byKey(const ValueKey<String>('agent-state-icon-a2')), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('agent-state-icon-a3')), findsOneWidget);
 
-    final icons = tester
-        .widgetList<Icon>(find.byType(Icon))
-        .map((i) => i.icon)
-        .toSet();
-    // Three states rendered → at least three distinct glyphs.
-    expect(icons.length, greaterThanOrEqualTo(3));
+    Type painterTypeFor(String key) => tester
+        .widget<CustomPaint>(
+          find.descendant(
+            of: find.byKey(ValueKey<String>(key)),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .painter!
+        .runtimeType;
+
+    final shapes = {
+      painterTypeFor('agent-state-icon-a1'),
+      painterTypeFor('agent-state-icon-a2'),
+      painterTypeFor('agent-state-icon-a3'),
+    };
+    // Three states rendered → three genuinely different painters, i.e.
+    // three different silhouettes — not the same shape recoloured three
+    // times.
+    expect(shapes.length, 3);
   });
 
   testWidgets('shows the outlet a transiting agent left, from their stops', (tester) async {
@@ -697,5 +718,123 @@ void main() {
           'page, not silently re-zoom (and so discard) the computed fit — '
           'before=$before after=$after',
     );
+  });
+
+  // Direct guard on the flags object itself, alongside the behavioural wheel
+  // test above — regresses loudly if a future edit to `_AgentMap`'s
+  // `MapOptions` ever re-adds `InteractiveFlag.scrollWheelZoom` (the exact
+  // mistake this panel's map history already paid for once).
+  testWidgets("scrollWheelZoom stays out of the panel map's interaction flags", (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'a@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Spar',
+              stops: [_stop('Spar')],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
+    expect(
+      map.options.interactionOptions.flags & InteractiveFlag.scrollWheelZoom,
+      0,
+      reason: 'the panel map lives inside the dashboard\'s scrollable — a '
+          're-enabled scroll wheel would zoom the map instead of scrolling '
+          'the page around it',
+    );
+  });
+
+  // The map used to remount via a coordinate-fingerprinted key on a
+  // territory-filter change, so the camera SNAPPED straight to the new fit.
+  // `_CameraDriver` now eases the same mounted map's camera there instead —
+  // this samples the camera mid-travel to prove it is actually animating,
+  // not just landing correctly (the pre-existing
+  // 're-fits the camera when a territory-filter change moves the pins' test
+  // above already proves the end state; this one proves the journey).
+  testWidgets('the camera travels toward a filter change instead of jumping there', (tester) async {
+    final jhb = [
+      _agent(
+        id: 'a1',
+        name: 'a@x.com',
+        state: AgentState.atStore,
+        currentOutlet: 'Spar',
+        stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
+      ),
+      _agent(
+        id: 'a2',
+        name: 'b@x.com',
+        state: AgentState.atStore,
+        currentOutlet: 'Checkers',
+        stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
+      ),
+    ];
+    final capeTown = [
+      _agent(
+        id: 'a3',
+        name: 'c@x.com',
+        state: AgentState.atStore,
+        currentOutlet: 'Waterfront',
+        stops: [_stop('Waterfront', lat: -33.90, lng: 18.42)],
+      ),
+      _agent(
+        id: 'a4',
+        name: 'd@x.com',
+        state: AgentState.atStore,
+        currentOutlet: 'Canal Walk',
+        stops: [_stop('Canal Walk', lat: -33.89, lng: 18.51)],
+      ),
+    ];
+
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final before = MapCamera.of(tester.element(find.byType(MarkerLayer))).center;
+    expect(before.latitude, closeTo(-26.12, 1.0));
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AgentActivityPanel)),
+    );
+    container.read(dashboardFilterProvider.notifier).set(
+          const DashboardFilter(territoryId: 'cpt'),
+        );
+
+    // Let the refetch resolve — `skipLoadingOnReload` keeps the SAME map
+    // mounted throughout (see `AgentActivityPanel`'s `AsyncSection`), so
+    // there is a continuous camera to animate rather than a fresh one
+    // seeded straight at the target — and the travel begin, then sample it
+    // partway through, well short of `Motion.slow`'s 420ms.
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 180));
+
+    final mid = MapCamera.of(tester.element(find.byType(MarkerLayer))).center;
+    expect(
+      mid.latitude,
+      allOf(lessThan(before.latitude), greaterThan(-33.895)),
+      reason: 'partway through the travel the camera must sit strictly '
+          'between the old and new territory, not already snapped to '
+          'either one — before=$before mid=$mid',
+    );
+
+    await tester.pumpAndSettle();
+    final after = MapCamera.of(tester.element(find.byType(MarkerLayer)));
+    expect(after.center.latitude, closeTo(-33.895, 1.0));
+    expect(after.center.longitude, closeTo(18.465, 1.0));
   });
 }
