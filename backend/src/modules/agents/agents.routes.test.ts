@@ -138,6 +138,8 @@ describe('agents routes', () => {
       expect(agentIds).toEqual([agentId]);
     });
 
+    // The client-facing contract is a Territory.id (matching every other
+    // dashboard endpoint) — see the comment in agents.service.ts.
     it('scopes results to agents assigned to the given territory', async () => {
       const territory = await prisma.territory.create({
         data: { clientId, name: 'AGTR-Territory', code: 'AGTR-TC1' },
@@ -146,12 +148,32 @@ describe('agents routes', () => {
 
       try {
         const res = await request(app)
-          .get(`/agents/activity${qs}&territoryId=${territory.code}`)
+          .get(`/agents/activity${qs}&territoryId=${territory.id}`)
           .set('Authorization', `Bearer ${managerToken}`);
         expect(res.status).toBe(200);
         expect((res.body.agents as Array<{ agentId: string }>).map((a) => a.agentId)).toEqual([
           agentId,
         ]);
+      } finally {
+        await prisma.userTerritory.deleteMany({ where: { territoryId: territory.id } });
+        await prisma.territory.delete({ where: { id: territory.id } });
+      }
+    });
+
+    // #153: an id sent, a code matched, silently returning zero agents. Pins
+    // the contract in the other direction so this cannot regress.
+    it('returns no agents when a territory code is passed instead of its id', async () => {
+      const territory = await prisma.territory.create({
+        data: { clientId, name: 'AGTR-Territory-2', code: 'AGTR-TC2' },
+      });
+      await prisma.userTerritory.create({ data: { userId: agentId, territoryId: territory.id } });
+
+      try {
+        const res = await request(app)
+          .get(`/agents/activity${qs}&territoryId=${territory.code}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(200);
+        expect((res.body.agents as Array<{ agentId: string }>).map((a) => a.agentId)).toEqual([]);
       } finally {
         await prisma.userTerritory.deleteMany({ where: { territoryId: territory.id } });
         await prisma.territory.delete({ where: { id: territory.id } });

@@ -110,10 +110,18 @@ export async function listAgentActivity(
 
   let agentIdFilter: string[] | undefined;
   if (territoryId !== undefined) {
-    // `Outlet.territoryId` and `UserTerritory` both key off the territory
-    // CODE, not its id — see outlets.service.ts and the #97 postmortem.
+    // The client-facing contract for every dashboard endpoint is a
+    // Territory.id (see dashboard.service.ts's getDashboardSummary comment).
+    // UserTerritory has a real foreign key to Territory, so its id matches
+    // directly here — no resolution step needed. That is NOT true of
+    // Outlet.territoryId: that column stores the territory's CODE as free
+    // text (the #97 postmortem), which is why outlets.service.ts resolves
+    // id -> code before filtering. Copying that id->code resolution here, or
+    // matching on code instead of id, both silently return zero rows rather
+    // than erroring — that mismatch (id sent, code matched) is exactly how
+    // this endpoint originally shipped broken.
     const assignments = await prisma.userTerritory.findMany({
-      where: { territory: { clientId, code: territoryId } },
+      where: { territory: { clientId, id: territoryId } },
       select: { userId: true },
     });
     agentIdFilter = assignments.map((a) => a.userId);
