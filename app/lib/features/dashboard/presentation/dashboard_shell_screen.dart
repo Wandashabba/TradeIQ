@@ -1,12 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
+import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart' show formatAgo;
+import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -606,12 +610,100 @@ class _AvailabilityPanel extends ConsumerWidget {
 // Where are my agents — today's confirmed stops
 // ═══════════════════════════════════════════════════════════════════════
 
-/// A list, deliberately — no map tiles on the manager's morning screen.
+/// Below this the map and list sit side by side; below it they stack. Same
+/// reasoning as [DashboardShellScreen._wide] — this panel is rendered at the
+/// dashboard's full content width, not inside a [_TwoColumn], so it earns its
+/// own constant rather than reusing that private one across classes.
+const _panelWide = 1080.0;
+
+/// Fixed so the map never dominates a screen whose real subject is the
+/// execution score above it. Tall enough to place a handful of pins usefully,
+/// short enough to still read as "one panel among several".
+const _mapHeight = 260.0;
+
+/// The panel's fixed fallback/single-pin zoom — close enough to read
+/// individual outlets, used both for `MapOptions.initialZoom` and the
+/// `onMapReady` `move()` fallback so the two never drift apart.
+const _mapZoom = 11.0;
+
+/// Icon, label and colour for one agent state — the single source both the
+/// list rows and the map pins read from, so the two halves of the panel can
+/// never quietly disagree about what a state looks like. Colour is never the
+/// only carrier (#144): every state also gets a distinct icon and a word.
+({IconData icon, String label, Color color}) _agentStateVisual(
+  AgentState state,
+  TiqColors colors,
+) => switch (state) {
+  AgentState.atStore => (
+    icon: Icons.storefront,
+    label: 'At store',
+    color: colors.good,
+  ),
+  AgentState.inTransit => (
+    icon: Icons.trending_flat,
+    label: 'In transit',
+    color: colors.warn,
+  ),
+  AgentState.idle => (
+    icon: Icons.remove_circle_outline,
+    label: 'No check-in',
+    color: colors.ink4,
+  ),
+};
+
+/// Glyph colour for the map pin specifically — fixed rather than read from
+/// the ambient theme, because the pin's disc is *also* fixed white (see
+/// `_AgentMapPin`'s decoration comment) and a colour tuned for a dark panel
+/// does not necessarily read on a literal white circle. `colors.warn` in
+/// dark theme is a bright amber meant to sit on `AppColors.surface1`
+/// (#14161C) — on white it measures ~1.8:1, effectively invisible, the same
+/// fixed-background/theme-dependent-foreground mistake `_StopPin`'s numeral
+/// had. `TiqColors.light`'s good/warn were tuned against a near-white panel
+/// already and clear 5:1+ on the disc, so those literals are pinned here for
+/// every theme; `ink4` is already one shared literal in both palettes (it is
+/// documented as "marks only", meant to be theme-invariant) so it needs no
+/// override.
+Color _pinGlyphColor(AgentState state) => switch (state) {
+  AgentState.atStore => TiqColors.light.good,
+  AgentState.inTransit => TiqColors.light.warn,
+  AgentState.idle => TiqColors.light.ink4,
+};
+
+/// This agent's most recent confirmed stop. Sorts defensively rather than
+/// trusting `stops` to already be in order, for the same reason
+/// [AgentActivity.lastOutletName] does: a caller-trusted ordering that
+/// silently breaks would place the pin at a confidently wrong spot with no
+/// throw and no signal. Callers must only pass agents with `stops.isNotEmpty`.
+AgentStop _latestStop(AgentActivity agent) {
+  final sorted = [...agent.stops]
+    ..sort((a, b) => a.checkinTs.compareTo(b.checkinTs));
+  return sorted.last;
+}
+
+/// A stable fingerprint of where the pins actually are, for keying the map
+/// (see `_AgentMap`'s `LayoutBuilder` comment). Deliberately built from
+/// coordinates, not from `agentsWithStops` itself or the agents' identities:
+/// `agentActivityTodayProvider` returns a fresh `List<AgentActivity>` on
+/// every fetch (including the dashboard's own periodic/manual refresh) even
+/// when nobody has moved, and keying on that would remount the map — and
+/// throw away the manager's pan/zoom — on every refresh for no reason.
+/// Rounding to 4 decimal places (~11m) means floating-point noise or a
+/// re-fetch of the exact same check-ins can't remount it either; a territory
+/// filter change moving the pins to a different area still does.
+String _pointsSignature(List<LatLng> points) => points
+    .map(
+      (p) =>
+          '${p.latitude.toStringAsFixed(4)},${p.longitude.toStringAsFixed(4)}',
+    )
+    .join('|');
+
+/// Map + compact list, side by side — the map is the hero, the list is what
+/// keeps it honest.
 ///
-/// The question "which store is each agent at" is answered by text; rendering
-/// OpenStreetMap tiles to answer it would cost every dashboard load a set of
-/// network round-trips for information the list already carries. The map is
-/// one tap away for when geography actually matters.
+/// Pins mark the last *confirmed* check-in, never a live position (#153 is
+/// T0 — there is no heartbeat to plot). An agent with no stops today gets no
+/// pin; the list is the only reason they do not simply vanish from the
+/// panel, and the footer line beneath the map says how many that is.
 ///
 /// Public rather than private so the widget test can pump it on its own.
 class AgentActivityPanel extends ConsumerWidget {
@@ -643,10 +735,67 @@ class AgentActivityPanel extends ConsumerWidget {
                 child: Text('No agents to show for this filter.'),
               );
             }
+
+            final withStops = [
+              for (final a in page.agents)
+                if (a.stops.isNotEmpty) a,
+            ];
+            final notPlotted = page.agents.length - withStops.length;
+            final list = _AgentList(agents: page.agents);
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final agent in page.agents) _AgentRow(agent: agent),
+                if (withStops.isEmpty) ...[
+                  // No pins to plot: a grey, empty map would look broken
+                  // rather than honest, so the list carries the panel alone
+                  // and says in words why there is nothing to draw.
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Nobody has checked in yet today.',
+                      style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                    ),
+                  ),
+                  list,
+                ] else
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= _panelWide;
+                      final map = SizedBox(
+                        height: _mapHeight,
+                        child: _AgentMap(agentsWithStops: withStops),
+                      );
+                      if (!wide) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [map, const SizedBox(height: 10), list],
+                        );
+                      }
+                      return SizedBox(
+                        height: _mapHeight,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(flex: 2, child: map),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 1,
+                              child: SingleChildScrollView(child: list),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 8),
+                // Says who is plotted and who is not in one line, so the map
+                // can never quietly read as "the whole team" when some
+                // agents have no confirmed stop to draw.
+                Text(
+                  '${withStops.length} on the map · $notPlotted not checked in today',
+                  style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                ),
                 // Never let a cut list read as the whole team. A manager who
                 // cannot see an agent concludes they did not work, not that
                 // the list ran out.
@@ -667,6 +816,184 @@ class AgentActivityPanel extends ConsumerWidget {
   }
 }
 
+/// The compact list half of the panel — every agent, idle ones included.
+/// Unchanged behaviour from the list-only panel; it is what stops an agent
+/// with no stops from vanishing when the map cannot place them.
+class _AgentList extends StatelessWidget {
+  const _AgentList({required this.agents});
+
+  final List<AgentActivity> agents;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [for (final agent in agents) _AgentRow(agent: agent)],
+    );
+  }
+}
+
+/// The map half — one pin per agent with at least one confirmed stop today,
+/// placed at their latest one. No polylines here: the drill-in trail map
+/// (`agent_trail_screen.dart`) carries the day's route, this one only answers
+/// "where are they now" (as of their last check-in).
+class _AgentMap extends StatelessWidget {
+  const _AgentMap({required this.agentsWithStops});
+
+  /// Must all have `stops.isNotEmpty` — callers filter before constructing.
+  final List<AgentActivity> agentsWithStops;
+
+  @override
+  Widget build(BuildContext context) {
+    final points = [
+      for (final a in agentsWithStops)
+        LatLng(_latestStop(a).lat, _latestStop(a).lng),
+    ];
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+      // This panel lives inside DashboardShellScreen's ListView, below the
+      // fold on a typical screen — a scrollable can lay a child out before it
+      // is ever scrolled into view, sometimes on a transient pass with a
+      // zero or unbounded size. The LayoutBuilder + degenerate guard below
+      // exist for that: skip the map entirely rather than mount it against a
+      // viewport it can't use.
+      //
+      // The centre/zoom are computed OURSELVES, by `fitFor` — not by
+      // flutter_map's own `CameraFit.bounds`/`initialCameraFit`, and not by
+      // calling `fitCamera` from `onMapReady` either. Both of those depend
+      // on flutter_map's own internal camera size, which — confirmed against
+      // the running web build, with a live debug overlay reading correct
+      // points, a real bounds `CameraFit`, and a non-degenerate widget
+      // viewport already measured here — was STILL zero at the moment
+      // `onMapReady` fired, silently producing a near-world zoom centred
+      // nowhere near the data. `fitFor` uses the real pixel `size` this
+      // `LayoutBuilder` already has in hand and plain Web Mercator maths
+      // (see core/geo/mercator_fit.dart), so there is no flutter_map camera
+      // state left to race — the result is handed to flutter_map as plain
+      // `initialCenter`/`initialZoom`, values it applies synchronously and
+      // unconditionally on every mount.
+      //
+      // The key is still keyed on size PLUS a fingerprint of the plotted
+      // coordinates: a genuine size change (the panel's real first layout
+      // once scrolled into view, or a later resize) or a moved set of pins
+      // (a territory-filter change, same size) mounts a fresh State — and
+      // because we no longer hold or reuse our own `MapController` across
+      // mounts, flutter_map creates a brand new internal one each time,
+      // which always seeds its camera fresh from that mount's
+      // `initialCenter`/`initialZoom`. (The stale-controller trap the
+      // `onMapReady` version of this fix had — see git history — no longer
+      // applies: there is no persisted controller left to go stale.)
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = constraints.biggest;
+          final degenerate =
+              !size.width.isFinite ||
+              !size.height.isFinite ||
+              size.width <= 0 ||
+              size.height <= 0;
+          if (degenerate) return const SizedBox.shrink();
+
+          final (center, zoom) = fitFor(
+            points,
+            size: size,
+            padding: 24,
+            singleZoom: _mapZoom,
+          );
+
+          return FlutterMap(
+            key: ValueKey<(Size, String)>((size, _pointsSignature(points))),
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: zoom,
+              // Correctness fix, not a preference — do NOT restore the
+              // missing flag. This map is a passenger inside
+              // DashboardShellScreen's ListView, not a full-screen map like
+              // agent_trail_screen.dart: a manager reaching this
+              // below-the-fold panel scrolls the page with their mouse
+              // wheel, exactly as they would over any other panel. flutter_map's
+              // default interactionOptions treat that same wheel as a zoom
+              // gesture — so the wheel that was meant to keep scrolling the
+              // page instead zooms the map AND silently destroys the fit
+              // `fitFor` computed, leaving a manager staring at empty ocean
+              // with no idea why. Drag, pinch, and double-tap zoom all stay
+              // on; only the wheel is disabled, because the wheel is the one
+              // gesture this map cannot own without breaking the page around
+              // it.
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.scrollWheelZoom,
+              ),
+            ),
+            children: [
+              const TiqTileLayer(),
+              MarkerLayer(
+                markers: [
+                  for (final a in agentsWithStops)
+                    Marker(
+                      point: LatLng(_latestStop(a).lat, _latestStop(a).lng),
+                      width: 30,
+                      height: 30,
+                      child: _AgentMapPin(
+                        key: ValueKey<String>('agent-pin-${a.agentId}'),
+                        agent: a,
+                      ),
+                    ),
+                ],
+              ),
+              const TiqBasemapAttribution(),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// One agent's latest confirmed stop, on the panel's map.
+///
+/// Deliberately not numbered like the trail screen's stops — this map shows
+/// one point per agent, not a sequence, so a plain state glyph says more than
+/// an ordinal would.
+class _AgentMapPin extends StatelessWidget {
+  const _AgentMapPin({super.key, required this.agent});
+
+  final AgentActivity agent;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final visual = _agentStateVisual(agent.state, colors);
+    final stop = _latestStop(agent);
+
+    return Semantics(
+      label: '${agent.name}, ${visual.label}, ${stop.outletName}',
+      excludeSemantics: true,
+      child: DecoratedBox(
+        // A white disc under the glyph, same as agent_trail_screen.dart's
+        // _StopPin and territory_map_screen.dart's _OutletPin: CARTO's dark
+        // and light basemaps both range from near-black roads to pale open
+        // land, so a bare icon has no background it can rely on everywhere.
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.line, width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x33000000),
+              blurRadius: 3,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Icon(visual.icon, color: _pinGlyphColor(agent.state), size: 16),
+        ),
+      ),
+    );
+  }
+}
+
 /// One agent, one line.
 ///
 /// Every row leads with WHEN, not just where. A row that says "Sandton Spar"
@@ -680,11 +1007,8 @@ class _AgentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final (icon, label, color) = switch (agent.state) {
-      AgentState.atStore => (Icons.storefront, 'At store', colors.good),
-      AgentState.inTransit => (Icons.trending_flat, 'In transit', colors.warn),
-      AgentState.idle => (Icons.remove_circle_outline, 'No check-in', colors.ink4),
-    };
+    final visual = _agentStateVisual(agent.state, colors);
+    final (icon, label, color) = (visual.icon, visual.label, visual.color);
 
     // Idle carries no location line: the age column already reads "no
     // check-in today", and repeating that fact here would say the same thing

@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/agents_repository.dart';
@@ -74,86 +76,10 @@ class AgentTrailScreen extends ConsumerWidget {
             );
           }
 
-          final points = [
-            for (final a in withStops)
-              for (final s in a.stops) LatLng(s.lat, s.lng),
-          ];
-
-          // A single point has a zero-area bounds box, so centre on it rather
-          // than asking flutter_map to "fit" it — same reasoning as
-          // territory_map_screen.dart.
-          final cameraFit = points.length > 1
-              ? CameraFit.bounds(
-                  bounds: LatLngBounds.fromPoints(points),
-                  padding: const EdgeInsets.all(40),
-                )
-              : null;
-
           return Column(
             children: [
               _TrailLegend(truncated: page.truncated),
-              Expanded(
-                child: FlutterMap(
-                  // Keyed on the day: flutter_map's `_initialCameraFitApplied`
-                  // flag is one-shot per State (see its own widget.dart), so
-                  // without this key, picking a new day would rebuild the same
-                  // State and leave the camera pointed at the old day's
-                  // bounds — the pins would move, the camera would not.
-                  key: ValueKey<DateTime>(day),
-                  options: MapOptions(
-                    initialCenter: points.first,
-                    initialZoom: 13,
-                    initialCameraFit: cameraFit,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.tradeiq.tradeiq_app',
-                    ),
-                    PolylineLayer(
-                      polylines: [
-                        for (final a in withStops)
-                          if (a.stops.length > 1)
-                            Polyline(
-                              points: [
-                                for (final s in a.stops) LatLng(s.lat, s.lng),
-                              ],
-                              strokeWidth: 3,
-                              color: context.colors.brand,
-                              // Dashed, deliberately. A solid line would claim
-                              // we know the route between two check-ins. We
-                              // know two points; the rest is inference, and
-                              // the stroke should look like inference.
-                              pattern: StrokePattern.dashed(segments: const [8.0, 6.0]),
-                            ),
-                      ],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        for (final a in withStops)
-                          for (var i = 0; i < a.stops.length; i++)
-                            Marker(
-                              point: LatLng(a.stops[i].lat, a.stops[i].lng),
-                              width: 34,
-                              height: 34,
-                              child: _StopPin(
-                                key: ValueKey<String>('agent-stop-${a.agentId}-$i'),
-                                agentName: a.name,
-                                stop: a.stops[i],
-                                ordinal: i + 1,
-                                isLast: i == a.stops.length - 1,
-                              ),
-                            ),
-                      ],
-                    ),
-                    // Required by OSM's ODbL licence — separate from, and in
-                    // addition to, the TileLayer's userAgentPackageName.
-                    const SimpleAttributionWidget(
-                      source: Text('OpenStreetMap contributors'),
-                    ),
-                  ],
-                ),
-              ),
+              Expanded(child: _TrailMap(day: day, withStops: withStops)),
             ],
           );
         },
@@ -163,6 +89,143 @@ class AgentTrailScreen extends ConsumerWidget {
 }
 
 String _two(int n) => n.toString().padLeft(2, '0');
+
+/// A stable fingerprint of where the pins actually are, for keying the map
+/// alongside the day (see `_TrailMap`'s `FlutterMap` key comment). Built from
+/// coordinates rather than agent identity so a same-data re-fetch (this
+/// screen's own retry, or a background refresh) can't remount the map and
+/// throw away the manager's pan/zoom for no reason — only a real change in
+/// where the pins are should do that. Rounded to 4 decimal places (~11m) so
+/// floating-point noise can't cause a spurious remount either.
+String _pointsSignature(List<LatLng> points) => points
+    .map(
+      (p) =>
+          '${p.latitude.toStringAsFixed(4)},${p.longitude.toStringAsFixed(4)}',
+    )
+    .join('|');
+
+/// The trail map's fixed fallback/single-pin zoom, shared between
+/// `fitFor`'s `singleZoom` and the degenerate-viewport fallback so the two
+/// can't drift apart.
+const _trailZoom = 13.0;
+
+/// The trail map itself.
+///
+/// The centre/zoom are computed OURSELVES, by `fitFor` — not by
+/// flutter_map's own `CameraFit.bounds`/`initialCameraFit`, and not by
+/// calling `fitCamera` from `onMapReady` either. Both of those depend on
+/// flutter_map's own internal camera size, which — confirmed against the
+/// running web build, with a live debug overlay reading correct points, a
+/// real bounds `CameraFit`, and a non-degenerate widget viewport already
+/// measured — was STILL zero at the moment `onMapReady` fired, silently
+/// producing a near-world zoom centred nowhere near the data. `fitFor` uses
+/// the real pixel size this screen's own `LayoutBuilder` has in hand and
+/// plain Web Mercator maths (see core/geo/mercator_fit.dart), so there is no
+/// flutter_map camera state left to race — the result is handed to
+/// flutter_map as plain `initialCenter`/`initialZoom`, values it applies
+/// synchronously and unconditionally on every mount.
+class _TrailMap extends StatelessWidget {
+  const _TrailMap({required this.day, required this.withStops});
+
+  final DateTime day;
+
+  /// Must all have `stops.isNotEmpty` — the caller filters before
+  /// constructing.
+  final List<AgentActivity> withStops;
+
+  @override
+  Widget build(BuildContext context) {
+    final points = [
+      for (final a in withStops)
+        for (final s in a.stops) LatLng(s.lat, s.lng),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = constraints.biggest;
+        final degenerate =
+            !size.width.isFinite ||
+            !size.height.isFinite ||
+            size.width <= 0 ||
+            size.height <= 0;
+        if (degenerate) return const SizedBox.shrink();
+
+        final (center, zoom) = fitFor(
+          points,
+          size: size,
+          padding: 40,
+          singleZoom: _trailZoom,
+        );
+
+        return FlutterMap(
+          // Keyed on the day AND a fingerprint of the plotted coordinates: a
+          // key change is what mounts a fresh State, and because we don't
+          // hold or reuse our own `MapController` across mounts,
+          // flutter_map creates a brand new internal one each time, which
+          // always seeds its camera fresh from that mount's
+          // `initialCenter`/`initialZoom`. The day alone isn't enough — this
+          // screen's provider also watches `dashboardFilterProvider`, so a
+          // manager switching territories without changing the date
+          // re-fetches a completely different set of pins on the SAME day,
+          // and the camera would stay pointed at the old territory. The
+          // fingerprint is rounded (~11m) so a same-data re-fetch (this
+          // screen's own refresh) can't remount the map and throw away a
+          // pan/zoom for no reason.
+          key: ValueKey<(DateTime, String)>((day, _pointsSignature(points))),
+          // Deliberately keeps flutter_map's default interactionOptions,
+          // scroll-wheel zoom included — unlike the dashboard panel's map
+          // (dashboard_shell_screen.dart), which disables it. This screen IS
+          // the page: it's a full-screen map inside ManagerScaffold with no
+          // scrollable parent competing for the wheel, so there is nothing
+          // for a wheel-zoom to fight with. The asymmetry between the two
+          // maps is deliberate, not a missed case.
+          options: MapOptions(initialCenter: center, initialZoom: zoom),
+          children: [
+            const TiqTileLayer(),
+            PolylineLayer(
+              polylines: [
+                for (final a in withStops)
+                  if (a.stops.length > 1)
+                    Polyline(
+                      points: [for (final s in a.stops) LatLng(s.lat, s.lng)],
+                      strokeWidth: 3,
+                      color: context.colors.brand,
+                      // Dashed, deliberately. A solid line would claim we
+                      // know the route between two check-ins. We know two
+                      // points; the rest is inference, and the stroke
+                      // should look like inference.
+                      pattern: StrokePattern.dashed(segments: const [8.0, 6.0]),
+                    ),
+              ],
+            ),
+            MarkerLayer(
+              markers: [
+                for (final a in withStops)
+                  for (var i = 0; i < a.stops.length; i++)
+                    Marker(
+                      point: LatLng(a.stops[i].lat, a.stops[i].lng),
+                      width: 34,
+                      height: 34,
+                      child: _StopPin(
+                        key: ValueKey<String>('agent-stop-${a.agentId}-$i'),
+                        agentName: a.name,
+                        stop: a.stops[i],
+                        ordinal: i + 1,
+                        isLast: i == a.stops.length - 1,
+                      ),
+                    ),
+              ],
+            ),
+            // Required by CARTO's terms (and, through them, OSM's ODbL
+            // licence) — separate from, and in addition to, the TileLayer's
+            // userAgentPackageName.
+            const TiqBasemapAttribution(),
+          ],
+        );
+      },
+    );
+  }
+}
 
 /// Says in words what the dashes mean. Without this the map still overstates
 /// its own certainty to anyone who does not read stroke styles as semantics.
@@ -207,6 +270,18 @@ class _StopPin extends StatelessWidget {
   final int ordinal;
   final bool isLast;
 
+  /// The non-last disc is a **fixed** white, chosen so it reads against
+  /// unpredictable map tiles rather than the app theme — so its numeral must
+  /// be pinned to a fixed dark ink too, not pulled from `colors.ink1`.
+  /// `ink1` is near-white in dark theme (it is meant to sit on a dark panel,
+  /// not a white disc), which made every non-final stop a blank white circle
+  /// in the dark console: the numbering is the entire reason the sequence
+  /// survives greyscale (#144), so a theme-dependent numeral on a
+  /// theme-fixed disc quietly defeated its own accessibility property. This
+  /// is the light theme's ink1 value, kept as a literal on purpose — do not
+  /// swap it back to `colors.ink1`.
+  static const _nonLastNumeralColor = Color(0xFF14161C);
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -240,7 +315,11 @@ class _StopPin extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isLast ? Colors.white : colors.ink1,
+                // isLast sits on colors.brand (a fixed blue, shared by both
+                // themes) so white reads there regardless of theme; the
+                // non-last numeral sits on the fixed white disc above, so it
+                // gets the matching fixed dark ink rather than colors.ink1.
+                color: isLast ? Colors.white : _nonLastNumeralColor,
               ),
             ),
           ),

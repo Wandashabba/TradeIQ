@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart';
+import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 class _FakeAgentsRepository implements AgentsRepository {
@@ -35,6 +39,22 @@ class _DayDependentAgentsRepository implements AgentsRepository {
     String? territoryId,
   }) async =>
       AgentActivityPage(agents: byDay[from.day] ?? const [], truncated: false);
+}
+
+/// Returns different agents depending on the requested territory (same day
+/// throughout) — just enough to prove the map re-fits when the territory
+/// filter changes, without a full backend fake.
+class _TerritoryAwareAgentsRepository implements AgentsRepository {
+  _TerritoryAwareAgentsRepository(this.byTerritory);
+  final Map<String?, List<AgentActivity>> byTerritory;
+
+  @override
+  Future<AgentActivityPage> listActivity({
+    required DateTime from,
+    required DateTime to,
+    String? territoryId,
+  }) async =>
+      AgentActivityPage(agents: byTerritory[territoryId] ?? const [], truncated: false);
 }
 
 class _ThrowingRepository implements AgentsRepository {
@@ -229,7 +249,7 @@ void main() {
   // that removes AsyncSection's loading interstitial (which today forces a
   // fresh FlutterMap mount on every family-provider switch, independently of
   // any key) doesn't silently reintroduce a stuck camera. Verified by
-  // temporarily deleting the `key: ValueKey<DateTime>(day)` line: the camera
+  // temporarily deleting the day+coordinate key on `FlutterMap`: the camera
   // assertion below still passed (the loading branch already remounts
   // FlutterMap on every day change here), so the key assertion is what
   // actually pins the fix — the camera check is real end-state coverage, not
@@ -273,7 +293,7 @@ void main() {
     expect(cameraBefore.latitude, closeTo(-26.10, 0.5));
     expect(
       tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
-      ValueKey<DateTime>(DateTime(2026, 7, 22)),
+      ValueKey<(DateTime, String)>((DateTime(2026, 7, 22), '-26.1000,28.0500')),
     );
 
     container.read(agentTrailDayProvider.notifier).state = DateTime(2026, 7, 23);
@@ -285,7 +305,140 @@ void main() {
     expect(cameraAfter.latitude, isNot(closeTo(cameraBefore.latitude, 1)));
     expect(
       tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
-      ValueKey<DateTime>(DateTime(2026, 7, 23)),
+      ValueKey<(DateTime, String)>((DateTime(2026, 7, 23), '-33.9000,18.4200')),
     );
+  });
+
+  // The pin disc is deliberately fixed white (it has to read against
+  // unpredictable map tiles, not the app's light/dark toggle) — so a numeral
+  // pulled from the ambient theme (`colors.ink1`) is nearly invisible in dark
+  // mode, ~1.2:1 on white, even though it looks fine in light mode where
+  // ink1 happens to be dark. A test that only pumps the default theme is
+  // exactly how this shipped — so this one checks both.
+  testWidgets('the non-last numeral stays legible on its disc in both themes', (tester) async {
+    Future<void> pumpThemed(ThemeData theme) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
+          ],
+          child: MaterialApp.router(
+            theme: theme,
+            routerConfig: GoRouter(
+              initialLocation: '/screen',
+              routes: [
+                GoRoute(path: '/screen', builder: (context, state) => const AgentTrailScreen()),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+      await pumpThemed(theme);
+
+      final pinKey = find.byKey(const ValueKey<String>('agent-stop-a1-0'));
+      final discColor = (tester
+              .widget<DecoratedBox>(
+                find.descendant(of: pinKey, matching: find.byType(DecoratedBox)).first,
+              )
+              .decoration as BoxDecoration)
+          .color!;
+      final numeralColor = tester
+          .widget<Text>(find.descendant(of: pinKey, matching: find.byType(Text)).first)
+          .style!
+          .color!;
+
+      // 3:1 is this codebase's own bar for graphical marks (ink4's doc
+      // comment, tiq_colors_test.dart) — a numeral is exactly that.
+      expect(
+        contrastRatio(discColor, numeralColor),
+        greaterThanOrEqualTo(3.0),
+        reason: 'disc $discColor vs numeral $numeralColor under ${theme.brightness}',
+      );
+    }
+  });
+
+  // Same one-shot-fit gap as the dashboard panel's territory-filter test:
+  // this screen's own provider (`agentActivityForDayProvider`) also watches
+  // `dashboardFilterProvider`, so switching territories without changing the
+  // date re-fetches a different set of pins on the SAME day — the day-only
+  // key would leave the camera pointed at the old territory.
+  testWidgets('re-fits the camera when a territory-filter change moves the pins, same day', (tester) async {
+    final jhb = [
+      AgentActivity(
+        agentId: 'a1',
+        name: 'thabo@example.com',
+        state: AgentState.inTransit,
+        stops: [_stop('v1', 'Sandton Spar', -26.10, 28.05, 8)],
+      ),
+    ];
+    final capeTown = [
+      AgentActivity(
+        agentId: 'a5',
+        name: 'zola@example.com',
+        state: AgentState.inTransit,
+        stops: [_stop('v20', 'V&A Waterfront', -33.90, 18.42, 9)],
+      ),
+    ];
+
+    await tester.pumpWidget(routedApp(
+      const AgentTrailScreen(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final before = MapCamera.of(tester.element(find.byType(TileLayer))).center;
+    expect(before.latitude, closeTo(-26.10, 0.5));
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AgentTrailScreen)),
+    );
+    container.read(dashboardFilterProvider.notifier).set(
+          const DashboardFilter(territoryId: 'cpt'),
+        );
+    await tester.pumpAndSettle();
+
+    final after = MapCamera.of(tester.element(find.byType(TileLayer))).center;
+    expect(after.latitude, closeTo(-33.90, 0.5));
+    expect(after.latitude, isNot(closeTo(before.latitude, 1)));
+  });
+
+  // Unit-level guard for the `fitFor` fix, as far as a widget test can reach
+  // it: flutter_map's OWN fit machinery — `initialCameraFit`, and the
+  // `onMapReady`/`MapController.fitCamera` fix that came before this one —
+  // both turned out to depend on flutter_map's internal camera size, which
+  // a live debug overlay on the running web build showed was still zero at
+  // the moment `onMapReady` fired. This proves none of that machinery is
+  // wired up any more: no `mapController`, no `onMapReady`, no
+  // `initialCameraFit` — just a plain, pre-computed `initialCenter`/
+  // `initialZoom` flutter_map applies unconditionally. It does NOT prove
+  // the web bug is fixed; that mechanism has no timing left to race, which
+  // is a different (stronger) claim this suite can actually make, but the
+  // browser is still the real verification.
+  testWidgets('computes the camera itself via fitFor, not flutter_map\'s own fit machinery', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const AgentTrailScreen(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
+    expect(map.options.initialCameraFit, isNull);
+    expect(map.options.onMapReady, isNull);
+    expect(map.mapController, isNull);
+    // A sane, JHB-scale value — not flutter_map's own built-in default
+    // (LatLng(50.5, 30.51), zoom 13) that would appear if nothing had wired
+    // a real centre/zoom into `initialCenter`/`initialZoom` at all.
+    expect(map.options.initialCenter.latitude, closeTo(-26.12, 1.0));
+    expect(map.options.initialZoom, inInclusiveRange(8, 16));
   });
 }
