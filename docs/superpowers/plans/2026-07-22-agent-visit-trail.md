@@ -26,7 +26,16 @@ Read the spec above first. Four constraints drive nearly every decision here and
 **Backend — create:**
 - `backend/src/modules/agents/agents.service.ts` — query + state derivation. Pure logic, no Express types.
 - `backend/src/modules/agents/agents.routes.ts` — validation, role guard, tenant scoping.
-- `backend/src/modules/agents/agents.routes.test.ts` — route + service tests.
+- `backend/src/modules/agents/agents.service.test.ts` — service unit tests (Tasks 1–2).
+- `backend/src/modules/agents/agents.routes.test.ts` — HTTP route tests (Task 3).
+
+> **Amended 2026-07-22, after Task 1 review.** The first draft of this plan put every
+> test in `agents.routes.test.ts`, including pure-function unit tests. That contradicts
+> the repo's convention — `auth`, `fraud`, `reports` and `stock` all pair a
+> `.service.test.ts` (direct service calls) against a `.routes.test.ts` (HTTP via
+> supertest) — and it would have forced Task 3's real route tests to share a file
+> already full of unit tests. Tasks 1 and 2 write to `agents.service.test.ts`; Task 3
+> writes to `agents.routes.test.ts`.
 
 **Backend — modify:**
 - `backend/src/app.ts` — register the router.
@@ -52,11 +61,11 @@ The pure function first, with no database and no Express. Everything else builds
 
 **Files:**
 - Create: `backend/src/modules/agents/agents.service.ts`
-- Create: `backend/src/modules/agents/agents.routes.test.ts`
+- Create: `backend/src/modules/agents/agents.service.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `backend/src/modules/agents/agents.routes.test.ts` with only the state-derivation block for now:
+Create `backend/src/modules/agents/agents.service.test.ts` with only the state-derivation block for now:
 
 ```typescript
 import { deriveAgentState, VisitStop } from './agents.service';
@@ -109,7 +118,7 @@ describe('deriveAgentState', () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-cd backend && npx jest src/modules/agents/agents.routes.test.ts
+cd backend && npx jest src/modules/agents/agents.service.test.ts
 ```
 
 Expected: FAIL — `Cannot find module './agents.service'`.
@@ -141,8 +150,14 @@ export interface AgentStateResult {
 }
 
 /**
- * Derives where an agent is from their stops, which MUST be ordered by
- * `checkinTs` ascending.
+ * Derives where an agent is from their stops, in any order.
+ *
+ * Sorts internally rather than trusting the caller to pre-sort. Both the
+ * `at_store` outlet and the two-open-visits tie-break depend on order, and an
+ * unsorted input would silently return the WRONG outlet — no throw, no signal.
+ * On a feature whose whole premise is "do not claim to know where someone is
+ * when you don't", a redundant sort over a day's worth of stops is a trivial
+ * price for removing that failure mode.
  *
  * Three states, not four. #153's sketch proposed an `offline` state, but T0
  * has no heartbeat — it cannot tell "phone is off" from "driving between
@@ -153,10 +168,13 @@ export function deriveAgentState(stops: VisitStop[]): AgentStateResult {
     return { state: 'idle', currentOutlet: null };
   }
 
+  // A copy — callers hand us their own arrays and must not have them reordered.
+  const ordered = [...stops].sort((a, b) => a.checkinTs.getTime() - b.checkinTs.getTime());
+
   // Two open visits means the agent checked in somewhere without submitting
   // the previous one. Real data, not hypothetical. Take the latest: that is
   // where they most plausibly are now.
-  const open = stops.filter((s) => s.status === 'in_progress');
+  const open = ordered.filter((s) => s.status === 'in_progress');
   if (open.length > 0) {
     const latest = open[open.length - 1];
     return {
@@ -172,7 +190,7 @@ export function deriveAgentState(stops: VisitStop[]): AgentStateResult {
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-cd backend && npx jest src/modules/agents/agents.routes.test.ts
+cd backend && npx jest src/modules/agents/agents.service.test.ts
 ```
 
 Expected: PASS, 4 tests.
@@ -190,11 +208,11 @@ git commit -m "feat(backend): derive agent state from visit stops (#153)"
 
 **Files:**
 - Modify: `backend/src/modules/agents/agents.service.ts`
-- Modify: `backend/src/modules/agents/agents.routes.test.ts`
+- Modify: `backend/src/modules/agents/agents.service.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `agents.routes.test.ts`. Note the harness shape — it matches `territories.routes.test.ts`, which you should skim first.
+Append to `agents.service.test.ts`. Note the harness shape — it matches `territories.routes.test.ts`, which you should skim first.
 
 ```typescript
 import { prisma } from '../../lib/prisma';
@@ -299,7 +317,7 @@ describe('listAgentActivity', () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-cd backend && npx jest src/modules/agents/agents.routes.test.ts -t listAgentActivity
+cd backend && npx jest src/modules/agents/agents.service.test.ts -t listAgentActivity
 ```
 
 Expected: FAIL — `listAgentActivity is not a function`.
@@ -441,7 +459,7 @@ export async function listAgentActivity(
 - [ ] **Step 4: Run it and watch it pass**
 
 ```bash
-cd backend && npx jest src/modules/agents/agents.routes.test.ts
+cd backend && npx jest src/modules/agents/agents.service.test.ts
 ```
 
 Expected: PASS, 7 tests.
@@ -460,21 +478,53 @@ git commit -m "feat(backend): query agent activity from visit rows (#153)"
 **Files:**
 - Create: `backend/src/modules/agents/agents.routes.ts`
 - Modify: `backend/src/app.ts`
-- Modify: `backend/src/modules/agents/agents.routes.test.ts`
+- Create: `backend/src/modules/agents/agents.routes.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `agents.routes.test.ts`. You will need `import request from 'supertest'`, `import { app } from '../../app'`, and `import { issueToken } from '../auth/auth.service'` at the top of the file if not already present. Add a manager and their token to the existing `beforeAll`:
+Create `backend/src/modules/agents/agents.routes.test.ts` — a **new** file, separate from
+`agents.service.test.ts`, per the repo convention noted in the File structure section above.
+
+It needs its own fixtures, since it does not share a scope with the service tests. Use
+distinct email addresses and outlet codes from the ones in `agents.service.test.ts`
+(prefix `AGTR-` rather than `AGT-`) so the two suites cannot collide if they run
+concurrently against the same database.
 
 ```typescript
+import request from 'supertest';
+import { prisma } from '../../lib/prisma';
+import { app } from '../../app';
+import { issueToken } from '../auth/auth.service';
+
+describe('agents routes', () => {
+  let clientId: string;
+  let managerToken: string;
+  let agentToken: string;
+
+  beforeAll(async () => {
+    const client = await prisma.client.create({
+      data: { name: 'AGTR-Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+    });
+    clientId = client.id;
+
     const manager = await prisma.user.create({
-      data: { email: 'AGT-manager@example.com', passwordHash: 'x', role: 'manager', clientId },
+      data: { email: 'AGTR-manager@example.com', passwordHash: 'x', role: 'manager', clientId },
     });
     managerToken = issueToken({ userId: manager.id, role: 'manager', clientId });
+
+    const agent = await prisma.user.create({
+      data: { email: 'AGTR-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({ where: { clientId } });
+    await prisma.client.deleteMany({ where: { id: clientId } });
+  });
 ```
 
-declaring `let managerToken: string; let agentToken: string;` alongside the other `let`s. Then:
+Then, nested inside that `describe`:
 
 ```typescript
 describe('GET /agents/activity', () => {
@@ -523,8 +573,13 @@ describe('GET /agents/activity', () => {
       .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(400);
   });
+  });
 });
 ```
+
+The two closing braces are both needed: the inner one closes
+`describe('GET /agents/activity')`, the outer one closes `describe('agents routes')`
+opened above.
 
 - [ ] **Step 2: Run it and watch it fail**
 
