@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
@@ -46,10 +47,20 @@ AgentActivity _agent({
       stops: stops,
     );
 
+AgentStop _stop(String outletName) => AgentStop(
+      visitId: 'v1',
+      outletId: 'o1',
+      outletName: outletName,
+      lat: -26.10,
+      lng: 28.05,
+      checkinTs: DateTime.now().subtract(const Duration(minutes: 20)),
+      inProgress: false,
+    );
+
 void main() {
   testWidgets('renders an at-store agent with their outlet', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
@@ -73,7 +84,7 @@ void main() {
 
   testWidgets('renders an idle agent as not checked in', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
@@ -89,7 +100,7 @@ void main() {
 
   testWidgets('shows an empty state when there are no agents', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
       ],
@@ -103,7 +114,7 @@ void main() {
   // manager sees 200 rows and concludes that is everyone.
   testWidgets('says so when the server had more agents than it returned', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository(
@@ -120,7 +131,7 @@ void main() {
 
   testWidgets('shows no truncation notice when the list is complete', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository(
@@ -138,7 +149,7 @@ void main() {
   // has a distinct icon AND a text label.
   testWidgets('gives each state a distinct icon as well as a label', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
@@ -165,7 +176,7 @@ void main() {
 
   testWidgets('shows the outlet a transiting agent left, from their stops', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
@@ -199,7 +210,7 @@ void main() {
 
   testWidgets('falls back to "unknown store" for an at-store agent with no outlet name', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
@@ -220,7 +231,7 @@ void main() {
 
   testWidgets('shows a Retry affordance when the fetch fails', (tester) async {
     await tester.pumpWidget(routedApp(
-      const AgentActivityPanel(),
+      const Scaffold(body: AgentActivityPanel()),
       overrides: [
         agentsRepositoryProvider.overrideWithValue(_FailingAgentsRepository()),
       ],
@@ -228,5 +239,104 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('plots a pin for an agent with a confirmed stop today', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'thabo@example.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Sandton Spar',
+              stops: [_stop('Sandton Spar')],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FlutterMap), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
+  });
+
+  // The list is what stops an agent with no confirmed stop from vanishing:
+  // they cannot be plotted, so the row is the only place they still appear.
+  testWidgets('an idle agent gets no pin but still appears in the list', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'thabo@example.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Sandton Spar',
+              stops: [_stop('Sandton Spar')],
+            ),
+            _agent(id: 'a2', name: 'sipho@example.com', state: AgentState.idle),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('agent-pin-a2')), findsNothing);
+    expect(find.text('sipho@example.com'), findsOneWidget);
+  });
+
+  testWidgets('the footer reports how many are plotted versus not', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'a@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Spar',
+              stops: [_stop('Spar')],
+            ),
+            _agent(
+              id: 'a2',
+              name: 'b@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Checkers',
+              stops: [_stop('Checkers')],
+            ),
+            _agent(id: 'a3', name: 'c@x.com', state: AgentState.idle),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 on the map · 1 not checked in today'), findsOneWidget);
+  });
+
+  // A grey, pinless map would read as broken rather than honest — so when
+  // nobody has a confirmed stop, no map renders at all.
+  testWidgets('renders no map when no agent has a confirmed stop today', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(id: 'a1', name: 'a@x.com', state: AgentState.idle),
+            _agent(id: 'a2', name: 'b@x.com', state: AgentState.inTransit),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FlutterMap), findsNothing);
+    expect(find.textContaining('Nobody has checked in yet today'), findsOneWidget);
   });
 }

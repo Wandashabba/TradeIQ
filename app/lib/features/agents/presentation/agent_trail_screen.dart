@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/agents_repository.dart';
@@ -106,10 +107,7 @@ class AgentTrailScreen extends ConsumerWidget {
                     initialCameraFit: cameraFit,
                   ),
                   children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.tradeiq.tradeiq_app',
-                    ),
+                    const TiqTileLayer(),
                     PolylineLayer(
                       polylines: [
                         for (final a in withStops)
@@ -146,11 +144,10 @@ class AgentTrailScreen extends ConsumerWidget {
                             ),
                       ],
                     ),
-                    // Required by OSM's ODbL licence — separate from, and in
-                    // addition to, the TileLayer's userAgentPackageName.
-                    const SimpleAttributionWidget(
-                      source: Text('OpenStreetMap contributors'),
-                    ),
+                    // Required by CARTO's terms (and, through them, OSM's
+                    // ODbL licence) — separate from, and in addition to, the
+                    // TileLayer's userAgentPackageName.
+                    const TiqBasemapAttribution(),
                   ],
                 ),
               ),
