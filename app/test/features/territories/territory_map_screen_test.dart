@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/territories/presentation/territory_map_screen.dart';
@@ -70,7 +71,7 @@ Widget _app(TerritoryCoverage coverage) => routedApp(
     );
 
 void main() {
-  testWidgets('renders a green pin for visited and red for unvisited outlets',
+  testWidgets('distinguishes visited from unvisited by SHAPE, not just colour',
       (tester) async {
     const coverage = TerritoryCoverage(
       outletCount: 2,
@@ -90,8 +91,42 @@ void main() {
     final unvisitedPin = tester.widget<Icon>(
       find.byKey(const ValueKey<String>('outlet-pin-icon-o2')),
     );
-    expect(visitedPin.color, Colors.green);
-    expect(unvisitedPin.color, Colors.red);
+    // The point of the fix: the two states must differ in silhouette, so the
+    // map still reads in greyscale and for red-green colour-vision deficiency.
+    // Asserting colour alone is what let the old pins pass while being
+    // indistinguishable to a large minority of users.
+    expect(visitedPin.icon, Icons.check_circle);
+    expect(unvisitedPin.icon, Icons.location_on);
+    expect(visitedPin.icon, isNot(unvisitedPin.icon));
+
+    // Colour still carries the same meaning for those who can see it, but from
+    // the theme's status tokens rather than raw material colours.
+    expect(visitedPin.color, TiqColors.dark.good);
+    expect(unvisitedPin.color, TiqColors.dark.crit);
+  });
+
+  testWidgets('states the visit status in words for screen readers', (
+    tester,
+  ) async {
+    const coverage = TerritoryCoverage(
+      outletCount: 2,
+      agentCount: 0,
+      outlets: [
+        Outlet(id: 'o1', name: 'Alpha', code: 'A1', lat: -26.1, lng: 28.0, visited: true),
+        Outlet(id: 'o2', name: 'Beta', code: 'B2', lat: -26.2, lng: 28.1),
+      ],
+      outletsVisited: 1,
+      outletsTotal: 2,
+      coverageRate: 50,
+    );
+    await tester.pumpWidget(_app(coverage));
+    await tester.pump();
+    await tester.pump();
+
+    // Without this the map is a set of identically-labelled buttons: shape and
+    // colour are both invisible to a screen reader.
+    expect(find.bySemanticsLabel('Alpha, visited'), findsOneWidget);
+    expect(find.bySemanticsLabel('Beta, not yet visited'), findsOneWidget);
   });
 
   testWidgets('tapping a pin shows the outlet info sheet', (tester) async {
