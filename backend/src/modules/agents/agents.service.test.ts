@@ -72,6 +72,7 @@ describe('listAgentActivity', () => {
   let clientId: string;
   let otherClientId: string;
   let agentId: string;
+  let agentId2: string;
   let otherAgentId: string;
   let outletId: string;
 
@@ -93,6 +94,15 @@ describe('listAgentActivity', () => {
       data: { email: 'AGT-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
     });
     agentId = agent.id;
+
+    // A second same-tenant agent, deliberately kept without visits — it
+    // exists so the pagination/limit tests always have exactly two
+    // field_agent rows to page over ("two matching agents" throughout this
+    // describe block always means agentId + agentId2, nothing more).
+    const agent2 = await prisma.user.create({
+      data: { email: 'AGT-agent2@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentId2 = agent2.id;
 
     const otherAgent = await prisma.user.create({
       data: { email: 'AGT-other@example.com', passwordHash: 'x', role: 'field_agent', clientId: otherClientId },
@@ -145,6 +155,13 @@ describe('listAgentActivity', () => {
   });
 
   afterAll(async () => {
+    // Safety net: the territory tests below clean up their own Territory /
+    // UserTerritory rows in a `finally`, but if an assertion throws first
+    // this still leaves the fixtures deletable.
+    await prisma.userTerritory.deleteMany({
+      where: { territory: { clientId: { in: [clientId, otherClientId] } } },
+    });
+    await prisma.territory.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
     await prisma.visit.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
     await prisma.outlet.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
     await prisma.user.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
@@ -176,5 +193,145 @@ describe('listAgentActivity', () => {
     expect(mine!.state).toBe('idle');
     expect(mine!.lastSeenAt).toBeNull();
     expect(mine!.stops).toEqual([]);
+  });
+
+  // A non-positive limit must not be read as "unbounded". Clamped to 1 so a
+  // bad query param (or a NaN forwarded from the route) still pages rather
+  // than silently claiming there's nothing more to fetch.
+  it('clamps a non-positive limit up to 1 instead of returning everything', async () => {
+    const result = await listAgentActivity({ clientId, from: FROM, to: TO, limit: 0 });
+    expect(result.agents).toHaveLength(1);
+    expect(result.nextCursor).not.toBeNull();
+  });
+
+  it('limit: 1 returns one agent with nextCursor equal to that agent\'s id', async () => {
+    const result = await listAgentActivity({ clientId, from: FROM, to: TO, limit: 1 });
+    expect(result.agents).toHaveLength(1);
+    expect(result.nextCursor).toBe(result.agents[0].agentId);
+  });
+
+  it('fetches the second page using the cursor from the first', async () => {
+    const first = await listAgentActivity({ clientId, from: FROM, to: TO, limit: 1 });
+    const second = await listAgentActivity({
+      clientId,
+      from: FROM,
+      to: TO,
+      limit: 1,
+      cursor: first.nextCursor!,
+    });
+    expect(second.agents).toHaveLength(1);
+    expect(second.agents[0].agentId).not.toBe(first.agents[0].agentId);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  // Guards the classic off-by-one: returning exactly `limit` rows must not
+  // also emit a cursor implying there is more.
+  it('nextCursor is null when limit equals the total number of matching agents', async () => {
+    const result = await listAgentActivity({ clientId, from: FROM, to: TO, limit: 2 });
+    expect(result.agents).toHaveLength(2);
+    expect(result.agents.map((a) => a.agentId).sort()).toEqual([agentId, agentId2].sort());
+    expect(result.nextCursor).toBeNull();
+  });
+
+  // The #97-class regression this guards against: matching a territory
+  // filter on Territory.id instead of Territory.code silently returns
+  // nothing rather than erroring. Asserting on the assigned agent (not just
+  // "the list is non-empty") is what would catch that if someone
+  // "simplified" the filter later.
+  it('filters agents to those assigned to a territory, matched by code not id', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'AGT-Territory', code: 'AGT-TC1' },
+    });
+    await prisma.userTerritory.create({ data: { userId: agentId, territoryId: territory.id } });
+
+    try {
+      const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: territory.code });
+      expect(result.agents.map((a) => a.agentId)).toEqual([agentId]);
+    } finally {
+      await prisma.userTerritory.deleteMany({ where: { territoryId: territory.id } });
+      await prisma.territory.delete({ where: { id: territory.id } });
+    }
+  });
+
+  it('returns no agents when the territory code has zero assignments', async () => {
+    const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: 'AGT-NOPE' });
+    expect(result).toEqual({ agents: [], nextCursor: null });
+  });
+
+  // Two open visits with an identical checkinTs is plausible from a retried
+  // offline sync. `orderBy: checkinTs asc` alone leaves Postgres free to
+  // return ties in either order, which `deriveAgentState`'s stable sort
+  // would then faithfully propagate into a flip-flopping currentOutlet. A
+  // secondary `id` sort is what makes "pick the latest" deterministic.
+  it('picks the same outlet across repeated calls when two open visits share an exact checkinTs', async () => {
+    const tieClient = await prisma.client.create({
+      data: { name: 'AGT-Tie-Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+    });
+    const tieAgent = await prisma.user.create({
+      data: { email: 'AGT-tie-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId: tieClient.id },
+    });
+    const outletA = await prisma.outlet.create({
+      data: {
+        name: 'Tie Outlet A',
+        code: 'AGT-TIE-A',
+        channelType: 'general_trade',
+        lat: -26.1,
+        lng: 28.05,
+        clientId: tieClient.id,
+        territoryId: 'AGT-TIE-T',
+      },
+    });
+    const outletB = await prisma.outlet.create({
+      data: {
+        name: 'Tie Outlet B',
+        code: 'AGT-TIE-B',
+        channelType: 'general_trade',
+        lat: -26.1,
+        lng: 28.05,
+        clientId: tieClient.id,
+        territoryId: 'AGT-TIE-T',
+      },
+    });
+    const tieTs = new Date('2026-07-22T10:00:00Z');
+    const v1 = await prisma.visit.create({
+      data: {
+        outletId: outletA.id,
+        agentId: tieAgent.id,
+        clientId: tieClient.id,
+        checkinTs: tieTs,
+        checkinLat: -26.1,
+        checkinLng: 28.05,
+        geofencePass: true,
+        status: 'in_progress',
+      },
+    });
+    const v2 = await prisma.visit.create({
+      data: {
+        outletId: outletB.id,
+        agentId: tieAgent.id,
+        clientId: tieClient.id,
+        checkinTs: tieTs,
+        checkinLat: -26.1,
+        checkinLng: 28.05,
+        geofencePass: true,
+        status: 'in_progress',
+      },
+    });
+
+    try {
+      // With an identical checkinTs, an ascending [checkinTs, id] order puts
+      // the larger id last — that's the deterministic "latest" pick.
+      const expectedOutletId = v1.id > v2.id ? outletA.id : outletB.id;
+
+      const first = await listAgentActivity({ clientId: tieClient.id, from: FROM, to: TO });
+      const second = await listAgentActivity({ clientId: tieClient.id, from: FROM, to: TO });
+      expect(first.agents[0].currentOutlet?.id).toBe(expectedOutletId);
+      expect(second.agents[0].currentOutlet?.id).toBe(expectedOutletId);
+    } finally {
+      await prisma.visit.deleteMany({ where: { clientId: tieClient.id } });
+      await prisma.outlet.deleteMany({ where: { clientId: tieClient.id } });
+      await prisma.user.deleteMany({ where: { clientId: tieClient.id } });
+      await prisma.client.delete({ where: { id: tieClient.id } });
+    }
   });
 });

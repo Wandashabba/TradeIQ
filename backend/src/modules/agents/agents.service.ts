@@ -55,6 +55,10 @@ export function deriveAgentState(stops: VisitStop[]): AgentStateResult {
 
 export interface AgentActivity {
   agentId: string;
+  /// Currently the agent's email. `User` has no display-name column, so
+  /// email is the best available value for what the UI shows for this
+  /// agent — the field is named for its role (display label), not its
+  /// current source. Adding a real display-name column is out of scope here.
   name: string;
   state: AgentState;
   currentOutlet: { id: string; name: string } | null;
@@ -85,12 +89,24 @@ const MAX_LIMIT = 200;
  * Bounded by shape rather than a blanket `take:` on visits (#141): the AGENT
  * list is paged, and each included agent's day is returned whole. Truncating
  * mid-route would draw a wrong line rather than a short one.
+ *
+ * This function does not itself cap `to - from` — that guard lives in the
+ * route (Task 3 rejects any range over 48 hours) so there is exactly one
+ * place range validation can drift out of sync, rather than two that can
+ * disagree.
  */
 export async function listAgentActivity(
   input: ListAgentActivityInput,
 ): Promise<{ agents: AgentActivity[]; nextCursor: string | null }> {
   const { clientId, from, to, territoryId } = input;
-  const limit = Math.min(input.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  // Clamp both ends. A non-positive `limit` (a bad query param, or a `NaN`
+  // forwarded from the route) must not be read as "unbounded" — left
+  // unclamped below, `limit: 0` makes `page` empty while `agents.length >
+  // limit` is still true, so the page-1 math below claims pagination is
+  // exhausted (or throws) when there may be many more rows. The route
+  // (Task 3) already rejects non-positive `limit` with a 400; this is
+  // defence in depth for callers that hit this function directly.
+  const limit = Math.max(1, Math.min(input.limit ?? DEFAULT_LIMIT, MAX_LIMIT));
 
   let agentIdFilter: string[] | undefined;
   if (territoryId !== undefined) {
@@ -142,7 +158,13 @@ export async function listAgentActivity(
       status: true,
       outlet: { select: { name: true } },
     },
-    orderBy: { checkinTs: 'asc' },
+    // Secondary sort on `id` because Postgres does not guarantee row order
+    // for ties on `checkinTs` alone, and two open visits sharing an exact
+    // timestamp is plausible from a retried offline sync. `deriveAgentState`'s
+    // sort is stable, so an unordered tie here would make `currentOutlet`
+    // flip between reads of unchanged data — exactly the nondeterminism that
+    // function exists to avoid.
+    orderBy: [{ checkinTs: 'asc' }, { id: 'asc' }],
   });
 
   const byAgent = new Map<string, VisitStop[]>();
