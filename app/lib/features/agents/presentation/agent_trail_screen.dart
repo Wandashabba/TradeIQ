@@ -172,6 +172,13 @@ class _TrailMap extends StatelessWidget {
           // screen's own refresh) can't remount the map and throw away a
           // pan/zoom for no reason.
           key: ValueKey<(DateTime, String)>((day, _pointsSignature(points))),
+          // Deliberately keeps flutter_map's default interactionOptions,
+          // scroll-wheel zoom included — unlike the dashboard panel's map
+          // (dashboard_shell_screen.dart), which disables it. This screen IS
+          // the page: it's a full-screen map inside ManagerScaffold with no
+          // scrollable parent competing for the wheel, so there is nothing
+          // for a wheel-zoom to fight with. The asymmetry between the two
+          // maps is deliberate, not a missed case.
           options: MapOptions(initialCenter: center, initialZoom: zoom),
           children: [
             const TiqTileLayer(),

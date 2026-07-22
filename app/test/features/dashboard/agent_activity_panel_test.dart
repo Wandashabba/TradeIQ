@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -577,5 +579,58 @@ void main() {
     // a real centre/zoom into `initialCenter`/`initialZoom` at all.
     expect(map.options.initialCenter.latitude, closeTo(-26.12, 1.0));
     expect(map.options.initialZoom, inInclusiveRange(8, 16));
+  });
+
+  // The panel lives below the fold in DashboardShellScreen's real ListView —
+  // a manager reaching it scrolls with their mouse wheel, exactly as they
+  // would over any other panel. flutter_map's default interactionOptions
+  // treat that same wheel as a zoom gesture over the map, silently
+  // destroying the fit `fitFor` computed. Reproduced here with a real
+  // ListView ancestor and a genuine PointerScrollEvent over the map's own
+  // rectangle — not just a unit check of the options object — because a
+  // test that could pass by accident is worse than none, given how many
+  // wrong diagnoses this bug has already absorbed.
+  testWidgets('a mouse wheel over the map does not change its zoom', (tester) async {
+    await tester.pumpWidget(routedApp(
+      Scaffold(body: ListView(children: const [AgentActivityPanel()])),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'a@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Spar',
+              stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
+            ),
+            _agent(
+              id: 'a2',
+              name: 'b@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Checkers',
+              stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final before = MapCamera.of(tester.element(find.byType(MarkerLayer))).zoom;
+
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    final mapCenter = tester.getCenter(find.byType(FlutterMap));
+    pointer.hover(mapCenter);
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -300)));
+    await tester.pumpAndSettle();
+
+    final after = MapCamera.of(tester.element(find.byType(MarkerLayer))).zoom;
+    expect(
+      after,
+      before,
+      reason: 'a wheel scroll over the embedded map must pass through to the '
+          'page, not silently re-zoom (and so discard) the computed fit — '
+          'before=$before after=$after',
+    );
   });
 }

@@ -904,7 +904,27 @@ class _AgentMap extends StatelessWidget {
 
           return FlutterMap(
             key: ValueKey<(Size, String)>((size, _pointsSignature(points))),
-            options: MapOptions(initialCenter: center, initialZoom: zoom),
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: zoom,
+              // Correctness fix, not a preference — do NOT restore the
+              // missing flag. This map is a passenger inside
+              // DashboardShellScreen's ListView, not a full-screen map like
+              // agent_trail_screen.dart: a manager reaching this
+              // below-the-fold panel scrolls the page with their mouse
+              // wheel, exactly as they would over any other panel. flutter_map's
+              // default interactionOptions treat that same wheel as a zoom
+              // gesture — so the wheel that was meant to keep scrolling the
+              // page instead zooms the map AND silently destroys the fit
+              // `fitFor` computed, leaving a manager staring at empty ocean
+              // with no idea why. Drag, pinch, and double-tap zoom all stay
+              // on; only the wheel is disabled, because the wheel is the one
+              // gesture this map cannot own without breaking the page around
+              // it.
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.scrollWheelZoom,
+              ),
+            ),
             children: [
               const TiqTileLayer(),
               MarkerLayer(
