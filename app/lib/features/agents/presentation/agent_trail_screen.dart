@@ -204,6 +204,18 @@ class _StopPin extends StatelessWidget {
   final int ordinal;
   final bool isLast;
 
+  /// The non-last disc is a **fixed** white, chosen so it reads against
+  /// unpredictable map tiles rather than the app theme — so its numeral must
+  /// be pinned to a fixed dark ink too, not pulled from `colors.ink1`.
+  /// `ink1` is near-white in dark theme (it is meant to sit on a dark panel,
+  /// not a white disc), which made every non-final stop a blank white circle
+  /// in the dark console: the numbering is the entire reason the sequence
+  /// survives greyscale (#144), so a theme-dependent numeral on a
+  /// theme-fixed disc quietly defeated its own accessibility property. This
+  /// is the light theme's ink1 value, kept as a literal on purpose — do not
+  /// swap it back to `colors.ink1`.
+  static const _nonLastNumeralColor = Color(0xFF14161C);
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -237,7 +249,11 @@ class _StopPin extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isLast ? Colors.white : colors.ink1,
+                // isLast sits on colors.brand (a fixed blue, shared by both
+                // themes) so white reads there regardless of theme; the
+                // non-last numeral sits on the fixed white disc above, so it
+                // gets the matching fixed dark ink rather than colors.ink1.
+                color: isLast ? Colors.white : _nonLastNumeralColor,
               ),
             ),
           ),

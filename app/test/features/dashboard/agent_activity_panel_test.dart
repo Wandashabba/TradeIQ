@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,15 +48,53 @@ AgentActivity _agent({
       stops: stops,
     );
 
-AgentStop _stop(String outletName) => AgentStop(
+AgentStop _stop(String outletName, {double lat = -26.10, double lng = 28.05}) =>
+    AgentStop(
       visitId: 'v1',
       outletId: 'o1',
       outletName: outletName,
-      lat: -26.10,
-      lng: 28.05,
+      lat: lat,
+      lng: lng,
       checkinTs: DateTime.now().subtract(const Duration(minutes: 20)),
       inProgress: false,
     );
+
+/// Hosts [child] at a width the test controls directly, so a test can drive
+/// exactly the sequence a real screen produces without depending on
+/// `ListView`'s cache-extent heuristics: first layout at zero width (a
+/// scrollable can lay a child out before it has real space — see the
+/// regression test below), then a later, real width once it "arrives".
+class _ResizingHost extends StatefulWidget {
+  const _ResizingHost({required this.width, required this.child});
+
+  final ValueListenable<double> width;
+  final Widget child;
+
+  @override
+  State<_ResizingHost> createState() => _ResizingHostState();
+}
+
+class _ResizingHostState extends State<_ResizingHost> {
+  @override
+  void initState() {
+    super.initState();
+    widget.width.addListener(_onWidthChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.width.removeListener(_onWidthChanged);
+    super.dispose();
+  }
+
+  void _onWidthChanged() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(width: widget.width.value, height: 600, child: widget.child),
+      );
+}
 
 void main() {
   testWidgets('renders an at-store agent with their outlet', (tester) async {
@@ -338,5 +377,69 @@ void main() {
 
     expect(find.byType(FlutterMap), findsNothing);
     expect(find.textContaining('Nobody has checked in yet today'), findsOneWidget);
+  });
+
+  // Regression test for the "map stuck at world zoom" bug: the panel lives
+  // inside DashboardShellScreen's ListView, below the fold on a typical
+  // screen — so it can be laid out once, with a degenerate viewport, before
+  // it is ever scrolled into view. flutter_map applies `initialCameraFit`
+  // exactly ONCE per State and never retries, so a bad first fit sticks even
+  // once the real viewport arrives.
+  //
+  // Pumping this inside an actual `ListView` and scrolling it into view does
+  // NOT reproduce the bug: flutter's sliver layout simply skips laying the
+  // panel out at all until it nears the viewport, so it never gets a
+  // degenerate first pass in a plain widget test. `_ResizingHost` reproduces
+  // the mechanism the bug actually depends on directly and deterministically
+  // — a first layout at zero width, then a later, real one — without relying
+  // on sliver caching internals a widget test can't reliably control.
+  testWidgets('camera fits the agents even when the first layout is degenerate', (tester) async {
+    final width = ValueNotifier<double>(0);
+    addTearDown(width.dispose);
+
+    await tester.pumpWidget(routedApp(
+      _ResizingHost(
+        width: width,
+        child: const Scaffold(body: AgentActivityPanel()),
+      ),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'a@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Spar',
+              stops: [_stop('Spar', lat: -26.10, lng: 28.05)],
+            ),
+            _agent(
+              id: 'a2',
+              name: 'b@x.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Checkers',
+              stops: [_stop('Checkers', lat: -26.14, lng: 28.09)],
+            ),
+          ]),
+        ),
+      ],
+    ));
+
+    // First layout: zero width, before the data or the real viewport exist —
+    // this is the pass flutter_map's one-shot `initialCameraFit` must NOT be
+    // allowed to commit to.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // The real viewport "arrives" — e.g. the panel scrolls into view.
+    width.value = 900;
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FlutterMap), findsOneWidget);
+    final camera = MapCamera.of(tester.element(find.byType(MarkerLayer)));
+    // Both agents are within ~4km of (-26.12, 28.07) — a sane, JHB-scale fit,
+    // not the whole-world view a degenerate first layout produces.
+    expect(camera.center.latitude, closeTo(-26.12, 1.0));
+    expect(camera.center.longitude, closeTo(28.07, 1.0));
+    expect(camera.zoom, greaterThan(8));
   });
 }

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 class _FakeAgentsRepository implements AgentsRepository {
@@ -287,5 +290,57 @@ void main() {
       tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
       ValueKey<DateTime>(DateTime(2026, 7, 23)),
     );
+  });
+
+  // The pin disc is deliberately fixed white (it has to read against
+  // unpredictable map tiles, not the app's light/dark toggle) — so a numeral
+  // pulled from the ambient theme (`colors.ink1`) is nearly invisible in dark
+  // mode, ~1.2:1 on white, even though it looks fine in light mode where
+  // ink1 happens to be dark. A test that only pumps the default theme is
+  // exactly how this shipped — so this one checks both.
+  testWidgets('the non-last numeral stays legible on its disc in both themes', (tester) async {
+    Future<void> pumpThemed(ThemeData theme) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
+          ],
+          child: MaterialApp.router(
+            theme: theme,
+            routerConfig: GoRouter(
+              initialLocation: '/screen',
+              routes: [
+                GoRoute(path: '/screen', builder: (context, state) => const AgentTrailScreen()),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+      await pumpThemed(theme);
+
+      final pinKey = find.byKey(const ValueKey<String>('agent-stop-a1-0'));
+      final discColor = (tester
+              .widget<DecoratedBox>(
+                find.descendant(of: pinKey, matching: find.byType(DecoratedBox)).first,
+              )
+              .decoration as BoxDecoration)
+          .color!;
+      final numeralColor = tester
+          .widget<Text>(find.descendant(of: pinKey, matching: find.byType(Text)).first)
+          .style!
+          .color!;
+
+      // 3:1 is this codebase's own bar for graphical marks (ink4's doc
+      // comment, tiq_colors_test.dart) — a numeral is exactly that.
+      expect(
+        contrastRatio(discColor, numeralColor),
+        greaterThanOrEqualTo(3.0),
+        reason: 'disc $discColor vs numeral $numeralColor under ${theme.brightness}',
+      );
+    }
   });
 }

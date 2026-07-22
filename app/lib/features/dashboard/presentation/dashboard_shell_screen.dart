@@ -645,6 +645,24 @@ const _mapHeight = 260.0;
   ),
 };
 
+/// Glyph colour for the map pin specifically — fixed rather than read from
+/// the ambient theme, because the pin's disc is *also* fixed white (see
+/// `_AgentMapPin`'s decoration comment) and a colour tuned for a dark panel
+/// does not necessarily read on a literal white circle. `colors.warn` in
+/// dark theme is a bright amber meant to sit on `AppColors.surface1`
+/// (#14161C) — on white it measures ~1.8:1, effectively invisible, the same
+/// fixed-background/theme-dependent-foreground mistake `_StopPin`'s numeral
+/// had. `TiqColors.light`'s good/warn were tuned against a near-white panel
+/// already and clear 5:1+ on the disc, so those literals are pinned here for
+/// every theme; `ink4` is already one shared literal in both palettes (it is
+/// documented as "marks only", meant to be theme-invariant) so it needs no
+/// override.
+Color _pinGlyphColor(AgentState state) => switch (state) {
+  AgentState.atStore => TiqColors.light.good,
+  AgentState.inTransit => TiqColors.light.warn,
+  AgentState.idle => TiqColors.light.ink4,
+};
+
 /// This agent's most recent confirmed stop. Sorts defensively rather than
 /// trusting `stops` to already be in order, for the same reason
 /// [AgentActivity.lastOutletName] does: a caller-trusted ordering that
@@ -825,30 +843,61 @@ class _AgentMap extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-      child: FlutterMap(
-        options: MapOptions(
-          initialCenter: points.first,
-          initialZoom: 11,
-          initialCameraFit: cameraFit,
-        ),
-        children: [
-          const TiqTileLayer(),
-          MarkerLayer(
-            markers: [
-              for (final a in agentsWithStops)
-                Marker(
-                  point: LatLng(_latestStop(a).lat, _latestStop(a).lng),
-                  width: 30,
-                  height: 30,
-                  child: _AgentMapPin(
-                    key: ValueKey<String>('agent-pin-${a.agentId}'),
-                    agent: a,
-                  ),
-                ),
+      // This panel lives inside DashboardShellScreen's ListView, below the
+      // fold on a typical screen — a scrollable can lay a child out before it
+      // is ever scrolled into view, sometimes on a transient pass with a
+      // zero or unbounded size. flutter_map applies `initialCameraFit`
+      // exactly ONCE (`_initialCameraFitApplied`, a flag on the State — see
+      // flutter_map's widget.dart), against whatever constraints happen to
+      // exist at that first layout, and never retries. Feed it a degenerate
+      // viewport and it commits to that fit anyway: `CameraFit.bounds` needs
+      // real pixels to compute a zoom from, so a near-zero viewport yields a
+      // near-zero zoom — a silent whole-world view in release builds, where
+      // the debug assert that would catch a non-finite zoom is stripped.
+      //
+      // A LayoutBuilder here, keyed on the resolved size, is the fix: a
+      // genuine size change (the panel's real first layout once scrolled
+      // into view, or a later resize) mounts a fresh State and therefore
+      // re-applies the fit fresh, against the viewport that actually
+      // matters. Skipping the map entirely on a degenerate pass means the
+      // one-shot fit is never spent on a viewport it can't fit against.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = constraints.biggest;
+          final degenerate =
+              !size.width.isFinite ||
+              !size.height.isFinite ||
+              size.width <= 0 ||
+              size.height <= 0;
+          if (degenerate) return const SizedBox.shrink();
+
+          return FlutterMap(
+            key: ValueKey<Size>(size),
+            options: MapOptions(
+              initialCenter: points.first,
+              initialZoom: 11,
+              initialCameraFit: cameraFit,
+            ),
+            children: [
+              const TiqTileLayer(),
+              MarkerLayer(
+                markers: [
+                  for (final a in agentsWithStops)
+                    Marker(
+                      point: LatLng(_latestStop(a).lat, _latestStop(a).lng),
+                      width: 30,
+                      height: 30,
+                      child: _AgentMapPin(
+                        key: ValueKey<String>('agent-pin-${a.agentId}'),
+                        agent: a,
+                      ),
+                    ),
+                ],
+              ),
+              const TiqBasemapAttribution(),
             ],
-          ),
-          const TiqBasemapAttribution(),
-        ],
+          );
+        },
       ),
     );
   }
@@ -890,7 +939,9 @@ class _AgentMapPin extends StatelessWidget {
             ),
           ],
         ),
-        child: Center(child: Icon(visual.icon, color: visual.color, size: 16)),
+        child: Center(
+          child: Icon(visual.icon, color: _pinGlyphColor(agent.state), size: 16),
+        ),
       ),
     );
   }
