@@ -19,6 +19,16 @@ class _FakeAgentsRepository implements AgentsRepository {
       AgentActivityPage(agents: agents, truncated: truncated);
 }
 
+class _FailingAgentsRepository implements AgentsRepository {
+  @override
+  Future<AgentActivityPage> listActivity({
+    required DateTime from,
+    required DateTime to,
+    String? territoryId,
+  }) async =>
+      throw Exception('network down');
+}
+
 AgentActivity _agent({
   required String id,
   required String name,
@@ -151,5 +161,72 @@ void main() {
         .toSet();
     // Three states rendered → at least three distinct glyphs.
     expect(icons.length, greaterThanOrEqualTo(3));
+  });
+
+  testWidgets('shows the outlet a transiting agent left, from their stops', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const AgentActivityPanel(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'a@x.com',
+              state: AgentState.inTransit,
+              stops: [
+                AgentStop(
+                  visitId: 'v1',
+                  outletId: 'o1',
+                  outletName: 'Pick n Pay Hyper Boksburg North',
+                  lat: -26.0,
+                  lng: 28.0,
+                  checkinTs: DateTime.now().subtract(const Duration(hours: 1)),
+                  inProgress: false,
+                ),
+              ],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('left Pick n Pay Hyper Boksburg North'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('falls back to "unknown store" for an at-store agent with no outlet name', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const AgentActivityPanel(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'a@x.com',
+              state: AgentState.atStore,
+              currentOutlet: null,
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('unknown store'), findsOneWidget);
+  });
+
+  testWidgets('shows a Retry affordance when the fetch fails', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const AgentActivityPanel(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(_FailingAgentsRepository()),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Retry'), findsOneWidget);
   });
 }

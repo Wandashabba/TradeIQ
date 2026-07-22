@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/agent_kit.dart' show formatAgo;
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -685,15 +686,24 @@ class _AgentRow extends StatelessWidget {
       AgentState.idle => (Icons.remove_circle_outline, 'No check-in', colors.ink4),
     };
 
-    final where = switch (agent.state) {
-      AgentState.atStore => agent.currentOutletName ?? 'unknown store',
+    // Idle carries no location line: the age column already reads "no
+    // check-in today", and repeating that fact here would say the same thing
+    // twice in exactly the row where space is tightest.
+    final secondLine = switch (agent.state) {
+      AgentState.atStore =>
+        '$label · ${agent.currentOutletName ?? 'unknown store'}',
       AgentState.inTransit =>
-        agent.lastOutletName == null ? 'in transit' : 'left ${agent.lastOutletName}',
-      AgentState.idle => 'nothing today',
+        '$label · ${agent.lastOutletName == null ? 'in transit' : 'left ${agent.lastOutletName}'}',
+      AgentState.idle => label,
     };
 
     return Semantics(
-      label: '${agent.name}, $label, $where, ${_age(agent.lastSeenAt)}',
+      label: '${agent.name}, $secondLine, ${_age(agent.lastSeenAt)}',
+      // The row underneath is three live Text widgets, each of which would
+      // otherwise contribute its own implicit semantics node — without this a
+      // screen reader announces the curated label, then reads the name,
+      // status line and age again on the next three swipes.
+      excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
@@ -710,9 +720,20 @@ class _AgentRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(agent.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  // `name` is an email — one unbroken token — and outlet
+                  // names run long, so both lines must ellipsize rather than
+                  // paint past their bound; the age column stays unbounded
+                  // since it must never be the thing that gets clipped.
                   Text(
-                    '$label · $where',
+                    agent.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    secondLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 12, color: colors.ink3),
                   ),
                 ],
@@ -729,16 +750,12 @@ class _AgentRow extends StatelessWidget {
   }
 }
 
-/// How stale this row is, in words. Never a bare timestamp: "11:20" invites
-/// the reader to assume it is current, "38m ago" does not.
-String _age(DateTime? at) {
-  if (at == null) return 'no check-in today';
-  final delta = DateTime.now().difference(at);
-  if (delta.inMinutes < 1) return 'just now';
-  if (delta.inMinutes < 60) return '${delta.inMinutes}m ago';
-  if (delta.inHours < 24) return '${delta.inHours}h ago';
-  return '${delta.inDays}d ago';
-}
+/// How stale this row is, in words. Delegates to the same [formatAgo] every
+/// other "time since" line in the app uses (`agent_scaffold.dart`,
+/// `my_work_screen.dart`, `audit_shell_screen.dart`) — a second bucketing
+/// implementation here would silently drift from that wording. Only the
+/// "never checked in" case is specific to this panel.
+String _age(DateTime? at) => at == null ? 'no check-in today' : formatAgo(at);
 
 // ═══════════════════════════════════════════════════════════════════════
 // Filters — one row, above everything it scopes
