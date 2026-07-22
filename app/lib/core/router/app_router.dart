@@ -160,7 +160,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/agents/activity',
-        builder: (context, state) => const AgentTrailScreen(),
+        pageBuilder: (context, state) => managerPage(const AgentTrailScreen()),
       ),
       GoRoute(
         path: '/orders',

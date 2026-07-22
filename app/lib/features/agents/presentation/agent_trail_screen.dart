@@ -8,12 +8,19 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/agents_repository.dart';
 
 /// The selected day, defaulting to today. Local dates only — the day boundary
 /// is a client-side decision, see [dayBoundsLocal].
-final _selectedDayProvider = StateProvider<DateTime>((ref) {
+///
+/// `.autoDispose`, like [agentActivityForDayProvider] itself: without it, a
+/// manager who picks an earlier day and later navigates away would find the
+/// screen re-open on that stale day rather than today, and a long-lived web
+/// tab left open across midnight would keep "today" pinned to whenever the
+/// tab first built this provider.
+final agentTrailDayProvider = StateProvider.autoDispose<DateTime>((ref) {
   final now = DateTime.now();
   return DateTime(now.year, now.month, now.day);
 });
@@ -28,32 +35,30 @@ class AgentTrailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final day = ref.watch(_selectedDayProvider);
+    final day = ref.watch(agentTrailDayProvider);
     final activity = ref.watch(agentActivityForDayProvider(day));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Agent trail'),
-        actions: [
-          TextButton.icon(
-            key: const ValueKey<String>('agent-trail-date'),
-            icon: const Icon(Icons.calendar_today, size: 16),
-            label: Text('${day.year}-${_two(day.month)}-${_two(day.day)}'),
-            onPressed: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: day,
-                firstDate: DateTime(2024),
-                lastDate: DateTime.now(),
-              );
-              if (picked != null) {
-                ref.read(_selectedDayProvider.notifier).state =
-                    DateTime(picked.year, picked.month, picked.day);
-              }
-            },
-          ),
-        ],
-      ),
+    return ManagerScaffold(
+      title: 'Agent trail',
+      actions: [
+        TextButton.icon(
+          key: const ValueKey<String>('agent-trail-date'),
+          icon: const Icon(Icons.calendar_today, size: 16),
+          label: Text('${day.year}-${_two(day.month)}-${_two(day.day)}'),
+          onPressed: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: day,
+              firstDate: DateTime(2020),
+              lastDate: DateTime.now(),
+            );
+            if (picked != null) {
+              ref.read(agentTrailDayProvider.notifier).state =
+                  DateTime(picked.year, picked.month, picked.day);
+            }
+          },
+        ),
+      ],
       body: AsyncSection<AgentActivityPage>(
         value: activity,
         label: 'agent activity',
@@ -89,6 +94,12 @@ class AgentTrailScreen extends ConsumerWidget {
               _TrailLegend(truncated: page.truncated),
               Expanded(
                 child: FlutterMap(
+                  // Keyed on the day: flutter_map's `_initialCameraFitApplied`
+                  // flag is one-shot per State (see its own widget.dart), so
+                  // without this key, picking a new day would rebuild the same
+                  // State and leave the camera pointed at the old day's
+                  // bounds — the pins would move, the camera would not.
+                  key: ValueKey<DateTime>(day),
                   options: MapOptions(
                     initialCenter: points.first,
                     initialZoom: 13,
@@ -205,7 +216,12 @@ class _StopPin extends StatelessWidget {
       label: '$agentName, stop $ordinal, ${stop.outletName}, '
           '${_two(stop.checkinTs.hour)}:${_two(stop.checkinTs.minute)}',
       child: Tooltip(
-        message: '${stop.outletName} · '
+        // Leads with the agent name: every agent's pins restart at "1" in
+        // the same brand colour, so on a multi-agent day the tooltip is the
+        // only thing a sighted manager has to tell three identical "1"
+        // pins apart — the Semantics label above says the same thing, but
+        // `excludeSemantics: true` makes that screen-reader-only.
+        message: '$agentName · ${stop.outletName} · '
             '${_two(stop.checkinTs.hour)}:${_two(stop.checkinTs.minute)}',
         child: DecoratedBox(
           // A white disc under the glyph. OSM tiles range from pale fields to

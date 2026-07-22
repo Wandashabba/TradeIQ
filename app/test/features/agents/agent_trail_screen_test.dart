@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart';
@@ -18,6 +19,22 @@ class _FakeAgentsRepository implements AgentsRepository {
     String? territoryId,
   }) async =>
       AgentActivityPage(agents: agents, truncated: truncated);
+}
+
+/// Returns different agents depending on the requested day, keyed by the
+/// `from` bound's day-of-month — just enough to prove the map re-centres
+/// when [agentTrailDayProvider] changes, without a full calendar model.
+class _DayDependentAgentsRepository implements AgentsRepository {
+  _DayDependentAgentsRepository(this.byDay);
+  final Map<int, List<AgentActivity>> byDay;
+
+  @override
+  Future<AgentActivityPage> listActivity({
+    required DateTime from,
+    required DateTime to,
+    String? territoryId,
+  }) async =>
+      AgentActivityPage(agents: byDay[from.day] ?? const [], truncated: false);
 }
 
 class _ThrowingRepository implements AgentsRepository {
@@ -149,5 +166,126 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  // Zero coverage before this: three agents on the same day previously drew
+  // three identical "1" pins in the same brand colour with nothing but a
+  // screen-reader-only label telling them apart (FIX 3).
+  testWidgets('renders a marker for each of two agents on the same day', (tester) async {
+    final nomsa = AgentActivity(
+      agentId: 'a4',
+      name: 'nomsa@example.com',
+      state: AgentState.inTransit,
+      stops: [
+        _stop('v10', 'Fourways Checkers', -26.02, 28.01, 9),
+        _stop('v11', 'Bryanston Woolworths', -26.05, 28.03, 12),
+      ],
+    );
+    await tester.pumpWidget(routedApp(
+      const AgentTrailScreen(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([_thabo, nomsa]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('agent-stop-a1-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('agent-stop-a4-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('agent-stop-a4-1')), findsOneWidget);
+  });
+
+  // "State is never colour alone" is the file's own claim (see the doc
+  // comment on _StopPin) — this is the test that actually holds it to that.
+  testWidgets('the last stop is styled differently from an earlier stop', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const AgentTrailScreen(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    DecoratedBox pinDecorationFor(String key) {
+      final marker = find.descendant(
+        of: find.byKey(ValueKey<String>(key)),
+        matching: find.byType(DecoratedBox),
+      );
+      return tester.widget<DecoratedBox>(marker.first);
+    }
+
+    final firstFill =
+        (pinDecorationFor('agent-stop-a1-0').decoration as BoxDecoration).color;
+    final lastFill =
+        (pinDecorationFor('agent-stop-a1-1').decoration as BoxDecoration).color;
+
+    expect(firstFill, isNot(equals(lastFill)));
+  });
+
+  // Guards flutter_map's own one-shot `_initialCameraFitApplied` flag (see
+  // its widget.dart): the map must end up centred on each day's own data,
+  // and the FlutterMap driving it must be keyed per day so a future refactor
+  // that removes AsyncSection's loading interstitial (which today forces a
+  // fresh FlutterMap mount on every family-provider switch, independently of
+  // any key) doesn't silently reintroduce a stuck camera. Verified by
+  // temporarily deleting the `key: ValueKey<DateTime>(day)` line: the camera
+  // assertion below still passed (the loading branch already remounts
+  // FlutterMap on every day change here), so the key assertion is what
+  // actually pins the fix — the camera check is real end-state coverage, not
+  // proof of the mechanism, and is kept because it doubles as the FIX-3
+  // scenario's map-shows-different-data guarantee.
+  testWidgets('the camera re-fits when the selected day changes', (tester) async {
+    final johannesburg = AgentActivity(
+      agentId: 'a1',
+      name: 'thabo@example.com',
+      state: AgentState.inTransit,
+      stops: [_stop('v1', 'Sandton Spar', -26.10, 28.05, 8)],
+    );
+    final capeTown = AgentActivity(
+      agentId: 'a5',
+      name: 'zola@example.com',
+      state: AgentState.inTransit,
+      stops: [_stop('v20', 'V&A Waterfront', -33.90, 18.42, 9)],
+    );
+
+    late final ProviderContainer container;
+    await tester.pumpWidget(routedApp(
+      const AgentTrailScreen(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _DayDependentAgentsRepository({
+            22: [johannesburg],
+            23: [capeTown],
+          }),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+    container = ProviderScope.containerOf(
+      tester.element(find.byType(AgentTrailScreen)),
+    );
+    container.read(agentTrailDayProvider.notifier).state = DateTime(2026, 7, 22);
+    await tester.pumpAndSettle();
+
+    final cameraBefore =
+        MapCamera.of(tester.element(find.byType(TileLayer))).center;
+    expect(cameraBefore.latitude, closeTo(-26.10, 0.5));
+    expect(
+      tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
+      ValueKey<DateTime>(DateTime(2026, 7, 22)),
+    );
+
+    container.read(agentTrailDayProvider.notifier).state = DateTime(2026, 7, 23);
+    await tester.pumpAndSettle();
+
+    final cameraAfter =
+        MapCamera.of(tester.element(find.byType(TileLayer))).center;
+    expect(cameraAfter.latitude, closeTo(-33.90, 0.5));
+    expect(cameraAfter.latitude, isNot(closeTo(cameraBefore.latitude, 1)));
+    expect(
+      tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
+      ValueKey<DateTime>(DateTime(2026, 7, 23)),
+    );
   });
 }
