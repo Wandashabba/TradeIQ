@@ -39,7 +39,6 @@ model Client {
   users              User[]
   outlets            Outlet[]
   skus               Sku[]
-  planogramTemplates PlanogramTemplate[]
   promoCalendar      PromoCalendar[]
   visits             Visit[]
   territories        Territory[]
@@ -134,15 +133,6 @@ model Sku {
 
   @@index([clientId])
   @@map("skus")
-}
-
-model PlanogramTemplate {
-  id       String @id @default(uuid())
-  clientId String @map("client_id")
-  client   Client @relation(fields: [clientId], references: [id])
-  zoneMap  Json   @map("zone_map")
-
-  @@map("planogram_templates")
 }
 
 model PromoCalendar {
