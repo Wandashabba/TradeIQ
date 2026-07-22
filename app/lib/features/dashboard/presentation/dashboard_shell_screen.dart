@@ -706,13 +706,14 @@ String _pointsSignature(List<LatLng> points) => points
 /// active, the territory cannot be the reason, so the wording does not
 /// imply one.
 ///
-/// [DashboardFilter.territoryId] is a territory *code* (see
-/// [dashboardByTerritoryProvider]'s comment on the id/code split, #97), not
-/// a name, so the name has to come from [territoriesListProvider] — which
-/// is async and can still be loading or errored, and even once loaded may
-/// simply not contain the code (a
+/// [DashboardFilter.territoryId] is a Territory *id* — the client-facing
+/// contract every dashboard endpoint shares (see
+/// `dashboard.service.ts`'s `getDashboardSummary` comment on the backend),
+/// not a name, so the name has to come from [territoriesListProvider] —
+/// which is async and can still be loading or errored, and even once loaded
+/// may simply not contain the id (a
 /// deleted or stale territory). Every one of those cases falls back to
-/// wording that names no territory: a blank, "null", or the raw code would
+/// wording that names no territory: a blank, "null", or the raw id would
 /// all be worse than the message this replaced.
 String _emptyActivityMessage(WidgetRef ref, String? territoryId) {
   if (territoryId == null) return 'No field agents yet.';
@@ -721,7 +722,7 @@ String _emptyActivityMessage(WidgetRef ref, String? territoryId) {
   final name = territories.maybeWhen(
     data: (list) {
       for (final t in list) {
-        if (t.code == territoryId) return t.name;
+        if (t.id == territoryId) return t.name;
       }
       return null;
     },

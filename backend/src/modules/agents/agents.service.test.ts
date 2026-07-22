@@ -233,19 +233,19 @@ describe('listAgentActivity', () => {
     expect(result.nextCursor).toBeNull();
   });
 
-  // The #97-class regression this guards against: matching a territory
-  // filter on Territory.id instead of Territory.code silently returns
-  // nothing rather than erroring. Asserting on the assigned agent (not just
-  // "the list is non-empty") is what would catch that if someone
-  // "simplified" the filter later.
-  it('filters agents to those assigned to a territory, matched by code not id', async () => {
+  // The regression this guards against: the client-facing contract is a
+  // Territory.id (matching every other dashboard endpoint), and
+  // UserTerritory joins Territory by foreign key so the id matches directly.
+  // Asserting on the assigned agent (not just "the list is non-empty") is
+  // what would catch this filter silently matching on the wrong column.
+  it('filters agents to those assigned to a territory, matched by id not code', async () => {
     const territory = await prisma.territory.create({
       data: { clientId, name: 'AGT-Territory', code: 'AGT-TC1' },
     });
     await prisma.userTerritory.create({ data: { userId: agentId, territoryId: territory.id } });
 
     try {
-      const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: territory.code });
+      const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: territory.id });
       expect(result.agents.map((a) => a.agentId)).toEqual([agentId]);
     } finally {
       await prisma.userTerritory.deleteMany({ where: { territoryId: territory.id } });
@@ -253,7 +253,27 @@ describe('listAgentActivity', () => {
     }
   });
 
-  it('returns no agents when the territory code has zero assignments', async () => {
+  // Pins the contract in the other direction: passing the territory's CODE
+  // (what the dropdown used to be suspected of sending, and what this
+  // endpoint used to match on) must now match nothing, not accidentally
+  // succeed. This is the exact bug (#153) — an id sent, a code matched — and
+  // this test would have caught it in either direction.
+  it('returns no agents when a territory code is passed instead of its id', async () => {
+    const territory = await prisma.territory.create({
+      data: { clientId, name: 'AGT-Territory-2', code: 'AGT-TC2' },
+    });
+    await prisma.userTerritory.create({ data: { userId: agentId, territoryId: territory.id } });
+
+    try {
+      const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: territory.code });
+      expect(result).toEqual({ agents: [], nextCursor: null });
+    } finally {
+      await prisma.userTerritory.deleteMany({ where: { territoryId: territory.id } });
+      await prisma.territory.delete({ where: { id: territory.id } });
+    }
+  });
+
+  it('returns no agents when the territory id has zero assignments', async () => {
     const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: 'AGT-NOPE' });
     expect(result).toEqual({ agents: [], nextCursor: null });
   });

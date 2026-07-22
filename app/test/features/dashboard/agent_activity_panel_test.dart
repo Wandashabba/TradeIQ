@@ -197,17 +197,17 @@ void main() {
       tester.element(find.byType(AgentActivityPanel)),
     );
     container.read(dashboardFilterProvider.notifier).set(
-          const DashboardFilter(territoryId: 'wc'),
+          const DashboardFilter(territoryId: 't1'),
         );
     await tester.pumpAndSettle();
 
     expect(find.text('No agents are assigned to Western Cspe.'), findsOneWidget);
   });
 
-  // The code matches nothing in the loaded territory list (stale/deleted
+  // The id matches nothing in the loaded territory list (stale/deleted
   // territory) — must fall back cleanly, never a blank, "null", or the raw
-  // code, which would read worse than the message this replaced.
-  testWidgets('falls back cleanly when the filtered code matches no territory', (tester) async {
+  // id, which would read worse than the message this replaced.
+  testWidgets('falls back cleanly when the filtered id matches no territory', (tester) async {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
