@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart' show formatAgo;
@@ -837,48 +838,18 @@ class _AgentList extends StatelessWidget {
 /// placed at their latest one. No polylines here: the drill-in trail map
 /// (`agent_trail_screen.dart`) carries the day's route, this one only answers
 /// "where are they now" (as of their last check-in).
-///
-/// A `StatefulWidget`, not stateless: it owns a [MapController] so it can
-/// drive the bounds fit itself from [MapOptions.onMapReady] rather than via
-/// `initialCameraFit` — see the `onMapReady` comment below for why.
-class _AgentMap extends StatefulWidget {
+class _AgentMap extends StatelessWidget {
   const _AgentMap({required this.agentsWithStops});
 
   /// Must all have `stops.isNotEmpty` — callers filter before constructing.
   final List<AgentActivity> agentsWithStops;
 
   @override
-  State<_AgentMap> createState() => _AgentMapState();
-}
-
-class _AgentMapState extends State<_AgentMap> {
-  final _controller = MapController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final points = [
-      for (final a in widget.agentsWithStops)
+      for (final a in agentsWithStops)
         LatLng(_latestStop(a).lat, _latestStop(a).lng),
     ];
-    // A zero-area bounds box (one point, or several agents whose latest stop
-    // happens to be the exact same outlet) makes flutter_map compute a
-    // non-finite zoom and throw — so fit only when there is more than one
-    // *distinct* point, and centre on the shared point otherwise. Same
-    // single-point reasoning as agent_trail_screen.dart and
-    // territory_map_screen.dart; the coincident-point case is this panel's
-    // own risk, since it plots one point per agent rather than per outlet.
-    final cameraFit = points.toSet().length > 1
-        ? CameraFit.bounds(
-            bounds: LatLngBounds.fromPoints(points),
-            padding: const EdgeInsets.all(24),
-          )
-        : null;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppColors.radiusPanel),
@@ -889,44 +860,31 @@ class _AgentMapState extends State<_AgentMap> {
       // exist for that: skip the map entirely rather than mount it against a
       // viewport it can't use.
       //
-      // The fit itself does NOT use `initialCameraFit` any more. That option
-      // applies once, synchronously, against whatever `BoxConstraints` this
-      // widget's LayoutBuilder reports on its very first build — which is
-      // reliable on the Dart VM, but on Flutter web the FIRST frame flutter_map
-      // itself ever measures can still be `Size.zero` even though every layer
-      // above it (this LayoutBuilder included) already reports the correct,
-      // final size. `CameraFit.bounds` fit against that zero viewport computes
-      // a non-finite (in debug: assert-failing) zoom, which release/web builds
-      // silently clamp to a near-world view — and because our own measured
-      // size never changes afterwards, the size-based half of the key below
-      // never remounts the map to give it a second chance.
-      //
-      // `onMapReady` (fired once flutter_map has actually initialised —
-      // scheduled from its State's own `initState` postFrameCallback, so it
-      // runs after that first frame's real layout has landed) does not have
-      // that race, so the fit is driven from there instead via `fitCamera`.
-      // `initialCenter`/`initialZoom` stay as the pre-fit fallback in case
-      // `onMapReady` itself ever fires against a still-degenerate camera —
-      // Johannesburg at zoom 11 is a far safer failure than the whole world.
+      // The centre/zoom are computed OURSELVES, by `fitFor` — not by
+      // flutter_map's own `CameraFit.bounds`/`initialCameraFit`, and not by
+      // calling `fitCamera` from `onMapReady` either. Both of those depend
+      // on flutter_map's own internal camera size, which — confirmed against
+      // the running web build, with a live debug overlay reading correct
+      // points, a real bounds `CameraFit`, and a non-degenerate widget
+      // viewport already measured here — was STILL zero at the moment
+      // `onMapReady` fired, silently producing a near-world zoom centred
+      // nowhere near the data. `fitFor` uses the real pixel `size` this
+      // `LayoutBuilder` already has in hand and plain Web Mercator maths
+      // (see core/geo/mercator_fit.dart), so there is no flutter_map camera
+      // state left to race — the result is handed to flutter_map as plain
+      // `initialCenter`/`initialZoom`, values it applies synchronously and
+      // unconditionally on every mount.
       //
       // The key is still keyed on size PLUS a fingerprint of the plotted
       // coordinates: a genuine size change (the panel's real first layout
       // once scrolled into view, or a later resize) or a moved set of pins
-      // (a territory-filter change, same size) mounts a fresh State, which
-      // re-runs `initState` and therefore re-fires `onMapReady` — confirmed
-      // by reading flutter_map's own widget.dart, not assumed.
-      //
-      // `onMapReady` must ALSO explicitly `move()` to `initialCenter` in the
-      // single-point (no bounds fit) case, not just rely on `initialCenter`
-      // itself: `_controller` is reused across remounts (constructed once
-      // in `_AgentMapState`), and flutter_map's `MapController.options`
-      // setter — read directly from its map_controller_impl.dart — only
-      // seeds the camera from `initialCenter`/`initialZoom` when the
-      // controller's camera is still null. On every remount after the very
-      // first, the controller already has a camera from before, so the new
-      // `MapOptions.initialCenter` is silently ignored and the OLD position
-      // carries over — the exact failure this fix exists to prevent, just
-      // for the case with only one pin to plot.
+      // (a territory-filter change, same size) mounts a fresh State — and
+      // because we no longer hold or reuse our own `MapController` across
+      // mounts, flutter_map creates a brand new internal one each time,
+      // which always seeds its camera fresh from that mount's
+      // `initialCenter`/`initialZoom`. (The stale-controller trap the
+      // `onMapReady` version of this fix had — see git history — no longer
+      // applies: there is no persisted controller left to go stale.)
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = constraints.biggest;
@@ -937,25 +895,21 @@ class _AgentMapState extends State<_AgentMap> {
               size.height <= 0;
           if (degenerate) return const SizedBox.shrink();
 
+          final (center, zoom) = fitFor(
+            points,
+            size: size,
+            padding: 24,
+            singleZoom: _mapZoom,
+          );
+
           return FlutterMap(
             key: ValueKey<(Size, String)>((size, _pointsSignature(points))),
-            mapController: _controller,
-            options: MapOptions(
-              initialCenter: points.first,
-              initialZoom: _mapZoom,
-              onMapReady: () {
-                if (cameraFit != null) {
-                  _controller.fitCamera(cameraFit);
-                } else {
-                  _controller.move(points.first, _mapZoom);
-                }
-              },
-            ),
+            options: MapOptions(initialCenter: center, initialZoom: zoom),
             children: [
               const TiqTileLayer(),
               MarkerLayer(
                 markers: [
-                  for (final a in widget.agentsWithStops)
+                  for (final a in agentsWithStops)
                     Marker(
                       point: LatLng(_latestStop(a).lat, _latestStop(a).lng),
                       width: 30,

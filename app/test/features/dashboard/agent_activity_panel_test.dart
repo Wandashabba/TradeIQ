@@ -530,16 +530,19 @@ void main() {
     expect(after.zoom, greaterThan(8));
   });
 
-  // Unit-level guard for the `onMapReady` fix, as far as a widget test can
-  // reach it: `initialCameraFit` is fragile against Flutter web's first
-  // real layout (a race no widget test can reproduce — the Dart VM never
-  // reports the degenerate size web does), so the fit must be driven from
-  // `onMapReady`/`MapController.fitCamera` instead. This only proves the
-  // fragile option isn't wired up any more, and that our own controller
-  // (the one `onMapReady` acts on) is the one actually driving the map —
-  // not that the fix works on web. See the coordinator's diagnosis; the
-  // real verification for that is a browser run, not this suite.
-  testWidgets('drives the fit via onMapReady/MapController, not initialCameraFit', (tester) async {
+  // Unit-level guard for the `fitFor` fix, as far as a widget test can reach
+  // it: flutter_map's OWN fit machinery — `initialCameraFit`, and the
+  // `onMapReady`/`MapController.fitCamera` fix that came before this one —
+  // both turned out to depend on flutter_map's internal camera size, which
+  // a live debug overlay on the running web build showed was still zero at
+  // the moment `onMapReady` fired. This proves none of that machinery is
+  // wired up any more: no `mapController`, no `onMapReady`, no
+  // `initialCameraFit` — just a plain, pre-computed `initialCenter`/
+  // `initialZoom` flutter_map applies unconditionally. It does NOT prove
+  // the web bug is fixed; that mechanism has no timing left to race, which
+  // is a different (stronger) claim this suite can actually make, but the
+  // browser is still the real verification.
+  testWidgets('computes the camera itself via fitFor, not flutter_map\'s own fit machinery', (tester) async {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
@@ -567,7 +570,12 @@ void main() {
 
     final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
     expect(map.options.initialCameraFit, isNull);
-    expect(map.options.onMapReady, isNotNull);
-    expect(map.mapController, isNotNull);
+    expect(map.options.onMapReady, isNull);
+    expect(map.mapController, isNull);
+    // A sane, JHB-scale value — not flutter_map's own built-in default
+    // (LatLng(50.5, 30.51), zoom 13) that would appear if nothing had wired
+    // a real centre/zoom into `initialCenter`/`initialZoom` at all.
+    expect(map.options.initialCenter.latitude, closeTo(-26.12, 1.0));
+    expect(map.options.initialZoom, inInclusiveRange(8, 16));
   });
 }
