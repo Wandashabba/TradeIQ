@@ -44,17 +44,43 @@ export const app = express();
 // Baseline security headers (nosniff, frameguard, HSTS, etc.).
 app.use(helmet());
 
-// CORS: in production set CORS_ORIGINS to a comma-separated allowlist of
-// frontend origins. When it's unset (local dev) we fall back to an open
-// policy — the Flutter web dev server has no fixed port (`flutter run -d
-// chrome` picks one dynamically) and there's no deployed origin yet. Auth
-// uses a Bearer token (not cookies), so the open dev policy carries no CSRF
-// risk.
-const corsOrigins = process.env.CORS_ORIGINS
-  ?.split(',')
+// CORS: set CORS_ORIGINS to a comma-separated allowlist of frontend origins.
+//
+// The open fallback is now conditioned on NODE_ENV, not merely on the variable
+// being absent. It used to key off absence alone, and its own comment called
+// that "local dev" — but a production deploy that simply never set the variable
+// got the open policy too, silently. That is what happened: the live backend
+// ran with an open policy because nobody had set CORS_ORIGINS yet.
+//
+// The dev fallback is still open on purpose: `flutter run -d chrome` picks a
+// port dynamically, so there is no fixed origin to allowlist.
+//
+// In production an unset variable now fails CLOSED — no cross-origin browser
+// access — rather than open. It does not throw, unlike the JWT secret: mobile
+// clients send no Origin header and are unaffected, so refusing to boot would
+// take down a working API over a setting none of its current callers use. The
+// warning is loud instead, because a silently restrictive policy is its own
+// kind of trap once a web console does exist.
+const corsOrigins = process.env.CORS_ORIGINS?.split(',')
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
-app.use(cors(corsOrigins && corsOrigins.length > 0 ? { origin: corsOrigins } : {}));
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (corsOrigins && corsOrigins.length > 0) {
+  app.use(cors({ origin: corsOrigins }));
+} else if (isProduction) {
+  // `origin: false` reflects no Access-Control-Allow-Origin at all, so browsers
+  // refuse cross-origin reads. Native clients are untouched.
+  console.warn(
+    '[cors] CORS_ORIGINS is not set in production — cross-origin browser ' +
+      'requests will be refused. Set it to the web console origin before ' +
+      'deploying one.',
+  );
+  app.use(cors({ origin: false }));
+} else {
+  app.use(cors());
+}
 
 // Raised from the 100kb default so base64 photo data URLs (POST /photos, capped
 // at ~8MB of base64 in the route) fit. Real object storage is a later phase.
