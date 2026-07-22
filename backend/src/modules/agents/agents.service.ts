@@ -1,5 +1,3 @@
-import { prisma } from '../../lib/prisma';
-
 /// One confirmed store presence: an agent stood inside this outlet's geofence
 /// at this moment. The whole T0 feature is a list of these per agent.
 export interface VisitStop {
