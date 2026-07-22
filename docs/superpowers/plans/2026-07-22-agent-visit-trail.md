@@ -37,6 +37,16 @@ Read the spec above first. Four constraints drive nearly every decision here and
 > already full of unit tests. Tasks 1 and 2 write to `agents.service.test.ts`; Task 3
 > writes to `agents.routes.test.ts`.
 
+> **Amended 2026-07-22, after Task 4 review.** `listActivity` originally returned a bare
+> `List<AgentActivity>`, discarding the response's `nextCursor` and never sending a
+> `limit` — so it always received the backend default of 50 agents and a manager with
+> more than 50 would silently see only the first 50, with nothing on screen suggesting
+> anything was missing. On a feature whose entire premise is not overstating what we
+> know, that is the worst available failure. It now requests `limit: 200` (the backend's
+> own `MAX_LIMIT`) and returns `AgentActivityPage { agents, truncated }`, and Tasks 5
+> and 6 render a truncation notice. This is not pagination UI — that stays out of scope
+> for T0 — it is just refusing to present a cut list as a complete one.
+
 **Backend — modify:**
 - `backend/src/app.ts` — register the router.
 
@@ -1017,16 +1027,17 @@ import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_scre
 import '../../helpers/routed_app.dart';
 
 class _FakeAgentsRepository implements AgentsRepository {
-  _FakeAgentsRepository(this.agents);
+  _FakeAgentsRepository(this.agents, {this.truncated = false});
   final List<AgentActivity> agents;
+  final bool truncated;
 
   @override
-  Future<List<AgentActivity>> listActivity({
+  Future<AgentActivityPage> listActivity({
     required DateTime from,
     required DateTime to,
     String? territoryId,
   }) async =>
-      agents;
+      AgentActivityPage(agents: agents, truncated: truncated);
 }
 
 AgentActivity _agent({
@@ -1097,6 +1108,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('No agents'), findsOneWidget);
+  });
+
+  // A cut list must never read as the whole team. Without this notice a
+  // manager sees 200 rows and concludes that is everyone.
+  testWidgets('says so when the server had more agents than it returned', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const AgentActivityPanel(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository(
+            [_agent(id: 'a1', name: 'a@x.com', state: AgentState.idle)],
+            truncated: true,
+          ),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('first 200'), findsOneWidget);
+  });
+
+  testWidgets('shows no truncation notice when the list is complete', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const AgentActivityPanel(),
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository(
+            [_agent(id: 'a1', name: 'a@x.com', state: AgentState.idle)],
+          ),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('first 200'), findsNothing);
   });
 
   // State must never be carried by colour alone (#144's N4 rule). Each state
@@ -1179,12 +1225,12 @@ class AgentActivityPanel extends ConsumerWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-        child: AsyncSection<List<AgentActivity>>(
+        child: AsyncSection<AgentActivityPage>(
           value: activity,
           label: 'agent activity',
           onRetry: () => ref.invalidate(agentActivityTodayProvider),
-          builder: (agents) {
-            if (agents.isEmpty) {
+          builder: (page) {
+            if (page.agents.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text('No agents to show for this filter.'),
@@ -1193,7 +1239,18 @@ class AgentActivityPanel extends ConsumerWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final agent in agents) _AgentRow(agent: agent),
+                for (final agent in page.agents) _AgentRow(agent: agent),
+                // Never let a cut list read as the whole team. A manager who
+                // cannot see an agent concludes they did not work, not that
+                // the list ran out.
+                if (page.truncated)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Showing the first 200 agents. Filter by territory to narrow.',
+                      style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                    ),
+                  ),
               ],
             );
           },
@@ -1331,16 +1388,17 @@ import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart
 import '../../helpers/routed_app.dart';
 
 class _FakeAgentsRepository implements AgentsRepository {
-  _FakeAgentsRepository(this.agents);
+  _FakeAgentsRepository(this.agents, {this.truncated = false});
   final List<AgentActivity> agents;
+  final bool truncated;
 
   @override
-  Future<List<AgentActivity>> listActivity({
+  Future<AgentActivityPage> listActivity({
     required DateTime from,
     required DateTime to,
     String? territoryId,
   }) async =>
-      agents;
+      AgentActivityPage(agents: agents, truncated: truncated);
 }
 
 AgentStop _stop(String id, String name, double lat, double lng, int hour) => AgentStop(
@@ -1433,7 +1491,7 @@ void main() {
 
 class _ThrowingRepository implements AgentsRepository {
   @override
-  Future<List<AgentActivity>> listActivity({
+  Future<AgentActivityPage> listActivity({
     required DateTime from,
     required DateTime to,
     String? territoryId,
@@ -1507,12 +1565,12 @@ class AgentTrailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: AsyncSection<List<AgentActivity>>(
+      body: AsyncSection<AgentActivityPage>(
         value: activity,
         label: 'agent activity',
         onRetry: () => ref.invalidate(agentActivityForDayProvider(day)),
-        builder: (agents) {
-          final withStops = agents.where((a) => a.stops.isNotEmpty).toList();
+        builder: (page) {
+          final withStops = page.agents.where((a) => a.stops.isNotEmpty).toList();
           if (withStops.isEmpty) {
             return const Center(
               child: Padding(
@@ -1539,7 +1597,7 @@ class AgentTrailScreen extends ConsumerWidget {
 
           return Column(
             children: [
-              const _TrailLegend(),
+              _TrailLegend(truncated: page.truncated),
               Expanded(
                 child: FlutterMap(
                   options: MapOptions(
@@ -1609,7 +1667,9 @@ String _two(int n) => n.toString().padLeft(2, '0');
 /// Says in words what the dashes mean. Without this the map still overstates
 /// its own certainty to anyone who does not read stroke styles as semantics.
 class _TrailLegend extends StatelessWidget {
-  const _TrailLegend();
+  const _TrailLegend({required this.truncated});
+
+  final bool truncated;
 
   @override
   Widget build(BuildContext context) {
@@ -1620,7 +1680,11 @@ class _TrailLegend extends StatelessWidget {
       color: colors.surface2,
       child: Text(
         'Numbered pins are confirmed check-ins. Dashed lines connect them in '
-        'order — they are not a recorded route.',
+        'order — they are not a recorded route.'
+        // A partial map that looks complete is worse than no map. If the
+        // server had more agents than we asked for, say so here rather than
+        // let the manager read empty space as "nobody else worked".
+        '${truncated ? ' Showing the first 200 agents only.' : ''}',
         style: TextStyle(fontSize: 12, color: colors.ink3),
       ),
     );
