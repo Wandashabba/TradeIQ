@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
-import '../../dashboard/data/dashboard_repository.dart' show dashboardFilterProvider;
+import '../../dashboard/data/dashboard_repository.dart'
+    show dashboardFilterProvider, nowProvider;
 
 /// Where an agent is, as far as check-in data can tell us.
 ///
@@ -70,7 +71,16 @@ class AgentActivity {
 
   /// The last outlet the agent was confirmed at, whether or not they are still
   /// there. Drives the "left Pick n Pay" half of the panel copy.
-  String? get lastOutletName => stops.isEmpty ? null : stops.last.outletName;
+  ///
+  /// Sorts by `checkinTs` rather than trusting `stops` to already be in
+  /// order — `deriveAgentState` on the backend does the same for the same
+  /// reason: a caller-trusted ordering that silently breaks would report a
+  /// confidently wrong outlet with no throw and no signal.
+  String? get lastOutletName {
+    if (stops.isEmpty) return null;
+    final sorted = [...stops]..sort((a, b) => a.checkinTs.compareTo(b.checkinTs));
+    return sorted.last.outletName;
+  }
 
   factory AgentActivity.fromJson(Map<String, dynamic> json) {
     final outlet = json['currentOutlet'] as Map<String, dynamic>?;
@@ -104,9 +114,20 @@ class AgentActivity {
   return (from, from.add(const Duration(days: 1)));
 }
 
+/// One page of agent activity, plus whether the server had more to give.
+///
+/// `truncated` exists because silently showing the first N agents and calling
+/// it "your team" is the one thing this feature must never do — a manager who
+/// cannot see an agent assumes they did not work, not that the list was cut.
+class AgentActivityPage {
+  const AgentActivityPage({required this.agents, required this.truncated});
+  final List<AgentActivity> agents;
+  final bool truncated;
+}
+
 abstract class AgentsRepository {
   /// GET /agents/activity (manager/admin).
-  Future<List<AgentActivity>> listActivity({
+  Future<AgentActivityPage> listActivity({
     required DateTime from,
     required DateTime to,
     String? territoryId,
@@ -115,7 +136,7 @@ abstract class AgentsRepository {
 
 class DioAgentsRepository implements AgentsRepository {
   @override
-  Future<List<AgentActivity>> listActivity({
+  Future<AgentActivityPage> listActivity({
     required DateTime from,
     required DateTime to,
     String? territoryId,
@@ -125,13 +146,20 @@ class DioAgentsRepository implements AgentsRepository {
       queryParameters: {
         'from': from.toUtc().toIso8601String(),
         'to': to.toUtc().toIso8601String(),
+        // The backend's own MAX_LIMIT — sent explicitly so truncation is
+        // unlikely at realistic team sizes rather than a near-certainty at
+        // the server's DEFAULT_LIMIT of 50.
+        'limit': 200,
         'territoryId': ?territoryId,
       },
     );
     final agents = (response.data?['agents'] as List?) ?? const [];
-    return agents
-        .map((a) => AgentActivity.fromJson(a as Map<String, dynamic>))
-        .toList();
+    return AgentActivityPage(
+      agents: agents
+          .map((a) => AgentActivity.fromJson(a as Map<String, dynamic>))
+          .toList(),
+      truncated: response.data?['nextCursor'] != null,
+    );
   }
 }
 
@@ -145,9 +173,13 @@ final agentsRepositoryProvider =
 /// backs off silently for seconds before surfacing an error, leaving a bare
 /// spinner with no explanation on a screen the manager is looking at.
 final agentActivityTodayProvider =
-    FutureProvider<List<AgentActivity>>((ref) {
+    FutureProvider<AgentActivityPage>((ref) {
   final filter = ref.watch(dashboardFilterProvider);
-  final (from, to) = dayBoundsLocal(DateTime.now());
+  // Through nowProvider, not DateTime.now() directly — see its doc comment
+  // in dashboard_repository.dart: injected so a test can pin "now" instead
+  // of racing wall-clock time.
+  final now = ref.read(nowProvider)();
+  final (from, to) = dayBoundsLocal(now);
   return ref.read(agentsRepositoryProvider).listActivity(
         from: from,
         to: to,
@@ -156,8 +188,15 @@ final agentActivityTodayProvider =
 }, retry: (retryCount, error) => null);
 
 /// One chosen day's activity, for the drill-in map's date picker.
+///
+/// `.autoDispose`, unlike the other families in this repo: those key on a
+/// bounded set (an outlet id, a territory id), but this one keys on a date —
+/// every distinct day a manager browses in a session would otherwise cache
+/// forever, each instance still watching `dashboardFilterProvider`, so
+/// changing the territory filter would re-fire a request for every day ever
+/// viewed.
 final agentActivityForDayProvider =
-    FutureProvider.family<List<AgentActivity>, DateTime>((ref, day) {
+    FutureProvider.autoDispose.family<AgentActivityPage, DateTime>((ref, day) {
   final filter = ref.watch(dashboardFilterProvider);
   final (from, to) = dayBoundsLocal(day);
   return ref.read(agentsRepositoryProvider).listActivity(
