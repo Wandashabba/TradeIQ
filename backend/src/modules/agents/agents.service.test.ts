@@ -1,4 +1,5 @@
-import { deriveAgentState, VisitStop } from './agents.service';
+import { deriveAgentState, listAgentActivity, VisitStop } from './agents.service';
+import { prisma } from '../../lib/prisma';
 
 const stop = (over: Partial<VisitStop> = {}): VisitStop => ({
   visitId: 'v1',
@@ -64,5 +65,116 @@ describe('deriveAgentState', () => {
       state: 'at_store',
       currentOutlet: { id: 'o2', name: 'Second' },
     });
+  });
+});
+
+describe('listAgentActivity', () => {
+  let clientId: string;
+  let otherClientId: string;
+  let agentId: string;
+  let otherAgentId: string;
+  let outletId: string;
+
+  const FROM = new Date('2026-07-22T00:00:00Z');
+  const TO = new Date('2026-07-23T00:00:00Z');
+
+  beforeAll(async () => {
+    const client = await prisma.client.create({
+      data: { name: 'AGT-Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+    });
+    clientId = client.id;
+
+    const other = await prisma.client.create({
+      data: { name: 'AGT-Other', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+    });
+    otherClientId = other.id;
+
+    const agent = await prisma.user.create({
+      data: { email: 'AGT-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+    });
+    agentId = agent.id;
+
+    const otherAgent = await prisma.user.create({
+      data: { email: 'AGT-other@example.com', passwordHash: 'x', role: 'field_agent', clientId: otherClientId },
+    });
+    otherAgentId = otherAgent.id;
+
+    const outlet = await prisma.outlet.create({
+      data: {
+        name: 'Sandton Spar',
+        code: 'AGT-O1',
+        channelType: 'general_trade',
+        lat: -26.1,
+        lng: 28.05,
+        clientId,
+        territoryId: 'AGT-T1',
+      },
+    });
+    outletId = outlet.id;
+
+    const otherOutlet = await prisma.outlet.create({
+      data: {
+        name: 'Other Store',
+        code: 'AGT-O2',
+        channelType: 'general_trade',
+        lat: -26.2,
+        lng: 28.15,
+        clientId: otherClientId,
+        territoryId: 'AGT-T2',
+      },
+    });
+
+    await prisma.visit.create({
+      data: {
+        outletId, agentId, clientId,
+        checkinTs: new Date('2026-07-22T08:00:00Z'),
+        checkinLat: -26.1, checkinLng: 28.05,
+        geofencePass: true, status: 'submitted',
+      },
+    });
+
+    // Another tenant's visit, same day. Must never appear.
+    await prisma.visit.create({
+      data: {
+        outletId: otherOutlet.id, agentId: otherAgentId, clientId: otherClientId,
+        checkinTs: new Date('2026-07-22T09:00:00Z'),
+        checkinLat: -26.2, checkinLng: 28.15,
+        geofencePass: true, status: 'submitted',
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.visit.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
+    await prisma.outlet.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
+    await prisma.user.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
+    await prisma.client.deleteMany({ where: { id: { in: [clientId, otherClientId] } } });
+  });
+
+  it('returns the agent with their stop and derived state', async () => {
+    const result = await listAgentActivity({ clientId, from: FROM, to: TO });
+    const mine = result.agents.find((a) => a.agentId === agentId);
+    expect(mine).toBeDefined();
+    expect(mine!.stops).toHaveLength(1);
+    expect(mine!.stops[0].outletName).toBe('Sandton Spar');
+    expect(mine!.state).toBe('in_transit');
+    expect(mine!.lastSeenAt).toEqual(new Date('2026-07-22T08:00:00Z'));
+  });
+
+  it('never returns another tenant\'s agents', async () => {
+    const result = await listAgentActivity({ clientId, from: FROM, to: TO });
+    expect(result.agents.map((a) => a.agentId)).not.toContain(otherAgentId);
+  });
+
+  it('reports an agent with no visits in range as idle with a null lastSeenAt', async () => {
+    const result = await listAgentActivity({
+      clientId,
+      from: new Date('2026-07-01T00:00:00Z'),
+      to: new Date('2026-07-02T00:00:00Z'),
+    });
+    const mine = result.agents.find((a) => a.agentId === agentId);
+    expect(mine!.state).toBe('idle');
+    expect(mine!.lastSeenAt).toBeNull();
+    expect(mine!.stops).toEqual([]);
   });
 });
