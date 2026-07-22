@@ -299,6 +299,39 @@ void main() {
       expect(currentLocalUserId, isNull);
     });
   });
+
+  group('web persists nothing', () {
+    test(
+      'the in-memory store keeps a session for the run but not beyond',
+      () async {
+        // On web, flutter_secure_storage writes its AES key into the same
+        // localStorage as the ciphertext, so persisting there is obfuscation
+        // rather than encryption (#139 H12). Not persisting removes the thing
+        // being stolen instead of hiding it better; the cost is a re-login when
+        // the tab closes, which is the right trade for a shared desktop console.
+        final store = InMemoryTokenStore();
+
+        expect(await store.read(), isNull);
+
+        await store.save(const StoredSession(token: 't', role: 'manager'));
+        final restored = await store.read();
+        expect(restored?.token, 't');
+        expect(restored?.role, 'manager');
+
+        // A fresh instance is a fresh tab: nothing survives.
+        expect(await InMemoryTokenStore().read(), isNull);
+      },
+    );
+
+    test('clear empties it', () async {
+      final store = InMemoryTokenStore()
+        ..save(const StoredSession(token: 't', role: 'manager'));
+
+      await store.clear();
+
+      expect(await store.read(), isNull);
+    });
+  });
 }
 
 DateTime _hoursFromNow(int hours) =>
