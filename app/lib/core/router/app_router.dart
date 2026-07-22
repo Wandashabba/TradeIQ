@@ -69,6 +69,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/alerts',
         '/alert-rules',
         '/territories',
+        '/agents/activity',
         '/fraud',
         '/reports',
         '/users',
