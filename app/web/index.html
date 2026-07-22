@@ -29,6 +29,13 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
+  <!--
+    Deliberately no <link> to a fonts CDN here. Inter is bundled via
+    pubspec.yaml, so the web build ships it in FontManifest.json and the
+    engine loads it from our own assets — which keeps the typeface working
+    offline. A CDN link would put the app's typeface back at the mercy of
+    a network we cannot assume field agents have.
+  -->
   <title>tradeiq_app</title>
   <link rel="manifest" href="manifest.json">
 </head>
