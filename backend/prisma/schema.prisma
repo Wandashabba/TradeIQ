@@ -90,7 +90,7 @@ model User {
 model Outlet {
   id              String           @id @default(uuid())
   name            String
-  code            String           @unique
+  code            String
   channelType     String           @map("channel_type")
   lat             Float
   lng             Float
@@ -111,6 +111,11 @@ model Outlet {
   orders          Order[]
 
   @@index([clientId])
+  // Per-tenant, not global. A globally-unique code meant one tenant creating
+  // 'SAN-001' made that code permanently unavailable to every other tenant —
+  // and the 409 told them somebody else already had it, which is a
+  // cross-tenant existence oracle. Territory already models it this way.
+  @@unique([clientId, code])
   @@index([territoryId])
   @@map("outlets")
 }

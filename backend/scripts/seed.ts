@@ -210,7 +210,9 @@ async function main() {
   const outlets = [];
   for (const outlet of outletSeeds) {
     const record = await prisma.outlet.upsert({
-      where: { code: outlet.code },
+      // Codes are unique per tenant now, so the lookup has to name the tenant
+      // too — `code` alone no longer identifies a row.
+      where: { clientId_code: { clientId: client.id, code: outlet.code } },
       update: {},
       create: {
         id: outlet.id,

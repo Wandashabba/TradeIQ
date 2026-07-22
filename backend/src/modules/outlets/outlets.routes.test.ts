@@ -225,6 +225,55 @@ describe('outlets routes', () => {
     }
   });
 
+  it('lets a different tenant reuse the same outlet code', async () => {
+    // The bug this closes. `code` was globally unique, so the first tenant to
+    // register 'SHARED-001' made it permanently unavailable to everyone else —
+    // and the 409 told them somebody they cannot see already holds it, which
+    // is a cross-tenant existence oracle. Territory already scoped its code
+    // per client; Outlet did not.
+    const payload = {
+      name: 'Shared Code Outlet',
+      code: 'SHARED-001',
+      channelType: 'hypermarket',
+      lat: -26.2041,
+      lng: 28.0473,
+      territoryId: 'territory-1',
+    };
+
+    const mine = await request(app)
+      .post('/outlets')
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+    expect(mine.status).toBe(201);
+
+    const otherClient = await prisma.client.create({
+      data: {
+        name: 'Code Reuse Client',
+        industry: 'FMCG',
+        scorecardWeights: {},
+        kpiThresholds: {},
+      },
+    });
+    await prisma.territory.create({
+      data: { clientId: otherClient.id, name: 'Theirs', code: 'territory-1' },
+    });
+    const theirToken = (await userIn(otherClient.id, 'manager')).token;
+
+    try {
+      const theirs = await request(app)
+        .post('/outlets')
+        .set('Authorization', `Bearer ${theirToken}`)
+        .send(payload);
+
+      expect(theirs.status).toBe(201);
+    } finally {
+      await prisma.outlet.deleteMany({ where: { clientId: otherClient.id } });
+      await prisma.territory.deleteMany({ where: { clientId: otherClient.id } });
+      await prisma.user.deleteMany({ where: { clientId: otherClient.id } });
+      await prisma.client.delete({ where: { id: otherClient.id } });
+    }
+  });
+
   it('does not leak outlets across clients', async () => {
     const clientB = await prisma.client.create({
       data: {
