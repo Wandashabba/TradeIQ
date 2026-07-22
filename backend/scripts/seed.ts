@@ -231,42 +231,6 @@ async function main() {
   // -------------------------------------------------------------------------
   // Planogram templates — realistic shelf-zone maps for the client.
   // -------------------------------------------------------------------------
-  const planogramSeeds = [
-    {
-      id: 'demo-planogram-1',
-      zoneMap: {
-        fixture: 'Main beverage aisle — 4-shelf gondola',
-        zones: [
-          { zone: 'eye', shelf: 2, skus: ['demo-sku-1', 'demo-sku-2'], facings: 8 },
-          { zone: 'reach', shelf: 3, skus: ['demo-sku-5'], facings: 4 },
-          { zone: 'stoop', shelf: 4, skus: ['demo-sku-2'], facings: 3 },
-        ],
-      },
-    },
-    {
-      id: 'demo-planogram-2',
-      zoneMap: {
-        fixture: 'Front-of-store snack end-cap',
-        zones: [
-          { zone: 'eye', shelf: 1, skus: ['demo-sku-4'], facings: 8 },
-          { zone: 'reach', shelf: 2, skus: ['demo-sku-3'], facings: 6 },
-        ],
-      },
-    },
-  ];
-
-  for (const planogram of planogramSeeds) {
-    await prisma.planogramTemplate.upsert({
-      where: { id: planogram.id },
-      update: {},
-      create: {
-        id: planogram.id,
-        clientId: client.id,
-        zoneMap: planogram.zoneMap,
-      },
-    });
-  }
-
   // -------------------------------------------------------------------------
   // Promo calendar — active window spans "now" (fixed July 2026 dates).
   // -------------------------------------------------------------------------
@@ -835,7 +799,6 @@ async function main() {
       'all three sign in with: demo-password-123',
       `${outlets.length} outlets`,
       `${skuSeeds.length} SKUs`,
-      `${planogramSeeds.length} planogram templates`,
       `${promoSeeds.length} promotions`,
       `${visitSeeds.length} submitted visits`,
       `${stockCount} stock rows`,

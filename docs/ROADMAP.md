@@ -347,11 +347,13 @@ Sequencing note: #35 (territories) underpins #30 (beat planning); #29→#33/#94
 (campaign → ROI) is the tightest activation feedback loop — and it is the one
 that is **not built on either side**, so it is the highest-value Phase-3 gap.
 
-**Dead model:** `PlanogramTemplate` is in the schema and seeded, but no module,
-route or service reads it — verified by grep across `backend/src/` and
-`app/lib/` on 2026-07-19. Tracked as **#150** (wire it or drop it).
-`PromoCalendar` used to be listed here too; #99 gave it real discount fields and
-wired it into order pricing, so it is no longer dead.
+**Dead models: none.** `PlanogramTemplate` was seeded and read by nothing; it
+was dropped rather than wired (#150), because a seeded model with no readers
+reads as working infrastructure and planogram compliance is exactly what a
+future CV feature (#1) would assume already exists. If that feature is built it
+should design its own schema rather than inherit an empty guess.
+`PromoCalendar` was also listed here once; #99 gave it real discount fields and
+wired it into order pricing, so it is genuinely in use.
 
 ## Phase 4 — Scale & Optimise (months 10-12) — 🟣 ticketed
 
