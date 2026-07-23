@@ -109,8 +109,8 @@ describe('territories routes', () => {
       .get('/territories')
       .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    const names = (res.body as Array<{ name: string }>).map((t) => t.name);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    const names = (res.body.data as Array<{ name: string }>).map((t) => t.name);
     expect(names).toContain('TERR-North');
     expect(names).toContain('TERR-Alpha');
     // ordered by name asc
@@ -530,5 +530,60 @@ describe('territories routes', () => {
       expect(err).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
       expect((err as Prisma.PrismaClientKnownRequestError).code).toBe('P2002');
     }
+  });
+
+  describe('GET /territories pagination', () => {
+    beforeAll(async () => {
+      await prisma.territory.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          name: `page-territory-${i}`,
+          code: `PAGE-TERR-${i}`,
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, alphabetical by name', async () => {
+      const res = await request(app)
+        .get('/territories')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const names = res.body.data.map((t: { name: string }) => t.name);
+      expect(names.indexOf('page-territory-0')).toBeLessThan(names.indexOf('page-territory-2'));
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/territories?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/territories?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((t: { id: string }) => t.id);
+      const secondIds = second.body.data.map((t: { id: string }) => t.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/territories?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/territories?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });

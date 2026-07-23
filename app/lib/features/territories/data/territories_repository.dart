@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 import '../../outlets/data/outlets_repository.dart' show Outlet;
 
 /// A sales territory returned by GET /territories.
@@ -60,7 +61,7 @@ class TerritoryCoverage {
 }
 
 abstract class TerritoriesRepository {
-  Future<List<Territory>> listTerritories();
+  Future<PaginatedResponse<Territory>> listTerritories();
   Future<TerritoryCoverage> getCoverage(String id);
 
   /// POST /territories (manager/admin). [code] must be unique per client.
@@ -76,11 +77,12 @@ abstract class TerritoriesRepository {
 
 class DioTerritoriesRepository implements TerritoriesRepository {
   @override
-  Future<List<Territory>> listTerritories() async {
+  Future<PaginatedResponse<Territory>> listTerritories() async {
     final response = await dio.get('/territories');
-    return (response.data as List)
-        .map((json) => Territory.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<Territory>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => Territory.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -112,6 +114,14 @@ class DioTerritoriesRepository implements TerritoriesRepository {
 final territoriesRepositoryProvider =
     Provider<TerritoriesRepository>((ref) => DioTerritoriesRepository());
 
-final territoriesListProvider = FutureProvider<List<Territory>>((ref) {
-  return ref.read(territoriesRepositoryProvider).listTerritories();
+// The provider exposes the FIRST PAGE as a plain list: the dashboard
+// territory-filter dropdown wants the current territories, not the whole
+// history, and "load more" UI is deliberately out of scope for the
+// pagination sweep (see the spec). Capping at the default page size (50) is
+// acceptable here — a tenant rarely has more than 50 territories.
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final territoriesListProvider = FutureProvider<List<Territory>>((ref) async {
+  final page = await ref.read(territoriesRepositoryProvider).listTerritories();
+  return page.data;
 });

@@ -2,6 +2,7 @@ import { Prisma, Territory, Outlet } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { safeUserSelect, SafeUser } from '../users/users.service';
+import { buildPage } from '../../lib/pagination';
 
 export interface CreateTerritoryInput {
   clientId: string;
@@ -21,8 +22,22 @@ export function createTerritory(input: CreateTerritoryInput) {
   });
 }
 
-export function listTerritoriesForClient(clientId: string) {
-  return prisma.territory.findMany({ where: { clientId }, orderBy: { name: 'asc' } });
+export interface ListTerritoriesForClientInput {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listTerritoriesForClient(input: ListTerritoriesForClientInput) {
+  const rows = await prisma.territory.findMany({
+    where: { clientId: input.clientId },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two territories share a name — same reasoning as alerts.service.ts.
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+  });
+  return buildPage(rows, input.limit);
 }
 
 // Loads a territory scoped to the caller's client, throwing NotFoundError when

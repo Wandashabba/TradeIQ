@@ -64,9 +64,11 @@ class _FakeUsersRepository implements UsersRepository {
 
 class _FakeTerritoriesRepository implements TerritoriesRepository {
   @override
-  Future<List<Territory>> listTerritories() async => const [
-        Territory(id: 't1', name: 'Gauteng North', code: 'GN'),
-      ];
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      const PaginatedResponse(
+        data: [Territory(id: 't1', name: 'Gauteng North', code: 'GN')],
+        nextCursor: null,
+      );
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>

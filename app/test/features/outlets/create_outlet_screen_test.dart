@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:tradeiq_app/core/location/geolocator_gateway.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/outlets/presentation/create_outlet_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
@@ -63,7 +64,8 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
   final List<Territory> territories;
 
   @override
-  Future<List<Territory>> listTerritories() async => territories;
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      PaginatedResponse(data: territories, nextCursor: null);
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>

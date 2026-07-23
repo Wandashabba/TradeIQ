@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
@@ -40,7 +41,8 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
   final Future<TerritoryCoverage> Function()? coverageFuture;
 
   @override
-  Future<List<Territory>> listTerritories() async => const [_territory];
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      const PaginatedResponse(data: [_territory], nextCursor: null);
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) {
