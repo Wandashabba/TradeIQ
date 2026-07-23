@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// A campaign returned by GET /campaigns.
 class Campaign {
@@ -67,7 +68,7 @@ class CampaignCompliance {
 }
 
 abstract class CampaignsRepository {
-  Future<List<Campaign>> listCampaigns();
+  Future<PaginatedResponse<Campaign>> listCampaigns();
   Future<CampaignCompliance> getCompliance(String id);
 
   /// POST /campaigns. Dates are ISO strings; [outletIds] seeds the initial
@@ -94,11 +95,12 @@ abstract class CampaignsRepository {
 
 class DioCampaignsRepository implements CampaignsRepository {
   @override
-  Future<List<Campaign>> listCampaigns() async {
+  Future<PaginatedResponse<Campaign>> listCampaigns() async {
     final response = await dio.get('/campaigns');
-    return (response.data as List)
-        .map((json) => Campaign.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<Campaign>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => Campaign.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -148,6 +150,12 @@ class DioCampaignsRepository implements CampaignsRepository {
 final campaignsRepositoryProvider =
     Provider<CampaignsRepository>((ref) => DioCampaignsRepository());
 
-final campaignsListProvider = FutureProvider<List<Campaign>>((ref) {
-  return ref.read(campaignsRepositoryProvider).listCampaigns();
+// The provider exposes the FIRST PAGE as a plain list: the campaigns screen
+// wants the current campaigns, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final campaignsListProvider = FutureProvider<List<Campaign>>((ref) async {
+  final page = await ref.read(campaignsRepositoryProvider).listCampaigns();
+  return page.data;
 });

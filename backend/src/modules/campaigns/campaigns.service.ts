@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { mean, pct } from '../../lib/kpiMath';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { buildPage } from '../../lib/pagination';
 
 export type CampaignStatus = 'draft' | 'active' | 'completed';
 
@@ -64,12 +65,23 @@ export async function createCampaign(input: CreateCampaignInput) {
   });
 }
 
-export async function listCampaigns(clientId: string) {
-  return prisma.campaign.findMany({
-    where: { clientId },
+export interface ListCampaignsInput {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listCampaigns(input: ListCampaignsInput) {
+  const rows = await prisma.campaign.findMany({
+    where: { clientId: input.clientId },
     include: { _count: { select: { outlets: true } } },
-    orderBy: { startDate: 'desc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two campaigns share a startDate — same reasoning as alerts.service.ts.
+    orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export async function getCampaign(id: string, clientId: string) {

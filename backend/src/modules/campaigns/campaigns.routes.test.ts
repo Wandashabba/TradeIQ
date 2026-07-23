@@ -183,10 +183,10 @@ describe('campaigns routes', () => {
     const res = await request(app).get('/campaigns').set('Authorization', `Bearer ${agentToken}`);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.every((c: { clientId: string }) => c.clientId === clientId)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.every((c: { clientId: string }) => c.clientId === clientId)).toBe(true);
 
-    const base = res.body.find((c: { id: string }) => c.id === baseCampaignId);
+    const base = res.body.data.find((c: { id: string }) => c.id === baseCampaignId);
     expect(base._count.outlets).toBe(2);
   });
 
@@ -331,5 +331,61 @@ describe('campaigns routes', () => {
   it('rejects a compliance read without a bearer token with 401', async () => {
     const res = await request(app).get(`/campaigns/${baseCampaignId}/compliance`);
     expect(res.status).toBe(401);
+  });
+
+  describe('GET /campaigns pagination', () => {
+    beforeAll(async () => {
+      await prisma.campaign.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          name: `page-campaign-${i}`,
+          startDate: new Date(`2026-07-2${i}T00:00:00.000Z`),
+          endDate: new Date(WINDOW_END),
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, newest first', async () => {
+      const res = await request(app)
+        .get('/campaigns')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const names = res.body.data.map((c: { name: string }) => c.name);
+      expect(names.indexOf('page-campaign-2')).toBeLessThan(names.indexOf('page-campaign-0'));
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/campaigns?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/campaigns?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((c: { id: string }) => c.id);
+      const secondIds = second.body.data.map((c: { id: string }) => c.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/campaigns?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/campaigns?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });
