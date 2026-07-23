@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { buildPage } from '../../lib/pagination';
 
 export interface CreateTemplateInput {
   clientId: string;
@@ -32,11 +33,26 @@ export async function createTemplate(input: CreateTemplateInput) {
   });
 }
 
-export async function listTemplatesForClient(clientId: string, includeInactive: boolean) {
-  return prisma.auditTemplate.findMany({
-    where: { clientId, ...(includeInactive ? {} : { active: true }) },
-    orderBy: { name: 'asc' },
+export interface ListTemplatesForClientInput {
+  clientId: string;
+  includeInactive: boolean;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listTemplatesForClient(input: ListTemplatesForClientInput) {
+  const rows = await prisma.auditTemplate.findMany({
+    where: {
+      clientId: input.clientId,
+      ...(input.includeInactive ? {} : { active: true }),
+    },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two templates share a name — same reasoning as alerts.service.ts.
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export async function getTemplate(id: string, clientId: string) {

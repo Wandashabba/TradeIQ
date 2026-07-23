@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// One audit template returned by GET /templates.
 class AuditTemplate {
@@ -42,17 +43,18 @@ class AuditTemplateDetail {
 }
 
 abstract class TemplatesRepository {
-  Future<List<AuditTemplate>> listTemplates();
+  Future<PaginatedResponse<AuditTemplate>> listTemplates();
   Future<AuditTemplateDetail> fetchTemplate(String id);
 }
 
 class DioTemplatesRepository implements TemplatesRepository {
   @override
-  Future<List<AuditTemplate>> listTemplates() async {
+  Future<PaginatedResponse<AuditTemplate>> listTemplates() async {
     final response = await dio.get('/templates');
-    return (response.data as List)
-        .map((json) => AuditTemplate.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<AuditTemplate>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => AuditTemplate.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -65,8 +67,14 @@ class DioTemplatesRepository implements TemplatesRepository {
 final templatesRepositoryProvider =
     Provider<TemplatesRepository>((ref) => DioTemplatesRepository());
 
-final templatesListProvider = FutureProvider<List<AuditTemplate>>((ref) {
-  return ref.read(templatesRepositoryProvider).listTemplates();
+// The provider exposes the FIRST PAGE as a plain list: the templates screen
+// wants the current templates, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final templatesListProvider = FutureProvider<List<AuditTemplate>>((ref) async {
+  final page = await ref.read(templatesRepositoryProvider).listTemplates();
+  return page.data;
 });
 
 final templateDetailProvider =

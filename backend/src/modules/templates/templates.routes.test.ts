@@ -105,7 +105,7 @@ describe('templates routes', () => {
       .get('/templates')
       .set('Authorization', `Bearer ${agentToken}`);
     expect(defaultRes.status).toBe(200);
-    const defaultIds = (defaultRes.body as Array<{ id: string }>).map((t) => t.id);
+    const defaultIds = (defaultRes.body.data as Array<{ id: string }>).map((t) => t.id);
     expect(defaultIds).toContain(active.id);
     expect(defaultIds).not.toContain(inactive.id);
 
@@ -113,7 +113,7 @@ describe('templates routes', () => {
       .get('/templates?includeInactive=true')
       .set('Authorization', `Bearer ${managerToken}`);
     expect(allRes.status).toBe(200);
-    const allIds = (allRes.body as Array<{ id: string }>).map((t) => t.id);
+    const allIds = (allRes.body.data as Array<{ id: string }>).map((t) => t.id);
     expect(allIds).toContain(active.id);
     expect(allIds).toContain(inactive.id);
   });
@@ -214,7 +214,7 @@ describe('templates routes', () => {
     const listRes = await request(app)
       .get('/templates')
       .set('Authorization', `Bearer ${agentToken}`);
-    const ids = (listRes.body as Array<{ id: string }>).map((t) => t.id);
+    const ids = (listRes.body.data as Array<{ id: string }>).map((t) => t.id);
     expect(ids).not.toContain(template.id);
   });
 
@@ -227,5 +227,60 @@ describe('templates routes', () => {
       .set('Authorization', `Bearer ${agentToken}`)
       .send({ name: 'TMPL-Nope' });
     expect(res.status).toBe(403);
+  });
+
+  describe('GET /templates pagination', () => {
+    beforeAll(async () => {
+      await prisma.auditTemplate.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          name: `page-template-${i}`,
+          schema: sampleSchema,
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, alphabetical by name', async () => {
+      const res = await request(app)
+        .get('/templates')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const names = res.body.data.map((t: { name: string }) => t.name);
+      expect(names.indexOf('page-template-0')).toBeLessThan(names.indexOf('page-template-2'));
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/templates?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/templates?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((t: { id: string }) => t.id);
+      const secondIds = second.body.data.map((t: { id: string }) => t.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/templates?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/templates?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });

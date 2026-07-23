@@ -61,7 +61,8 @@ class _FakeOrdersRepository implements OrdersRepository {
 
 class _FakeTemplatesRepository implements TemplatesRepository {
   @override
-  Future<List<AuditTemplate>> listTemplates() async => const [];
+  Future<PaginatedResponse<AuditTemplate>> listTemplates() async =>
+      const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<AuditTemplateDetail> fetchTemplate(String id) async =>
