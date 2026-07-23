@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
 
@@ -27,11 +28,14 @@ class _FakeAlertsRepository implements AlertsRepository {
   String? acknowledgedId;
 
   @override
-  Future<List<AlertItem>> listAlerts({
+  Future<PaginatedResponse<AlertItem>> listAlerts({
     bool? acknowledged,
     String? severity,
   }) async =>
-      const [_unacknowledged, _acknowledged];
+      const PaginatedResponse(
+        data: [_unacknowledged, _acknowledged],
+        nextCursor: null,
+      );
 
   @override
   Future<AlertItem> acknowledge(String id) async {
@@ -49,7 +53,7 @@ class _FakeAlertsRepository implements AlertsRepository {
 
 class _ThrowingAlertsRepository implements AlertsRepository {
   @override
-  Future<List<AlertItem>> listAlerts({
+  Future<PaginatedResponse<AlertItem>> listAlerts({
     bool? acknowledged,
     String? severity,
   }) async =>
