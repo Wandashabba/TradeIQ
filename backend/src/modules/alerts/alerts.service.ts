@@ -205,6 +205,11 @@ export async function listAlerts(input: ListAlertsInput) {
     },
     // `id` is the unique tiebreaker that makes the cursor deterministic when
     // two alerts share a createdAt — same reasoning as agents.service.ts.
+    //
+    // COPYING THIS PATTERN: the tiebreaker's direction MUST match the primary
+    // sort's direction (both `desc` here). Prisma seeks the cursor by the full
+    // orderBy tuple, so a mismatched direction (e.g. createdAt desc, id asc)
+    // silently breaks the no-gap/no-overlap guarantee across a page boundary.
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: input.limit + 1,
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
