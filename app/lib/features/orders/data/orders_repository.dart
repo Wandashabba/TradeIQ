@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// One order returned by GET /orders. A field_agent sees their own orders;
 /// a manager sees the client's.
@@ -46,7 +47,7 @@ class OrderLine {
 }
 
 abstract class OrdersRepository {
-  Future<List<OrderItem>> listOrders({String? status, String? outletId});
+  Future<PaginatedResponse<OrderItem>> listOrders({String? status, String? outletId});
 
   /// POST /orders (field_agent/manager). [lines] must be non-empty.
   Future<OrderItem> createOrder({
@@ -57,14 +58,18 @@ abstract class OrdersRepository {
 
 class DioOrdersRepository implements OrdersRepository {
   @override
-  Future<List<OrderItem>> listOrders({String? status, String? outletId}) async {
+  Future<PaginatedResponse<OrderItem>> listOrders({
+    String? status,
+    String? outletId,
+  }) async {
     final query = <String, dynamic>{};
     if (status != null) query['status'] = status;
     if (outletId != null) query['outletId'] = outletId;
     final response = await dio.get('/orders', queryParameters: query);
-    return (response.data as List)
-        .map((json) => OrderItem.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<OrderItem>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => OrderItem.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -83,6 +88,12 @@ class DioOrdersRepository implements OrdersRepository {
 final ordersRepositoryProvider =
     Provider<OrdersRepository>((ref) => DioOrdersRepository());
 
-final ordersListProvider = FutureProvider<List<OrderItem>>((ref) {
-  return ref.read(ordersRepositoryProvider).listOrders();
+// The provider exposes the FIRST PAGE as a plain list: the orders screen
+// wants the most recent orders, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final ordersListProvider = FutureProvider<List<OrderItem>>((ref) async {
+  final page = await ref.read(ordersRepositoryProvider).listOrders();
+  return page.data;
 });

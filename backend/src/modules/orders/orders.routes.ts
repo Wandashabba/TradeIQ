@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   createOrder,
   getOrderForClient,
@@ -78,13 +79,16 @@ ordersRouter.get('/', async (req: AuthedRequest, res) => {
   // Field agents see only their own orders; managers/admins see the whole client.
   const agentId = req.user!.role === 'field_agent' ? req.user!.userId : undefined;
 
-  const orders = await listOrders({
+  const { limit, cursor } = parsePagination(req);
+  const page = await listOrders({
     clientId: req.user!.clientId,
     agentId,
     outletId: outletId as string | undefined,
     status: status as OrderStatus | undefined,
+    limit,
+    cursor,
   });
-  res.status(200).json(orders);
+  res.status(200).json(page);
 });
 
 ordersRouter.get('/:id', async (req: AuthedRequest, res) => {

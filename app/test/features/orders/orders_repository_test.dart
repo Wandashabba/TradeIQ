@@ -1,5 +1,35 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/api_client.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
+
+/// A fake HTTP layer that returns a canned body, following the pattern in
+/// `test/features/agents/agents_repository_test.dart`.
+class _RecordingAdapter implements HttpClientAdapter {
+  _RecordingAdapter(this.body);
+  final String body;
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString(
+      body,
+      200,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+  }
+}
 
 void main() {
   test('OrderItem.fromJson parses total as double and lines from _count', () {
@@ -41,5 +71,33 @@ void main() {
     });
 
     expect(order.lineCount, 0);
+  });
+
+  group('DioOrdersRepository.listOrders', () {
+    late HttpClientAdapter originalAdapter;
+
+    setUp(() {
+      originalAdapter = dio.httpClientAdapter;
+    });
+
+    tearDown(() {
+      dio.httpClientAdapter = originalAdapter;
+    });
+
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "ord-1", "outletId": "o1", "status": "submitted", '
+        '"total": 25, "_count": {"lines": 2}}], '
+        '"nextCursor": "cursor-1"}',
+      );
+
+      final page = await DioOrdersRepository().listOrders();
+
+      expect(page, isA<PaginatedResponse<OrderItem>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 'ord-1');
+      expect(page.nextCursor, 'cursor-1');
+    });
   });
 }

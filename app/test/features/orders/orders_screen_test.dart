@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/orders/presentation/orders_screen.dart';
 
@@ -23,8 +24,11 @@ const _orderB = OrderItem(
 
 class _FakeOrdersRepository implements OrdersRepository {
   @override
-  Future<List<OrderItem>> listOrders({String? status, String? outletId}) async =>
-      const [_orderA, _orderB];
+  Future<PaginatedResponse<OrderItem>> listOrders({
+    String? status,
+    String? outletId,
+  }) async =>
+      const PaginatedResponse(data: [_orderA, _orderB], nextCursor: null);
 
   @override
   Future<OrderItem> createOrder({
@@ -36,7 +40,10 @@ class _FakeOrdersRepository implements OrdersRepository {
 
 class _FailingOrdersRepository implements OrdersRepository {
   @override
-  Future<List<OrderItem>> listOrders({String? status, String? outletId}) async =>
+  Future<PaginatedResponse<OrderItem>> listOrders({
+    String? status,
+    String? outletId,
+  }) async =>
       throw Exception('boom');
 
   @override
