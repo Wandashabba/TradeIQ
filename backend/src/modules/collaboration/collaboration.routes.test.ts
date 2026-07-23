@@ -89,7 +89,7 @@ describe('collaboration routes', () => {
   it("includes the direct message in the recipient's GET /messages", async () => {
     const res = await request(app).get('/messages').set('Authorization', `Bearer ${agentBToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.map((m: { id: string }) => m.id)).toContain(directMessageId);
+    expect(res.body.data.map((m: { id: string }) => m.id)).toContain(directMessageId);
   });
 
   it('makes a broadcast (null recipient) visible to both sender and other users', async () => {
@@ -102,9 +102,9 @@ describe('collaboration routes', () => {
     const broadcastId: string = created.body.id;
 
     const forA = await request(app).get('/messages').set('Authorization', `Bearer ${agentAToken}`);
-    expect(forA.body.map((m: { id: string }) => m.id)).toContain(broadcastId);
+    expect(forA.body.data.map((m: { id: string }) => m.id)).toContain(broadcastId);
     const forB = await request(app).get('/messages').set('Authorization', `Bearer ${agentBToken}`);
-    expect(forB.body.map((m: { id: string }) => m.id)).toContain(broadcastId);
+    expect(forB.body.data.map((m: { id: string }) => m.id)).toContain(broadcastId);
   });
 
   it('rejects an empty message body with 400', async () => {
@@ -153,7 +153,7 @@ describe('collaboration routes', () => {
   it("lets agents see the client's announcements via GET /announcements", async () => {
     const res = await request(app).get('/announcements').set('Authorization', `Bearer ${agentAToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.map((a: { title: string }) => a.title)).toContain('Weekly focus');
+    expect(res.body.data.map((a: { title: string }) => a.title)).toContain('Weekly focus');
   });
 
   it('rejects an announcement missing its body with 400', async () => {
@@ -182,16 +182,129 @@ describe('collaboration routes', () => {
 
   it("does not leak another client's messages or announcements", async () => {
     const messages = await request(app).get('/messages').set('Authorization', `Bearer ${agentAToken}`);
-    expect(messages.body.map((m: { id: string }) => m.id)).not.toContain(otherMessageId);
+    expect(messages.body.data.map((m: { id: string }) => m.id)).not.toContain(otherMessageId);
 
     const announcements = await request(app)
       .get('/announcements')
       .set('Authorization', `Bearer ${agentAToken}`);
-    expect(announcements.body.map((a: { id: string }) => a.id)).not.toContain(otherAnnouncementId);
+    expect(announcements.body.data.map((a: { id: string }) => a.id)).not.toContain(otherAnnouncementId);
 
     // And the other tenant never sees this client's data.
     const otherMessages = await request(app).get('/messages').set('Authorization', `Bearer ${otherToken}`);
-    expect(otherMessages.body.map((m: { id: string }) => m.id)).toContain(otherMessageId);
-    expect(otherMessages.body.map((m: { id: string }) => m.id)).not.toContain(directMessageId);
+    expect(otherMessages.body.data.map((m: { id: string }) => m.id)).toContain(otherMessageId);
+    expect(otherMessages.body.data.map((m: { id: string }) => m.id)).not.toContain(directMessageId);
+  });
+
+  describe('GET /messages pagination', () => {
+    beforeAll(async () => {
+      await prisma.message.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          senderId: agentAId,
+          body: `page-msg-${i}`,
+          createdAt: new Date(`2026-07-20T0${i}:00:00.000Z`),
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, newest first', async () => {
+      const res = await request(app)
+        .get('/messages')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const bodies = res.body.data.map((m: { body: string }) => m.body);
+      expect(bodies.indexOf('page-msg-2')).toBeLessThan(bodies.indexOf('page-msg-0'));
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/messages?limit=2')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/messages?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((m: { id: string }) => m.id);
+      const secondIds = second.body.data.map((m: { id: string }) => m.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/messages?limit=9999')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/messages?limit=0')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /announcements pagination', () => {
+    beforeAll(async () => {
+      await prisma.announcement.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          authorId: agentAId,
+          title: `page-ann-${i}`,
+          body: `page-ann-body-${i}`,
+          createdAt: new Date(`2026-07-20T0${i}:00:00.000Z`),
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, newest first', async () => {
+      const res = await request(app)
+        .get('/announcements')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const titles = res.body.data.map((a: { title: string }) => a.title);
+      expect(titles.indexOf('page-ann-2')).toBeLessThan(titles.indexOf('page-ann-0'));
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/announcements?limit=2')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/announcements?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((a: { id: string }) => a.id);
+      const secondIds = second.body.data.map((a: { id: string }) => a.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/announcements?limit=9999')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/announcements?limit=0')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });

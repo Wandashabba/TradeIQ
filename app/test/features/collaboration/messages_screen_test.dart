@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/collaboration/data/collaboration_repository.dart';
 import 'package:tradeiq_app/features/collaboration/presentation/messages_screen.dart';
 
@@ -28,7 +29,8 @@ class _FakeCollaborationRepository implements CollaborationRepository {
   ({String title, String body})? posted;
 
   @override
-  Future<List<Message>> listMessages() async => const [_first, _second];
+  Future<PaginatedResponse<Message>> listMessages() async =>
+      const PaginatedResponse(data: [_first, _second], nextCursor: null);
 
   @override
   Future<Message> sendMessage(String body, {String? recipientId}) async {
@@ -37,7 +39,8 @@ class _FakeCollaborationRepository implements CollaborationRepository {
   }
 
   @override
-  Future<List<Announcement>> listAnnouncements() async => const [_announcement];
+  Future<PaginatedResponse<Announcement>> listAnnouncements() async =>
+      const PaginatedResponse(data: [_announcement], nextCursor: null);
 
   @override
   Future<Announcement> createAnnouncement({
@@ -51,14 +54,16 @@ class _FakeCollaborationRepository implements CollaborationRepository {
 
 class _ThrowingCollaborationRepository implements CollaborationRepository {
   @override
-  Future<List<Message>> listMessages() async => throw Exception('boom');
+  Future<PaginatedResponse<Message>> listMessages() async =>
+      throw Exception('boom');
 
   @override
   Future<Message> sendMessage(String body, {String? recipientId}) async =>
       throw Exception('boom');
 
   @override
-  Future<List<Announcement>> listAnnouncements() async => throw Exception('boom');
+  Future<PaginatedResponse<Announcement>> listAnnouncements() async =>
+      throw Exception('boom');
 
   @override
   Future<Announcement> createAnnouncement({

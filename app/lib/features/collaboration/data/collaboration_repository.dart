@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// A single team message returned by GET /messages.
 class Message {
@@ -38,9 +39,9 @@ class Announcement {
 }
 
 abstract class CollaborationRepository {
-  Future<List<Message>> listMessages();
+  Future<PaginatedResponse<Message>> listMessages();
   Future<Message> sendMessage(String body, {String? recipientId});
-  Future<List<Announcement>> listAnnouncements();
+  Future<PaginatedResponse<Announcement>> listAnnouncements();
 
   /// POST /announcements. The backend gates this on `requireRole('manager',
   /// 'admin')` — the caller must role-gate the affordance too, or a field agent
@@ -53,11 +54,12 @@ abstract class CollaborationRepository {
 
 class DioCollaborationRepository implements CollaborationRepository {
   @override
-  Future<List<Message>> listMessages() async {
+  Future<PaginatedResponse<Message>> listMessages() async {
     final response = await dio.get('/messages');
-    return (response.data as List)
-        .map((json) => Message.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<Message>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => Message.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -69,11 +71,12 @@ class DioCollaborationRepository implements CollaborationRepository {
   }
 
   @override
-  Future<List<Announcement>> listAnnouncements() async {
+  Future<PaginatedResponse<Announcement>> listAnnouncements() async {
     final response = await dio.get('/announcements');
-    return (response.data as List)
-        .map((json) => Announcement.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<Announcement>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => Announcement.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -92,10 +95,23 @@ class DioCollaborationRepository implements CollaborationRepository {
 final collaborationRepositoryProvider =
     Provider<CollaborationRepository>((ref) => DioCollaborationRepository());
 
-final messagesProvider = FutureProvider<List<Message>>((ref) {
-  return ref.read(collaborationRepositoryProvider).listMessages();
+// The provider exposes the FIRST PAGE as a plain list: the messages feed wants
+// the most recent messages, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final messagesProvider = FutureProvider<List<Message>>((ref) async {
+  final page = await ref.read(collaborationRepositoryProvider).listMessages();
+  return page.data;
 });
 
-final announcementsListProvider = FutureProvider<List<Announcement>>((ref) {
-  return ref.read(collaborationRepositoryProvider).listAnnouncements();
+// The provider exposes the FIRST PAGE as a plain list: the announcements feed
+// wants the most recent announcements, not the whole history, and "load more"
+// UI is deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final announcementsListProvider = FutureProvider<List<Announcement>>((ref) async {
+  final page =
+      await ref.read(collaborationRepositoryProvider).listAnnouncements();
+  return page.data;
 });
