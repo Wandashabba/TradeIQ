@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/report_form_screen.dart';
@@ -9,7 +10,8 @@ class _RecordingReportsRepository implements ReportsRepository {
   Map<String, dynamic>? createdArgs;
 
   @override
-  Future<List<ReportDefinition>> listReports() async => const [];
+  Future<PaginatedResponse<ReportDefinition>> listReports() async =>
+      const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<ReportResult> generate(String id) async => throw UnimplementedError();

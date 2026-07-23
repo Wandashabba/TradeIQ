@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/incentives/data/incentives_repository.dart';
 import 'package:tradeiq_app/features/incentives/presentation/incentives_screen.dart';
 
@@ -31,7 +32,8 @@ class _FakeIncentivesRepository implements IncentivesRepository {
   int? createdRewardPoints;
 
   @override
-  Future<List<IncentiveScheme>> listSchemes() async => const [_schemeA, _schemeB];
+  Future<PaginatedResponse<IncentiveScheme>> listSchemes() async =>
+      const PaginatedResponse(data: [_schemeA, _schemeB], nextCursor: null);
 
   @override
   Future<IncentiveScheme> createScheme({
@@ -75,7 +77,8 @@ class _FakeIncentivesRepository implements IncentivesRepository {
 
 class _ThrowingIncentivesRepository implements IncentivesRepository {
   @override
-  Future<List<IncentiveScheme>> listSchemes() async => throw Exception('boom');
+  Future<PaginatedResponse<IncentiveScheme>> listSchemes() async =>
+      throw Exception('boom');
 
   @override
   Future<IncentiveScheme> createScheme({

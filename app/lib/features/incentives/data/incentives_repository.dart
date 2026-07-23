@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// An incentive scheme returned by GET /incentives.
 class IncentiveScheme {
@@ -47,7 +48,7 @@ class EarnedIncentive {
 }
 
 abstract class IncentivesRepository {
-  Future<List<IncentiveScheme>> listSchemes();
+  Future<PaginatedResponse<IncentiveScheme>> listSchemes();
   Future<IncentiveScheme> createScheme({
     required String name,
     required String metric,
@@ -63,11 +64,12 @@ abstract class IncentivesRepository {
 
 class DioIncentivesRepository implements IncentivesRepository {
   @override
-  Future<List<IncentiveScheme>> listSchemes() async {
+  Future<PaginatedResponse<IncentiveScheme>> listSchemes() async {
     final response = await dio.get('/incentives');
-    return (response.data as List)
-        .map((json) => IncentiveScheme.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<IncentiveScheme>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => IncentiveScheme.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -110,6 +112,12 @@ class DioIncentivesRepository implements IncentivesRepository {
 final incentivesRepositoryProvider =
     Provider<IncentivesRepository>((ref) => DioIncentivesRepository());
 
-final incentivesListProvider = FutureProvider<List<IncentiveScheme>>((ref) {
-  return ref.read(incentivesRepositoryProvider).listSchemes();
+// The provider exposes the FIRST PAGE as a plain list: the incentives screen
+// wants the current schemes, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final incentivesListProvider = FutureProvider<List<IncentiveScheme>>((ref) async {
+  final page = await ref.read(incentivesRepositoryProvider).listSchemes();
+  return page.data;
 });

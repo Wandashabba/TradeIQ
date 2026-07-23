@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   BeatPlanStatus,
   createBeatPlan,
@@ -77,14 +78,17 @@ beatplansRouter.get('/', async (req: AuthedRequest, res) => {
     return;
   }
 
-  const plans = await listBeatPlans({
+  const { limit, cursor } = parsePagination(req);
+  const page = await listBeatPlans({
     clientId: req.user!.clientId,
     role: req.user!.role,
     callerUserId: req.user!.userId,
     agentId,
     status,
+    limit,
+    cursor,
   });
-  res.status(200).json(plans);
+  res.status(200).json(page);
 });
 
 beatplansRouter.get('/:id', async (req: AuthedRequest, res) => {

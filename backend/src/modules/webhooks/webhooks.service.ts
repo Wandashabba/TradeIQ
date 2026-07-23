@@ -7,6 +7,7 @@ import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { ssrfSafeAgent } from '../../lib/ssrfAgent';
 import { assertPublicHostname } from '../../lib/urlGuard';
+import { buildPage } from '../../lib/pagination';
 
 export interface CreateWebhookInput {
   clientId: string;
@@ -26,11 +27,22 @@ export async function createWebhook(input: CreateWebhookInput) {
   });
 }
 
-export async function listWebhooksForClient(clientId: string) {
-  return prisma.webhook.findMany({
-    where: { clientId },
-    orderBy: { createdAt: 'desc' },
+export interface ListWebhooksForClientInput {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listWebhooksForClient(input: ListWebhooksForClientInput) {
+  const rows = await prisma.webhook.findMany({
+    where: { clientId: input.clientId },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two webhooks share a createdAt — same reasoning as alerts.service.ts.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export async function findWebhookForClient(id: string, clientId: string) {
