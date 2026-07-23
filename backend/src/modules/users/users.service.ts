@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { hashPassword } from '../auth/auth.service';
+import { buildPage } from '../../lib/pagination';
 
 export type Role = 'field_agent' | 'manager' | 'admin';
 
@@ -41,12 +42,23 @@ export async function createUser(input: CreateUserInput) {
   });
 }
 
-export function listUsersForClient(clientId: string) {
-  return prisma.user.findMany({
-    where: { clientId },
+export interface ListUsersInput {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listUsersForClient(input: ListUsersInput) {
+  const rows = await prisma.user.findMany({
+    where: { clientId: input.clientId },
     select: safeUserSelect,
-    orderBy: { email: 'asc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two users share an email — same reasoning as alerts.service.ts.
+    orderBy: [{ email: 'asc' }, { id: 'asc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export interface UpdateUserInput {

@@ -117,15 +117,15 @@ describe('users routes', () => {
     const res = await request(app).get('/users').set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    for (const user of res.body) {
+    expect(Array.isArray(res.body.data)).toBe(true);
+    for (const user of res.body.data) {
       expect(user.passwordHash).toBeUndefined();
       expect(typeof user.active).toBe('boolean');
       // Pin the whole allowlist, not just the hash's absence: safeUserSelect is
       // shared with /territories/:id/coverage, so widening it here widens both.
       expect(Object.keys(user).sort()).toEqual(['active', 'email', 'id', 'lastSeenAt', 'role']);
     }
-    const emails = res.body.map((u: { email: string }) => u.email);
+    const emails = res.body.data.map((u: { email: string }) => u.email);
     expect(emails).toContain('USERS-admin@example.com');
   });
 
@@ -138,7 +138,7 @@ describe('users routes', () => {
     const res = await request(app).get('/users').set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
   });
 
   it('lets an admin deactivate a user (200)', async () => {
@@ -184,5 +184,63 @@ describe('users routes', () => {
   it('rejects unauthenticated requests with 401', async () => {
     const res = await request(app).get('/users');
     expect(res.status).toBe(401);
+  });
+
+  describe('GET /users pagination', () => {
+    beforeAll(async () => {
+      await prisma.user.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          email: `USERS-page-${i}@example.com`,
+          passwordHash: 'x',
+          role: 'field_agent' as const,
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, ordered by email asc', async () => {
+      const res = await request(app)
+        .get('/users')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const emails = res.body.data.map((u: { email: string }) => u.email);
+      expect(emails.indexOf('USERS-page-0@example.com')).toBeLessThan(
+        emails.indexOf('USERS-page-2@example.com'),
+      );
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/users?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/users?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((u: { id: string }) => u.id);
+      const secondIds = second.body.data.map((u: { id: string }) => u.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/users?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/users?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });

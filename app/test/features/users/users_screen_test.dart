@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/features/users/presentation/users_screen.dart';
 
@@ -27,7 +28,8 @@ class _FakeUsersRepository implements UsersRepository {
   String? createdRole;
 
   @override
-  Future<List<AppUser>> listUsers() async => const [_activeUser, _inactiveUser];
+  Future<PaginatedResponse<AppUser>> listUsers() async =>
+      const PaginatedResponse(data: [_activeUser, _inactiveUser], nextCursor: null);
 
   @override
   Future<AppUser> createUser({
@@ -56,7 +58,7 @@ class _FakeUsersRepository implements UsersRepository {
 
 class _ThrowingUsersRepository implements UsersRepository {
   @override
-  Future<List<AppUser>> listUsers() async => throw Exception('boom');
+  Future<PaginatedResponse<AppUser>> listUsers() async => throw Exception('boom');
 
   @override
   Future<AppUser> createUser({

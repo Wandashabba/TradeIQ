@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// An admin-facing view of one platform user returned by GET /users.
 class AppUser {
@@ -23,7 +24,7 @@ class AppUser {
 }
 
 abstract class UsersRepository {
-  Future<List<AppUser>> listUsers();
+  Future<PaginatedResponse<AppUser>> listUsers();
   Future<AppUser> createUser({
     required String email,
     required String password,
@@ -34,11 +35,12 @@ abstract class UsersRepository {
 
 class DioUsersRepository implements UsersRepository {
   @override
-  Future<List<AppUser>> listUsers() async {
+  Future<PaginatedResponse<AppUser>> listUsers() async {
     final response = await dio.get('/users');
-    return (response.data as List)
-        .map((json) => AppUser.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<AppUser>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => AppUser.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -67,6 +69,12 @@ class DioUsersRepository implements UsersRepository {
 final usersRepositoryProvider =
     Provider<UsersRepository>((ref) => DioUsersRepository());
 
-final usersListProvider = FutureProvider<List<AppUser>>((ref) {
-  return ref.read(usersRepositoryProvider).listUsers();
+// The provider exposes the FIRST PAGE as a plain list: the users screen wants
+// the current roster, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final usersListProvider = FutureProvider<List<AppUser>>((ref) async {
+  final page = await ref.read(usersRepositoryProvider).listUsers();
+  return page.data;
 });
