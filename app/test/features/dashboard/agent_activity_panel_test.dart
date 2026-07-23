@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
+import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
 import '../../helpers/routed_app.dart';
@@ -122,6 +123,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -146,6 +148,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(id: 'a2', name: 'sipho@example.com', state: AgentState.idle),
@@ -167,6 +170,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
       ],
     ));
@@ -182,6 +186,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
         territoriesListProvider.overrideWith(
           (ref) async => const [
@@ -211,6 +216,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([])),
         territoriesListProvider.overrideWith(
           (ref) async => const [
@@ -240,6 +246,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository(
             [_agent(id: 'a1', name: 'a@x.com', state: AgentState.idle)],
@@ -257,6 +264,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository(
             [_agent(id: 'a1', name: 'a@x.com', state: AgentState.idle)],
@@ -283,6 +291,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(id: 'a1', name: 'a@x.com', state: AgentState.atStore, currentOutlet: 'Spar'),
@@ -323,6 +332,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -357,6 +367,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -378,6 +389,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(_FailingAgentsRepository()),
       ],
     ));
@@ -390,6 +402,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -415,6 +428,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -439,6 +453,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -465,12 +480,16 @@ void main() {
     expect(find.text('2 on the map · 1 not checked in today'), findsOneWidget);
   });
 
-  // A grey, pinless map would read as broken rather than honest — so when
-  // nobody has a confirmed stop, no map renders at all.
-  testWidgets('renders no map when no agent has a confirmed stop today', (tester) async {
+  // Genuinely nothing to draw: no confirmed stops AND no outlets (a
+  // brand-new tenant). This is the one case where the map legitimately
+  // cannot render — everywhere else, the outlet base layer keeps it up (see
+  // the regression tests below, which prove the map DOES still render when
+  // outlets exist but nobody has checked in — the bug this whole fix targets).
+  testWidgets('shows the "no outlets" message, and no map, when there are neither stops nor outlets', (tester) async {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(id: 'a1', name: 'a@x.com', state: AgentState.idle),
@@ -482,7 +501,105 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(FlutterMap), findsNothing);
-    expect(find.textContaining('Nobody has checked in yet today'), findsOneWidget);
+    expect(
+      find.textContaining('No outlets yet — add outlets to see them here.'),
+      findsOneWidget,
+    );
+  });
+
+  // The reported regression, guarded directly: nobody has checked in, but
+  // the tenant has outlets — the map must still render, with the outlets as
+  // a base layer, and NO agent pins (nobody has a confirmed stop to plot).
+  // This is the test that fails against the old list-only code, which hid
+  // the map entirely whenever `withStops` was empty.
+  testWidgets('shows the outlet base layer, with no agent pins, when nobody has checked in yet', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        outletsListProvider.overrideWith(
+          (ref) async => const [
+            Outlet(id: 'o1', name: 'Sandton Spar', code: 'SS1', lat: -26.10, lng: 28.05),
+            Outlet(id: 'o2', name: 'Rosebank Checkers', code: 'RC1', lat: -26.14, lng: 28.04),
+          ],
+        ),
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(id: 'a1', name: 'a@x.com', state: AgentState.idle),
+            _agent(id: 'a2', name: 'b@x.com', state: AgentState.inTransit),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FlutterMap), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('outlet-base-pin-o1')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('outlet-base-pin-o2')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsNothing);
+    expect(find.byKey(const ValueKey<String>('agent-pin-a2')), findsNothing);
+    // The footer still counts AGENTS, not outlets — two outlets on the map
+    // is not the same claim as "two agents checked in".
+    expect(find.text('0 on the map · 2 not checked in today'), findsOneWidget);
+  });
+
+  // Both layers together: an agent's own pin sits alongside the outlet base
+  // layer, and both remain visible — checking in does not hide the store
+  // network, it adds to it.
+  testWidgets('shows both agent pins and outlet pins together', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        outletsListProvider.overrideWith(
+          (ref) async => const [
+            Outlet(id: 'o1', name: 'Sandton Spar', code: 'SS1', lat: -26.10, lng: 28.05),
+            Outlet(id: 'o2', name: 'Rosebank Checkers', code: 'RC1', lat: -26.14, lng: 28.04),
+          ],
+        ),
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'thabo@example.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Sandton Spar',
+              stops: [_stop('Sandton Spar')],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FlutterMap), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('outlet-base-pin-o1')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('outlet-base-pin-o2')), findsOneWidget);
+  });
+
+  // An outlet-fetch failure is a thinner base layer, never a blank panel:
+  // the agent map — the panel's primary content — must still render.
+  testWidgets('still renders the map when the outlets fetch errors, as long as agents have stops', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        outletsListProvider.overrideWith((ref) async => throw Exception('network down')),
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'thabo@example.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Sandton Spar',
+              stops: [_stop('Sandton Spar')],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FlutterMap), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
   });
 
   // Regression test for the "map stuck at world zoom" bug: the panel lives
@@ -509,6 +626,7 @@ void main() {
         child: const Scaffold(body: AgentActivityPanel()),
       ),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -592,6 +710,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
         ),
@@ -634,6 +753,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -680,6 +800,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       Scaffold(body: ListView(children: const [AgentActivityPanel()])),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -728,6 +849,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _FakeAgentsRepository([
             _agent(
@@ -797,6 +919,7 @@ void main() {
     await tester.pumpWidget(routedApp(
       const Scaffold(body: AgentActivityPanel()),
       overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
         agentsRepositoryProvider.overrideWithValue(
           _TerritoryAwareAgentsRepository({null: jhb, 'cpt': capeTown}),
         ),

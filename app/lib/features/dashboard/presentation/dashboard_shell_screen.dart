@@ -19,6 +19,7 @@ import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../agents/data/agents_repository.dart';
 import '../../alerts/data/alerts_repository.dart';
+import '../../outlets/data/outlets_repository.dart';
 import '../../tasks/data/tasks_admin_repository.dart';
 import '../../territories/data/territories_repository.dart';
 import '../../trends/data/trends_repository.dart';
@@ -716,6 +717,18 @@ String _emptyActivityMessage(WidgetRef ref, String? territoryId) {
 /// pin; the list is the only reason they do not simply vanish from the
 /// panel, and the footer line beneath the map says how many that is.
 ///
+/// The map is ALWAYS present once there is anything at all to draw. It used
+/// to disappear entirely whenever nobody had checked in yet, leaving only the
+/// list and a "View map" button that led nowhere useful — reported as "the
+/// map is not showing". Now the tenant's outlets (`outletsListProvider`) form
+/// a base layer of muted place pins under the agent glyphs, so a manager
+/// always sees their store network; agent pins layer on top as people check
+/// in. `outletsListProvider` is NOT territory-scoped — it returns every
+/// outlet in the tenant regardless of `dashboardFilterProvider`, so a
+/// territory-filtered view can show more outlets than the (scoped) agents
+/// beside them. Acceptable for a base layer: the outlets are real, just not
+/// narrowed the way the agent list is.
+///
 /// Public rather than private so the widget test can pump it on its own.
 class AgentActivityPanel extends ConsumerWidget {
   const AgentActivityPanel({super.key});
@@ -724,6 +737,14 @@ class AgentActivityPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activity = ref.watch(agentActivityTodayProvider);
     final filter = ref.watch(dashboardFilterProvider);
+    // `maybeWhen` rather than `AsyncSection`/`.when`: outlets are a base
+    // layer, not the panel's primary data. A slow or failed outlet fetch
+    // must never blank the whole panel or block the agent map — it just
+    // means the base layer is thinner (or absent) until the fetch lands.
+    final outlets = ref.watch(outletsListProvider).maybeWhen(
+      data: (list) => list,
+      orElse: () => const <Outlet>[],
+    );
 
     return PanelCard(
       title: 'Where are my agents',
@@ -763,18 +784,23 @@ class AgentActivityPanel extends ConsumerWidget {
             ];
             final notPlotted = page.agents.length - withStops.length;
             final list = _AgentList(agents: page.agents);
+            // The map can draw as long as there is EITHER a checked-in agent
+            // OR an outlet to place — a base layer of stores is still a map
+            // worth showing on a quiet morning. Only a brand-new tenant with
+            // neither has genuinely nothing to plot.
+            final hasMapContent = withStops.isNotEmpty || outlets.isNotEmpty;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (withStops.isEmpty) ...[
-                  // No pins to plot: a grey, empty map would look broken
-                  // rather than honest, so the list carries the panel alone
-                  // and says in words why there is nothing to draw.
+                if (!hasMapContent) ...[
+                  // Nothing to plot at all: a grey, empty map would look
+                  // broken rather than honest, so the list carries the panel
+                  // alone and says in words why there is nothing to draw.
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
-                      'Nobody has checked in yet today.',
+                      'No outlets yet — add outlets to see them here.',
                       style: TextStyle(fontSize: 12, color: context.colors.ink3),
                     ),
                   ),
@@ -785,7 +811,10 @@ class AgentActivityPanel extends ConsumerWidget {
                       final wide = constraints.maxWidth >= _panelWide;
                       final map = SizedBox(
                         height: _mapHeight,
-                        child: _AgentMap(agentsWithStops: withStops),
+                        child: _AgentMap(
+                          agentsWithStops: withStops,
+                          outlets: outlets,
+                        ),
                       );
                       if (!wide) {
                         return Column(
@@ -856,21 +885,38 @@ class _AgentList extends StatelessWidget {
 }
 
 /// The map half — one pin per agent with at least one confirmed stop today,
-/// placed at their latest one. No polylines here: the drill-in trail map
-/// (`agent_trail_screen.dart`) carries the day's route, this one only answers
-/// "where are they now" (as of their last check-in).
+/// placed at their latest one, over a base layer of the tenant's outlets. No
+/// polylines here: the drill-in trail map (`agent_trail_screen.dart`) carries
+/// the day's route, this one only answers "where are they now" (as of their
+/// last check-in) — and, on a quiet day with no check-ins yet, "where is my
+/// store network at all".
+///
+/// Caller (`AgentActivityPanel`) guarantees at least one of [agentsWithStops]
+/// or [outlets] is non-empty before constructing this — `fitFor` asserts a
+/// non-empty point list, and there is nothing this widget could sensibly draw
+/// with neither.
 class _AgentMap extends StatelessWidget {
-  const _AgentMap({required this.agentsWithStops});
+  const _AgentMap({required this.agentsWithStops, required this.outlets});
 
   /// Must all have `stops.isNotEmpty` — callers filter before constructing.
   final List<AgentActivity> agentsWithStops;
 
+  /// The tenant's outlets, unfiltered by territory — see
+  /// [AgentActivityPanel]'s doc comment on why that is acceptable for a base
+  /// layer.
+  final List<Outlet> outlets;
+
   @override
   Widget build(BuildContext context) {
-    final points = [
+    final agentPoints = [
       for (final a in agentsWithStops)
         LatLng(_latestStop(a).lat, _latestStop(a).lng),
     ];
+    final outletPoints = [for (final o in outlets) LatLng(o.lat, o.lng)];
+    // Agents are the priority signal, but a fit that includes nearby stores
+    // too is harmless — and when nobody has checked in yet, the outlets are
+    // the ONLY points there are to fit against.
+    final points = [...agentPoints, ...outletPoints];
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppColors.radiusPanel),
@@ -954,7 +1000,21 @@ class _AgentMap extends StatelessWidget {
             children: [
               const TiqTileLayer(),
               MarkerLayer(
+                // Outlets first, agents last: marker paint order follows
+                // list order, so a checked-in agent standing at (or near) an
+                // outlet is never hidden underneath that outlet's base-layer
+                // dot.
                 markers: [
+                  for (final o in outlets)
+                    Marker(
+                      point: LatLng(o.lat, o.lng),
+                      width: 14,
+                      height: 14,
+                      child: _OutletBasePin(
+                        key: ValueKey<String>('outlet-base-pin-${o.id}'),
+                        outlet: o,
+                      ),
+                    ),
                   for (final a in agentsWithStops)
                     Marker(
                       point: LatLng(_latestStop(a).lat, _latestStop(a).lng),
@@ -1065,6 +1125,59 @@ class _CameraDriverState extends State<_CameraDriver>
 
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// One outlet on the panel's map — the base layer under the agent pins.
+///
+/// Deliberately NOT a scaled-down [_AgentMapPin]: #144's rule that state must
+/// differ by SILHOUETTE, not colour or size, cuts both ways here — a place
+/// marker must be just as unmistakably NOT a person's state. [AgentStateGlyph]
+/// draws a literal storefront for [AgentState.atStore]; reusing anything
+/// storefront-shaped for an outlet would recreate exactly the confusion #144
+/// already cost this feature twice. So this is a plain small dot with a
+/// hollow centre — a place marker's silhouette, not a state's — sized and
+/// coloured to read as quiet background context: an agent glyph should
+/// always be the eye's first stop.
+///
+/// Stateless, unlike [_AgentMapPin] — a base layer of outlets is not an
+/// interactive affordance the way an agent's live state is, so there is
+/// nothing here worth a hover response.
+class _OutletBasePin extends StatelessWidget {
+  const _OutletBasePin({super.key, required this.outlet});
+
+  final Outlet outlet;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '${outlet.name} outlet',
+      excludeSemantics: true,
+      child: Center(
+        child: Container(
+          width: 10,
+          height: 10,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // `ink4` — the same fixed, theme-invariant "marks only" literal
+            // `_pinGlyphColor` uses for the idle glyph's colour (see its doc
+            // comment) — deliberately muted and low-contrast next to the
+            // agent pins' saturated good/warn/ink4-on-white glyphs, so this
+            // reads as background rather than competing for attention.
+            color: TiqColors.light.ink4.withValues(alpha: 0.75),
+          ),
+          child: Container(
+            width: 4,
+            height: 4,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// One agent's latest confirmed stop, on the panel's map.
