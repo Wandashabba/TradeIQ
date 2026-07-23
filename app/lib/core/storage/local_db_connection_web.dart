@@ -1,6 +1,19 @@
 // The legacy drift web API is enough for a volatile database; migrating to
 // package:drift/wasm.dart needs bundled sqlite3.wasm/worker assets and is
-// tracked separately.
+// tracked in #177 — deliberately not scheduled.
+//
+// The assets are obtainable (sqlite3.wasm from the sqlite3.dart release tagged
+// `sqlite3-<version>`, drift_worker.js from drift's own release), so this is a
+// choice rather than a blocker. The reason not to take it: this connection is
+// effectively unreachable on web today. Only `AgentScaffold` opens the local
+// database, and agents work on mobile — `ManagerScaffold`, the entire web
+// surface, never touches it. Bundling ~1.5MB of WASM into every manager's page
+// load to silence a deprecation on a path that does not execute is a poor
+// trade.
+//
+// Revisit when the premise changes, not on a schedule: if agents ever capture
+// on web, this connection becomes live, and #177 should be done at the same
+// time as the encryption question below — not before it.
 // ignore_for_file: deprecated_member_use
 import 'package:drift/drift.dart';
 import 'package:drift/web.dart';

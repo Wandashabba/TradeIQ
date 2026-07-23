@@ -8,7 +8,7 @@ Scope authority: `docs/superpowers/specs/2026-07-02-tradeiq-scaffold-design.md`
 (§2 reconciles the detailed build prompt with the pitch deck). Real-vs-stubbed
 detail: `docs/architecture/stubs-and-interfaces.md`.
 
-## Active — remediation of the 2026-07-17 audit — 🟢 Plans 1 & 2 merged; 2b–4 pending
+## Active — remediation of the 2026-07-17 audit — 🟢 Plans 1, 2, 3 & 4 merged; 2b outstanding
 
 A full-codebase audit on 2026-07-17 found 2 Critical and ~13 High issues. The
 phases below describe what is *built*; this section tracks what must be *fixed*
@@ -24,9 +24,15 @@ injection, kpiMath drift). Residuals deliberately left open are recorded below
 and **now tracked as issues**: token revocation (#142), the webhook
 DNS-rebinding TOCTOU (#143), and assorted small cleanups (#145).
 
-**Plans 2b, 3 and 4 are ticketed, not scheduled** — see the issue links in the
-table. Of these, **#137 is the most urgent**: the release build has no INTERNET
-permission and is signed with debug keys, so it cannot ship at all.
+**Plans 3 and 4 have since merged.** Plan 3 closed every Flutter ship-blocker
+(#137 release build, #138 offline-DB encryption, #139 session handling, #140
+client hardening); Plan 4 closed the design/a11y integration (#144). The
+release build that "could not ship at all" now can.
+
+**Plan 2b (#141) is the only audit work still outstanding**, and it is now half
+done: the per-tenant uniqueness migration on `Outlet.code` shipped in PR #173,
+leaving pagination and `User.email`. It is also the gating dependency for #153's
+T1 tier, since that endpoint must be bounded from day one.
 
 **Separate workstream — premium UI** (not audit remediation): the dual light/dark
 theme system (spec §1–3) is merged; motion & polish (spec §4–5) is **also
@@ -38,12 +44,13 @@ See `docs/superpowers/specs/2026-07-17-premium-ui-theme-motion-design.md`.
 |---|---|---|---|
 | 1 | `docs/superpowers/plans/2026-07-17-security-critical.md` | C3 JWT payload cast → cross-tenant read · H1 published default secret · C1 bcrypt-hash disclosure · H6 webhook SSRF (+H7 timeout) · N8 401-instead-of-404 | ✅ **done** (branch `fix/security-critical-audit`; 575 tests green, proven end-to-end) |
 | 2 | `2026-07-17-backend-scale.md` | **backend-only, non-breaking** — H3 zero DB indexes · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · dispatch over-fetch · global Prisma `omit` floor · M1 capture paths not agent-scoped · M5 CSV formula injection · N5 kpiMath drift · N9 dead `JWT_SECRET` in `backend-ci.yml` | ✅ **done** — Tasks 1–7 merged via PR #130; Tasks 8–11 (CSV, kpiMath, CI, docs) in follow-up branch `fix/plan2-remainder` |
-| 2b | **#141** | **coordinated backend + Flutter** (contract-breaking, split out of Plan 2) — H4 pagination (`?limit`/cursor + `{data,nextCursor}`, every list repository + screen) · M4/N7 per-tenant uniqueness migrations on `Outlet.code` / `User.email` | ⚪ ticketed |
-| 3 | **#137 #138 #139 #140** | Flutter ship-blockers & client security — **#137 (CRITICAL)** H8 no INTERNET permission in release + H9 debug signing keys · **#138** C2 offline DB unencrypted/never cleared/outbox not user-scoped · **#139** H10 no 401 handling or `exp` check + H12 web token key beside ciphertext + M12 `_rememberMe` no-op · **#140** M11 no Dio timeouts + M14 `allowBackup` + M15 volatile web DB | ⚪ ticketed |
-| 4 | **#144** | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ⚪ ticketed |
+| 2b | **#141** | **coordinated backend + Flutter** (contract-breaking, split out of Plan 2) — H4 pagination (`?limit`/cursor + `{data,nextCursor}`, every list repository + screen) · M4/N7 per-tenant uniqueness migrations on `Outlet.code` / `User.email` | 🟡 **half done** — `Outlet.code` shipped (PR #173); pagination + `User.email` outstanding |
+| 3 | **#137 #138 #139 #140** | Flutter ship-blockers & client security — **#137 (CRITICAL)** H8 no INTERNET permission in release + H9 debug signing keys · **#138** C2 offline DB unencrypted/never cleared/outbox not user-scoped · **#139** H10 no 401 handling or `exp` check + H12 web token key beside ciphertext + M12 `_rememberMe` no-op · **#140** M11 no Dio timeouts + M14 `allowBackup` + M15 volatile web DB | ✅ **done** — all four closed |
+| 4 | **#144** | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ✅ **done** — closed |
 
-**Structural follow-up worth taking — global Prisma `omit`.** Verified working on
-the installed Prisma 6.19.3 (GA, no preview flag needed):
+**Shipped — global Prisma `omit`.** Live in `backend/src/lib/prisma.ts:7`. Kept
+here because the reasoning is worth preserving, not because it is outstanding.
+Verified working on the installed Prisma 6.19.3 (GA, no preview flag needed):
 
 ```ts
 export const prisma = new PrismaClient({ omit: { user: { passwordHash: true } } });
