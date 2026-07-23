@@ -338,7 +338,7 @@ describe('beatplans routes', () => {
         });
       });
 
-      it('returns an envelope with data and nextCursor, earliest first', async () => {
+      it('returns an envelope with data and nextCursor, latest first', async () => {
         const res = await request(app)
           .get('/beatplans')
           .set('Authorization', `Bearer ${managerToken}`);

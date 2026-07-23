@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// An admin-facing view of one outbound webhook returned by GET /webhooks.
 class Webhook {
@@ -23,7 +24,7 @@ class Webhook {
 }
 
 abstract class WebhooksRepository {
-  Future<List<Webhook>> listWebhooks();
+  Future<PaginatedResponse<Webhook>> listWebhooks();
   Future<Webhook> createWebhook({
     required String url,
     required String event,
@@ -36,11 +37,12 @@ abstract class WebhooksRepository {
 
 class DioWebhooksRepository implements WebhooksRepository {
   @override
-  Future<List<Webhook>> listWebhooks() async {
+  Future<PaginatedResponse<Webhook>> listWebhooks() async {
     final response = await dio.get('/webhooks');
-    return (response.data as List)
-        .map((json) => Webhook.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<Webhook>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => Webhook.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -70,6 +72,12 @@ class DioWebhooksRepository implements WebhooksRepository {
 final webhooksRepositoryProvider =
     Provider<WebhooksRepository>((ref) => DioWebhooksRepository());
 
-final webhooksListProvider = FutureProvider<List<Webhook>>((ref) {
-  return ref.read(webhooksRepositoryProvider).listWebhooks();
+// The provider exposes the FIRST PAGE as a plain list: the webhooks screen
+// wants the current webhooks, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final webhooksListProvider = FutureProvider<List<Webhook>>((ref) async {
+  final page = await ref.read(webhooksRepositoryProvider).listWebhooks();
+  return page.data;
 });

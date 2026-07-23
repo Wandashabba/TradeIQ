@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { parsePublicHttpUrl } from '../../lib/urlGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   createWebhook,
   deleteWebhook,
@@ -44,8 +45,9 @@ webhooksRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedRequ
 });
 
 webhooksRouter.get('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
-  const webhooks = await listWebhooksForClient(req.user!.clientId);
-  res.status(200).json(webhooks);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listWebhooksForClient({ clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
 
 webhooksRouter.patch('/:id', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
