@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// A saved report definition returned by GET /reports.
 class ReportDefinition {
@@ -36,7 +37,7 @@ class ReportResult {
 }
 
 abstract class ReportsRepository {
-  Future<List<ReportDefinition>> listReports();
+  Future<PaginatedResponse<ReportDefinition>> listReports();
   Future<ReportResult> generate(String id);
 
   /// POST /reports (manager/admin). [type] is one of
@@ -53,11 +54,12 @@ abstract class ReportsRepository {
 
 class DioReportsRepository implements ReportsRepository {
   @override
-  Future<List<ReportDefinition>> listReports() async {
+  Future<PaginatedResponse<ReportDefinition>> listReports() async {
     final response = await dio.get('/reports');
-    return (response.data as List)
-        .map((json) => ReportDefinition.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<ReportDefinition>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => ReportDefinition.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -89,6 +91,12 @@ class DioReportsRepository implements ReportsRepository {
 final reportsRepositoryProvider =
     Provider<ReportsRepository>((ref) => DioReportsRepository());
 
-final reportsListProvider = FutureProvider<List<ReportDefinition>>((ref) {
-  return ref.read(reportsRepositoryProvider).listReports();
+// The provider exposes the FIRST PAGE as a plain list: the reports screen
+// wants the current report definitions, not the whole history, and "load
+// more" UI is deliberately out of scope for the pagination sweep (see the
+// spec). `nextCursor` is available on the repository for any screen that
+// later needs to page; this provider intentionally drops it.
+final reportsListProvider = FutureProvider<List<ReportDefinition>>((ref) async {
+  final page = await ref.read(reportsRepositoryProvider).listReports();
+  return page.data;
 });

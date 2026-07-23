@@ -1,6 +1,7 @@
 import { Prisma, ReportDefinition, TaskStatus, VisitStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { buildPage } from '../../lib/pagination';
 
 // The report kinds a ReportDefinition can generate. `ReportDefinition.type` is a
 // free-text column at the schema level; this is the runtime allow-list.
@@ -40,11 +41,25 @@ export async function createReport(input: CreateReportInput): Promise<ReportDefi
   });
 }
 
-export async function listReports(clientId: string): Promise<ReportDefinition[]> {
-  return prisma.reportDefinition.findMany({
-    where: { clientId },
-    orderBy: { createdAt: 'desc' },
+export interface ListReportsInput {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listReports(
+  input: ListReportsInput,
+): Promise<{ data: ReportDefinition[]; nextCursor: string | null }> {
+  const rows = await prisma.reportDefinition.findMany({
+    where: { clientId: input.clientId },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two report definitions share a createdAt — same reasoning as
+    // alerts.service.ts.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export async function findReportForClient(id: string, clientId: string): Promise<ReportDefinition> {

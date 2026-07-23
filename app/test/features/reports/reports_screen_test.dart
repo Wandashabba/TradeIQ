@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/reports/data/reports_repository.dart';
 import 'package:tradeiq_app/features/reports/presentation/reports_screen.dart';
 
@@ -22,10 +23,8 @@ class _FakeReportsRepository implements ReportsRepository {
   String? deletedId;
 
   @override
-  Future<List<ReportDefinition>> listReports() async => const [
-        _reportA,
-        _reportB,
-      ];
+  Future<PaginatedResponse<ReportDefinition>> listReports() async =>
+      const PaginatedResponse(data: [_reportA, _reportB], nextCursor: null);
 
   @override
   Future<ReportResult> generate(String id) async {
@@ -52,7 +51,7 @@ class _FakeReportsRepository implements ReportsRepository {
 
 class _FailingReportsRepository implements ReportsRepository {
   @override
-  Future<List<ReportDefinition>> listReports() async =>
+  Future<PaginatedResponse<ReportDefinition>> listReports() async =>
       throw Exception('boom');
 
   @override
