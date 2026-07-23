@@ -149,10 +149,10 @@ describe('tasks routes', () => {
     const res = await request(app).get('/tasks').set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    const ids = res.body.map((t: { id: string }) => t.id);
+    const ids = res.body.data.map((t: { id: string }) => t.id);
     expect(ids).toContain(taskId);
     expect(ids).not.toContain(otherTaskId);
-    const dueDates = res.body.map((t: { slaDueAt: string }) => new Date(t.slaDueAt).getTime());
+    const dueDates = res.body.data.map((t: { slaDueAt: string }) => new Date(t.slaDueAt).getTime());
     expect(dueDates).toEqual([...dueDates].sort((a: number, b: number) => a - b));
   });
 
@@ -162,14 +162,14 @@ describe('tasks routes', () => {
       .query({ status: 'closed' })
       .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.map((t: { id: string }) => t.id)).not.toContain(taskId);
+    expect(res.body.data.map((t: { id: string }) => t.id)).not.toContain(taskId);
 
     const openRes = await request(app)
       .get('/tasks')
       .query({ status: 'open' })
       .set('Authorization', `Bearer ${managerToken}`);
     expect(openRes.status).toBe(200);
-    expect(openRes.body.map((t: { id: string }) => t.id)).toContain(taskId);
+    expect(openRes.body.data.map((t: { id: string }) => t.id)).toContain(taskId);
   });
 
   it('rejects a garbage status filter with 400', async () => {
@@ -272,5 +272,61 @@ describe('tasks routes', () => {
     expect(listed.status).toBe(401);
     const patched = await request(app).patch(`/tasks/${taskId}`).send({ status: 'open' });
     expect(patched.status).toBe(401);
+  });
+
+  describe('GET /tasks pagination', () => {
+    beforeAll(async () => {
+      await prisma.task.createMany({
+        data: [0, 1, 2].map((i) => ({
+          findingType: `page-task-${i}`,
+          outletId,
+          requiredFix: 'Restock',
+          priority: 'normal',
+          slaDueAt: new Date(`2026-08-1${i}T00:00:00.000Z`),
+          ownerId: agentId,
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, oldest SLA first', async () => {
+      const res = await request(app).get('/tasks').set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const types = res.body.data.map((t: { findingType: string }) => t.findingType);
+      expect(types.indexOf('page-task-0')).toBeLessThan(types.indexOf('page-task-2'));
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/tasks?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/tasks?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((t: { id: string }) => t.id);
+      const secondIds = second.body.data.map((t: { id: string }) => t.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/tasks?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/tasks?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });

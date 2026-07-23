@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { TaskPriority } from '../../lib/slaClock';
+import { parsePagination } from '../../lib/pagination';
 import {
   createTask,
   findTaskForClient,
@@ -75,13 +76,16 @@ tasksRouter.get('/', async (req: AuthedRequest, res) => {
     return;
   }
 
-  const tasks = await listTasks({
+  const { limit, cursor } = parsePagination(req);
+  const page = await listTasks({
     clientId: req.user!.clientId,
     status: status as TaskStatusInput | undefined,
     priority: priority as TaskPriority | undefined,
     outletId: outletId as string | undefined,
+    limit,
+    cursor,
   });
-  res.status(200).json(tasks);
+  res.status(200).json(page);
 });
 
 tasksRouter.patch('/:id', requireRole('field_agent', 'manager'), async (req: AuthedRequest, res) => {

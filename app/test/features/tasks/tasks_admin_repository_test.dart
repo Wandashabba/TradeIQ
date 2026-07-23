@@ -1,5 +1,35 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/api_client.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
+
+/// A fake HTTP layer that returns a canned body, following the pattern in
+/// `test/features/agents/agents_repository_test.dart`.
+class _RecordingAdapter implements HttpClientAdapter {
+  _RecordingAdapter(this.body);
+  final String body;
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString(
+      body,
+      200,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+  }
+}
 
 void main() {
   test('TaskItem.fromJson parses all fields including visitId', () {
@@ -39,5 +69,34 @@ void main() {
     expect(task.closureVerified, isFalse);
     expect(task.closurePhotoUrl, isNull);
     expect(task.visitId, isNull);
+  });
+
+  group('DioTasksAdminRepository.listTasks', () {
+    late HttpClientAdapter originalAdapter;
+
+    setUp(() {
+      originalAdapter = dio.httpClientAdapter;
+    });
+
+    tearDown(() {
+      dio.httpClientAdapter = originalAdapter;
+    });
+
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "t1", "findingType": "out_of_stock", '
+        '"requiredFix": "Restock SKU 42", "priority": "critical", '
+        '"status": "open", "closureVerified": false, "outletId": "o1"}], '
+        '"nextCursor": "cursor-1"}',
+      );
+
+      final page = await DioTasksAdminRepository().listTasks();
+
+      expect(page, isA<PaginatedResponse<TaskItem>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 't1');
+      expect(page.nextCursor, 'cursor-1');
+    });
   });
 }
