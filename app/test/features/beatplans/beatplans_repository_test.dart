@@ -1,5 +1,35 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/api_client.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/beatplans/data/beatplans_repository.dart';
+
+/// A fake HTTP layer that returns a canned body, following the pattern in
+/// `test/features/agents/agents_repository_test.dart`.
+class _RecordingAdapter implements HttpClientAdapter {
+  _RecordingAdapter(this.body);
+  final String body;
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString(
+      body,
+      200,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+  }
+}
 
 void main() {
   test('BeatPlan.fromJson parses summary fields', () {
@@ -56,5 +86,33 @@ void main() {
     expect(detail.stopsTotal, 2);
     expect(detail.stopsVisited, 1);
     expect(detail.adherenceRate, 0.5);
+  });
+
+  group('DioBeatPlansRepository.listBeatPlans', () {
+    late HttpClientAdapter originalAdapter;
+
+    setUp(() {
+      originalAdapter = dio.httpClientAdapter;
+    });
+
+    tearDown(() {
+      dio.httpClientAdapter = originalAdapter;
+    });
+
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "bp1", "name": "North Route", "status": "planned", '
+        '"scheduledDate": "2026-07-10"}], '
+        '"nextCursor": "cursor-1"}',
+      );
+
+      final page = await DioBeatPlansRepository().listBeatPlans();
+
+      expect(page, isA<PaginatedResponse<BeatPlan>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 'bp1');
+      expect(page.nextCursor, 'cursor-1');
+    });
   });
 }

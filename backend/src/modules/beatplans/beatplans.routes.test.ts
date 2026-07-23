@@ -272,11 +272,11 @@ describe('beatplans routes', () => {
       const res = await request(app).get('/beatplans').set('Authorization', `Bearer ${tokenA}`);
 
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
-      const ids = res.body.map((p: { id: string }) => p.id);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      const ids = res.body.data.map((p: { id: string }) => p.id);
       expect(ids).toContain(planAId);
       expect(ids).not.toContain(planBId);
-      expect(res.body.every((p: { agentId: string }) => p.agentId === agentAId)).toBe(true);
+      expect(res.body.data.every((p: { agentId: string }) => p.agentId === agentAId)).toBe(true);
     });
 
     it('returns all of the client plans to a manager', async () => {
@@ -285,7 +285,7 @@ describe('beatplans routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.status).toBe(200);
-      const ids = res.body.map((p: { id: string }) => p.id);
+      const ids = res.body.data.map((p: { id: string }) => p.id);
       expect(ids).toContain(planAId);
       expect(ids).toContain(planBId);
     });
@@ -296,9 +296,9 @@ describe('beatplans routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(managerRes.status).toBe(200);
-      const ids = managerRes.body.map((p: { id: string }) => p.id);
+      const ids = managerRes.body.data.map((p: { id: string }) => p.id);
       expect(ids).not.toContain(clientBPlanId);
-      expect(managerRes.body.every((p: { clientId: string }) => p.clientId === clientId)).toBe(
+      expect(managerRes.body.data.every((p: { clientId: string }) => p.clientId === clientId)).toBe(
         true,
       );
     });
@@ -309,7 +309,7 @@ describe('beatplans routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.every((p: { status: string }) => p.status === 'planned')).toBe(true);
+      expect(res.body.data.every((p: { status: string }) => p.status === 'planned')).toBe(true);
     });
 
     it('rejects an invalid status filter with 400', async () => {
@@ -323,6 +323,63 @@ describe('beatplans routes', () => {
     it('rejects requests without a bearer token', async () => {
       const res = await request(app).get('/beatplans');
       expect(res.status).toBe(401);
+    });
+
+    describe('GET /beatplans pagination', () => {
+      beforeAll(async () => {
+        await prisma.beatPlan.createMany({
+          data: [0, 1, 2].map((i) => ({
+            clientId,
+            agentId: agentAId,
+            name: `page-plan-${i}`,
+            status: 'planned',
+            scheduledDate: new Date(`2026-08-1${i}T00:00:00.000Z`),
+          })),
+        });
+      });
+
+      it('returns an envelope with data and nextCursor, earliest first', async () => {
+        const res = await request(app)
+          .get('/beatplans')
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+        expect(res.body).toHaveProperty('nextCursor');
+        const names = res.body.data.map((p: { name: string }) => p.name);
+        expect(names.indexOf('page-plan-2')).toBeLessThan(names.indexOf('page-plan-0'));
+      });
+
+      it('caps the page at limit and returns a cursor to the next page', async () => {
+        const first = await request(app)
+          .get('/beatplans?limit=2')
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(first.status).toBe(200);
+        expect(first.body.data).toHaveLength(2);
+        expect(first.body.nextCursor).not.toBeNull();
+
+        const second = await request(app)
+          .get(`/beatplans?limit=2&cursor=${first.body.nextCursor}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(second.status).toBe(200);
+        const firstIds = first.body.data.map((p: { id: string }) => p.id);
+        const secondIds = second.body.data.map((p: { id: string }) => p.id);
+        expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+      });
+
+      it('clamps limit above the max to 200', async () => {
+        const res = await request(app)
+          .get('/beatplans?limit=9999')
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+      });
+
+      it('rejects a non-positive limit with 400', async () => {
+        const res = await request(app)
+          .get('/beatplans?limit=0')
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(400);
+      });
     });
   });
 

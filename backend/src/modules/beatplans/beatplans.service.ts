@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { round2 } from '../../lib/kpiMath';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { buildPage } from '../../lib/pagination';
 import type { AuthTokenPayload } from '../auth/auth.service';
 
 export type BeatPlanStatus = 'planned' | 'in_progress' | 'completed';
@@ -93,6 +94,8 @@ export interface ListBeatPlansInput {
   // is always scoped to their own plans.
   agentId?: string;
   status?: BeatPlanStatus;
+  limit: number;
+  cursor?: string;
 }
 
 export async function listBeatPlans(input: ListBeatPlansInput) {
@@ -108,11 +111,16 @@ export async function listBeatPlans(input: ListBeatPlansInput) {
     where.status = input.status;
   }
 
-  return prisma.beatPlan.findMany({
+  const rows = await prisma.beatPlan.findMany({
     where,
     include: { stops: { orderBy: { sequence: 'asc' } } },
-    orderBy: { scheduledDate: 'desc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two plans share a scheduledDate — same reasoning as alerts.service.ts.
+    orderBy: [{ scheduledDate: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export interface GetBeatPlanInput {

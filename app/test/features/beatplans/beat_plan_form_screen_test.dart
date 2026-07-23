@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/beatplans/data/beatplans_repository.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/beat_plan_form_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -11,7 +12,8 @@ class _RecordingBeatPlansRepository implements BeatPlansRepository {
   Map<String, dynamic>? createdArgs;
 
   @override
-  Future<List<BeatPlan>> listBeatPlans() async => const [];
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans() async =>
+      const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<BeatPlanDetail> getBeatPlan(String id) async =>

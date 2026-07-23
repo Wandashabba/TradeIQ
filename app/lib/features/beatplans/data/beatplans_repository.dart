@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// A field agent's beat plan summary returned by GET /beatplans.
 class BeatPlan {
@@ -73,7 +74,7 @@ class BeatPlanDetail {
 }
 
 abstract class BeatPlansRepository {
-  Future<List<BeatPlan>> listBeatPlans();
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans();
   Future<BeatPlanDetail> getBeatPlan(String id);
   Future<void> markStopVisited(String planId, String stopId, bool visited);
 
@@ -90,11 +91,12 @@ abstract class BeatPlansRepository {
 
 class DioBeatPlansRepository implements BeatPlansRepository {
   @override
-  Future<List<BeatPlan>> listBeatPlans() async {
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans() async {
     final response = await dio.get('/beatplans');
-    return (response.data as List)
-        .map((json) => BeatPlan.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<BeatPlan>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => BeatPlan.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -137,8 +139,14 @@ class DioBeatPlansRepository implements BeatPlansRepository {
 final beatPlansRepositoryProvider =
     Provider<BeatPlansRepository>((ref) => DioBeatPlansRepository());
 
-final beatPlansListProvider = FutureProvider<List<BeatPlan>>((ref) {
-  return ref.read(beatPlansRepositoryProvider).listBeatPlans();
+// The provider exposes the FIRST PAGE as a plain list: the beat plans screen
+// wants the current beat plans, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final beatPlansListProvider = FutureProvider<List<BeatPlan>>((ref) async {
+  final page = await ref.read(beatPlansRepositoryProvider).listBeatPlans();
+  return page.data;
 });
 
 final beatPlanDetailProvider =
