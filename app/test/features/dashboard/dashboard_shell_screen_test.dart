@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
@@ -172,11 +173,11 @@ class _FakeAlertsRepository implements AlertsRepository {
   final List<AlertItem> alerts;
 
   @override
-  Future<List<AlertItem>> listAlerts({
+  Future<PaginatedResponse<AlertItem>> listAlerts({
     bool? acknowledged,
     String? severity,
   }) async =>
-      alerts;
+      PaginatedResponse(data: alerts, nextCursor: null);
 
   @override
   Future<AlertItem> acknowledge(String id) async => throw UnimplementedError();
