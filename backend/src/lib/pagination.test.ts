@@ -1,7 +1,10 @@
+import { Request } from 'express';
 import { parsePagination, buildPage, DEFAULT_LIMIT, MAX_LIMIT } from './pagination';
 
 describe('parsePagination', () => {
-  const req = (query: Record<string, unknown>) => ({ query } as any);
+  // Only `query` is read by parsePagination, so a minimal cast is enough
+  // and keeps eslint's no-explicit-any happy.
+  const req = (query: Record<string, unknown>) => ({ query }) as unknown as Request;
 
   it('defaults to DEFAULT_LIMIT and no cursor when nothing is supplied', () => {
     expect(parsePagination(req({}))).toEqual({ limit: DEFAULT_LIMIT, cursor: undefined });
