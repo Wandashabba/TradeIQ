@@ -259,22 +259,24 @@ describe('alerts routes', () => {
   it("lists the client's alerts and filters by acknowledged (200)", async () => {
     const all = await request(app).get('/alerts').set('Authorization', `Bearer ${agentToken}`);
     expect(all.status).toBe(200);
-    expect(all.body.length).toBeGreaterThanOrEqual(3);
-    ackAlertId = all.body[0].id;
+    expect(all.body.data.length).toBeGreaterThanOrEqual(3);
+    ackAlertId = all.body.data[0].id;
 
     const unacked = await request(app)
       .get('/alerts')
       .query({ acknowledged: 'false' })
       .set('Authorization', `Bearer ${managerToken}`);
     expect(unacked.status).toBe(200);
-    expect(unacked.body.every((a: { acknowledged: boolean }) => a.acknowledged === false)).toBe(true);
+    expect(
+      unacked.body.data.every((a: { acknowledged: boolean }) => a.acknowledged === false),
+    ).toBe(true);
 
     const acked = await request(app)
       .get('/alerts')
       .query({ acknowledged: 'true' })
       .set('Authorization', `Bearer ${managerToken}`);
     expect(acked.status).toBe(200);
-    expect(acked.body).toHaveLength(0);
+    expect(acked.body.data).toHaveLength(0);
   });
 
   it('acknowledges an alert (200)', async () => {
@@ -288,7 +290,7 @@ describe('alerts routes', () => {
       .get('/alerts')
       .query({ acknowledged: 'true' })
       .set('Authorization', `Bearer ${managerToken}`);
-    expect(acked.body.map((a: { id: string }) => a.id)).toContain(ackAlertId);
+    expect(acked.body.data.map((a: { id: string }) => a.id)).toContain(ackAlertId);
   });
 
   it("returns 404 acknowledging another client's / unknown alert", async () => {
@@ -323,5 +325,63 @@ describe('alerts routes', () => {
     expect((await request(app).get('/alerts')).status).toBe(401);
     expect((await request(app).post('/alerts/evaluate').send({ visitId })).status).toBe(401);
     expect((await request(app).patch(`/alerts/${ackAlertId}/ack`)).status).toBe(401);
+  });
+
+  describe('GET /alerts pagination', () => {
+    beforeAll(async () => {
+      await prisma.alert.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          metric: 'oos',
+          message: `page-alert-${i}`,
+          severity: 'warning',
+          acknowledged: false,
+          createdAt: new Date(`2026-07-20T0${i}:00:00.000Z`),
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, newest first', async () => {
+      const res = await request(app)
+        .get('/alerts')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const msgs = res.body.data.map((a: { message: string }) => a.message);
+      expect(msgs.indexOf('page-alert-2')).toBeLessThan(msgs.indexOf('page-alert-0'));
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/alerts?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/alerts?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((a: { id: string }) => a.id);
+      const secondIds = second.body.data.map((a: { id: string }) => a.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/alerts?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/alerts?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });

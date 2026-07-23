@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   acknowledgeAlert,
   createAlertRule,
@@ -107,12 +108,15 @@ alertsRouter.get('/', async (req: AuthedRequest, res) => {
     return;
   }
 
-  const alerts = await listAlerts({
+  const { limit, cursor } = parsePagination(req);
+  const page = await listAlerts({
     clientId: req.user!.clientId,
     acknowledged: acknowledged === undefined ? undefined : acknowledged === 'true',
     severity: severity as string | undefined,
+    limit,
+    cursor,
   });
-  res.status(200).json(alerts);
+  res.status(200).json(page);
 });
 
 alertsRouter.patch('/:id/ack', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {

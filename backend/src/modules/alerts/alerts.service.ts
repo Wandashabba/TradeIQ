@@ -2,6 +2,7 @@ import { Alert, Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
+import { buildPage } from '../../lib/pagination';
 
 // The fixed set of metrics an AlertRule may target. Kept in one place so the
 // route validation and the evaluator agree on what's supported.
@@ -191,17 +192,24 @@ export interface ListAlertsInput {
   clientId: string;
   acknowledged?: boolean;
   severity?: string;
+  limit: number;
+  cursor?: string;
 }
 
 export async function listAlerts(input: ListAlertsInput) {
-  return prisma.alert.findMany({
+  const rows = await prisma.alert.findMany({
     where: {
       clientId: input.clientId,
       ...(input.acknowledged !== undefined ? { acknowledged: input.acknowledged } : {}),
       ...(input.severity !== undefined ? { severity: input.severity } : {}),
     },
-    orderBy: { createdAt: 'desc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two alerts share a createdAt — same reasoning as agents.service.ts.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export async function acknowledgeAlert(alertId: string, clientId: string) {
