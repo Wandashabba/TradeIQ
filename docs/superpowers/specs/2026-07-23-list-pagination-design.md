@@ -111,7 +111,13 @@ not a reason to build the UI everywhere.
 
 1. **Slice 0 — helpers + pattern-setter.** Land `pagination.ts` and `PaginatedResponse<T>`,
    then convert one representative module end to end (backend + app + tests) as the template the
-   rest copy. `visits` is a good candidate — it has the highest-volume table.
+   rest copy. **The pattern-setter is `alerts`, not `visits`** — a pattern-setter must exercise
+   the app side, and the app does not list `GET /visits` at all (its `visits_repository` only
+   checks in and submits). `alerts` is genuinely listed by the app (`alertsListProvider` →
+   dashboard "Needs attention" panel), so converting it proves the full stack. The
+   provider-unwraps-`.data` pattern below is the key template detail: repositories speak the
+   envelope, providers expose the first page as a plain list so existing screen consumers do not
+   change.
 2. **Slices 1..N — one module per PR.** Each converts a module's list endpoints, its repositories,
    and its tests together, stays green, and ships independently. No slice leaves the app and
    backend disagreeing about a shape.
