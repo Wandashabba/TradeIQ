@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   computeEarnedIncentives,
   createScheme,
@@ -52,8 +53,9 @@ incentivesRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedRe
 });
 
 incentivesRouter.get('/', async (req: AuthedRequest, res) => {
-  const schemes = await listSchemes(req.user!.clientId);
-  res.status(200).json(schemes);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listSchemes({ clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
 
 incentivesRouter.get('/earned', async (req: AuthedRequest, res) => {

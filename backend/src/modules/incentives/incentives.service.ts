@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { mean } from '../../lib/kpiMath';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { buildPage } from '../../lib/pagination';
 
 /** The performance metrics an incentive scheme can reward against. */
 export type IncentiveMetric = 'scorecard' | 'tasks_closed' | 'visits';
@@ -33,11 +34,22 @@ export async function createScheme(input: CreateSchemeInput) {
   });
 }
 
-export async function listSchemes(clientId: string) {
-  return prisma.incentiveScheme.findMany({
-    where: { clientId },
-    orderBy: { createdAt: 'desc' },
+export interface ListSchemesInput {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listSchemes(input: ListSchemesInput) {
+  const rows = await prisma.incentiveScheme.findMany({
+    where: { clientId: input.clientId },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two schemes share a createdAt — same reasoning as alerts.service.ts.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 /** Tenant-scoped lookup; throws NotFoundError so the caller can't reach across clients. */
