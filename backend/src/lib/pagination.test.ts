@@ -26,6 +26,22 @@ describe('parsePagination', () => {
   it('throws on a non-numeric limit', () => {
     expect(() => parsePagination(req({ limit: 'abc' }))).toThrow();
   });
+
+  it('throws on a hex limit', () => {
+    expect(() => parsePagination(req({ limit: '0x10' }))).toThrow();
+  });
+
+  it('throws on a scientific-notation limit', () => {
+    expect(() => parsePagination(req({ limit: '1e3' }))).toThrow();
+  });
+
+  it('throws on a limit with surrounding whitespace', () => {
+    expect(() => parsePagination(req({ limit: ' 5 ' }))).toThrow();
+  });
+
+  it('throws on a duplicated cursor query param (array)', () => {
+    expect(() => parsePagination(req({ cursor: ['a', 'b'] }))).toThrow();
+  });
 });
 
 describe('buildPage', () => {
@@ -42,5 +58,14 @@ describe('buildPage', () => {
 
   it('returns an empty page and null cursor for no rows', () => {
     expect(buildPage([], 50)).toEqual({ data: [], nextCursor: null });
+  });
+
+  it('throws a RangeError for a non-positive limit', () => {
+    expect(() => buildPage([{ id: 'a' }], 0)).toThrow(RangeError);
+  });
+
+  it('returns a fresh array, not the caller-supplied reference, when nothing more exists', () => {
+    const rows = [{ id: 'a' }, { id: 'b' }];
+    expect(buildPage(rows, 5).data).not.toBe(rows);
   });
 });

@@ -30,14 +30,25 @@ export function parsePagination(req: Request): Pagination {
     if (typeof rawLimit !== 'string') {
       throw new ValidationError('limit must be a single positive integer');
     }
-    const parsed = Number(rawLimit);
-    if (!Number.isInteger(parsed) || parsed < 1) {
+    // Strict digit-only match, rejecting hex ("0x10"), scientific notation
+    // ("1e3"), and surrounding whitespace (" 5 ") that `Number()` alone would
+    // silently accept — the docstring says "a positive integer" and the
+    // parser should hold to that literally.
+    if (!/^[1-9]\d*$/.test(rawLimit)) {
       throw new ValidationError('limit must be a positive integer');
     }
+    const parsed = Number(rawLimit);
     limit = Math.min(parsed, MAX_LIMIT);
   }
 
-  const cursor = typeof rawCursor === 'string' ? rawCursor : undefined;
+  if (rawCursor !== undefined && typeof rawCursor !== 'string') {
+    // A duplicated `?cursor=a&cursor=b` query param arrives as an array.
+    // Silently coercing that to `undefined` (page 1) would hide a client bug
+    // behind a "successful" first page — treat it the same as a malformed
+    // `limit`: a 400, not a silent fallback.
+    throw new ValidationError('cursor must be a single string');
+  }
+  const cursor = rawCursor as string | undefined;
   return { limit, cursor };
 }
 
@@ -47,13 +58,23 @@ export function parsePagination(req: Request): Pagination {
  * The caller fetches `limit + 1` rows: if that probe row came back, there is
  * another page, so drop it and hand back the last KEPT row's id as the cursor.
  * The id must be a stable, unique sort tiebreaker — see the service query.
+ *
+ * Always returns a fresh array (never the caller's `rows` reference) so
+ * callers can mutate `.data` freely without touching the input.
  */
 export function buildPage<T extends { id: string }>(
   rows: T[],
   limit: number,
 ): { data: T[]; nextCursor: string | null } {
+  if (limit < 1) {
+    // `parsePagination` already guarantees limit >= 1, but `buildPage` is
+    // exported standalone — a future direct caller passing 0 would otherwise
+    // hit `data[-1].id` below and get an unhandled TypeError instead of a
+    // clear contract violation.
+    throw new RangeError('buildPage: limit must be >= 1');
+  }
   const hasMore = rows.length > limit;
-  const data = hasMore ? rows.slice(0, limit) : rows;
+  const data = hasMore ? rows.slice(0, limit) : rows.slice();
   const nextCursor = hasMore ? data[data.length - 1].id : null;
   return { data, nextCursor };
 }
