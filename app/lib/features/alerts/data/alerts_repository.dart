@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// A manager-facing view of one exception alert returned by GET /alerts.
 class AlertItem {
@@ -32,13 +33,13 @@ class AlertItem {
 }
 
 abstract class AlertsRepository {
-  Future<List<AlertItem>> listAlerts({bool? acknowledged, String? severity});
+  Future<PaginatedResponse<AlertItem>> listAlerts({bool? acknowledged, String? severity});
   Future<AlertItem> acknowledge(String id);
 }
 
 class DioAlertsRepository implements AlertsRepository {
   @override
-  Future<List<AlertItem>> listAlerts({
+  Future<PaginatedResponse<AlertItem>> listAlerts({
     bool? acknowledged,
     String? severity,
   }) async {
@@ -46,9 +47,10 @@ class DioAlertsRepository implements AlertsRepository {
     if (acknowledged != null) query['acknowledged'] = acknowledged ? 'true' : 'false';
     if (severity != null) query['severity'] = severity;
     final response = await dio.get('/alerts', queryParameters: query);
-    return (response.data as List)
-        .map((json) => AlertItem.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<AlertItem>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => AlertItem.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -61,8 +63,14 @@ class DioAlertsRepository implements AlertsRepository {
 final alertsRepositoryProvider =
     Provider<AlertsRepository>((ref) => DioAlertsRepository());
 
-final alertsListProvider = FutureProvider<List<AlertItem>>((ref) {
-  return ref.read(alertsRepositoryProvider).listAlerts();
+// The provider exposes the FIRST PAGE as a plain list: the "Needs attention"
+// panel wants the most recent alerts, not the whole history, and "load more"
+// UI is deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final alertsListProvider = FutureProvider<List<AlertItem>>((ref) async {
+  final page = await ref.read(alertsRepositoryProvider).listAlerts();
+  return page.data;
 });
 
 /// The metrics an [AlertRule] may target. This mirrors the backend's runtime
