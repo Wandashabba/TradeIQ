@@ -45,6 +45,11 @@ class TiqColors extends ThemeExtension<TiqColors> {
     required this.scrim,
     required this.heroWash,
     required this.heroBorder,
+    required this.navBarBg,
+    required this.navBarLine,
+    required this.navInactiveInk,
+    required this.navActivePillBg,
+    required this.navActiveInk,
   });
 
   // ── Planes & surfaces ────────────────────────────────────────────────
@@ -107,6 +112,27 @@ class TiqColors extends ThemeExtension<TiqColors> {
   /// rather than the neutral [line].
   final Color heroBorder;
 
+  // ── Floating bottom bar (premium-ui sub2) ────────────────────────────
+  /// The bar's frosted fill — 92% alpha over the blur in BOTH modes, so the
+  /// content scrolling beneath still reads through it.
+  final Color navBarBg;
+
+  /// The bar's own hairline. Slightly apart from [line]/[lineStrong]: it has
+  /// to hold a rounded edge against a blurred, moving ground.
+  final Color navBarLine;
+
+  /// Inactive slot icon + label. 10.5px text, so ≥4.5:1 on [navBarBg]
+  /// composited over [plane] — bottom_nav_bar_test.dart measures the
+  /// rendered pair.
+  final Color navInactiveInk;
+
+  /// The sliding active pill's fill.
+  final Color navActivePillBg;
+
+  /// Icon + label on the active pill — ≥4.5:1 on [navActivePillBg] in dark
+  /// (asserted off the rendered tree); light keeps sub-1's shipped pair.
+  final Color navActiveInk;
+
   /// Today's exact dark palette. Seeded from [AppColors] so the static table
   /// and the extension can never disagree.
   static const dark = TiqColors(
@@ -135,6 +161,11 @@ class TiqColors extends ThemeExtension<TiqColors> {
     scrim: Color(0x8A000000), // == Colors.black54
     heroWash: Color(0xFF17233A), // ink1 13.9:1 — see tiq_colors_test.dart
     heroBorder: Color(0xFF22304A),
+    navBarBg: Color(0xEB12151C), // rgba(18,21,28,.92)
+    navBarLine: Color(0xFF262B33),
+    navInactiveInk: Color(0xFF8A94A6), // 5.9:1 on the bar over plane
+    navActivePillBg: Color(0xFF12305C),
+    navActiveInk: Color(0xFF6DB4FF), // 6.0:1 on the pill
   );
 
   /// Paper & Ink. brand is shared with dark deliberately (4.98:1 on white);
@@ -174,6 +205,13 @@ class TiqColors extends ThemeExtension<TiqColors> {
     ), // 60% slate — deeper than black54's wash reads on light
     heroWash: Color(0xFFF2F7FF), // the 2026-07-24 spec's glass wash
     heroBorder: Color(0xFFDBE7FA),
+    // Byte-for-byte the values TiqBottomNavBar hardcoded in sub-1 — moving
+    // them here must not change light's appearance at all.
+    navBarBg: Color(0xEBFFFFFF), // rgba(255,255,255,.92)
+    navBarLine: Color(0xFFE3E5EA),
+    navInactiveInk: Color(0xFF5C6470),
+    navActivePillBg: Color(0xFFEAF2FF),
+    navActiveInk: Color(0xFF0A6CF0), // == brand, as shipped
   );
 
   @override
@@ -203,6 +241,11 @@ class TiqColors extends ThemeExtension<TiqColors> {
     Color? scrim,
     Color? heroWash,
     Color? heroBorder,
+    Color? navBarBg,
+    Color? navBarLine,
+    Color? navInactiveInk,
+    Color? navActivePillBg,
+    Color? navActiveInk,
   }) {
     return TiqColors(
       plane: plane ?? this.plane,
@@ -230,6 +273,11 @@ class TiqColors extends ThemeExtension<TiqColors> {
       scrim: scrim ?? this.scrim,
       heroWash: heroWash ?? this.heroWash,
       heroBorder: heroBorder ?? this.heroBorder,
+      navBarBg: navBarBg ?? this.navBarBg,
+      navBarLine: navBarLine ?? this.navBarLine,
+      navInactiveInk: navInactiveInk ?? this.navInactiveInk,
+      navActivePillBg: navActivePillBg ?? this.navActivePillBg,
+      navActiveInk: navActiveInk ?? this.navActiveInk,
     );
   }
 
@@ -262,6 +310,11 @@ class TiqColors extends ThemeExtension<TiqColors> {
       scrim: Color.lerp(scrim, other.scrim, t)!,
       heroWash: Color.lerp(heroWash, other.heroWash, t)!,
       heroBorder: Color.lerp(heroBorder, other.heroBorder, t)!,
+      navBarBg: Color.lerp(navBarBg, other.navBarBg, t)!,
+      navBarLine: Color.lerp(navBarLine, other.navBarLine, t)!,
+      navInactiveInk: Color.lerp(navInactiveInk, other.navInactiveInk, t)!,
+      navActivePillBg: Color.lerp(navActivePillBg, other.navActivePillBg, t)!,
+      navActiveInk: Color.lerp(navActiveInk, other.navActiveInk, t)!,
     );
   }
 }

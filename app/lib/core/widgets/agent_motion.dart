@@ -19,8 +19,13 @@ import '../theme/app_colors.dart';
 ///    look busy.
 /// 2. **Nothing repeats forever.** An infinitely-repeating animation means
 ///    `pumpAndSettle` never settles, which quietly makes the widget under it
-///    untestable. The only looping animation in the app is [PulseDot], and it
-///    loops only while a sync is *actually in flight* — a transient state.
+///    untestable. The app has exactly two looping animations, both budgeted in
+///    the spec's motion table (docs/superpowers/specs/
+///    2026-07-24-premium-ui-redesign-design.md, "Motion system"): [PulseDot],
+///    which loops only while a sync is *actually in flight* — a transient
+///    state — and the agent-trail map pins' glow breathing
+///    (agent_trail_screen.dart), a ~2% ambient swing that is reduceMotion-gated
+///    and test-disabled via `AgentTrailScreen.debugDisableGlowBreathing`.
 
 /// Durations. Short enough to feel instant, long enough to be seen.
 class Motion {

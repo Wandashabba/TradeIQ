@@ -62,6 +62,13 @@ void main() {
       // maps' family, kept dark enough that ink1 clears AA (group below).
       expect(d.heroWash, const Color(0xFF17233A));
       expect(d.heroBorder, const Color(0xFF22304A));
+      // Floating bottom bar (premium-ui sub2): the dark treatment. Instrument
+      // navy pill so the active slot reads as light-source, not paper.
+      expect(d.navBarBg, const Color(0xEB12151C)); // rgba(18,21,28,.92)
+      expect(d.navBarLine, const Color(0xFF262B33));
+      expect(d.navInactiveInk, const Color(0xFF8A94A6));
+      expect(d.navActivePillBg, const Color(0xFF12305C));
+      expect(d.navActiveInk, const Color(0xFF6DB4FF));
     });
 
     test('light carries the dark ink forward as its primary text color', () {
@@ -73,6 +80,13 @@ void main() {
       // Hero glass: light's values are the 2026-07-24 spec's exact hexes.
       expect(TiqColors.light.heroWash, const Color(0xFFF2F7FF));
       expect(TiqColors.light.heroBorder, const Color(0xFFDBE7FA));
+      // Floating bottom bar: byte-for-byte the hexes TiqBottomNavBar shipped
+      // hardcoded in sub-1 — tokenizing them must not repaint light at all.
+      expect(TiqColors.light.navBarBg, const Color(0xEBFFFFFF));
+      expect(TiqColors.light.navBarLine, const Color(0xFFE3E5EA));
+      expect(TiqColors.light.navInactiveInk, const Color(0xFF5C6470));
+      expect(TiqColors.light.navActivePillBg, const Color(0xFFEAF2FF));
+      expect(TiqColors.light.navActiveInk, const Color(0xFF0A6CF0));
     });
 
     test('lerp interpolates and copyWith replaces a single slot', () {
