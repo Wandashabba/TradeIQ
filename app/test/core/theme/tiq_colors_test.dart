@@ -12,7 +12,9 @@ double _linearize(double channel) => channel <= 0.04045
     : math.pow((channel + 0.055) / 1.055, 2.4).toDouble();
 
 double _relativeLuminance(Color c) =>
-    0.2126 * _linearize(c.r) + 0.7152 * _linearize(c.g) + 0.0722 * _linearize(c.b);
+    0.2126 * _linearize(c.r) +
+    0.7152 * _linearize(c.g) +
+    0.0722 * _linearize(c.b);
 
 double contrastRatio(Color a, Color b) {
   final la = _relativeLuminance(a);
@@ -56,6 +58,10 @@ void main() {
       // these slots changes nothing visually in dark.
       expect(d.shadow, const Color(0x00000000));
       expect(d.scrim, const Color(0x8A000000));
+      // Hero glass (premium-ui sub2): dark's wash is a subtle navy in the
+      // maps' family, kept dark enough that ink1 clears AA (group below).
+      expect(d.heroWash, const Color(0xFF17233A));
+      expect(d.heroBorder, const Color(0xFF22304A));
     });
 
     test('light carries the dark ink forward as its primary text color', () {
@@ -64,11 +70,17 @@ void main() {
       expect(TiqColors.light.plane, const Color(0xFFF7F8FA));
       expect(TiqColors.light.surface1, const Color(0xFFFFFFFF));
       expect(TiqColors.light.line, const Color(0xFFE3E5EA));
+      // Hero glass: light's values are the 2026-07-24 spec's exact hexes.
+      expect(TiqColors.light.heroWash, const Color(0xFFF2F7FF));
+      expect(TiqColors.light.heroBorder, const Color(0xFFDBE7FA));
     });
 
     test('lerp interpolates and copyWith replaces a single slot', () {
       final mid = TiqColors.dark.lerp(TiqColors.light, 0.5);
-      expect(mid.plane, Color.lerp(TiqColors.dark.plane, TiqColors.light.plane, 0.5));
+      expect(
+        mid.plane,
+        Color.lerp(TiqColors.dark.plane, TiqColors.light.plane, 0.5),
+      );
       final copied = TiqColors.dark.copyWith(brand: const Color(0xFF123456));
       expect(copied.brand, const Color(0xFF123456));
       expect(copied.plane, TiqColors.dark.plane);
@@ -97,7 +109,8 @@ void main() {
         expect(
           ratio,
           greaterThanOrEqualTo(3.0),
-          reason: '${entry.key} is $ratio:1 on white — darken it and update '
+          reason:
+              '${entry.key} is $ratio:1 on white — darken it and update '
               'the spec (docs/superpowers/specs/2026-07-17-premium-ui-theme-'
               'motion-design.md §2) to the passing value.',
         );
@@ -129,7 +142,8 @@ void main() {
           expect(
             ratio,
             greaterThanOrEqualTo(4.5),
-            reason: '$name ink3 is $ratio:1 on $sName — ink3 is body text, '
+            reason:
+                '$name ink3 is $ratio:1 on $sName — ink3 is body text, '
                 'not chrome. Fix the value; never demote text to ink4.',
           );
         });
@@ -139,7 +153,8 @@ void main() {
           expect(
             ratio,
             greaterThanOrEqualTo(3.0),
-            reason: '$name ink4 is $ratio:1 on $sName — even a quiet target '
+            reason:
+                '$name ink4 is $ratio:1 on $sName — even a quiet target '
                 'rule has to be findable.',
           );
         });
@@ -148,17 +163,34 @@ void main() {
           // The StatusBanner sets its title over crit at 12% alpha
           // (BannerLevelStyle.wash) — reproduce that exact composite here so
           // the assertion tests what agents actually read.
-          final wash = Color.alphaBlend(t.crit.withValues(alpha: 0.12), surface);
+          final wash = Color.alphaBlend(
+            t.crit.withValues(alpha: 0.12),
+            surface,
+          );
           final ratio = contrastRatio(t.critText, wash);
           expect(
             ratio,
             greaterThanOrEqualTo(4.5),
-            reason: '$name critText is $ratio:1 over the crit wash on $sName — '
+            reason:
+                '$name critText is $ratio:1 over the crit wash on $sName — '
                 'this is the "items will not send" banner title. It must be '
                 'the most readable thing on the screen, not the least.',
           );
         });
       }
+
+      test('$name ink1 clears 4.5:1 on the hero glass wash', () {
+        // The hero score (and the card's header text) sit directly on the
+        // wash; the gradient's other stop is surface1, covered above.
+        final ratio = contrastRatio(t.ink1, t.heroWash);
+        expect(
+          ratio,
+          greaterThanOrEqualTo(4.5),
+          reason:
+              '$name ink1 is $ratio:1 on heroWash — the hero score is '
+              'the biggest number on the screen; it cannot be the faintest.',
+        );
+      });
 
       test('$name ink hierarchy still steps down: ink2 > ink3 > ink4', () {
         // The fix must not flatten the type ramp — muted has to stay visibly
@@ -166,10 +198,16 @@ void main() {
         final ink2 = contrastRatio(t.ink2, t.plane);
         final ink3 = contrastRatio(t.ink3, t.plane);
         final ink4 = contrastRatio(t.ink4, t.plane);
-        expect(ink2, greaterThan(ink3),
-            reason: '$name ink2 ($ink2:1) must outrank ink3 ($ink3:1)');
-        expect(ink3, greaterThan(ink4),
-            reason: '$name ink3 ($ink3:1) must outrank ink4 ($ink4:1)');
+        expect(
+          ink2,
+          greaterThan(ink3),
+          reason: '$name ink2 ($ink2:1) must outrank ink3 ($ink3:1)',
+        );
+        expect(
+          ink3,
+          greaterThan(ink4),
+          reason: '$name ink3 ($ink3:1) must outrank ink4 ($ink4:1)',
+        );
       });
     }
   });

@@ -3,48 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
+import 'package:tradeiq_app/core/widgets/delta_pill.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
-      home: Scaffold(body: Center(child: child)),
-    );
+  home: Scaffold(body: Center(child: child)),
+);
 
 void main() {
-  group('DeltaText', () {
-    testWidgets('a rise carries an up arrow and the good hue', (tester) async {
-      await tester.pumpWidget(_wrap(const DeltaText(2.1)));
-
-      final text = tester.widget<Text>(find.byType(Text));
-      expect(text.data, '▲ 2.1');
-      expect(text.style?.color, AppColors.good);
-    });
-
-    testWidgets('a fall carries a down arrow and the critical hue', (tester) async {
-      await tester.pumpWidget(_wrap(const DeltaText(-1.2)));
-
-      final text = tester.widget<Text>(find.byType(Text));
-      // The magnitude is unsigned — the glyph carries the direction, so the
-      // value never reads as "minus minus".
-      expect(text.data, '▼ 1.2');
-      expect(text.style?.color, AppColors.crit);
-    });
-
-    testWidgets('flat is neither coloured nor arrowed', (tester) async {
-      await tester.pumpWidget(_wrap(const DeltaText(0)));
-
-      final text = tester.widget<Text>(find.byType(Text));
-      expect(text.data, '– 0.0');
-      expect(text.style?.color, AppColors.ink3);
-    });
-
-    testWidgets('direction survives greyscale — the glyph is not the colour', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_wrap(const DeltaText(3.4)));
-      // Strip the colour and the sign is still readable.
-      expect(find.textContaining('▲'), findsOneWidget);
-    });
-  });
-
   group('StatusChip', () {
     testWidgets('renders a word, not just a mark', (tester) async {
       await tester.pumpWidget(
@@ -63,7 +28,7 @@ void main() {
   });
 
   group('StatTile', () {
-    testWidgets('shows label, value, delta and note', (tester) async {
+    testWidgets('shows label, value, delta pill and note', (tester) async {
       await tester.pumpWidget(
         _wrap(
           const SizedBox(
@@ -82,9 +47,37 @@ void main() {
       expect(find.text('92.1%'), findsOneWidget);
       expect(find.text('▲ 0.8'), findsOneWidget);
       expect(find.text('of 6,420 SKU checks'), findsOneWidget);
+      // A rise wears the green wash; the pill IS the tile's delta rendering.
+      expect(
+        tester.widget<DeltaPill>(find.byType(DeltaPill)).tone,
+        DeltaTone.good,
+      );
     });
 
-    testWidgets('omits the delta when there is none to show', (tester) async {
+    testWidgets('a falling delta wears the red wash', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          const SizedBox(
+            width: 220,
+            child: StatTile(
+              label: 'Perfect-store rate',
+              value: '55.6%',
+              delta: -4.4,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('▼ 4.4'), findsOneWidget);
+      expect(
+        tester.widget<DeltaPill>(find.byType(DeltaPill)).tone,
+        DeltaTone.bad,
+      );
+    });
+
+    testWidgets('omits the pill when there is no delta to show', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const SizedBox(
@@ -94,7 +87,30 @@ void main() {
         ),
       );
 
-      expect(find.byType(DeltaText), findsNothing);
+      expect(find.byType(DeltaPill), findsNothing);
+    });
+
+    testWidgets('never renders an icon — the user removed them twice', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const SizedBox(
+            width: 220,
+            child: StatTile(
+              label: 'On-shelf availability',
+              value: '92.1%',
+              delta: 0.8,
+              note: 'of 6,420 SKU checks',
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.descendant(of: find.byType(StatTile), matching: find.byType(Icon)),
+        findsNothing,
+      );
     });
   });
 
@@ -166,7 +182,9 @@ void main() {
       // Hover-lift shadow removed by the 2026-07-24 premium-ui redesign —
       // PanelCard's elevation is now a single static value (Task 1).
       await tester.pumpWidget(
-        _wrap(const SizedBox(width: 320, child: PanelCard(child: Text('body')))),
+        _wrap(
+          const SizedBox(width: 320, child: PanelCard(child: Text('body'))),
+        ),
       );
 
       BoxDecoration decorationOf() {
@@ -185,9 +203,7 @@ void main() {
       expect(rest.color, const Color(0x0D14161C));
 
       // Moving the mouse over the card no longer changes the shadow.
-      final gesture = await tester.createGesture(
-        kind: PointerDeviceKind.mouse,
-      );
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.addPointer(location: Offset.zero);
       addTearDown(gesture.removePointer);
       await gesture.moveTo(tester.getCenter(find.byType(PanelCard)));

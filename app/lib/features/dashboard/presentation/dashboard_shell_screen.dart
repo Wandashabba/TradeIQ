@@ -173,14 +173,17 @@ class _ExecutionScorePanel extends ConsumerWidget {
       subtitle: 'Weighted S2–S8, all outlets',
       padded: false,
       // The screen's one "glass" card: the score is the product's headline
-      // number, and the wash is what makes it read as the headline
-      // (spec §Sub-project 2 — `#F2F7FF → #FFFFFF`, border `#DBE7FA`).
-      gradient: const LinearGradient(
+      // number, and the wash is what makes it read as the headline. Theme
+      // slots, not spec hexes: light carries the spec's `#F2F7FF → #FFFFFF`
+      // + `#DBE7FA` border, dark a navy wash its own ink1 stays readable on
+      // (the hard-coded light wash once made the dark score ~1.1:1 —
+      // dashboard test 'dark theme: the hero score…' pins the fix).
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFFF2F7FF), Color(0xFFFFFFFF)],
+        colors: [colors.heroWash, colors.surface1],
       ),
-      borderColor: const Color(0xFFDBE7FA),
+      borderColor: colors.heroBorder,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
         child: Column(
@@ -487,7 +490,7 @@ class _KpiStrip extends ConsumerWidget {
                                     ),
                                   ),
                                 ),
-                                child: _KpiTile(
+                                child: StatTile(
                                   key: ValueKey('kpi-${rows[r][c].$1}'),
                                   label: rows[r][c].$1,
                                   value: rows[r][c].$2,
@@ -519,96 +522,6 @@ class _KpiStrip extends ConsumerWidget {
             },
           );
         },
-      ),
-    );
-  }
-}
-
-/// One cell of the KPI strip, in the redesign's pill-and-microtrend language:
-/// muted letter-spaced label over a bold figure with its [DeltaPill], then a
-/// gradient micro-trend where a real history series exists (see
-/// [_KpiStrip._series] for why five of the seven tiles honestly have none).
-///
-/// Deliberately icon-free — the user removed icons from these tiles twice;
-/// the pill and the trend carry all the state, and the dashboard test guards
-/// against an [Icon] ever coming back.
-class _KpiTile extends StatelessWidget {
-  const _KpiTile({
-    super.key,
-    required this.label,
-    required this.value,
-    this.delta,
-    this.note,
-    this.spark,
-  });
-
-  final String label;
-  final String value;
-  final double? delta;
-  final String? note;
-  final Widget? spark;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-              color: colors.ink3,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 20,
-                    height: 1.1,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.4,
-                    color: colors.ink1,
-                  ),
-                ),
-              ),
-              if (delta != null) ...[
-                const SizedBox(width: 7),
-                DeltaPill(
-                  delta: delta!,
-                  // Tone follows the sign only: KpiDelta carries no
-                  // lagging/attention verdict yet, so an amber pill here
-                  // would be an invented judgement. Wire DeltaTone.warn the
-                  // day the tile data grows a real signal.
-                  tone: delta! < 0 ? DeltaTone.bad : DeltaTone.good,
-                ),
-              ],
-            ],
-          ),
-          if (spark != null) ...[const SizedBox(height: 8), spark!],
-          if (note != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              note!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10.5, color: colors.ink3),
-            ),
-          ],
-        ],
       ),
     );
   }

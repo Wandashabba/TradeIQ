@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/core/widgets/delta_pill.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
@@ -13,6 +14,7 @@ import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 class _FakeDashboardRepository implements DashboardRepository {
@@ -303,8 +305,10 @@ Widget _app({
   List<TaskItem> tasks = const [],
   List<TrendPoint> scorecards = const [],
   List<TrendPoint> perfectStore = const [],
+  ThemeData? theme,
 }) => routedApp(
   const DashboardShellScreen(),
+  theme: theme,
   overrides: [
     dashboardRepositoryProvider.overrideWithValue(
       dashboard ?? _FakeDashboardRepository(),
@@ -447,7 +451,7 @@ void main() {
   );
 
   testWidgets('the hero card wears the glass gradient wash', (tester) async {
-    await _pump(tester, _app());
+    await _pump(tester, _app(theme: AppTheme.light()));
 
     final glass = find.byWidgetPredicate(
       (w) =>
@@ -476,6 +480,51 @@ void main() {
     final score = tester.widget<Text>(find.text('67.8'));
     expect(score.style?.fontWeight, FontWeight.w700);
     expect(score.style?.fontSize, inInclusiveRange(30, 32));
+
+    // And it must clear AA on every stop of its own wash.
+    for (final ground in const [Color(0xFFF2F7FF), Color(0xFFFFFFFF)]) {
+      expect(
+        contrastRatio(score.style!.color!, ground),
+        greaterThanOrEqualTo(4.5),
+        reason: 'light score on $ground',
+      );
+    }
+  });
+
+  testWidgets('dark theme: the hero score stays readable on its wash', (
+    tester,
+  ) async {
+    // The regression this guards: the glass wash shipped as hard-coded light
+    // hexes while the score used theme-aware ink1 — in dark that composed
+    // near-white on white (~1.1:1), one theme-toggle click away.
+    await _pump(tester, _app(theme: AppTheme.dark()));
+
+    final glass = find.byWidgetPredicate(
+      (w) =>
+          w is Container &&
+          w.decoration is BoxDecoration &&
+          (w.decoration! as BoxDecoration).gradient != null,
+    );
+    expect(glass, findsOneWidget);
+    expect(
+      find.descendant(
+        of: glass,
+        matching: find.byKey(const ValueKey('kpi-execution-score')),
+      ),
+      findsOneWidget,
+    );
+
+    final gradient =
+        (tester.widget<Container>(glass).decoration! as BoxDecoration).gradient!
+            as LinearGradient;
+    final score = tester.widget<Text>(find.text('67.8'));
+    for (final ground in gradient.colors) {
+      expect(
+        contrastRatio(score.style!.color!, ground),
+        greaterThanOrEqualTo(4.5),
+        reason: 'dark score on $ground',
+      );
+    }
   });
 
   testWidgets(
@@ -527,7 +576,8 @@ void main() {
       }
 
       // Only the two KPIs with a real /trends history may draw a shape (#95) —
-      // and where one draws, it draws the gradient recipe.
+      // exactly two on the whole screen, so a fabricated third cannot slip in.
+      expect(find.byType(Sparkline), findsNWidgets(2));
       for (final label in const [
         'On-shelf availability',
         'Perfect-store rate',

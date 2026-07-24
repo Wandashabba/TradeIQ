@@ -24,7 +24,9 @@ class DeltaPill extends StatelessWidget {
   const DeltaPill({super.key, required this.delta, required this.tone});
 
   /// The signed change. Only the sign picks the glyph; the magnitude is
-  /// rendered absolute, to one decimal.
+  /// rendered absolute, to one decimal. Callers gate pills on a real move
+  /// (|Δ| ≥ 0.05, see KpiDelta.hasDelta) — but an exact zero that slips
+  /// through renders `–`, never an invented direction (house precedent).
   final double delta;
 
   final DeltaTone tone;
@@ -36,7 +38,11 @@ class DeltaPill extends StatelessWidget {
       DeltaTone.warn => (const Color(0xFFFDF3E2), const Color(0xFF8A5A00)),
       DeltaTone.bad => (const Color(0xFFFDEEEE), const Color(0xFFA52A2A)),
     };
-    final glyph = delta < 0 ? '▼' : '▲';
+    final glyph = delta < 0
+        ? '▼'
+        : delta > 0
+        ? '▲'
+        : '–';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

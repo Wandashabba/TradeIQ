@@ -24,6 +24,15 @@ import '../theme/tiq_colors.dart';
 /// stay usable from any feature.
 typedef ChartPoint = ({String label, double value});
 
+/// The redesign's one "glass" area recipe — [brand] fading 28% → 0%, top to
+/// bottom. Shared by the hero [LineChart] and the KPI [Sparkline] so the two
+/// can never drift apart; the stops are pinned by charts_test.dart.
+LinearGradient glassAreaGradient(Color brand) => LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [brand.withValues(alpha: 0.28), brand.withValues(alpha: 0.0)],
+);
+
 TextStyle _labelStyle(TiqColors c) => TextStyle(fontSize: 10, color: c.ink3);
 
 TextPainter _text(String s, {required TextStyle style}) {
@@ -325,17 +334,9 @@ class _LinePainter extends CustomPainter {
     if (gradientFill) {
       // Brand, not series1: the gradient fill is the accent's one chart
       // moment (spec §Sub-project 2 — `#0A6CF0` at 28% → 0%).
-      areaPaint.shader =
-          LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              colors.brand.withValues(alpha: 0.28),
-              colors.brand.withValues(alpha: 0.0),
-            ],
-          ).createShader(
-            Rect.fromLTRB(_pad.left, _pad.top, _pad.left + innerW, baseY),
-          );
+      areaPaint.shader = glassAreaGradient(colors.brand).createShader(
+        Rect.fromLTRB(_pad.left, _pad.top, _pad.left + innerW, baseY),
+      );
     } else {
       areaPaint.color = colors.series1.withValues(alpha: 0.14);
     }
@@ -845,7 +846,9 @@ class Sparkline extends StatelessWidget {
   final List<double> values;
 
   /// Null means "fill the available width" — the KPI tiles stretch their
-  /// micro-trend across the card; inline callers keep the fixed 96.
+  /// micro-trend across the card; inline callers keep the fixed 96. Fill
+  /// mode needs a width-bounded parent: under unbounded constraints (a Row
+  /// without Expanded, an unconstrained scroller) the infinite width throws.
   final double? width;
   final double height;
 
@@ -855,7 +858,12 @@ class Sparkline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (values.length < 2) return SizedBox(width: width, height: height);
+    // Too few points to draw — but the box must keep the same footprint as
+    // the drawn case (fill mode included), or a tile's layout would jump the
+    // day its series shrinks below two points.
+    if (values.length < 2) {
+      return SizedBox(width: width ?? double.infinity, height: height);
+    }
     return SizedBox(
       width: width ?? double.infinity,
       height: height,
@@ -896,13 +904,8 @@ class _SparkPainter extends CustomPainter {
       canvas.drawPath(
         area,
         Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              colors.brand.withValues(alpha: 0.28),
-              colors.brand.withValues(alpha: 0.0),
-            ],
+          ..shader = glassAreaGradient(
+            colors.brand,
           ).createShader(Offset.zero & size),
       );
     }

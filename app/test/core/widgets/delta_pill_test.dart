@@ -74,6 +74,20 @@ void main() {
       expect(find.text('▼ 0.8'), findsOneWidget);
     });
 
+    testWidgets('zero is flat — no direction glyph is invented', (
+      tester,
+    ) async {
+      // House precedent (the old DeltaText): a delta of exactly zero is not
+      // movement, so neither arrow may claim it. Callers normally gate pills
+      // on |Δ| ≥ 0.05 and never build this — but if one slips through, the
+      // pill must not lie about direction.
+      await tester.pumpWidget(
+        _wrap(const DeltaPill(delta: 0, tone: DeltaTone.good)),
+      );
+
+      expect(find.text('– 0.0'), findsOneWidget);
+    });
+
     testWidgets('the wash is a fully rounded pill with 10–11px w700 text', (
       tester,
     ) async {
