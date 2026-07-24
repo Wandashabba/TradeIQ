@@ -131,13 +131,16 @@ Widget _appWithOverrides(List<Override> overrides) {
 }
 
 void main() {
-  testWidgets('unauthenticated root route shows the landing screen', (
+  testWidgets('root route shows the splash and holds (no instant redirect)', (
     tester,
   ) async {
+    // 2026-07-24 premium-ui redesign: '/' is the splash — the wordmark, no
+    // Continue button — and the router deliberately does NOT redirect it; the
+    // splash routes itself at max(5s, restore) (see splash_flow_test.dart).
     await tester.pumpWidget(_appWithOverrides([]));
     await tester.pumpAndSettle();
-    expect(find.text('TradeIQ'), findsOneWidget);
-    expect(find.text('Field Execution, In Focus'), findsOneWidget);
+    expect(find.text('TRADEIQ'), findsOneWidget);
+    expect(find.text('Forgot password?'), findsNothing);
   });
 
   testWidgets('unauthenticated request for /dashboard redirects to login', (
@@ -173,6 +176,15 @@ void main() {
           todayRouteProvider.overrideWith((ref) async => null),
         ]),
       );
+      await tester.pumpAndSettle();
+
+      // '/' no longer redirects (the splash holds; see splash_flow_test.dart),
+      // so exercise what this test is named for: an authed agent hitting
+      // /login — a stale link — is still bounced to their home.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/login');
       await tester.pumpAndSettle();
 
       // The first question of an agent's day is "where am I going", not "which
@@ -223,6 +235,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // '/' no longer redirects (the splash holds; see splash_flow_test.dart),
+    // so exercise what this test is named for: an authed manager hitting
+    // /login is still bounced to the dashboard.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    container.read(routerProvider).go('/login');
+    await tester.pumpAndSettle();
+
     // The dashboard's KPI grid now loads from GET /dashboard (unstubbed here,
     // so it settles into the error state); the AppBar title is the stable
     // signal that routing landed on the dashboard.
@@ -240,11 +261,16 @@ void main() {
       ]),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Execution overview'), findsOneWidget);
 
+    // '/' no longer redirects (the splash holds; see splash_flow_test.dart) —
+    // put the manager on the protected route explicitly first.
     final container = ProviderScope.containerOf(
       tester.element(find.byType(MaterialApp)),
     );
+    container.read(routerProvider).go('/dashboard');
+    await tester.pumpAndSettle();
+    expect(find.text('Execution overview'), findsOneWidget);
+
     container.read(sessionControllerProvider.notifier).logout();
     await tester.pumpAndSettle();
 
