@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/bottom_nav_bar.dart';
 import 'package:tradeiq_app/core/widgets/manager_scaffold.dart';
 
 import '../../helpers/routed_app.dart';
 
-/// Drives the shell at a chosen viewport width. The rail's whole job is to
+/// Drives the shell at a chosen viewport width. The shell's whole job is to
 /// respond to width, so every test here sets one explicitly.
-Future<void> _pumpAt(WidgetTester tester, double width) async {
+Future<void> _pumpAt(
+  WidgetTester tester,
+  double width, {
+  String path = '/dashboard',
+}) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -15,6 +19,7 @@ Future<void> _pumpAt(WidgetTester tester, double width) async {
   await tester.pumpWidget(
     routedApp(
       const ManagerScaffold(title: 'Execution overview', body: Text('body')),
+      path: path,
     ),
   );
   await tester.pumpAndSettle();
@@ -26,50 +31,50 @@ void main() {
   ) async {
     await _pumpAt(tester, 1400);
 
-    // No drawer to open — navigation is always on screen.
-    expect(find.byType(Drawer), findsNothing);
+    // No bottom bar — navigation is always on screen in the sidebar.
+    expect(find.byType(TiqBottomNavBar), findsNothing);
     expect(find.text('Dashboard'), findsOneWidget);
     expect(find.text('Alerts'), findsOneWidget);
-    // Grouped by verb, so the menu is scannable rather than a flat list of 19.
+    // Grouped by verb, so the menu is scannable rather than a flat list of 20.
     expect(find.text('OPERATE'), findsOneWidget);
     expect(find.text('INSIGHT'), findsOneWidget);
     expect(find.text('CONFIGURE'), findsOneWidget);
   });
 
-  testWidgets('between the breakpoints the rail collapses to icons', (
+  testWidgets('below the breakpoint the rail gives way to the floating bar', (
     tester,
   ) async {
     await _pumpAt(tester, 900);
 
-    // Still no drawer — the rail is present, just wordless.
+    // No rail, no drawer — the floating bar carries navigation.
+    expect(find.byType(TiqBottomNavBar), findsOneWidget);
     expect(find.byType(Drawer), findsNothing);
-    expect(find.byKey(const ValueKey('nav-/dashboard')), findsOneWidget);
-    // Labels are gone; the destination survives as an icon + tooltip.
-    expect(find.text('Dashboard'), findsNothing);
+    expect(find.byKey(const ValueKey('nav-/dashboard')), findsNothing);
     expect(find.text('OPERATE'), findsNothing);
+    // The scaffold feeds the router location into the bar: Home is pilled.
+    expect(
+      find.byKey(const ValueKey('bottom-nav-pill-/dashboard')),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('at phone width it falls back to an overlay drawer', (
+  testWidgets('phone width is the same bar mode — still no drawer', (
     tester,
   ) async {
     await _pumpAt(tester, 600);
 
-    expect(find.byType(Drawer), findsNothing, reason: 'closed until opened');
-
-    final scaffold = tester.firstState<ScaffoldState>(find.byType(Scaffold));
-    scaffold.openDrawer();
-    await tester.pumpAndSettle();
-
-    expect(find.byType(Drawer), findsOneWidget);
-    // Same rows, same order, same keys as the rail.
-    expect(find.byKey(const ValueKey('nav-/dashboard')), findsOneWidget);
-    expect(find.text('Dashboard'), findsOneWidget);
+    expect(find.byType(TiqBottomNavBar), findsOneWidget);
+    expect(find.byType(Drawer), findsNothing);
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Menu'), findsOneWidget);
   });
 
-  testWidgets('every destination keeps its nav-<path> key', (tester) async {
+  testWidgets('every destination keeps its nav-<route> key on the rail', (
+    tester,
+  ) async {
     await _pumpAt(tester, 1400);
 
-    for (final path in const [
+    for (final route in const [
       '/dashboard',
       '/tasks',
       '/alerts',
@@ -82,77 +87,48 @@ void main() {
       '/client-config',
     ]) {
       expect(
-        find.byKey(ValueKey('nav-$path')),
+        find.byKey(ValueKey('nav-$route')),
         findsOneWidget,
-        reason: 'missing destination $path',
+        reason: 'missing destination $route',
       );
     }
   });
 
-  testWidgets('the drawer scrim comes from the theme, not Flutter\'s default', (
+  testWidgets('the bar\'s Menu opens the sheet with every destination', (
     tester,
   ) async {
-    await _pumpAt(tester, 600);
+    await _pumpAt(tester, 900);
 
-    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-    // Dark keeps black54 — identical to the default, so dark is unchanged.
-    // Light swaps in a deeper slate, which is the point of reading the token.
-    expect(scaffold.drawerScrimColor, TiqColors.dark.scrim);
-  });
-
-  testWidgets('drawer nav rows stagger in when motion is on', (tester) async {
-    await _pumpAt(tester, 600);
-
-    tester.firstState<ScaffoldState>(find.byType(Scaffold)).openDrawer();
-    await tester.pump(); // build the drawer; the stagger controller starts
-    await tester.pump(const Duration(milliseconds: 50));
-
-    // Mid-stagger the first row is animating: neither hidden nor landed.
-    final fadeFinder = find.ancestor(
-      of: find.byKey(const ValueKey('nav-/dashboard')),
-      matching: find.byType(FadeTransition),
-    );
-    final fade = tester.widget<FadeTransition>(fadeFinder.first);
-    expect(fade.opacity.value, greaterThan(0));
-    expect(fade.opacity.value, lessThan(1));
-
-    // Once the stagger runs out, every row has fully landed.
+    await tester.tap(find.text('Menu'));
     await tester.pumpAndSettle();
-    final settled = tester.widget<FadeTransition>(fadeFinder.first);
-    expect(settled.opacity.value, 1.0);
-    expect(find.text('Dashboard'), findsOneWidget);
+
+    // The sidebar's full list, same three groups, now in the sheet.
+    expect(find.text('OPERATE'), findsOneWidget);
+    expect(find.text('INSIGHT'), findsOneWidget);
+    expect(find.text('CONFIGURE'), findsOneWidget);
+    expect(find.text('Webhooks'), findsOneWidget);
+    expect(find.text('Sign out'), findsOneWidget);
   });
 
-  testWidgets('under reduced motion the drawer rows appear at once', (
+  testWidgets('under reduced motion the pill does not animate', (
     tester,
   ) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
 
-    await _pumpAt(tester, 600);
-    tester.firstState<ScaffoldState>(find.byType(Scaffold)).openDrawer();
-    await tester.pumpAndSettle();
+    await _pumpAt(tester, 900);
 
-    // Rows render unwrapped — no fade, no slide, full opacity from frame one.
-    expect(find.byKey(const ValueKey('nav-/dashboard')), findsOneWidget);
-    expect(
+    final align = tester.widget<AnimatedAlign>(
       find.descendant(
-        of: find.byType(Drawer),
-        matching: find.byType(FadeTransition),
+        of: find.byType(TiqBottomNavBar),
+        matching: find.byType(AnimatedAlign),
       ),
-      findsNothing,
     );
-    expect(
-      find.descendant(
-        of: find.byType(Drawer),
-        matching: find.byType(SlideTransition),
-      ),
-      findsNothing,
-    );
+    expect(align.duration, Duration.zero);
   });
 
-  testWidgets('the persistent rail never staggers', (tester) async {
+  testWidgets('the persistent rail never animates its rows', (tester) async {
     await _pumpAt(tester, 1400);
 
     // The rail is furniture, not an event — its rows are never animated.
