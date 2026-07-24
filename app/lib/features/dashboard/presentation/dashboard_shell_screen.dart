@@ -643,24 +643,6 @@ const _mapZoom = 11.0;
   AgentState.idle => (label: 'No check-in', color: colors.ink4),
 };
 
-/// Glyph colour for the map pin specifically — fixed rather than read from
-/// the ambient theme, because the pin's disc is *also* fixed white (see
-/// `_AgentMapPin`'s decoration comment) and a colour tuned for a dark panel
-/// does not necessarily read on a literal white circle. `colors.warn` in
-/// dark theme is a bright amber meant to sit on `AppColors.surface1`
-/// (#14161C) — on white it measures ~1.8:1, effectively invisible, the same
-/// fixed-background/theme-dependent-foreground mistake `_StopPin`'s numeral
-/// had. `TiqColors.light`'s good/warn were tuned against a near-white panel
-/// already and clear 5:1+ on the disc, so those literals are pinned here for
-/// every theme; `ink4` is already one shared literal in both palettes (it is
-/// documented as "marks only", meant to be theme-invariant) so it needs no
-/// override.
-Color _pinGlyphColor(AgentState state) => switch (state) {
-  AgentState.atStore => TiqColors.light.good,
-  AgentState.inTransit => TiqColors.light.warn,
-  AgentState.idle => TiqColors.light.ink4,
-};
-
 /// This agent's most recent confirmed stop. Sorts defensively rather than
 /// trusting `stops` to already be in order, for the same reason
 /// [AgentActivity.lastOutletName] does: a caller-trusted ordering that
@@ -999,6 +981,10 @@ class _AgentMap extends StatelessWidget {
             ),
             children: [
               const TiqTileLayer(),
+              // The navy wash that makes the island the same Tide Guide
+              // world as the full-screen trail map — between the tiles and
+              // the markers so pins stay at full brightness.
+              const TiqNavyTint(),
               MarkerLayer(
                 // Outlets first, agents last: marker paint order follows
                 // list order, so a checked-in agent standing at (or near) an
@@ -1159,12 +1145,20 @@ class _OutletBasePin extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            // `ink4` — the same fixed, theme-invariant "marks only" literal
-            // `_pinGlyphColor` uses for the idle glyph's colour (see its doc
-            // comment) — deliberately muted and low-contrast next to the
-            // agent pins' saturated good/warn/ink4-on-white glyphs, so this
-            // reads as background rather than competing for attention.
-            color: TiqColors.light.ink4.withValues(alpha: 0.75),
+            // A dim navy from the same family as the basemap's tint —
+            // deliberately muted, with only a faint glow, next to the agent
+            // pins' bright glowing discs, so this reads as background
+            // rather than competing for attention.
+            color: const Color(0xFF39557E),
+            boxShadow: [
+              BoxShadow(
+                // rgba(64,120,200,.35) — a quieter, dimmer blue than the
+                // agent pins' rgba(64,156,255,.55) halo.
+                color: const Color(0xFF4078C8).withValues(alpha: 0.35),
+                blurRadius: 8,
+                spreadRadius: 2,
+              ),
+            ],
           ),
           child: Container(
             width: 4,
@@ -1221,26 +1215,39 @@ class _AgentMapPinState extends State<_AgentMapPin> {
           transform: Matrix4.translationValues(0, -lift, 0),
           transformAlignment: Alignment.center,
           decoration: BoxDecoration(
-            // A white disc under the glyph, same as agent_trail_screen.dart's
-            // _StopPin and territory_map_screen.dart's _OutletPin: CARTO's
-            // dark and light basemaps both range from near-black roads to
-            // pale open land, so a bare glyph has no background it can rely
-            // on everywhere.
-            color: Colors.white,
             shape: BoxShape.circle,
-            border: Border.all(color: colors.line, width: 1),
+            // The glowing lit-sphere disc, same recipe as
+            // agent_trail_screen.dart's _StopPin at panel scale: the small
+            // highlight is pushed to the top-left so the glyph sits on the
+            // deep core — the colour the white glyph is contrast-guarded
+            // against (≥3:1, this panel's own test). The glow is STATIC
+            // here: the trail's breathing loop is the design's only looping
+            // animation, and this below-the-fold island earns none.
+            gradient: const RadialGradient(
+              center: Alignment(-0.4, -0.5),
+              radius: 1.0,
+              colors: [Color(0xFF7CC0FF), Color(0xFF1F7AE0)],
+              stops: [0.0, 0.75],
+            ),
+            border: Border.all(color: Colors.white, width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: const Color(0x33000000),
-                blurRadius: _hovering ? 6 : 3,
-                offset: Offset(0, _hovering ? 2 : 1),
+                // rgba(64,156,255,.55) — the trail pins' glow blue, halo
+                // scaled down with the disc.
+                color: const Color(0xFF409CFF).withValues(alpha: 0.55),
+                blurRadius: 14,
+                spreadRadius: 3,
               ),
             ],
           ),
           child: Center(
             child: AgentStateGlyph(
               state: agent.state,
-              color: _pinGlyphColor(agent.state),
+              // White on the deep core for every state: on this disc the
+              // per-state colours would be near-invisible, and colour was
+              // never the carrier anyway — the SHAPE is the state (#144),
+              // exactly as on the white disc this replaces.
+              color: Colors.white,
               size: 16,
               pulse: true,
             ),
