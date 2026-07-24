@@ -1,10 +1,11 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
-import 'package:tradeiq_app/core/widgets/console.dart';
+import 'package:tradeiq_app/core/widgets/delta_pill.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
@@ -24,21 +25,22 @@ class _FakeDashboardRepository implements DashboardRepository {
     String? territoryId,
     String? from,
     String? to,
-  }) async =>
-      const DashboardKpis(
-        numericDistribution: 72.5,
-        weightedDistribution: 81.3,
-        osaPct: 93.1,
-        executionScore: 67.8,
-        priceCompliancePct: 88.0,
-        visibilityCompliancePct: 76.4,
-        shareOfShelf: 41.2,
-        perfectStoreRate: 55.6,
-      );
+  }) async => const DashboardKpis(
+    numericDistribution: 72.5,
+    weightedDistribution: 81.3,
+    osaPct: 93.1,
+    executionScore: 67.8,
+    priceCompliancePct: 88.0,
+    visibilityCompliancePct: 76.4,
+    shareOfShelf: 41.2,
+    perfectStoreRate: 55.6,
+  );
 
   @override
-  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to}) async =>
-      byTerritory;
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({
+    String? from,
+    String? to,
+  }) async => byTerritory;
 }
 
 /// Serves whatever [score] currently holds, so a test can change the server's
@@ -52,24 +54,22 @@ class _MutableDashboardRepository implements DashboardRepository {
     String? territoryId,
     String? from,
     String? to,
-  }) async =>
-      DashboardKpis(
-        numericDistribution: 72.5,
-        weightedDistribution: 81.3,
-        osaPct: 93.1,
-        executionScore: score,
-        priceCompliancePct: 88.0,
-        visibilityCompliancePct: 76.4,
-        shareOfShelf: 41.2,
-        perfectStoreRate: 55.6,
-      );
+  }) async => DashboardKpis(
+    numericDistribution: 72.5,
+    weightedDistribution: 81.3,
+    osaPct: 93.1,
+    executionScore: score,
+    priceCompliancePct: 88.0,
+    visibilityCompliancePct: 76.4,
+    shareOfShelf: 41.2,
+    perfectStoreRate: 55.6,
+  );
 
   @override
   Future<List<TerritoryDashboardKpis>> fetchByTerritory({
     String? from,
     String? to,
-  }) async =>
-      const [];
+  }) async => const [];
 }
 
 /// Returns a LOWER figure for the earlier window, so the console has a real rise
@@ -82,9 +82,8 @@ class _ImprovingDashboardRepository implements DashboardRepository {
     String? to,
   }) async {
     // The previous window is the one that ends where the current one starts.
-    final isPrevious = from != null && DateTime.parse(from).isBefore(
-          DateTime(2026, 6, 14),
-        );
+    final isPrevious =
+        from != null && DateTime.parse(from).isBefore(DateTime(2026, 6, 14));
     final osa = isPrevious ? 88.0 : 93.1;
     final perfect = isPrevious ? 60.0 : 55.6;
     final execution = isPrevious ? 76.3 : 78.4;
@@ -102,7 +101,41 @@ class _ImprovingDashboardRepository implements DashboardRepository {
   }
 
   @override
-  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to}) async => const [];
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({
+    String? from,
+    String? to,
+  }) async => const [];
+}
+
+/// Every KPI sat exactly 2.0 points lower in the previous window, so all
+/// seven tiles have a real rise to wear a pill for.
+class _AllRisingDashboardRepository implements DashboardRepository {
+  @override
+  Future<DashboardKpis> fetchKpis({
+    String? territoryId,
+    String? from,
+    String? to,
+  }) async {
+    final isPrevious =
+        from != null && DateTime.parse(from).isBefore(DateTime(2026, 6, 14));
+    final bump = isPrevious ? -2.0 : 0.0;
+    return DashboardKpis(
+      numericDistribution: 72.5 + bump,
+      weightedDistribution: 81.3 + bump,
+      osaPct: 93.1 + bump,
+      executionScore: 67.8 + bump,
+      priceCompliancePct: 88.0 + bump,
+      visibilityCompliancePct: 76.4 + bump,
+      shareOfShelf: 41.2 + bump,
+      perfectStoreRate: 55.6 + bump,
+    );
+  }
+
+  @override
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({
+    String? from,
+    String? to,
+  }) async => const [];
 }
 
 class _ThrowingDashboardRepository implements DashboardRepository {
@@ -111,12 +144,13 @@ class _ThrowingDashboardRepository implements DashboardRepository {
     String? territoryId,
     String? from,
     String? to,
-  }) async =>
-      throw Exception('network down');
+  }) async => throw Exception('network down');
 
   @override
-  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to}) async =>
-      throw Exception('network down');
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({
+    String? from,
+    String? to,
+  }) async => throw Exception('network down');
 }
 
 /// Fails only the by-territory fetch while the KPI fetch keeps succeeding —
@@ -159,8 +193,7 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
     required String name,
     required String code,
     String? region,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<void> assignAgent(String territoryId, String userId) async =>
@@ -176,8 +209,7 @@ class _FakeAlertsRepository implements AlertsRepository {
   Future<PaginatedResponse<AlertItem>> listAlerts({
     bool? acknowledged,
     String? severity,
-  }) async =>
-      PaginatedResponse(data: alerts, nextCursor: null);
+  }) async => PaginatedResponse(data: alerts, nextCursor: null);
 
   @override
   Future<AlertItem> acknowledge(String id) async => throw UnimplementedError();
@@ -193,36 +225,44 @@ class _FakeTasksRepository implements TasksAdminRepository {
     String? status,
     String? priority,
     String? outletId,
-  }) async =>
-      tasks;
+  }) async => tasks;
 
   @override
   Future<TaskItem> closeTask({
     required String id,
     required String closurePhotoUrl,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<TaskItem> verifyTask(String id) async => throw UnimplementedError();
 }
 
 class _FakeTrendsRepository implements TrendsRepository {
-  _FakeTrendsRepository({this.scorecardPoints = const []});
+  _FakeTrendsRepository({
+    this.scorecardPoints = const [],
+    this.perfectStorePoints = const [],
+  });
 
   final List<TrendPoint> scorecardPoints;
+  final List<TrendPoint> perfectStorePoints;
 
   @override
-  Future<List<TrendPoint>> scorecards([TrendQuery query = const TrendQuery()]) async => scorecardPoints;
+  Future<List<TrendPoint>> scorecards([
+    TrendQuery query = const TrendQuery(),
+  ]) async => scorecardPoints;
 
   @override
-  Future<List<TrendPoint>> availability([TrendQuery query = const TrendQuery()]) async => const [
-        TrendPoint(period: '2026-W25', value: 92.6),
-        TrendPoint(period: '2026-W26', value: 93.1),
-      ];
+  Future<List<TrendPoint>> availability([
+    TrendQuery query = const TrendQuery(),
+  ]) async => const [
+    TrendPoint(period: '2026-W25', value: 92.6),
+    TrendPoint(period: '2026-W26', value: 93.1),
+  ];
 
   @override
-  Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => const [];
+  Future<List<TrendPoint>> perfectStore([
+    TrendQuery query = const TrendQuery(),
+  ]) async => perfectStorePoints;
 }
 
 AlertItem _alert({required String severity, String metric = 'out_of_stock'}) =>
@@ -235,14 +275,14 @@ AlertItem _alert({required String severity, String metric = 'out_of_stock'}) =>
     );
 
 TaskItem _task({required String priority, String status = 'open'}) => TaskItem(
-      id: 't-$priority-$status',
-      findingType: 'stockout',
-      requiredFix: 'restock',
-      priority: priority,
-      status: status,
-      closureVerified: false,
-      outletId: 'o1',
-    );
+  id: 't-$priority-$status',
+  findingType: 'stockout',
+  requiredFix: 'restock',
+  priority: priority,
+  status: status,
+  closureVerified: false,
+  outletId: 'o1',
+);
 
 /// The dashboard is a desktop console and its body is a lazy [ListView] — at the
 /// default 800×600 test surface the KPI strip never gets built. Every test here
@@ -262,25 +302,31 @@ Widget _app({
   List<AlertItem> alerts = const [],
   List<TaskItem> tasks = const [],
   List<TrendPoint> scorecards = const [],
-}) =>
-    routedApp(
-      const DashboardShellScreen(),
-      overrides: [
-        dashboardRepositoryProvider
-            .overrideWithValue(dashboard ?? _FakeDashboardRepository()),
-        territoriesRepositoryProvider
-            .overrideWithValue(_FakeTerritoriesRepository(territories)),
-        alertsRepositoryProvider.overrideWithValue(_FakeAlertsRepository(alerts)),
-        tasksAdminRepositoryProvider
-            .overrideWithValue(_FakeTasksRepository(tasks)),
-        trendsRepositoryProvider.overrideWithValue(
-          _FakeTrendsRepository(scorecardPoints: scorecards),
-        ),
-      ],
-    );
+  List<TrendPoint> perfectStore = const [],
+}) => routedApp(
+  const DashboardShellScreen(),
+  overrides: [
+    dashboardRepositoryProvider.overrideWithValue(
+      dashboard ?? _FakeDashboardRepository(),
+    ),
+    territoriesRepositoryProvider.overrideWithValue(
+      _FakeTerritoriesRepository(territories),
+    ),
+    alertsRepositoryProvider.overrideWithValue(_FakeAlertsRepository(alerts)),
+    tasksAdminRepositoryProvider.overrideWithValue(_FakeTasksRepository(tasks)),
+    trendsRepositoryProvider.overrideWithValue(
+      _FakeTrendsRepository(
+        scorecardPoints: scorecards,
+        perfectStorePoints: perfectStore,
+      ),
+    ),
+  ],
+);
 
 void main() {
-  testWidgets('leads with the execution score as the hero figure', (tester) async {
+  testWidgets('leads with the execution score as the hero figure', (
+    tester,
+  ) async {
     await _pump(tester, _app());
 
     expect(find.byKey(const ValueKey('kpi-execution-score')), findsOneWidget);
@@ -328,7 +374,7 @@ void main() {
           _alert(severity: 'critical', metric: 'price_deviation'),
           _alert(severity: 'warning', metric: 'low_scorecard'),
         ],
-      )
+      ),
     );
 
     expect(
@@ -341,7 +387,9 @@ void main() {
     expect(find.text('1'), findsWidgets);
   });
 
-  testWidgets('reports open tasks rather than an SLA-breach count', (tester) async {
+  testWidgets('reports open tasks rather than an SLA-breach count', (
+    tester,
+  ) async {
     // GET /tasks returns no dueAt, so the screen must not claim an SLA figure
     // it cannot compute.
     await _pump(
@@ -352,7 +400,7 @@ void main() {
           _task(priority: 'normal'),
           _task(priority: 'high', status: 'closed'),
         ],
-      )
+      ),
     );
 
     expect(find.byKey(const ValueKey('attention-open-tasks')), findsOneWidget);
@@ -370,24 +418,134 @@ void main() {
           TrendPoint(period: '2026-07-06', value: 76.2),
           TrendPoint(period: '2026-07-13', value: 78.4),
         ],
-      )
+      ),
     );
 
     expect(find.byType(LineChart), findsOneWidget);
+
+    // The hero trend is the redesign's glass chart: a 2.5px line over an area
+    // fill fading brand 28% -> 0%. Config asserted here; the painter owns it.
+    final chart = tester.widget<LineChart>(find.byType(LineChart));
+    expect(chart.lineWidth, 2.5);
+    expect(chart.gradientFill, isTrue);
   });
 
-  testWidgets('the hero delta is measured against the previous window, like the tiles', (
-    tester,
-  ) async {
-    await _pump(tester, _app(dashboard: _ImprovingDashboardRepository()));
+  testWidgets(
+    'the hero delta is measured against the previous window, like the tiles',
+    (tester) async {
+      await _pump(tester, _app(dashboard: _ImprovingDashboardRepository()));
 
-    // Execution score went 76.3 -> 78.4 across the two windows: +2.1 points.
-    // It used to be derived from the last two points of the trend series, which
-    // answered a different question from every tile beneath it.
-    final hero = find.byKey(const ValueKey('kpi-execution-score'));
-    expect(hero, findsOneWidget);
-    expect(find.byType(DeltaBadge), findsWidgets);
+      // Execution score went 76.3 -> 78.4 across the two windows: +2.1 points.
+      // It used to be derived from the last two points of the trend series, which
+      // answered a different question from every tile beneath it.
+      final hero = find.byKey(const ValueKey('kpi-execution-score'));
+      expect(hero, findsOneWidget);
+      // +2.1 is the hero's own figure — no tile moved by that amount, so this
+      // pill can only be the one beside the score.
+      expect(find.widgetWithText(DeltaPill, '▲ 2.1'), findsOneWidget);
+    },
+  );
+
+  testWidgets('the hero card wears the glass gradient wash', (tester) async {
+    await _pump(tester, _app());
+
+    final glass = find.byWidgetPredicate(
+      (w) =>
+          w is Container &&
+          w.decoration is BoxDecoration &&
+          listEquals(
+            ((w.decoration! as BoxDecoration).gradient as LinearGradient?)
+                ?.colors,
+            const [Color(0xFFF2F7FF), Color(0xFFFFFFFF)],
+          ),
+    );
+    expect(glass, findsOneWidget);
+    // The washed card is the score's card, not some other panel's.
+    expect(
+      find.descendant(
+        of: glass,
+        matching: find.byKey(const ValueKey('kpi-execution-score')),
+      ),
+      findsOneWidget,
+    );
+    final border =
+        (tester.widget<Container>(glass).decoration! as BoxDecoration).border!;
+    expect((border as Border).top.color, const Color(0xFFDBE7FA));
+
+    // The score itself is the 30–32px w700 headline figure of the spec.
+    final score = tester.widget<Text>(find.text('67.8'));
+    expect(score.style?.fontWeight, FontWeight.w700);
+    expect(score.style?.fontSize, inInclusiveRange(30, 32));
   });
+
+  testWidgets(
+    'KPI tiles carry a pill and a gradient micro-trend — never an icon',
+    (tester) async {
+      await _pump(
+        tester,
+        _app(
+          dashboard: _AllRisingDashboardRepository(),
+          perfectStore: const [
+            TrendPoint(period: '2026-W25', value: 54.2),
+            TrendPoint(period: '2026-W26', value: 55.6),
+          ],
+        ),
+      );
+
+      const labels = [
+        'On-shelf availability',
+        'Perfect-store rate',
+        'Price compliance',
+        'Visibility compliance',
+        'Share of shelf',
+        'Weighted distribution',
+        'Numeric distribution',
+      ];
+      for (final label in labels) {
+        final tile = find.byKey(ValueKey('kpi-$label'));
+        expect(
+          find.descendant(of: tile, matching: find.byType(DeltaPill)),
+          findsOneWidget,
+          reason: 'pill: $label',
+        );
+        // Every KPI rose, so every pill is the green tone.
+        expect(
+          tester
+              .widget<DeltaPill>(
+                find.descendant(of: tile, matching: find.byType(DeltaPill)),
+              )
+              .tone,
+          DeltaTone.good,
+          reason: 'tone: $label',
+        );
+        // The user removed icons from these tiles twice. Never reintroduce one.
+        expect(
+          find.descendant(of: tile, matching: find.byType(Icon)),
+          findsNothing,
+          reason: 'icon: $label',
+        );
+      }
+
+      // Only the two KPIs with a real /trends history may draw a shape (#95) —
+      // and where one draws, it draws the gradient recipe.
+      for (final label in const [
+        'On-shelf availability',
+        'Perfect-store rate',
+      ]) {
+        final tile = find.byKey(ValueKey('kpi-$label'));
+        final spark = find.descendant(
+          of: tile,
+          matching: find.byType(Sparkline),
+        );
+        expect(spark, findsOneWidget, reason: 'spark: $label');
+        expect(
+          tester.widget<Sparkline>(spark).gradient,
+          isTrue,
+          reason: 'gradient spark: $label',
+        );
+      }
+    },
+  );
 
   testWidgets('shows an error state with a Retry when the KPI fetch fails', (
     tester,
@@ -481,10 +639,7 @@ void main() {
       ];
       final repo = _ByTerritoryFailingRepository(byTerritory: byTerritory);
 
-      await _pump(
-        tester,
-        _app(territories: territories, dashboard: repo),
-      );
+      await _pump(tester, _app(territories: territories, dashboard: repo));
 
       expect(find.text('Could not load territory scores'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -500,7 +655,9 @@ void main() {
     },
   );
 
-  testWidgets('renders the KPI filter bar (territory + date range)', (tester) async {
+  testWidgets('renders the KPI filter bar (territory + date range)', (
+    tester,
+  ) async {
     await _pump(tester, _app());
 
     expect(find.byKey(const ValueKey('filter-territory')), findsOneWidget);
@@ -542,14 +699,25 @@ void main() {
       find.descendant(of: tile, matching: find.textContaining('4.4')),
       findsOneWidget,
     );
+    // A fall wears the red wash — tone follows the sign.
+    expect(
+      tester
+          .widget<DeltaPill>(
+            find.descendant(of: tile, matching: find.byType(DeltaPill)),
+          )
+          .tone,
+      DeltaTone.bad,
+    );
   });
 
-  testWidgets('with no previous window there is no arrow at all', (tester) async {
+  testWidgets('with no previous window there is no arrow at all', (
+    tester,
+  ) async {
     await _pump(tester, _app());
 
     // The fake returns the same numbers for both windows, so nothing moved —
-    // and a 0.0 delta is not movement. No arrow is the honest rendering.
-    expect(find.byType(DeltaText), findsNothing);
+    // and a 0.0 delta is not movement. No pill is the honest rendering.
+    expect(find.byType(DeltaPill), findsNothing);
   });
 
   testWidgets('the refresh action refetches instead of replaying cache', (

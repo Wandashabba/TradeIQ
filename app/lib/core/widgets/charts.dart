@@ -55,7 +55,15 @@ TextPainter _text(String s, {required TextStyle style}) {
   final raw = (hi - lo) / ticks;
   final mag = math.pow(10, (math.log(raw) / math.ln10).floor()).toDouble();
   final norm = raw / mag;
-  final step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  final step =
+      (norm <= 1
+          ? 1
+          : norm <= 2
+          ? 2
+          : norm <= 5
+          ? 5
+          : 10) *
+      mag;
 
   final niceMin = (lo / step).floor() * step;
   final niceMax = (hi / step).ceil() * step;
@@ -75,6 +83,8 @@ class LineChart extends StatefulWidget {
     this.height = 208,
     this.valueSuffix = '',
     this.seriesName = '',
+    this.lineWidth = 2,
+    this.gradientFill = false,
   });
 
   final List<ChartPoint> points;
@@ -82,6 +92,14 @@ class LineChart extends StatefulWidget {
   final double height;
   final String valueSuffix;
   final String seriesName;
+
+  /// Stroke weight of the series. The dataviz rules cap marks at 2–2.5px —
+  /// a hero chart may take 2.5; nothing may go heavier.
+  final double lineWidth;
+
+  /// When true the area under the line fades brand 28% → 0% top-to-bottom —
+  /// the redesign's "glass" recipe — instead of the flat series wash.
+  final bool gradientFill;
 
   @override
   State<LineChart> createState() => _LineChartState();
@@ -93,7 +111,10 @@ class _LineChartState extends State<LineChart> {
   @override
   Widget build(BuildContext context) {
     if (widget.points.length < 2) {
-      return _EmptyPlot(height: widget.height, message: 'Not enough data to plot');
+      return _EmptyPlot(
+        height: widget.height,
+        message: 'Not enough data to plot',
+      );
     }
 
     final colors = context.colors;
@@ -127,21 +148,35 @@ class _LineChartState extends State<LineChart> {
                 valueSuffix: widget.valueSuffix,
                 progress: t,
                 colors: colors,
+                lineWidth: widget.lineWidth,
+                gradientFill: widget.gradientFill,
               );
 
               return MouseRegion(
-                onHover: (e) =>
-                    _updateHover(e.localPosition, constraints.maxWidth, painter),
+                onHover: (e) => _updateHover(
+                  e.localPosition,
+                  constraints.maxWidth,
+                  painter,
+                ),
                 onExit: (_) => setState(() => _hover = null),
                 child: GestureDetector(
                   // Scrub: press and drag along the series to read every point.
                   // Touch gets exactly what the mouse gets.
-                  onTapDown: (e) =>
-                      _updateHover(e.localPosition, constraints.maxWidth, painter),
-                  onHorizontalDragStart: (e) =>
-                      _updateHover(e.localPosition, constraints.maxWidth, painter),
-                  onHorizontalDragUpdate: (e) =>
-                      _updateHover(e.localPosition, constraints.maxWidth, painter),
+                  onTapDown: (e) => _updateHover(
+                    e.localPosition,
+                    constraints.maxWidth,
+                    painter,
+                  ),
+                  onHorizontalDragStart: (e) => _updateHover(
+                    e.localPosition,
+                    constraints.maxWidth,
+                    painter,
+                  ),
+                  onHorizontalDragUpdate: (e) => _updateHover(
+                    e.localPosition,
+                    constraints.maxWidth,
+                    painter,
+                  ),
                   onHorizontalDragEnd: (_) => setState(() => _hover = null),
                   onTapUp: (_) => setState(() => _hover = null),
                   child: CustomPaint(
@@ -190,6 +225,8 @@ class _LinePainter extends CustomPainter {
     required this.valueSuffix,
     required this.colors,
     this.progress = 1,
+    this.lineWidth = 2,
+    this.gradientFill = false,
   });
 
   final List<ChartPoint> points;
@@ -198,6 +235,8 @@ class _LinePainter extends CustomPainter {
   final int? hover;
   final String valueSuffix;
   final TiqColors colors;
+  final double lineWidth;
+  final bool gradientFill;
 
   /// 0 → 1 as the series draws itself in. The chrome (grid, axes, target rule)
   /// is painted immediately: the frame of reference should never be the thing
@@ -236,7 +275,11 @@ class _LinePainter extends CustomPainter {
     // y gridlines + ticks
     for (var v = scale.min; v <= scale.max + 1e-9; v += scale.step) {
       final y = _yFor(v, size.height);
-      canvas.drawLine(Offset(_pad.left, y), Offset(_pad.left + innerW, y), hair);
+      canvas.drawLine(
+        Offset(_pad.left, y),
+        Offset(_pad.left + innerW, y),
+        hair,
+      );
       final tp = _text(_trim(v), style: _labelStyle(colors));
       tp.paint(canvas, Offset(_pad.left - 8 - tp.width, y - tp.height / 2));
     }
@@ -250,7 +293,11 @@ class _LinePainter extends CustomPainter {
         ..color = colors.ink4
         ..strokeWidth = 1;
       for (var x = _pad.left; x < _pad.left + innerW; x += 6) {
-        canvas.drawLine(Offset(x, y), Offset(math.min(x + 3, _pad.left + innerW), y), dash);
+        canvas.drawLine(
+          Offset(x, y),
+          Offset(math.min(x + 3, _pad.left + innerW), y),
+          dash,
+        );
       }
       final tp = _text('Target', style: _labelStyle(colors));
       tp.paint(canvas, Offset(_pad.left + innerW + 5, y - tp.height / 2));
@@ -259,7 +306,10 @@ class _LinePainter extends CustomPainter {
     // Area + line, revealed left-to-right by `progress`.
     final path = Path();
     for (var i = 0; i < points.length; i++) {
-      final o = Offset(xFor(i, size.width), _yFor(points[i].value, size.height));
+      final o = Offset(
+        xFor(i, size.width),
+        _yFor(points[i].value, size.height),
+      );
       i == 0 ? path.moveTo(o.dx, o.dy) : path.lineTo(o.dx, o.dy);
     }
     final area = Path.from(path)
@@ -271,13 +321,31 @@ class _LinePainter extends CustomPainter {
     canvas.clipRect(
       Rect.fromLTWH(_pad.left, 0, innerW * progress.clamp(0, 1), size.height),
     );
-    canvas.drawPath(area, Paint()..color = colors.series1.withValues(alpha: 0.14));
+    final areaPaint = Paint();
+    if (gradientFill) {
+      // Brand, not series1: the gradient fill is the accent's one chart
+      // moment (spec §Sub-project 2 — `#0A6CF0` at 28% → 0%).
+      areaPaint.shader =
+          LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colors.brand.withValues(alpha: 0.28),
+              colors.brand.withValues(alpha: 0.0),
+            ],
+          ).createShader(
+            Rect.fromLTRB(_pad.left, _pad.top, _pad.left + innerW, baseY),
+          );
+    } else {
+      areaPaint.color = colors.series1.withValues(alpha: 0.14);
+    }
+    canvas.drawPath(area, areaPaint);
     canvas.drawPath(
       path,
       Paint()
         ..color = colors.series1
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
+        ..strokeWidth = lineWidth
         ..strokeJoin = StrokeJoin.round
         ..strokeCap = StrokeCap.round,
     );
@@ -297,8 +365,8 @@ class _LinePainter extends CustomPainter {
       final dx = i == 0
           ? x
           : i == points.length - 1
-              ? x - tp.width
-              : x - tp.width / 2;
+          ? x - tp.width
+          : x - tp.width / 2;
       tp.paint(canvas, Offset(dx, size.height - _pad.bottom + 7));
     }
 
@@ -306,7 +374,10 @@ class _LinePainter extends CustomPainter {
     // there, so the label never floats ahead of its own data.
     if (progress < 0.995) return;
     final last = points.length - 1;
-    final lastO = Offset(xFor(last, size.width), _yFor(points[last].value, size.height));
+    final lastO = Offset(
+      xFor(last, size.width),
+      _yFor(points[last].value, size.height),
+    );
     canvas.drawCircle(lastO, 4, Paint()..color = colors.series1);
     canvas.drawCircle(
       lastO,
@@ -355,7 +426,9 @@ class _LinePainter extends CustomPainter {
       old.hover != hover ||
       old.target != target ||
       old.progress != progress ||
-      old.colors != colors;
+      old.colors != colors ||
+      old.lineWidth != lineWidth ||
+      old.gradientFill != gradientFill;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -442,7 +515,10 @@ class _ColumnChartState extends State<ColumnChart>
           );
           return MouseRegion(
             onHover: (e) {
-              final i = painter.indexAt(e.localPosition.dx, constraints.maxWidth);
+              final i = painter.indexAt(
+                e.localPosition.dx,
+                constraints.maxWidth,
+              );
               if (i != _hover) setState(() => _hover = i);
             },
             onExit: (_) => setState(() => _hover = null),
@@ -509,7 +585,11 @@ class _ColumnPainter extends CustomPainter {
     for (var v = scale.min; v <= scale.max + 1e-9; v += scale.step) {
       final t = (v - scale.min) / (scale.max - scale.min);
       final y = _pad.top + (baseY - _pad.top) - t * (baseY - _pad.top);
-      canvas.drawLine(Offset(_pad.left, y), Offset(_pad.left + innerW, y), hair);
+      canvas.drawLine(
+        Offset(_pad.left, y),
+        Offset(_pad.left + innerW, y),
+        hair,
+      );
       final tp = _text(_trim(v), style: _labelStyle(colors));
       tp.paint(canvas, Offset(_pad.left - 8 - tp.width, y - tp.height / 2));
     }
@@ -536,7 +616,10 @@ class _ColumnPainter extends CustomPainter {
       final tp = _text(points[i].label, style: _labelStyle(colors));
       tp.paint(
         canvas,
-        Offset(centerOf(i, size.width) - tp.width / 2, size.height - _pad.bottom + 7),
+        Offset(
+          centerOf(i, size.width) - tp.width / 2,
+          size.height - _pad.bottom + 7,
+        ),
       );
     }
 
@@ -577,17 +660,17 @@ class BarChart extends StatelessWidget {
   final double max;
 
   static Widget legend() => Builder(
-        builder: (context) {
-          final colors = context.colors;
-          return Row(
-            children: [
-              _LegendItem(color: colors.series1, label: 'Meets target'),
-              const SizedBox(width: 14),
-              _LegendItem(color: colors.crit, label: 'Below target'),
-            ],
-          );
-        },
+    builder: (context) {
+      final colors = context.colors;
+      return Row(
+        children: [
+          _LegendItem(color: colors.series1, label: 'Meets target'),
+          const SizedBox(width: 14),
+          _LegendItem(color: colors.crit, label: 'Below target'),
+        ],
       );
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -651,7 +734,11 @@ class _BarPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     for (final v in [0.0, max * .25, max * .5, max * .75, max]) {
-      canvas.drawLine(Offset(x(v), _pad.top), Offset(x(v), _pad.top + plotH), hair);
+      canvas.drawLine(
+        Offset(x(v), _pad.top),
+        Offset(x(v), _pad.top + plotH),
+        hair,
+      );
       final tp = _text(_trim(v), style: _labelStyle(colors));
       tp.paint(canvas, Offset(x(v) - tp.width / 2, _pad.top + plotH + 6));
     }
@@ -677,7 +764,10 @@ class _BarPainter extends CustomPainter {
         p.label,
         style: TextStyle(fontSize: 11.5, color: colors.ink2),
       );
-      name.paint(canvas, Offset(_pad.left - 10 - name.width, y + (barH - name.height) / 2));
+      name.paint(
+        canvas,
+        Offset(_pad.left - 10 - name.width, y + (barH - name.height) / 2),
+      );
 
       // Track
       canvas.drawRRect(
@@ -744,28 +834,44 @@ class _LegendItem extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════
 
 class Sparkline extends StatelessWidget {
-  const Sparkline({super.key, required this.values, this.width = 96, this.height = 22});
+  const Sparkline({
+    super.key,
+    required this.values,
+    this.width = 96,
+    this.height = 22,
+    this.gradient = false,
+  });
 
   final List<double> values;
-  final double width;
+
+  /// Null means "fill the available width" — the KPI tiles stretch their
+  /// micro-trend across the card; inline callers keep the fixed 96.
+  final double? width;
   final double height;
+
+  /// When true the line gains an area fill fading brand 28% → 0% — the same
+  /// glass recipe as [LineChart.gradientFill], at micro-trend scale.
+  final bool gradient;
 
   @override
   Widget build(BuildContext context) {
     if (values.length < 2) return SizedBox(width: width, height: height);
     return SizedBox(
-      width: width,
+      width: width ?? double.infinity,
       height: height,
-      child: CustomPaint(painter: _SparkPainter(values, context.colors)),
+      child: CustomPaint(
+        painter: _SparkPainter(values, context.colors, gradient: gradient),
+      ),
     );
   }
 }
 
 class _SparkPainter extends CustomPainter {
-  _SparkPainter(this.values, this.colors);
+  _SparkPainter(this.values, this.colors, {this.gradient = false});
 
   final List<double> values;
   final TiqColors colors;
+  final bool gradient;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -774,13 +880,31 @@ class _SparkPainter extends CustomPainter {
     final range = (hi - lo).abs() < 1e-9 ? 1.0 : hi - lo;
 
     Offset at(int i) => Offset(
-          (i / (values.length - 1)) * (size.width - 2) + 1,
-          size.height - 2 - ((values[i] - lo) / range) * (size.height - 5),
-        );
+      (i / (values.length - 1)) * (size.width - 2) + 1,
+      size.height - 2 - ((values[i] - lo) / range) * (size.height - 5),
+    );
 
     final path = Path()..moveTo(at(0).dx, at(0).dy);
     for (var i = 1; i < values.length; i++) {
       path.lineTo(at(i).dx, at(i).dy);
+    }
+    if (gradient) {
+      final area = Path.from(path)
+        ..lineTo(at(values.length - 1).dx, size.height)
+        ..lineTo(at(0).dx, size.height)
+        ..close();
+      canvas.drawPath(
+        area,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colors.brand.withValues(alpha: 0.28),
+              colors.brand.withValues(alpha: 0.0),
+            ],
+          ).createShader(Offset.zero & size),
+      );
     }
     canvas.drawPath(
       path,
@@ -791,12 +915,16 @@ class _SparkPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..strokeCap = StrokeCap.round,
     );
-    canvas.drawCircle(at(values.length - 1), 2.5, Paint()..color = colors.series1);
+    canvas.drawCircle(
+      at(values.length - 1),
+      2.5,
+      Paint()..color = colors.series1,
+    );
   }
 
   @override
   bool shouldRepaint(_SparkPainter old) =>
-      old.values != values || old.colors != colors;
+      old.values != values || old.colors != colors || old.gradient != gradient;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -984,7 +1112,10 @@ class _ScrubReadout extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       seriesName,
-                      style: const TextStyle(fontSize: 11, color: AppColors.ink3),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.ink3,
+                      ),
                     ),
                   ),
               ],

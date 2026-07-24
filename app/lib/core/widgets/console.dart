@@ -23,19 +23,19 @@ extension StatusLevelColor on StatusLevel {
   /// assert the reserved dark hues directly; theme-following widgets use
   /// [colorOf].
   Color get color => switch (this) {
-        StatusLevel.critical => AppColors.crit,
-        StatusLevel.warning => AppColors.warn,
-        StatusLevel.good => AppColors.good,
-        StatusLevel.neutral => AppColors.ink3,
-      };
+    StatusLevel.critical => AppColors.crit,
+    StatusLevel.warning => AppColors.warn,
+    StatusLevel.good => AppColors.good,
+    StatusLevel.neutral => AppColors.ink3,
+  };
 
   /// Theme-aware lookup — resolves against the ambient [TiqColors].
   Color colorOf(TiqColors c) => switch (this) {
-        StatusLevel.critical => c.crit,
-        StatusLevel.warning => c.warn,
-        StatusLevel.good => c.good,
-        StatusLevel.neutral => c.ink3,
-      };
+    StatusLevel.critical => c.crit,
+    StatusLevel.warning => c.warn,
+    StatusLevel.good => c.good,
+    StatusLevel.neutral => c.ink3,
+  };
 }
 
 /// A small uppercase label that heads a section or a column.
@@ -73,6 +73,8 @@ class PanelCard extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.padded = true,
+    this.gradient,
+    this.borderColor,
   });
 
   final Widget child;
@@ -82,6 +84,14 @@ class PanelCard extends StatelessWidget {
 
   /// Set false when the child draws its own edge-to-edge rows (lists, tables).
   final bool padded;
+
+  /// A background wash for "glass" cards (the dashboard hero). Null keeps the
+  /// flat surface1 card every other panel wears.
+  final Gradient? gradient;
+
+  /// Hairline override for washed cards, whose border must sit in the wash's
+  /// own family. Null keeps the standard line token.
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -125,8 +135,9 @@ class PanelCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border.all(color: colors.line),
+        color: gradient == null ? colors.surface1 : null,
+        gradient: gradient,
+        border: Border.all(color: borderColor ?? colors.line),
         borderRadius: BorderRadius.circular(AppColors.radiusPanel),
         boxShadow: const [
           BoxShadow(
@@ -141,7 +152,10 @@ class PanelCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ?head,
-          if (padded) Padding(padding: const EdgeInsets.all(14), child: child) else child,
+          if (padded)
+            Padding(padding: const EdgeInsets.all(14), child: child)
+          else
+            child,
         ],
       ),
     );

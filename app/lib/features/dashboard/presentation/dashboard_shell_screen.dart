@@ -15,6 +15,7 @@ import '../../../core/widgets/agent_state_glyph.dart';
 import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/delta_pill.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../agents/data/agents_repository.dart';
@@ -165,11 +166,21 @@ class _ExecutionScorePanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trend = ref.watch(scorecardsTrendProvider);
+    final colors = context.colors;
 
     return PanelCard(
       title: 'Execution score',
       subtitle: 'Weighted S2–S8, all outlets',
       padded: false,
+      // The screen's one "glass" card: the score is the product's headline
+      // number, and the wash is what makes it read as the headline
+      // (spec §Sub-project 2 — `#F2F7FF → #FFFFFF`, border `#DBE7FA`).
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF2F7FF), Color(0xFFFFFFFF)],
+      ),
+      borderColor: const Color(0xFFDBE7FA),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
         child: Column(
@@ -199,17 +210,24 @@ class _ExecutionScorePanel extends ConsumerWidget {
                     curve: Curves.easeOutCubic,
                     builder: (context, v, _) => Text(
                       v.toStringAsFixed(1),
-                      style: Theme.of(context).textTheme.displaySmall,
+                      style: TextStyle(
+                        fontSize: 31,
+                        height: 1.0,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.6,
+                        color: colors.ink1,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   // Measured against the window immediately before this one — the
                   // same comparison every tile below makes, so the whole screen
-                  // is answering one question consistently.
+                  // is answering one question consistently. Tone follows the
+                  // sign: the snapshot carries no other verdict to wire.
                   switch (snap.of((k) => k.executionScore)) {
-                    final d when d.hasDelta => DeltaBadge(
-                      value: d.change!,
-                      fontSize: 13,
+                    final d when d.hasDelta => DeltaPill(
+                      delta: d.change!,
+                      tone: d.change! < 0 ? DeltaTone.bad : DeltaTone.good,
                     ),
                     _ => const SizedBox.shrink(),
                   },
@@ -229,6 +247,8 @@ class _ExecutionScorePanel extends ConsumerWidget {
                 ],
                 target: 75,
                 seriesName: 'Execution score',
+                lineWidth: 2.5,
+                gradientFill: true,
               ),
             ),
           ],
@@ -467,7 +487,7 @@ class _KpiStrip extends ConsumerWidget {
                                     ),
                                   ),
                                 ),
-                                child: StatTile(
+                                child: _KpiTile(
                                   key: ValueKey('kpi-${rows[r][c].$1}'),
                                   label: rows[r][c].$1,
                                   value: rows[r][c].$2,
@@ -476,12 +496,16 @@ class _KpiStrip extends ConsumerWidget {
                                   // before this one — a second real request, not
                                   // an invented baseline. Null when there is
                                   // nothing to compare to (all-time has no
-                                  // "before"), and the tile then shows no arrow.
+                                  // "before"), and the tile then shows no pill.
                                   delta: rows[r][c].$4.hasDelta
                                       ? rows[r][c].$4.change
                                       : null,
                                   spark: switch (_series(ref, rows[r][c].$1)) {
-                                    final values? => Sparkline(values: values),
+                                    final values? => Sparkline(
+                                      values: values,
+                                      width: null,
+                                      gradient: true,
+                                    ),
                                     _ => null,
                                   },
                                 ),
@@ -495,6 +519,96 @@ class _KpiStrip extends ConsumerWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+/// One cell of the KPI strip, in the redesign's pill-and-microtrend language:
+/// muted letter-spaced label over a bold figure with its [DeltaPill], then a
+/// gradient micro-trend where a real history series exists (see
+/// [_KpiStrip._series] for why five of the seven tiles honestly have none).
+///
+/// Deliberately icon-free — the user removed icons from these tiles twice;
+/// the pill and the trend carry all the state, and the dashboard test guards
+/// against an [Icon] ever coming back.
+class _KpiTile extends StatelessWidget {
+  const _KpiTile({
+    super.key,
+    required this.label,
+    required this.value,
+    this.delta,
+    this.note,
+    this.spark,
+  });
+
+  final String label;
+  final String value;
+  final double? delta;
+  final String? note;
+  final Widget? spark;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+              color: colors.ink3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 20,
+                    height: 1.1,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
+                    color: colors.ink1,
+                  ),
+                ),
+              ),
+              if (delta != null) ...[
+                const SizedBox(width: 7),
+                DeltaPill(
+                  delta: delta!,
+                  // Tone follows the sign only: KpiDelta carries no
+                  // lagging/attention verdict yet, so an amber pill here
+                  // would be an invented judgement. Wire DeltaTone.warn the
+                  // day the tile data grows a real signal.
+                  tone: delta! < 0 ? DeltaTone.bad : DeltaTone.good,
+                ),
+              ],
+            ],
+          ),
+          if (spark != null) ...[const SizedBox(height: 8), spark!],
+          if (note != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              note!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, color: colors.ink3),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -723,10 +837,9 @@ class AgentActivityPanel extends ConsumerWidget {
     // layer, not the panel's primary data. A slow or failed outlet fetch
     // must never blank the whole panel or block the agent map — it just
     // means the base layer is thinner (or absent) until the fetch lands.
-    final outlets = ref.watch(outletsListProvider).maybeWhen(
-      data: (list) => list,
-      orElse: () => const <Outlet>[],
-    );
+    final outlets = ref
+        .watch(outletsListProvider)
+        .maybeWhen(data: (list) => list, orElse: () => const <Outlet>[]);
 
     return PanelCard(
       title: 'Where are my agents',
@@ -783,7 +896,10 @@ class AgentActivityPanel extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
                       'No outlets yet — add outlets to see them here.',
-                      style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.colors.ink3,
+                      ),
                     ),
                   ),
                   list,
@@ -836,7 +952,10 @@ class AgentActivityPanel extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       'Showing the first 200 agents. Filter by territory to narrow.',
-                      style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.colors.ink3,
+                      ),
                     ),
                   ),
               ],
