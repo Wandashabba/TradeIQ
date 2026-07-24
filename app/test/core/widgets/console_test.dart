@@ -112,6 +112,99 @@ void main() {
         findsNothing,
       );
     });
+
+    testWidgets('the delta pill is static unless the entrance is opted in', (
+      tester,
+    ) async {
+      // The pill is shared chrome — screens that never asked for entrance
+      // motion must get none, and nothing may be left running unsettled.
+      await tester.pumpWidget(
+        _wrap(
+          const SizedBox(
+            width: 220,
+            child: StatTile(
+              label: 'On-shelf availability',
+              value: '92.1%',
+              delta: 0.8,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(DeltaPill), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(StatTile),
+          matching: find.byType(Opacity),
+        ),
+        findsNothing,
+      );
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('animateDelta: the pill enters once, then goes quiet', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const SizedBox(
+            width: 220,
+            child: StatTile(
+              label: 'On-shelf availability',
+              value: '92.1%',
+              delta: 0.8,
+              animateDelta: true,
+            ),
+          ),
+        ),
+      );
+
+      final gate = find.descendant(
+        of: find.byType(StatTile),
+        matching: find.byType(Opacity),
+      );
+      expect(tester.widget<Opacity>(gate).opacity, 0);
+
+      await tester.pumpAndSettle();
+      expect(tester.widget<Opacity>(gate).opacity, 1);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('animateDelta under reduced motion renders statically', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          const SizedBox(
+            width: 220,
+            child: StatTile(
+              label: 'On-shelf availability',
+              value: '92.1%',
+              delta: 0.8,
+              animateDelta: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(DeltaPill), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(StatTile),
+          matching: find.byType(Opacity),
+        ),
+        findsNothing,
+      );
+      expect(tester.hasRunningAnimations, isFalse);
+    });
   });
 
   group('AttentionRow', () {

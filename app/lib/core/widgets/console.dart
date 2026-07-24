@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/tiq_colors.dart';
+import 'agent_motion.dart' show reduceMotion;
 import 'delta_pill.dart';
 
 /// Shared building blocks for the manager console.
@@ -163,6 +164,76 @@ class PanelCard extends StatelessWidget {
   }
 }
 
+/// A one-shot entrance: fades (and optionally scales) [child] in exactly
+/// once, after [delay]. Wrap shared chrome at the CALL SITE — the wrapped
+/// widget itself stays motion-free, so screens that never asked for entrance
+/// motion get none.
+///
+/// Two non-obvious rules, both load-bearing:
+///
+/// * [enabled] is latched when the State mounts. A mid-flight rebuild that
+///   flips the flag cannot cut the entrance short — and a remount after the
+///   screen's entrance epoch (a filter change tearing a panel down through
+///   its loading arm) mounts with `enabled: false` and renders the final
+///   state with zero animation frames.
+/// * Under reduced motion the child is returned bare — no tween, no gate,
+///   nothing for `pumpAndSettle` to wait on.
+class OneShotEntrance extends StatefulWidget {
+  const OneShotEntrance({
+    super.key,
+    required this.child,
+    this.enabled = true,
+    this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 260),
+    this.scaleFrom = 1.0,
+  });
+
+  final Widget child;
+  final bool enabled;
+  final Duration delay;
+  final Duration duration;
+
+  /// 1.0 is a pure fade; below 1.0 the child also scales up from this factor.
+  final double scaleFrom;
+
+  @override
+  State<OneShotEntrance> createState() => _OneShotEntranceState();
+}
+
+class _OneShotEntranceState extends State<OneShotEntrance> {
+  // First read happens in build, latching the mount-time value for the life
+  // of this State — see the class doc for why.
+  late final bool _animate = widget.enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_animate || reduceMotion(context)) return widget.child;
+
+    final total = widget.delay + widget.duration;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: total,
+      // The delay is the flat head of the interval; the child holds at 0
+      // (invisible) until the clock reaches it.
+      curve: Interval(
+        widget.delay.inMicroseconds / total.inMicroseconds,
+        1,
+        curve: Curves.easeOutCubic,
+      ),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: widget.scaleFrom == 1
+            ? child
+            : Transform.scale(
+                scale: widget.scaleFrom + (1 - widget.scaleFrom) * t,
+                child: child,
+              ),
+      ),
+      child: widget.child,
+    );
+  }
+}
+
 /// A square mark plus a word. Never the mark alone.
 class StatusChip extends StatelessWidget {
   const StatusChip({super.key, required this.label, required this.level});
@@ -225,6 +296,7 @@ class StatTile extends StatelessWidget {
     this.delta,
     this.note,
     this.spark,
+    this.animateDelta = false,
   });
 
   final String label;
@@ -232,6 +304,12 @@ class StatTile extends StatelessWidget {
   final double? delta;
   final String? note;
   final Widget? spark;
+
+  /// Opt-in one-shot entrance for the delta pill (a ~450ms-delayed
+  /// scale-fade, after the tile's figure has landed). Off by default: the
+  /// pill is shared chrome, and only the dashboard's first data build wants
+  /// entrance motion — see [OneShotEntrance] for the one-shot guarantees.
+  final bool animateDelta;
 
   @override
   Widget build(BuildContext context) {
@@ -272,13 +350,18 @@ class StatTile extends StatelessWidget {
               ),
               if (delta != null) ...[
                 const SizedBox(width: 7),
-                DeltaPill(
-                  delta: delta!,
-                  // Tone follows the sign only: the tile has no
-                  // lagging/attention signal to wire, and an amber pill here
-                  // would be an invented judgement. Wire DeltaTone.warn the
-                  // day the caller's data grows a real one.
-                  tone: delta! < 0 ? DeltaTone.bad : DeltaTone.good,
+                OneShotEntrance(
+                  enabled: animateDelta,
+                  delay: const Duration(milliseconds: 450),
+                  scaleFrom: 0.85,
+                  child: DeltaPill(
+                    delta: delta!,
+                    // Tone follows the sign only: the tile has no
+                    // lagging/attention signal to wire, and an amber pill here
+                    // would be an invented judgement. Wire DeltaTone.warn the
+                    // day the caller's data grows a real one.
+                    tone: delta! < 0 ? DeltaTone.bad : DeltaTone.good,
+                  ),
                 ),
               ],
             ],

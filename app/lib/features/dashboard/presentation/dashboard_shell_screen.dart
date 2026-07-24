@@ -158,13 +158,27 @@ class _TwoColumn extends StatelessWidget {
 // Hero — execution score + its trend
 // ═══════════════════════════════════════════════════════════════════════
 
-class _ExecutionScorePanel extends ConsumerWidget {
+class _ExecutionScorePanel extends ConsumerStatefulWidget {
   const _ExecutionScorePanel({required this.snapshot});
 
   final AsyncValue<DashboardSnapshot> snapshot;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ExecutionScorePanel> createState() =>
+      _ExecutionScorePanelState();
+}
+
+class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel> {
+  /// Flipped on the panel's first data build — a during-build write,
+  /// deliberately not setState: nothing rendered depends on it until a LATER
+  /// build (a filter change remounting the row through the loading arm),
+  /// which must come up entrance-free. This State outlives those remounts,
+  /// so the latch survives where the animated subtree does not.
+  bool _entered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshot = widget.snapshot;
     final trend = ref.watch(scorecardsTrendProvider);
     final colors = context.colors;
 
@@ -196,46 +210,44 @@ class _ExecutionScorePanel extends ConsumerWidget {
                 message: 'Could not load KPIs',
                 onRetry: () => ref.invalidate(dashboardSnapshotProvider),
               ),
-              data: (snap) => Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  // The headline figure counts up to its value. Not a flourish:
-                  // it makes the number the thing the eye lands on first, which
-                  // is the whole point of a hero figure.
-                  TweenAnimationBuilder<double>(
-                    key: const ValueKey('kpi-execution-score'),
-                    tween: Tween(begin: 0, end: snap.current.executionScore),
-                    duration:
-                        (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
-                        ? Duration.zero
-                        : const Duration(milliseconds: 700),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, v, _) => Text(
-                      v.toStringAsFixed(1),
-                      style: TextStyle(
-                        fontSize: 31,
-                        height: 1.0,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.6,
-                        color: colors.ink1,
+              data: (snap) {
+                final animate = !_entered;
+                _entered = true;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    // The headline figure counts up to its value ONCE. Not a
+                    // flourish: it makes the number the thing the eye lands on
+                    // first, which is the whole point of a hero figure.
+                    _HeroScore(
+                      key: const ValueKey('kpi-execution-score'),
+                      value: snap.current.executionScore,
+                      animate: animate,
+                    ),
+                    const SizedBox(width: 12),
+                    // Measured against the window immediately before this one —
+                    // the same comparison every tile below makes, so the whole
+                    // screen is answering one question consistently. Tone
+                    // follows the sign: the snapshot carries no other verdict
+                    // to wire. The entrance wrap lives HERE, not inside
+                    // DeltaPill — the pill is shared chrome and other screens
+                    // may not want entrance motion.
+                    switch (snap.of((k) => k.executionScore)) {
+                      final d when d.hasDelta => OneShotEntrance(
+                        enabled: animate,
+                        delay: const Duration(milliseconds: 450),
+                        scaleFrom: 0.85,
+                        child: DeltaPill(
+                          delta: d.change!,
+                          tone: d.change! < 0 ? DeltaTone.bad : DeltaTone.good,
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Measured against the window immediately before this one — the
-                  // same comparison every tile below makes, so the whole screen
-                  // is answering one question consistently. Tone follows the
-                  // sign: the snapshot carries no other verdict to wire.
-                  switch (snap.of((k) => k.executionScore)) {
-                    final d when d.hasDelta => DeltaPill(
-                      delta: d.change!,
-                      tone: d.change! < 0 ? DeltaTone.bad : DeltaTone.good,
-                    ),
-                    _ => const SizedBox.shrink(),
-                  },
-                ],
-              ),
+                      _ => const SizedBox.shrink(),
+                    },
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 10),
             trend.when(
@@ -257,6 +269,57 @@ class _ExecutionScorePanel extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The hero figure. Counts 0 → value over ~600ms ease-out exactly once — on
+/// the panel's first data build — then renders as plain text for the rest of
+/// the session, so refreshes and filter changes swap the number without
+/// re-performing it. Under reduced motion there is no tween at all: the final
+/// figure IS the first frame.
+class _HeroScore extends StatefulWidget {
+  const _HeroScore({super.key, required this.value, required this.animate});
+
+  final double value;
+
+  /// Whether this mount is the entrance. Latched at mount (see State): a
+  /// rebuild mid-count-up cannot cut the animation short, and a remount after
+  /// the entrance epoch renders statically.
+  final bool animate;
+
+  @override
+  State<_HeroScore> createState() => _HeroScoreState();
+}
+
+class _HeroScoreState extends State<_HeroScore> {
+  late final bool _entrance = widget.animate;
+
+  /// Set when the count-up completes; from then on the tween is gone from the
+  /// tree entirely, so a later value change (a refresh landing new data into
+  /// this same State) renders directly instead of animating toward it.
+  bool _done = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 31,
+      height: 1.0,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.6,
+      color: context.colors.ink1,
+    );
+
+    if (_done || !_entrance || reduceMotion(context)) {
+      return Text(widget.value.toStringAsFixed(1), style: style);
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: widget.value),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      onEnd: () => setState(() => _done = true),
+      builder: (context, v, _) => Text(v.toStringAsFixed(1), style: style),
     );
   }
 }
@@ -405,17 +468,33 @@ double _sos(DashboardKpis k) => k.shareOfShelf;
 double _weighted(DashboardKpis k) => k.weightedDistribution;
 double _numeric(DashboardKpis k) => k.numericDistribution;
 
-class _KpiStrip extends ConsumerWidget {
+class _KpiStrip extends ConsumerStatefulWidget {
   const _KpiStrip({required this.snapshot});
 
   final AsyncValue<DashboardSnapshot> snapshot;
+
+  @override
+  ConsumerState<_KpiStrip> createState() => _KpiStripState();
+}
+
+class _KpiStripState extends ConsumerState<_KpiStrip> {
+  /// Same first-data-build latch as the hero panel: pills enter once, and a
+  /// filter change remounting the strip comes up entrance-free.
+  bool _entered = false;
+
+  /// Sparklines latch per label, separately from [_entered]: their trend
+  /// providers can resolve a frame or two AFTER the snapshot, and by then the
+  /// strip-level latch has already flipped — a shared flag would silently
+  /// cancel their fade. A label re-entering after a filter change is already
+  /// in the set, so nothing replays.
+  final Set<String> _sparkEntered = {};
 
   /// A sparkline is only drawn where a real history series exists.
   ///
   /// `/trends` serves three series and no more (#95). The other five KPIs have
   /// no history endpoint, so they get no sparkline — a fabricated shape would be
   /// the most confident-looking lie on the screen.
-  List<double>? _series(WidgetRef ref, String label) {
+  List<double>? _series(String label) {
     List<double>? read(AsyncValue<List<TrendPoint>> v) => v.maybeWhen(
       data: (points) =>
           points.length < 2 ? null : [for (final p in points) p.value],
@@ -430,7 +509,8 @@ class _KpiStrip extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final snapshot = widget.snapshot;
     final colors = context.colors;
     return PanelCard(
       title: 'Key indicators',
@@ -440,6 +520,8 @@ class _KpiStrip extends ConsumerWidget {
         loading: () => const _InlineLoader(height: 90),
         error: (err, _) => _InlineError(message: 'Could not load KPIs: $err'),
         data: (snap) {
+          final animate = !_entered;
+          _entered = true;
           final tiles = [
             for (final k in _kpis)
               (
@@ -503,11 +585,25 @@ class _KpiStrip extends ConsumerWidget {
                                   delta: rows[r][c].$4.hasDelta
                                       ? rows[r][c].$4.change
                                       : null,
-                                  spark: switch (_series(ref, rows[r][c].$1)) {
-                                    final values? => Sparkline(
-                                      values: values,
-                                      width: null,
-                                      gradient: true,
+                                  animateDelta: animate,
+                                  spark: switch (_series(rows[r][c].$1)) {
+                                    final values? => OneShotEntrance(
+                                      // Set.add IS the latch: true only the
+                                      // first time this label's series
+                                      // actually renders, false on every
+                                      // later build or remount.
+                                      enabled: _sparkEntered.add(rows[r][c].$1),
+                                      // Staggered by flat tile position, so
+                                      // the strip reads left-to-right.
+                                      delay: Motion.stagger * (r * columns + c),
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      child: Sparkline(
+                                        values: values,
+                                        width: null,
+                                        gradient: true,
+                                      ),
                                     ),
                                     _ => null,
                                   },

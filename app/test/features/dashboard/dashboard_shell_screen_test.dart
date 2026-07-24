@@ -140,6 +140,21 @@ class _AllRisingDashboardRepository implements DashboardRepository {
   }) async => const [];
 }
 
+/// Takes a real (fake-clock) 50ms per fetch. Fast fakes resolve before the
+/// next frame ever builds, so the `when` loading arm — the remount path that
+/// once replayed the hero count-up — never renders; this fake forces it to.
+class _SlowDashboardRepository extends _FakeDashboardRepository {
+  @override
+  Future<DashboardKpis> fetchKpis({
+    String? territoryId,
+    String? from,
+    String? to,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    return super.fetchKpis(territoryId: territoryId, from: from, to: to);
+  }
+}
+
 class _ThrowingDashboardRepository implements DashboardRepository {
   @override
   Future<DashboardKpis> fetchKpis({
@@ -918,6 +933,197 @@ void main() {
     // The fake returns the same numbers for both windows, so nothing moved —
     // and a 0.0 delta is not movement. No pill is the honest rendering.
     expect(find.byType(DeltaPill), findsNothing);
+  });
+
+  group('entrance motion', () {
+    // Pumps until the hero score is on screen, using only zero-duration
+    // frames — the fakes' futures drain between pumps but the animation clock
+    // never advances, so when this returns the entrance is still on its very
+    // first frame.
+    Future<void> pumpToFirstDataFrame(WidgetTester tester, Widget app) async {
+      tester.view.physicalSize = const Size(1440, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(app);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(Duration.zero);
+        if (tester.any(find.byKey(const ValueKey('kpi-execution-score')))) {
+          return;
+        }
+      }
+      fail('dashboard data never arrived');
+    }
+
+    testWidgets(
+      'reduced motion: the score is final on its first frame and nothing animates',
+      (tester) async {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+
+        await pumpToFirstDataFrame(tester, _app());
+
+        // No count-up frames at all: the final figure IS the first frame.
+        expect(find.text('67.8'), findsOneWidget);
+        expect(find.text('0.0'), findsNothing);
+
+        // Sibling panels' fetches can still be in flight at this frame, and a
+        // LOADING spinner is state, not motion — drain those on the same
+        // unadvanced clock, then nothing at all may be animating: any
+        // entrance that had started would still be running here.
+        for (
+          var i = 0;
+          i < 10 && tester.any(find.byType(CircularProgressIndicator));
+          i++
+        ) {
+          await tester.pump(Duration.zero);
+        }
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        // One more zero pump: a reduceMotion-gated Duration.zero implicit
+        // animation still owes the scheduler a single (contentless) tick,
+        // and this flushes it. A REAL animation cannot be flushed this way —
+        // zero elapsed time completes nothing — so the assertion below still
+        // catches any entrance that actually ran.
+        await tester.pump(Duration.zero);
+        expect(tester.hasRunningAnimations, isFalse);
+
+        // And settling is immediate — nothing was ever in flight.
+        await tester.pumpAndSettle();
+        expect(tester.hasRunningAnimations, isFalse);
+      },
+    );
+
+    testWidgets('the score counts up from zero, once, then goes quiet', (
+      tester,
+    ) async {
+      await pumpToFirstDataFrame(tester, _app());
+
+      // t≈0: mid-count-up, not yet the final figure.
+      expect(find.text('0.0'), findsOneWidget);
+      expect(find.text('67.8'), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.text('67.8'), findsOneWidget);
+
+      // One-shot: after settling, extra frames find nothing still animating.
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('a range change does not replay the count-up', (tester) async {
+      // The slow repository is the point: the reload's loading arm really
+      // renders, tearing the hero row down and remounting it — the exact path
+      // that replays an unlatched entrance. Fast fakes resolve before the
+      // loading frame ever builds and would let a replay slip through green.
+      // (Zero-duration pumps can't fire its timers, so the initial load has
+      // to settle the ordinary way — the spinner keeps frames scheduled,
+      // which keeps pumpAndSettle's clock moving.)
+      tester.view.physicalSize = const Size(1440, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app(dashboard: _SlowDashboardRepository()));
+      await tester.pumpAndSettle();
+      expect(find.text('67.8'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('range-last7')));
+      // Walk the reload through: loading frame(s), then both window fetches.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 51));
+      await tester.pump(const Duration(milliseconds: 51));
+      // Zero-duration pumps from here: a replayed count-up cannot advance on
+      // an unadvancing clock, so the final figure could never appear.
+      var finalFigureShown = false;
+      for (var i = 0; i < 10 && !finalFigureShown; i++) {
+        await tester.pump(Duration.zero);
+        finalFigureShown = tester.any(find.text('67.8'));
+      }
+      expect(
+        finalFigureShown,
+        isTrue,
+        reason: 'the reloaded figure must be final on its first data frame',
+      );
+      expect(find.text('0.0'), findsNothing);
+
+      await tester.pumpAndSettle();
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('the hero delta pill waits out its ~450ms delay, then lands', (
+      tester,
+    ) async {
+      await pumpToFirstDataFrame(
+        tester,
+        _app(dashboard: _ImprovingDashboardRepository()),
+      );
+
+      final pill = find.widgetWithText(DeltaPill, '▲ 2.1');
+      expect(pill, findsOneWidget);
+      double pillOpacity() => tester
+          .widget<Opacity>(
+            find.ancestor(of: pill, matching: find.byType(Opacity)).first,
+          )
+          .opacity;
+
+      expect(pillOpacity(), 0);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(pillOpacity(), 0, reason: 'still inside the 450ms delay');
+
+      await tester.pumpAndSettle();
+      expect(pillOpacity(), 1);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('KPI sparklines fade in staggered 40ms apart', (tester) async {
+      await pumpToFirstDataFrame(
+        tester,
+        _app(
+          perfectStore: const [
+            TrendPoint(period: '2026-W25', value: 54.2),
+            TrendPoint(period: '2026-W26', value: 55.6),
+          ],
+        ),
+      );
+      // The two trend providers can land a zero-duration frame apart — keep
+      // draining (clock still unadvanced) until both sparklines are mounted.
+      for (
+        var i = 0;
+        i < 10 && tester.widgetList(find.byType(Sparkline)).length < 2;
+        i++
+      ) {
+        await tester.pump(Duration.zero);
+      }
+      expect(find.byType(Sparkline), findsNWidgets(2));
+
+      double sparkOpacity(String label) {
+        final spark = find.descendant(
+          of: find.byKey(ValueKey('kpi-$label')),
+          matching: find.byType(Sparkline),
+        );
+        return tester
+            .widget<Opacity>(
+              find.ancestor(of: spark, matching: find.byType(Opacity)).first,
+            )
+            .opacity;
+      }
+
+      // 20ms in: tile 1's fade has begun; tile 2's 40ms offset has not.
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(sparkOpacity('On-shelf availability'), greaterThan(0));
+      expect(
+        sparkOpacity('Perfect-store rate'),
+        0,
+        reason: 'the second tile starts one stagger step later',
+      );
+
+      await tester.pumpAndSettle();
+      expect(sparkOpacity('On-shelf availability'), 1);
+      expect(sparkOpacity('Perfect-store rate'), 1);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
   });
 
   testWidgets('the refresh action refetches instead of replaying cache', (
