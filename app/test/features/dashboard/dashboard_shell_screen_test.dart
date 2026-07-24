@@ -327,6 +327,26 @@ Widget _app({
   ],
 );
 
+/// The rendered decoration of one range chip — read from the tree, so the
+/// assertions hold whatever constants the implementation routes through.
+BoxDecoration _chipBox(WidgetTester tester, String range) {
+  final box = find.descendant(
+    of: find.byKey(ValueKey('range-$range')),
+    matching: find.byWidgetPredicate(
+      (w) => w is AnimatedContainer && w.decoration is BoxDecoration,
+    ),
+  );
+  return tester.widget<AnimatedContainer>(box).decoration! as BoxDecoration;
+}
+
+Text _chipLabel(WidgetTester tester, String range, String label) =>
+    tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(ValueKey('range-$range')),
+        matching: find.text(label),
+      ),
+    );
+
 void main() {
   testWidgets('leads with the execution score as the hero figure', (
     tester,
@@ -713,6 +733,111 @@ void main() {
     expect(find.byKey(const ValueKey('filter-territory')), findsOneWidget);
     expect(find.byKey(const ValueKey('filter-daterange')), findsOneWidget);
   });
+
+  testWidgets('range chips are white pills; the active chip is solid brand', (
+    tester,
+  ) async {
+    await _pump(tester, _app(theme: AppTheme.light()));
+
+    // The default range is 30d, so its chip is the active pill.
+    final active = _chipBox(tester, 'last30');
+    expect(active.color, const Color(0xFF0A6CF0));
+    expect(active.borderRadius, BorderRadius.circular(999));
+
+    final activeLabel = _chipLabel(tester, 'last30', '30d');
+    expect(activeLabel.style?.color, Colors.white);
+    expect(activeLabel.style?.fontSize, 11);
+    expect(activeLabel.style?.fontWeight, FontWeight.w600);
+
+    // Inactive: white ground, hairline (light `line` token) border, muted ink.
+    final inactive = _chipBox(tester, 'last7');
+    expect(inactive.color, const Color(0xFFFFFFFF));
+    expect(inactive.borderRadius, BorderRadius.circular(999));
+    expect((inactive.border! as Border).top.color, const Color(0xFFE3E5EA));
+
+    final inactiveLabel = _chipLabel(tester, 'last7', '7d');
+    expect(inactiveLabel.style?.color, const Color(0xFF4C5560));
+    expect(inactiveLabel.style?.fontSize, 11);
+    expect(inactiveLabel.style?.fontWeight, FontWeight.w600);
+
+    // AA on both pairs, measured from the rendered tree, not the token table.
+    expect(
+      contrastRatio(activeLabel.style!.color!, active.color!),
+      greaterThanOrEqualTo(4.5),
+      reason: 'active label on the brand pill',
+    );
+    expect(
+      contrastRatio(inactiveLabel.style!.color!, inactive.color!),
+      greaterThanOrEqualTo(4.5),
+      reason: 'inactive label on the white pill',
+    );
+  });
+
+  testWidgets('dark theme: every range pill stays a readable rendered pair', (
+    tester,
+  ) async {
+    // The regression class this guards (Task 1 shipped it once): a hard-coded
+    // light ground under theme-following ink. Each pill's text is asserted
+    // against its own rendered ground, so the pair travels together.
+    await _pump(tester, _app(theme: AppTheme.dark()));
+
+    for (final (range, label) in [('last30', '30d'), ('last7', '7d')]) {
+      final ground = _chipBox(tester, range).color;
+      expect(ground, isNotNull, reason: 'pill ground: $label');
+      expect(
+        contrastRatio(_chipLabel(tester, range, label).style!.color!, ground!),
+        greaterThanOrEqualTo(4.5),
+        reason: '$label on its own pill ground',
+      );
+    }
+    // And the active chip is the solid-brand pill in dark too.
+    expect(_chipBox(tester, 'last30').color, const Color(0xFF0A6CF0));
+  });
+
+  testWidgets(
+    'attention rows: 14px colour-coded numeral, bold title, muted subtitle',
+    (tester) async {
+      await _pump(
+        tester,
+        _app(
+          theme: AppTheme.light(),
+          alerts: [
+            _alert(severity: 'critical'),
+            _alert(severity: 'critical', metric: 'price_deviation'),
+            _alert(severity: 'warning', metric: 'low_scorecard'),
+          ],
+        ),
+      );
+
+      final row = find.byKey(const ValueKey('attention-critical-alerts'));
+
+      // Colour-coded leading numeral — the colour is never the only signal;
+      // the words beside it name the state.
+      final numeral = tester.widget<Text>(
+        find.descendant(of: row, matching: find.text('2')),
+      );
+      expect(numeral.style?.fontSize, 14);
+      expect(numeral.style?.fontWeight, FontWeight.w700);
+      expect(numeral.style?.color, const Color(0xFFB32E2E)); // light crit
+
+      // Title in the mockup's bold weight. (Spec says w650; Inter ships static
+      // 400/500/600/700 faces, so w600 is the nearest weight that exists.)
+      final title = tester.widget<Text>(
+        find.descendant(of: row, matching: find.text('Critical alerts open')),
+      );
+      expect(title.style?.fontWeight, FontWeight.w600);
+
+      // Muted subtitle under the title, in ink3.
+      final subtitle = tester.widget<Text>(
+        find.descendant(of: row, matching: find.textContaining('out of stock')),
+      );
+      expect(subtitle.style?.color, const Color(0xFF5F6875)); // light ink3
+      expect(subtitle.style?.fontSize, 11);
+
+      // The panel's escape hatch keeps its accent (theme primary) treatment.
+      expect(find.widgetWithText(TextButton, 'View all'), findsOneWidget);
+    },
+  );
 
   testWidgets('tapping logout clears the session', (tester) async {
     await _pump(tester, _app());

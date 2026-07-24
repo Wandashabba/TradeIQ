@@ -1498,46 +1498,40 @@ class _RangeControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (i, r) in DashboardRange.values.indexed)
-            InkWell(
-              key: ValueKey('range-${r.name}'),
-              onTap: () => onChanged(r),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 6,
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final r in DashboardRange.values)
+          InkWell(
+            key: ValueKey('range-${r.name}'),
+            onTap: () => onChanged(r),
+            borderRadius: BorderRadius.circular(999),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                // Active = solid brand, inactive = surface + hairline. White-
+                // on-brand is a self-contained pair: brand is the same #0A6CF0
+                // in both themes (4.98:1 under white), so neither theme's ink
+                // may sit on it — dark ink1 on brand would fail AA.
+                color: r == selected ? colors.brand : colors.surface1,
+                border: Border.all(
+                  color: r == selected ? colors.brand : colors.line,
                 ),
-                decoration: BoxDecoration(
-                  color: r == selected ? colors.surface3 : Colors.transparent,
-                  border: Border(
-                    right: BorderSide(
-                      color: i == DashboardRange.values.length - 1
-                          ? Colors.transparent
-                          : colors.lineStrong,
-                    ),
-                  ),
-                ),
-                child: Text(
-                  r.label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: r == selected ? colors.ink1 : colors.ink2,
-                  ),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                r.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: r == selected ? Colors.white : colors.ink2,
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

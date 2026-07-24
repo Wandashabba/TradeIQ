@@ -338,7 +338,7 @@ class AttentionRow extends StatelessWidget {
               child: Text(
                 '$count',
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: level.colorOf(colors),
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -352,9 +352,11 @@ class AttentionRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
+                    // The mockup's w650: Inter ships static 400/500/600/700
+                    // faces (see pubspec), so w600 is the nearest real weight.
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: colors.ink1,
                     ),
                   ),
