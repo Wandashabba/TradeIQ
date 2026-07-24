@@ -90,21 +90,22 @@ void main() {
     Color? plane() =>
         tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor;
 
-    expect(plane(), TiqColors.dark.plane);
-    expect(find.byTooltip('Switch to light theme'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('theme-toggle')));
-    await tester.pumpAndSettle();
-
+    // default flipped by the 2026-07-24 premium-ui redesign
     expect(plane(), TiqColors.light.plane);
-    expect(store.stored, ThemeMode.light); // persisted
     expect(find.byTooltip('Switch to dark theme'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('theme-toggle')));
     await tester.pumpAndSettle();
 
     expect(plane(), TiqColors.dark.plane);
-    expect(store.stored, ThemeMode.dark);
+    expect(store.stored, ThemeMode.dark); // persisted
+    expect(find.byTooltip('Switch to light theme'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('theme-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(plane(), TiqColors.light.plane);
+    expect(store.stored, ThemeMode.light);
   });
 
   testWidgets('a persisted light mode restores on startup', (tester) async {

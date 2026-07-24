@@ -2,7 +2,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -161,31 +160,31 @@ void main() {
       expect(find.text('body'), findsOneWidget);
     });
 
-    testWidgets('rests on a barely-there shadow that lifts on hover', (
+    testWidgets('rests on a fixed, barely-there Stripe-soft shadow', (
       tester,
     ) async {
+      // Hover-lift shadow removed by the 2026-07-24 premium-ui redesign —
+      // PanelCard's elevation is now a single static value (Task 1).
       await tester.pumpWidget(
         _wrap(const SizedBox(width: 320, child: PanelCard(child: Text('body')))),
       );
 
       BoxDecoration decorationOf() {
-        final container = tester.widget<AnimatedContainer>(
+        final container = tester.widget<Container>(
           find.ancestor(
             of: find.text('body'),
-            matching: find.byType(AnimatedContainer),
+            matching: find.byType(Container),
           ),
         );
         return container.decoration! as BoxDecoration;
       }
 
-      // Rest: 0 1px 2px. In the default (dark) theme the colour is
-      // transparent, so dark renders exactly as before.
       final rest = decorationOf().boxShadow!.single;
       expect(rest.offset, const Offset(0, 1));
       expect(rest.blurRadius, 2);
-      expect(rest.color, TiqColors.dark.shadow);
+      expect(rest.color, const Color(0x0D14161C));
 
-      // Hover: lifts to 0 4px 12px.
+      // Moving the mouse over the card no longer changes the shadow.
       final gesture = await tester.createGesture(
         kind: PointerDeviceKind.mouse,
       );
@@ -194,9 +193,10 @@ void main() {
       await gesture.moveTo(tester.getCenter(find.byType(PanelCard)));
       await tester.pumpAndSettle();
 
-      final hovered = decorationOf().boxShadow!.single;
-      expect(hovered.offset, const Offset(0, 4));
-      expect(hovered.blurRadius, 12);
+      final stillRest = decorationOf().boxShadow!.single;
+      expect(stillRest.offset, const Offset(0, 1));
+      expect(stillRest.blurRadius, 2);
+      expect(stillRest.color, const Color(0x0D14161C));
     });
   });
 }

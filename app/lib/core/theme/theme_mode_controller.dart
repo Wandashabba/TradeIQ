@@ -7,7 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// keychain. Stored in the already-present flutter_secure_storage — not a
 /// secret, but not worth a second storage stack.
 abstract class ThemeModeStore {
-  /// The persisted mode, or null when missing/unreadable — caller keeps dark.
+  /// The persisted mode, or null when missing/unreadable — caller keeps light.
   Future<ThemeMode?> read();
 
   Future<void> write(ThemeMode mode);
@@ -30,7 +30,7 @@ class SecureThemeModeStore implements ThemeModeStore {
         _ => null,
       };
     } catch (_) {
-      return null; // unreadable → dark, never a crash on startup
+      return null; // unreadable → light, never a crash on startup
     }
   }
 
@@ -52,15 +52,16 @@ final themeModeStoreProvider =
 
 /// light/dark only — ThemeMode.system is deliberately out of scope (managers
 /// on desktop web; two explicit modes are clearer than three). Default and
-/// every failure path: dark, so nobody's console changes until they touch the
-/// toggle.
+/// every failure path: LIGHT — the 2026-07-24 redesign makes the light console
+/// the product's face (see the premium-ui spec); dark stays one toggle away,
+/// and a persisted choice still wins over this default.
 class ThemeModeController extends Notifier<ThemeMode> {
   bool _userChose = false;
 
   @override
   ThemeMode build() {
     Future.microtask(_restore); // build() must return synchronously
-    return ThemeMode.dark;
+    return ThemeMode.light;
   }
 
   Future<void> _restore() async {

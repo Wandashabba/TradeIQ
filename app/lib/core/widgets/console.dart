@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/tiq_colors.dart';
-import 'agent_motion.dart' show reduceMotion;
 
 /// Shared building blocks for the manager console.
 ///
@@ -64,10 +63,9 @@ class SectionLabel extends StatelessWidget {
 /// A bordered panel with an optional titled header — the console's only
 /// container. Replaces the old rounded Card-per-number grid.
 ///
-/// Elevation: a barely-there rest shadow (0 1px 2px) that lifts to 0 4px 12px
-/// on hover over 150ms. The colour is [TiqColors.shadow] — transparent in
-/// dark, so dark renders exactly as before; only light gains elevation.
-class PanelCard extends StatefulWidget {
+/// Elevation: a fixed, barely-there rest shadow (0 1px 2px, Stripe-soft) —
+/// static, not hover-reactive.
+class PanelCard extends StatelessWidget {
   const PanelCard({
     super.key,
     required this.child,
@@ -86,20 +84,10 @@ class PanelCard extends StatefulWidget {
   final bool padded;
 
   @override
-  State<PanelCard> createState() => _PanelCardState();
-}
-
-class _PanelCardState extends State<PanelCard> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final title = widget.title;
-    final subtitle = widget.subtitle;
-    final trailing = widget.trailing;
-    final padded = widget.padded;
-    final child = widget.child;
+    final title = this.title;
+    final subtitle = this.subtitle;
     final head = title == null
         ? null
         : Container(
@@ -135,34 +123,26 @@ class _PanelCardState extends State<PanelCard> {
             ),
           );
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration:
-            reduceMotion(context) ? Duration.zero : const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        decoration: BoxDecoration(
-          color: colors.surface1,
-          border: Border.all(color: colors.line),
-          borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-          // Transparent in dark — both states render invisibly there.
-          boxShadow: [
-            BoxShadow(
-              color: colors.shadow,
-              blurRadius: _hovered ? 12 : 2,
-              offset: _hovered ? const Offset(0, 4) : const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ?head,
-            if (padded) Padding(padding: const EdgeInsets.all(14), child: child) else child,
-          ],
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface1,
+        border: Border.all(color: colors.line),
+        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D14161C), // rgba(20,22,28,.05) — Stripe-soft
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ?head,
+          if (padded) Padding(padding: const EdgeInsets.all(14), child: child) else child,
+        ],
       ),
     );
   }

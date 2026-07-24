@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show FadeTransition;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -40,9 +41,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     refreshListenable: ref.read(sessionRefreshListenableProvider),
     redirect: (context, state) {
+      final location = state.matchedLocation;
+      // The splash ('/') owns its own navigation: it holds for max(5s,
+      // session-restore) as a deliberate brand moment (premium-ui spec) and
+      // then routes by role itself. Redirecting here would cut the hold short.
+      if (location == '/') return null;
+
       final session = ref.read(sessionControllerProvider).value;
       final isLoggedIn = session?.role != null;
-      final location = state.matchedLocation;
       final isPublicRoute = location == '/' || location == '/login';
 
       if (!isLoggedIn) {
@@ -98,7 +104,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const LandingScreen()),
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/login',
+        // Splash → sign-in is the spec's crossfade: the splash's dimmed world
+        // dissolves into the sign-in card rather than snapping.
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+          transitionDuration: const Duration(milliseconds: 350),
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
       GoRoute(
         path: '/dashboard',
         pageBuilder: (context, state) => managerPage(const DashboardShellScreen()),

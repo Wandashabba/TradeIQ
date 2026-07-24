@@ -29,37 +29,39 @@ void main() {
   }
 
   group('ThemeModeController', () {
-    test('defaults to dark when nothing is stored', () async {
+    test('defaults to light when nothing is stored', () async {
+      // default flipped by the 2026-07-24 premium-ui redesign
       final container = withStore(FakeThemeModeStore());
-      expect(container.read(themeModeProvider), ThemeMode.dark);
+      expect(container.read(themeModeProvider), ThemeMode.light);
       await Future<void>.delayed(Duration.zero); // let the restore settle
-      expect(container.read(themeModeProvider), ThemeMode.dark);
+      expect(container.read(themeModeProvider), ThemeMode.light);
     });
 
-    test('restores a persisted light mode', () async {
-      final container = withStore(FakeThemeModeStore(ThemeMode.light));
-      // Synchronous first read is dark — restore is async by design.
-      expect(container.read(themeModeProvider), ThemeMode.dark);
-      await Future<void>.delayed(Duration.zero);
+    test('restores a persisted dark mode', () async {
+      final container = withStore(FakeThemeModeStore(ThemeMode.dark));
+      // Synchronous first read is light — restore is async by design.
+      // default flipped by the 2026-07-24 premium-ui redesign
       expect(container.read(themeModeProvider), ThemeMode.light);
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(themeModeProvider), ThemeMode.dark);
     });
 
     test('toggle flips the mode and persists it', () async {
       final store = FakeThemeModeStore();
       final container = withStore(store);
       await container.read(themeModeProvider.notifier).toggle();
-      expect(container.read(themeModeProvider), ThemeMode.light);
-      expect(store.stored, ThemeMode.light);
-      await container.read(themeModeProvider.notifier).toggle();
       expect(container.read(themeModeProvider), ThemeMode.dark);
       expect(store.stored, ThemeMode.dark);
+      await container.read(themeModeProvider.notifier).toggle();
+      expect(container.read(themeModeProvider), ThemeMode.light);
+      expect(store.stored, ThemeMode.light);
     });
 
     test('a toggle made before the restore lands is not clobbered by it', () async {
-      final container = withStore(FakeThemeModeStore(ThemeMode.dark));
-      await container.read(themeModeProvider.notifier).toggle(); // → light
-      await Future<void>.delayed(Duration.zero); // restore resolves 'dark'
-      expect(container.read(themeModeProvider), ThemeMode.light);
+      final container = withStore(FakeThemeModeStore(ThemeMode.light));
+      await container.read(themeModeProvider.notifier).toggle(); // → dark
+      await Future<void>.delayed(Duration.zero); // restore resolves 'light'
+      expect(container.read(themeModeProvider), ThemeMode.dark);
     });
   });
 
