@@ -76,6 +76,10 @@ class AppColors {
   /// Panels and cards.
   static const double radiusPanel = 12;
 
+  /// Pills — the premium restyle's chips and [DeltaPill]. Any radius beyond
+  /// half the pill's height renders a stadium; 999 is the conventional cap.
+  static const double radiusPill = 999;
+
   // ── Back-compat aliases ──────────────────────────────────────────────
   // Existing feature code references these names. They keep compiling; only
   // the values moved to the new palette. Prefer the names above in new code.

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 /// How a [DeltaPill] should read: improving, needs watching, or degrading.
 ///
 /// The tone is the caller's judgement, not the sign's — a metric where down is
@@ -48,7 +50,7 @@ class DeltaPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppColors.radiusPill),
       ),
       child: Text(
         '$glyph ${delta.abs().toStringAsFixed(1)}',

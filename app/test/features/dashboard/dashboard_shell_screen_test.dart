@@ -773,6 +773,31 @@ void main() {
     );
   });
 
+  testWidgets('range chips tell assistive tech which range is active', (
+    tester,
+  ) async {
+    // The active pill is otherwise announced by nothing but its fill colour —
+    // VoiceOver/TalkBack need the selected flag, and every chip must read as
+    // a button. (isSemantics is a partial match: the merged node also carries
+    // InkWell's tap/focus semantics, which this test has no opinion on.)
+    final handle = tester.ensureSemantics();
+    await _pump(tester, _app());
+
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('range-last30'))),
+      isSemantics(isButton: true, isSelected: true),
+    );
+    for (final inactive in ['last7', 'last90', 'ytd', 'allTime']) {
+      expect(
+        tester.getSemantics(find.byKey(ValueKey('range-$inactive'))),
+        isSemantics(isButton: true, isSelected: false),
+        reason: 'inactive chip: $inactive',
+      );
+    }
+
+    handle.dispose();
+  });
+
   testWidgets('dark theme: every range pill stays a readable rendered pair', (
     tester,
   ) async {

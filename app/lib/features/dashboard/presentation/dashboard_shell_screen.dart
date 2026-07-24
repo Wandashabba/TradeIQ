@@ -1503,30 +1503,40 @@ class _RangeControl extends StatelessWidget {
       runSpacing: 6,
       children: [
         for (final r in DashboardRange.values)
-          InkWell(
-            key: ValueKey('range-${r.name}'),
-            onTap: () => onChanged(r),
-            borderRadius: BorderRadius.circular(999),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                // Active = solid brand, inactive = surface + hairline. White-
-                // on-brand is a self-contained pair: brand is the same #0A6CF0
-                // in both themes (4.98:1 under white), so neither theme's ink
-                // may sit on it — dark ink1 on brand would fail AA.
-                color: r == selected ? colors.brand : colors.surface1,
-                border: Border.all(
-                  color: r == selected ? colors.brand : colors.line,
+          // The active pill is otherwise colour-only to a screen reader:
+          // selected carries the state, button makes each chip actionable.
+          Semantics(
+            button: true,
+            selected: r == selected,
+            child: InkWell(
+              key: ValueKey('range-${r.name}'),
+              onTap: () => onChanged(r),
+              borderRadius: BorderRadius.circular(AppColors.radiusPill),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
                 ),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                r.label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: r == selected ? Colors.white : colors.ink2,
+                decoration: BoxDecoration(
+                  // Active = solid brand, inactive = surface + hairline.
+                  // White-on-brand is a self-contained pair: brand is the
+                  // same #0A6CF0 in both themes (4.98:1 under white), so
+                  // neither theme's ink may sit on it — dark ink1 on brand
+                  // would fail AA.
+                  color: r == selected ? colors.brand : colors.surface1,
+                  border: Border.all(
+                    color: r == selected ? colors.brand : colors.line,
+                  ),
+                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                ),
+                child: Text(
+                  r.label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: r == selected ? Colors.white : colors.ink2,
+                  ),
                 ),
               ),
             ),
