@@ -69,6 +69,19 @@ void main() {
           () => _FixedSession(const SessionState(role: 'manager', token: 't'))),
       // Dashboard pulls live data; that is fine — AsyncSection shows loaders.
     ]));
+    // The brand hold applies to authed users too. Two checkpoints INSIDE the
+    // 5s window prove the splash is holding rather than the router having
+    // bounced straight to the dashboard (a mutation-probe review found the
+    // suite couldn't tell those apart; a single early checkpoint was still
+    // too weak because the router's post-restore refresh needs extra frames).
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('TRADEIQ'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    expect(find.text('Execution overview'), findsNothing,
+        reason: 'dashboard must not appear during the 5s brand hold');
+    expect(find.text('TRADEIQ'), findsOneWidget,
+        reason: 'the splash must still be holding at ~2s');
     await tester.pump(const Duration(seconds: 6));
     // Settle, don't single-pump: the dashboard's KPI fetch (unstubbed here)
     // schedules timers that must flush before teardown; it settles into the
