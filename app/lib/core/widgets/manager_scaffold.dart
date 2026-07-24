@@ -6,45 +6,7 @@ import '../auth/session_controller.dart';
 import '../theme/theme_mode_controller.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_motion.dart' show reduceMotion;
-
-/// A console destination. Grouped by verb — a manager scanning nineteen flat
-/// rows has to *read* the menu; three verbs let them scan it.
-typedef NavDestination = ({String label, IconData icon, String path});
-
-const _operate = <NavDestination>[
-  (label: 'Dashboard', icon: Icons.dashboard_outlined, path: '/dashboard'),
-  (label: 'Tasks', icon: Icons.checklist_outlined, path: '/tasks'),
-  (label: 'Alerts', icon: Icons.warning_amber_outlined, path: '/alerts'),
-  (label: 'Orders', icon: Icons.shopping_cart_outlined, path: '/orders'),
-  (label: 'Beat plans', icon: Icons.route_outlined, path: '/beatplans'),
-  (label: 'Dispatch', icon: Icons.near_me_outlined, path: '/dispatch'),
-  (label: 'Messages', icon: Icons.message_outlined, path: '/messages'),
-  (label: 'Outlets', icon: Icons.store_outlined, path: '/outlets'),
-];
-
-const _insight = <NavDestination>[
-  (label: 'Reports', icon: Icons.assessment_outlined, path: '/reports'),
-  (label: 'Trends', icon: Icons.show_chart_outlined, path: '/trends'),
-  (label: 'Leaderboard', icon: Icons.leaderboard_outlined, path: '/leaderboard'),
-  (label: 'Fraud review', icon: Icons.gpp_maybe_outlined, path: '/fraud'),
-  (label: 'Campaigns', icon: Icons.campaign_outlined, path: '/campaigns'),
-];
-
-const _configure = <NavDestination>[
-  (label: 'Alert rules', icon: Icons.rule_outlined, path: '/alert-rules'),
-  (label: 'Territories', icon: Icons.map_outlined, path: '/territories'),
-  (label: 'Users', icon: Icons.group_outlined, path: '/users'),
-  (label: 'Audit templates', icon: Icons.description_outlined, path: '/audit-templates'),
-  (label: 'Incentives', icon: Icons.card_giftcard_outlined, path: '/incentives'),
-  (label: 'Webhooks', icon: Icons.link_outlined, path: '/webhooks'),
-  (label: 'Scoring config', icon: Icons.tune_outlined, path: '/client-config'),
-];
-
-const _groups = <(String, List<NavDestination>)>[
-  ('Operate', _operate),
-  ('Insight', _insight),
-  ('Configure', _configure),
-];
+import 'nav_destinations.dart';
 
 /// Below this width the rail collapses to icons; below [_drawerBreakpoint] it
 /// becomes an overlay drawer. The overlay survives only where width genuinely
@@ -181,8 +143,7 @@ class _NavRailState extends State<_NavRail>
     with SingleTickerProviderStateMixin {
   /// Every destination across the three groups — the stagger walks them in
   /// visual order, one 20ms step apiece.
-  static final int _rowCount =
-      _groups.fold(0, (total, group) => total + group.$2.length);
+  static final int _rowCount = managerDestinations.length;
 
   late final AnimationController _controller;
 
@@ -239,7 +200,7 @@ class _NavRailState extends State<_NavRail>
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 children: [
-                  for (final (heading, destinations) in _groups) ...[
+                  for (final group in NavGroup.values) ...[
                     if (collapsed)
                       Divider(
                         height: 17,
@@ -251,7 +212,7 @@ class _NavRailState extends State<_NavRail>
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 5),
                         child: Text(
-                          heading.toUpperCase(),
+                          group.heading,
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
@@ -260,16 +221,16 @@ class _NavRailState extends State<_NavRail>
                           ),
                         ),
                       ),
-                    for (final d in destinations)
+                    for (final d in destinationsIn(group))
                       _staggeredRow(
                         context,
                         rowIndex++,
                         _NavRow(
                           destination: d,
-                          selected: widget.location == d.path ||
-                              widget.location.startsWith('${d.path}/'),
+                          selected: widget.location == d.route ||
+                              widget.location.startsWith('${d.route}/'),
                           collapsed: collapsed,
-                          onTap: () => widget.onNavigate(d.path),
+                          onTap: () => widget.onNavigate(d.route),
                         ),
                       ),
                   ],
@@ -367,7 +328,7 @@ class _NavRowState extends State<_NavRow> {
     return InkWell(
       // Key preserved from the drawer implementation — navigation tests and
       // anything else keyed on a destination keep working.
-      key: ValueKey('nav-${destination.path}'),
+      key: ValueKey('nav-${destination.route}'),
       onTap: widget.onTap,
       // The wash is painted by the row's own decoration (above) — ink on the
       // ancestor Material would be buried under the rail's surface1 fill.
