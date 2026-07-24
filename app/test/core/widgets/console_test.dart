@@ -207,6 +207,51 @@ void main() {
     });
   });
 
+  group('OneShotEntrance', () {
+    testWidgets('a zero-length entrance renders the child, no NaN interval', (
+      tester,
+    ) async {
+      // delay 0 + duration 0 would make the Interval start 0/0 = NaN on a
+      // public widget — the degenerate case must degrade to the bare child.
+      await tester.pumpWidget(
+        _wrap(
+          const OneShotEntrance(
+            delay: Duration.zero,
+            duration: Duration.zero,
+            child: Text('x'),
+          ),
+        ),
+      );
+
+      expect(find.text('x'), findsOneWidget);
+      expect(find.byType(Opacity), findsNothing);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets(
+      'a reduced-motion first build consumes the entrance — a later flip to '
+      'full motion does not play it late',
+      (tester) async {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+
+        await tester.pumpWidget(_wrap(const OneShotEntrance(child: Text('x'))));
+        expect(find.byType(Opacity), findsNothing);
+
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures();
+        await tester.pump();
+
+        // The entrance moment passed under reduced motion; it is spent.
+        expect(find.byType(Opacity), findsNothing);
+        expect(tester.hasRunningAnimations, isFalse);
+      },
+    );
+  });
+
   group('AttentionRow', () {
     testWidgets('a tap runs the callback', (tester) async {
       var tapped = false;

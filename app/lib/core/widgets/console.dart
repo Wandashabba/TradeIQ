@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/tiq_colors.dart';
-import 'agent_motion.dart' show reduceMotion;
+import 'agent_motion.dart' show Motion, reduceMotion;
 import 'delta_pill.dart';
 
 /// Shared building blocks for the manager console.
@@ -184,9 +184,21 @@ class OneShotEntrance extends StatefulWidget {
     required this.child,
     this.enabled = true,
     this.delay = Duration.zero,
-    this.duration = const Duration(milliseconds: 260),
+    this.duration = Motion.base,
     this.scaleFrom = 1.0,
   });
+
+  /// The delta-pill recipe — the ONE way a pill enters anywhere in the
+  /// console: it holds back [Motion.pillDelay] so the figure it qualifies
+  /// lands first, then pops in from 85%. Shared by the dashboard hero and
+  /// [StatTile.animateDelta] so the two can never drift apart.
+  const OneShotEntrance.pill({
+    super.key,
+    required this.child,
+    this.enabled = true,
+  }) : delay = Motion.pillDelay,
+       duration = Motion.base,
+       scaleFrom = 0.85;
 
   final Widget child;
   final bool enabled;
@@ -205,11 +217,22 @@ class _OneShotEntranceState extends State<OneShotEntrance> {
   // of this State — see the class doc for why.
   late final bool _animate = widget.enabled;
 
+  /// Set when the entrance moment passes without animating (a reduced-motion
+  /// first build). A manager flipping reduced motion OFF mid-session must
+  /// not be shown the entrance late — the moment is spent, not deferred.
+  bool _spent = false;
+
   @override
   Widget build(BuildContext context) {
-    if (!_animate || reduceMotion(context)) return widget.child;
-
     final total = widget.delay + widget.duration;
+    // total == zero would make the Interval start 0/0 = NaN below; a
+    // zero-length entrance means "no entrance", so degrade to the child.
+    if (!_animate || _spent || total <= Duration.zero) return widget.child;
+    if (reduceMotion(context)) {
+      _spent = true;
+      return widget.child;
+    }
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: total,
@@ -305,10 +328,10 @@ class StatTile extends StatelessWidget {
   final String? note;
   final Widget? spark;
 
-  /// Opt-in one-shot entrance for the delta pill (a ~450ms-delayed
-  /// scale-fade, after the tile's figure has landed). Off by default: the
-  /// pill is shared chrome, and only the dashboard's first data build wants
-  /// entrance motion — see [OneShotEntrance] for the one-shot guarantees.
+  /// Opt-in one-shot entrance for the delta pill — the [OneShotEntrance.pill]
+  /// recipe. Off by default: the pill is shared chrome, and only the
+  /// dashboard's first data build wants entrance motion — see
+  /// [OneShotEntrance] for the one-shot guarantees.
   final bool animateDelta;
 
   @override
@@ -350,10 +373,8 @@ class StatTile extends StatelessWidget {
               ),
               if (delta != null) ...[
                 const SizedBox(width: 7),
-                OneShotEntrance(
+                OneShotEntrance.pill(
                   enabled: animateDelta,
-                  delay: const Duration(milliseconds: 450),
-                  scaleFrom: 0.85,
                   child: DeltaPill(
                     delta: delta!,
                     // Tone follows the sign only: the tile has no

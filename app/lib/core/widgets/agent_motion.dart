@@ -39,6 +39,14 @@ class Motion {
   /// half a second, and an agent should not wait for the UI to finish arriving.
   static const stagger = Duration(milliseconds: 40);
 
+  /// A hero figure counting up to its value — the dashboard's one-shot
+  /// entrance. Longer than [slow] because it is the single headline moment of
+  /// a screen, and it happens exactly once per session.
+  static const countUp = Duration(milliseconds: 600);
+
+  /// How long a delta pill holds back so the figure it qualifies lands first.
+  static const pillDelay = Duration(milliseconds: 450);
+
   static const enter = Curves.easeOutCubic;
   static const exit = Curves.easeInCubic;
 
@@ -90,9 +98,10 @@ class AnimatedCount extends StatelessWidget {
         transitionBuilder: (child, animation) => FadeTransition(
           opacity: animation,
           child: ScaleTransition(
-            scale: Tween(begin: 0.86, end: 1.0).animate(
-              CurvedAnimation(parent: animation, curve: Motion.settle),
-            ),
+            scale: Tween(
+              begin: 0.86,
+              end: 1.0,
+            ).animate(CurvedAnimation(parent: animation, curve: Motion.settle)),
             child: child,
           ),
         ),
@@ -231,7 +240,9 @@ class _PulseDotState extends State<PulseDot>
                   width: 7,
                   height: 7,
                   decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: 0.35 * (1 - _c.value)),
+                    color: widget.color.withValues(
+                      alpha: 0.35 * (1 - _c.value),
+                    ),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -278,7 +289,10 @@ class Reveal extends StatelessWidget {
       ),
       builder: (context, t, child) => Opacity(
         opacity: t,
-        child: Transform.translate(offset: Offset(0, 12 * (1 - t)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
       ),
       child: child,
     );

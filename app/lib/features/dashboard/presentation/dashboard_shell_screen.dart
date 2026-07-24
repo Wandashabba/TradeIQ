@@ -168,7 +168,8 @@ class _ExecutionScorePanel extends ConsumerStatefulWidget {
       _ExecutionScorePanelState();
 }
 
-class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel> {
+class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel>
+    with AutomaticKeepAliveClientMixin {
   /// Flipped on the panel's first data build — a during-build write,
   /// deliberately not setState: nothing rendered depends on it until a LATER
   /// build (a filter change remounting the row through the loading arm),
@@ -176,8 +177,20 @@ class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel> {
   /// so the latch survives where the animated subtree does not.
   bool _entered = false;
 
+  /// The latch's storage guarantee. The dashboard body is a lazy ListView
+  /// whose sliver DISPOSES children scrolled past its cache extent — without
+  /// keep-alive, a scroll to the bottom and back would take this State (and
+  /// the latch) with it, replaying the entire entrance. Keeping the panel
+  /// alive also preserves the hero chart's completed draw-in and the pill's
+  /// settled entrance, so scrolling back restores the settled screen instead
+  /// of re-performing it. Cheap: this pins one text-and-one-chart row, not
+  /// the heavy map panel (a separate ListView child, untouched).
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final snapshot = widget.snapshot;
     final trend = ref.watch(scorecardsTrendProvider);
     final colors = context.colors;
@@ -234,10 +247,8 @@ class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel> {
                     // DeltaPill — the pill is shared chrome and other screens
                     // may not want entrance motion.
                     switch (snap.of((k) => k.executionScore)) {
-                      final d when d.hasDelta => OneShotEntrance(
+                      final d when d.hasDelta => OneShotEntrance.pill(
                         enabled: animate,
-                        delay: const Duration(milliseconds: 450),
-                        scaleFrom: 0.85,
                         child: DeltaPill(
                           delta: d.change!,
                           tone: d.change! < 0 ? DeltaTone.bad : DeltaTone.good,
@@ -310,13 +321,19 @@ class _HeroScoreState extends State<_HeroScore> {
       color: context.colors.ink1,
     );
 
-    if (_done || !_entrance || reduceMotion(context)) {
+    if (_done || !_entrance) {
+      return Text(widget.value.toStringAsFixed(1), style: style);
+    }
+    if (reduceMotion(context)) {
+      // The entrance moment is consumed, not deferred: flipping reduced
+      // motion off later must not perform the count-up mid-session.
+      _done = true;
       return Text(widget.value.toStringAsFixed(1), style: style);
     }
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: widget.value),
-      duration: const Duration(milliseconds: 600),
+      duration: Motion.countUp,
       curve: Curves.easeOutCubic,
       onEnd: () => setState(() => _done = true),
       builder: (context, v, _) => Text(v.toStringAsFixed(1), style: style),
@@ -477,10 +494,18 @@ class _KpiStrip extends ConsumerStatefulWidget {
   ConsumerState<_KpiStrip> createState() => _KpiStripState();
 }
 
-class _KpiStripState extends ConsumerState<_KpiStrip> {
+class _KpiStripState extends ConsumerState<_KpiStrip>
+    with AutomaticKeepAliveClientMixin {
   /// Same first-data-build latch as the hero panel: pills enter once, and a
   /// filter change remounting the strip comes up entrance-free.
   bool _entered = false;
+
+  /// Same storage guarantee as [_ExecutionScorePanelState.wantKeepAlive]:
+  /// the ListView's sliver would otherwise dispose this State — latches and
+  /// all — on a scroll past the cache extent, replaying the entrance on the
+  /// way back. Seven text tiles and two sparklines; cheap to pin.
+  @override
+  bool get wantKeepAlive => true;
 
   /// Sparklines latch per label, separately from [_entered]: their trend
   /// providers can resolve a frame or two AFTER the snapshot, and by then the
@@ -510,6 +535,7 @@ class _KpiStripState extends ConsumerState<_KpiStrip> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final snapshot = widget.snapshot;
     final colors = context.colors;
     return PanelCard(
@@ -520,8 +546,6 @@ class _KpiStripState extends ConsumerState<_KpiStrip> {
         loading: () => const _InlineLoader(height: 90),
         error: (err, _) => _InlineError(message: 'Could not load KPIs: $err'),
         data: (snap) {
-          final animate = !_entered;
-          _entered = true;
           final tiles = [
             for (final k in _kpis)
               (
@@ -534,6 +558,14 @@ class _KpiStripState extends ConsumerState<_KpiStrip> {
 
           return LayoutBuilder(
             builder: (context, constraints) {
+              // Latched INSIDE the layout builder, not in the data arm above:
+              // this closure re-runs on a constraints-only relayout without a
+              // fresh data build, and a stale `animate` captured on the
+              // entrance frame would replay the pills when a breakpoint
+              // change remounts the tiles.
+              final animate = !_entered;
+              _entered = true;
+
               final columns = constraints.maxWidth >= 1120
                   ? 4
                   : constraints.maxWidth >= 620
@@ -596,9 +628,6 @@ class _KpiStripState extends ConsumerState<_KpiStrip> {
                                       // Staggered by flat tile position, so
                                       // the strip reads left-to-right.
                                       delay: Motion.stagger * (r * columns + c),
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
                                       child: Sparkline(
                                         values: values,
                                         width: null,

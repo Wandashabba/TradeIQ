@@ -1124,6 +1124,120 @@ void main() {
       expect(sparkOpacity('Perfect-store rate'), 1);
       expect(tester.hasRunningAnimations, isFalse);
     });
+
+    testWidgets('a scroll round-trip does not replay the entrance', (
+      tester,
+    ) async {
+      // A short window: the dashboard ListView's sliver disposes children
+      // scrolled past its cache extent, which is where an unprotected
+      // entrance latch would die — and the whole entrance would replay on
+      // the way back up.
+      tester.view.physicalSize = const Size(900, 500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app());
+      await tester.pumpAndSettle();
+      expect(find.text('67.8'), findsOneWidget);
+
+      final scrollable = tester.state<ScrollableState>(
+        find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      // Sanity: the page really is tall enough to carry the hero past the
+      // cache extent — otherwise this test proves nothing.
+      expect(scrollable.position.maxScrollExtent, greaterThan(800));
+      scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+
+      scrollable.position.jumpTo(0);
+      // Zero-duration pumps: a replayed count-up would sit at 0.0 forever on
+      // an unadvancing clock.
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(Duration.zero);
+      }
+      expect(find.text('0.0'), findsNothing);
+      expect(find.text('67.8'), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets(
+      'flipping reduce-motion off mid-session does not play the entrance late',
+      (tester) async {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        await pumpToFirstDataFrame(tester, _app());
+        await tester.pumpAndSettle();
+        expect(find.text('67.8'), findsOneWidget);
+
+        // The manager turns reduced motion off mid-session. The entrance
+        // moment is long gone — it must not be performed now.
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures();
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(Duration.zero);
+        }
+        expect(find.text('0.0'), findsNothing);
+        expect(find.text('67.8'), findsOneWidget);
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets('a mid-count-up rebuild cannot cut the entrance short', (
+      tester,
+    ) async {
+      // Pins the mount-time latch in _HeroScore: the refresh below delivers
+      // animate:false into the SAME State while the count-up is running
+      // (skipLoadingOnRefresh keeps the data arm alive), and the figure must
+      // keep counting rather than snap to its final value.
+      final repo = _MutableDashboardRepository();
+      await pumpToFirstDataFrame(tester, _app(dashboard: repo));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('0.0'), findsNothing);
+      expect(find.text('10.0'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('dashboard-refresh')));
+      await tester.pump(Duration.zero);
+      // Still mid-count — an un-latched wrapper would render 10.0 here.
+      expect(find.text('10.0'), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.text('10.0'), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a refreshed value lands directly — no tween toward it', (
+      tester,
+    ) async {
+      // Pins the completed-entrance latch: once the count-up has run, a new
+      // value must render as plain text, not animate from the old figure.
+      final repo = _MutableDashboardRepository();
+      await pumpToFirstDataFrame(tester, _app(dashboard: repo));
+      await tester.pumpAndSettle();
+      expect(find.text('10.0'), findsOneWidget);
+
+      repo.score = 42.0;
+      await tester.tap(find.byKey(const ValueKey('dashboard-refresh')));
+      // Zero-duration pumps: a tween from 10.0 toward 42.0 could never reach
+      // 42.0 on an unadvancing clock.
+      var shown = false;
+      for (var i = 0; i < 10 && !shown; i++) {
+        await tester.pump(Duration.zero);
+        shown = tester.any(find.text('42.0'));
+      }
+      expect(
+        shown,
+        isTrue,
+        reason: 'the new figure must render directly, not count toward it',
+      );
+      await tester.pumpAndSettle();
+    });
   });
 
   testWidgets('the refresh action refetches instead of replaying cache', (
