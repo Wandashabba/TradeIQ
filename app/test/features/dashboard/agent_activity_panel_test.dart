@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/widgets/agent_state_glyph.dart';
+import 'package:tradeiq_app/core/widgets/basemap.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 class _FakeAgentsRepository implements AgentsRepository {
@@ -574,6 +577,150 @@ void main() {
     expect(find.byKey(const ValueKey<String>('agent-pin-a1')), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('outlet-base-pin-o1')), findsOneWidget);
     expect(find.byKey(const ValueKey<String>('outlet-base-pin-o2')), findsOneWidget);
+  });
+
+  // The Tide Guide world (premium-ui sub3): the island map carries the same
+  // navy wash the trail map does, layered over the dark tiles so the panel
+  // reads as the same world at panel size.
+  testWidgets('the island map renders the navy tint over the tiles', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'thabo@example.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Sandton Spar',
+              stops: [_stop('Sandton Spar')],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(FlutterMap),
+        matching: find.byType(TiqNavyTint),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  // The glow treatment (premium-ui sub3): the state glyph — whose SHAPE set
+  // is unchanged, that contract is guarded above — now sits in white on a
+  // glowing blue lit-sphere disc, same gradient family as the trail pins.
+  // The highlight is offset away from centre, so the glyph sits on the deep
+  // core colour the contrast test below is pinned against.
+  testWidgets('agent pins are white glyphs on the glowing blue disc', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        outletsListProvider.overrideWith((ref) async => const <Outlet>[]),
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'thabo@example.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Sandton Spar',
+              stops: [_stop('Sandton Spar')],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final pin = find.byKey(const ValueKey<String>('agent-pin-a1'));
+    final decoration = tester
+        .widget<AnimatedContainer>(
+          find.descendant(of: pin, matching: find.byType(AnimatedContainer)).first,
+        )
+        .decoration! as BoxDecoration;
+
+    final gradient = decoration.gradient! as RadialGradient;
+    expect(gradient.colors, const [Color(0xFF7CC0FF), Color(0xFF1F7AE0)]);
+    // The highlight sits away from centre — the glyph rests on the core.
+    expect(gradient.center, isNot(Alignment.center));
+
+    final border = decoration.border! as Border;
+    expect(border.top.color, Colors.white);
+    expect(border.top.width, inInclusiveRange(1.5, 2.0));
+
+    // The halo: 0 0 14 3 rgba(64,156,255,.55).
+    final halo = decoration.boxShadow!.single;
+    expect(halo.color.toARGB32(), const Color(0xFF409CFF).withValues(alpha: 0.55).toARGB32());
+    expect(halo.blurRadius, 14);
+    expect(halo.spreadRadius, 3);
+
+    final glyph = tester.widget<AgentStateGlyph>(
+      find.descendant(of: pin, matching: find.byType(AgentStateGlyph)),
+    );
+    expect(glyph.color, Colors.white);
+  });
+
+  // Guards this file's disc-core constant independently of the trail
+  // screen's identical check: the white glyph must clear the repo's 3:1 bar
+  // for graphical marks against the core it actually sits on.
+  test('white glyph clears 3:1 on the agent disc core', () {
+    expect(
+      contrastRatio(const Color(0xFF1F7AE0), Colors.white),
+      greaterThanOrEqualTo(3.0),
+    );
+  });
+
+  // The outlet base layer in the Tide Guide world: a dim navy-glow dot —
+  // still a plain dot (shape-distinct from the agent glyph discs, #144) and
+  // still strictly smaller than an agent pin, so it stays background.
+  testWidgets('outlet base pins are dim navy dots, subordinate to agent pins', (tester) async {
+    await tester.pumpWidget(routedApp(
+      const Scaffold(body: AgentActivityPanel()),
+      overrides: [
+        outletsListProvider.overrideWith(
+          (ref) async => const [
+            Outlet(id: 'o1', name: 'Sandton Spar', code: 'SS1', lat: -26.10, lng: 28.05),
+          ],
+        ),
+        agentsRepositoryProvider.overrideWithValue(
+          _FakeAgentsRepository([
+            _agent(
+              id: 'a1',
+              name: 'thabo@example.com',
+              state: AgentState.atStore,
+              currentOutlet: 'Sandton Spar',
+              stops: [_stop('Sandton Spar')],
+            ),
+          ]),
+        ),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    final outletPin = find.byKey(const ValueKey<String>('outlet-base-pin-o1'));
+    final decoration = tester
+        .widget<Container>(
+          find.descendant(of: outletPin, matching: find.byType(Container)).first,
+        )
+        .decoration! as BoxDecoration;
+
+    expect(decoration.color, const Color(0xFF39557E));
+    // The faint halo: 0 0 8 2 rgba(64,120,200,.35).
+    final halo = decoration.boxShadow!.single;
+    expect(halo.color.toARGB32(), const Color(0xFF4078C8).withValues(alpha: 0.35).toARGB32());
+    expect(halo.blurRadius, 8);
+    expect(halo.spreadRadius, 2);
+
+    // Subordinate by size: the outlet marker is strictly smaller than the
+    // agent marker, so the eye's first stop is always an agent.
+    final outletSize = tester.getSize(outletPin);
+    final agentSize = tester.getSize(find.byKey(const ValueKey<String>('agent-pin-a1')));
+    expect(outletSize.width, lessThan(agentSize.width));
+    expect(outletSize.height, lessThan(agentSize.height));
   });
 
   // An outlet-fetch failure is a thinner base layer, never a blank panel:

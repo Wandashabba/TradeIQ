@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/geo/mercator_fit.dart';
-import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/agent_motion.dart' show reduceMotion;
 import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
@@ -34,6 +34,17 @@ final agentTrailDayProvider = StateProvider.autoDispose<DateTime>((ref) {
 /// dashed polylines and the numbered markers below.
 class AgentTrailScreen extends ConsumerWidget {
   const AgentTrailScreen({super.key});
+
+  /// Test-only kill-switch for the pins' glow-breathing loop (see [_StopPin]).
+  ///
+  /// The breathing is the design's single infinite animation, and an infinite
+  /// animation makes `pumpAndSettle` time out in every widget test that
+  /// renders this screen — so the test suite turns it off in `setUp` and the
+  /// two motion tests turn it back on deliberately. Production never touches
+  /// this; the *user-facing* off-switch is the OS reduce-motion setting,
+  /// which [_StopPin] honours independently of this flag.
+  @visibleForTesting
+  static bool debugDisableGlowBreathing = false;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -103,6 +114,27 @@ String _pointsSignature(List<LatLng> points) => points
           '${p.latitude.toStringAsFixed(4)},${p.longitude.toStringAsFixed(4)}',
     )
     .join('|');
+
+/// The stop-marker box: the glowing disc on top, the outlet label hanging
+/// below it. Wide enough for a two-line label, tall enough for disc + label.
+const _markerWidth = 128.0;
+const _markerHeight = 72.0;
+
+/// The glowing disc's diameter, within the box above.
+const _discSize = 34.0;
+
+/// The marker anchor: the geographic point sits at the centre of the DISC
+/// (half the disc's height below the box's top-centre), not the centre of the
+/// whole box — otherwise growing the box for the label would visibly slide
+/// every pin off its coordinate. Computed with flutter_map's own helper
+/// because its `Marker.alignment` named values are inverted relative to
+/// Flutter's (see the call-site comment in `_TrailMap`).
+final _markerAlignment = Marker.computePixelAlignment(
+  width: _markerWidth,
+  height: _markerHeight,
+  left: _markerWidth / 2,
+  top: _discSize / 2,
+);
 
 /// The trail map's fixed fallback/single-pin zoom, shared between
 /// `fitFor`'s `singleZoom` and the degenerate-viewport fallback so the two
@@ -182,6 +214,10 @@ class _TrailMap extends StatelessWidget {
           options: MapOptions(initialCenter: center, initialZoom: zoom),
           children: [
             const TiqTileLayer(),
+            // The navy wash sits between the tiles and the trail geometry:
+            // the ground reads as the deep-blue Tide Guide world while the
+            // pins, labels and lines above keep full brightness.
+            const TiqNavyTint(),
             PolylineLayer(
               polylines: [
                 for (final a in withStops)
@@ -189,7 +225,10 @@ class _TrailMap extends StatelessWidget {
                     Polyline(
                       points: [for (final s in a.stops) LatLng(s.lat, s.lng)],
                       strokeWidth: 3,
-                      color: context.colors.brand,
+                      // 0xFF4D9BFF at .8 alpha (0.8 × 255 = 0xCC): luminous
+                      // against the navy ground without competing with the
+                      // pin glow.
+                      color: const Color(0xCC4D9BFF),
                       // Dashed, deliberately. A solid line would claim we
                       // know the route between two check-ins. We know two
                       // points; the rest is inference, and the stroke
@@ -204,8 +243,19 @@ class _TrailMap extends StatelessWidget {
                   for (var i = 0; i < a.stops.length; i++)
                     Marker(
                       point: LatLng(a.stops[i].lat, a.stops[i].lng),
-                      width: 34,
-                      height: 34,
+                      width: _markerWidth,
+                      height: _markerHeight,
+                      // Anchors the DISC's centre — not the box's centre — on
+                      // the geographic point, so the label hangs below it.
+                      // NOTE: flutter_map's Marker.alignment is INVERTED
+                      // relative to Flutter's own semantics (its docs:
+                      // `Alignment.topCenter` puts the whole box ABOVE the
+                      // point — which would sit the label on the coordinate
+                      // and float the disc over it), so this is computed with
+                      // flutter_map's own pixel helper instead of named
+                      // constants: the point sits _discSize/2 below the box's
+                      // top-centre, dead centre of the disc.
+                      alignment: _markerAlignment,
                       child: _StopPin(
                         key: ValueKey<String>('agent-stop-${a.agentId}-$i'),
                         agentName: a.name,
@@ -236,11 +286,13 @@ class _TrailLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      color: colors.surface2,
+      // Fixed translucent dark chrome, not a theme token: this strip belongs
+      // to the map's Tide Guide world (deep navy in BOTH app themes), so it
+      // matches the tiles it sits against rather than the console around it.
+      color: const Color(0xCC050A16),
       child: Text(
         'Numbered pins are confirmed check-ins. Dashed lines connect them in '
         'order — they are not a recorded route.'
@@ -248,15 +300,35 @@ class _TrailLegend extends StatelessWidget {
         // server had more agents than we asked for, say so here rather than
         // let the manager read empty space as "nobody else worked".
         '${truncated ? ' Showing the first 200 agents only.' : ''}',
-        style: TextStyle(fontSize: 12, color: colors.ink3),
+        style: const TextStyle(fontSize: 12, color: Color(0xFF8FA5C6)),
       ),
     );
   }
 }
 
-/// One stop. Numbered so the sequence reads without needing colour, and the
-/// final stop is filled so "where they ended up" is findable at a glance.
-class _StopPin extends StatelessWidget {
+/// One stop: a glowing numbered disc with a luminous outlet label hanging
+/// below it — the Tide Guide pin.
+///
+/// The numbering carries the sequence and the halo is only enhancement
+/// (honesty rule #144: the trail must survive greyscale, colour-blindness and
+/// a screenshot in an email). The last stop's brighter core + stronger halo
+/// says "where they ended up" at a glance, but a reader who can't see the
+/// glow loses nothing: the highest numeral says the same thing.
+///
+/// Every colour here is a fixed literal, not a theme token — the pin sits on
+/// map tiles (the same deep-navy world in both app themes), not on console
+/// chrome. The white numeral is guarded by contrast tests against the
+/// gradient's deep core; the light highlight is offset away from the centre
+/// precisely so the numeral never sits on it (white on the highlight colour
+/// would be ~1.9:1).
+///
+/// Stateful only for the glow "breathing" — the design's ONLY looping
+/// animation (spec motion table): the halo opacity swings ±3% over a 2400ms
+/// repeating curve. Subtle by intent — visible if you look, invisible if you
+/// don't. Under [reduceMotion] the controller never runs and the halo holds
+/// the mid value (exactly the specced alphas); same when
+/// [AgentTrailScreen.debugDisableGlowBreathing] is set by tests.
+class _StopPin extends StatefulWidget {
   const _StopPin({
     super.key,
     required this.agentName,
@@ -270,59 +342,164 @@ class _StopPin extends StatelessWidget {
   final int ordinal;
   final bool isLast;
 
-  /// The non-last disc is a **fixed** white, chosen so it reads against
-  /// unpredictable map tiles rather than the app theme — so its numeral must
-  /// be pinned to a fixed dark ink too, not pulled from `colors.ink1`.
-  /// `ink1` is near-white in dark theme (it is meant to sit on a dark panel,
-  /// not a white disc), which made every non-final stop a blank white circle
-  /// in the dark console: the numbering is the entire reason the sequence
-  /// survives greyscale (#144), so a theme-dependent numeral on a
-  /// theme-fixed disc quietly defeated its own accessibility property. This
-  /// is the light theme's ink1 value, kept as a literal on purpose — do not
-  /// swap it back to `colors.ink1`.
-  static const _nonLastNumeralColor = Color(0xFF14161C);
+  @override
+  State<_StopPin> createState() => _StopPinState();
+}
+
+class _StopPinState extends State<_StopPin>
+    with SingleTickerProviderStateMixin {
+  /// The glow blue — rgba(64,156,255) — that both halo shadows are cut from.
+  static const _glow = Color(0xFF409CFF);
+
+  // Created eagerly, NOT `late final`, and NOT started in initState — the
+  // same two traps PulseDot (agent_motion.dart) documents: a lazily-created
+  // controller can be first constructed by dispose(), and MediaQuery (the
+  // reduce-motion preference) isn't readable until didChangeDependencies.
+  late AnimationController _breath;
+
+  @override
+  void initState() {
+    super.initState();
+    _breath = AnimationController(
+      vsync: this, // SingleTickerProviderStateMixin: respects TickerMode.
+      duration: const Duration(milliseconds: 2400),
+      // The mid value: when the loop never starts (reduced motion, tests)
+      // the curve below maps 0.5 → a breathing factor of exactly 1.0, i.e.
+      // the specced halo alphas, statically.
+      value: 0.5,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncBreathing();
+  }
+
+  @override
+  void didUpdateWidget(_StopPin old) {
+    super.didUpdateWidget(old);
+    _syncBreathing();
+  }
+
+  void _syncBreathing() {
+    final shouldBreathe = !reduceMotion(context) &&
+        !AgentTrailScreen.debugDisableGlowBreathing;
+    if (shouldBreathe && !_breath.isAnimating) {
+      _breath.repeat(reverse: true);
+    } else if (!shouldBreathe && _breath.isAnimating) {
+      _breath.stop();
+      _breath.value = 0.5;
+    }
+  }
+
+  @override
+  void dispose() {
+    _breath.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final stop = widget.stop;
+    final time = '${_two(stop.checkinTs.hour)}:${_two(stop.checkinTs.minute)}';
+    // The last stop gets the brighter core and the stronger halo.
+    final highlight =
+        widget.isLast ? const Color(0xFF9FD4FF) : const Color(0xFF7CC0FF);
+    final core =
+        widget.isLast ? const Color(0xFF3B93F5) : const Color(0xFF1F7AE0);
+    final innerHaloAlpha = widget.isLast ? 0.65 : 0.5;
+    final outerHaloAlpha = widget.isLast ? 0.25 : 0.18;
+
     return Semantics(
       button: true,
       excludeSemantics: true,
-      label: '$agentName, stop $ordinal, ${stop.outletName}, '
-          '${_two(stop.checkinTs.hour)}:${_two(stop.checkinTs.minute)}',
+      label: '${widget.agentName}, stop ${widget.ordinal}, '
+          '${stop.outletName}, $time',
       child: Tooltip(
-        // Leads with the agent name: every agent's pins restart at "1" in
-        // the same brand colour, so on a multi-agent day the tooltip is the
-        // only thing a sighted manager has to tell three identical "1"
-        // pins apart — the Semantics label above says the same thing, but
-        // `excludeSemantics: true` makes that screen-reader-only.
-        message: '$agentName · ${stop.outletName} · '
-            '${_two(stop.checkinTs.hour)}:${_two(stop.checkinTs.minute)}',
-        child: DecoratedBox(
-          // A white disc under the glyph. OSM tiles range from pale fields to
-          // dark roads, so a bare numeral has no reliable contrast anywhere.
-          decoration: BoxDecoration(
-            color: isLast ? colors.brand : Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: colors.line, width: 1),
-            boxShadow: const [
-              BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1)),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              '$ordinal',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                // isLast sits on colors.brand (a fixed blue, shared by both
-                // themes) so white reads there regardless of theme; the
-                // non-last numeral sits on the fixed white disc above, so it
-                // gets the matching fixed dark ink rather than colors.ink1.
-                color: isLast ? Colors.white : _nonLastNumeralColor,
+        // Leads with the agent name: every agent's pins restart at "1", so on
+        // a multi-agent day the tooltip is what tells three identical "1"
+        // pins apart for a sighted manager — the Semantics label above says
+        // the same thing, but `excludeSemantics: true` makes that
+        // screen-reader-only. The label below shows outlet + time already;
+        // the agent name is the part only the tooltip carries visually.
+        message: '${widget.agentName} · ${stop.outletName} · $time',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: _discSize,
+              height: _discSize,
+              child: AnimatedBuilder(
+                animation: _breath,
+                builder: (context, child) {
+                  // easeInOut(0.5) == 0.5 → factor 1.0 at rest; the swing is
+                  // ±3% — ambient, not attention-seeking.
+                  final breathe = 0.97 +
+                      0.06 * Curves.easeInOut.transform(_breath.value);
+                  return DecoratedBox(
+                    key: widget.isLast
+                        ? const ValueKey<String>('agent-stop-last-halo')
+                        : null,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      // Lit-sphere gradient: a small highlight pushed to the
+                      // top-left, the rest of the disc the deep core the
+                      // white numeral is contrast-tested against.
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.4, -0.5),
+                        radius: 1.0,
+                        colors: [highlight, core],
+                        stops: const [0.0, 0.75],
+                      ),
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _glow.withValues(
+                              alpha: innerHaloAlpha * breathe),
+                          blurRadius: 22,
+                          spreadRadius: 6,
+                        ),
+                        BoxShadow(
+                          color: _glow.withValues(
+                              alpha: outerHaloAlpha * breathe),
+                          blurRadius: 44,
+                          spreadRadius: 12,
+                        ),
+                      ],
+                    ),
+                    child: child,
+                  );
+                },
+                child: Center(
+                  child: Text(
+                    '${widget.ordinal}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 3),
+            // The luminous label: what the old map hid in a hover tooltip,
+            // now readable on the map itself. The heavy dark shadow is what
+            // keeps it legible over whatever tile detail sits beneath.
+            Text(
+              '${stop.outletName} · $time',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFD9E6FF),
+                shadows: [Shadow(blurRadius: 5, color: Colors.black)],
+              ),
+            ),
+          ],
         ),
       ),
     );
