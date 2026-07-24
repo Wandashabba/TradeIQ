@@ -74,7 +74,7 @@ class AppColors {
   static const double radiusControl = 3;
 
   /// Panels and cards.
-  static const double radiusPanel = 4;
+  static const double radiusPanel = 12;
 
   // ── Back-compat aliases ──────────────────────────────────────────────
   // Existing feature code references these names. They keep compiling; only
