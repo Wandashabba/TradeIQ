@@ -115,10 +115,10 @@ describe('webhooks routes', () => {
     const res = await request(app).get('/webhooks').set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    const ids = res.body.map((w: { id: string }) => w.id);
+    const ids = res.body.data.map((w: { id: string }) => w.id);
     expect(ids).toContain(webhookId);
     expect(ids).not.toContain(otherWebhookId);
-    const createdAts = res.body.map((w: { createdAt: string }) => new Date(w.createdAt).getTime());
+    const createdAts = res.body.data.map((w: { createdAt: string }) => new Date(w.createdAt).getTime());
     expect(createdAts).toEqual([...createdAts].sort((a: number, b: number) => b - a));
   });
 
@@ -163,7 +163,68 @@ describe('webhooks routes', () => {
 
     const res = await request(app).get('/webhooks').set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.map((w: { id: string }) => w.id)).not.toContain(webhookId);
+    expect(res.body.data.map((w: { id: string }) => w.id)).not.toContain(webhookId);
+  });
+
+  describe('GET /webhooks pagination', () => {
+    beforeAll(async () => {
+      // A distinct, non-dispatched event: the final test in this file fans
+      // out `visit.submitted` for this client, and an active subscriber left
+      // behind here would make it actually fetch https://example.com.
+      await prisma.webhook.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          url: `https://example.com/page-${i}`,
+          event: 'pagination.test.only',
+          createdAt: new Date(`2026-07-2${i}T00:00:00.000Z`),
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, newest first', async () => {
+      const res = await request(app)
+        .get('/webhooks')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const urls = res.body.data.map((w: { url: string }) => w.url);
+      expect(urls.indexOf('https://example.com/page-2')).toBeLessThan(
+        urls.indexOf('https://example.com/page-0'),
+      );
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/webhooks?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/webhooks?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((w: { id: string }) => w.id);
+      const secondIds = second.body.data.map((w: { id: string }) => w.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/webhooks?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/webhooks?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 
   it('forbids a field agent from create/list/patch/delete (403)', async () => {

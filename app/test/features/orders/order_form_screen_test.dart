@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/orders/presentation/order_form_screen.dart';
@@ -11,8 +12,11 @@ class _RecordingOrdersRepository implements OrdersRepository {
   List<OrderLine>? lines;
 
   @override
-  Future<List<OrderItem>> listOrders({String? status, String? outletId}) async =>
-      const [];
+  Future<PaginatedResponse<OrderItem>> listOrders({
+    String? status,
+    String? outletId,
+  }) async =>
+      const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<OrderItem> createOrder({

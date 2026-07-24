@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/beatplans/data/beatplans_repository.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/beatplans_screen.dart';
 
@@ -42,7 +43,8 @@ class _FakeBeatPlansRepository implements BeatPlansRepository {
   bool? visitedValue;
 
   @override
-  Future<List<BeatPlan>> listBeatPlans() async => _plans;
+  Future<PaginatedResponse<BeatPlan>> listBeatPlans() async =>
+      const PaginatedResponse(data: _plans, nextCursor: null);
 
   @override
   Future<BeatPlanDetail> getBeatPlan(String id) async => _detail;

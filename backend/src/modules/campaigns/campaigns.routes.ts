@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   CAMPAIGN_STATUSES,
   CampaignStatus,
@@ -66,8 +67,9 @@ campaignsRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedReq
 });
 
 campaignsRouter.get('/', async (req: AuthedRequest, res) => {
-  const campaigns = await listCampaigns(req.user!.clientId);
-  res.status(200).json(campaigns);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listCampaigns({ clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
 
 campaignsRouter.get('/:id', async (req: AuthedRequest, res) => {

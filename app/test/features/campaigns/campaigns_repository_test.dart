@@ -1,5 +1,35 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/api_client.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/campaigns/data/campaigns_repository.dart';
+
+/// A fake HTTP layer that returns a canned body, following the pattern in
+/// `test/features/agents/agents_repository_test.dart`.
+class _RecordingAdapter implements HttpClientAdapter {
+  _RecordingAdapter(this.body);
+  final String body;
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromString(
+      body,
+      200,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+  }
+}
 
 void main() {
   group('Campaign.fromJson', () {
@@ -68,6 +98,35 @@ void main() {
       expect(compliance.avgPlanogramCompliancePct, 0.0);
       expect(compliance.avgAbsPriceDeviationPct, 0.0);
       expect(compliance.promoComplianceRate, 0.0);
+    });
+  });
+
+  group('DioCampaignsRepository.listCampaigns', () {
+    late HttpClientAdapter originalAdapter;
+
+    setUp(() {
+      originalAdapter = dio.httpClientAdapter;
+    });
+
+    tearDown(() {
+      dio.httpClientAdapter = originalAdapter;
+    });
+
+    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
+        () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        '{"data": [{"id": "c1", "name": "Summer Push", "status": "active", '
+        '"startDate": "2026-06-01", "endDate": "2026-08-31", '
+        '"_count": {"outlets": 12}}], '
+        '"nextCursor": "cursor-1"}',
+      );
+
+      final page = await DioCampaignsRepository().listCampaigns();
+
+      expect(page, isA<PaginatedResponse<Campaign>>());
+      expect(page.data, hasLength(1));
+      expect(page.data.first.id, 'c1');
+      expect(page.nextCursor, 'cursor-1');
     });
   });
 }

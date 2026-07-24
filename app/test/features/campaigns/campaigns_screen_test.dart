@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/campaigns/data/campaigns_repository.dart';
 import 'package:tradeiq_app/features/campaigns/presentation/campaigns_screen.dart';
 
@@ -36,7 +37,8 @@ const _compliance = CampaignCompliance(
 
 class _FakeCampaignsRepository implements CampaignsRepository {
   @override
-  Future<List<Campaign>> listCampaigns() async => const [_campaignA, _campaignB];
+  Future<PaginatedResponse<Campaign>> listCampaigns() async =>
+      const PaginatedResponse(data: [_campaignA, _campaignB], nextCursor: null);
 
   @override
   Future<CampaignCompliance> getCompliance(String id) async => _compliance;
@@ -65,7 +67,8 @@ class _FakeCampaignsRepository implements CampaignsRepository {
 
 class _ThrowingCampaignsRepository implements CampaignsRepository {
   @override
-  Future<List<Campaign>> listCampaigns() async => throw Exception('boom');
+  Future<PaginatedResponse<Campaign>> listCampaigns() async =>
+      throw Exception('boom');
 
   @override
   Future<CampaignCompliance> getCompliance(String id) async =>

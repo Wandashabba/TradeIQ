@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
@@ -46,10 +47,10 @@ class _FakeOutletsRepository implements OutletsRepository {
 
 class _FakeOrdersRepository implements OrdersRepository {
   @override
-  Future<List<OrderItem>> listOrders({
+  Future<PaginatedResponse<OrderItem>> listOrders({
     String? status,
     String? outletId,
-  }) async => const [];
+  }) async => const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<OrderItem> createOrder({

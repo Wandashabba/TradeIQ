@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   createReport,
   deleteReport,
@@ -46,8 +47,9 @@ reportsRouter.post('/', async (req: AuthedRequest, res) => {
 });
 
 reportsRouter.get('/', async (req: AuthedRequest, res) => {
-  const reports = await listReports(req.user!.clientId);
-  res.status(200).json(reports);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listReports({ clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
 
 reportsRouter.delete('/:id', async (req: AuthedRequest, res) => {

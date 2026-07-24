@@ -6,6 +6,7 @@ import { issueToken } from '../auth/auth.service';
 describe('orders routes', () => {
   let clientId: string;
   let otherClientId: string;
+  let agent1Id: string;
   let agent1Token: string;
   let agent2Token: string;
   let managerToken: string;
@@ -44,6 +45,7 @@ describe('orders routes', () => {
         clientId: otherClientId,
       },
     });
+    agent1Id = agent1.id;
     agent1Token = issueToken({ userId: agent1.id, role: 'field_agent', clientId });
     agent2Token = issueToken({ userId: agent2.id, role: 'field_agent', clientId });
     managerToken = issueToken({ userId: manager.id, role: 'manager', clientId });
@@ -179,26 +181,28 @@ describe('orders routes', () => {
       .get('/orders')
       .set('Authorization', `Bearer ${agent1Token}`);
     expect(agent1Res.status).toBe(200);
-    expect(agent1Res.body.length).toBeGreaterThanOrEqual(1);
+    expect(agent1Res.body.data.length).toBeGreaterThanOrEqual(1);
     expect(
-      agent1Res.body.every((o: { agentId: string }) => o.agentId === agent1Res.body[0].agentId),
+      agent1Res.body.data.every(
+        (o: { agentId: string }) => o.agentId === agent1Res.body.data[0].agentId,
+      ),
     ).toBe(true);
     // Every returned order carries a line count.
-    expect(agent1Res.body[0]._count.lines).toBeGreaterThanOrEqual(1);
+    expect(agent1Res.body.data[0]._count.lines).toBeGreaterThanOrEqual(1);
 
     const managerRes = await request(app)
       .get('/orders')
       .set('Authorization', `Bearer ${managerToken}`);
     expect(managerRes.status).toBe(200);
     // Manager sees both agents' orders — more than agent1 alone.
-    const agentIds = new Set(managerRes.body.map((o: { agentId: string }) => o.agentId));
+    const agentIds = new Set(managerRes.body.data.map((o: { agentId: string }) => o.agentId));
     expect(agentIds.size).toBeGreaterThanOrEqual(2);
 
     const otherRes = await request(app)
       .get('/orders')
       .set('Authorization', `Bearer ${otherAgentToken}`);
     expect(otherRes.status).toBe(200);
-    expect(otherRes.body).toHaveLength(0);
+    expect(otherRes.body.data).toHaveLength(0);
   });
 
   it('filters list by status and rejects an invalid status with 400', async () => {
@@ -207,7 +211,7 @@ describe('orders routes', () => {
       .query({ status: 'submitted' })
       .set('Authorization', `Bearer ${managerToken}`);
     expect(ok.status).toBe(200);
-    expect(ok.body.every((o: { status: string }) => o.status === 'submitted')).toBe(true);
+    expect(ok.body.data.every((o: { status: string }) => o.status === 'submitted')).toBe(true);
 
     const bad = await request(app)
       .get('/orders')
@@ -262,5 +266,66 @@ describe('orders routes', () => {
       .set('Authorization', `Bearer ${agent1Token}`)
       .send({ status: 'confirmed' });
     expect(res.status).toBe(403);
+  });
+
+  describe('GET /orders pagination', () => {
+    beforeAll(async () => {
+      await prisma.order.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          outletId,
+          agentId: agent1Id,
+          status: 'submitted' as const,
+          total: 10,
+          createdAt: new Date(`2026-07-20T0${i}:00:00.000Z`),
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, newest first', async () => {
+      const res = await request(app)
+        .get('/orders')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const ids = res.body.data.map((o: { id: string; createdAt: string }) => o.createdAt);
+      // The three page-orders are all >= the seed orders, so simply check newest-first ordering
+      // is respected across the whole page.
+      const sorted = [...ids].sort().reverse();
+      expect(ids).toEqual(sorted);
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/orders?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/orders?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((o: { id: string }) => o.id);
+      const secondIds = second.body.data.map((o: { id: string }) => o.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/orders?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/orders?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 });

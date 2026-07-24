@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/webhooks/data/webhooks_repository.dart';
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
 
@@ -25,8 +26,8 @@ class _FakeWebhooksRepository implements WebhooksRepository {
   String? createdEvent;
 
   @override
-  Future<List<Webhook>> listWebhooks() async =>
-      const [_firstWebhook, _secondWebhook];
+  Future<PaginatedResponse<Webhook>> listWebhooks() async =>
+      const PaginatedResponse(data: [_firstWebhook, _secondWebhook], nextCursor: null);
 
   @override
   Future<Webhook> createWebhook({
@@ -56,7 +57,8 @@ class _FakeWebhooksRepository implements WebhooksRepository {
 
 class _ThrowingWebhooksRepository implements WebhooksRepository {
   @override
-  Future<List<Webhook>> listWebhooks() async => throw Exception('boom');
+  Future<PaginatedResponse<Webhook>> listWebhooks() async =>
+      throw Exception('boom');
 
   @override
   Future<Webhook> createWebhook({

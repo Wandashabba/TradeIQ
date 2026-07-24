@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/campaigns/data/campaigns_repository.dart';
 import 'package:tradeiq_app/features/campaigns/presentation/campaign_form_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -21,7 +22,8 @@ class _RecordingCampaignsRepository implements CampaignsRepository {
   Map<String, dynamic>? updatedArgs;
 
   @override
-  Future<List<Campaign>> listCampaigns() async => const [];
+  Future<PaginatedResponse<Campaign>> listCampaigns() async =>
+      const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<CampaignCompliance> getCompliance(String id) async =>

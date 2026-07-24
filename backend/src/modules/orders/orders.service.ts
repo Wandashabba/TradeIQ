@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
+import { buildPage } from '../../lib/pagination';
 
 export type OrderStatus = 'submitted' | 'confirmed' | 'cancelled';
 
@@ -95,19 +96,26 @@ export interface ListOrdersInput {
   agentId?: string;
   outletId?: string;
   status?: OrderStatus;
+  limit: number;
+  cursor?: string;
 }
 
 export async function listOrders(input: ListOrdersInput) {
-  return prisma.order.findMany({
+  const rows = await prisma.order.findMany({
     where: {
       clientId: input.clientId,
       ...(input.agentId ? { agentId: input.agentId } : {}),
       ...(input.outletId ? { outletId: input.outletId } : {}),
       ...(input.status ? { status: input.status } : {}),
     },
-    orderBy: { createdAt: 'desc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two orders share a createdAt — same reasoning as alerts.service.ts.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
     include: { _count: { select: { lines: true } } },
   });
+  return buildPage(rows, input.limit);
 }
 
 export async function getOrderForClient(orderId: string, clientId: string, agentId?: string) {

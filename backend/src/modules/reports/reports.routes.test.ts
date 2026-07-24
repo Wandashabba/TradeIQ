@@ -178,11 +178,68 @@ describe('reports routes', () => {
   it("lists only the caller's definitions, newest first (200)", async () => {
     const res = await request(app).get('/reports').set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
-    const ids = res.body.map((d: { id: string }) => d.id);
+    const ids = res.body.data.map((d: { id: string }) => d.id);
     expect(ids).toContain(visitsDefId);
     expect(ids).not.toContain(otherDefId);
-    const created = res.body.map((d: { createdAt: string }) => new Date(d.createdAt).getTime());
+    const created = res.body.data.map((d: { createdAt: string }) => new Date(d.createdAt).getTime());
     expect(created).toEqual([...created].sort((a: number, b: number) => b - a));
+  });
+
+  describe('GET /reports pagination', () => {
+    beforeAll(async () => {
+      await prisma.reportDefinition.createMany({
+        data: [0, 1, 2].map((i) => ({
+          clientId,
+          name: `page-report-${i}`,
+          type: 'visits',
+          filters: {},
+          createdAt: new Date(`2026-07-2${i}T00:00:00.000Z`),
+        })),
+      });
+    });
+
+    it('returns an envelope with data and nextCursor, newest first', async () => {
+      const res = await request(app)
+        .get('/reports')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const names = res.body.data.map((d: { name: string }) => d.name);
+      expect(names.indexOf('page-report-2')).toBeLessThan(names.indexOf('page-report-0'));
+    });
+
+    it('caps the page at limit and returns a cursor to the next page', async () => {
+      const first = await request(app)
+        .get('/reports?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/reports?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((d: { id: string }) => d.id);
+      const secondIds = second.body.data.map((d: { id: string }) => d.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const res = await request(app)
+        .get('/reports?limit=9999')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/reports?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
   });
 
   it('generates a visits report returning matching rows + rowCount (200)', async () => {
