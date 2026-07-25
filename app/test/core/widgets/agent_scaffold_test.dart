@@ -69,7 +69,7 @@ void main() {
   });
 
   group('the app-bar theme toggle flips the app theme', () {
-    testWidgets('tapping swaps light.plane→dark.plane and swaps the icon', (
+    testWidgets('tapping flips both ways — light↔dark plane and icon', (
       tester,
     ) async {
       await tester.pumpWidget(const ProviderScope(child: _Live()));
@@ -80,11 +80,20 @@ void main() {
       expect(_bg(tester), TiqColors.light.plane);
       expect(_toggleIcon(tester), Icons.dark_mode);
 
+      // Light → dark.
       await tester.tap(find.byKey(const ValueKey('agent-theme-toggle')));
       await tester.pumpAndSettle();
 
       expect(_bg(tester), TiqColors.dark.plane);
       expect(_toggleIcon(tester), Icons.light_mode);
+
+      // Dark → light: the toggle reads current state, so a second tap must
+      // return to light (an always-set-dark toggle would fail here).
+      await tester.tap(find.byKey(const ValueKey('agent-theme-toggle')));
+      await tester.pumpAndSettle();
+
+      expect(_bg(tester), TiqColors.light.plane);
+      expect(_toggleIcon(tester), Icons.dark_mode);
     });
   });
 

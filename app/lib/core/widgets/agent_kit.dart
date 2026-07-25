@@ -40,21 +40,22 @@ extension BannerLevelStyle on BannerLevel {
   /// In **light** the status tokens are mid-dark hues over near-white washes,
   /// and every one lands just short of AA as 13px text over its own 12% wash
   /// on the plane (good 4.39:1, warn 4.34:1, info 4.28:1) — the same shortfall
-  /// crit already carries. So in light the words deepen to the console's
-  /// status-text tints (the DeltaPill good/warn fg family, plus a matching
-  /// deepened blue for info), each validated ≥4.5:1 by the scaffold's contrast
-  /// guard. The dot and border keep the raw token. In **dark** the tokens are
-  /// bright over their dark washes and already clear AA, so the words stay on
-  /// the token — bad excepted, which takes the theme-aware [TiqColors.critText]
-  /// in both themes.
+  /// crit already carries. So in light the words deepen: good/warn to the
+  /// console's status-text tints (the DeltaPill good/warn fg family), and info
+  /// to [TiqColors.light.brandHover] (its darkened blue is the natural twin —
+  /// DeltaPill has no blue tone). Each is validated ≥4.5:1 by the scaffold's
+  /// contrast guard. The dot and border keep the raw token. In **dark** the
+  /// tokens are bright over their dark washes and already clear AA, so the
+  /// words stay on the token — bad excepted, which takes the theme-aware
+  /// [TiqColors.critText] in both themes.
   Color textColor(TiqColors colors, Brightness brightness) {
     if (this == BannerLevel.bad) return colors.critText;
     if (brightness == Brightness.light) {
       return switch (this) {
         BannerLevel.good => const Color(0xFF0B6B0B),
         BannerLevel.warn => const Color(0xFF8A5A00),
-        BannerLevel.info => const Color(0xFF0857C4),
-        BannerLevel.bad => colors.critText,
+        BannerLevel.info => TiqColors.light.brandHover, // == 0xFF0857C4
+        BannerLevel.bad => colors.critText, // unreachable — bad handled above
       };
     }
     return color(colors);
