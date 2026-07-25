@@ -142,6 +142,7 @@ describe('alerts routes', () => {
   afterAll(async () => {
     const ids = [clientId, otherClientId];
     await prisma.alert.deleteMany({ where: { clientId: { in: ids } } });
+    await prisma.photo.deleteMany({ where: { visit: { clientId: { in: ids } } } });
     await prisma.alertRule.deleteMany({ where: { clientId: { in: ids } } });
     await prisma.visitStock.deleteMany({ where: { visit: { clientId: { in: ids } } } });
     await prisma.visitPricing.deleteMany({ where: { visit: { clientId: { in: ids } } } });
@@ -382,6 +383,93 @@ describe('alerts routes', () => {
         .get('/alerts?limit=0')
         .set('Authorization', `Bearer ${managerToken}`);
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /alerts evidencePhotoId', () => {
+    let newestPhotoId: string;
+
+    beforeAll(async () => {
+      await prisma.photo.create({
+        data: {
+          visitId,
+          section: 'visibility',
+          url: 'data:image/jpeg;base64,alert-older-photo',
+          gpsTag: {},
+          timestamp: new Date(),
+          createdAt: new Date('2026-07-19T00:00:00.000Z'),
+        },
+      });
+      const newer = await prisma.photo.create({
+        data: {
+          visitId,
+          section: 'visibility',
+          url: 'data:image/jpeg;base64,alert-newer-photo',
+          gpsTag: {},
+          timestamp: new Date(),
+          createdAt: new Date('2026-07-21T00:00:00.000Z'),
+        },
+      });
+      newestPhotoId = newer.id;
+    });
+
+    it("lists the newest photo of an alert's visit as evidencePhotoId, null without a visit", async () => {
+      const res = await request(app).get('/alerts').set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+
+      const withVisit = res.body.data.filter(
+        (a: { visitId: string | null }) => a.visitId === visitId,
+      );
+      expect(withVisit.length).toBeGreaterThanOrEqual(3);
+      for (const alert of withVisit) {
+        expect(alert.evidencePhotoId).toBe(newestPhotoId);
+      }
+
+      const withoutVisit = res.body.data.filter(
+        (a: { visitId: string | null }) => a.visitId === null,
+      );
+      expect(withoutVisit.length).toBeGreaterThanOrEqual(3);
+      for (const alert of withoutVisit) {
+        expect(alert.evidencePhotoId).toBeNull();
+      }
+    });
+
+    it('keeps the createdAt-desc sort order unchanged', async () => {
+      const res = await request(app).get('/alerts').set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      const times = res.body.data.map((a: { createdAt: string }) =>
+        new Date(a.createdAt).getTime(),
+      );
+      expect(times).toEqual([...times].sort((a: number, b: number) => b - a));
+    });
+
+    it('keeps cursor behavior unchanged: pages do not gap or overlap', async () => {
+      const first = await request(app)
+        .get('/alerts?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).toBe(first.body.data[1].id);
+
+      const second = await request(app)
+        .get(`/alerts?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((a: { id: string }) => a.id);
+      const secondIds = second.body.data.map((a: { id: string }) => a.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+
+      // Both pages carry the new field, and stay createdAt-desc across the
+      // page boundary.
+      for (const alert of [...first.body.data, ...second.body.data]) {
+        expect(alert).toHaveProperty('evidencePhotoId');
+      }
+      const boundary = [...first.body.data, ...second.body.data].map(
+        (a: { createdAt: string }) => new Date(a.createdAt).getTime(),
+      );
+      expect(boundary).toEqual([...boundary].sort((a: number, b: number) => b - a));
     });
   });
 });

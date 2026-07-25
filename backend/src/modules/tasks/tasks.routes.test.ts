@@ -273,4 +273,90 @@ describe('tasks routes', () => {
     const patched = await request(app).patch(`/tasks/${taskId}`).send({ status: 'open' });
     expect(patched.status).toBe(401);
   });
+
+  describe('GET /tasks evidencePhotoId', () => {
+    let newestPhotoId: string;
+    let taskWithPhotosId: string;
+    let taskWithoutVisitId: string;
+    let taskPhotolessVisitId: string;
+
+    const makeVisit = () =>
+      prisma.visit.create({
+        data: {
+          outletId,
+          agentId,
+          clientId,
+          checkinTs: new Date(),
+          checkinLat: -26.2041,
+          checkinLng: 28.0473,
+          geofencePass: true,
+          status: 'in_progress',
+        },
+      });
+
+    beforeAll(async () => {
+      const visitWithPhotos = await makeVisit();
+      const photolessVisit = await makeVisit();
+
+      await prisma.photo.create({
+        data: {
+          visitId: visitWithPhotos.id,
+          section: 'visibility',
+          url: 'data:image/jpeg;base64,older-photo',
+          gpsTag: {},
+          timestamp: new Date(),
+          createdAt: new Date('2026-07-20T00:00:00.000Z'),
+        },
+      });
+      const newer = await prisma.photo.create({
+        data: {
+          visitId: visitWithPhotos.id,
+          section: 'visibility',
+          url: 'data:image/jpeg;base64,newer-photo',
+          gpsTag: {},
+          timestamp: new Date(),
+          createdAt: new Date('2026-07-21T00:00:00.000Z'),
+        },
+      });
+      newestPhotoId = newer.id;
+
+      const makeTask = (forVisitId?: string) =>
+        prisma.task.create({
+          data: {
+            visitId: forVisitId,
+            findingType: 'stockout',
+            outletId,
+            requiredFix: 'Restock',
+            priority: 'normal',
+            slaDueAt: new Date(),
+            ownerId: agentId,
+          },
+        });
+      taskWithPhotosId = (await makeTask(visitWithPhotos.id)).id;
+      taskWithoutVisitId = (await makeTask()).id;
+      taskPhotolessVisitId = (await makeTask(photolessVisit.id)).id;
+    });
+
+    it("lists the newest photo of a task's visit as evidencePhotoId", async () => {
+      const res = await request(app).get('/tasks').set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+
+      const row = res.body.find((t: { id: string }) => t.id === taskWithPhotosId);
+      expect(row).toBeDefined();
+      expect(row.evidencePhotoId).toBe(newestPhotoId);
+    });
+
+    it('lists null evidencePhotoId for tasks without a visit and for photoless visits', async () => {
+      const res = await request(app).get('/tasks').set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+
+      const noVisit = res.body.find((t: { id: string }) => t.id === taskWithoutVisitId);
+      expect(noVisit).toBeDefined();
+      expect(noVisit.evidencePhotoId).toBeNull();
+
+      const photoless = res.body.find((t: { id: string }) => t.id === taskPhotolessVisitId);
+      expect(photoless).toBeDefined();
+      expect(photoless.evidencePhotoId).toBeNull();
+    });
+  });
 });

@@ -1,8 +1,22 @@
 import request from 'supertest';
+import sharp from 'sharp';
 import { prisma } from '../../lib/prisma';
 import { app } from '../../app';
 import { issueToken } from '../auth/auth.service';
 import { foreignTenant, userIn } from '../../test-utils/tenants';
+import { thumbnailCacheProbe } from './thumbnails';
+
+// superagent leaves image bodies unparsed unless told otherwise — collect the
+// raw bytes so the tests can assert on the actual jpeg payload.
+const binaryParser = (
+  res: unknown,
+  callback: (err: Error | null, body: Buffer) => void,
+): void => {
+  const stream = res as unknown as NodeJS.ReadableStream;
+  const chunks: Buffer[] = [];
+  stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+  stream.on('end', () => callback(null, Buffer.concat(chunks)));
+};
 
 describe('photos routes', () => {
   let clientId: string;
@@ -185,5 +199,108 @@ describe('photos routes', () => {
   it('rejects a GET without a bearer token', async () => {
     const res = await request(app).get('/photos').query({ visitId });
     expect(res.status).toBe(401);
+  });
+
+  describe('GET /photos/:id/thumbnail', () => {
+    let fixturePhotoId: string;
+    let malformedPhotoId: string;
+
+    beforeAll(async () => {
+      // A real ~1MB jpeg: gaussian noise defeats jpeg compression, so a
+      // 2000px frame lands well above 500KB without shipping a binary fixture.
+      const jpeg = await sharp({
+        create: {
+          width: 2000,
+          height: 2000,
+          channels: 3,
+          background: { r: 128, g: 128, b: 128 },
+          noise: { type: 'gaussian', mean: 128, sigma: 50 },
+        },
+      })
+        .jpeg({ quality: 95 })
+        .toBuffer();
+      expect(jpeg.byteLength).toBeGreaterThan(500 * 1024);
+
+      const photo = await prisma.photo.create({
+        data: {
+          visitId,
+          section: 'visibility',
+          url: `data:image/jpeg;base64,${jpeg.toString('base64')}`,
+          gpsTag: { lat: -26.2041, lng: 28.0473 },
+          timestamp: new Date(),
+        },
+      });
+      fixturePhotoId = photo.id;
+
+      const malformed = await prisma.photo.create({
+        data: {
+          visitId,
+          section: 'visibility',
+          url: 'not-a-data-url',
+          gpsTag: { lat: -26.2041, lng: 28.0473 },
+          timestamp: new Date(),
+        },
+      });
+      malformedPhotoId = malformed.id;
+    });
+
+    it('serves a manager a small jpeg with cache headers (200)', async () => {
+      const res = await request(app)
+        .get(`/photos/${fixturePhotoId}/thumbnail`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .buffer(true)
+        .parse(binaryParser);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('image/jpeg');
+      expect(res.headers['cache-control']).toBe('private, max-age=86400, immutable');
+      const body = res.body as Buffer;
+      expect(Buffer.isBuffer(body)).toBe(true);
+      expect(body.byteLength).toBeGreaterThan(0);
+      expect(body.byteLength).toBeLessThan(60 * 1024);
+    });
+
+    it('serves a field agent the repeat request from the in-memory cache', async () => {
+      const before = thumbnailCacheProbe();
+      const res = await request(app)
+        .get(`/photos/${fixturePhotoId}/thumbnail`)
+        .set('Authorization', `Bearer ${agentToken}`)
+        .buffer(true)
+        .parse(binaryParser);
+
+      expect(res.status).toBe(200);
+      const after = thumbnailCacheProbe();
+      expect(after.hits).toBe(before.hits + 1);
+      expect(after.size).toBe(before.size);
+    });
+
+    it('returns 404 for an unknown photo id', async () => {
+      // visitId is a real uuid that is not a photo id.
+      const res = await request(app)
+        .get(`/photos/${visitId}/thumbnail`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 404 for another tenant's photo", async () => {
+      const otherToken = (await foreignTenant('manager')).token;
+      const res = await request(app)
+        .get(`/photos/${fixturePhotoId}/thumbnail`)
+        .set('Authorization', `Bearer ${otherToken}`);
+      expect(res.status).toBe(404);
+    });
+
+    it('rejects a request without a bearer token (401)', async () => {
+      const res = await request(app).get(`/photos/${fixturePhotoId}/thumbnail`);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 422 for a photo whose stored url is not a data URL', async () => {
+      const res = await request(app)
+        .get(`/photos/${malformedPhotoId}/thumbnail`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(422);
+      expect(typeof res.body.error).toBe('string');
+    });
   });
 });
