@@ -461,6 +461,80 @@ void main() {
     });
   });
 
+  group('WorklistRow narrow screen (#212)', () {
+    testWidgets(
+      'a thumb + status chip + when + wide action does not overflow at 360dp; '
+      'the action drops to its own line and still fires',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        var acted = false;
+        await tester.pumpWidget(
+          _themed(
+            _row(
+              title: 'Price deviation on a long finding title that fills width',
+              thumb: const ColoredBox(color: Colors.teal),
+              actions: [
+                RowAction(
+                  label: 'Close with photo',
+                  onPressed: () => acted = true,
+                ),
+              ],
+            ),
+          ),
+        );
+
+        // The bug (#212): a RenderFlex overflow was thrown during layout.
+        expect(tester.takeException(), isNull);
+
+        // The action is seated BELOW the status chip (stacked second line),
+        // not crammed beside it.
+        expect(
+          tester.getCenter(find.text('Close with photo')).dy >
+              tester.getCenter(find.byType(StatusChip)).dy,
+          isTrue,
+        );
+
+        await tester.tap(find.text('Close with photo'));
+        expect(acted, isTrue);
+      },
+    );
+
+    testWidgets(
+      'on a roomy surface (800dp) the same row keeps the action inline',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          _themed(
+            _row(
+              thumb: const ColoredBox(color: Colors.teal),
+              actions: [
+                RowAction(label: 'Close with photo', onPressed: () {}),
+              ],
+            ),
+          ),
+        );
+
+        expect(tester.takeException(), isNull);
+        // Inline: the action rides the chip's row, not a second line.
+        expect(
+          (tester.getCenter(find.text('Close with photo')).dy -
+                      tester.getCenter(find.byType(StatusChip)).dy)
+                  .abs() <
+              8,
+          isTrue,
+        );
+      },
+    );
+  });
+
   group('WorklistCascade', () {
     testWidgets('staggers each row by Motion.stagger * index', (tester) async {
       await tester.pumpWidget(

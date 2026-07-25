@@ -306,6 +306,20 @@ class _WorklistRowState extends State<WorklistRow> {
         : _hovered
         ? colors.surface2
         : Colors.transparent;
+    // Narrow phones cannot seat the pinned trailing slots (statusLabel 116,
+    // when 92) *and* an action button beside the title: at 360dp the fixed
+    // cluster out-measures the row, the Expanded title collapses to zero and
+    // the Row overflows (#212). Shrinking the pinned slots would either crush
+    // the priority word or un-anchor the trailing cluster on wide consoles
+    // (a loose Flexible leaves its unused share as a gap at the row's end),
+    // so instead the actions drop to their own end-aligned second line.
+    // MediaQuery rather than LayoutBuilder because the content lives inside
+    // the IntrinsicHeight that stretches the edge bar, and LayoutBuilder
+    // cannot answer intrinsics.
+    final stackActions =
+        widget.actions.isNotEmpty &&
+        (widget.statusLabel != null || widget.when != null) &&
+        MediaQuery.sizeOf(context).width < 480;
     final row = AnimatedContainer(
       duration: reduceMotion(context)
           ? Duration.zero
@@ -326,69 +340,77 @@ class _WorklistRowState extends State<WorklistRow> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (widget.thumb != null)
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 10),
-                        child: ClipRRect(
-                          key: const ValueKey('worklist-thumb'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: widget.thumb,
-                          ),
-                        ),
-                      ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            widget.title,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: resolved
-                                  ? FontWeight.w400
-                                  : FontWeight.w500,
-                              color: colors.ink1,
+                child: _StackableContent(
+                  stacked: stackActions,
+                  actions: widget.actions,
+                  content: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (widget.thumb != null)
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 10),
+                          child: ClipRRect(
+                            key: const ValueKey('worklist-thumb'),
+                            borderRadius: BorderRadius.circular(8),
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: widget.thumb,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          DefaultTextStyle(
+                        ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.title,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: resolved
+                                    ? FontWeight.w400
+                                    : FontWeight.w500,
+                                color: colors.ink1,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            DefaultTextStyle(
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: colors.ink3,
+                              ),
+                              child: widget.meta,
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Channels 2 + 3: the mark and the word.
+                      if (widget.statusLabel != null)
+                        SizedBox(
+                          width: 116,
+                          child: StatusChip(
+                            label: widget.statusLabel!,
+                            level: resolved
+                                ? StatusLevel.neutral
+                                : widget.level,
+                          ),
+                        ),
+                      if (widget.when != null)
+                        SizedBox(
+                          width: 92,
+                          child: Text(
+                            widget.when!,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 11.5,
                               color: colors.ink3,
                             ),
-                            child: widget.meta,
                           ),
-                        ],
-                      ),
-                    ),
-                    // Channels 2 + 3: the mark and the word.
-                    if (widget.statusLabel != null)
-                      SizedBox(
-                        width: 116,
-                        child: StatusChip(
-                          label: widget.statusLabel!,
-                          level: resolved ? StatusLevel.neutral : widget.level,
                         ),
-                      ),
-                    if (widget.when != null)
-                      SizedBox(
-                        width: 92,
-                        child: Text(
-                          widget.when!,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11.5, color: colors.ink3),
-                        ),
-                      ),
-                    ...widget.actions,
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -435,6 +457,42 @@ class _WorklistRowState extends State<WorklistRow> {
           child: body,
         ),
       ),
+    );
+  }
+}
+
+/// Seats a [WorklistRow]'s actions: inline after [content] on roomy layouts
+/// (the trailing cluster stays right-anchored, exactly as before), or — when
+/// [stacked] — on their own end-aligned line beneath it, for narrow phones
+/// where the pinned status/when slots leave the title no width (#212).
+class _StackableContent extends StatelessWidget {
+  const _StackableContent({
+    required this.stacked,
+    required this.content,
+    required this.actions,
+  });
+
+  final bool stacked;
+  final Widget content;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!stacked) {
+      return Row(
+        children: [
+          Expanded(child: content),
+          ...actions,
+        ],
+      );
+    }
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        content,
+        const SizedBox(height: 6),
+        Row(mainAxisAlignment: MainAxisAlignment.end, children: actions),
+      ],
     );
   }
 }
