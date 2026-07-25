@@ -9,6 +9,7 @@ import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 const _khumalo = Outlet(
@@ -188,15 +189,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Route done'), findsOneWidget);
-    // The word rides on a good-family wash — meaning in words AND colour.
+    // The word rides on the house good/positive wash — meaning in words AND
+    // colour, and a fixed self-contained pair (DeltaPill's good tone) rather
+    // than a self-tint that cannot clear AA. Contrast itself is pinned by the
+    // AA test below.
     final pill = find.ancestor(
       of: find.text('Route done'),
       matching: find.byWidgetPredicate(
         (w) =>
             w is Container &&
             w.decoration is BoxDecoration &&
-            (w.decoration! as BoxDecoration).color ==
-                TiqColors.light.good.withValues(alpha: 0.14),
+            (w.decoration! as BoxDecoration).color == const Color(0xFFE7F5E7),
       ),
     );
     expect(pill, findsOneWidget);
@@ -222,4 +225,68 @@ void main() {
     expect(find.text('DONE'), findsOneWidget);
     expect(find.text('NEXT'), findsOneWidget);
   });
+
+  // The wash/text of the pill labelled [label], read off the rendered tree —
+  // so a regression to a self-tint (translucent token over its own token,
+  // ratio ≈ 1:1) fails here rather than being papered over by a copied const.
+  (Color bg, Color fg) pillColours(WidgetTester tester, String label) {
+    final text = find.text(label);
+    expect(text, findsOneWidget);
+    final container = find
+        .ancestor(
+          of: text,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration! as BoxDecoration).color != null,
+          ),
+        )
+        .first;
+    final bg =
+        (tester.widget<Container>(container).decoration! as BoxDecoration)
+            .color!;
+    final fg = tester.widget<Text>(text).style!.color!;
+    return (bg, fg);
+  }
+
+  // Never-colour-alone (the word) and the AA contrast floor are INDEPENDENT
+  // rules — spec §Screens 1 requires every new pill's text to clear 4.5:1 on
+  // its own ground in BOTH themes. The complete-state pill now carries an
+  // opaque wash, so its own background IS the text's real ground (no gradient
+  // compositing to reason about).
+  void expectAA(WidgetTester tester, String label, String name) {
+    final (bg, fg) = pillColours(tester, label);
+    final ratio = contrastRatio(fg, bg);
+    expect(
+      ratio,
+      greaterThanOrEqualTo(4.5),
+      reason: '$label ($name) is $ratio:1 on its wash',
+    );
+  }
+
+  for (final (name, theme) in [
+    ('light', AppTheme.light()),
+    ('dark', AppTheme.dark()),
+  ]) {
+    testWidgets('the in-progress Today pills clear AA — $name', (tester) async {
+      await tester.pumpWidget(_app(_route(), theme: theme));
+      await tester.pumpAndSettle();
+
+      for (final label in ['DONE', 'NEXT', '1 left']) {
+        expectAA(tester, label, name);
+      }
+    });
+
+    testWidgets('the complete "Route done" pill clears AA — $name', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_route(complete: true), theme: theme));
+      await tester.pumpAndSettle();
+
+      // The pill's own opaque wash IS the text's ground — no gradient below it
+      // to composite through.
+      expectAA(tester, 'Route done', name);
+    });
+  }
 }

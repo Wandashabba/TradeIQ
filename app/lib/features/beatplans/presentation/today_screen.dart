@@ -222,8 +222,17 @@ class _GlassHero extends StatelessWidget {
   }
 }
 
-/// "N left" / "Route done" — a word on a wash, never colour alone. The good
-/// wash lands the moment the day is done; before that it is a neutral chip.
+/// The house "done / positive" pill pair — DeltaPill's good tone. Fixed hexes,
+/// not theme slots: a status verdict reads the same in both themes, and the
+/// pair is self-contained (a self-tint — the token over its own 14% wash —
+/// tops out near 1:1 and cannot clear AA; this pair clears 4.5:1 on its own
+/// wash in light and dark). Kept in sync with delta_pill.dart's DeltaTone.good.
+const _goodPillBg = Color(0xFFE7F5E7);
+const _goodPillFg = Color(0xFF0B6B0B);
+
+/// "N left" / "Route done" — a word on a wash, never colour alone AND never
+/// below the AA floor. Complete takes the fixed good pair; before that it is a
+/// neutral chip (ink2 on surface2, comfortably AA in both themes).
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.label, required this.complete});
 
@@ -236,7 +245,7 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: complete ? colors.good.withValues(alpha: 0.14) : colors.surface2,
+        color: complete ? _goodPillBg : colors.surface2,
         borderRadius: BorderRadius.circular(AppColors.radiusPill),
       ),
       child: Text(
@@ -244,7 +253,7 @@ class _StatusPill extends StatelessWidget {
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w600,
-          color: complete ? colors.good : colors.ink2,
+          color: complete ? _goodPillFg : colors.ink2,
         ),
       ),
     );
@@ -405,10 +414,20 @@ class _StopCard extends StatelessWidget {
                               if (done || isNext)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
-                                  child: _StateTag(
-                                    label: done ? 'DONE' : 'NEXT',
-                                    color: done ? colors.good : colors.brand,
-                                  ),
+                                  // DONE takes the fixed good pair; NEXT the
+                                  // console's active-chip pattern (white on the
+                                  // solid brand) — both AA-clear, theme-constant.
+                                  child: done
+                                      ? const _StateTag(
+                                          label: 'DONE',
+                                          bg: _goodPillBg,
+                                          fg: _goodPillFg,
+                                        )
+                                      : _StateTag(
+                                          label: 'NEXT',
+                                          bg: colors.brand,
+                                          fg: Colors.white,
+                                        ),
                                 ),
                             ],
                           ),
@@ -426,20 +445,22 @@ class _StopCard extends StatelessWidget {
   }
 }
 
-/// A DONE/NEXT tag — the word on its state wash. The visited card also carries
-/// the ✓ glyph in its sequence slot, so state never rides on colour alone.
+/// A DONE/NEXT tag — the word on a fixed, AA-clear wash/text pair (never a
+/// self-tint). The visited card also carries the ✓ glyph in its sequence slot,
+/// so state never rides on colour alone.
 class _StateTag extends StatelessWidget {
-  const _StateTag({required this.label, required this.color});
+  const _StateTag({required this.label, required this.bg, required this.fg});
 
   final String label;
-  final Color color;
+  final Color bg;
+  final Color fg;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: bg,
         borderRadius: BorderRadius.circular(AppColors.radiusPill),
       ),
       child: Text(
@@ -448,7 +469,7 @@ class _StateTag extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
-          color: color,
+          color: fg,
         ),
       ),
     );
