@@ -102,6 +102,9 @@ void main() {
 
     final bar = barDecoration(tester);
     expect(bar.color, const Color(0xEB12151C)); // rgba(18,21,28,.92)
+    // Semantic floor, not just a hex pin: a mostly-transparent bar would let
+    // scrolling content wash out the labels — the frost stays ≥90% opaque.
+    expect(bar.color!.a, greaterThanOrEqualTo(0.9));
     expect((bar.border as Border?)?.top.color, const Color(0xFF262B33));
 
     final pill = tester.widget<Container>(
@@ -143,15 +146,16 @@ void main() {
       reason: 'active label on the active pill is 10.5px text — AA is 4.5:1',
     );
 
-    // The bar fill is 92% alpha over whatever scrolls beneath; composite it
-    // over the darkest ground it can meet (the plane) before measuring.
+    // The bar fill is 92% alpha over whatever scrolls beneath. For a LIGHT
+    // ink the worst case is the LIGHTEST ground it can meet — composite over
+    // surface3 (the palest real dark surface) before measuring.
     final inactiveInk = tester.widget<Text>(find.text('Tasks')).style!.color!;
-    final barOnPlane = Color.alphaBlend(
+    final barOnSurface3 = Color.alphaBlend(
       barDecoration(tester).color!,
-      TiqColors.dark.plane,
+      TiqColors.dark.surface3,
     );
     expect(
-      contrastRatio(inactiveInk, barOnPlane),
+      contrastRatio(inactiveInk, barOnSurface3),
       greaterThanOrEqualTo(4.5),
       reason: 'inactive labels are 10.5px text on the frosted bar',
     );

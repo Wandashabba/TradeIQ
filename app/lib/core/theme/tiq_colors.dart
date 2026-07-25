@@ -122,8 +122,9 @@ class TiqColors extends ThemeExtension<TiqColors> {
   final Color navBarLine;
 
   /// Inactive slot icon + label. 10.5px text, so ≥4.5:1 on [navBarBg]
-  /// composited over [plane] — bottom_nav_bar_test.dart measures the
-  /// rendered pair.
+  /// composited over [surface3] — for a light ink over a translucent bar the
+  /// worst case is the LIGHTEST ground it can meet, and surface3 is dark's
+  /// palest — bottom_nav_bar_test.dart measures the rendered pair.
   final Color navInactiveInk;
 
   /// The sliding active pill's fill.
@@ -163,7 +164,7 @@ class TiqColors extends ThemeExtension<TiqColors> {
     heroBorder: Color(0xFF22304A),
     navBarBg: Color(0xEB12151C), // rgba(18,21,28,.92)
     navBarLine: Color(0xFF262B33),
-    navInactiveInk: Color(0xFF8A94A6), // 5.9:1 on the bar over plane
+    navInactiveInk: Color(0xFF8A94A6), // 5.9:1 on the bar over surface3
     navActivePillBg: Color(0xFF12305C),
     navActiveInk: Color(0xFF6DB4FF), // 6.0:1 on the pill
   );
