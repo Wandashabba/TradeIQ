@@ -12,6 +12,7 @@ class AlertItem {
     required this.acknowledged,
     this.visitId,
     this.outletId,
+    this.evidencePhotoId,
   });
   final String id;
   final String metric;
@@ -21,19 +22,28 @@ class AlertItem {
   final String? visitId;
   final String? outletId;
 
+  /// The newest photo of the linked visit (batched server-side), or null when
+  /// the alert has no visit or the visit has no photos. Null means the row
+  /// shows no thumbnail — never a placeholder (the thumbnail IS the evidence).
+  final String? evidencePhotoId;
+
   factory AlertItem.fromJson(Map<String, dynamic> json) => AlertItem(
-        id: json['id'] as String,
-        metric: json['metric'] as String,
-        message: json['message'] as String,
-        severity: json['severity'] as String,
-        acknowledged: json['acknowledged'] as bool? ?? false,
-        visitId: json['visitId'] as String?,
-        outletId: json['outletId'] as String?,
-      );
+    id: json['id'] as String,
+    metric: json['metric'] as String,
+    message: json['message'] as String,
+    severity: json['severity'] as String,
+    acknowledged: json['acknowledged'] as bool? ?? false,
+    visitId: json['visitId'] as String?,
+    outletId: json['outletId'] as String?,
+    evidencePhotoId: json['evidencePhotoId'] as String?,
+  );
 }
 
 abstract class AlertsRepository {
-  Future<PaginatedResponse<AlertItem>> listAlerts({bool? acknowledged, String? severity});
+  Future<PaginatedResponse<AlertItem>> listAlerts({
+    bool? acknowledged,
+    String? severity,
+  });
   Future<AlertItem> acknowledge(String id);
 }
 
@@ -44,7 +54,9 @@ class DioAlertsRepository implements AlertsRepository {
     String? severity,
   }) async {
     final query = <String, dynamic>{};
-    if (acknowledged != null) query['acknowledged'] = acknowledged ? 'true' : 'false';
+    if (acknowledged != null) {
+      query['acknowledged'] = acknowledged ? 'true' : 'false';
+    }
     if (severity != null) query['severity'] = severity;
     final response = await dio.get('/alerts', queryParameters: query);
     return PaginatedResponse<AlertItem>.fromJson(
@@ -60,8 +72,9 @@ class DioAlertsRepository implements AlertsRepository {
   }
 }
 
-final alertsRepositoryProvider =
-    Provider<AlertsRepository>((ref) => DioAlertsRepository());
+final alertsRepositoryProvider = Provider<AlertsRepository>(
+  (ref) => DioAlertsRepository(),
+);
 
 // The provider exposes the FIRST PAGE as a plain list: the "Needs attention"
 // panel wants the most recent alerts, not the whole history, and "load more"
@@ -76,7 +89,11 @@ final alertsListProvider = FutureProvider<List<AlertItem>>((ref) async {
 /// The metrics an [AlertRule] may target. This mirrors the backend's runtime
 /// allow-list (`ALERT_METRICS` in alerts.service.ts) exactly — POST /alerts/rules
 /// rejects anything else with a 400, so the UI must never offer a fourth.
-const alertRuleMetrics = <String>['out_of_stock', 'price_deviation', 'low_scorecard'];
+const alertRuleMetrics = <String>[
+  'out_of_stock',
+  'price_deviation',
+  'low_scorecard',
+];
 
 /// One configured rule returned by GET /alerts/rules.
 ///
@@ -101,15 +118,15 @@ class AlertRule {
   final double? threshold;
 
   factory AlertRule.fromJson(Map<String, dynamic> json) => AlertRule(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        metric: json['metric'] as String,
-        // The column defaults to 'normal' server-side; the guard is for a rule
-        // written before the default existed.
-        severity: json['severity'] as String? ?? 'normal',
-        active: json['active'] as bool? ?? true,
-        threshold: (json['threshold'] as num?)?.toDouble(),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    metric: json['metric'] as String,
+    // The column defaults to 'normal' server-side; the guard is for a rule
+    // written before the default existed.
+    severity: json['severity'] as String? ?? 'normal',
+    active: json['active'] as bool? ?? true,
+    threshold: (json['threshold'] as num?)?.toDouble(),
+  );
 }
 
 abstract class AlertRulesRepository {
@@ -173,8 +190,9 @@ class DioAlertRulesRepository implements AlertRulesRepository {
   }
 }
 
-final alertRulesRepositoryProvider =
-    Provider<AlertRulesRepository>((ref) => DioAlertRulesRepository());
+final alertRulesRepositoryProvider = Provider<AlertRulesRepository>(
+  (ref) => DioAlertRulesRepository(),
+);
 
 /// GET /alerts/rules returns newest-first, and the evaluator lets the newest
 /// active rule per metric win. The screen relies on that order, so nothing here

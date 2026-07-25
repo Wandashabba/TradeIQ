@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
 import { buildPage } from '../../lib/pagination';
+import { attachEvidencePhotoIds } from '../photos/photos.service';
 
 // The fixed set of metrics an AlertRule may target. Kept in one place so the
 // route validation and the evaluator agree on what's supported.
@@ -214,7 +215,11 @@ export async function listAlerts(input: ListAlertsInput) {
     take: input.limit + 1,
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
-  return buildPage(rows, input.limit);
+  const page = buildPage(rows, input.limit);
+  // evidencePhotoId (newest photo of the linked visit) — one batched query,
+  // AFTER buildPage so the dropped probe row costs nothing and the cursor
+  // (last kept row's id) is untouched.
+  return { data: await attachEvidencePhotoIds(page.data), nextCursor: page.nextCursor };
 }
 
 export async function acknowledgeAlert(alertId: string, clientId: string) {

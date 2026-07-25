@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { computeSlaDueAt, TaskPriority } from '../../lib/slaClock';
+import { attachEvidencePhotoIds } from '../photos/photos.service';
 
 export type TaskStatusInput = 'open' | 'in_progress' | 'closed';
 
@@ -69,7 +70,7 @@ export interface ListTasksInput {
 }
 
 export async function listTasks(input: ListTasksInput) {
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
     where: {
       // Tasks carry no clientId of their own — tenant scope goes through the
       // outlet relation.
@@ -80,6 +81,8 @@ export async function listTasks(input: ListTasksInput) {
     },
     orderBy: { slaDueAt: 'asc' },
   });
+  // evidencePhotoId (newest photo of the linked visit) — one batched query.
+  return attachEvidencePhotoIds(tasks);
 }
 
 export async function findTaskForClient(taskId: string, clientId: string) {

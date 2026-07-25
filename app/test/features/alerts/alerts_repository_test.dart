@@ -41,6 +41,7 @@ void main() {
       'acknowledged': true,
       'visitId': 'v1',
       'outletId': 'o1',
+      'evidencePhotoId': 'p1',
     });
 
     expect(alert.id, 'a1');
@@ -50,6 +51,7 @@ void main() {
     expect(alert.acknowledged, true);
     expect(alert.visitId, 'v1');
     expect(alert.outletId, 'o1');
+    expect(alert.evidencePhotoId, 'p1');
   });
 
   test('AlertItem.fromJson defaults acknowledged to false when missing', () {
@@ -63,6 +65,9 @@ void main() {
     expect(alert.acknowledged, false);
     expect(alert.visitId, isNull);
     expect(alert.outletId, isNull);
+    // The other arm of the evidencePhotoId parse: a photoless (or visitless)
+    // alert stays null — the row must then show no thumb at all.
+    expect(alert.evidencePhotoId, isNull);
   });
 
   test('AlertRule.fromJson parses a full payload', () {
@@ -129,7 +134,11 @@ void main() {
   test('alertRuleMetrics mirrors the backend allow-list exactly', () {
     // POST /alerts/rules 400s on anything outside this set (ALERT_METRICS in
     // alerts.service.ts), so the UI must never offer a metric that is not here.
-    expect(alertRuleMetrics, ['out_of_stock', 'price_deviation', 'low_scorecard']);
+    expect(alertRuleMetrics, [
+      'out_of_stock',
+      'price_deviation',
+      'low_scorecard',
+    ]);
   });
 
   group('DioAlertsRepository.listAlerts', () {
@@ -143,20 +152,22 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
-        () async {
-      dio.httpClientAdapter = _RecordingAdapter(
-        '{"data": [{"id": "a1", "metric": "stock", "message": "x", '
-        '"severity": "warning", "acknowledged": false}], '
-        '"nextCursor": "cursor-1"}',
-      );
+    test(
+      'parses the {data, nextCursor} envelope into a PaginatedResponse',
+      () async {
+        dio.httpClientAdapter = _RecordingAdapter(
+          '{"data": [{"id": "a1", "metric": "stock", "message": "x", '
+          '"severity": "warning", "acknowledged": false}], '
+          '"nextCursor": "cursor-1"}',
+        );
 
-      final page = await DioAlertsRepository().listAlerts();
+        final page = await DioAlertsRepository().listAlerts();
 
-      expect(page, isA<PaginatedResponse<AlertItem>>());
-      expect(page.data, hasLength(1));
-      expect(page.data.first.id, 'a1');
-      expect(page.nextCursor, 'cursor-1');
-    });
+        expect(page, isA<PaginatedResponse<AlertItem>>());
+        expect(page.data, hasLength(1));
+        expect(page.data.first.id, 'a1');
+        expect(page.nextCursor, 'cursor-1');
+      },
+    );
   });
 }
