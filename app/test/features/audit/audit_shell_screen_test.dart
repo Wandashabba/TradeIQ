@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,14 +9,18 @@ import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/audit/data/visit_review.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
+import 'package:tradeiq_app/core/widgets/agent_motion.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 class _FakeOutletsRepository implements OutletsRepository {
@@ -130,12 +136,24 @@ List<Override> _overrides(
   ),
 ];
 
-Widget _appWith(VisitsRepository visitsRepository, LocalDb db) {
+Widget _appWith(
+  VisitsRepository visitsRepository,
+  LocalDb db, {
+  VisitProgress progress = _nothingDone,
+  ThemeData? theme,
+}) {
   return routedApp(
     const AuditShellScreen(outletId: 'o1'),
-    overrides: _overrides(visitsRepository, db),
+    overrides: _overrides(visitsRepository, db, progress: progress),
+    theme: theme,
   );
 }
+
+/// Both themes, each with the palette its assertions read against.
+const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.dark)];
+
+ThemeData _themeFor(String name) =>
+    name == 'light' ? AppTheme.light() : AppTheme.dark();
 
 LocalDb _testDb() {
   final db = LocalDb(NativeDatabase.memory());
@@ -316,4 +334,252 @@ void main() {
       expect(second, first);
     },
   );
+
+  // ── Premium restyle (sub5b1 Task 2) ─────────────────────────────────────
+
+  testWidgets(
+    'the progress panel is a glass hero with a big count and status pill',
+    (tester) async {
+      for (final (name, palette) in _bothThemes) {
+        await tester.pumpWidget(
+          _appWith(
+            _SucceedingVisitsRepository(),
+            _testDb(),
+            progress: _readyToSubmit,
+            theme: _themeFor(name),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Glass hero: the console's washed-panel recipe — a heroWash→surface1
+        // gradient under a heroBorder hairline, not a flat surface1 card.
+        final hero = tester.widget<Container>(
+          find
+              .ancestor(
+                of: find.byKey(const ValueKey('visit-progress')),
+                matching: find.byWidgetPredicate(
+                  (w) =>
+                      w is Container &&
+                      w.decoration is BoxDecoration &&
+                      (w.decoration! as BoxDecoration).gradient != null,
+                ),
+              )
+              .first,
+        );
+        final deco = hero.decoration! as BoxDecoration;
+        final grad = deco.gradient! as LinearGradient;
+        expect(grad.colors, [
+          palette.heroWash,
+          palette.surface1,
+        ], reason: '$name hero gradient');
+        expect(
+          (deco.border! as Border).top.color,
+          palette.heroBorder,
+          reason: '$name hero border',
+        );
+
+        // The count is the biggest thing in the panel — 30–32px ink1.
+        final count = tester.widget<AnimatedCount>(find.byType(AnimatedCount));
+        expect(count.value, 4, reason: '$name four sections done');
+        expect(
+          count.style.fontSize,
+          inInclusiveRange(30, 32),
+          reason: '$name count size',
+        );
+        expect(count.style.color, palette.ink1, reason: '$name count colour');
+
+        // Unblocked → a good-wash status pill carrying the WORDS, clearing AA
+        // (the good token over its own wash is a self-tint that must still
+        // pass 4.5:1 — the recurring lesson).
+        final pillText = tester.widget<Text>(find.text('Ready to submit'));
+        expect(pillText.style!.color, palette.good, reason: '$name pill text');
+        final pillBg =
+            (tester
+                        .widget<Container>(
+                          find
+                              .ancestor(
+                                of: find.text('Ready to submit'),
+                                matching: find.byWidgetPredicate(
+                                  (w) =>
+                                      w is Container &&
+                                      w.decoration is BoxDecoration &&
+                                      (w.decoration! as BoxDecoration).color !=
+                                          null,
+                                ),
+                              )
+                              .first,
+                        )
+                        .decoration!
+                    as BoxDecoration)
+                .color!;
+        expect(
+          contrastRatio(palette.good, pillBg),
+          greaterThanOrEqualTo(4.5),
+          reason: '$name good pill AA',
+        );
+      }
+    },
+  );
+
+  testWidgets('a blocked visit says how many sections are still required', (
+    tester,
+  ) async {
+    for (final (name, palette) in _bothThemes) {
+      await tester.pumpWidget(
+        _appWith(
+          _SucceedingVisitsRepository(),
+          _testDb(),
+          theme: _themeFor(name),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The four scored sections are required; none are done in the default
+      // state, so the pill counts them in words — never colour alone.
+      final pill = tester.widget<Text>(find.text('4 still required'));
+      expect(pill.style!.color, palette.ink3, reason: '$name blocked pill');
+    }
+  });
+
+  testWidgets('the checked-in arrival keeps the "In store" honesty subtitle', (
+    tester,
+  ) async {
+    for (final (name, _) in _bothThemes) {
+      await tester.pumpWidget(
+        _appWith(
+          _SucceedingVisitsRepository(),
+          _testDb(),
+          theme: _themeFor(name),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check-in success stays visible two ways: the dwell subtitle, and the
+      // hub itself being legible (a section is on screen). Neither is removed.
+      expect(
+        find.textContaining('In store'),
+        findsOneWidget,
+        reason: '$name dwell subtitle',
+      );
+      expect(
+        find.text('Stock & availability'),
+        findsOneWidget,
+        reason: '$name hub visible',
+      );
+    }
+  });
+
+  testWidgets(
+    'section rows carry a state mark + word, and REQUIRED pills clear AA',
+    (tester) async {
+      for (final (name, palette) in _bothThemes) {
+        await tester.pumpWidget(
+          _appWith(
+            _SucceedingVisitsRepository(),
+            _testDb(),
+            theme: _themeFor(name),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // The row is a console row: the section name in words, plus a status
+        // line ("Not started") — the state never rides on colour alone.
+        expect(find.byKey(const ValueKey('section-stock')), findsOneWidget);
+        expect(find.text('Stock & availability'), findsOneWidget);
+        expect(find.text('Not started'), findsWidgets);
+
+        // The REQUIRED-to-submit pill carries the words in critText on a crit
+        // wash — a raw crit-on-crit self-tint fails AA in dark, critText clears.
+        final req = tester.widget<Text>(find.text('REQUIRED TO SUBMIT').first);
+        expect(
+          req.style!.color,
+          palette.critText,
+          reason: '$name required pill text',
+        );
+        final reqBg =
+            (tester
+                        .widget<Container>(
+                          find
+                              .ancestor(
+                                of: find.text('REQUIRED TO SUBMIT').first,
+                                matching: find.byWidgetPredicate(
+                                  (w) =>
+                                      w is Container &&
+                                      w.decoration is BoxDecoration &&
+                                      (w.decoration! as BoxDecoration).color !=
+                                          null,
+                                ),
+                              )
+                              .first,
+                        )
+                        .decoration!
+                    as BoxDecoration)
+                .color!;
+        expect(
+          contrastRatio(palette.critText, reqBg),
+          greaterThanOrEqualTo(4.5),
+          reason: '$name required pill AA',
+        );
+      }
+    },
+  );
+
+  testWidgets(
+    'the too-far screen keeps the distance + fraud note, theme-aware',
+    (tester) async {
+      for (final (name, palette) in _bothThemes) {
+        await tester.pumpWidget(
+          _appWith(
+            _GeofenceFailingVisitsRepository(),
+            _testDb(),
+            theme: _themeFor(name),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // The measured distance against the threshold, and the fraud-signal
+        // note, are both honesty signals that must survive the restyle.
+        expect(find.byKey(const ValueKey('checkin-distance')), findsOneWidget);
+        expect(
+          find.textContaining('650 m away'),
+          findsOneWidget,
+          reason: '$name distance copy',
+        );
+        expect(
+          find.textContaining('fraud signal'),
+          findsOneWidget,
+          reason: '$name fraud note',
+        );
+
+        // The distance pill reads in critText on a crit wash, clearing AA.
+        final dist = tester.widget<Text>(find.textContaining('650 m away'));
+        expect(
+          dist.style!.color,
+          palette.critText,
+          reason: '$name distance text',
+        );
+        final pill = tester.widget<Container>(
+          find.byKey(const ValueKey('checkin-distance')),
+        );
+        final bg = (pill.decoration! as BoxDecoration).color!;
+        expect(
+          contrastRatio(palette.critText, bg),
+          greaterThanOrEqualTo(4.5),
+          reason: '$name distance pill AA',
+        );
+      }
+    },
+  );
+
+  test('no non-geometry AppColors. remain in the hub source', () {
+    // Geometry (radii) stays on AppColors; every colour must read from the
+    // ambient theme via context.colors, so both themes render.
+    final src = File(
+      'lib/features/audit/presentation/audit_shell_screen.dart',
+    ).readAsStringSync();
+    final offenders = RegExp(
+      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
+    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
+    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
+  });
 }
