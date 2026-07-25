@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_service.dart';
@@ -91,6 +92,55 @@ void main() {
         expect(adapter.requests, hasLength(2));
       },
     );
+
+    test('the thumbnail cache is LRU-bounded at 200 — a hit survives eviction, '
+        'the least-recent entry does not', () async {
+      final adapter = _ThumbAdapter();
+      final repo = DioPhotosRepository(client: client(adapter));
+
+      // Fill to the cap, then touch p0 so it is the most recently used.
+      for (var i = 0; i < 200; i++) {
+        await repo.thumbnailBytes('p$i');
+      }
+      await repo.thumbnailBytes('p0'); // hit — no request
+      expect(adapter.requests, hasLength(200));
+
+      // One past the cap evicts the LEAST recent — p1, not the
+      // freshly-touched p0.
+      await repo.thumbnailBytes('p200');
+      expect(adapter.requests, hasLength(201));
+
+      await repo.thumbnailBytes('p0'); // survived the eviction
+      expect(adapter.requests, hasLength(201));
+
+      await repo.thumbnailBytes('p1'); // evicted → a real refetch
+      expect(adapter.requests, hasLength(202));
+    });
+  });
+
+  test('thumbnailBytesProvider is autoDispose — the repo map, not the provider '
+      'element, is the survivor cache', () async {
+    final repo = _CountingPhotosRepository();
+    final container = ProviderContainer(
+      overrides: [photosRepositoryProvider.overrideWithValue(repo)],
+    );
+    addTearDown(container.dispose);
+
+    final sub = container.listen(thumbnailBytesProvider('p1'), (_, _) {});
+    await container.read(thumbnailBytesProvider('p1').future);
+    expect(repo.calls, 1);
+
+    sub.close();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    await container.read(thumbnailBytesProvider('p1').future);
+    expect(
+      repo.calls,
+      2,
+      reason:
+          'a released provider element must not retain bytes — the '
+          'repository LRU is the one bounded cache',
+    );
   });
 
   group('DriftQueuedPhotosRepository', () {
@@ -150,6 +200,30 @@ void main() {
 class _ThrowingFlusher implements QueueFlusher {
   @override
   Future<void> flush(SyncQueueItem item) async => throw Exception('offline');
+}
+
+/// Counts thumbnail fetches — for pinning that the provider element itself
+/// holds no second cache.
+class _CountingPhotosRepository implements PhotosRepository {
+  int calls = 0;
+
+  @override
+  Future<Uint8List> thumbnailBytes(String photoId) async {
+    calls++;
+    return Uint8List.fromList([1]);
+  }
+
+  @override
+  Future<List<VisitPhoto>> listPhotos(String visitId) async => const [];
+
+  @override
+  Future<PhotoUploadResult> uploadPhoto({
+    required String visitId,
+    required String section,
+    required String dataUrl,
+    required Map<String, dynamic> gpsTag,
+    required String timestamp,
+  }) async => throw UnimplementedError();
 }
 
 /// Serves GET /photos (a two-row visit, newest first, as the backend orders

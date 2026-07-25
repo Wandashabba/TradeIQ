@@ -46,6 +46,22 @@ class SlaPill extends StatelessWidget {
   static const _amberWash = (Color(0xFFFDF3E2), Color(0xFF8A5A00));
   static const _redWash = (Color(0xFFFDEEEE), Color(0xFFA52A2A));
 
+  /// Whole calendar days from [from]'s day to [to]'s day.
+  ///
+  /// Both days are reconstructed at UTC midnight before subtracting: local
+  /// midnights are 23h or 25h apart across a DST transition, and
+  /// `Duration.inDays` floors a 23h day to 0 — which would label a
+  /// tomorrow-due task "DUE TODAY" on every European spring-forward. In UTC
+  /// every day is exactly 24h by construction, so the diff is exact in any
+  /// zone. Inputs must already be local projections; only their calendar
+  /// fields are read.
+  @visibleForTesting
+  static int calendarDayDiff(DateTime from, DateTime to) => DateTime.utc(
+    to.year,
+    to.month,
+    to.day,
+  ).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
+
   (String, Color, Color) _resolve(TiqColors colors) {
     if (done) return ('✓ DONE', _greenWash.$1, _greenWash.$2);
 
@@ -64,9 +80,7 @@ class SlaPill extends StatelessWidget {
 
     // Calendar distance, not elapsed hours: "due tomorrow morning" is one day
     // out even when it is 20 hours away.
-    final today = DateTime(now.year, now.month, now.day);
-    final dueDay = DateTime(due.year, due.month, due.day);
-    final dayDiff = dueDay.difference(today).inDays;
+    final dayDiff = calendarDayDiff(now, due);
 
     if (dayDiff == 0) return ('DUE TODAY', _amberWash.$1, _amberWash.$2);
     if (dayDiff < 7) {

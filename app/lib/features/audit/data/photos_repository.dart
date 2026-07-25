@@ -69,12 +69,20 @@ class DioPhotosRepository implements PhotosRepository {
 
   final Dio _client;
 
-  /// Thumbnails by photo id. Photos are immutable (never edited in place —
-  /// the backend serves them `immutable`), so a fetched thumbnail is good for
-  /// the life of the repository, which the provider keeps for the session.
-  /// This survives widget rebuilds AND provider invalidations — a tasks
-  /// refresh must not re-download every visible thumbnail.
+  /// Thumbnails by photo id, LRU-bounded. Photos are immutable (never edited
+  /// in place — the backend serves them `immutable`), so a cached thumbnail
+  /// never goes stale; the bound exists because bytes are ~60KB each and a
+  /// session never needs unbounded history. This map is the ONE survivor
+  /// cache: it outlives widget rebuilds and the autoDispose provider
+  /// elements, so a tasks refresh never re-downloads a visible thumbnail.
+  ///
+  /// LRU via insertion order (Dart maps are linked): a hit is re-inserted at
+  /// the tail, an overflow evicts the head — the same delete+set-on-hit
+  /// design as the backend's thumbnail cache (thumbnails.ts).
   final _thumbnailCache = <String, Uint8List>{};
+
+  /// ~12MB worst case at the backend's ≤60KB thumbnail cap.
+  static const thumbnailCacheCap = 200;
 
   @override
   Future<PhotoUploadResult> uploadPhoto({
@@ -110,8 +118,11 @@ class DioPhotosRepository implements PhotosRepository {
 
   @override
   Future<Uint8List> thumbnailBytes(String photoId) async {
-    final cached = _thumbnailCache[photoId];
-    if (cached != null) return cached;
+    final cached = _thumbnailCache.remove(photoId);
+    if (cached != null) {
+      _thumbnailCache[photoId] = cached; // re-insert = most recently used
+      return cached;
+    }
 
     // Only a SUCCESSFUL fetch is cached — a throw propagates uncached, so a
     // retry after a dead-signal moment actually retries.
@@ -121,6 +132,9 @@ class DioPhotosRepository implements PhotosRepository {
     );
     final bytes = Uint8List.fromList(response.data!);
     _thumbnailCache[photoId] = bytes;
+    if (_thumbnailCache.length > thumbnailCacheCap) {
+      _thumbnailCache.remove(_thumbnailCache.keys.first);
+    }
     return bytes;
   }
 }
@@ -130,17 +144,30 @@ final photosRepositoryProvider = Provider<PhotosRepository>(
 );
 
 /// Thumbnail bytes by photo id, for the worklist thumbs. The family dedupes
-/// concurrent listeners per id; the repository's own cache (above) is what
-/// makes the bytes survive provider invalidation.
-final thumbnailBytesProvider = FutureProvider.family<Uint8List, String>(
-  (ref, photoId) => ref.watch(photosRepositoryProvider).thumbnailBytes(photoId),
-);
+/// concurrent listeners per id; autoDispose releases each element with its
+/// last listener — the repository's bounded LRU (above) is the one survivor
+/// cache, so re-listening after a dispose is a synchronous map hit, not a
+/// download. A permanent family element per photo would be a second,
+/// UNbounded cache growing for the life of the session.
+final thumbnailBytesProvider = FutureProvider.autoDispose
+    .family<Uint8List, String>(
+      (ref, photoId) =>
+          ref.watch(photosRepositoryProvider).thumbnailBytes(photoId),
+    );
 
 /// The photos of one visit, newest first. autoDispose: fetched lazily when
 /// the evidence dialog opens, released when it closes.
+/// Framework auto-retry is OFF here, deliberately: Riverpod 3 holds a
+/// failing provider in `AsyncLoading` through its retry backoff, which in a
+/// modal dialog means a manager staring at a spinner while the failure is
+/// silently re-tried for seconds. A watched dialog gets the truth
+/// immediately — the error arm and its Retry button (evidence_thumb.dart)
+/// are the recovery path. The thumbnail provider above keeps the default:
+/// background chrome can retry quietly.
 final visitPhotosProvider = FutureProvider.autoDispose
     .family<List<VisitPhoto>, String>(
       (ref, visitId) => ref.watch(photosRepositoryProvider).listPhotos(visitId),
+      retry: (_, _) => null,
     );
 
 /// Offline-first upload — used by the field agent mid-audit.

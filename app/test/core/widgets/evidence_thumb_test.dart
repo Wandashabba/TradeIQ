@@ -27,6 +27,15 @@ class _FakePhotosRepository implements PhotosRepository {
   int listCalls = 0;
   String? listedVisitId;
 
+  /// Overrides the default two-row visit when set.
+  List<VisitPhoto>? photos;
+
+  /// While set, every listPhotos call throws. Mutable and PERSISTENT rather
+  /// than fail-once: Riverpod 3 auto-retries failed providers with backoff,
+  /// so a one-shot failure self-heals the moment a settle advances the clock
+  /// — the test flips this off itself when it wants recovery.
+  bool failList = false;
+
   /// When set, thumbnailBytes parks on it instead of resolving — the test
   /// controls "still loading".
   Completer<Uint8List>? thumbGate;
@@ -45,6 +54,9 @@ class _FakePhotosRepository implements PhotosRepository {
   Future<List<VisitPhoto>> listPhotos(String visitId) {
     listCalls++;
     listedVisitId = visitId;
+    if (failList) return Future.error(Exception('boom'));
+    final override = photos;
+    if (override != null) return Future.value(override);
     return listGate?.future ??
         Future.value([
           VisitPhoto(
@@ -228,5 +240,112 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets(
+    'a failed dialog fetch offers Retry, and Retry really refetches',
+    (tester) async {
+      // The worklist rule applies in dialogs too: a dead-end error state is a
+      // bug. The fetch dies, the manager taps Retry, the photo arrives.
+      final repo = _FakePhotosRepository()..failList = true;
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('evidence-thumb-p-new')));
+      // Settling is safe ONLY because visitPhotosProvider opts out of
+      // Riverpod 3's auto-retry — with the default, the failure would hide
+      // inside AsyncLoading through the backoff and this settle would either
+      // hang on retry timers or self-heal a transient fake.
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to load photo.'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('evidence-dialog')),
+          matching: find.byType(Image),
+        ),
+        findsNothing,
+      );
+
+      // Recovery is the BUTTON's doing: the backend comes back, and the very
+      // next fetch is the one the tap triggers — no pumps in between, so no
+      // framework retry can claim the credit.
+      repo.failList = false;
+      final callsBefore = repo.listCalls;
+      await tester.tap(find.byKey(const ValueKey('evidence-dialog-retry')));
+      await tester.pump();
+      expect(repo.listCalls, callsBefore + 1);
+
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Failed to load photo.'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('evidence-dialog')),
+          matching: find.byType(Image),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('a photoless visit says so — no image, no broken state', (
+    tester,
+  ) async {
+    final repo = _FakePhotosRepository()..photos = const [];
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('evidence-thumb-p-new')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No photo available for this visit.'), findsOneWidget);
+    // Scoped to the dialog — the 44×44 thumb behind it is still an Image.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('evidence-dialog')),
+        matching: find.byType(Image),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('the dialog anchors to the photo whose thumb was tapped, not '
+      'blindly to the newest', (tester) async {
+    final repo = _FakePhotosRepository()
+      ..photos = [
+        // Newest row deliberately undecodable: if the dialog ignores the
+        // tapped id and takes the head of the list, it renders the "no
+        // photo" arm instead of the tapped photo.
+        const VisitPhoto(
+          id: 'p-new',
+          section: 'shelf',
+          url: 'data:image/png;base64,AQID',
+          timestamp: '2026-07-22T10:00:00.000Z',
+        ),
+        VisitPhoto(
+          id: 'p-tapped',
+          section: 'shelf',
+          url: 'data:image/png;base64,${base64Encode(_pngBytes)}',
+          timestamp: '2026-07-21T10:00:00.000Z',
+        ),
+      ];
+    await tester.pumpWidget(
+      _app(
+        repo,
+        child: const EvidenceThumb(photoId: 'p-tapped', visitId: 'v1'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('evidence-thumb-p-tapped')));
+    await tester.pumpAndSettle();
+
+    final image = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const ValueKey('evidence-dialog')),
+        matching: find.byType(Image),
+      ),
+    );
+    expect((image.image as MemoryImage).bytes, _pngBytes);
   });
 }

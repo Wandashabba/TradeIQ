@@ -446,5 +446,34 @@ void main() {
 
       expect(tasksRepo.verifiedId, 't-closed');
     });
+
+    testWidgets('the refresh after closing never tears the list down to a '
+        'spinner', (tester) async {
+      // Closing invalidates tasksListProvider. Riverpod's
+      // skipLoadingOnRefresh default keeps the last data on screen through
+      // the refetch — this pins that: if a future provider dependency turns
+      // the refresh into a fresh load, the list would flash a spinner AND
+      // replay every cascade entrance, and this test fails instead.
+      final tasksRepo = _FakeTasksAdminRepository();
+      await _pump(tester, tasksRepo);
+
+      await tester.tap(find.byKey(const ValueKey('close-t-open')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('photo-camera')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('confirm-closure')));
+
+      // Walk the refresh frame by frame: at no point may the worklist be a
+      // spinner instead of rows.
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+      }
+      await tester.pumpAndSettle();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tasksRepo.closedId, 't-open');
+      // The list is still standing, on data, post-refresh.
+      expect(find.text('price_wrong'), findsOneWidget);
+    });
   });
 }

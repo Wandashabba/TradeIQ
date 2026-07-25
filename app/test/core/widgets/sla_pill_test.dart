@@ -270,4 +270,71 @@ void main() {
       });
     }
   });
+
+  group('SlaPill.calendarDayDiff', () {
+    // Why no live DST probe: the Dart VM reads the process timezone once at
+    // startup and `flutter test` offers no per-test TZ control, so a
+    // spring-forward repro (Europe/Paris 2026-03-29, where subtracting LOCAL
+    // midnights yields a 23h day and `inDays` floors it to 0 — "DUE TODAY" a
+    // day early) cannot be forced from inside this suite. Instead the helper
+    // is pinned as a pure function: it reconstructs both days at UTC
+    // midnight, where every day is exactly 24h BY CONSTRUCTION, so the
+    // 23h/25h-day failure mode cannot exist in any zone.
+    test('one minute across midnight is one day', () {
+      expect(
+        SlaPill.calendarDayDiff(
+          DateTime(2026, 3, 28, 23, 59),
+          DateTime(2026, 3, 29, 0, 1),
+        ),
+        1,
+      );
+    });
+
+    test('the European spring-forward pair is exactly one day, never zero', () {
+      // 2026-03-29 is the CET→CEST switch: local midnights there are 23h
+      // apart. The UTC reconstruction must still count one calendar day.
+      expect(
+        SlaPill.calendarDayDiff(
+          DateTime(2026, 3, 28, 12),
+          DateTime(2026, 3, 29, 12),
+        ),
+        1,
+      );
+      expect(
+        SlaPill.calendarDayDiff(
+          DateTime(2026, 3, 22, 12),
+          DateTime(2026, 3, 29, 0, 30),
+        ),
+        7,
+      );
+    });
+
+    test('same day is zero regardless of hours apart', () {
+      expect(
+        SlaPill.calendarDayDiff(
+          DateTime(2026, 7, 22, 0, 1),
+          DateTime(2026, 7, 22, 23, 59),
+        ),
+        0,
+      );
+    });
+
+    test('month and year boundaries count plain calendar days', () {
+      expect(
+        SlaPill.calendarDayDiff(DateTime(2026, 7, 31), DateTime(2026, 8, 1)),
+        1,
+      );
+      expect(
+        SlaPill.calendarDayDiff(
+          DateTime(2026, 12, 31, 23),
+          DateTime(2027, 1, 1, 1),
+        ),
+        1,
+      );
+      expect(
+        SlaPill.calendarDayDiff(DateTime(2026, 2, 1), DateTime(2026, 3, 1)),
+        28,
+      );
+    });
+  });
 }

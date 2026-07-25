@@ -72,7 +72,8 @@ class EvidenceThumb extends ConsumerWidget {
           key: ValueKey('evidence-thumb-$photoId'),
           onTap: () => showDialog<void>(
             context: context,
-            builder: (_) => _EvidencePhotoDialog(visitId: visitId),
+            builder: (_) =>
+                _EvidencePhotoDialog(visitId: visitId, photoId: photoId),
           ),
           child: content,
         ),
@@ -83,9 +84,13 @@ class EvidenceThumb extends ConsumerWidget {
 
 /// The full photo, at the moment the manager asks for it — not before.
 class _EvidencePhotoDialog extends ConsumerWidget {
-  const _EvidencePhotoDialog({required this.visitId});
+  const _EvidencePhotoDialog({required this.visitId, required this.photoId});
 
   final String visitId;
+
+  /// The photo whose thumb was tapped — the dialog anchors to it, falling
+  /// back to the newest only if the id is no longer in the visit's list.
+  final String photoId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -109,14 +114,34 @@ class _EvidencePhotoDialog extends ConsumerWidget {
               ),
             ),
           ),
-          error: (err, _) => Text(
-            'Failed to load photo. ${humanErrorMessage(err)}',
-            style: TextStyle(fontSize: 12.5, color: colors.ink2),
+          // Never a dead end (worklist rule): the failure names itself and
+          // offers the way back.
+          error: (err, _) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Failed to load photo. ${humanErrorMessage(err)}',
+                style: TextStyle(fontSize: 12.5, color: colors.ink2),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton(
+                key: const ValueKey('evidence-dialog-retry'),
+                onPressed: () => ref.invalidate(visitPhotosProvider(visitId)),
+                child: const Text('Retry'),
+              ),
+            ],
           ),
           data: (list) {
-            // Newest first, per the backend's ordering — the newest photo is
-            // the evidence.
-            final bytes = list.isEmpty ? null : _dataUrlBytes(list.first.url);
+            // Anchor to the tapped thumb's photo; if that id has left the
+            // list, fall back to the newest (the list is newest-first).
+            final photo = list.isEmpty
+                ? null
+                : list.firstWhere(
+                    (p) => p.id == photoId,
+                    orElse: () => list.first,
+                  );
+            final bytes = photo == null ? null : _dataUrlBytes(photo.url);
             if (bytes == null) {
               return Text(
                 'No photo available for this visit.',
