@@ -4,27 +4,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/evidence_thumb.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/widgets/sla_pill.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../../core/widgets/photo_capture_field.dart';
 import '../../audit/data/photos_repository.dart';
 import '../data/tasks_admin_repository.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
-  const TasksScreen({super.key});
+  const TasksScreen({super.key, this.clock = DateTime.now});
+
+  /// The screen's one time source — read ONCE per build and threaded down, so
+  /// every SLA pill and the Overdue count agree on the same instant, and
+  /// tests can pin it.
+  final DateTime Function() clock;
 
   @override
   ConsumerState<TasksScreen> createState() => _TasksScreenState();
 }
 
-enum _Tab { open, closed, all }
+/// The chip axis is STATE: Open is all open work (overdue included — overdue
+/// is a focus subset, not a separate state), Overdue narrows to open work
+/// past its SLA, Done is closed, All is everything. Priority lives on the
+/// triage strip, a different axis.
+enum _Filter { open, overdue, done, all }
 
 class _TasksScreenState extends ConsumerState<TasksScreen> {
-  _Tab _tab = _Tab.open;
+  _Filter _filter = _Filter.open;
 
   @override
   Widget build(BuildContext context) {
     final tasks = ref.watch(tasksListProvider);
+    final now = widget.clock();
 
     return ManagerScaffold(
       title: 'Tasks',
@@ -52,7 +64,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     counts: [
                       (
                         label: 'Critical',
-                        count: open.where((t) => t.priority == 'critical').length,
+                        count: open
+                            .where((t) => t.priority == 'critical')
+                            .length,
                         level: StatusLevel.critical,
                       ),
                       (
@@ -93,19 +107,29 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   FilterRow(
                     children: [
                       const SectionLabel('State'),
-                      _Segmented(
-                        segments: [
-                          (label: 'Open · ${open.length}', value: _Tab.open),
-                          (label: 'Closed', value: _Tab.closed),
-                          (label: 'All', value: _Tab.all),
+                      // The chip row is the SINGLE source of list filtering;
+                      // the triage strip above reads on a different axis
+                      // (priority) and filters nothing.
+                      _FilterChips(
+                        chips: [
+                          (label: 'Open · ${open.length}', value: _Filter.open),
+                          (
+                            label:
+                                'Overdue · ${open.where((t) => t.slaDueAt.isBefore(now)).length}',
+                            value: _Filter.overdue,
+                          ),
+                          // Plain, per the spec's example — the count lives
+                          // one tap away, in the list header.
+                          (label: 'Done', value: _Filter.done),
+                          (label: 'All', value: _Filter.all),
                         ],
-                        selected: _tab,
-                        onChanged: (t) => setState(() => _tab = t),
+                        selected: _filter,
+                        onChanged: (f) => setState(() => _filter = f),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _TaskList(tasks: _visible(list)),
+                  _TaskList(tasks: _visible(list, now), now: now),
                 ],
               );
             },
@@ -115,12 +139,14 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     );
   }
 
-  List<TaskItem> _visible(List<TaskItem> all) {
+  List<TaskItem> _visible(List<TaskItem> all, DateTime now) {
     final filtered = all.where((t) {
-      return switch (_tab) {
-        _Tab.open => t.status != 'closed',
-        _Tab.closed => t.status == 'closed',
-        _Tab.all => true,
+      final open = t.status != 'closed';
+      return switch (_filter) {
+        _Filter.open => open,
+        _Filter.overdue => open && t.slaDueAt.isBefore(now),
+        _Filter.done => !open,
+        _Filter.all => true,
       };
     }).toList();
 
@@ -132,68 +158,76 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 }
 
-class _Segmented<T> extends StatelessWidget {
-  const _Segmented({
-    required this.segments,
+/// The sub-2 pill filter treatment (see the dashboard's range control —
+/// private there, so restated rather than imported): active is solid brand
+/// under white, inactive a surface1 chip with a hairline, 11px w600, fully
+/// rounded. The active pill is otherwise colour-only to a screen reader —
+/// `selected` carries the state, `button` makes each chip actionable.
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({
+    required this.chips,
     required this.selected,
     required this.onChanged,
   });
 
-  final List<({String label, T value})> segments;
-  final T selected;
-  final ValueChanged<T> onChanged;
+  final List<({String label, _Filter value})> chips;
+  final _Filter selected;
+  final ValueChanged<_Filter> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < segments.length; i++)
-            InkWell(
-              key: ValueKey('tab-${segments[i].value}'),
-              onTap: () => onChanged(segments[i].value),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final chip in chips)
+          Semantics(
+            button: true,
+            selected: chip.value == selected,
+            child: InkWell(
+              key: ValueKey('filter-${chip.value.name}'),
+              onTap: () => onChanged(chip.value),
+              borderRadius: BorderRadius.circular(AppColors.radiusPill),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
-                  color: segments[i].value == selected
-                      ? colors.surface3
-                      : Colors.transparent,
-                  border: Border(
-                    right: BorderSide(
-                      color: i == segments.length - 1
-                          ? Colors.transparent
-                          : colors.lineStrong,
-                    ),
+                  // White-on-brand is a self-contained pair: brand is the
+                  // same #0A6CF0 in both themes (4.98:1 under white), so
+                  // neither theme's ink may sit on it.
+                  color: chip.value == selected
+                      ? colors.brand
+                      : colors.surface1,
+                  border: Border.all(
+                    color: chip.value == selected ? colors.brand : colors.line,
                   ),
+                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
                 ),
                 child: Text(
-                  segments[i].label,
+                  chip.label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: segments[i].value == selected
-                        ? colors.ink1
-                        : colors.ink2,
+                    color: chip.value == selected ? Colors.white : colors.ink2,
                   ),
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
 
 class _TaskList extends StatelessWidget {
-  const _TaskList({required this.tasks});
+  const _TaskList({required this.tasks, required this.now});
 
   final List<TaskItem> tasks;
+  final DateTime now;
 
   @override
   Widget build(BuildContext context) {
@@ -204,22 +238,32 @@ class _TaskList extends StatelessWidget {
       child: tasks.isEmpty
           ? const EmptyState(
               message: 'Nothing outstanding',
-              hint: 'Tasks open automatically from risks, stockouts and price '
+              hint:
+                  'Tasks open automatically from risks, stockouts and price '
                   'deviations on a submitted visit.',
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
-              children: [for (final t in tasks) _TaskRow(task: t)],
+              children: [
+                for (var i = 0; i < tasks.length; i++)
+                  WorklistCascade(
+                    index: i,
+                    child: _TaskRow(task: tasks[i], now: now),
+                  ),
+              ],
             ),
     );
   }
 }
 
 class _TaskRow extends ConsumerWidget {
-  const _TaskRow({required this.task});
+  const _TaskRow({required this.task, required this.now});
 
   final TaskItem task;
+
+  /// The screen's clock, taken once per build — see [TasksScreen.clock].
+  final DateTime now;
 
   /// Closing a task means producing evidence it was actually fixed. The photo is
   /// the evidence, so the capture is the gate: no photo, no closure. (Until #41
@@ -232,17 +276,18 @@ class _TaskRow extends ConsumerWidget {
     );
     if (dataUrl == null) return;
 
-    final result = await ref.read(photosRepositoryProvider).uploadPhoto(
+    final result = await ref
+        .read(photosRepositoryProvider)
+        .uploadPhoto(
           visitId: task.visitId!,
           section: 'task_closure',
           dataUrl: dataUrl,
           gpsTag: const <String, double>{},
           timestamp: DateTime.now().toIso8601String(),
         );
-    await ref.read(tasksAdminRepositoryProvider).closeTask(
-          id: task.id,
-          closurePhotoUrl: result.url,
-        );
+    await ref
+        .read(tasksAdminRepositoryProvider)
+        .closeTask(id: task.id, closurePhotoUrl: result.url);
     ref.invalidate(tasksListProvider);
   }
 
@@ -263,8 +308,19 @@ class _TaskRow extends ConsumerWidget {
     return WorklistRow(
       key: ValueKey('task-${task.id}'),
       title: task.findingType,
+      // The thumbnail IS the evidence — a task without a photo shows no
+      // thumb and no placeholder. evidencePhotoId implies a linked visit,
+      // but the guard keeps a malformed row honest rather than crashing.
+      thumb: task.evidencePhotoId != null && task.visitId != null
+          ? EvidenceThumb(
+              photoId: task.evidencePhotoId!,
+              visitId: task.visitId!,
+            )
+          : null,
       meta: Row(
         children: [
+          SlaPill(task.slaDueAt, done: isClosed, now: now),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(task.requiredFix, overflow: TextOverflow.ellipsis),
           ),

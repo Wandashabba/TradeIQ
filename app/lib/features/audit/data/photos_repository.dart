@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/network/api_client.dart';
+import '../../../core/network/api_client.dart' as api;
 import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_service.dart';
 
@@ -16,8 +18,33 @@ class PhotoUploadResult {
       PhotoUploadResult(id: json['id'] as String, url: json['url'] as String);
 }
 
-/// Direct upload — used where the caller already holds a *server* visit id and
-/// is online, i.e. a manager closing a task from the console.
+/// One photo row from `GET /photos?visitId` — the backend returns them
+/// newest-first, and callers rely on that order (the newest photo is the
+/// evidence a manager wants to see).
+class VisitPhoto {
+  const VisitPhoto({
+    required this.id,
+    required this.section,
+    required this.url,
+    required this.timestamp,
+  });
+  final String id;
+  final String section;
+
+  /// Phase-1 stores the photo inline: this is a base64 data URL, not a link.
+  final String url;
+  final String timestamp;
+
+  factory VisitPhoto.fromJson(Map<String, dynamic> json) => VisitPhoto(
+    id: json['id'] as String,
+    section: json['section'] as String,
+    url: json['url'] as String,
+    timestamp: json['timestamp'] as String,
+  );
+}
+
+/// Direct photo traffic — used where the caller already holds a *server*
+/// visit id and is online, i.e. a manager on the console.
 abstract class PhotosRepository {
   Future<PhotoUploadResult> uploadPhoto({
     required String visitId,
@@ -26,9 +53,29 @@ abstract class PhotosRepository {
     required Map<String, dynamic> gpsTag,
     required String timestamp,
   });
+
+  /// `GET /photos?visitId` — newest first, as the backend orders it.
+  Future<List<VisitPhoto>> listPhotos(String visitId);
+
+  /// `GET /photos/:id/thumbnail` — the ≤60KB JPEG, fetched as BYTES through
+  /// the authed client. `Image.network` cannot send the Authorization header
+  /// on web, so the bytes route is the only honest one.
+  Future<Uint8List> thumbnailBytes(String photoId);
 }
 
 class DioPhotosRepository implements PhotosRepository {
+  /// Injectable for tests; defaults to the app's authed client.
+  DioPhotosRepository({Dio? client}) : _client = client ?? api.dio;
+
+  final Dio _client;
+
+  /// Thumbnails by photo id. Photos are immutable (never edited in place —
+  /// the backend serves them `immutable`), so a fetched thumbnail is good for
+  /// the life of the repository, which the provider keeps for the session.
+  /// This survives widget rebuilds AND provider invalidations — a tasks
+  /// refresh must not re-download every visible thumbnail.
+  final _thumbnailCache = <String, Uint8List>{};
+
   @override
   Future<PhotoUploadResult> uploadPhoto({
     required String visitId,
@@ -37,7 +84,7 @@ class DioPhotosRepository implements PhotosRepository {
     required Map<String, dynamic> gpsTag,
     required String timestamp,
   }) async {
-    final response = await dio.post(
+    final response = await _client.post(
       '/photos',
       data: {
         'visitId': visitId,
@@ -49,11 +96,52 @@ class DioPhotosRepository implements PhotosRepository {
     );
     return PhotoUploadResult.fromJson(response.data as Map<String, dynamic>);
   }
+
+  @override
+  Future<List<VisitPhoto>> listPhotos(String visitId) async {
+    final response = await _client.get(
+      '/photos',
+      queryParameters: {'visitId': visitId},
+    );
+    return (response.data as List)
+        .map((json) => VisitPhoto.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<Uint8List> thumbnailBytes(String photoId) async {
+    final cached = _thumbnailCache[photoId];
+    if (cached != null) return cached;
+
+    // Only a SUCCESSFUL fetch is cached — a throw propagates uncached, so a
+    // retry after a dead-signal moment actually retries.
+    final response = await _client.get<List<int>>(
+      '/photos/$photoId/thumbnail',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final bytes = Uint8List.fromList(response.data!);
+    _thumbnailCache[photoId] = bytes;
+    return bytes;
+  }
 }
 
 final photosRepositoryProvider = Provider<PhotosRepository>(
   (ref) => DioPhotosRepository(),
 );
+
+/// Thumbnail bytes by photo id, for the worklist thumbs. The family dedupes
+/// concurrent listeners per id; the repository's own cache (above) is what
+/// makes the bytes survive provider invalidation.
+final thumbnailBytesProvider = FutureProvider.family<Uint8List, String>(
+  (ref, photoId) => ref.watch(photosRepositoryProvider).thumbnailBytes(photoId),
+);
+
+/// The photos of one visit, newest first. autoDispose: fetched lazily when
+/// the evidence dialog opens, released when it closes.
+final visitPhotosProvider = FutureProvider.autoDispose
+    .family<List<VisitPhoto>, String>(
+      (ref, visitId) => ref.watch(photosRepositoryProvider).listPhotos(visitId),
+    );
 
 /// Offline-first upload — used by the field agent mid-audit.
 ///

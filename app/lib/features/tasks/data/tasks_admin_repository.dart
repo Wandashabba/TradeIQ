@@ -11,8 +11,10 @@ class TaskItem {
     required this.status,
     required this.closureVerified,
     required this.outletId,
+    required this.slaDueAt,
     this.closurePhotoUrl,
     this.visitId,
+    this.evidencePhotoId,
   });
   final String id;
   final String findingType;
@@ -24,17 +26,27 @@ class TaskItem {
   final String outletId;
   final String? visitId;
 
+  /// The SLA deadline. Required, not nullable: the backend computes it from
+  /// the priority at task creation and always sends it.
+  final DateTime slaDueAt;
+
+  /// The newest photo of the linked visit, or null — no visit, or a photoless
+  /// visit. Null means the row shows NO thumbnail, never a placeholder.
+  final String? evidencePhotoId;
+
   factory TaskItem.fromJson(Map<String, dynamic> json) => TaskItem(
-        id: json['id'] as String,
-        findingType: json['findingType'] as String,
-        requiredFix: json['requiredFix'] as String,
-        priority: json['priority'] as String,
-        status: json['status'] as String,
-        closurePhotoUrl: json['closurePhotoUrl'] as String?,
-        closureVerified: json['closureVerified'] as bool? ?? false,
-        outletId: json['outletId'] as String,
-        visitId: json['visitId'] as String?,
-      );
+    id: json['id'] as String,
+    findingType: json['findingType'] as String,
+    requiredFix: json['requiredFix'] as String,
+    priority: json['priority'] as String,
+    status: json['status'] as String,
+    closurePhotoUrl: json['closurePhotoUrl'] as String?,
+    closureVerified: json['closureVerified'] as bool? ?? false,
+    outletId: json['outletId'] as String,
+    visitId: json['visitId'] as String?,
+    slaDueAt: DateTime.parse(json['slaDueAt'] as String),
+    evidencePhotoId: json['evidencePhotoId'] as String?,
+  );
 }
 
 abstract class TasksAdminRepository {
@@ -72,24 +84,26 @@ class DioTasksAdminRepository implements TasksAdminRepository {
     required String id,
     required String closurePhotoUrl,
   }) async {
-    final response = await dio.patch('/tasks/$id', data: {
-      'status': 'closed',
-      'closurePhotoUrl': closurePhotoUrl,
-    });
+    final response = await dio.patch(
+      '/tasks/$id',
+      data: {'status': 'closed', 'closurePhotoUrl': closurePhotoUrl},
+    );
     return TaskItem.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<TaskItem> verifyTask(String id) async {
-    final response = await dio.patch('/tasks/$id', data: {
-      'closureVerified': true,
-    });
+    final response = await dio.patch(
+      '/tasks/$id',
+      data: {'closureVerified': true},
+    );
     return TaskItem.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
-final tasksAdminRepositoryProvider =
-    Provider<TasksAdminRepository>((ref) => DioTasksAdminRepository());
+final tasksAdminRepositoryProvider = Provider<TasksAdminRepository>(
+  (ref) => DioTasksAdminRepository(),
+);
 
 final tasksListProvider = FutureProvider<List<TaskItem>>((ref) {
   return ref.read(tasksAdminRepositoryProvider).listTasks();

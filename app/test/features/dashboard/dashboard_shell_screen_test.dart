@@ -299,6 +299,7 @@ TaskItem _task({required String priority, String status = 'open'}) => TaskItem(
   status: status,
   closureVerified: false,
   outletId: 'o1',
+  slaDueAt: DateTime(2026, 8, 1),
 );
 
 /// The dashboard is a desktop console and its body is a lazy [ListView] — at the
