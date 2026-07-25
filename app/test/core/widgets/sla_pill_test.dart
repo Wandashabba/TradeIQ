@@ -130,6 +130,47 @@ void main() {
       expect(fg, TiqColors.dark.ink2);
     });
 
+    // The backend sends slaDueAt as UTC ISO and TaskItem.fromJson keeps it
+    // UTC; `now` is the screen's local clock. Instant comparisons are
+    // zone-safe, but calendar labels must be phrased in the MANAGER's day —
+    // both fixtures below build the due instant from local wall-clock time
+    // and convert, so the expectation holds in every zone once the pill
+    // normalises, while a pill reading raw UTC calendar fields mislabels in
+    // any zone ahead of UTC.
+    testWidgets('a UTC due instant just after local midnight is "DUE TODAY", '
+        'not yesterday\'s weekday', (tester) async {
+      // Thursday 2026-07-23, 00:30 local; due 45 minutes later. In UTC+2
+      // that instant is 22:15Z WEDNESDAY — a pill reading UTC calendar
+      // fields computes dayDiff -1 and mutedly names yesterday, understating
+      // a deadline that is under an hour away.
+      final localNow = DateTime(2026, 7, 23, 0, 30);
+      final dueUtc = localNow.add(const Duration(minutes: 45)).toUtc();
+
+      final (bg, _) = await _pumpAndRead(
+        tester,
+        SlaPill(dueUtc, done: false, now: localNow),
+      );
+
+      expect(find.text('DUE TODAY'), findsOneWidget);
+      expect(bg, const Color(0xFFFDF3E2));
+    });
+
+    testWidgets('a late-evening UTC instant due TOMORROW local names the '
+        'local weekday, not "DUE TODAY"', (tester) async {
+      // Wednesday 2026-07-22, 20:00 local; due 01:00 Thursday local — in
+      // UTC+2 that is 23:00Z still on Wednesday. UTC calendar fields would
+      // claim "DUE TODAY"; the manager's calendar says Thursday.
+      final localNow = DateTime(2026, 7, 22, 20);
+      final dueUtc = DateTime(2026, 7, 23, 1).toUtc();
+
+      await tester.pumpWidget(
+        _wrap(SlaPill(dueUtc, done: false, now: localNow)),
+      );
+
+      expect(find.text('DUE THU'), findsOneWidget);
+      expect(find.text('DUE TODAY'), findsNothing);
+    });
+
     testWidgets('done reads "✓ DONE" on the green wash', (tester) async {
       final (bg, fg) = await _pumpAndRead(
         tester,

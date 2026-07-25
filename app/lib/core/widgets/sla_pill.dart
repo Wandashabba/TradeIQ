@@ -55,22 +55,29 @@ class SlaPill extends StatelessWidget {
       return (label, _redWash.$1, _redWash.$2);
     }
 
+    // Instant comparisons above are zone-safe; calendar fields are NOT. The
+    // backend sends slaDueAt as UTC and TaskItem keeps it UTC, while `now`
+    // is the manager's local clock — so every calendar read below must come
+    // from the LOCAL projection of the due instant, or a deadline just past
+    // local midnight gets labelled with yesterday's weekday.
+    final due = slaDueAt.toLocal();
+
     // Calendar distance, not elapsed hours: "due tomorrow morning" is one day
     // out even when it is 20 hours away.
     final today = DateTime(now.year, now.month, now.day);
-    final dueDay = DateTime(slaDueAt.year, slaDueAt.month, slaDueAt.day);
+    final dueDay = DateTime(due.year, due.month, due.day);
     final dayDiff = dueDay.difference(today).inDays;
 
     if (dayDiff == 0) return ('DUE TODAY', _amberWash.$1, _amberWash.$2);
     if (dayDiff < 7) {
       return (
-        'DUE ${_weekdays[slaDueAt.weekday - 1]}',
+        'DUE ${_weekdays[due.weekday - 1]}',
         colors.surface2,
         colors.ink2,
       );
     }
     return (
-      'DUE ${slaDueAt.day} ${_months[slaDueAt.month - 1]}',
+      'DUE ${due.day} ${_months[due.month - 1]}',
       colors.surface2,
       colors.ink2,
     );
