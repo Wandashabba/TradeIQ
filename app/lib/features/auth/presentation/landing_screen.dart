@@ -7,9 +7,9 @@ import 'package:video_player/video_player.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/agent_motion.dart' show reduceMotion;
 import '../../../core/widgets/dimmed_aisle_backdrop.dart';
-import '../../../core/widgets/pinned_dark.dart';
 
 /// The splash: the aisle footage dimmed to texture, the wordmark fading up,
 /// and self-managed navigation at `max(5s, session-restore)` — never before
@@ -110,7 +110,10 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
   @override
   Widget build(BuildContext context) {
     final still = reduceMotion(context);
-    return PinnedDark(
+    // The auth screens ship dark-only this pass (restyling them is out of 5a
+    // scope), so pin them dark inline now that PinnedDark is gone.
+    return Theme(
+      data: AppTheme.dark(),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -135,12 +138,15 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                     ),
                   ),
                   child: const Text.rich(
-                    TextSpan(children: [
-                      TextSpan(text: 'TRADE'),
-                      TextSpan(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: 'TRADE'),
+                        TextSpan(
                           text: 'IQ',
-                          style: TextStyle(color: AppColors.blueLight)),
-                    ]),
+                          style: TextStyle(color: AppColors.blueLight),
+                        ),
+                      ],
+                    ),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 34,

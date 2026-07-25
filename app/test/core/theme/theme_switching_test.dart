@@ -20,10 +20,12 @@ class FakeThemeModeStore implements ThemeModeStore {
 }
 
 void main() {
-  testWidgets('an agent screen stays dark while themeMode is light', (
+  testWidgets('an agent screen now FOLLOWS the app theme (premium-ui sub5a)', (
     tester,
   ) async {
-    // showSyncChip: false — the chip opens the local DB (see routed_app.dart);
+    // Sub-5a dropped PinnedDark: the agent shell is theme-aware, so under a
+    // light app-level mode it resolves the LIGHT palette — not the old pinned
+    // dark. showSyncChip: false — the chip opens the local DB (routed_app.dart);
     // this test is about theming, not sync.
     final router = GoRouter(
       initialLocation: '/screen',
@@ -50,10 +52,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Inside the agent shell the ambient theme must still be the dark one.
+    // Inside the agent shell the ambient theme is now the LIGHT one.
     final ctx = tester.element(find.byType(AppBar));
-    expect(Theme.of(ctx).brightness, Brightness.dark);
-    expect(ctx.colors, same(TiqColors.dark));
+    expect(Theme.of(ctx).brightness, Brightness.light);
+    expect(ctx.colors, same(TiqColors.light));
   });
 
   Widget managerApp(ThemeModeStore store) {
@@ -81,32 +83,35 @@ void main() {
     );
   }
 
-  testWidgets('theme-toggle flips the console between the dark and light planes '
-      'and persists the choice', (tester) async {
-    final store = FakeThemeModeStore();
-    await tester.pumpWidget(managerApp(store));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'theme-toggle flips the console between the dark and light planes '
+    'and persists the choice',
+    (tester) async {
+      final store = FakeThemeModeStore();
+      await tester.pumpWidget(managerApp(store));
+      await tester.pumpAndSettle();
 
-    Color? plane() =>
-        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor;
+      Color? plane() =>
+          tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor;
 
-    // default flipped by the 2026-07-24 premium-ui redesign
-    expect(plane(), TiqColors.light.plane);
-    expect(find.byTooltip('Switch to dark theme'), findsOneWidget);
+      // default flipped by the 2026-07-24 premium-ui redesign
+      expect(plane(), TiqColors.light.plane);
+      expect(find.byTooltip('Switch to dark theme'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('theme-toggle')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('theme-toggle')));
+      await tester.pumpAndSettle();
 
-    expect(plane(), TiqColors.dark.plane);
-    expect(store.stored, ThemeMode.dark); // persisted
-    expect(find.byTooltip('Switch to light theme'), findsOneWidget);
+      expect(plane(), TiqColors.dark.plane);
+      expect(store.stored, ThemeMode.dark); // persisted
+      expect(find.byTooltip('Switch to light theme'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('theme-toggle')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('theme-toggle')));
+      await tester.pumpAndSettle();
 
-    expect(plane(), TiqColors.light.plane);
-    expect(store.stored, ThemeMode.light);
-  });
+      expect(plane(), TiqColors.light.plane);
+      expect(store.stored, ThemeMode.light);
+    },
+  );
 
   testWidgets('a persisted light mode restores on startup', (tester) async {
     await tester.pumpWidget(managerApp(FakeThemeModeStore(ThemeMode.light)));
