@@ -396,6 +396,43 @@ void main() {
       expect(find.text('SKU 42 out of stock'), findsNothing);
     });
 
+    testWidgets(
+      'on the All tab an acked row stands back up — never an invisible '
+      'zero-height card',
+      (tester) async {
+        // The Open tab hides the collapse's other half: there the refresh
+        // REMOVES the acked row, so a row wrongly stuck at zero height would
+        // never be caught. On the All tab the refresh re-delivers the SAME
+        // row as acknowledged — the collapse was the transition's receipt,
+        // not the state's, so the row must stand back up (faded + pilled),
+        // not persist as an invisible card the triage strip still counts.
+        //
+        // (No reduced-motion twin: the re-expand is an unconditional instant
+        // value jump — there is no motion branch in it to exercise, since
+        // animating a data-refresh re-appearance would be decoration.)
+        final repo = _FakeAlertsRepository(alerts: const [_unacknowledged]);
+        await tester.pumpWidget(_app(repo));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
+        await tester.pumpAndSettle();
+
+        final collapse = find.byKey(const ValueKey('collapse-a-open'));
+        expect(tester.getSize(collapse).height, greaterThan(0));
+
+        await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
+        await tester.pumpAndSettle();
+
+        expect(repo.acknowledgedId, 'a-open');
+        // Height is the discriminating assert: at zero the texts below would
+        // still be found in the (clipped) tree.
+        expect(tester.getSize(collapse).height, greaterThan(0));
+        expect(find.text('SKU 42 out of stock'), findsOneWidget);
+        expect(find.text('✓ ACKED'), findsOneWidget);
+        expect(find.byKey(const ValueKey<String>('ack-a-open')), findsNothing);
+      },
+    );
+
     testWidgets('a failed acknowledge brings the row back and says so', (
       tester,
     ) async {
