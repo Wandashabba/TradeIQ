@@ -4,10 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/session_controller.dart';
 import '../sync/sync_status.dart';
-import '../theme/app_colors.dart';
+import '../theme/theme_mode_controller.dart';
+import '../theme/tiq_colors.dart';
 import 'agent_kit.dart';
 import 'agent_motion.dart';
-import 'pinned_dark.dart';
 
 /// The field agent's shell.
 ///
@@ -50,75 +50,83 @@ class AgentScaffold extends ConsumerWidget {
     // whether this is the root screen); a screen given its own `onBack` has
     // already answered that question, and must never ask.
     final isRoot = onBack == null && _matchedLocation(context) == '/today';
+    final colors = context.colors;
+    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
 
-    return PinnedDark(
-      child: Scaffold(
-        backgroundColor: AppColors.plane,
-        appBar: AppBar(
-          toolbarHeight: subtitle == null ? 56 : 64,
-          leading: isRoot && onBack == null
-              ? null
-              : IconButton(
-                  icon: const Icon(Icons.arrow_back, size: 22),
-                  tooltip: 'Back',
-                  onPressed: onBack ?? () => context.go('/today'),
-                ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                  color: AppColors.ink1,
-                ),
-              ),
-              if (subtitle != null)
-                Text(
-                  subtitle!,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: AppColors.ink3),
-                ),
-            ],
-          ),
-          actions: [
-            ...?actions,
-            IconButton(
-              icon: const Icon(Icons.logout, size: 20),
-              tooltip: 'Log out',
-              onPressed: () =>
-                  ref.read(sessionControllerProvider.notifier).logout(),
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            if (showSyncChip)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: SyncChip(),
-              ),
-            Expanded(child: body),
-          ],
-        ),
-        bottomNavigationBar: bottomAction == null
+    return Scaffold(
+      backgroundColor: colors.plane,
+      appBar: AppBar(
+        toolbarHeight: subtitle == null ? 56 : 64,
+        leading: isRoot && onBack == null
             ? null
-            : Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                decoration: const BoxDecoration(
-                  // Opaque, never a fade — the note explaining why an action is
-                  // disabled has to stay readable over whatever is scrolling
-                  // underneath it.
-                  color: AppColors.surface1,
-                  border: Border(top: BorderSide(color: AppColors.line)),
-                ),
-                child: SafeArea(top: false, child: bottomAction!),
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, size: 22),
+                tooltip: 'Back',
+                onPressed: onBack ?? () => context.go('/today'),
               ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+                color: colors.ink1,
+              ),
+            ),
+            if (subtitle != null)
+              Text(
+                subtitle!,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: colors.ink3),
+              ),
+          ],
+        ),
+        actions: [
+          ...?actions,
+          // The agent carries the same light/dark toggle as the console — the
+          // moon offers dark, the sun offers light, always the destination.
+          IconButton(
+            key: const ValueKey('agent-theme-toggle'),
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, size: 20),
+            tooltip: 'Theme',
+            onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, size: 20),
+            tooltip: 'Log out',
+            onPressed: () =>
+                ref.read(sessionControllerProvider.notifier).logout(),
+          ),
+        ],
       ),
+      body: Column(
+        children: [
+          if (showSyncChip)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: SyncChip(),
+            ),
+          Expanded(child: body),
+        ],
+      ),
+      bottomNavigationBar: bottomAction == null
+          ? null
+          : Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              decoration: BoxDecoration(
+                // Opaque, never a fade — the note explaining why an action is
+                // disabled has to stay readable over whatever is scrolling
+                // underneath it.
+                color: colors.surface1,
+                border: Border(top: BorderSide(color: colors.line)),
+              ),
+              child: SafeArea(top: false, child: bottomAction!),
+            ),
     );
   }
 }

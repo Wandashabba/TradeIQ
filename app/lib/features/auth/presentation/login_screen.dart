@@ -6,9 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_controller.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/dimmed_aisle_backdrop.dart';
-import '../../../core/widgets/pinned_dark.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/trade_iq_logo.dart';
 
@@ -86,7 +86,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final session = ref.watch(sessionControllerProvider);
     final isLoading = _isSubmitting;
 
-    return PinnedDark(
+    // The auth screens ship dark-only this pass (restyling them is out of 5a
+    // scope), so pin them dark inline now that PinnedDark is gone.
+    return Theme(
+      data: AppTheme.dark(),
       child: Scaffold(
         body: Stack(
           fit: StackFit.expand,

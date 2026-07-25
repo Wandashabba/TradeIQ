@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/tiq_colors.dart';
 import 'agent_motion.dart';
 
 /// The field agent's widget kit.
@@ -17,23 +18,48 @@ const double kTapTarget = 48;
 enum BannerLevel { good, warn, bad, info }
 
 extension BannerLevelStyle on BannerLevel {
-  Color get color => switch (this) {
-        BannerLevel.good => AppColors.good,
-        BannerLevel.warn => AppColors.warn,
-        BannerLevel.bad => AppColors.crit,
-        BannerLevel.info => AppColors.series1,
-      };
+  /// The level's status colour, drawn from the ambient (theme-aware) palette.
+  /// Status slots are reserved — good/warn/crit — and info borrows series1,
+  /// which is never a status colour elsewhere.
+  Color color(TiqColors colors) => switch (this) {
+    BannerLevel.good => colors.good,
+    BannerLevel.warn => colors.warn,
+    BannerLevel.bad => colors.crit,
+    BannerLevel.info => colors.series1,
+  };
 
-  Color get wash => color.withValues(alpha: 0.12);
+  Color wash(TiqColors colors) => color(colors).withValues(alpha: 0.12);
 
-  /// What the banner's words are set in. crit is a mark color — as text over
-  /// its own wash it reads at 3.74:1, on the one banner that tells an agent
-  /// their captures will not send. The dot and border keep carrying crit;
-  /// only the words shift to the readable tint.
-  Color get textColor => switch (this) {
-        BannerLevel.bad => AppColors.critText,
-        _ => color,
+  /// What the banner's words are set in — the dot and border keep the raw
+  /// status token; only the words shift where the token would fail AA over its
+  /// own 12% wash. Both washes composite over the theme plane.
+  ///
+  /// - `bad`: crit is a mark colour — as text over its wash it reads 3.74:1
+  ///   (dark) — so the words take the theme-aware [TiqColors.critText] tint,
+  ///   validated ≥4.5:1 in both themes.
+  /// In **light** the status tokens are mid-dark hues over near-white washes,
+  /// and every one lands just short of AA as 13px text over its own 12% wash
+  /// on the plane (good 4.39:1, warn 4.34:1, info 4.28:1) — the same shortfall
+  /// crit already carries. So in light the words deepen: good/warn to the
+  /// console's status-text tints (the DeltaPill good/warn fg family), and info
+  /// to [TiqColors.light.brandHover] (its darkened blue is the natural twin —
+  /// DeltaPill has no blue tone). Each is validated ≥4.5:1 by the scaffold's
+  /// contrast guard. The dot and border keep the raw token. In **dark** the
+  /// tokens are bright over their dark washes and already clear AA, so the
+  /// words stay on the token — bad excepted, which takes the theme-aware
+  /// [TiqColors.critText] in both themes.
+  Color textColor(TiqColors colors, Brightness brightness) {
+    if (this == BannerLevel.bad) return colors.critText;
+    if (brightness == Brightness.light) {
+      return switch (this) {
+        BannerLevel.good => const Color(0xFF0B6B0B),
+        BannerLevel.warn => const Color(0xFF8A5A00),
+        BannerLevel.info => TiqColors.light.brandHover, // == 0xFF0857C4
+        BannerLevel.bad => colors.critText, // unreachable — bad handled above
       };
+    }
+    return color(colors);
+  }
 }
 
 /// A status line the agent reads before anything else on the screen.
@@ -57,7 +83,8 @@ class StatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = level.color;
+    final colors = context.colors;
+    final color = level.color(colors);
     // The banner MORPHS between states — amber "held on this phone" easing into
     // green "everything is sent" is the moment the agent has been waiting for.
     // Cutting between them would throw it away.
@@ -66,7 +93,7 @@ class StatusBanner extends StatelessWidget {
       curve: Motion.enter,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: level.wash,
+        color: level.wash(colors),
         border: Border.all(color: color.withValues(alpha: 0.35)),
         borderRadius: BorderRadius.circular(AppColors.radiusControl),
       ),
@@ -87,7 +114,10 @@ class StatusBanner extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: level.textColor,
+                      color: level.textColor(
+                        colors,
+                        Theme.of(context).brightness,
+                      ),
                     ),
                   ),
                 ),
@@ -95,15 +125,13 @@ class StatusBanner extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 1),
                     child: AnimatedSwitcher(
-                      duration:
-                          reduceMotion(context) ? Duration.zero : Motion.base,
+                      duration: reduceMotion(context)
+                          ? Duration.zero
+                          : Motion.base,
                       child: Text(
                         subtitle!,
                         key: ValueKey(subtitle),
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: AppColors.ink3,
-                        ),
+                        style: TextStyle(fontSize: 11.5, color: colors.ink3),
                       ),
                     ),
                   ),
@@ -134,6 +162,7 @@ class AgentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final enabled = onPressed != null;
 
     // The moment the last required section lands, this button comes alive — the
@@ -147,18 +176,18 @@ class AgentButton extends StatelessWidget {
           duration: reduceMotion(context) ? Duration.zero : Motion.base,
           curve: Motion.enter,
           decoration: BoxDecoration(
-          color: !enabled
-              ? AppColors.surface2
-              : secondary
-                  ? AppColors.surface2
-                  : AppColors.brand,
-          border: Border.all(
             color: !enabled
-                ? AppColors.lineStrong
+                ? colors.surface2
                 : secondary
-                    ? AppColors.lineStrong
-                    : AppColors.brand,
-          ),
+                ? colors.surface2
+                : colors.brand,
+            border: Border.all(
+              color: !enabled
+                  ? colors.lineStrong
+                  : secondary
+                  ? colors.lineStrong
+                  : colors.brand,
+            ),
             borderRadius: BorderRadius.circular(AppColors.radiusControl),
           ),
           child: Center(
@@ -171,10 +200,10 @@ class AgentButton extends StatelessWidget {
                     icon,
                     size: 18,
                     color: !enabled
-                        ? AppColors.ink3
+                        ? colors.ink3
                         : secondary
-                            ? AppColors.ink1
-                            : Colors.white,
+                        ? colors.ink1
+                        : Colors.white,
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -184,10 +213,10 @@ class AgentButton extends StatelessWidget {
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: !enabled
-                        ? AppColors.ink3
+                        ? colors.ink3
                         : secondary
-                            ? AppColors.ink1
-                            : Colors.white,
+                        ? colors.ink1
+                        : Colors.white,
                   ),
                 ),
               ],
@@ -213,7 +242,7 @@ class BarNote extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+        style: TextStyle(fontSize: 12, color: context.colors.ink3),
       ),
     );
   }
@@ -267,6 +296,7 @@ class CountStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final v = value;
     final isZero = v == 0;
 
@@ -274,13 +304,13 @@ class CountStepper extends StatelessWidget {
       duration: reduceMotion(context) ? Duration.zero : Motion.base,
       curve: Motion.enter,
       decoration: BoxDecoration(
-        color: AppColors.surface2,
+        color: colors.surface2,
         // The whole control takes on the finding's colour, so an out-of-stock is
         // unmissable from arm's length in a dark aisle.
         border: Border.all(
           color: isZero && zeroIsFinding
-              ? AppColors.crit.withValues(alpha: 0.6)
-              : AppColors.lineStrong,
+              ? colors.crit.withValues(alpha: 0.6)
+              : colors.lineStrong,
         ),
         borderRadius: BorderRadius.circular(AppColors.radiusControl),
       ),
@@ -308,10 +338,10 @@ class CountStepper extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         fontFeatures: const [FontFeature.tabularFigures()],
                         color: v == null
-                            ? AppColors.ink3
+                            ? colors.ink3
                             : (isZero && zeroIsFinding)
-                                ? AppColors.crit
-                                : AppColors.ink1,
+                            ? colors.crit
+                            : colors.ink1,
                       ),
                     ),
                   ),
@@ -334,7 +364,11 @@ class CountStepper extends StatelessWidget {
 }
 
 class _Step extends StatelessWidget {
-  const _Step({required this.icon, required this.onTap, required this.semantic});
+  const _Step({
+    required this.icon,
+    required this.onTap,
+    required this.semantic,
+  });
 
   final IconData icon;
   final VoidCallback? onTap;
@@ -342,11 +376,12 @@ class _Step extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Semantics(
       button: true,
       label: semantic,
       child: Material(
-        color: AppColors.surface3,
+        color: colors.surface3,
         child: InkWell(
           onTap: onTap,
           child: SizedBox(
@@ -355,7 +390,7 @@ class _Step extends StatelessWidget {
             child: Icon(
               icon,
               size: 22,
-              color: onTap == null ? AppColors.ink3 : AppColors.ink1,
+              color: onTap == null ? colors.ink3 : colors.ink1,
             ),
           ),
         ),
@@ -409,15 +444,16 @@ class _Choice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return SizedBox(
       height: kTapTarget,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.brand.withValues(alpha: 0.14)
-              : AppColors.surface2,
+              ? colors.brand.withValues(alpha: 0.14)
+              : colors.surface2,
           border: Border.all(
-            color: selected ? AppColors.brand : AppColors.lineStrong,
+            color: selected ? colors.brand : colors.lineStrong,
           ),
           borderRadius: BorderRadius.circular(AppColors.radiusControl),
         ),
@@ -432,7 +468,7 @@ class _Choice extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: selected ? AppColors.ink1 : AppColors.ink2,
+                  color: selected ? colors.ink1 : colors.ink2,
                 ),
               ),
             ),
@@ -458,6 +494,7 @@ class AgentField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -465,10 +502,10 @@ class AgentField extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.ink2,
+              color: colors.ink2,
             ),
           ),
           const SizedBox(height: 7),
@@ -478,9 +515,9 @@ class AgentField extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 help!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.ink3,
+                  color: colors.ink3,
                   height: 1.45,
                 ),
               ),
