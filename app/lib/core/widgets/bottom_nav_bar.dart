@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../theme/tiq_colors.dart';
 import 'agent_motion.dart' show reduceMotion;
 import 'nav_menu_sheet.dart';
 
@@ -21,18 +22,15 @@ const _slots = <_Slot>[
 ];
 
 /// Apple News-style floating pill bar — ManagerScaffold shows it below 1080px
-/// in place of the sidebar. Always the light treatment: blurred white over
-/// whatever scrolls beneath, hairline border, soft shadow.
+/// in place of the sidebar. One structure, two treatments via the `navBar*`
+/// [TiqColors] slots: blurred paper in light, blurred instrument-dark in dark
+/// — always a 92% fill over the blur, hairline border, soft shadow.
 class TiqBottomNavBar extends StatelessWidget {
   const TiqBottomNavBar({super.key, required this.activeRoute});
 
   /// The router's matched location; the blue pill sits under the slot whose
   /// route matches (prefix-aware, so `/tasks/42` still lights up Tasks).
   final String activeRoute;
-
-  static const _accent = Color(0xFF0A6CF0);
-  static const _pillFill = Color(0xFFEAF2FF);
-  static const _inactiveInk = Color(0xFF5C6470);
 
   int? get _activeIndex {
     for (var i = 0; i < _slots.length; i++) {
@@ -45,6 +43,7 @@ class TiqBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final activeIndex = _activeIndex;
     return Container(
       height: 64,
@@ -64,9 +63,9 @@ class TiqBottomNavBar extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: const Color(0xEBFFFFFF), // rgba(255,255,255,.92)
+              color: colors.navBarBg,
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: const Color(0xFFE3E5EA)),
+              border: Border.all(color: colors.navBarLine),
             ),
             child: Padding(
               padding: const EdgeInsets.all(5),
@@ -94,7 +93,7 @@ class TiqBottomNavBar extends StatelessWidget {
                             'bottom-nav-pill-${_slots[activeIndex].route}',
                           ),
                           decoration: BoxDecoration(
-                            color: _pillFill,
+                            color: colors.navActivePillBg,
                             borderRadius: BorderRadius.circular(21),
                           ),
                         ),
@@ -130,8 +129,8 @@ class _SlotButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Icon + label on EVERY slot — never colour alone (#144).
-    final color =
-        active ? TiqBottomNavBar._accent : TiqBottomNavBar._inactiveInk;
+    final colors = context.colors;
+    final color = active ? colors.navActiveInk : colors.navInactiveInk;
     final route = slot.route;
     return InkWell(
       key: ValueKey('bottom-nav-${route ?? 'menu'}'),

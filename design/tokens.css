@@ -51,6 +51,20 @@
   --shadow:       transparent;
   --scrim:        rgba(0, 0, 0, 0.54);
 
+  /* Hero glass (premium-ui sub2) — top stop of the dashboard hero's gradient
+     wash; the bottom stop is surface-1. ink-1 clears 4.5:1 on the wash in
+     both modes (app/test/core/theme/tiq_colors_test.dart). */
+  --hero-wash:    #17233a;
+  --hero-border:  #22304a;
+
+  /* Floating bottom bar (below 1080px) — a 92% fill over a backdrop blur in
+     both modes, so the content scrolling beneath still reads through it. */
+  --nav-bar-bg:         rgba(18, 21, 28, 0.92);
+  --nav-bar-line:       #262b33;
+  --nav-inactive-ink:   #8a94a6;  /* 5.9:1 on the bar over surface-3 (worst case) */
+  --nav-active-pill-bg: #12305c;
+  --nav-active-ink:     #6db4ff;  /* 6.0:1 on the active pill */
+
   /* Geometry — squared off. Nothing is a pill. */
   --r-control:    3px;
   --r-panel:      4px;
@@ -100,6 +114,17 @@
 
   --shadow:       rgba(16, 24, 40, 0.08);
   --scrim:        rgba(16, 24, 40, 0.60);
+
+  /* Hero glass — the 2026-07-24 spec's exact hexes. */
+  --hero-wash:    #f2f7ff;
+  --hero-border:  #dbe7fa;
+
+  /* Floating bottom bar — byte-for-byte the sub-1 shipped treatment. */
+  --nav-bar-bg:         rgba(255, 255, 255, 0.92);
+  --nav-bar-line:       #e3e5ea;
+  --nav-inactive-ink:   #5c6470;
+  --nav-active-pill-bg: #eaf2ff;
+  --nav-active-ink:     #0a6cf0;  /* == brand, as shipped */
 }
 
 * { box-sizing: border-box; }

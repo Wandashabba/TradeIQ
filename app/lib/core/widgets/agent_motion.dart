@@ -19,8 +19,13 @@ import '../theme/app_colors.dart';
 ///    look busy.
 /// 2. **Nothing repeats forever.** An infinitely-repeating animation means
 ///    `pumpAndSettle` never settles, which quietly makes the widget under it
-///    untestable. The only looping animation in the app is [PulseDot], and it
-///    loops only while a sync is *actually in flight* — a transient state.
+///    untestable. The app has exactly two looping animations, both budgeted in
+///    the spec's motion table (docs/superpowers/specs/
+///    2026-07-24-premium-ui-redesign-design.md, "Motion system"): [PulseDot],
+///    which loops only while a sync is *actually in flight* — a transient
+///    state — and the agent-trail map pins' glow breathing
+///    (agent_trail_screen.dart), a ~2% ambient swing that is reduceMotion-gated
+///    and test-disabled via `AgentTrailScreen.debugDisableGlowBreathing`.
 
 /// Durations. Short enough to feel instant, long enough to be seen.
 class Motion {
@@ -38,6 +43,14 @@ class Motion {
   /// Stagger between rows entering. Small: nine rows × 40ms is still under
   /// half a second, and an agent should not wait for the UI to finish arriving.
   static const stagger = Duration(milliseconds: 40);
+
+  /// A hero figure counting up to its value — the dashboard's one-shot
+  /// entrance. Longer than [slow] because it is the single headline moment of
+  /// a screen, and it happens exactly once per session.
+  static const countUp = Duration(milliseconds: 600);
+
+  /// How long a delta pill holds back so the figure it qualifies lands first.
+  static const pillDelay = Duration(milliseconds: 450);
 
   static const enter = Curves.easeOutCubic;
   static const exit = Curves.easeInCubic;
@@ -90,9 +103,10 @@ class AnimatedCount extends StatelessWidget {
         transitionBuilder: (child, animation) => FadeTransition(
           opacity: animation,
           child: ScaleTransition(
-            scale: Tween(begin: 0.86, end: 1.0).animate(
-              CurvedAnimation(parent: animation, curve: Motion.settle),
-            ),
+            scale: Tween(
+              begin: 0.86,
+              end: 1.0,
+            ).animate(CurvedAnimation(parent: animation, curve: Motion.settle)),
             child: child,
           ),
         ),
@@ -231,7 +245,9 @@ class _PulseDotState extends State<PulseDot>
                   width: 7,
                   height: 7,
                   decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: 0.35 * (1 - _c.value)),
+                    color: widget.color.withValues(
+                      alpha: 0.35 * (1 - _c.value),
+                    ),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -278,7 +294,10 @@ class Reveal extends StatelessWidget {
       ),
       builder: (context, t, child) => Opacity(
         opacity: t,
-        child: Transform.translate(offset: Offset(0, 12 * (1 - t)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
       ),
       child: child,
     );

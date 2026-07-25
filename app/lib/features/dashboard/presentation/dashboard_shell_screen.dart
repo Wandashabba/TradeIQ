@@ -15,6 +15,7 @@ import '../../../core/widgets/agent_state_glyph.dart';
 import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/delta_pill.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../agents/data/agents_repository.dart';
@@ -157,19 +158,59 @@ class _TwoColumn extends StatelessWidget {
 // Hero — execution score + its trend
 // ═══════════════════════════════════════════════════════════════════════
 
-class _ExecutionScorePanel extends ConsumerWidget {
+class _ExecutionScorePanel extends ConsumerStatefulWidget {
   const _ExecutionScorePanel({required this.snapshot});
 
   final AsyncValue<DashboardSnapshot> snapshot;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ExecutionScorePanel> createState() =>
+      _ExecutionScorePanelState();
+}
+
+class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel>
+    with AutomaticKeepAliveClientMixin {
+  /// Flipped on the panel's first data build — a during-build write,
+  /// deliberately not setState: nothing rendered depends on it until a LATER
+  /// build (a filter change remounting the row through the loading arm),
+  /// which must come up entrance-free. This State outlives those remounts,
+  /// so the latch survives where the animated subtree does not.
+  bool _entered = false;
+
+  /// The latch's storage guarantee. The dashboard body is a lazy ListView
+  /// whose sliver DISPOSES children scrolled past its cache extent — without
+  /// keep-alive, a scroll to the bottom and back would take this State (and
+  /// the latch) with it, replaying the entire entrance. Keeping the panel
+  /// alive also preserves the hero chart's completed draw-in and the pill's
+  /// settled entrance, so scrolling back restores the settled screen instead
+  /// of re-performing it. Cheap: this pins one text-and-one-chart row, not
+  /// the heavy map panel (a separate ListView child, untouched).
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final snapshot = widget.snapshot;
     final trend = ref.watch(scorecardsTrendProvider);
+    final colors = context.colors;
 
     return PanelCard(
       title: 'Execution score',
       subtitle: 'Weighted S2–S8, all outlets',
       padded: false,
+      // The screen's one "glass" card: the score is the product's headline
+      // number, and the wash is what makes it read as the headline. Theme
+      // slots, not spec hexes: light carries the spec's `#F2F7FF → #FFFFFF`
+      // + `#DBE7FA` border, dark a navy wash its own ink1 stays readable on
+      // (the hard-coded light wash once made the dark score ~1.1:1 —
+      // dashboard test 'dark theme: the hero score…' pins the fix).
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [colors.heroWash, colors.surface1],
+      ),
+      borderColor: colors.heroBorder,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
         child: Column(
@@ -182,39 +223,42 @@ class _ExecutionScorePanel extends ConsumerWidget {
                 message: 'Could not load KPIs',
                 onRetry: () => ref.invalidate(dashboardSnapshotProvider),
               ),
-              data: (snap) => Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  // The headline figure counts up to its value. Not a flourish:
-                  // it makes the number the thing the eye lands on first, which
-                  // is the whole point of a hero figure.
-                  TweenAnimationBuilder<double>(
-                    key: const ValueKey('kpi-execution-score'),
-                    tween: Tween(begin: 0, end: snap.current.executionScore),
-                    duration:
-                        (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
-                        ? Duration.zero
-                        : const Duration(milliseconds: 700),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, v, _) => Text(
-                      v.toStringAsFixed(1),
-                      style: Theme.of(context).textTheme.displaySmall,
+              data: (snap) {
+                final animate = !_entered;
+                _entered = true;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    // The headline figure counts up to its value ONCE. Not a
+                    // flourish: it makes the number the thing the eye lands on
+                    // first, which is the whole point of a hero figure.
+                    _HeroScore(
+                      key: const ValueKey('kpi-execution-score'),
+                      value: snap.current.executionScore,
+                      animate: animate,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Measured against the window immediately before this one — the
-                  // same comparison every tile below makes, so the whole screen
-                  // is answering one question consistently.
-                  switch (snap.of((k) => k.executionScore)) {
-                    final d when d.hasDelta => DeltaBadge(
-                      value: d.change!,
-                      fontSize: 13,
-                    ),
-                    _ => const SizedBox.shrink(),
-                  },
-                ],
-              ),
+                    const SizedBox(width: 12),
+                    // Measured against the window immediately before this one —
+                    // the same comparison every tile below makes, so the whole
+                    // screen is answering one question consistently. Tone
+                    // follows the sign: the snapshot carries no other verdict
+                    // to wire. The entrance wrap lives HERE, not inside
+                    // DeltaPill — the pill is shared chrome and other screens
+                    // may not want entrance motion.
+                    switch (snap.of((k) => k.executionScore)) {
+                      final d when d.hasDelta => OneShotEntrance.pill(
+                        enabled: animate,
+                        child: DeltaPill(
+                          delta: d.change!,
+                          tone: d.change! < 0 ? DeltaTone.bad : DeltaTone.good,
+                        ),
+                      ),
+                      _ => const SizedBox.shrink(),
+                    },
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 10),
             trend.when(
@@ -229,11 +273,70 @@ class _ExecutionScorePanel extends ConsumerWidget {
                 ],
                 target: 75,
                 seriesName: 'Execution score',
+                lineWidth: 2.5,
+                gradientFill: true,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The hero figure. Counts 0 → value over ~600ms ease-out exactly once — on
+/// the panel's first data build — then renders as plain text for the rest of
+/// the session, so refreshes and filter changes swap the number without
+/// re-performing it. Under reduced motion there is no tween at all: the final
+/// figure IS the first frame.
+class _HeroScore extends StatefulWidget {
+  const _HeroScore({super.key, required this.value, required this.animate});
+
+  final double value;
+
+  /// Whether this mount is the entrance. Latched at mount (see State): a
+  /// rebuild mid-count-up cannot cut the animation short, and a remount after
+  /// the entrance epoch renders statically.
+  final bool animate;
+
+  @override
+  State<_HeroScore> createState() => _HeroScoreState();
+}
+
+class _HeroScoreState extends State<_HeroScore> {
+  late final bool _entrance = widget.animate;
+
+  /// Set when the count-up completes; from then on the tween is gone from the
+  /// tree entirely, so a later value change (a refresh landing new data into
+  /// this same State) renders directly instead of animating toward it.
+  bool _done = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 31,
+      height: 1.0,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.6,
+      color: context.colors.ink1,
+    );
+
+    if (_done || !_entrance) {
+      return Text(widget.value.toStringAsFixed(1), style: style);
+    }
+    if (reduceMotion(context)) {
+      // The entrance moment is consumed, not deferred: flipping reduced
+      // motion off later must not perform the count-up mid-session.
+      _done = true;
+      return Text(widget.value.toStringAsFixed(1), style: style);
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: widget.value),
+      duration: Motion.countUp,
+      curve: Curves.easeOutCubic,
+      onEnd: () => setState(() => _done = true),
+      builder: (context, v, _) => Text(v.toStringAsFixed(1), style: style),
     );
   }
 }
@@ -382,17 +485,41 @@ double _sos(DashboardKpis k) => k.shareOfShelf;
 double _weighted(DashboardKpis k) => k.weightedDistribution;
 double _numeric(DashboardKpis k) => k.numericDistribution;
 
-class _KpiStrip extends ConsumerWidget {
+class _KpiStrip extends ConsumerStatefulWidget {
   const _KpiStrip({required this.snapshot});
 
   final AsyncValue<DashboardSnapshot> snapshot;
+
+  @override
+  ConsumerState<_KpiStrip> createState() => _KpiStripState();
+}
+
+class _KpiStripState extends ConsumerState<_KpiStrip>
+    with AutomaticKeepAliveClientMixin {
+  /// Same first-data-build latch as the hero panel: pills enter once, and a
+  /// filter change remounting the strip comes up entrance-free.
+  bool _entered = false;
+
+  /// Same storage guarantee as [_ExecutionScorePanelState.wantKeepAlive]:
+  /// the ListView's sliver would otherwise dispose this State — latches and
+  /// all — on a scroll past the cache extent, replaying the entrance on the
+  /// way back. Seven text tiles and two sparklines; cheap to pin.
+  @override
+  bool get wantKeepAlive => true;
+
+  /// Sparklines latch per label, separately from [_entered]: their trend
+  /// providers can resolve a frame or two AFTER the snapshot, and by then the
+  /// strip-level latch has already flipped — a shared flag would silently
+  /// cancel their fade. A label re-entering after a filter change is already
+  /// in the set, so nothing replays.
+  final Set<String> _sparkEntered = {};
 
   /// A sparkline is only drawn where a real history series exists.
   ///
   /// `/trends` serves three series and no more (#95). The other five KPIs have
   /// no history endpoint, so they get no sparkline — a fabricated shape would be
   /// the most confident-looking lie on the screen.
-  List<double>? _series(WidgetRef ref, String label) {
+  List<double>? _series(String label) {
     List<double>? read(AsyncValue<List<TrendPoint>> v) => v.maybeWhen(
       data: (points) =>
           points.length < 2 ? null : [for (final p in points) p.value],
@@ -407,7 +534,9 @@ class _KpiStrip extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    super.build(context);
+    final snapshot = widget.snapshot;
     final colors = context.colors;
     return PanelCard(
       title: 'Key indicators',
@@ -429,6 +558,14 @@ class _KpiStrip extends ConsumerWidget {
 
           return LayoutBuilder(
             builder: (context, constraints) {
+              // Latched INSIDE the layout builder, not in the data arm above:
+              // this closure re-runs on a constraints-only relayout without a
+              // fresh data build, and a stale `animate` captured on the
+              // entrance frame would replay the pills when a breakpoint
+              // change remounts the tiles.
+              final animate = !_entered;
+              _entered = true;
+
               final columns = constraints.maxWidth >= 1120
                   ? 4
                   : constraints.maxWidth >= 620
@@ -476,12 +613,27 @@ class _KpiStrip extends ConsumerWidget {
                                   // before this one — a second real request, not
                                   // an invented baseline. Null when there is
                                   // nothing to compare to (all-time has no
-                                  // "before"), and the tile then shows no arrow.
+                                  // "before"), and the tile then shows no pill.
                                   delta: rows[r][c].$4.hasDelta
                                       ? rows[r][c].$4.change
                                       : null,
-                                  spark: switch (_series(ref, rows[r][c].$1)) {
-                                    final values? => Sparkline(values: values),
+                                  animateDelta: animate,
+                                  spark: switch (_series(rows[r][c].$1)) {
+                                    final values? => OneShotEntrance(
+                                      // Set.add IS the latch: true only the
+                                      // first time this label's series
+                                      // actually renders, false on every
+                                      // later build or remount.
+                                      enabled: _sparkEntered.add(rows[r][c].$1),
+                                      // Staggered by flat tile position, so
+                                      // the strip reads left-to-right.
+                                      delay: Motion.stagger * (r * columns + c),
+                                      child: Sparkline(
+                                        values: values,
+                                        width: null,
+                                        gradient: true,
+                                      ),
+                                    ),
                                     _ => null,
                                   },
                                 ),
@@ -723,10 +875,9 @@ class AgentActivityPanel extends ConsumerWidget {
     // layer, not the panel's primary data. A slow or failed outlet fetch
     // must never blank the whole panel or block the agent map — it just
     // means the base layer is thinner (or absent) until the fetch lands.
-    final outlets = ref.watch(outletsListProvider).maybeWhen(
-      data: (list) => list,
-      orElse: () => const <Outlet>[],
-    );
+    final outlets = ref
+        .watch(outletsListProvider)
+        .maybeWhen(data: (list) => list, orElse: () => const <Outlet>[]);
 
     return PanelCard(
       title: 'Where are my agents',
@@ -783,7 +934,10 @@ class AgentActivityPanel extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
                       'No outlets yet — add outlets to see them here.',
-                      style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.colors.ink3,
+                      ),
                     ),
                   ),
                   list,
@@ -836,7 +990,10 @@ class AgentActivityPanel extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       'Showing the first 200 agents. Filter by territory to narrow.',
-                      style: TextStyle(fontSize: 12, color: context.colors.ink3),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.colors.ink3,
+                      ),
                     ),
                   ),
               ],
@@ -1466,46 +1623,50 @@ class _RangeControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (i, r) in DashboardRange.values.indexed)
-            InkWell(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final r in DashboardRange.values)
+          // The active pill is otherwise colour-only to a screen reader:
+          // selected carries the state, button makes each chip actionable.
+          Semantics(
+            button: true,
+            selected: r == selected,
+            child: InkWell(
               key: ValueKey('range-${r.name}'),
               onTap: () => onChanged(r),
+              borderRadius: BorderRadius.circular(AppColors.radiusPill),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 6,
+                  horizontal: 12,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: r == selected ? colors.surface3 : Colors.transparent,
-                  border: Border(
-                    right: BorderSide(
-                      color: i == DashboardRange.values.length - 1
-                          ? Colors.transparent
-                          : colors.lineStrong,
-                    ),
+                  // Active = solid brand, inactive = surface + hairline.
+                  // White-on-brand is a self-contained pair: brand is the
+                  // same #0A6CF0 in both themes (4.98:1 under white), so
+                  // neither theme's ink may sit on it — dark ink1 on brand
+                  // would fail AA.
+                  color: r == selected ? colors.brand : colors.surface1,
+                  border: Border.all(
+                    color: r == selected ? colors.brand : colors.line,
                   ),
+                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
                 ),
                 child: Text(
                   r.label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: r == selected ? colors.ink1 : colors.ink2,
+                    color: r == selected ? Colors.white : colors.ink2,
                   ),
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
