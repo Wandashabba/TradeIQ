@@ -3,14 +3,22 @@ import sharp from 'sharp';
 /**
  * Thrown when a stored Photo.url cannot be turned into a thumbnail — either it
  * is not a base64 image data URL at all, or its bytes do not decode as an
- * image. This is a data problem on the stored row (uploads are validated at
- * the route), so the route maps it to a 422 rather than a generic 500.
+ * image. POST /photos only validates that the payload is a bounded string, so
+ * such rows can exist through perfectly normal use; 422 on the read path is
+ * the deliberate answer, rather than a generic 500.
  */
 export class ThumbnailSourceError extends Error {}
 
 const THUMBNAIL_WIDTH = 256;
 const THUMBNAIL_JPEG_QUALITY = 70;
 const CACHE_MAX_ENTRIES = 50;
+
+// The 8MB data-URL cap bounds the ENCODED size, not the decoded one — a
+// few-KB PNG can declare huge dimensions and balloon to hundreds of MB of
+// raw pixels. 32MP comfortably covers any real phone camera while keeping the
+// worst-case decode allocation bounded; past it, sharp throws and the read
+// path answers 422.
+const MAX_INPUT_PIXELS = 32 * 1024 * 1024;
 
 // data:image/<subtype>;base64,<payload> — anchored so a random string (or a
 // non-image data URL) is rejected before we hand bytes to sharp.
@@ -32,6 +40,10 @@ export function thumbnailCacheProbe(): { size: number; hits: number } {
  * Returns the cached thumbnail for `photoId`, or builds one from the photo's
  * stored data URL. `loadDataUrl` is only invoked on a cache miss so a hit
  * never drags the ~MB original out of the database.
+ *
+ * No single-flight de-duplication: concurrent misses for the same photo each
+ * decode independently and the last one wins the cache slot — duplicated
+ * sharp work, but harmless and acceptable at this scale.
  */
 export async function getThumbnailForPhoto(
   photoId: string,
@@ -55,7 +67,9 @@ export async function getThumbnailForPhoto(
 
   let thumbnail: Buffer;
   try {
-    thumbnail = await sharp(Buffer.from(match[1], 'base64'))
+    thumbnail = await sharp(Buffer.from(match[1], 'base64'), {
+      limitInputPixels: MAX_INPUT_PIXELS,
+    })
       // Bake the EXIF orientation in — the thumbnail is served without
       // metadata, so an unrotated portrait shot would render sideways.
       .rotate()

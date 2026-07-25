@@ -244,6 +244,19 @@ describe('photos routes', () => {
       malformedPhotoId = malformed.id;
     });
 
+    const seedPhoto = async (url: string) => {
+      const photo = await prisma.photo.create({
+        data: {
+          visitId,
+          section: 'visibility',
+          url,
+          gpsTag: { lat: -26.2041, lng: 28.0473 },
+          timestamp: new Date(),
+        },
+      });
+      return photo.id;
+    };
+
     it('serves a manager a small jpeg with cache headers (200)', async () => {
       const res = await request(app)
         .get(`/photos/${fixturePhotoId}/thumbnail`)
@@ -301,6 +314,63 @@ describe('photos routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
       expect(res.status).toBe(422);
       expect(typeof res.body.error).toBe('string');
+    });
+
+    it('returns 422 for a data URL whose base64 payload is not an image', async () => {
+      // 'aGVsbG8=' is valid base64 ("hello") — passes the regex, fails decode.
+      const photoId = await seedPhoto('data:image/jpeg;base64,aGVsbG8=');
+      const res = await request(app)
+        .get(`/photos/${photoId}/thumbnail`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(422);
+      expect(typeof res.body.error).toBe('string');
+    });
+
+    it('returns 422 for a decompression bomb (tiny bytes, huge dimensions)', async () => {
+      // 9000x9000 = 81MP — a solid-color PNG of it compresses to a few KB,
+      // but decoding would allocate ~324MB. Must be refused, not decoded.
+      const bomb = await sharp({
+        create: {
+          width: 9000,
+          height: 9000,
+          channels: 3,
+          background: { r: 0, g: 0, b: 0 },
+        },
+      })
+        .png()
+        .toBuffer();
+      expect(bomb.byteLength).toBeLessThan(1024 * 1024); // small on the wire
+
+      const photoId = await seedPhoto(`data:image/png;base64,${bomb.toString('base64')}`);
+      const res = await request(app)
+        .get(`/photos/${photoId}/thumbnail`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(422);
+      expect(typeof res.body.error).toBe('string');
+    });
+
+    it('bakes the EXIF orientation into the thumbnail (portrait stays portrait)', async () => {
+      // A 400x200 landscape frame tagged orientation 6 (rotate 90° CW) is
+      // really a portrait shot — the served thumbnail must come out taller
+      // than wide, proving .rotate() honours EXIF before resizing.
+      const oriented = await sharp({
+        create: { width: 400, height: 200, channels: 3, background: { r: 50, g: 100, b: 150 } },
+      })
+        .jpeg()
+        .withMetadata({ orientation: 6 })
+        .toBuffer();
+
+      const photoId = await seedPhoto(`data:image/jpeg;base64,${oriented.toString('base64')}`);
+      const res = await request(app)
+        .get(`/photos/${photoId}/thumbnail`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .buffer(true)
+        .parse(binaryParser);
+      expect(res.status).toBe(200);
+
+      const meta = await sharp(res.body as Buffer).metadata();
+      expect(meta.width).toBe(256);
+      expect(meta.height).toBe(512); // 200x400 after rotation, upscaled to width 256
     });
   });
 });

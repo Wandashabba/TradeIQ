@@ -2,8 +2,8 @@ import sharp from 'sharp';
 import { getThumbnailForPhoto, thumbnailCacheProbe } from './thumbnails';
 
 // Pure unit tests for the in-memory cache — no HTTP, no database. The cache
-// cap is 50 (CACHE_MAX_ENTRIES in thumbnails.ts); this suite runs in its own
-// jest worker, so the module-level cache starts empty here.
+// cap is 50 (CACHE_MAX_ENTRIES in thumbnails.ts); jest gives every test file
+// a fresh module registry, so the module-level cache starts empty here.
 const CACHE_CAP = 50;
 
 describe('thumbnail cache', () => {

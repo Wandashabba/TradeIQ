@@ -89,7 +89,9 @@ export async function attachEvidencePhotoIds<T extends { visitId: string | null 
   if (visitIds.length > 0) {
     const photos = await prisma.photo.findMany({
       where: { visitId: { in: visitIds } },
-      orderBy: { createdAt: 'desc' },
+      // id desc as the tiebreaker so a createdAt tie picks the same photo on
+      // every request instead of whatever the database felt like.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: { id: true, visitId: true },
     });
     // Rows arrive newest-first, so the first photo seen per visit wins.
