@@ -77,6 +77,7 @@ class _FakeAlertsRepository implements AlertsRepository {
   final Duration ackDelay;
   final List<AlertItem> _alerts;
   String? acknowledgedId;
+  int ackCalls = 0;
 
   @override
   Future<PaginatedResponse<AlertItem>> listAlerts({
@@ -86,6 +87,7 @@ class _FakeAlertsRepository implements AlertsRepository {
 
   @override
   Future<AlertItem> acknowledge(String id) async {
+    ackCalls++;
     if (ackDelay > Duration.zero) {
       await Future<void>.delayed(ackDelay);
     }
@@ -110,7 +112,13 @@ class _ThrowingAlertsRepository implements AlertsRepository {
 
 /// The list loads, but acknowledging fails — the honesty path: the row must
 /// come back, never silently vanish while still unacknowledged server-side.
+/// [ackDelay] keeps the failure in flight long enough for the row to be
+/// disposed underneath it (the mid-flight-dispose tests).
 class _AckFailsRepository implements AlertsRepository {
+  _AckFailsRepository({this.ackDelay = Duration.zero});
+
+  final Duration ackDelay;
+
   @override
   Future<PaginatedResponse<AlertItem>> listAlerts({
     bool? acknowledged,
@@ -121,8 +129,12 @@ class _AckFailsRepository implements AlertsRepository {
   );
 
   @override
-  Future<AlertItem> acknowledge(String id) async =>
-      throw Exception('ack rejected');
+  Future<AlertItem> acknowledge(String id) async {
+    if (ackDelay > Duration.zero) {
+      await Future<void>.delayed(ackDelay);
+    }
+    throw Exception('ack rejected');
+  }
 }
 
 class _FakePhotosRepository implements PhotosRepository {
@@ -326,11 +338,12 @@ void main() {
 
     testWidgets('the row animates closed BEFORE the ack lands, then the '
         'refresh omits it', (tester) async {
-      // The acknowledge round trip takes 300ms; the collapse takes ~200ms.
-      // The row must be visually gone while the request is still in flight —
-      // the animation is the receipt, not the refresh.
+      // The acknowledge round trip takes 400ms; the collapse runs on
+      // Motion.base (260ms — "a row settling"). The row must be visually
+      // gone while the request is still in flight — the animation is the
+      // receipt, not the refresh.
       final repo = _FakeAlertsRepository(
-        ackDelay: const Duration(milliseconds: 300),
+        ackDelay: const Duration(milliseconds: 400),
       );
       await tester.pumpWidget(_app(repo));
       await tester.pumpAndSettle();
@@ -348,15 +361,44 @@ void main() {
       expect(mid, greaterThan(0));
       expect(mid, lessThan(full));
 
-      await tester.pump(const Duration(milliseconds: 150));
-      // t≈250ms: collapsed to nothing while acknowledge is still pending.
+      await tester.pump(const Duration(milliseconds: 130));
+      // t≈230ms: still settling — this discriminates Motion.base (260ms)
+      // from the faster tokens; a 200ms-or-less collapse would already be
+      // flat here.
+      expect(tester.getSize(collapse).height, greaterThan(0));
+
+      await tester.pump(const Duration(milliseconds: 50));
+      // t≈280ms: collapsed to nothing while acknowledge is still pending.
       expect(tester.getSize(collapse).height, 0);
       expect(repo.acknowledgedId, isNull);
 
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 200));
       await tester.pumpAndSettle();
       expect(repo.acknowledgedId, 'a-open');
       // The refreshed Open list omits the row for real.
+      expect(find.text('SKU 42 out of stock'), findsNothing);
+    });
+
+    testWidgets('a second tap during the collapse fires no duplicate PATCH', (
+      tester,
+    ) async {
+      // The server's ack is idempotent, so a double PATCH is benign there —
+      // but a double failure would stack SnackBars, and a receipt should
+      // only be issued once. Both taps land in the same frame, before the
+      // collapse has painted, so the second is a genuine mid-flight repeat.
+      final repo = _FakeAlertsRepository(
+        ackDelay: const Duration(milliseconds: 400),
+      );
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
+
+      final ack = find.byKey(const ValueKey<String>('ack-a-open'));
+      await tester.tap(ack);
+      await tester.tap(ack);
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      expect(repo.ackCalls, 1);
       expect(find.text('SKU 42 out of stock'), findsNothing);
     });
 
@@ -377,8 +419,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
       await tester.pump();
 
-      // Gone on the very next frame: a 200ms tween would still be at ~full
-      // height here, so instant zero IS the proof of no animation frames.
+      // Gone on the very next frame: a Motion.base tween would still be at
+      // ~full height here, so instant zero IS the proof of no animation
+      // frames.
       // (No global hasRunningAnimations check — the tapped button's own ink
       // ripple is a Material animation outside this widget's control.)
       expect(
@@ -458,6 +501,60 @@ void main() {
       // Let the SnackBar's dismiss timer run out so the test ends clean.
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('a row disposed mid-flight lands its ack without crashing', (
+      tester,
+    ) async {
+      // The manager taps Acknowledge, then switches tab while the PATCH is
+      // in flight. The Acknowledged tab filters the still-unacked row out of
+      // the list, disposing its State under the pending future — the success
+      // continuation must notice (mounted guard) rather than invalidate
+      // through a dead ref.
+      final repo = _FakeAlertsRepository(
+        ackDelay: const Duration(milliseconds: 300),
+      );
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('tab-_Tab.acknowledged')));
+      await tester.pump();
+      // The row is gone from the tree; the ack timer has not fired yet.
+      expect(find.byKey(const ValueKey('collapse-a-open')), findsNothing);
+      expect(repo.acknowledgedId, isNull);
+
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      // The PATCH still landed server-side; the dead row just stayed quiet.
+      expect(repo.acknowledgedId, 'a-open');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a row disposed mid-flight swallows its ack FAILURE without '
+        'crashing', (tester) async {
+      // Same dispose-under-a-pending-future shape, failure arm: the catch
+      // must notice the row is gone rather than un-collapse a disposed
+      // controller or raise a SnackBar through a defunct element. No error
+      // surface is owed here — the row it concerns no longer exists.
+      await tester.pumpWidget(
+        _app(_AckFailsRepository(ackDelay: const Duration(milliseconds: 300))),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('tab-_Tab.acknowledged')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('collapse-a-open')), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SnackBar), findsNothing);
     });
   });
 

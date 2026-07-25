@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/agent_motion.dart' show reduceMotion;
+import '../../../core/widgets/agent_motion.dart' show Motion, reduceMotion;
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/evidence_thumb.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -298,10 +298,11 @@ class _AlertList extends StatelessWidget {
 /// exactly the dishonest chrome the spec bans. Acknowledge is the only row
 /// action until a visit-detail screen exists.
 ///
-/// Acknowledging collapses the row closed IMMEDIATELY (optimistic, ~200ms
-/// SizeTransition; instant under reduced motion) so the receipt is the tap,
-/// not the round trip — and if the PATCH fails, the row un-collapses and a
-/// SnackBar names the failure. An unacked alert never silently vanishes.
+/// Acknowledging collapses the row closed IMMEDIATELY (optimistic,
+/// [Motion.base] SizeTransition — "a row settling"; instant under reduced
+/// motion) so the receipt is the tap, not the round trip — and if the PATCH
+/// fails, the row un-collapses and a SnackBar names the failure. An unacked
+/// alert never silently vanishes.
 class _AlertRow extends ConsumerStatefulWidget {
   const _AlertRow({super.key, required this.alert});
 
@@ -316,12 +317,18 @@ class _AlertRowState extends ConsumerState<_AlertRow>
   late final AnimationController _height = AnimationController(
     vsync: this,
     value: 1,
-    duration: const Duration(milliseconds: 200),
+    duration: Motion.base,
   );
-  late final Animation<double> _sizeFactor = CurvedAnimation(
+  late final CurvedAnimation _sizeFactor = CurvedAnimation(
     parent: _height,
     curve: Curves.easeInOut,
   );
+
+  /// True from the Acknowledge tap until the PATCH resolves. A second tap
+  /// mid-collapse must not fire a duplicate request: the server's ack is
+  /// idempotent, so the repeat would be benign there, but a repeated FAILURE
+  /// would stack SnackBars — one tap, one receipt, one outcome.
+  bool _acking = false;
 
   @override
   void didUpdateWidget(_AlertRow old) {
@@ -338,11 +345,14 @@ class _AlertRowState extends ConsumerState<_AlertRow>
 
   @override
   void dispose() {
+    _sizeFactor.dispose();
     _height.dispose();
     super.dispose();
   }
 
   Future<void> _acknowledge() async {
+    if (_acking) return;
+    _acking = true;
     // Optimistic: the row starts closing on the tap itself.
     if (reduceMotion(context)) {
       _height.value = 0;
@@ -351,12 +361,19 @@ class _AlertRowState extends ConsumerState<_AlertRow>
     }
     try {
       await ref.read(alertsRepositoryProvider).acknowledge(widget.alert.id);
+      // The row may have been disposed under the pending PATCH (tab switch
+      // filters it out of the list): a dead ref cannot invalidate, and the
+      // refresh it wanted is moot — whoever rebuilt the list already
+      // refetched or will.
       if (!mounted) return;
       ref.invalidate(alertsListProvider);
     } catch (err) {
+      // Same dispose race, failure arm: no controller to un-collapse, no
+      // element to hang a SnackBar off — and no row left to be honest about.
       if (!mounted) return;
       // Honesty: the acknowledge did NOT happen, so the alert must come back
       // — a vanished-but-unacked alert is the worklist lying.
+      _acking = false;
       if (reduceMotion(context)) {
         _height.value = 1;
       } else {
