@@ -102,6 +102,15 @@ class _BrandAssetBundle extends CachingAssetBundle {
       : rootBundle.load(key);
 }
 
+/// The other failure mode: a BrandMedia constant set without its pubspec
+/// asset entry. The load throws, and the widget must degrade to nothing.
+class _MissingAssetBundle extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) async => key.endsWith('.png')
+      ? throw StateError('missing asset: $key')
+      : rootBundle.load(key);
+}
+
 /// A realistic offline failure: the DioException whose toString is the
 /// multi-line dump — SocketException, hostname and all — that used to reach
 /// every console screen through AsyncSection's `$err` interpolation.
@@ -229,6 +238,33 @@ void main() {
       );
       expect(cap.constraints.maxHeight, 160);
     });
+
+    testWidgets(
+      'a missing asset degrades to nothing — no error box, no exception',
+      (tester) async {
+        // The failure mode: a BrandMedia constant set but the file never
+        // added to pubspec. The text-only state must still stand.
+        await tester.pumpWidget(
+          _themed(
+            DefaultAssetBundle(
+              bundle: _MissingAssetBundle(),
+              child: const EmptyState(
+                message: 'Nothing outstanding',
+                hint: 'A hint',
+                illustration: 'assets/images/brand/tasks-all-clear.png',
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Nothing outstanding'), findsOneWidget);
+        expect(find.text('A hint'), findsOneWidget);
+        // The Image element collapses to zero size: nothing rendered.
+        expect(tester.getSize(find.byType(Image)), Size.zero);
+      },
+    );
   });
 
   group('WorklistRow card', () {

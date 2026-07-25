@@ -11,7 +11,7 @@
  *
  * Output: out/<slug>-<n>.png (gitignored — candidates, not assets).
  */
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -88,7 +88,15 @@ async function generate({ slug, prompt, aspectRatio }) {
     );
   }
 
-  const { predictions } = await res.json();
+  let predictions;
+  try {
+    ({ predictions } = await res.json());
+  } catch {
+    fail(
+      `unexpected non-JSON response from the Imagen API for "${slug}" ` +
+        `(HTTP ${res.status}). Retry; if it persists the API may have changed.`,
+    );
+  }
   if (!Array.isArray(predictions) || predictions.length === 0) {
     fail(
       `the Imagen API returned no images for "${slug}" — the prompt may ` +
@@ -105,9 +113,19 @@ async function generate({ slug, prompt, aspectRatio }) {
     written += 1;
     console.log(`  wrote ${file}`);
   }
+  if (written === 0) {
+    fail(
+      `the Imagen API returned predictions without image bytes for ` +
+        `"${slug}" — nothing was written. Retry; if it persists the ` +
+        'response shape may have changed.',
+    );
+  }
   return written;
 }
 
+// Fresh slate: stale candidates from an earlier (possibly partial) run must
+// never mix with this run's output.
+await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 let total = 0;
 for (const p of prompts) {

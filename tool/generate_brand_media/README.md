@@ -15,6 +15,9 @@ GEMINI_API_KEY=<your key> node generate.mjs
 - Node >= 18, zero npm dependencies.
 - Writes 2 candidates per prompt to `out/<slug>-<n>.png` (`out/` is
   gitignored — candidates are never committed).
+- `out/` is **cleared at the start of every run** so stale candidates from an
+  earlier (possibly partial) run never mix with fresh ones — copy your picks
+  out before re-running.
 - Never hardcode or commit the key; the script reads it from the environment
   only.
 

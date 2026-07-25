@@ -26,6 +26,15 @@ class _BrandAssetBundle extends CachingAssetBundle {
       : rootBundle.load(key);
 }
 
+/// The other failure mode: BrandMedia.menuHeader set without its pubspec
+/// asset entry. The load throws, and the band must degrade to nothing.
+class _MissingAssetBundle extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) async => key.endsWith('.png')
+      ? throw StateError('missing asset: $key')
+      : rootBundle.load(key);
+}
+
 /// The sheet is normally shown by [showNavMenuSheet]; here it is pumped
 /// directly to test its own contract. The ProviderScope exists for the
 /// theme-toggle and sign-out rows, which are riverpod Consumers.
@@ -83,6 +92,31 @@ void main() {
       );
       // The destinations are all still there beneath it.
       expect(find.text('Sign out'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a missing header asset degrades to nothing — no error box, no exception',
+    (tester) async {
+      // The failure mode: BrandMedia.menuHeader set but the file never
+      // added to pubspec. The sheet must still stand, band collapsed.
+      await tester.pumpWidget(
+        _app(
+          DefaultAssetBundle(
+            bundle: _MissingAssetBundle(),
+            child: const NavMenuSheet(
+              headerImage: 'assets/images/brand/menu-header.png',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('OPERATE'), findsOneWidget);
+      expect(find.text('Sign out'), findsOneWidget);
+      // The Image element collapses to zero size: nothing rendered.
+      expect(tester.getSize(find.byType(Image)), Size.zero);
     },
   );
 }

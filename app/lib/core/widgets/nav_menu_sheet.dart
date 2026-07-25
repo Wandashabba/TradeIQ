@@ -29,7 +29,9 @@ class NavMenuSheet extends StatelessWidget {
   /// Optional decorative banner across the top of the sheet, defaulting to
   /// the [BrandMedia.menuHeader] slot — null (no band, today's layout
   /// exactly) until a human curates an image; see
-  /// `tool/generate_brand_media/README.md`.
+  /// `tool/generate_brand_media/README.md`. A path set without its pubspec
+  /// asset entry degrades to nothing — the errorBuilder collapses the band
+  /// instead of showing an error box.
   final String? headerImage;
 
   @override
@@ -69,6 +71,7 @@ class NavMenuSheet extends StatelessWidget {
                     height: 88,
                     fit: BoxFit.cover,
                     semanticLabel: '',
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
                 ),
               ),

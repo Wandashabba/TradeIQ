@@ -106,6 +106,8 @@ class EmptyState extends StatelessWidget {
   /// exactly the text-only state, no reserved space. Decorative only: the
   /// image carries an empty semantic label so screen readers stay on
   /// [message], and it is capped at 160 so it can never dominate the panel.
+  /// A constant set without its pubspec asset entry degrades to nothing —
+  /// the errorBuilder collapses the slot instead of showing an error box.
   final String? illustration;
 
   @override
@@ -119,7 +121,11 @@ class EmptyState extends StatelessWidget {
           if (illustration != null) ...[
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 160),
-              child: Image.asset(illustration!, semanticLabel: ''),
+              child: Image.asset(
+                illustration!,
+                semanticLabel: '',
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
             ),
             const SizedBox(height: 14),
           ],
