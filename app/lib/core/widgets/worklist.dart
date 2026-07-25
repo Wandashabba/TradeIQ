@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/human_error.dart';
 import '../theme/app_colors.dart';
 import '../theme/tiq_colors.dart';
-import 'agent_motion.dart' show reduceMotion;
+import 'agent_motion.dart' show Motion, reduceMotion;
 import 'console.dart';
 
 /// The shared list/worklist pattern for the manager console.
@@ -197,13 +197,11 @@ class _TriageCell extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-        child: child,
-      );
+  Widget build(BuildContext context) =>
+      Padding(padding: const EdgeInsets.fromLTRB(14, 11, 14, 11), child: child);
 }
 
-/// One row of a worklist.
+/// One row of a worklist, rendered as a card.
 ///
 /// Severity rides on three channels at once — a coloured bar down the left
 /// edge, the [StatusChip]'s mark, and its word — so the row still reads in
@@ -213,6 +211,18 @@ class _TriageCell extends StatelessWidget {
 /// hover, [TiqColors.surface3] while pressed, 150ms — behind the content.
 /// The wash is feedback, not meaning: the severity channels above are never
 /// touched by it.
+///
+/// **Card geometry (premium restyle).** The row wears the panel language —
+/// surface1 ground, `line` hairline, [AppColors.radiusPanel] corners — but
+/// deliberately NOT the Stripe shadow: every consumer today renders these
+/// rows inside a [PanelCard], which already carries the console's one static
+/// shadow, and shadow-in-shadow reads as smudge, not depth. The card is the
+/// flat-in-panel variant: margin + hairline + radius only. Spacing between
+/// rows (8px) is achieved here with a symmetric 4px vertical margin — plus
+/// an 8px horizontal inset so the row's hairline never sits flush on its
+/// panel's own border — so no consumer has to change its zero-spacing
+/// Column. Everything inside the card (edge bar, wash) sits under a rounded
+/// clip so nothing square pokes out of the corners.
 class WorklistRow extends StatefulWidget {
   const WorklistRow({
     super.key,
@@ -224,6 +234,7 @@ class WorklistRow extends StatefulWidget {
     this.actions = const [],
     this.resolved = false,
     this.onTap,
+    this.thumb,
   });
 
   final String title;
@@ -240,6 +251,12 @@ class WorklistRow extends StatefulWidget {
   /// Dims the row and hollows its mark — done, but still on the page.
   final bool resolved;
   final VoidCallback? onTap;
+
+  /// Optional leading evidence slot — 44×44, rounded-8 clip. Built for the
+  /// captured-shelf-photo thumbnails (spec: "the thumbnail *is* the
+  /// evidence"); when null the row renders exactly as before, no reserved
+  /// space, no placeholder. Never put generated art here.
+  final Widget? thumb;
 
   @override
   State<WorklistRow> createState() => _WorklistRowState();
@@ -260,17 +277,14 @@ class _WorklistRowState extends State<WorklistRow> {
     final wash = _pressed
         ? colors.surface3
         : _hovered
-            ? colors.surface2
-            : Colors.transparent;
+        ? colors.surface2
+        : Colors.transparent;
     final row = AnimatedContainer(
       duration: reduceMotion(context)
           ? Duration.zero
           : const Duration(milliseconds: 150),
       curve: Curves.easeOut,
-      decoration: BoxDecoration(
-        color: interactive ? wash : null,
-        border: Border(bottom: BorderSide(color: colors.line)),
-      ),
+      decoration: BoxDecoration(color: interactive ? wash : null),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -278,7 +292,9 @@ class _WorklistRowState extends State<WorklistRow> {
             // Channel 1: the edge bar.
             Container(
               width: 3,
-              color: resolved ? colors.lineStrong : widget.level.colorOf(colors),
+              color: resolved
+                  ? colors.lineStrong
+                  : widget.level.colorOf(colors),
             ),
             Expanded(
               child: Padding(
@@ -286,6 +302,19 @@ class _WorklistRowState extends State<WorklistRow> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    if (widget.thumb != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: ClipRRect(
+                          key: const ValueKey('worklist-thumb'),
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: widget.thumb,
+                          ),
+                        ),
+                      ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,8 +324,9 @@ class _WorklistRowState extends State<WorklistRow> {
                             widget.title,
                             style: TextStyle(
                               fontSize: 13,
-                              fontWeight:
-                                  resolved ? FontWeight.w400 : FontWeight.w500,
+                              fontWeight: resolved
+                                  ? FontWeight.w400
+                                  : FontWeight.w500,
                               color: colors.ink1,
                             ),
                           ),
@@ -327,10 +357,7 @@ class _WorklistRowState extends State<WorklistRow> {
                           widget.when!,
                           softWrap: false,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: colors.ink3,
-                          ),
+                          style: TextStyle(fontSize: 11.5, color: colors.ink3),
                         ),
                       ),
                     ...widget.actions,
@@ -343,23 +370,90 @@ class _WorklistRowState extends State<WorklistRow> {
       ),
     );
 
-    if (!interactive) {
-      return Opacity(opacity: resolved ? 0.6 : 1, child: row);
-    }
+    final body = !interactive
+        ? row
+        : InkWell(
+            onTap: widget.onTap,
+            // Explicit state feedback: a row is a target, and it should say
+            // so. The wash lives in the row's own decoration (above), so it
+            // cannot be buried under an opaque panel surface.
+            onHover: (hovered) => setState(() => _hovered = hovered),
+            onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
+            hoverColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            splashColor: Colors.transparent,
+            child: row,
+          );
+
     return Opacity(
       opacity: resolved ? 0.6 : 1,
-      child: InkWell(
-        onTap: widget.onTap,
-        // Explicit state feedback: a row is a target, and it should say so.
-        // The wash lives in the row's own decoration (above), so it cannot be
-        // buried under an opaque panel surface.
-        onHover: (hovered) => setState(() => _hovered = hovered),
-        onHighlightChanged: (pressed) => setState(() => _pressed = pressed),
-        hoverColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        child: row,
+      child: Container(
+        // 4+4 between neighbours = the 8px card gap, delivered here so the
+        // ~20 consumers' zero-spacing Columns need no changes; 8px sideways
+        // keeps this hairline off the enclosing panel's border.
+        margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+        decoration: BoxDecoration(
+          color: colors.surface1,
+          border: Border.all(color: colors.line),
+          borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+          // No boxShadow — see the class doc: rows live inside a PanelCard
+          // that already owns the Stripe shadow.
+        ),
+        child: ClipRRect(
+          // A hair inside the border's radius, so the clipped edge bar and
+          // wash never overlap the hairline itself.
+          borderRadius: BorderRadius.circular(AppColors.radiusPanel - 1),
+          child: body,
+        ),
       ),
+    );
+  }
+}
+
+/// Staggered one-shot entrance for a worklist — wrap each row at the call
+/// site: `WorklistCascade(index: i, child: WorklistRow(...))`.
+///
+/// A wrapper, not an `entranceIndex:` param on [WorklistRow], for the same
+/// reason [OneShotEntrance] documents: motion is opted into at the CALL
+/// SITE, the shared row widget itself stays motion-free — and the cascade
+/// then works for any row shape, not just [WorklistRow].
+///
+/// Behaviour:
+/// * Row `index` fades in after `Motion.stagger * index`.
+/// * Capped at [cap] rows: row 13+ renders bare — instantly, no delay and no
+///   fade. Below-the-fold rows arriving in a wave nobody sees would only
+///   delay the screen feeling ready.
+/// * One-shot: the latch lives in [OneShotEntrance]'s State, so list
+///   rebuilds do not replay the entrance.
+/// * Under reduced motion [OneShotEntrance] returns the child bare — rows
+///   are static from the first frame.
+class WorklistCascade extends StatelessWidget {
+  const WorklistCascade({
+    super.key,
+    required this.index,
+    required this.child,
+    this.enabled = true,
+  });
+
+  /// Rows at this index and beyond skip the entrance entirely.
+  static const int cap = 12;
+
+  /// Position in the list, 0-based — sets this row's share of the stagger.
+  final int index;
+
+  final Widget child;
+
+  /// Latched by [OneShotEntrance] at mount — flipping it after the first
+  /// build of a mounted row has no effect, by design.
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (index >= cap) return child;
+    return OneShotEntrance(
+      enabled: enabled,
+      delay: Motion.stagger * index,
+      child: child,
     );
   }
 }
@@ -415,9 +509,13 @@ class RowAction extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-          foregroundColor:
-              tone == StatusLevel.neutral ? colors.ink1 : tone.colorOf(colors),
-          textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+          foregroundColor: tone == StatusLevel.neutral
+              ? colors.ink1
+              : tone.colorOf(colors),
+          textStyle: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         child: Text(label),
       ),
