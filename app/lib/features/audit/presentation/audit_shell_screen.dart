@@ -415,10 +415,19 @@ class _Progress extends StatelessWidget {
   }
 }
 
+/// A status token composited to an OPAQUE 12% wash over surface1 — the shared
+/// ground for the ready / REQUIRED / distance pills. Opaque, rather than a
+/// translucent self-tint over a varying ground, is precisely what lets each
+/// pill's text tint clear 4.5:1 in both themes.
+Color _wash(TiqColors colors, Color token) =>
+    Color.alphaBlend(token.withValues(alpha: 0.12), colors.surface1);
+
 /// The submit-readiness verdict — words on a wash, never colour alone. Ready
-/// takes a good wash; blocked, a neutral chip. The good token over its own
-/// wash is a self-tint, so the wash is composited to an opaque tint that keeps
-/// the word ≥4.5:1 in both themes (the recurring AA lesson).
+/// takes a good wash; blocked, a neutral chip. Because the good wash is
+/// composited to an opaque tint over surface1 (see [_wash]), the good token
+/// reads ≥4.5:1 as text on it. Today's `_StatusPill` reaches the same AA floor
+/// with fixed hexes instead; reconciling the two into one shared widget is
+/// tracked in #214.
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.label, required this.ready});
 
@@ -428,9 +437,7 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final bg = ready
-        ? Color.alphaBlend(colors.good.withValues(alpha: 0.12), colors.surface1)
-        : colors.surface2;
+    final bg = ready ? _wash(colors, colors.good) : colors.surface2;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -540,10 +547,7 @@ class _SectionRow extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Color.alphaBlend(
-                                colors.crit.withValues(alpha: 0.12),
-                                colors.surface1,
-                              ),
+                              color: _wash(colors, colors.crit),
                               borderRadius: BorderRadius.circular(
                                 AppColors.radiusControl,
                               ),
@@ -739,10 +743,7 @@ class _TooFar extends StatelessWidget {
               // most important thing on this screen, so it must clear AA (raw
               // crit-on-crit does not in dark).
               decoration: BoxDecoration(
-                color: Color.alphaBlend(
-                  colors.crit.withValues(alpha: 0.12),
-                  colors.surface1,
-                ),
+                color: _wash(colors, colors.crit),
                 border: Border.all(color: colors.crit.withValues(alpha: 0.4)),
                 borderRadius: BorderRadius.circular(AppColors.radiusControl),
               ),

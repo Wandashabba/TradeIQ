@@ -337,6 +337,29 @@ void main() {
 
   // ── Premium restyle (sub5b1 Task 2) ─────────────────────────────────────
 
+  // The wash/text of the pill carrying [text], read off the RENDERED tree — so
+  // AA is measured on what actually paints. A self-tint regression (critText→
+  // crit, or flattening the wash) collapses this ratio and fails the assert on
+  // its own merits, rather than being caught only by a token-equality check.
+  (Color bg, Color fg) pillColours(WidgetTester tester, Finder text) {
+    final container = find
+        .ancestor(
+          of: text,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration! as BoxDecoration).color != null,
+          ),
+        )
+        .first;
+    final bg =
+        (tester.widget<Container>(container).decoration! as BoxDecoration)
+            .color!;
+    final fg = tester.widget<Text>(text).style!.color!;
+    return (bg, fg);
+  }
+
   testWidgets(
     'the progress panel is a glass hero with a big count and status pill',
     (tester) async {
@@ -388,34 +411,34 @@ void main() {
         );
         expect(count.style.color, palette.ink1, reason: '$name count colour');
 
-        // Unblocked → a good-wash status pill carrying the WORDS, clearing AA
-        // (the good token over its own wash is a self-tint that must still
-        // pass 4.5:1 — the recurring lesson).
-        final pillText = tester.widget<Text>(find.text('Ready to submit'));
-        expect(pillText.style!.color, palette.good, reason: '$name pill text');
-        final pillBg =
-            (tester
-                        .widget<Container>(
-                          find
-                              .ancestor(
-                                of: find.text('Ready to submit'),
-                                matching: find.byWidgetPredicate(
-                                  (w) =>
-                                      w is Container &&
-                                      w.decoration is BoxDecoration &&
-                                      (w.decoration! as BoxDecoration).color !=
-                                          null,
-                                ),
-                              )
-                              .first,
-                        )
-                        .decoration!
-                    as BoxDecoration)
-                .color!;
+        // Unblocked → a good-wash status pill carrying the WORDS. AA is
+        // measured on the RENDERED pair, so a self-tint regression fails here
+        // on its own, not only via the token-equality check below.
+        final (readyBg, readyFg) = pillColours(
+          tester,
+          find.text('Ready to submit'),
+        );
+        expect(readyFg, palette.good, reason: '$name ready pill text');
+        // Pin the wash itself: flattening the bg (keeping green text) must fail
+        // a test, so the ready state stays visibly distinct from the neutral
+        // chip — good-on-surface2 would still clear AA and hide the loss.
         expect(
-          contrastRatio(palette.good, pillBg),
+          readyBg,
+          Color.alphaBlend(
+            palette.good.withValues(alpha: 0.12),
+            palette.surface1,
+          ),
+          reason: '$name ready pill wash',
+        );
+        expect(
+          readyBg,
+          isNot(palette.surface2),
+          reason: '$name ready wash differs from the neutral chip',
+        );
+        expect(
+          contrastRatio(readyFg, readyBg),
           greaterThanOrEqualTo(4.5),
-          reason: '$name good pill AA',
+          reason: '$name ready pill AA (rendered pair)',
         );
       }
     },
@@ -489,36 +512,17 @@ void main() {
         expect(find.text('Not started'), findsWidgets);
 
         // The REQUIRED-to-submit pill carries the words in critText on a crit
-        // wash — a raw crit-on-crit self-tint fails AA in dark, critText clears.
-        final req = tester.widget<Text>(find.text('REQUIRED TO SUBMIT').first);
-        expect(
-          req.style!.color,
-          palette.critText,
-          reason: '$name required pill text',
+        // wash. AA measured on the rendered pair, so a critText→crit mutation
+        // (raw crit fails AA in dark) fails this assert directly.
+        final (reqBg, reqFg) = pillColours(
+          tester,
+          find.text('REQUIRED TO SUBMIT').first,
         );
-        final reqBg =
-            (tester
-                        .widget<Container>(
-                          find
-                              .ancestor(
-                                of: find.text('REQUIRED TO SUBMIT').first,
-                                matching: find.byWidgetPredicate(
-                                  (w) =>
-                                      w is Container &&
-                                      w.decoration is BoxDecoration &&
-                                      (w.decoration! as BoxDecoration).color !=
-                                          null,
-                                ),
-                              )
-                              .first,
-                        )
-                        .decoration!
-                    as BoxDecoration)
-                .color!;
+        expect(reqFg, palette.critText, reason: '$name required pill text');
         expect(
-          contrastRatio(palette.critText, reqBg),
+          contrastRatio(reqFg, reqBg),
           greaterThanOrEqualTo(4.5),
-          reason: '$name required pill AA',
+          reason: '$name required pill AA (rendered pair)',
         );
       }
     },
@@ -551,21 +555,17 @@ void main() {
           reason: '$name fraud note',
         );
 
-        // The distance pill reads in critText on a crit wash, clearing AA.
-        final dist = tester.widget<Text>(find.textContaining('650 m away'));
-        expect(
-          dist.style!.color,
-          palette.critText,
-          reason: '$name distance text',
+        // The distance pill reads in critText on a crit wash — AA measured on
+        // the rendered pair, so a critText→crit mutation fails here directly.
+        final (distBg, distFg) = pillColours(
+          tester,
+          find.textContaining('650 m away'),
         );
-        final pill = tester.widget<Container>(
-          find.byKey(const ValueKey('checkin-distance')),
-        );
-        final bg = (pill.decoration! as BoxDecoration).color!;
+        expect(distFg, palette.critText, reason: '$name distance text');
         expect(
-          contrastRatio(palette.critText, bg),
+          contrastRatio(distFg, distBg),
           greaterThanOrEqualTo(4.5),
-          reason: '$name distance pill AA',
+          reason: '$name distance pill AA (rendered pair)',
         );
       }
     },
