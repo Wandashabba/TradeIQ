@@ -405,20 +405,78 @@ void main() {
         ),
       );
 
-      // Only the first 12 animate at all…
-      expect(find.byType(OneShotEntrance), findsNWidgets(12));
-      // …and rows 12/13 are fully visible on the FIRST frame.
+      // Every row mounts its entrance (the cap runs through the `enabled`
+      // latch, never a subtree swap — see WorklistCascade's doc), but only
+      // the first 12 have it enabled…
+      final entrances = tester
+          .widgetList<OneShotEntrance>(find.byType(OneShotEntrance))
+          .toList();
+      expect(entrances, hasLength(14));
+      for (var i = 0; i < 14; i++) {
+        expect(entrances[i].enabled, i < 12, reason: 'row $i');
+      }
+      // …and rows 12/13 are fully visible on the FIRST frame: no Opacity
+      // gate anywhere above their text.
       for (final i in [12, 13]) {
         expect(
           find.ancestor(
             of: find.text('row $i'),
-            matching: find.byType(OneShotEntrance),
+            matching: find.byType(Opacity),
           ),
           findsNothing,
         );
       }
       await tester.pumpAndSettle();
     });
+
+    testWidgets(
+      'a row crossing the cap boundary on rebuild does not latch a fresh '
+      'entrance',
+      (tester) async {
+        // 14 keyed rows; after settle, rows 11 and 12 are removed so row 13
+        // moves from index 13 (beyond the cap) to index 11 (inside it). Its
+        // entrance moment is already spent — it mounted un-animated — so it
+        // must NOT play a late entrance now.
+        var trimmed = false;
+        late StateSetter rebuild;
+        await tester.pumpWidget(
+          _themed(
+            StatefulBuilder(
+              builder: (context, setState) {
+                rebuild = setState;
+                final ids = [
+                  for (var i = 0; i < 14; i++)
+                    if (!trimmed || (i != 11 && i != 12)) i,
+                ];
+                return Column(
+                  children: [
+                    for (var slot = 0; slot < ids.length; slot++)
+                      WorklistCascade(
+                        key: ValueKey('row-${ids[slot]}'),
+                        index: slot,
+                        child: Text('row ${ids[slot]}'),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        rebuild(() => trimmed = true);
+        await tester.pump();
+        expect(find.text('row 13'), findsOneWidget);
+        // One frame after the reorder: nothing is fading in.
+        expect(
+          tester
+              .widgetList<Opacity>(find.byType(Opacity))
+              .where((o) => o.opacity < 1),
+          isEmpty,
+        );
+        await tester.pumpAndSettle();
+      },
+    );
 
     testWidgets('does not replay when the list rebuilds', (tester) async {
       late StateSetter rebuild;

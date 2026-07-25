@@ -252,8 +252,10 @@ class WorklistRow extends StatefulWidget {
   final bool resolved;
   final VoidCallback? onTap;
 
-  /// Optional leading evidence slot — 44×44, rounded-8 clip. Built for the
-  /// captured-shelf-photo thumbnails (spec: "the thumbnail *is* the
+  /// Optional leading evidence slot — 44×44, rounded-8 clip, deliberately
+  /// centre-aligned with the text block (the row centres its content; a
+  /// top-aligned thumb would read as a fourth severity channel). Built for
+  /// the captured-shelf-photo thumbnails (spec: "the thumbnail *is* the
   /// evidence"); when null the row renders exactly as before, no reserved
   /// space, no placeholder. Never put generated art here.
   final Widget? thumb;
@@ -304,7 +306,7 @@ class _WorklistRowState extends State<WorklistRow> {
                   children: [
                     if (widget.thumb != null)
                       Padding(
-                        padding: const EdgeInsets.only(right: 10),
+                        padding: const EdgeInsetsDirectional.only(end: 10),
                         child: ClipRRect(
                           key: const ValueKey('worklist-thumb'),
                           borderRadius: BorderRadius.circular(8),
@@ -400,8 +402,10 @@ class _WorklistRowState extends State<WorklistRow> {
           // that already owns the Stripe shadow.
         ),
         child: ClipRRect(
-          // A hair inside the border's radius, so the clipped edge bar and
-          // wash never overlap the hairline itself.
+          // The `- 1` IS the hairline: Border.all above paints at its default
+          // 1px width, so the clip radius steps in by exactly that width and
+          // the clipped edge bar and wash never overlap the border itself.
+          // If the border width ever changes, change this with it.
           borderRadius: BorderRadius.circular(AppColors.radiusPanel - 1),
           child: body,
         ),
@@ -420,13 +424,21 @@ class _WorklistRowState extends State<WorklistRow> {
 ///
 /// Behaviour:
 /// * Row `index` fades in after `Motion.stagger * index`.
-/// * Capped at [cap] rows: row 13+ renders bare — instantly, no delay and no
+/// * Capped at [cap] rows: row 13+ renders instantly — no delay and no
 ///   fade. Below-the-fold rows arriving in a wave nobody sees would only
 ///   delay the screen feeling ready.
 /// * One-shot: the latch lives in [OneShotEntrance]'s State, so list
 ///   rebuilds do not replay the entrance.
 /// * Under reduced motion [OneShotEntrance] returns the child bare — rows
 ///   are static from the first frame.
+///
+/// The [OneShotEntrance] is mounted for EVERY row, capped ones included —
+/// the cap is applied through its `enabled` latch, never by swapping the
+/// subtree between bare child and entrance. A structural swap would change
+/// the element type when a row's index crosses the cap boundary on a later
+/// rebuild (rows removed above it, say), remounting the State and latching
+/// a fresh — and unwanted — late entrance. With the latch, a row that
+/// mounted beyond the cap has spent its entrance moment for good.
 class WorklistCascade extends StatelessWidget {
   const WorklistCascade({
     super.key,
@@ -449,9 +461,8 @@ class WorklistCascade extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (index >= cap) return child;
     return OneShotEntrance(
-      enabled: enabled,
+      enabled: enabled && index < cap,
       delay: Motion.stagger * index,
       child: child,
     );
