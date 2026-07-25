@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/format/period_label.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/charts.dart';
@@ -105,7 +106,7 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
               : ColumnChart(
                   points: [
                     for (final p in points)
-                      (label: _shortPeriod(p.period), value: p.value),
+                      (label: shortPeriodLabel(p.period), value: p.value),
                   ],
                   valueSuffix: widget.suffix,
                   seriesName: widget.heading,
@@ -113,17 +114,6 @@ class _TrendPanelState extends ConsumerState<_TrendPanel> {
         },
       ),
     );
-  }
-
-  /// `2026-W26` → `W26`; an ISO date keeps its `MM-DD`. Axis ticks have no room
-  /// for the year, and it is the same for every bucket anyway.
-  static String _shortPeriod(String period) {
-    final week = RegExp(r'^\d{4}-(W\d{1,2})$').firstMatch(period);
-    if (week != null) return week.group(1)!;
-    if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(period)) {
-      return period.substring(5);
-    }
-    return period;
   }
 }
 
