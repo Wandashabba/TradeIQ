@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
@@ -36,7 +37,7 @@ class TodayScreen extends ConsumerWidget {
               title: 'No route planned for today',
               detail: route == null
                   ? 'Your manager has not built a beat plan for today. You can '
-                      'still visit a store — pick it yourself.'
+                        'still visit a store — pick it yourself.'
                   : 'Today’s beat plan has no stops on it yet.',
             );
           }
@@ -91,29 +92,19 @@ class _Route extends ConsumerWidget {
           _Header(route: route),
           const SizedBox(height: 18),
           const _Heading('Your route'),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.surface1,
-              border: Border.all(color: AppColors.line),
-              borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+          // Each stop is now its own worklist card (surface1 ground, hairline,
+          // state-coloured left edge) rather than a row in one bordered box —
+          // the console's worklist language.
+          for (final (i, stop) in route.stops.indexed)
+            Reveal(
+              index: i,
+              child: _StopCard(
+                stop: stop,
+                isNext: next != null && stop.outlet.id == next.outlet.id,
+                onTap: () => context.go('/audit/${stop.outlet.id}'),
+              ),
             ),
-            child: Column(
-              children: [
-                for (final (i, stop) in route.stops.indexed)
-                  Reveal(
-                    index: i,
-                    child: _StopRow(
-                      stop: stop,
-                      isNext: next != null &&
-                          stop.outlet.id == next.outlet.id,
-                      isLast: i == route.stops.length - 1,
-                      onTap: () => context.go('/audit/${stop.outlet.id}'),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           // The plan is a plan, not a cage. A store can be shut, or a manager can
           // phone with something urgent — so visiting an unplanned store is one
           // tap away, not a thing the agent has to fight the app for.
@@ -136,22 +127,23 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-      decoration: BoxDecoration(
-        color: AppColors.surface1,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-      ),
+    final colors = context.colors;
+
+    // The screen's one "glass" card: the day's progress is the headline, and the
+    // wash is what makes it read as the headline. Same recipe as the console's
+    // execution-score hero — theme slots, not spec hexes, so ink1 stays readable
+    // on the wash in both modes.
+    return _GlassHero(
+      colors: colors,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             route.planName,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: AppColors.ink1,
+              color: colors.ink1,
             ),
           ),
           const SizedBox(height: 10),
@@ -161,32 +153,28 @@ class _Header extends StatelessWidget {
             children: [
               AnimatedCount(
                 value: route.doneCount,
-                style: const TextStyle(
-                  fontSize: 26,
+                style: TextStyle(
+                  fontSize: 31,
                   fontWeight: FontWeight.w700,
                   height: 1,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                  color: AppColors.ink1,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color: colors.ink1,
                 ),
               ),
               Text(
                 ' of ${route.total} ${route.total == 1 ? 'store' : 'stores'}',
-                style: const TextStyle(fontSize: 14, color: AppColors.ink2),
+                style: TextStyle(fontSize: 14, color: colors.ink2),
               ),
               const Spacer(),
-              Text(
-                route.isComplete
+              _StatusPill(
+                label: route.isComplete
                     ? 'Route done'
                     : '${route.remaining} left',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: route.isComplete ? AppColors.good : AppColors.ink2,
-                ),
+                complete: route.isComplete,
               ),
             ],
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 11),
           _ProgressBar(
             done: route.doneCount,
             total: route.total,
@@ -194,14 +182,79 @@ class _Header extends StatelessWidget {
           ),
           if (!route.hasLocation) ...[
             const SizedBox(height: 10),
-            const Text(
+            Text(
               // Not "location error". The agent turned it off, or the phone
               // cannot see the sky. Either way the route still works.
               'Distances are off — this phone will not say where it is.',
-              style: TextStyle(fontSize: 11.5, color: AppColors.ink3),
+              style: TextStyle(fontSize: 11.5, color: colors.ink3),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// The glass-hero shell — the console's washed-panel recipe, in the agent kit's
+/// geometry. Mirrors `PanelCard(gradient:…, borderColor: heroBorder)` but built
+/// inline so the agent screen keeps a single dependency-light Container tree.
+class _GlassHero extends StatelessWidget {
+  const _GlassHero({required this.colors, required this.child});
+
+  final TiqColors colors;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colors.heroWash, colors.surface1],
+        ),
+        border: Border.all(color: colors.heroBorder),
+        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// The house "done / positive" pill pair — DeltaPill's good tone. Fixed hexes,
+/// not theme slots: a status verdict reads the same in both themes, and the
+/// pair is self-contained (a self-tint — the token over its own 14% wash —
+/// tops out near 1:1 and cannot clear AA; this pair clears 4.5:1 on its own
+/// wash in light and dark). Kept in sync with delta_pill.dart's DeltaTone.good.
+const _goodPillBg = Color(0xFFE7F5E7);
+const _goodPillFg = Color(0xFF0B6B0B);
+
+/// "N left" / "Route done" — a word on a wash, never colour alone AND never
+/// below the AA floor. Complete takes the fixed good pair; before that it is a
+/// neutral chip (ink2 on surface2, comfortably AA in both themes).
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.complete});
+
+  final String label;
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: complete ? _goodPillBg : colors.surface2,
+        borderRadius: BorderRadius.circular(AppColors.radiusPill),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: complete ? _goodPillFg : colors.ink2,
+        ),
       ),
     );
   }
@@ -220,13 +273,14 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final fraction = total == 0 ? 0.0 : done / total;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(3),
       child: Stack(
         children: [
-          Container(height: 6, color: AppColors.surface3),
+          Container(height: 6, color: colors.surface3),
           LayoutBuilder(
             builder: (context, constraints) => TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: fraction),
@@ -238,7 +292,7 @@ class _ProgressBar extends StatelessWidget {
                 width: constraints.maxWidth * t,
                 // Green the moment the day is done — said in colour before it is
                 // said in words.
-                color: complete ? AppColors.good : AppColors.brand,
+                color: complete ? colors.good : colors.brand,
               ),
             ),
           ),
@@ -248,94 +302,174 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
-class _StopRow extends StatelessWidget {
-  const _StopRow({
+/// One route stop, as a console worklist card: surface1 ground, `line`
+/// hairline, and a 3px left edge whose colour carries the stop's state.
+///
+/// Not [WorklistRow]: that row's leading slot is a 44×44 evidence thumbnail,
+/// not a sequence badge, and its edge is driven by a four-value [StatusLevel]
+/// that has no `brand` — which is exactly the colour the *next* stop's edge
+/// needs. So this is a local card in WorklistRow's recipe rather than a forced
+/// fit.
+class _StopCard extends StatelessWidget {
+  const _StopCard({
     required this.stop,
     required this.isNext,
-    required this.isLast,
     required this.onTap,
   });
 
   final RouteStop stop;
   final bool isNext;
-  final bool isLast;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final done = stop.visited;
+    // Channel 1: the left edge — good (visited), brand (next), muted (upcoming).
+    final edge = done
+        ? colors.good
+        : isNext
+        ? colors.brand
+        : colors.lineStrong;
 
     return PressFeedback(
       onTap: onTap,
       child: Container(
-        constraints: const BoxConstraints(minHeight: kTapTarget + 8),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          border: isLast
-              ? null
-              : const Border(bottom: BorderSide(color: AppColors.line)),
+          color: colors.surface1,
+          border: Border.all(color: colors.line),
+          borderRadius: BorderRadius.circular(AppColors.radiusPanel),
         ),
-        child: Row(
-          children: [
-            _Seq(sequence: stop.sequence, done: done, isNext: isNext),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    stop.outlet.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      // A visited store recedes. The agent's eye should land on
-                      // what is left, not on what is behind them.
-                      fontWeight: done ? FontWeight.w400 : FontWeight.w600,
-                      color: done ? AppColors.ink2 : AppColors.ink1,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    stop.outlet.code,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.ink3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
+        child: ClipRRect(
+          // The `- 1` is the hairline width, so the clipped edge bar never
+          // overlaps the border itself (WorklistRow's convention).
+          borderRadius: BorderRadius.circular(AppColors.radiusPanel - 1),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (stop.distanceLabel != null)
-                  Text(
-                    stop.distanceLabel!,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                      color: AppColors.ink2,
+                Container(width: 3, color: edge),
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: kTapTarget + 8,
                     ),
-                  ),
-                if (done || isNext)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Text(
-                      done ? 'DONE' : 'NEXT',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                        color: done ? AppColors.good : AppColors.brand,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+                      child: Row(
+                        children: [
+                          _Seq(
+                            sequence: stop.sequence,
+                            done: done,
+                            isNext: isNext,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  stop.outlet.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    // A visited store recedes. The agent's eye
+                                    // should land on what is left, not behind.
+                                    fontWeight: done
+                                        ? FontWeight.w400
+                                        : FontWeight.w600,
+                                    color: done ? colors.ink2 : colors.ink1,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  stop.outlet.code,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colors.ink3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (stop.distanceLabel != null)
+                                Text(
+                                  stop.distanceLabel!,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                    color: colors.ink2,
+                                  ),
+                                ),
+                              if (done || isNext)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  // DONE takes the fixed good pair; NEXT the
+                                  // console's active-chip pattern (white on the
+                                  // solid brand) — both AA-clear, theme-constant.
+                                  child: done
+                                      ? const _StateTag(
+                                          label: 'DONE',
+                                          bg: _goodPillBg,
+                                          fg: _goodPillFg,
+                                        )
+                                      : _StateTag(
+                                          label: 'NEXT',
+                                          bg: colors.brand,
+                                          fg: Colors.white,
+                                        ),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                ),
               ],
             ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A DONE/NEXT tag — the word on a fixed, AA-clear wash/text pair (never a
+/// self-tint). The visited card also carries the ✓ glyph in its sequence slot,
+/// so state never rides on colour alone.
+class _StateTag extends StatelessWidget {
+  const _StateTag({required this.label, required this.bg, required this.fg});
+
+  final String label;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppColors.radiusPill),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+          color: fg,
         ),
       ),
     );
@@ -355,11 +489,15 @@ class _Seq extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     if (done) {
-      return const SizedBox(
+      return SizedBox(
         width: 26,
         height: 26,
-        child: Center(child: TickMark(done: true, size: 20)),
+        child: Center(
+          child: TickMark(done: true, size: 20, color: colors.good),
+        ),
       );
     }
 
@@ -368,18 +506,16 @@ class _Seq extends StatelessWidget {
       height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isNext ? AppColors.brand : AppColors.surface3,
+        color: isNext ? colors.brand : colors.surface3,
         shape: BoxShape.circle,
-        border: Border.all(
-          color: isNext ? AppColors.brand : AppColors.lineStrong,
-        ),
+        border: Border.all(color: isNext ? colors.brand : colors.lineStrong),
       ),
       child: Text(
         '$sequence',
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: isNext ? Colors.white : AppColors.ink2,
+          color: isNext ? Colors.white : colors.ink2,
         ),
       ),
     );
@@ -395,32 +531,29 @@ class _NoRoute extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.map_outlined, size: 34, color: AppColors.ink3),
+            Icon(Icons.map_outlined, size: 34, color: colors.ink3),
             const SizedBox(height: 14),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.ink1,
+                color: colors.ink1,
               ),
             ),
             const SizedBox(height: 7),
             Text(
               detail,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: AppColors.ink2,
-              ),
+              style: TextStyle(fontSize: 13, height: 1.5, color: colors.ink2),
             ),
             const SizedBox(height: 20),
             AgentButton(
@@ -446,11 +579,11 @@ class _Heading extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.88,
-          color: AppColors.ink3,
+          color: context.colors.ink3,
         ),
       ),
     );
