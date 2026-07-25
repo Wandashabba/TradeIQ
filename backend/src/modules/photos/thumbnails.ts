@@ -17,8 +17,9 @@ const CACHE_MAX_ENTRIES = 50;
 const IMAGE_DATA_URL_RE = /^data:image\/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=]+)$/i;
 
 // Phase-1 in-memory LRU: a Map iterates in insertion order, so the first key
-// is the oldest entry and eviction is a delete of that key. ~50 jpeg
-// thumbnails at ≲60KB each keeps the cache under ~3MB.
+// is the least recently used entry — a hit re-inserts its key to refresh
+// recency, and eviction is a delete of the first key. ~50 jpeg thumbnails at
+// ≲60KB each keeps the cache under ~3MB.
 const cache = new Map<string, Buffer>();
 let cacheHits = 0;
 
@@ -39,6 +40,10 @@ export async function getThumbnailForPhoto(
   const hit = cache.get(photoId);
   if (hit) {
     cacheHits += 1;
+    // Refresh recency: re-inserting moves the key to the back of the Map's
+    // insertion order, so a hot thumbnail is never the eviction victim.
+    cache.delete(photoId);
+    cache.set(photoId, hit);
     return hit;
   }
 

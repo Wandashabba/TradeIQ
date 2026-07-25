@@ -390,6 +390,34 @@ describe('alerts routes', () => {
     let newestPhotoId: string;
 
     beforeAll(async () => {
+      // An alert whose visit exists but has ZERO photos — the third arm.
+      const agent = await prisma.user.findFirstOrThrow({
+        where: { clientId, role: 'field_agent' },
+        select: { id: true },
+      });
+      const photolessVisit = await prisma.visit.create({
+        data: {
+          outletId,
+          agentId: agent.id,
+          clientId,
+          checkinTs: new Date(),
+          checkinLat: -26.2041,
+          checkinLng: 28.0473,
+          geofencePass: true,
+          status: 'submitted',
+        },
+      });
+      await prisma.alert.create({
+        data: {
+          clientId,
+          visitId: photolessVisit.id,
+          outletId,
+          metric: 'oos',
+          message: 'photoless-visit-alert',
+          severity: 'warning',
+        },
+      });
+
       await prisma.photo.create({
         data: {
           visitId,
@@ -434,6 +462,18 @@ describe('alerts routes', () => {
       for (const alert of withoutVisit) {
         expect(alert.evidencePhotoId).toBeNull();
       }
+    });
+
+    it('lists null evidencePhotoId for an alert whose visit has no photos', async () => {
+      const res = await request(app).get('/alerts').set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+
+      const photoless = res.body.data.find(
+        (a: { message: string }) => a.message === 'photoless-visit-alert',
+      );
+      expect(photoless).toBeDefined();
+      expect(photoless.visitId).not.toBeNull();
+      expect(photoless.evidencePhotoId).toBeNull();
     });
 
     it('keeps the createdAt-desc sort order unchanged', async () => {

@@ -67,30 +67,28 @@ photosRouter.get('/', async (req: AuthedRequest, res) => {
   res.status(200).json(photos);
 });
 
-photosRouter.get(
-  '/:id/thumbnail',
-  requireRole('manager', 'field_agent'),
-  async (req: AuthedRequest, res) => {
-    const { id } = req.params as { id: string };
+// Like the sibling GET /photos read, any authenticated role may fetch a
+// thumbnail — tenant scoping (photo -> visit -> clientId) is the real guard.
+photosRouter.get('/:id/thumbnail', async (req: AuthedRequest, res) => {
+  const { id } = req.params as { id: string };
 
-    let thumbnail: Buffer;
-    try {
-      thumbnail = await getPhotoThumbnail(id, req.user!.clientId);
-    } catch (err) {
-      if (err instanceof ThumbnailSourceError) {
-        // The stored row is broken, not the request — 422, with the reason.
-        res.status(422).json({ error: err.message });
-        return;
-      }
-      throw err; // NotFoundError et al. fall through to the errorHandler.
+  let thumbnail: Buffer;
+  try {
+    thumbnail = await getPhotoThumbnail(id, req.user!.clientId);
+  } catch (err) {
+    if (err instanceof ThumbnailSourceError) {
+      // The stored row is broken, not the request — 422, with the reason.
+      res.status(422).json({ error: err.message });
+      return;
     }
+    throw err; // NotFoundError et al. fall through to the errorHandler.
+  }
 
-    res
-      .status(200)
-      .set('Content-Type', 'image/jpeg')
-      // private: tenant-scoped bytes must not land in shared caches.
-      // immutable: photos are never edited in place, so a day of reuse is safe.
-      .set('Cache-Control', 'private, max-age=86400, immutable')
-      .send(thumbnail);
-  },
-);
+  res
+    .status(200)
+    .set('Content-Type', 'image/jpeg')
+    // private: tenant-scoped bytes must not land in shared caches.
+    // immutable: photos are never edited in place, so a day of reuse is safe.
+    .set('Cache-Control', 'private, max-age=86400, immutable')
+    .send(thumbnail);
+});
