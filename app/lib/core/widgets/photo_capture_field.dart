@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../camera/photo_capture_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/tiq_colors.dart';
 import 'console.dart';
 
 /// Capture a photo, see what you captured, and be able to retake it.
@@ -64,6 +65,7 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -72,40 +74,51 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
           const SizedBox(height: 4),
           Text(
             widget.helperText!,
-            style: const TextStyle(
-              fontSize: 11.5,
-              color: AppColors.ink3,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 11.5, color: colors.ink3, height: 1.4),
           ),
         ],
         const SizedBox(height: 8),
         if (_dataUrl != null) _Preview(dataUrl: _dataUrl!, onRemove: _remove),
         if (_dataUrl == null)
-          Row(
-            children: [
-              OutlinedButton.icon(
-                key: const ValueKey('photo-camera'),
-                onPressed: _busy ? null : () => _capture(PhotoSource.camera),
-                icon: const Icon(Icons.photo_camera_outlined, size: 15),
-                label: const Text('Take photo'),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                key: const ValueKey('photo-gallery'),
-                onPressed: _busy ? null : () => _capture(PhotoSource.gallery),
-                icon: const Icon(Icons.photo_library_outlined, size: 15),
-                label: const Text('Choose'),
-              ),
-              if (_busy) ...[
-                const SizedBox(width: 12),
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+          // A console-tokened tile frames the capture affordance so the empty
+          // state reads as a deliberate slot, not two loose buttons. (The full
+          // guided-camera redesign is sub-5c — this only re-skins the shell.)
+          Container(
+            key: const ValueKey('photo-capture-tile'),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colors.surface2,
+              border: Border.all(color: colors.line),
+              borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            ),
+            // Wrap, not Row: the tile's inset narrows the ground, and in a
+            // constrained context (the tasks closure sheet) the two buttons
+            // must fall to a second line rather than overflow.
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  key: const ValueKey('photo-camera'),
+                  onPressed: _busy ? null : () => _capture(PhotoSource.camera),
+                  icon: const Icon(Icons.photo_camera_outlined, size: 15),
+                  label: const Text('Take photo'),
                 ),
+                OutlinedButton.icon(
+                  key: const ValueKey('photo-gallery'),
+                  onPressed: _busy ? null : () => _capture(PhotoSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined, size: 15),
+                  label: const Text('Choose'),
+                ),
+                if (_busy)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
               ],
-            ],
+            ),
           ),
         if (_error != null) ...[
           const SizedBox(height: 8),
@@ -118,7 +131,7 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
                 child: Text(
                   _error!,
                   key: const ValueKey('photo-error'),
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.ink2),
+                  style: TextStyle(fontSize: 11.5, color: colors.ink2),
                 ),
               ),
             ],
@@ -137,6 +150,7 @@ class _Preview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final base64Part = dataUrl.split(',').last;
 
     return Row(
@@ -154,12 +168,12 @@ class _Preview extends StatelessWidget {
             errorBuilder: (context, error, stack) => Container(
               width: 92,
               height: 92,
-              color: AppColors.surface2,
+              color: colors.surface2,
               alignment: Alignment.center,
-              child: const Icon(
+              child: Icon(
                 Icons.broken_image_outlined,
                 size: 18,
-                color: AppColors.ink3,
+                color: colors.ink3,
               ),
             ),
           ),
