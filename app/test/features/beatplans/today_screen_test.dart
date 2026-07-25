@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -24,12 +26,13 @@ const _sunrise = Outlet(
   lng: 28.1,
 );
 
-Widget _app(TodayRoute? route) {
+Widget _app(TodayRoute? route, {ThemeData? theme}) {
   final db = LocalDb(NativeDatabase.memory());
   addTearDown(db.close);
 
   return routedApp(
     const TodayScreen(),
+    theme: theme,
     overrides: [
       localDbProvider.overrideWithValue(db),
       syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
@@ -38,24 +41,24 @@ Widget _app(TodayRoute? route) {
   );
 }
 
-TodayRoute _route({bool located = true}) => TodayRoute(
-      planName: 'Naledi · Soweto East',
-      hasLocation: located,
-      stops: [
-        RouteStop(
-          sequence: 1,
-          outlet: _khumalo,
-          visited: true,
-          distanceMeters: located ? 1200 : null,
-        ),
-        RouteStop(
-          sequence: 2,
-          outlet: _sunrise,
-          visited: false,
-          distanceMeters: located ? 42 : null,
-        ),
-      ],
-    );
+TodayRoute _route({bool located = true, bool complete = false}) => TodayRoute(
+  planName: 'Naledi · Soweto East',
+  hasLocation: located,
+  stops: [
+    RouteStop(
+      sequence: 1,
+      outlet: _khumalo,
+      visited: true,
+      distanceMeters: located ? 1200 : null,
+    ),
+    RouteStop(
+      sequence: 2,
+      outlet: _sunrise,
+      visited: complete,
+      distanceMeters: located ? 42 : null,
+    ),
+  ],
+);
 
 void main() {
   testWidgets('the day is the first thing an agent sees', (tester) async {
@@ -70,7 +73,9 @@ void main() {
     expect(find.text('1 left'), findsOneWidget);
   });
 
-  testWidgets('the next store is marked, and the visited one recedes', (tester) async {
+  testWidgets('the next store is marked, and the visited one recedes', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(_route()));
     await tester.pumpAndSettle();
 
@@ -78,7 +83,9 @@ void main() {
     expect(find.text('NEXT'), findsOneWidget);
   });
 
-  testWidgets('distance is a walk or a drive, not a number of metres', (tester) async {
+  testWidgets('distance is a walk or a drive, not a number of metres', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(_route()));
     await tester.pumpAndSettle();
 
@@ -86,7 +93,9 @@ void main() {
     expect(find.text('1.2 km'), findsOneWidget);
   });
 
-  testWidgets('no location means no distances — not made-up ones', (tester) async {
+  testWidgets('no location means no distances — not made-up ones', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(_route(located: false)));
     await tester.pumpAndSettle();
 
@@ -105,10 +114,112 @@ void main() {
     expect(find.byKey(const ValueKey('pick-a-store')), findsOneWidget);
   });
 
-  testWidgets('the plan is not a cage — an unplanned store is one tap away', (tester) async {
+  testWidgets('the plan is not a cage — an unplanned store is one tap away', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(_route()));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('visit-another')), findsOneWidget);
+  });
+
+  // ── Premium restyle (sub5a Task 2) ──────────────────────────────────────
+
+  /// The one gradient-washed card on the screen — the glass hero.
+  BoxDecoration heroBox(WidgetTester tester) {
+    final hero = find.byWidgetPredicate(
+      (w) =>
+          w is Container &&
+          w.decoration is BoxDecoration &&
+          (w.decoration! as BoxDecoration).gradient is LinearGradient,
+    );
+    expect(hero, findsOneWidget);
+    return tester.widget<Container>(hero).decoration! as BoxDecoration;
+  }
+
+  testWidgets('the route header is a glass hero — light theme', (tester) async {
+    await tester.pumpWidget(_app(_route(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+
+    final box = heroBox(tester);
+    final gradient = box.gradient! as LinearGradient;
+    expect(gradient.colors, [
+      TiqColors.light.heroWash,
+      TiqColors.light.surface1,
+    ]);
+    expect((box.border! as Border).top.color, TiqColors.light.heroBorder);
+  });
+
+  testWidgets('the route header is a glass hero — dark theme', (tester) async {
+    await tester.pumpWidget(_app(_route(), theme: AppTheme.dark()));
+    await tester.pumpAndSettle();
+
+    final box = heroBox(tester);
+    final gradient = box.gradient! as LinearGradient;
+    expect(gradient.colors, [TiqColors.dark.heroWash, TiqColors.dark.surface1]);
+    expect((box.border! as Border).top.color, TiqColors.dark.heroBorder);
+  });
+
+  testWidgets('the done-count is the 30–32px w700 headline figure, in ink1', (
+    tester,
+  ) async {
+    for (final (theme, palette) in [
+      (AppTheme.light(), TiqColors.light),
+      (AppTheme.dark(), TiqColors.dark),
+    ]) {
+      await tester.pumpWidget(_app(_route(), theme: theme));
+      await tester.pumpAndSettle();
+
+      // doneCount == 1; the sequence badges render a tick (visited) and '2'
+      // (next), so '1' is uniquely the headline count.
+      final count = tester.widget<Text>(find.text('1'));
+      expect(count.style?.fontWeight, FontWeight.w700);
+      expect(count.style?.fontSize, inInclusiveRange(30, 32));
+      expect(count.style?.color, palette.ink1);
+    }
+  });
+
+  testWidgets('the status is a pill with a word — good wash when complete', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_route(complete: true), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Route done'), findsOneWidget);
+    // The word rides on a good-family wash — meaning in words AND colour.
+    final pill = find.ancestor(
+      of: find.text('Route done'),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.decoration is BoxDecoration &&
+            (w.decoration! as BoxDecoration).color ==
+                TiqColors.light.good.withValues(alpha: 0.14),
+      ),
+    );
+    expect(pill, findsOneWidget);
+  });
+
+  testWidgets('each stop is a card with a state-coloured left edge', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(_route(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+
+    // Channel 1: a 3px left edge — good (visited), brand (next).
+    Finder edge(Color color) => find.byWidgetPredicate(
+      (w) =>
+          w is Container &&
+          w.color == color &&
+          w.constraints == const BoxConstraints.tightFor(width: 3),
+    );
+    expect(edge(TiqColors.light.good), findsOneWidget);
+    expect(edge(TiqColors.light.brand), findsOneWidget);
+
+    // Channels 2+3: the mark/word — never colour alone.
+    expect(find.text('DONE'), findsOneWidget);
+    expect(find.text('NEXT'), findsOneWidget);
   });
 }
