@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/session_controller.dart';
+import '../brand_media.dart';
 import '../theme/theme_mode_controller.dart';
 import '../theme/tiq_colors.dart';
 import 'nav_destinations.dart';
@@ -16,12 +17,20 @@ Future<void> showNavMenuSheet(BuildContext context) {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => const _NavMenuSheet(),
+    builder: (context) => const NavMenuSheet(),
   );
 }
 
-class _NavMenuSheet extends StatelessWidget {
-  const _NavMenuSheet();
+/// The sheet body — public so tests can pump it directly and exercise the
+/// [headerImage] arm without waiting on curation.
+class NavMenuSheet extends StatelessWidget {
+  const NavMenuSheet({super.key, this.headerImage = BrandMedia.menuHeader});
+
+  /// Optional decorative banner across the top of the sheet, defaulting to
+  /// the [BrandMedia.menuHeader] slot — null (no band, today's layout
+  /// exactly) until a human curates an image; see
+  /// `tool/generate_brand_media/README.md`.
+  final String? headerImage;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +58,20 @@ class _NavMenuSheet extends StatelessWidget {
                 ),
               ),
             ),
+            if (headerImage != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    headerImage!,
+                    width: double.infinity,
+                    height: 88,
+                    fit: BoxFit.cover,
+                    semanticLabel: '',
+                  ),
+                ),
+              ),
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
@@ -176,7 +199,9 @@ class _HousekeepingRow extends StatelessWidget {
               final mode = ref.watch(themeModeProvider);
               final dark = mode == ThemeMode.dark;
               return _HousekeepingButton(
-                icon: dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                icon: dark
+                    ? Icons.light_mode_outlined
+                    : Icons.dark_mode_outlined,
                 label: dark ? 'Light theme' : 'Dark theme',
                 color: colors.ink2,
                 onTap: () => ref.read(themeModeProvider.notifier).toggle(),

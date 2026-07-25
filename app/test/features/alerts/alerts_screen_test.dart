@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/evidence_thumb.dart';
@@ -603,4 +604,27 @@ void main() {
 
     expect(find.byType(WorklistCascade), findsNWidgets(2));
   });
+
+  testWidgets(
+    'an empty triage list says so in words, wired to the noAlerts slot — '
+    'and stays imageless while that slot is null',
+    (tester) async {
+      await tester.pumpWidget(_app(_FakeAlertsRepository(alerts: const [])));
+      await tester.pumpAndSettle();
+
+      final empty = find.byType(EmptyState);
+      expect(empty, findsOneWidget);
+      expect(find.text('Nothing to triage'), findsOneWidget);
+      // The screen passes ITS BrandMedia slot — today null, so no image
+      // renders and the state is exactly the pre-illustration layout.
+      expect(
+        tester.widget<EmptyState>(empty).illustration,
+        BrandMedia.noAlerts,
+      );
+      expect(
+        find.descendant(of: empty, matching: find.byType(Image)),
+        findsNothing,
+      );
+    },
+  );
 }

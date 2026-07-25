@@ -91,10 +91,22 @@ class AsyncSection<T> extends StatelessWidget {
 /// What to say when there is nothing to show. An empty list is a *result*, not
 /// a blank panel — say which, and why.
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.message, this.hint});
+  const EmptyState({
+    super.key,
+    required this.message,
+    this.hint,
+    this.illustration,
+  });
 
   final String message;
   final String? hint;
+
+  /// Optional bundled illustration (a `BrandMedia` slot path) rendered above
+  /// the message. Null — the norm until a human curates art — renders
+  /// exactly the text-only state, no reserved space. Decorative only: the
+  /// image carries an empty semantic label so screen readers stay on
+  /// [message], and it is capped at 160 so it can never dominate the panel.
+  final String? illustration;
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +116,13 @@ class EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (illustration != null) ...[
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 160),
+              child: Image.asset(illustration!, semanticLabel: ''),
+            ),
+            const SizedBox(height: 14),
+          ],
           Text(
             message,
             textAlign: TextAlign.center,

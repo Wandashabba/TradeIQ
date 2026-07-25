@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/brand_media.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
@@ -241,6 +242,7 @@ class _TaskList extends StatelessWidget {
               hint:
                   'Tasks open automatically from risks, stockouts and price '
                   'deviations on a submitted visit.',
+              illustration: BrandMedia.tasksAllClear,
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

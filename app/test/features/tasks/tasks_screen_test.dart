@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/widgets/evidence_thumb.dart';
 import 'package:tradeiq_app/core/widgets/sla_pill.dart';
@@ -70,6 +71,10 @@ final _closedTask = TaskItem(
 );
 
 class _FakeTasksAdminRepository implements TasksAdminRepository {
+  _FakeTasksAdminRepository({List<TaskItem>? tasks})
+    : tasks = tasks ?? [_openTask, _overdueTask, _closedTask];
+
+  final List<TaskItem> tasks;
   String? closedId;
   String? closedPhotoUrl;
   String? verifiedId;
@@ -79,7 +84,7 @@ class _FakeTasksAdminRepository implements TasksAdminRepository {
     String? status,
     String? priority,
     String? outletId,
-  }) async => [_openTask, _overdueTask, _closedTask];
+  }) async => tasks;
 
   @override
   Future<TaskItem> closeTask({
@@ -475,5 +480,35 @@ void main() {
       // The list is still standing, on data, post-refresh.
       expect(find.text('price_wrong'), findsOneWidget);
     });
+  });
+
+  group('empty state', () {
+    testWidgets(
+      'an empty list says so in words, wired to the tasksAllClear slot — '
+      'and stays imageless while that slot is null',
+      (tester) async {
+        await tester.pumpWidget(
+          _app(
+            _FakeTasksAdminRepository(tasks: const []),
+            _RecordingPhotosRepository(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final empty = find.byType(EmptyState);
+        expect(empty, findsOneWidget);
+        expect(find.text('Nothing outstanding'), findsOneWidget);
+        // The screen passes ITS BrandMedia slot — today null, so no image
+        // renders and the state is exactly the pre-illustration layout.
+        expect(
+          tester.widget<EmptyState>(empty).illustration,
+          BrandMedia.tasksAllClear,
+        );
+        expect(
+          find.descendant(of: empty, matching: find.byType(Image)),
+          findsNothing,
+        );
+      },
+    );
   });
 }

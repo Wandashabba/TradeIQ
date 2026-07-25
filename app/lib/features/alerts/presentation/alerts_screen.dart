@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/brand_media.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
@@ -268,6 +269,7 @@ class _AlertList extends StatelessWidget {
               message: 'Nothing to triage',
               hint:
                   'Alerts appear here when a rule fires on a submitted visit.',
+              illustration: BrandMedia.noAlerts,
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

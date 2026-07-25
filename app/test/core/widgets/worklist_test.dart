@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
@@ -82,6 +83,25 @@ Finder _washedSurface(Color color) => find.descendant(
   ),
 );
 
+/// A real, decodable image (1×1 transparent PNG) for the illustration slot.
+final _pngBytes = Uint8List.fromList(const <int>[
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, //
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, //
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, //
+  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, //
+  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, //
+  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+]);
+
+/// Serves [_pngBytes] for any .png key — the brand assets are not committed
+/// yet (curation is a human step), so the tests bring their own bundle.
+class _BrandAssetBundle extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) async => key.endsWith('.png')
+      ? ByteData.sublistView(_pngBytes)
+      : rootBundle.load(key);
+}
+
 /// A realistic offline failure: the DioException whose toString is the
 /// multi-line dump — SocketException, hostname and all — that used to reach
 /// every console screen through AsyncSection's `$err` interpolation.
@@ -156,6 +176,58 @@ void main() {
 
       expect(find.text('loaded'), findsOneWidget);
       expect(find.textContaining('Failed to load'), findsNothing);
+    });
+  });
+
+  group('EmptyState', () {
+    testWidgets('without an illustration it is text-only — no Image widget', (
+      tester,
+    ) async {
+      // The null arm is the shipping arm until a human curates art (every
+      // BrandMedia slot is null) — it must stay exactly today's layout.
+      await tester.pumpWidget(
+        _themed(
+          const EmptyState(message: 'Nothing outstanding', hint: 'A hint'),
+        ),
+      );
+
+      expect(find.text('Nothing outstanding'), findsOneWidget);
+      expect(find.text('A hint'), findsOneWidget);
+      expect(find.byType(Image), findsNothing);
+    });
+
+    testWidgets('with an illustration it renders the asset above the message, '
+        'decorative and capped at 160', (tester) async {
+      await tester.pumpWidget(
+        _themed(
+          DefaultAssetBundle(
+            bundle: _BrandAssetBundle(),
+            child: const EmptyState(
+              message: 'Nothing outstanding',
+              hint: 'A hint',
+              illustration: 'assets/images/brand/tasks-all-clear.png',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final image = find.byType(Image);
+      expect(image, findsOneWidget);
+      // Decorative, not content: the empty semantic label keeps screen
+      // readers on the message, which carries the actual meaning.
+      expect(tester.widget<Image>(image).semanticLabel, '');
+      // It sits ABOVE the words…
+      expect(
+        tester.getCenter(image).dy <
+            tester.getCenter(find.text('Nothing outstanding')).dy,
+        isTrue,
+      );
+      // …and can never dominate the panel: hard 160 height cap.
+      final cap = tester.widget<ConstrainedBox>(
+        find.ancestor(of: image, matching: find.byType(ConstrainedBox)).first,
+      );
+      expect(cap.constraints.maxHeight, 160);
     });
   });
 
