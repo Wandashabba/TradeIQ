@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tradeiq_app/core/network/human_error.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
@@ -46,6 +48,27 @@ class ScopeAwareOutletsRepository implements OutletsRepository {
             ),
           ];
   }
+
+  @override
+  Future<Outlet> createOutlet({
+    required String name,
+    required String code,
+    required String channelType,
+    required double lat,
+    required double lng,
+    required String territoryId,
+  }) => throw UnimplementedError();
+}
+
+/// Fails the list load with a caller-supplied error, so the error surface can
+/// be pumped with a non-connectivity cause.
+class FailingOutletsRepository implements OutletsRepository {
+  FailingOutletsRepository(this.error);
+
+  final Object error;
+
+  @override
+  Future<List<Outlet>> listOutlets({bool mine = false}) async => throw error;
 
   @override
   Future<Outlet> createOutlet({
@@ -252,6 +275,30 @@ void main() {
       expect(white, greaterThanOrEqualTo(4.5), reason: '$name white-on-brand');
       expect(ink2, greaterThanOrEqualTo(4.5), reason: '$name ink2-on-surface1');
     }
+  });
+
+  testWidgets('the error surface speaks the app\'s one voice', (tester) async {
+    // A server 500 is NOT a connectivity problem — the detail must route
+    // through humanErrorMessage, not a hardcoded "check your connection" line
+    // that would misread every non-network failure as offline.
+    final err = DioException(
+      requestOptions: RequestOptions(path: '/outlets'),
+      type: DioExceptionType.badResponse,
+      response: Response(
+        requestOptions: RequestOptions(path: '/outlets'),
+        statusCode: 500,
+      ),
+    );
+    await tester.pumpWidget(
+      _app(FailingOutletsRepository(err), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    // The retry affordance survives, and the copy is the shared helper's — not
+    // the old connectivity string.
+    expect(find.byKey(const ValueKey('retry-outlets')), findsOneWidget);
+    expect(find.text(humanErrorMessage(err)), findsOneWidget);
+    expect(find.textContaining('Check your connection'), findsNothing);
   });
 
   testWidgets('each outlet renders as a console card', (tester) async {

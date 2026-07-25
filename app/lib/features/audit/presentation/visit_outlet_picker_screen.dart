@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
@@ -67,8 +68,10 @@ class VisitOutletPickerScreen extends ConsumerWidget {
           ],
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) =>
-            _LoadError(onRetry: () => ref.invalidate(assignedOutletsProvider)),
+        error: (err, _) => _LoadError(
+          error: err,
+          onRetry: () => ref.invalidate(assignedOutletsProvider),
+        ),
       ),
     );
   }
@@ -192,10 +195,13 @@ class _ScopeSegment extends StatelessWidget {
 }
 
 /// Loading the outlet list failed. Not a dead end: a restyled state with a
-/// thumb-sized retry, never a raw `Text($err)` dump.
+/// thumb-sized retry, never a raw `Text($err)` dump. The detail routes through
+/// [humanErrorMessage] so this new surface speaks the app's one voice — a 500
+/// or a parse failure must not read to the agent as a connectivity problem.
 class _LoadError extends StatelessWidget {
-  const _LoadError({required this.onRetry});
+  const _LoadError({required this.error, required this.onRetry});
 
+  final Object error;
   final VoidCallback onRetry;
 
   @override
@@ -220,7 +226,7 @@ class _LoadError extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              'Check your connection and try again.',
+              humanErrorMessage(error),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, height: 1.5, color: colors.ink2),
             ),
