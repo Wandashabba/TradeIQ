@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/agent_kit.dart';
+import 'package:tradeiq_app/core/widgets/console.dart';
 import 'package:tradeiq_app/features/audit/data/risks_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s8_risks_screen.dart';
 
@@ -18,76 +23,78 @@ class _SpyRisksRepository implements RisksRepository {
   }
 }
 
-void main() {
-  testWidgets('captures risk entries and calls saveRisks on Save', (
-    tester,
-  ) async {
-    final spy = _SpyRisksRepository();
+const _bothThemes = ['light', 'dark'];
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [risksRepositoryProvider.overrideWithValue(spy)],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: S8RisksScreen(visitDraftId: 'v1'),
-            ),
+ThemeData _themeFor(String name) =>
+    name == 'light' ? AppTheme.light() : AppTheme.dark();
+
+Widget _screen(RisksRepository spy, {ThemeData? theme, Key? key}) =>
+    ProviderScope(
+      overrides: [risksRepositoryProvider.overrideWithValue(spy)],
+      child: MaterialApp(
+        theme: theme,
+        // A fresh key per theme pass so State (the risk list) never carries
+        // across pumps in a both-themes loop.
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: S8RisksScreen(key: key, visitDraftId: 'v1'),
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Flag a risk'));
-    await tester.pump();
+void main() {
+  testWidgets(
+    'captures risk entries and calls saveRisks on Save — severity via ChoiceRow',
+    (tester) async {
+      for (final name in _bothThemes) {
+        final spy = _SpyRisksRepository();
+        await tester.pumpWidget(
+          _screen(spy, theme: _themeFor(name), key: ValueKey(name)),
+        );
+        await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const ValueKey('risk-type-0')),
-      'expiredStock',
-    );
-    await tester.ensureVisible(find.byKey(const ValueKey('risk-severity-0')));
-    await tester.tap(find.byKey(const ValueKey('risk-severity-0')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('critical').last);
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey('risk-note-0')),
-      'Two cases past date',
-    );
-    await tester.pump();
+        await tester.tap(find.text('Flag a risk'));
+        await tester.pump();
 
-    await tester.ensureVisible(find.text('Save risks'));
-    await tester.tap(find.text('Save risks'));
-    await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const ValueKey('risk-type-0')),
+          'expiredStock',
+        );
+        // Severity is now a ChoiceRow — tap the chip label, not a dropdown menu.
+        await tester.ensureVisible(find.text('Critical'));
+        await tester.tap(find.text('Critical'));
+        await tester.pump();
+        await tester.enterText(
+          find.byKey(const ValueKey('risk-note-0')),
+          'Two cases past date',
+        );
+        await tester.pump();
 
-    expect(spy.visitDraftId, 'v1');
-    expect(spy.entries, hasLength(1));
-    expect(spy.entries!.first.flagType, 'expiredStock');
-    expect(spy.entries!.first.severity, 'critical');
-    expect(spy.entries!.first.note, 'Two cases past date');
-    expect(
-      find.text(
-        'Risks saved — queued for sync; follow-up tasks will be auto-created',
-      ),
-      findsOneWidget,
-    );
-  });
+        await tester.ensureVisible(find.text('Save risks'));
+        await tester.tap(find.text('Save risks'));
+        await tester.pumpAndSettle();
+
+        expect(spy.visitDraftId, 'v1', reason: name);
+        expect(spy.entries, hasLength(1), reason: name);
+        expect(spy.entries!.first.flagType, 'expiredStock', reason: name);
+        expect(spy.entries!.first.severity, 'critical', reason: name);
+        expect(spy.entries!.first.note, 'Two cases past date', reason: name);
+        expect(
+          find.text(
+            'Risks saved — queued for sync; follow-up tasks will be auto-created',
+          ),
+          findsOneWidget,
+          reason: name,
+        );
+      }
+    },
+  );
 
   testWidgets('skips rows without a flag type on Save', (tester) async {
     final spy = _SpyRisksRepository();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [risksRepositoryProvider.overrideWithValue(spy)],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: S8RisksScreen(visitDraftId: 'v1'),
-            ),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_screen(spy));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Flag a risk'));
@@ -99,5 +106,76 @@ void main() {
 
     expect(spy.visitDraftId, 'v1');
     expect(spy.entries, isEmpty);
+  });
+
+  testWidgets(
+    'risk rows are PanelCards, fields are AgentFields, add + save are '
+    'AgentButtons — no raw Card/Dropdown/ElevatedButton/TextButton',
+    (tester) async {
+      for (final name in _bothThemes) {
+        await tester.pumpWidget(
+          _screen(
+            _SpyRisksRepository(),
+            theme: _themeFor(name),
+            key: ValueKey(name),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Flag a risk'));
+        await tester.pump();
+
+        expect(find.byType(Card), findsNothing, reason: '$name no Card');
+        expect(
+          find.byType(DropdownButtonFormField<String>),
+          findsNothing,
+          reason: '$name no Dropdown',
+        );
+        expect(
+          find.byType(ElevatedButton),
+          findsNothing,
+          reason: '$name no ElevatedButton',
+        );
+        expect(
+          find.byType(TextButton),
+          findsNothing,
+          reason: '$name no TextButton',
+        );
+
+        // The risk row is a console panel; its inputs are labelled AgentFields;
+        // severity is a segmented ChoiceRow; add + save are the kit's buttons.
+        expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        expect(
+          find.byType(AgentField),
+          findsNWidgets(2),
+          reason: '$name two AgentFields',
+        );
+        expect(
+          find.byType(ChoiceRow<String>),
+          findsOneWidget,
+          reason: '$name severity ChoiceRow',
+        );
+        expect(
+          find.widgetWithText(AgentButton, 'Flag a risk'),
+          findsOneWidget,
+          reason: '$name add is AgentButton',
+        );
+        expect(
+          find.widgetWithText(AgentButton, 'Save risks'),
+          findsOneWidget,
+          reason: '$name save is AgentButton',
+        );
+      }
+    },
+  );
+
+  test('no non-geometry AppColors. remain in the S8 risks source', () {
+    final src = File(
+      'lib/features/audit/presentation/sections/s8_risks_screen.dart',
+    ).readAsStringSync();
+    final offenders = RegExp(
+      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
+    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
+    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
   });
 }
