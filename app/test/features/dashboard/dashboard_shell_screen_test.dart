@@ -883,6 +883,15 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(find.text('North'), findsNothing);
       expect(_territoryPillLabel(tester, 'All territories'), isNotNull);
+
+      // The hint label alone is not proof the filter cleared: an unknown/stale
+      // id (or a leaked sentinel) falls back to that same label while still
+      // riding into the ?territoryId= query. Read the real state — clearing
+      // must land territoryId at null, not a sentinel.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(DashboardShellScreen)),
+      );
+      expect(container.read(dashboardFilterProvider).territoryId, isNull);
     },
   );
 
