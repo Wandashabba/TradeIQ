@@ -363,6 +363,28 @@ Text _chipLabel(WidgetTester tester, String range, String label) =>
       ),
     );
 
+/// The rendered pill decoration behind the territory trigger — read from the
+/// tree so the assertions hold whatever tokens the implementation routes
+/// through. Scoped to the trigger's key, so the (identical-looking) menu items
+/// never match once the menu is open.
+BoxDecoration _territoryPillBox(WidgetTester tester) {
+  final box = find.descendant(
+    of: find.byKey(const ValueKey('filter-territory')),
+    matching: find.byWidgetPredicate(
+      (w) => w is Container && w.decoration is BoxDecoration,
+    ),
+  );
+  return tester.widget<Container>(box).decoration! as BoxDecoration;
+}
+
+Text _territoryPillLabel(WidgetTester tester, String label) =>
+    tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('filter-territory')),
+        matching: find.text(label),
+      ),
+    );
+
 void main() {
   testWidgets('leads with the execution score as the hero figure', (
     tester,
@@ -749,6 +771,120 @@ void main() {
     expect(find.byKey(const ValueKey('filter-territory')), findsOneWidget);
     expect(find.byKey(const ValueKey('filter-daterange')), findsOneWidget);
   });
+
+  testWidgets(
+    'territory trigger is an inactive-style pill (light): surface1, hairline, '
+    'radiusPill, muted ink label + chevron, AA-safe',
+    (tester) async {
+      await _pump(tester, _app(theme: AppTheme.light()));
+
+      final box = _territoryPillBox(tester);
+      expect(box.color, const Color(0xFFFFFFFF)); // surface1
+      expect(box.borderRadius, BorderRadius.circular(999)); // radiusPill
+      expect(
+        (box.border! as Border).top.color,
+        const Color(0xFFE3E5EA),
+      ); // line
+
+      // Nothing selected → the hint label, in the same muted ink the inactive
+      // range pills carry.
+      final label = _territoryPillLabel(tester, 'All territories');
+      expect(label.style?.color, const Color(0xFF4C5560)); // ink2
+      expect(label.style?.fontSize, 12.5);
+
+      // A chevron makes it read as a menu trigger, not a static chip.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('filter-territory')),
+          matching: find.byIcon(Icons.expand_more),
+        ),
+        findsOneWidget,
+      );
+
+      // AA, measured from the rendered tree — not the token table.
+      expect(
+        contrastRatio(label.style!.color!, box.color!),
+        greaterThanOrEqualTo(4.5),
+        reason: 'trigger label on the surface1 pill',
+      );
+    },
+  );
+
+  testWidgets('territory trigger stays a readable rendered pair in dark', (
+    tester,
+  ) async {
+    await _pump(tester, _app(theme: AppTheme.dark()));
+
+    final box = _territoryPillBox(tester);
+    expect(box.color, const Color(0xFF14161C)); // dark surface1
+    expect(box.borderRadius, BorderRadius.circular(999));
+    expect((box.border! as Border).top.color, const Color(0xFF23262F)); // line
+
+    final label = _territoryPillLabel(tester, 'All territories');
+    expect(label.style?.color, const Color(0xFF99A1AD)); // dark ink2
+    expect(
+      contrastRatio(label.style!.color!, box.color!),
+      greaterThanOrEqualTo(4.5),
+      reason: 'trigger label on the dark surface1 pill',
+    );
+  });
+
+  testWidgets(
+    'territory menu lists All territories + each territory, and selection '
+    'flows both ways',
+    (tester) async {
+      // Territories with no matching by-territory data leaves the scores panel
+      // an intentional inline loader (see _TerritoryScoreBars), so this drives
+      // the tree with bounded pumps rather than pumpAndSettle. The upshot the
+      // assertions rely on: the bar chart never renders, so a territory name
+      // appears only inside this menu — nowhere else on the screen.
+      tester.view.physicalSize = const Size(1440, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        _app(
+          territories: const [
+            Territory(id: 't-north', name: 'North', code: 'north'),
+            Territory(id: 't-south', name: 'South', code: 'south'),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      // Closed: the trigger shows the hint; the territory names are not painted.
+      expect(find.text('North'), findsNothing);
+      expect(find.text('South'), findsNothing);
+
+      // Open: All territories + every territory is offered.
+      await tester.tap(find.byKey(const ValueKey('filter-territory')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('All territories'), findsWidgets); // trigger + menu item
+      expect(find.text('North'), findsOneWidget);
+      expect(find.text('South'), findsOneWidget);
+
+      // Select a territory → the filter narrows; the trigger now names it.
+      await tester.tap(find.text('North'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        _territoryPillLabel(tester, 'North').style?.color,
+        isNotNull,
+        reason: 'the trigger reflects the selected territory',
+      );
+
+      // Select "All territories" → the filter clears; the hint returns.
+      await tester.tap(find.byKey(const ValueKey('filter-territory')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.text('All territories').last);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('North'), findsNothing);
+      expect(_territoryPillLabel(tester, 'All territories'), isNotNull);
+    },
+  );
 
   testWidgets('range chips are white pills; the active chip is solid brand', (
     tester,
