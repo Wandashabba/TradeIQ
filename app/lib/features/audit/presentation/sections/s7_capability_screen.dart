@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/tiq_colors.dart';
+import '../../../../core/widgets/agent_kit.dart';
 import '../../data/capability_repository.dart';
 
 /// S7 — Sales Capability capture: confirmed staff headcount, rep training
@@ -35,7 +37,9 @@ class _S7State extends ConsumerState<S7CapabilityScreen> {
   }
 
   Future<void> _save() async {
-    await ref.read(capabilityRepositoryProvider).saveCapability(
+    await ref
+        .read(capabilityRepositoryProvider)
+        .saveCapability(
           visitDraftId: widget.visitDraftId,
           capture: CapabilityCapture(
             staffHeadcountConfirmed: int.tryParse(_headcount.text) ?? 0,
@@ -48,40 +52,53 @@ class _S7State extends ConsumerState<S7CapabilityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('S7 Sales Capability'),
-        const SizedBox(height: 8),
-        TextField(
-          key: const ValueKey('headcount'),
-          controller: _headcount,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Staff headcount confirmed', isDense: true),
-        ),
-        const SizedBox(height: 8),
-        const Text('Rep training completed'),
-        for (final entry in _trainingOptions.entries)
-          CheckboxListTile(
-            key: ValueKey('training-${entry.key}'),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            title: Text(entry.value),
-            value: _training[entry.key] ?? false,
-            onChanged: (v) => setState(() => _training[entry.key] = v ?? false),
+        AgentField(
+          label: 'Staff headcount confirmed',
+          child: TextField(
+            key: const ValueKey('headcount'),
+            controller: _headcount,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(hintText: 'Reps on the floor'),
           ),
-        TextField(
-          key: const ValueKey('quiz'),
-          controller: _quiz,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Quiz score (0-100)', isDense: true),
         ),
-        const SizedBox(height: 12),
-        ElevatedButton(onPressed: _save, child: const Text('Save capability')),
+        Text(
+          'Rep training completed',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: colors.ink2,
+          ),
+        ),
+        const SizedBox(height: 7),
+        for (final entry in _trainingOptions.entries)
+          AgentCheck(
+            key: ValueKey('training-${entry.key}'),
+            label: entry.value,
+            value: _training[entry.key] ?? false,
+            onChanged: (v) => setState(() => _training[entry.key] = v),
+          ),
+        const SizedBox(height: 16),
+        AgentField(
+          label: 'Quiz score (0-100)',
+          child: TextField(
+            key: const ValueKey('quiz'),
+            controller: _quiz,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(hintText: '0-100'),
+          ),
+        ),
+        AgentButton(label: 'Save capability', onPressed: _save),
         if (_saved)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text('Capability saved — queued for sync'),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              'Capability saved — queued for sync',
+              style: TextStyle(color: colors.ink2),
+            ),
           ),
       ],
     );

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/tiq_colors.dart';
+import '../../../../core/widgets/agent_kit.dart';
+import '../../../../core/widgets/console.dart';
 import '../../data/competitive_repository.dart';
 
 /// S6 — Competitive Intelligence capture: a dynamic list of competitor
@@ -58,60 +61,69 @@ class _S6State extends ConsumerState<S6CompetitiveScreen> {
           ),
     ];
 
-    await ref.read(competitiveRepositoryProvider).saveCompetitive(
-          visitDraftId: widget.visitDraftId,
-          entries: entries,
-        );
+    await ref
+        .read(competitiveRepositoryProvider)
+        .saveCompetitive(visitDraftId: widget.visitDraftId, entries: entries);
     if (mounted) setState(() => _saved = true);
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('S6 Competitive Intelligence'),
-        const SizedBox(height: 8),
         for (var i = 0; i < _skus.length; i++)
-          Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: PanelCard(
+              title: 'Competitor ${i + 1}',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Competitor ${i + 1}', style: Theme.of(context).textTheme.titleMedium),
-                  TextField(
-                    key: ValueKey('comp-sku-$i'),
-                    controller: _skus[i],
-                    decoration: const InputDecoration(labelText: 'Competitor SKU', isDense: true),
-                  ),
-                  TextField(
-                    key: ValueKey('comp-price-$i'),
-                    controller: _prices[i],
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Competitor price', isDense: true),
-                  ),
-                  TextField(
-                    key: ValueKey('comp-posm-$i'),
-                    controller: _posmTypes[i],
-                    decoration: const InputDecoration(labelText: 'POSM type', isDense: true),
-                  ),
-                  TextField(
-                    key: ValueKey('comp-facings-$i'),
-                    controller: _facings[i],
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Facings on shelf',
-                      helperText: 'How much shelf this competitor holds',
-                      isDense: true,
+                  AgentField(
+                    label: 'Competitor SKU',
+                    child: TextField(
+                      key: ValueKey('comp-sku-$i'),
+                      controller: _skus[i],
+                      decoration: const InputDecoration(
+                        hintText: 'What the rival is selling',
+                      ),
                     ),
                   ),
-                  SwitchListTile(
-                    key: ValueKey('comp-promoter-$i'),
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Promoter present'),
+                  AgentField(
+                    label: 'Competitor price',
+                    child: TextField(
+                      key: ValueKey('comp-price-$i'),
+                      controller: _prices[i],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(hintText: '0.00'),
+                    ),
+                  ),
+                  AgentField(
+                    label: 'POSM type',
+                    child: TextField(
+                      key: ValueKey('comp-posm-$i'),
+                      controller: _posmTypes[i],
+                      decoration: const InputDecoration(
+                        hintText: 'Poster, wobbler, gondola…',
+                      ),
+                    ),
+                  ),
+                  AgentField(
+                    label: 'Facings on shelf',
+                    help: 'How much shelf this competitor holds',
+                    child: TextField(
+                      key: ValueKey('comp-facings-$i'),
+                      controller: _facings[i],
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(hintText: '1'),
+                    ),
+                  ),
+                  AgentToggle(
+                    label: 'Promoter present',
                     value: _promoters[i],
                     onChanged: (v) => setState(() => _promoters[i] = v),
                   ),
@@ -119,17 +131,22 @@ class _S6State extends ConsumerState<S6CompetitiveScreen> {
               ),
             ),
           ),
-        TextButton(
+        AgentButton(
           key: const ValueKey('add-competitor'),
+          label: 'Add competitor',
+          icon: Icons.add,
+          secondary: true,
           onPressed: _addCompetitor,
-          child: const Text('Add competitor'),
         ),
         const SizedBox(height: 12),
-        ElevatedButton(onPressed: _save, child: const Text('Save competitive')),
+        AgentButton(label: 'Save competitive', onPressed: _save),
         if (_saved)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text('Competitive intel saved — queued for sync'),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              'Competitive intel saved — queued for sync',
+              style: TextStyle(color: colors.ink2),
+            ),
           ),
       ],
     );
