@@ -25,7 +25,10 @@ class PhotoCaptureField extends ConsumerStatefulWidget {
 
   final String label;
 
-  /// Called with the encoded data URL, or null when the photo is removed.
+  /// Called with the encoded data URL of a fresh capture. The field never emits
+  /// null of its own accord — Retake re-shoots rather than clearing, and backing
+  /// out of a retake keeps the existing photo. `onCaptured(null)` stays a valid
+  /// contract call, but nothing in this field triggers it.
   final ValueChanged<String?> onCaptured;
   final String? helperText;
 

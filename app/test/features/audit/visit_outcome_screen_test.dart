@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/agent_motion.dart' show AnimatedCount;
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/audit/data/scorecards_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/visit_outcome_screen.dart';
@@ -63,6 +64,32 @@ Widget _app(VisitOutcome outcome, {ThemeData? theme, Key? key}) {
       outletName: 'Sunrise Spaza',
     ),
     theme: theme,
+    overrides: [
+      localDbProvider.overrideWithValue(db),
+      visitOutcomeProvider.overrideWith((ref, arg) async => outcome),
+    ],
+  );
+}
+
+/// The screen under an OS "reduce motion" preference. Wrapping the screen in a
+/// [MediaQuery] with `disableAnimations: true` is what `reduceMotion(context)`
+/// reads — every count-up, reveal and bar-fill on the outcome screen is gated on
+/// it and must degrade to a static, final-value render.
+Widget _reducedApp(VisitOutcome outcome) {
+  final db = LocalDb(NativeDatabase.memory());
+  addTearDown(db.close);
+
+  return routedApp(
+    Builder(
+      builder: (context) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(disableAnimations: true),
+        child: const VisitOutcomeScreen(
+          visitDraftId: 'v1',
+          outletId: 'o1',
+          outletName: 'Sunrise Spaza',
+        ),
+      ),
+    ),
     overrides: [
       localDbProvider.overrideWithValue(db),
       visitOutcomeProvider.overrideWith((ref, arg) async => outcome),
@@ -143,6 +170,32 @@ void main() {
     // Both ways off this screen go forward — to the next store.
     expect(find.byKey(const ValueKey('next-store')), findsOneWidget);
   });
+
+  testWidgets(
+    'under reduceMotion the score is final on the first frame — no count-up',
+    (tester) async {
+      await tester.pumpWidget(
+        _reducedApp(const VisitOutcome(score: _visit, previous: null)),
+      );
+      // Resolve the async outcome, then deliberately DO NOT pumpAndSettle: this
+      // asserts the very frame the data lands on.
+      await tester.pump();
+
+      // AnimatedCount honours reduceMotion by rendering a plain Text of the
+      // final value — 72 is on screen at once, with no count-up tween driving
+      // it there. An agent who has asked the OS to still its screen gets the
+      // number, not an animation.
+      expect(find.text('72'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AnimatedCount),
+          matching: find.byType(TweenAnimationBuilder<double>),
+        ),
+        findsNothing,
+        reason: 'reduceMotion → the score is static, not a count-up',
+      );
+    },
+  );
 
   // ── Premium restyle (sub5c Task 2) ──────────────────────────────────────
 
