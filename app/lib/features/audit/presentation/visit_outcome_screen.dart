@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
+import '../../../core/widgets/console.dart';
 import '../data/scorecards_repository.dart';
 
 /// How the visit ended.
@@ -59,14 +61,11 @@ class VisitOutcomeScreen extends ConsumerWidget {
         // Failing to *read* the score is not failing to submit. The captures are
         // in the outbox either way, and saying so is the only thing that matters
         // to someone walking out of a shop.
-        error: (_, _) => const _HeldOnPhone(
-          reason: 'Could not reach the server just now',
-        ),
+        error: (_, _) =>
+            const _HeldOnPhone(reason: 'Could not reach the server just now'),
         data: (outcome) {
           if (outcome.isHeldOnPhone) {
-            return const _HeldOnPhone(
-              reason: 'No signal right now',
-            );
+            return const _HeldOnPhone(reason: 'No signal right now');
           }
           return _Scored(outcome: outcome);
         },
@@ -80,19 +79,20 @@ class _Scoring extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final colors = context.colors;
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
+          const SizedBox(
             width: 22,
             height: 22,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          SizedBox(height: 14),
+          const SizedBox(height: 14),
           Text(
             'Sending your visit…',
-            style: TextStyle(fontSize: 13.5, color: AppColors.ink2),
+            style: TextStyle(fontSize: 13.5, color: colors.ink2),
           ),
         ],
       ),
@@ -109,18 +109,19 @@ class _HeldOnPhone extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       children: [
         const Center(child: TickMark(done: true, size: 44)),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Your visit is safe on this phone',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: AppColors.ink1,
+            color: colors.ink1,
           ),
         ),
         const SizedBox(height: 8),
@@ -128,11 +129,7 @@ class _HeldOnPhone extends StatelessWidget {
           '$reason — it will send itself the moment you have signal. '
           'You can close the app.',
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 13.5,
-            height: 1.5,
-            color: AppColors.ink2,
-          ),
+          style: TextStyle(fontSize: 13.5, height: 1.5, color: colors.ink2),
         ),
         const SizedBox(height: 22),
         const StatusBanner(
@@ -141,14 +138,14 @@ class _HeldOnPhone extends StatelessWidget {
           subtitle: 'Your score is worked out on the server, not on the phone',
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           // Not showing a number here is deliberate, and worth one sentence:
           // an agent who is shown 74 in the shop and finds 68 in the morning
           // will not trust the third one.
           'We are not guessing at a score here. You will see the real one — the '
           'same one your manager sees — as soon as this reaches the server.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, height: 1.5, color: AppColors.ink3),
+          style: TextStyle(fontSize: 12, height: 1.5, color: colors.ink3),
         ),
       ],
     );
@@ -162,80 +159,99 @@ class _Scored extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final score = outcome.score!;
-    final band = _band(score.ratingBand);
+    final band = _band(colors, score.ratingBand);
     final delta = outcome.delta;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
       children: [
-        Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+        // The score-reveal moment, on the console's glass-hero treatment: the
+        // washed panel every other console hero wears (heroWash → surface1).
+        PanelCard(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [colors.heroWash, colors.surface1],
+          ),
+          borderColor: colors.heroBorder,
+          child: Column(
             children: [
-              // The number counts up to itself. It is the one moment in the
-              // visit worth landing — everything before it was work.
-              AnimatedCount(
-                value: score.weightedTotal.round(),
-                style: const TextStyle(
-                  fontSize: 52,
-                  fontWeight: FontWeight.w700,
-                  height: 1,
-                  letterSpacing: -1.5,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                  color: AppColors.ink1,
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    // The number counts up to itself. It is the one moment in
+                    // the visit worth landing — everything before it was work.
+                    AnimatedCount(
+                      value: score.weightedTotal.round(),
+                      style: TextStyle(
+                        fontSize: 52,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        letterSpacing: -1.5,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: colors.ink1,
+                      ),
+                    ),
+                    Text(
+                      '/100',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: colors.ink3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Text(
-                '/100',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink3,
+              const SizedBox(height: 10),
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // The dot is a graphical mark, so it keeps the raw status
+                    // token; the word beside it carries the AA-safe tint.
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: band.dot,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      // The band is spelled out, never left to the dot's colour.
+                      band.word,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: band.text,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              if (delta != null) ...[
+                const SizedBox(height: 10),
+                Center(
+                  child: _Delta(points: delta, previous: outcome.previous!),
+                ),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: 10),
-        Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: band.$1,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 7),
-              Text(
-                // The band is spelled out, never left to the dot's colour.
-                band.$2,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: band.$1,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (delta != null) ...[
-          const SizedBox(height: 10),
-          Center(child: _Delta(points: delta, previous: outcome.previous!)),
-        ],
         const SizedBox(height: 24),
         const _Heading('How it was scored'),
         DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.surface1,
-            border: Border.all(color: AppColors.line),
+            color: colors.surface1,
+            border: Border.all(color: colors.line),
             borderRadius: BorderRadius.circular(AppColors.radiusPanel),
           ),
           child: Column(
@@ -260,11 +276,17 @@ class _Scored extends StatelessWidget {
     );
   }
 
-  static (Color, String) _band(String band) => switch (band) {
-        'green' => (AppColors.good, 'Green'),
-        'amber' => (AppColors.warn, 'Amber'),
-        _ => (AppColors.crit, 'Red'),
-      };
+  /// Band → (dot mark colour, AA-safe word colour, spelled word). The dot keeps
+  /// the raw status token; the word takes the text-grade tint — red as `crit`
+  /// text fails 4.5:1 on the hero wash, so the word uses `critText`.
+  static ({Color dot, Color text, String word}) _band(
+    TiqColors colors,
+    String band,
+  ) => switch (band) {
+    'green' => (dot: colors.good, text: colors.good, word: 'Green'),
+    'amber' => (dot: colors.warn, text: colors.warn, word: 'Amber'),
+    _ => (dot: colors.crit, text: colors.critText, word: 'Red'),
+  };
 }
 
 /// Up or down since this agent's last visit to this store — the only comparison
@@ -277,16 +299,19 @@ class _Delta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final rounded = points.round();
     if (rounded == 0) {
       return Text(
         'Same as your last visit here (${previous.weightedTotal.round()}).',
-        style: const TextStyle(fontSize: 12.5, color: AppColors.ink3),
+        style: TextStyle(fontSize: 12.5, color: colors.ink3),
       );
     }
 
     final up = rounded > 0;
-    final color = up ? AppColors.good : AppColors.crit;
+    // A move down uses critText, not crit — as coloured text on the hero wash,
+    // crit fails 4.5:1 (the recurring crit→critText lesson).
+    final color = up ? colors.good : colors.critText;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -308,7 +333,7 @@ class _Delta extends StatelessWidget {
         ),
         Text(
           ' from your last visit here (${previous.weightedTotal.round()}).',
-          style: const TextStyle(fontSize: 12.5, color: AppColors.ink3),
+          style: TextStyle(fontSize: 12.5, color: colors.ink3),
         ),
       ],
     );
@@ -330,15 +355,14 @@ class _Dimension extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final value = score;
     final measured = value != null;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
       decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : const Border(bottom: BorderSide(color: AppColors.line)),
+        border: isLast ? null : Border(bottom: BorderSide(color: colors.line)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,7 +374,7 @@ class _Dimension extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(fontSize: 14, color: AppColors.ink1),
+                  style: TextStyle(fontSize: 14, color: colors.ink1),
                 ),
               ),
               Text(
@@ -359,7 +383,7 @@ class _Dimension extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: measured ? FontWeight.w600 : FontWeight.w500,
                   fontFeatures: const [FontFeature.tabularFigures()],
-                  color: measured ? AppColors.ink1 : AppColors.ink3,
+                  color: measured ? colors.ink1 : colors.ink3,
                 ),
               ),
             ],
@@ -370,7 +394,7 @@ class _Dimension extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               unmeasurableReason!,
-              style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
+              style: TextStyle(fontSize: 11.5, color: colors.ink3),
             ),
           ],
         ],
@@ -386,12 +410,19 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     // An unmeasured dimension is hatched, not empty — an empty bar looks like a
     // zero, which is the exact misreading this whole thing exists to prevent.
     if (value == null) {
       return SizedBox(
         height: 5,
-        child: CustomPaint(painter: _HatchPainter(), size: Size.infinite),
+        child: CustomPaint(
+          painter: _HatchPainter(
+            track: colors.surface3,
+            hatch: colors.lineStrong,
+          ),
+          size: Size.infinite,
+        ),
       );
     }
 
@@ -399,7 +430,7 @@ class _Bar extends StatelessWidget {
       borderRadius: BorderRadius.circular(3),
       child: Stack(
         children: [
-          Container(height: 5, color: AppColors.surface3),
+          Container(height: 5, color: colors.surface3),
           LayoutBuilder(
             builder: (context, constraints) => TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: (value! / 100).clamp(0.0, 1.0)),
@@ -408,7 +439,7 @@ class _Bar extends StatelessWidget {
               builder: (context, t, _) => Container(
                 height: 5,
                 width: constraints.maxWidth * t,
-                color: AppColors.series1,
+                color: colors.series1,
               ),
             ),
           ),
@@ -419,28 +450,38 @@ class _Bar extends StatelessWidget {
 }
 
 class _HatchPainter extends CustomPainter {
+  _HatchPainter({required this.track, required this.hatch});
+
+  final Color track;
+  final Color hatch;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final track = Paint()..color = AppColors.surface3;
+    final trackPaint = Paint()..color = track;
     final rect = RRect.fromRectAndRadius(
       Offset.zero & size,
       const Radius.circular(3),
     );
-    canvas.drawRRect(rect, track);
+    canvas.drawRRect(rect, trackPaint);
 
     canvas.save();
     canvas.clipRRect(rect);
-    final hatch = Paint()
-      ..color = AppColors.lineStrong
+    final hatchPaint = Paint()
+      ..color = hatch
       ..strokeWidth = 1.2;
     for (var x = -size.height; x < size.width; x += 5) {
-      canvas.drawLine(Offset(x, size.height), Offset(x + size.height, 0), hatch);
+      canvas.drawLine(
+        Offset(x, size.height),
+        Offset(x + size.height, 0),
+        hatchPaint,
+      );
     }
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_HatchPainter oldDelegate) => false;
+  bool shouldRepaint(_HatchPainter oldDelegate) =>
+      oldDelegate.track != track || oldDelegate.hatch != hatch;
 }
 
 class _Heading extends StatelessWidget {
@@ -450,15 +491,16 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.88,
-          color: AppColors.ink3,
+          color: colors.ink3,
         ),
       ),
     );
