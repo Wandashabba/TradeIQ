@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
@@ -57,29 +58,31 @@ class MyWorkScreen extends ConsumerWidget {
             ],
             if (s.pending.where((i) => !i.needsAttention).isNotEmpty) ...[
               const _Heading('Waiting to send'),
-              _Group(
-                items: s.pending.where((i) => !i.needsAttention).toList(),
-              ),
+              _Group(items: s.pending.where((i) => !i.needsAttention).toList()),
             ],
             if (s.sent.isNotEmpty) ...[
               const _Heading('Sent'),
               _Group(items: s.sent.take(20).toList()),
             ],
             if (s.pending.isEmpty && s.sent.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 48),
                 child: Center(
                   child: Text(
                     'Nothing captured yet',
-                    style: TextStyle(fontSize: 14, color: AppColors.ink3),
+                    style: TextStyle(fontSize: 14, color: context.colors.ink3),
                   ),
                 ),
               ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Captures send themselves when you have signal — you never have to '
               'remember to do it. Nothing here is ever lost.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.ink3, height: 1.5),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: context.colors.ink3,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -152,11 +155,11 @@ class _Heading extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.9,
-          color: AppColors.ink3,
+          color: context.colors.ink3,
         ),
       ),
     );
@@ -173,8 +176,8 @@ class _Group extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface1,
-        border: Border.all(color: AppColors.line),
+        color: context.colors.surface1,
+        border: Border.all(color: context.colors.line),
         borderRadius: BorderRadius.circular(AppColors.radiusPanel),
       ),
       child: Column(
@@ -195,11 +198,7 @@ class _Group extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({
-    required this.item,
-    required this.showError,
-    required this.last,
-  });
+  const _Row({required this.item, required this.showError, required this.last});
 
   final SyncItem item;
   final bool showError;
@@ -207,23 +206,24 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    // Coloured status TEXT must clear 4.5:1 on the surface1 card, so the failed
+    // state takes critText (raw crit fails AA in dark) — the recurring lesson.
     final (icon, color, state) = switch (item) {
-      SyncItem(synced: true) => (Icons.check, AppColors.good, 'Sent'),
+      SyncItem(synced: true) => (Icons.check, colors.good, 'Sent'),
       SyncItem(needsAttention: true) => (
-          Icons.warning_amber_outlined,
-          AppColors.crit,
-          'Failed',
-        ),
-      _ => (Icons.schedule, AppColors.warn, 'Waiting'),
+        Icons.warning_amber_outlined,
+        colors.critText,
+        'Failed',
+      ),
+      _ => (Icons.schedule, colors.warn, 'Waiting'),
     };
 
     return Container(
       key: ValueKey('sync-item-${item.id}'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        border: last
-            ? null
-            : const Border(bottom: BorderSide(color: AppColors.line)),
+        border: last ? null : Border(bottom: BorderSide(color: colors.line)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,7 +236,7 @@ class _Row extends StatelessWidget {
               children: [
                 Text(
                   item.label,
-                  style: const TextStyle(fontSize: 14, color: AppColors.ink1),
+                  style: TextStyle(fontSize: 14, color: colors.ink1),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -247,7 +247,8 @@ class _Row extends StatelessWidget {
                       : formatAgo(item.queuedAt),
                   style: TextStyle(
                     fontSize: 12,
-                    color: showError ? AppColors.crit : AppColors.ink3,
+                    // The failure reason is coloured status text → critText.
+                    color: showError ? colors.critText : colors.ink3,
                   ),
                 ),
               ],
