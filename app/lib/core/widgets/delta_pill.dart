@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/status_pill_colors.dart';
 
 /// How a [DeltaPill] should read: improving, needs watching, or degrading.
 ///
@@ -41,11 +42,13 @@ class DeltaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = switch (tone) {
-      DeltaTone.good => (const Color(0xFFE7F5E7), const Color(0xFF0B6B0B)),
-      DeltaTone.warn => (const Color(0xFFFDF3E2), const Color(0xFF8A5A00)),
-      DeltaTone.bad => (const Color(0xFFFDEEEE), const Color(0xFFA52A2A)),
+    // Fixed status washes, single-sourced — see status_pill_colors.dart.
+    final wash = switch (tone) {
+      DeltaTone.good => statusPillGood,
+      DeltaTone.warn => statusPillWarn,
+      DeltaTone.bad => statusPillBad,
     };
+    final (bg, fg) = (wash.bg, wash.fg);
     final glyph = delta < 0
         ? '▼'
         : delta > 0

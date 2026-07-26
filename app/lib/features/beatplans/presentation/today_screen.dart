@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/status_pill_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
@@ -222,13 +223,11 @@ class _GlassHero extends StatelessWidget {
   }
 }
 
-/// The house "done / positive" pill pair — DeltaPill's good tone. Fixed hexes,
-/// not theme slots: a status verdict reads the same in both themes, and the
-/// pair is self-contained (a self-tint — the token over its own 14% wash —
-/// tops out near 1:1 and cannot clear AA; this pair clears 4.5:1 on its own
-/// wash in light and dark). Kept in sync with delta_pill.dart's DeltaTone.good.
-const _goodPillBg = Color(0xFFE7F5E7);
-const _goodPillFg = Color(0xFF0B6B0B);
+/// The house "done / positive" pill pair — the shared good status wash. Fixed
+/// hexes, not theme slots: a status verdict reads the same in both themes, and
+/// the pair is self-contained (it clears 4.5:1 on its own wash in light and
+/// dark). Single-sourced — see status_pill_colors.dart.
+const _goodPill = statusPillGood;
 
 /// "N left" / "Route done" — a word on a wash, never colour alone AND never
 /// below the AA floor. Complete takes the fixed good pair; before that it is a
@@ -245,7 +244,7 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: complete ? _goodPillBg : colors.surface2,
+        color: complete ? _goodPill.bg : colors.surface2,
         borderRadius: BorderRadius.circular(AppColors.radiusPill),
       ),
       child: Text(
@@ -253,7 +252,7 @@ class _StatusPill extends StatelessWidget {
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w600,
-          color: complete ? _goodPillFg : colors.ink2,
+          color: complete ? _goodPill.fg : colors.ink2,
         ),
       ),
     );
@@ -418,10 +417,10 @@ class _StopCard extends StatelessWidget {
                                   // console's active-chip pattern (white on the
                                   // solid brand) — both AA-clear, theme-constant.
                                   child: done
-                                      ? const _StateTag(
+                                      ? _StateTag(
                                           label: 'DONE',
-                                          bg: _goodPillBg,
-                                          fg: _goodPillFg,
+                                          bg: _goodPill.bg,
+                                          fg: _goodPill.fg,
                                         )
                                       : _StateTag(
                                           label: 'NEXT',
