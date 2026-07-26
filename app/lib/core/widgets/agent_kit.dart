@@ -479,6 +479,221 @@ class _Choice extends StatelessWidget {
   }
 }
 
+/// An on/off setting — a thumb-sized row, not a 20px `SwitchListTile`.
+///
+/// The whole row is the target (label-left, track-right), so an agent flips it
+/// without hunting for a tiny switch. State never rides on colour alone: the
+/// thumb slides and `Semantics(toggled:)` speaks it to a screen reader.
+class AgentToggle extends StatelessWidget {
+  const AgentToggle({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.help,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final String? help;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    // MergeSemantics folds the InkWell's tap into the labelled+toggled node, so
+    // a screen reader hears ONE control: label, on/off state, and "activate".
+    // The visible label Text is excluded so it isn't announced a second time.
+    return MergeSemantics(
+      child: Semantics(
+        toggled: value,
+        label: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: kTapTarget),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ExcludeSemantics(
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: colors.ink1,
+                              ),
+                            ),
+                          ),
+                          if (help != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Text(
+                                help!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colors.ink3,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _ToggleTrack(value: value),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToggleTrack extends StatelessWidget {
+  const _ToggleTrack({required this.value});
+
+  final bool value;
+
+  static const double _w = 44;
+  static const double _h = 26;
+  static const double _thumb = 20;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return AnimatedContainer(
+      duration: reduceMotion(context) ? Duration.zero : Motion.fast,
+      curve: Motion.enter,
+      width: _w,
+      height: _h,
+      decoration: BoxDecoration(
+        color: value ? colors.brand : colors.surface3,
+        border: Border.all(color: value ? colors.brand : colors.lineStrong),
+        borderRadius: BorderRadius.circular(_h / 2),
+      ),
+      child: AnimatedAlign(
+        duration: reduceMotion(context) ? Duration.zero : Motion.fast,
+        curve: Motion.enter,
+        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Container(
+            width: _thumb,
+            height: _thumb,
+            // Off the thumb is a muted knob (ink3) on the surface3 track; on it
+            // is white on brand — the knob itself carries the state, not colour.
+            decoration: BoxDecoration(
+              color: value ? Colors.white : colors.ink3,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A checkbox row — label-left, box-right, the whole row a target.
+///
+/// Checked fills [TiqColors.brand] and draws a tick: the state carries a glyph,
+/// never colour alone, and `Semantics(checked:)` speaks it.
+class AgentCheck extends StatelessWidget {
+  const AgentCheck({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    // One merged node: label, checked state, and tap — never the label twice.
+    return MergeSemantics(
+      child: Semantics(
+        checked: value,
+        label: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: kTapTarget),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ExcludeSemantics(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: colors.ink1,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _CheckBox(value: value),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CheckBox extends StatelessWidget {
+  const _CheckBox({required this.value});
+
+  final bool value;
+
+  static const double _size = 24;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return AnimatedContainer(
+      duration: reduceMotion(context) ? Duration.zero : Motion.fast,
+      curve: Motion.enter,
+      width: _size,
+      height: _size,
+      decoration: BoxDecoration(
+        color: value ? colors.brand : colors.surface2,
+        border: Border.all(color: value ? colors.brand : colors.lineStrong),
+        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+      ),
+      // White on brand clears AA (4.76:1); the tick is what carries "checked".
+      child: value
+          ? const Icon(Icons.check, size: 16, color: Colors.white)
+          : null,
+    );
+  }
+}
+
 /// A field with a label and, where it earns its place, a sentence of help.
 class AgentField extends StatelessWidget {
   const AgentField({

@@ -315,10 +315,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Opening a section pushes it full-screen — one thing at a time.
-      expect(find.text('S1 Outlet Information'), findsOneWidget);
+      expect(find.text('Confirmed at check-in'), findsOneWidget);
 
       final first = tester
-          .widget<Text>(find.textContaining('Checked in at').first)
+          .widget<Text>(find.byKey(const ValueKey('checkin-timestamp')))
           .data;
 
       await tester.pageBack();
@@ -328,7 +328,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final second = tester
-          .widget<Text>(find.textContaining('Checked in at').first)
+          .widget<Text>(find.byKey(const ValueKey('checkin-timestamp')))
           .data;
 
       expect(second, first);

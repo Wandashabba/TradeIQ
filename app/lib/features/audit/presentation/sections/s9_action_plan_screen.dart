@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/tiq_colors.dart';
+import '../../../../core/widgets/agent_kit.dart';
+import '../../../../core/widgets/console.dart';
 import '../../data/tasks_repository.dart';
 
 /// S9 — Action Plan: manual corrective tasks raised by the agent. Risks
 /// flagged in S8 auto-create tasks server-side; this section only captures
 /// additional manual tasks, queued offline for sync (POST /tasks).
 class S9ActionPlanScreen extends ConsumerStatefulWidget {
-  const S9ActionPlanScreen({super.key, required this.visitDraftId, required this.outletId});
+  const S9ActionPlanScreen({
+    super.key,
+    required this.visitDraftId,
+    required this.outletId,
+  });
 
   final String visitDraftId;
   final String outletId;
@@ -17,7 +24,11 @@ class S9ActionPlanScreen extends ConsumerStatefulWidget {
 }
 
 class _S9State extends ConsumerState<S9ActionPlanScreen> {
-  static const _priorities = ['critical', 'high', 'normal'];
+  static const _priorityOptions = <({String value, String label})>[
+    (value: 'critical', label: 'Critical'),
+    (value: 'high', label: 'High'),
+    (value: 'normal', label: 'Normal'),
+  ];
 
   final _findingType = TextEditingController();
   final _requiredFix = TextEditingController();
@@ -32,7 +43,9 @@ class _S9State extends ConsumerState<S9ActionPlanScreen> {
   }
 
   Future<void> _addTask() async {
-    await ref.read(tasksRepositoryProvider).saveTask(
+    await ref
+        .read(tasksRepositoryProvider)
+        .saveTask(
           visitDraftId: widget.visitDraftId,
           outletId: widget.outletId,
           task: TaskDraft(
@@ -50,39 +63,66 @@ class _S9State extends ConsumerState<S9ActionPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('S9 Action Plan'),
-        const SizedBox(height: 8),
-        const Text('Risks flagged in S8 auto-create tasks with an SLA server-side. '
-            'Add any extra manual tasks below.'),
-        TextField(
-          key: const ValueKey('task-type'),
-          controller: _findingType,
-          decoration: const InputDecoration(labelText: 'Finding type', isDense: true),
-        ),
-        TextField(
-          key: const ValueKey('task-fix'),
-          controller: _requiredFix,
-          decoration: const InputDecoration(labelText: 'Required fix', isDense: true),
-        ),
-        DropdownButtonFormField<String>(
-          key: const ValueKey('task-priority'),
-          initialValue: _priority,
-          decoration: const InputDecoration(labelText: 'Priority', isDense: true),
-          items: [
-            for (final priority in _priorities)
-              DropdownMenuItem(value: priority, child: Text(priority)),
-          ],
-          onChanged: (v) => setState(() => _priority = v ?? 'normal'),
+        Text(
+          'Risks flagged in S8 auto-create tasks with an SLA server-side. '
+          'Add any extra manual tasks below.',
+          style: TextStyle(color: colors.ink2, height: 1.4),
         ),
         const SizedBox(height: 12),
-        ElevatedButton(onPressed: _addTask, child: const Text('Add task')),
+        PanelCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AgentField(
+                label: 'Finding type',
+                child: TextField(
+                  key: const ValueKey('task-type'),
+                  controller: _findingType,
+                  decoration: const InputDecoration(
+                    hintText: 'What needs fixing',
+                  ),
+                ),
+              ),
+              AgentField(
+                label: 'Required fix',
+                child: TextField(
+                  key: const ValueKey('task-fix'),
+                  controller: _requiredFix,
+                  decoration: const InputDecoration(
+                    hintText: 'The corrective action',
+                  ),
+                ),
+              ),
+              Text(
+                'Priority',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: colors.ink2,
+                ),
+              ),
+              const SizedBox(height: 7),
+              ChoiceRow<String>(
+                options: _priorityOptions,
+                selected: _priority,
+                onChanged: (v) => setState(() => _priority = v),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        AgentButton(label: 'Add task', onPressed: _addTask),
         if (_saved)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text('Task queued for sync'),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              'Task queued for sync',
+              style: TextStyle(color: colors.ink2),
+            ),
           ),
       ],
     );
