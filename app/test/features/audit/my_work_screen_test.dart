@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/human_error.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
@@ -78,6 +79,24 @@ Widget _app(SyncStatus status, {required String name}) => routedApp(
   MyWorkScreen(key: ValueKey('my-work-$name')),
   overrides: _overrides(status),
   theme: name == 'light' ? AppTheme.light() : AppTheme.dark(),
+);
+
+/// The error branch: the sync-status stream fails. Mirrors [_overrides] but
+/// makes the provider emit an error instead of a status.
+List<Override> _errorOverrides(Object error) {
+  final db = LocalDb(NativeDatabase.memory());
+  addTearDown(db.close);
+  return [
+    localDbProvider.overrideWithValue(db),
+    syncStatusProvider.overrideWith((ref) => Stream.error(error)),
+    syncNowProvider.overrideWithValue(() async {}),
+  ];
+}
+
+Widget _errorApp(Object error) => routedApp(
+  const MyWorkScreen(key: ValueKey('my-work-error')),
+  overrides: _errorOverrides(error),
+  theme: AppTheme.dark(),
 );
 
 /// Both themes, each with the palette its assertions read against.
@@ -286,6 +305,42 @@ void main() {
       expect(find.text('NEEDS YOU'), findsNothing);
       expect(find.textContaining('held on this phone'), findsOneWidget);
       expect(find.textContaining('will not send'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'the error branch speaks the console voice — humanErrorMessage, never the '
+    'raw exception',
+    (tester) async {
+      // A non-connectivity failure (parsing bug / programmer error): its raw
+      // toString would leak "Bad state: boom", but the whole console must route
+      // through humanErrorMessage so every surface speaks with one voice.
+      final err = StateError('boom');
+      await tester.pumpWidget(_errorApp(err));
+      await tester.pumpAndSettle();
+
+      // The alarm title still names the surface.
+      expect(find.text('Could not read your work'), findsOneWidget);
+
+      // The subtitle is the humane line, verbatim — not the exception.
+      expect(find.text(humanErrorMessage(err)), findsOneWidget);
+
+      // And the raw dump is nowhere on screen.
+      expect(
+        find.textContaining('boom'),
+        findsNothing,
+        reason: 'no raw message',
+      );
+      expect(
+        find.textContaining('Bad state'),
+        findsNothing,
+        reason: 'no raw exception type',
+      );
+      expect(
+        find.textContaining('Instance of'),
+        findsNothing,
+        reason: 'no toString dump',
+      );
     },
   );
 

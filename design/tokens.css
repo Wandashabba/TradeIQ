@@ -65,9 +65,13 @@
   --nav-active-pill-bg: #12305c;
   --nav-active-ink:     #6db4ff;  /* 6.0:1 on the active pill */
 
-  /* Geometry — squared off. Nothing is a pill. */
+  /* Geometry — tight radii on controls, softer on panels, and full pills for
+     status chips/delta pills, which the redesign leans on everywhere.
+     Mirrors AppColors in app/lib/core/theme/app_colors.dart:
+     radiusControl = 3, radiusPanel = 12, radiusPill = 999. */
   --r-control:    3px;
-  --r-panel:      4px;
+  --r-panel:      12px;
+  --r-pill:       999px;
 
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -272,7 +276,8 @@ body {
 }
 .input::placeholder { color: var(--ink-3); }
 
-/* Segmented control — replaces the pill tab row. */
+/* Segmented control — the squared in-page tab row (status chips and delta
+   pills elsewhere still use --r-pill). */
 .segmented { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r-control); overflow: hidden; }
 .segmented button {
   font: inherit; font-size: 12px; font-weight: 550;

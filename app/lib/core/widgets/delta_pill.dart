@@ -17,6 +17,12 @@ enum DeltaTone { good, warn, bad }
 /// tiles, and every screen the batch passes touch later) — do not fork a
 /// local variant; extend this.
 ///
+/// Not to be unified with `DeltaBadge` (`charts.dart`): that is the
+/// chart-scrub-tooltip delta (an arrow icon + optional value suffix, in the
+/// theme's good/crit colours). This is the status *pill* — a `▲`/`▼`/`–` glyph
+/// on a fixed [DeltaTone] wash, no suffix. Tooltip vs. pill: intentionally
+/// distinct, not a fork to merge.
+///
 /// The direction is spelled out by the `▲`/`▼` glyph, never carried by colour
 /// alone (#144), and each wash/text pair clears WCAG AA 4.5:1 for its 10.5px
 /// text — pinned by `test/core/widgets/delta_pill_test.dart`. The washes are
