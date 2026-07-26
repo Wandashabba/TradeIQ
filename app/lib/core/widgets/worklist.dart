@@ -226,6 +226,82 @@ class _TriageCell extends StatelessWidget {
       Padding(padding: const EdgeInsets.fromLTRB(14, 11, 14, 11), child: child);
 }
 
+/// The shared card shell for a worklist row: the panel-language chrome plus
+/// the coloured left edge, single-sourced so the concentric clip and the
+/// decoration exist in exactly ONE place.
+///
+/// It owns ONLY the card chrome and the 3px edge — surface1 ground, `line`
+/// hairline, [AppColors.radiusPanel] corners, the `radiusPanel - 1` concentric
+/// clip, and a [Row] of `[edge, child]`. It deliberately owns NEITHER the
+/// interaction (hover/press wash via [InkWell], or [PressFeedback]) NOR the
+/// leading widget (evidence thumb vs sequence badge) NOR the severity chip:
+/// those diverge between consumers and stay in the consumers.
+///
+/// Consumers pass:
+/// * [edgeColor] — an arbitrary [Color], because the edge is derived
+///   differently by each (a four-value [StatusLevel] here, done/next/`brand`
+///   in Today's route card), so the shell takes the resolved colour, not a
+///   level.
+/// * [child] — everything inside the card past the edge: the consumer's own
+///   interaction wrapper, padding, leading widget and body. It is placed in an
+///   [Expanded] under an [IntrinsicHeight] [Row], so a stretch child fills the
+///   card height and the edge bar rises to meet it.
+/// * [margin] — the row's outer gap (WorklistRow uses a symmetric 4px vertical
+///   inset for its 8px inter-row gap; Today uses a bottom-8 gap).
+class WorklistCardShell extends StatelessWidget {
+  const WorklistCardShell({
+    super.key,
+    required this.edgeColor,
+    required this.child,
+    this.margin = const EdgeInsets.fromLTRB(8, 4, 8, 4),
+    this.edgeWidth = 3,
+  });
+
+  /// The resolved colour of the 3px left edge — channel 1 of severity/state.
+  final Color edgeColor;
+
+  /// Everything inside the card past the edge, placed in an [Expanded].
+  final Widget child;
+
+  /// The card's outer gap.
+  final EdgeInsetsGeometry margin;
+
+  /// Width of the left edge bar.
+  final double edgeWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      margin: margin,
+      decoration: BoxDecoration(
+        color: colors.surface1,
+        border: Border.all(color: colors.line),
+        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+        // No boxShadow — rows live inside a PanelCard that already owns the
+        // one static Stripe shadow; a second here would stack shadow-in-shadow.
+      ),
+      child: ClipRRect(
+        // The `- 1` IS the hairline: Border.all above paints at its default
+        // 1px width, so the clip radius steps in by exactly that width and the
+        // clipped edge bar and any wash never overlap the border itself. If
+        // the border width ever changes, change this with it.
+        borderRadius: BorderRadius.circular(AppColors.radiusPanel - 1),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Channel 1: the edge bar.
+              Container(width: edgeWidth, color: edgeColor),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// One row of a worklist, rendered as a card.
 ///
 /// Severity rides on three channels at once — a coloured bar down the left
@@ -306,92 +382,70 @@ class _WorklistRowState extends State<WorklistRow> {
         : _hovered
         ? colors.surface2
         : Colors.transparent;
+    // The interaction wash + content; the shell owns the edge bar, chrome and
+    // clip around this. The wash lives here, inside the shell's clip, so it
+    // cannot leak past the card's rounded corners.
     final row = AnimatedContainer(
       duration: reduceMotion(context)
           ? Duration.zero
           : const Duration(milliseconds: 150),
       curve: Curves.easeOut,
       decoration: BoxDecoration(color: interactive ? wash : null),
-      child: IntrinsicHeight(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Channel 1: the edge bar.
-            Container(
-              width: 3,
-              color: resolved
-                  ? colors.lineStrong
-                  : widget.level.colorOf(colors),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (widget.thumb != null)
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 10),
-                        child: ClipRRect(
-                          key: const ValueKey('worklist-thumb'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: widget.thumb,
-                          ),
-                        ),
-                      ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            widget.title,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: resolved
-                                  ? FontWeight.w400
-                                  : FontWeight.w500,
-                              color: colors.ink1,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          DefaultTextStyle(
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: colors.ink3,
-                            ),
-                            child: widget.meta,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Channels 2 + 3: the mark and the word.
-                    if (widget.statusLabel != null)
-                      SizedBox(
-                        width: 116,
-                        child: StatusChip(
-                          label: widget.statusLabel!,
-                          level: resolved ? StatusLevel.neutral : widget.level,
-                        ),
-                      ),
-                    if (widget.when != null)
-                      SizedBox(
-                        width: 92,
-                        child: Text(
-                          widget.when!,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11.5, color: colors.ink3),
-                        ),
-                      ),
-                    ...widget.actions,
-                  ],
+            if (widget.thumb != null)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 10),
+                child: ClipRRect(
+                  key: const ValueKey('worklist-thumb'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(width: 44, height: 44, child: widget.thumb),
                 ),
               ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: resolved ? FontWeight.w400 : FontWeight.w500,
+                      color: colors.ink1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  DefaultTextStyle(
+                    style: TextStyle(fontSize: 11.5, color: colors.ink3),
+                    child: widget.meta,
+                  ),
+                ],
+              ),
             ),
+            // Channels 2 + 3: the mark and the word.
+            if (widget.statusLabel != null)
+              SizedBox(
+                width: 116,
+                child: StatusChip(
+                  label: widget.statusLabel!,
+                  level: resolved ? StatusLevel.neutral : widget.level,
+                ),
+              ),
+            if (widget.when != null)
+              SizedBox(
+                width: 92,
+                child: Text(
+                  widget.when!,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11.5, color: colors.ink3),
+                ),
+              ),
+            ...widget.actions,
           ],
         ),
       ),
@@ -414,26 +468,16 @@ class _WorklistRowState extends State<WorklistRow> {
 
     return Opacity(
       opacity: resolved ? 0.6 : 1,
-      child: Container(
-        // 4+4 between neighbours = the 8px card gap, delivered here so the
-        // ~20 consumers' zero-spacing Columns need no changes; 8px sideways
-        // keeps this hairline off the enclosing panel's border.
-        margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-        decoration: BoxDecoration(
-          color: colors.surface1,
-          border: Border.all(color: colors.line),
-          borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-          // No boxShadow — see the class doc: rows live inside a PanelCard
-          // that already owns the Stripe shadow.
-        ),
-        child: ClipRRect(
-          // The `- 1` IS the hairline: Border.all above paints at its default
-          // 1px width, so the clip radius steps in by exactly that width and
-          // the clipped edge bar and wash never overlap the border itself.
-          // If the border width ever changes, change this with it.
-          borderRadius: BorderRadius.circular(AppColors.radiusPanel - 1),
-          child: body,
-        ),
+      // The shell single-sources the card chrome, the concentric clip and the
+      // edge bar. This row keeps its own interaction model (the InkWell + wash
+      // in `body`) and its leading/severity content — those diverge from
+      // Today's route card and are deliberately not the shell's concern. The
+      // 4+4 vertical margin delivers the 8px inter-row gap so the ~20
+      // consumers' zero-spacing Columns need no changes; the 8px sideways keeps
+      // this hairline off the enclosing panel's border.
+      child: WorklistCardShell(
+        edgeColor: resolved ? colors.lineStrong : widget.level.colorOf(colors),
+        child: body,
       ),
     );
   }
