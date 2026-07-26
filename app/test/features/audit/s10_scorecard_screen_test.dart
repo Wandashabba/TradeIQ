@@ -38,7 +38,15 @@ class _NoopFlusher implements QueueFlusher {
 }
 
 class _FakeScorecardService extends ScorecardService {
-  _FakeScorecardService({required super.db, required super.syncService});
+  _FakeScorecardService({
+    required super.db,
+    required super.syncService,
+    this.band = 'red',
+  });
+
+  // Parametrized so a test can drive the green/amber/red branch it needs —
+  // the band AA + word guards below must cover all three, not just red.
+  final String band;
 
   int computeCalls = 0;
   String? finalizedVisitDraftId;
@@ -46,8 +54,8 @@ class _FakeScorecardService extends ScorecardService {
   @override
   Future<LocalScorecard> computeForVisit(String visitDraftId) async {
     computeCalls++;
-    return const LocalScorecard(
-      dimensionScores: {
+    return LocalScorecard(
+      dimensionScores: const {
         'availability': 50,
         'visibility': 80,
         'display': 80,
@@ -57,7 +65,7 @@ class _FakeScorecardService extends ScorecardService {
       },
       weightedTotal: 54.0,
       // A failing score — shown honestly, never softened.
-      ratingBand: 'red',
+      ratingBand: band,
     );
   }
 
@@ -88,12 +96,13 @@ Widget _screen(ScorecardService svc, {ThemeData? theme, Key? key}) =>
       ),
     );
 
-_FakeScorecardService _fake() {
+_FakeScorecardService _fake({String band = 'red'}) {
   final db = LocalDb(NativeDatabase.memory());
   addTearDown(db.close);
   return _FakeScorecardService(
     db: db,
     syncService: SyncService(db: db, flusher: _NoopFlusher()),
+    band: band,
   );
 }
 
@@ -193,34 +202,51 @@ void main() {
     },
   );
 
-  testWidgets('the coloured band word clears 4.5:1 on surface1 — both themes', (
-    tester,
-  ) async {
-    for (final name in _bothThemes) {
-      await tester.pumpWidget(
-        _screen(_fake(), theme: _themeFor(name), key: ValueKey(name)),
-      );
-      await tester.pumpAndSettle();
+  // Every band, both themes: the word is spelled out (never colour alone) and
+  // its rendered colour clears AA text contrast on surface1. Hardwiring the
+  // fake to one band would let the other branches rot — a reviewer mutating
+  // amber's colour to raw crit (3.76:1 dark) or dropping green/amber's word
+  // must fail here.
+  const bands = {'green': 'Green', 'amber': 'Amber', 'red': 'Red'};
+  for (final MapEntry(key: band, value: word) in bands.entries) {
+    testWidgets(
+      'the $band band spells out "$word" and clears 4.5:1 on surface1 — '
+      'both themes',
+      (tester) async {
+        for (final name in _bothThemes) {
+          final fake = _fake(band: band);
+          await tester.pumpWidget(
+            _screen(fake, theme: _themeFor(name), key: ValueKey('$band-$name')),
+          );
+          await tester.pumpAndSettle();
 
-      // The band text is the only Text under the score-band key; read the
-      // colour the tree actually rendered it with.
-      final bandText = tester.widget<Text>(
-        find.descendant(
-          of: find.byKey(const ValueKey('score-band')),
-          matching: find.byType(Text),
-        ),
-      );
-      final bandColor = bandText.style!.color!;
-      final ratio = _contrastRatio(bandColor, _colorsFor(name).surface1);
-      expect(
-        ratio,
-        greaterThanOrEqualTo(4.5),
-        reason:
-            '$name band word is $ratio:1 on surface1 — a coloured band '
-            'label must clear AA text contrast (use critText for red).',
-      );
-    }
-  });
+          // (a) never colour alone — the word is present under the band key.
+          final bandText = tester.widget<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('score-band')),
+              matching: find.byType(Text),
+            ),
+          );
+          expect(bandText.data, word, reason: '$band/$name word');
+
+          // (b) the colour the tree actually rendered it with clears AA text
+          // contrast on surface1.
+          final ratio = _contrastRatio(
+            bandText.style!.color!,
+            _colorsFor(name).surface1,
+          );
+          expect(
+            ratio,
+            greaterThanOrEqualTo(4.5),
+            reason:
+                '$band/$name band word is $ratio:1 on surface1 — a coloured '
+                'band label must clear AA text contrast (critText for red, '
+                'not the crit mark).',
+          );
+        }
+      },
+    );
+  }
 
   test('no non-geometry AppColors. remain in the S10 scorecard source', () {
     final src = File(
