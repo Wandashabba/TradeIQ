@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/format/period_label.dart';
 import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
@@ -269,7 +270,8 @@ class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel>
               ),
               data: (points) => LineChart(
                 points: [
-                  for (final p in points) (label: p.period, value: p.value),
+                  for (final p in points)
+                    (label: formatPeriodLabel(p.period), value: p.value),
                 ],
                 target: 75,
                 seriesName: 'Execution score',
@@ -752,7 +754,10 @@ class _AvailabilityPanel extends ConsumerWidget {
           onRetry: () => ref.invalidate(availabilityTrendProvider),
         ),
         data: (points) => ColumnChart(
-          points: [for (final p in points) (label: p.period, value: p.value)],
+          points: [
+            for (final p in points)
+              (label: formatPeriodLabel(p.period), value: p.value),
+          ],
           valueSuffix: '%',
           seriesName: 'On-shelf availability',
         ),
