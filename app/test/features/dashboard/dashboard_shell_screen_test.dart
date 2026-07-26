@@ -1053,6 +1053,102 @@ void main() {
       expect(tester.hasRunningAnimations, isFalse);
     });
 
+    testWidgets('a KPI figure counts up from zero, once, then goes quiet', (
+      tester,
+    ) async {
+      await pumpToFirstDataFrame(tester, _app());
+
+      final tile = find.byKey(const ValueKey('kpi-On-shelf availability'));
+      // t≈0: mid-sweep, not yet the final figure. Scoped to the tile — the
+      // KPI value string appears only inside this tile.
+      expect(
+        find.descendant(of: tile, matching: find.text('93.1%')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.text('0.0%')),
+        findsOneWidget,
+      );
+
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(
+        find.descendant(of: tile, matching: find.text('93.1%')),
+        findsOneWidget,
+      );
+
+      // One-shot: after settling nothing is still animating.
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('reduced motion: a KPI figure is final on its first frame', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+
+      await pumpToFirstDataFrame(tester, _app());
+
+      final tile = find.byKey(const ValueKey('kpi-On-shelf availability'));
+      expect(
+        find.descendant(of: tile, matching: find.text('93.1%')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.text('0.0%')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a range change does not replay a KPI count-up', (
+      tester,
+    ) async {
+      // Same remount path as the hero's no-replay test: the slow repo's loading
+      // arm really renders on a range change, tearing the KPI tiles down and
+      // rebuilding them — the exact path that replays an unlatched entrance.
+      tester.view.physicalSize = const Size(1440, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app(dashboard: _SlowDashboardRepository()));
+      await tester.pumpAndSettle();
+
+      final tile = find.byKey(const ValueKey('kpi-On-shelf availability'));
+      expect(
+        find.descendant(of: tile, matching: find.text('93.1%')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('range-last7')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 51));
+      await tester.pump(const Duration(milliseconds: 51));
+      // Zero-duration pumps: a replayed count-up cannot advance on an
+      // unadvancing clock, so the final figure could never re-appear.
+      var finalShown = false;
+      for (var i = 0; i < 10 && !finalShown; i++) {
+        await tester.pump(Duration.zero);
+        finalShown = tester.any(
+          find.descendant(of: tile, matching: find.text('93.1%')),
+        );
+      }
+      expect(
+        finalShown,
+        isTrue,
+        reason: 'the reloaded KPI figure must be final on its first data frame',
+      );
+      expect(
+        find.descendant(of: tile, matching: find.text('0.0%')),
+        findsNothing,
+      );
+
+      await tester.pumpAndSettle();
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
     testWidgets('the hero delta pill waits out its ~450ms delay, then lands', (
       tester,
     ) async {

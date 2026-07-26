@@ -320,6 +320,9 @@ class StatTile extends StatelessWidget {
     this.note,
     this.spark,
     this.animateDelta = false,
+    this.countUpValue,
+    this.countUpFormat,
+    this.animateCountUp = true,
   });
 
   final String label;
@@ -334,9 +337,47 @@ class StatTile extends StatelessWidget {
   /// [OneShotEntrance] for the one-shot guarantees.
   final bool animateDelta;
 
+  /// Opt-in one-shot count-up for the figure. When [countUpValue] and
+  /// [countUpFormat] are BOTH supplied the figure sweeps 0 → value once, in the
+  /// dashboard hero's exact latch pattern (see [_CountUpFigure]); otherwise the
+  /// static [value] string is rendered unchanged. The numeric is kept separate
+  /// from [value] so the sweep formats real numbers, not a re-parsed string.
+  final num? countUpValue;
+  final String Function(num)? countUpFormat;
+
+  /// Whether this mount is the count-up's entrance. Latched at mount inside the
+  /// wrapper: a first-data-build passes true, and a later remount (a filter
+  /// reload rebuilding the tile) passes false so the sweep never replays. Only
+  /// consulted when the count-up is opted in.
+  final bool animateCountUp;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final figureStyle = TextStyle(
+      fontSize: 20,
+      height: 1.1,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.4,
+      color: colors.ink1,
+    );
+    final countUp = countUpValue;
+    final countUpFmt = countUpFormat;
+    // Opt in to the sweep only when BOTH the numeric and its formatter are
+    // given; otherwise the tile keeps its static [value] string.
+    final Widget figure = (countUp != null && countUpFmt != null)
+        ? _CountUpFigure(
+            value: countUp,
+            format: countUpFmt,
+            animate: animateCountUp,
+            style: figureStyle,
+          )
+        : Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: figureStyle,
+          );
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Column(
@@ -357,20 +398,7 @@ class StatTile extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              Flexible(
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 20,
-                    height: 1.1,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.4,
-                    color: colors.ink1,
-                  ),
-                ),
-              ),
+              Flexible(child: figure),
               if (delta != null) ...[
                 const SizedBox(width: 7),
                 OneShotEntrance.pill(
@@ -399,6 +427,68 @@ class StatTile extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// A figure that counts 0 → value over ~[Motion.countUp] exactly once — on the
+/// tile's first entrance build — then renders as plain text for the rest of the
+/// session, so a refresh or filter change swaps the number without re-sweeping.
+/// Under reduced motion there is no tween at all: the final figure IS the first
+/// frame. This is the dashboard hero's ([_HeroScore]) latch pattern, lifted so
+/// the two can never drift apart.
+class _CountUpFigure extends StatefulWidget {
+  const _CountUpFigure({
+    required this.value,
+    required this.format,
+    required this.animate,
+    required this.style,
+  });
+
+  final num value;
+  final String Function(num) format;
+
+  /// Latched at mount (see State): a rebuild mid-sweep cannot cut it short, and
+  /// a remount after the entrance epoch renders statically.
+  final bool animate;
+
+  final TextStyle style;
+
+  @override
+  State<_CountUpFigure> createState() => _CountUpFigureState();
+}
+
+class _CountUpFigureState extends State<_CountUpFigure> {
+  late final bool _entrance = widget.animate;
+
+  /// Set when the sweep completes; from then on the tween is gone from the tree
+  /// entirely, so a later value change (a refresh landing new data into this
+  /// same State) renders directly instead of animating toward it.
+  bool _done = false;
+
+  Widget _text(num v) => Text(
+    widget.format(v),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: widget.style,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    if (_done || !_entrance) return _text(widget.value);
+    if (reduceMotion(context)) {
+      // The entrance moment is consumed, not deferred: flipping reduced motion
+      // off later must not perform the sweep mid-session.
+      _done = true;
+      return _text(widget.value);
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: widget.value.toDouble()),
+      duration: Motion.countUp,
+      curve: Curves.easeOutCubic,
+      onEnd: () => setState(() => _done = true),
+      builder: (context, v, _) => _text(v),
     );
   }
 }

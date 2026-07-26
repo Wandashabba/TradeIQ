@@ -479,6 +479,11 @@ const _kpis = <_Kpi>[
   (label: 'Numeric distribution', read: _numeric, note: 'outlets stocking'),
 ];
 
+/// The one KPI figure format — one decimal, a trailing percent. Shared by the
+/// static string and the count-up so the sweeping number and its final value
+/// are always the same shape.
+String _fmtPct(num v) => '${v.toStringAsFixed(1)}%';
+
 double _osa(DashboardKpis k) => k.osaPct;
 double _perfect(DashboardKpis k) => k.perfectStoreRate;
 double _price(DashboardKpis k) => k.priceCompliancePct;
@@ -552,9 +557,10 @@ class _KpiStripState extends ConsumerState<_KpiStrip>
             for (final k in _kpis)
               (
                 k.label,
-                '${k.read(snap.current).toStringAsFixed(1)}%',
+                _fmtPct(k.read(snap.current)),
                 k.note,
                 snap.of(k.read),
+                k.read(snap.current),
               ),
           ];
 
@@ -576,7 +582,7 @@ class _KpiStripState extends ConsumerState<_KpiStrip>
 
               // Chunk into rows and let each row divide the full width, so a
               // short final row fills instead of leaving a ragged empty cell.
-              final rows = <List<(String, String, String, KpiDelta)>>[];
+              final rows = <List<(String, String, String, KpiDelta, double)>>[];
               for (var i = 0; i < tiles.length; i += columns) {
                 rows.add(tiles.sublist(i, math.min(i + columns, tiles.length)));
               }
@@ -611,6 +617,15 @@ class _KpiStripState extends ConsumerState<_KpiStrip>
                                   label: rows[r][c].$1,
                                   value: rows[r][c].$2,
                                   note: rows[r][c].$3,
+                                  // The figure counts up to its value once, on
+                                  // this first data build — the spec's motion
+                                  // table wants stat-tile numbers to sweep like
+                                  // the hero score. Same `animate` epoch as the
+                                  // pill below, so a reload remounting the tile
+                                  // comes up sweep-free (latched at mount).
+                                  countUpValue: rows[r][c].$5,
+                                  countUpFormat: _fmtPct,
+                                  animateCountUp: animate,
                                   // Measured against the window immediately
                                   // before this one — a second real request, not
                                   // an invented baseline. Null when there is
