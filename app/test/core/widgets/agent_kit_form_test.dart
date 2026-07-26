@@ -277,4 +277,57 @@ void main() {
       });
     });
   }
+
+  // A11y merge: label + state + tap must collapse onto ONE node (theme-agnostic,
+  // so asserted once). Mutation check: dropping the MergeSemantics/
+  // ExcludeSemantics splits state onto a different node from the tap action and
+  // announces the label twice — both assertions below then fail.
+  group('merged semantics', () {
+    testWidgets('AgentToggle is one node: label + toggled + tap', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _app(
+          AgentToggle(label: 'High traffic', value: true, onChanged: (_) {}),
+          ThemeMode.light,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byType(AgentToggle)),
+        isSemantics(
+          label: 'High traffic',
+          isToggled: true,
+          hasToggledState: true,
+          hasTapAction: true,
+        ),
+      );
+      // The label lives on exactly one node — the excluded Text does not re-emit.
+      expect(find.bySemanticsLabel('High traffic'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('AgentCheck is one node: label + checked + tap', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _app(
+          AgentCheck(label: 'Branding present', value: true, onChanged: (_) {}),
+          ThemeMode.light,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byType(AgentCheck)),
+        isSemantics(
+          label: 'Branding present',
+          isChecked: true,
+          hasCheckedState: true,
+          hasTapAction: true,
+        ),
+      );
+      expect(find.bySemanticsLabel('Branding present'), findsOneWidget);
+      handle.dispose();
+    });
+  });
 }

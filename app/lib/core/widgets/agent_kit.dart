@@ -501,51 +501,58 @@ class AgentToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Semantics(
-      toggled: value,
-      label: label,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onChanged(!value),
-          borderRadius: BorderRadius.circular(AppColors.radiusControl),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: kTapTarget),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: colors.ink1,
-                          ),
-                        ),
-                        if (help != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 3),
+    // MergeSemantics folds the InkWell's tap into the labelled+toggled node, so
+    // a screen reader hears ONE control: label, on/off state, and "activate".
+    // The visible label Text is excluded so it isn't announced a second time.
+    return MergeSemantics(
+      child: Semantics(
+        toggled: value,
+        label: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: kTapTarget),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ExcludeSemantics(
                             child: Text(
-                              help!,
+                              label,
                               style: TextStyle(
-                                fontSize: 12,
-                                color: colors.ink3,
-                                height: 1.4,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: colors.ink1,
                               ),
                             ),
                           ),
-                      ],
+                          if (help != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Text(
+                                help!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colors.ink3,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  _ToggleTrack(value: value),
-                ],
+                    const SizedBox(width: 12),
+                    _ToggleTrack(value: value),
+                  ],
+                ),
               ),
             ),
           ),
@@ -618,33 +625,38 @@ class AgentCheck extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Semantics(
-      checked: value,
-      label: label,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onChanged(!value),
-          borderRadius: BorderRadius.circular(AppColors.radiusControl),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: kTapTarget),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: colors.ink1,
+    // One merged node: label, checked state, and tap — never the label twice.
+    return MergeSemantics(
+      child: Semantics(
+        checked: value,
+        label: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: kTapTarget),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ExcludeSemantics(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: colors.ink1,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  _CheckBox(value: value),
-                ],
+                    const SizedBox(width: 12),
+                    _CheckBox(value: value),
+                  ],
+                ),
               ),
             ),
           ),
