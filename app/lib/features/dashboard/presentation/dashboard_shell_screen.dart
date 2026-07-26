@@ -18,6 +18,7 @@ import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/delta_pill.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/widgets/pill_segment.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../agents/data/agents_repository.dart';
 import '../../alerts/data/alerts_repository.dart';
@@ -1689,49 +1690,16 @@ class _RangeControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       children: [
         for (final r in DashboardRange.values)
-          // The active pill is otherwise colour-only to a screen reader:
-          // selected carries the state, button makes each chip actionable.
-          Semantics(
-            button: true,
+          PillSegment(
+            key: ValueKey('range-${r.name}'),
+            label: r.label,
             selected: r == selected,
-            child: InkWell(
-              key: ValueKey('range-${r.name}'),
-              onTap: () => onChanged(r),
-              borderRadius: BorderRadius.circular(AppColors.radiusPill),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  // Active = solid brand, inactive = surface + hairline.
-                  // White-on-brand is a self-contained pair: brand is the
-                  // same #0A6CF0 in both themes (4.98:1 under white), so
-                  // neither theme's ink may sit on it — dark ink1 on brand
-                  // would fail AA.
-                  color: r == selected ? colors.brand : colors.surface1,
-                  border: Border.all(
-                    color: r == selected ? colors.brand : colors.line,
-                  ),
-                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
-                ),
-                child: Text(
-                  r.label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: r == selected ? Colors.white : colors.ink2,
-                  ),
-                ),
-              ),
-            ),
+            onTap: () => onChanged(r),
           ),
       ],
     );

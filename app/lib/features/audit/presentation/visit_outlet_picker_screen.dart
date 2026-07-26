@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/human_error.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/console.dart' show StatusLevel;
+import '../../../core/widgets/pill_segment.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../outlets/data/outlets_repository.dart';
 
@@ -110,22 +110,22 @@ class _ScopeControl extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(
-              child: _ScopeSegment(
-                segmentKey: 'scope-mine',
-                label: 'My territories',
-                selected: onlyMine,
-                onTap: () => onChanged(true),
-              ),
+            PillSegment(
+              key: const ValueKey<String>('scope-mine'),
+              label: 'My territories',
+              selected: onlyMine,
+              onTap: () => onChanged(true),
+              expand: true,
+              height: kTapTarget,
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: _ScopeSegment(
-                segmentKey: 'scope-all',
-                label: 'All stores',
-                selected: !onlyMine,
-                onTap: () => onChanged(false),
-              ),
+            PillSegment(
+              key: const ValueKey<String>('scope-all'),
+              label: 'All stores',
+              selected: !onlyMine,
+              onTap: () => onChanged(false),
+              expand: true,
+              height: kTapTarget,
             ),
           ],
         ),
@@ -139,57 +139,6 @@ class _ScopeControl extends StatelessWidget {
           style: TextStyle(fontSize: 12, color: colors.ink3),
         ),
       ],
-    );
-  }
-}
-
-class _ScopeSegment extends StatelessWidget {
-  const _ScopeSegment({
-    required this.segmentKey,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String segmentKey;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    // The active pill is otherwise colour-only to a screen reader: selected
-    // carries the state, button makes each segment actionable.
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: InkWell(
-        key: ValueKey<String>(segmentKey),
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppColors.radiusPill),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          height: kTapTarget,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            // Active = solid brand, inactive = surface + hairline. White-on-
-            // brand is a self-contained AA pair; neither theme's ink may sit on
-            // brand (dark ink1 on brand would fail AA).
-            color: selected ? colors.brand : colors.surface1,
-            border: Border.all(color: selected ? colors.brand : colors.line),
-            borderRadius: BorderRadius.circular(AppColors.radiusPill),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : colors.ink2,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
