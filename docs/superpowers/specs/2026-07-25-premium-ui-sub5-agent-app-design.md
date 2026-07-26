@@ -85,7 +85,7 @@ Everything the agent captures is written locally first (Drift outbox) and synced
 Sub-5 is ~12 screens; decompose like sub-1–4 (branch each off fresh `main`; PR bases on `main`):
 
 - **5a — System foundation + landing.** Move `agent_kit`/`AgentScaffold` onto console tokens; make the agent app **theme-aware (light + dark)** with the in-scaffold toggle; rebuild **Today** and the **outlet picker** on the console system. Establishes the language, the dual-theme wiring, and the two entry screens.
-- **5b — Visit hub, check-in & the 10 sections.** The arrival moment + hub, and the form-heavy sweep unifying **all 10 sections** (including the raw S1/S6–S9) on console-tokened primitives.
+- **5b — Visit hub, check-in & the 10 sections.** The arrival moment + hub, and the form-heavy sweep unifying **all 10 sections** (including the raw S1/S6–S9) on console-tokened primitives. **(Amended 2026-07-25: 5b is large (~11 screens), so it executes as two reviewable PRs — 5b-1: the visit hub + check-in arrival + progress + submit gate + the shared `PhotoCaptureField` (theme-aware) + S2 stock; 5b-2: rebuilding the 8 raw-Material sections S1/S3-4/S5/S6/S7/S8/S9/S10 on console-tokened kit primitives, adding a shared kit dropdown/select where S8/S9 need one. Same design, split only for review size.)**
 - **5c — Capture, outcome, my-work & motion.** The blended inline+guided camera across S3/4 + S5; the score-reveal outcome; the my-work sync queue; the motion/haptics pass; full phone-viewport verification.
 
 ## Verification approach

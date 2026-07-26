@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
+import '../../../../core/widgets/console.dart';
 import '../../data/skus_repository.dart';
 import '../../data/stock_repository.dart';
 
 /// S2 — Stock & Availability capture. One row per client SKU; on save the
 /// entries are persisted locally and queued for sync (POST /stock).
 class S2StockScreen extends ConsumerWidget {
-  const S2StockScreen({super.key, required this.visitDraftId, required this.outletId});
+  const S2StockScreen({
+    super.key,
+    required this.visitDraftId,
+    required this.outletId,
+  });
 
   final String visitDraftId;
   final String outletId;
@@ -64,10 +70,9 @@ class _StockFormState extends ConsumerState<_StockForm> {
       );
     }).toList();
 
-    await ref.read(stockRepositoryProvider).saveStock(
-          visitDraftId: widget.visitDraftId,
-          entries: entries,
-        );
+    await ref
+        .read(stockRepositoryProvider)
+        .saveStock(visitDraftId: widget.visitDraftId, entries: entries);
     if (mounted) setState(() => _saved = true);
   }
 
@@ -89,25 +94,27 @@ class _StockFormState extends ConsumerState<_StockForm> {
     final velocity = sku.velocityAvg > 0
         ? 'Selling ~${sku.velocityAvg.toStringAsFixed(1)}/day'
         : 'No sales history yet';
-    final oos = sku.daysOutOfStock > 0 ? ' · out of stock ${sku.daysOutOfStock}d' : '';
+    final oos = sku.daysOutOfStock > 0
+        ? ' · out of stock ${sku.daysOutOfStock}d'
+        : '';
     return '$velocity$oos';
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     if (widget.skus.isEmpty) {
       return const Center(child: Text('No SKUs configured for this client.'));
     }
+    // No section header here — the shared section wrapper already titles this
+    // "Stock & availability".
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('S2 Stock & Availability'),
-        const SizedBox(height: 8),
         for (final sku in widget.skus)
-          Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: PanelCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -118,16 +125,16 @@ class _StockFormState extends ConsumerState<_StockForm> {
                       Expanded(
                         child: Text(
                           sku.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.ink1,
+                            color: colors.ink1,
                           ),
                         ),
                       ),
                       Text(
                         'RRP ${sku.rrp.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+                        style: TextStyle(fontSize: 12, color: colors.ink3),
                       ),
                     ],
                   ),
@@ -135,7 +142,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
                   Text(
                     _contextLine(sku),
                     key: ValueKey('context-${sku.id}'),
-                    style: const TextStyle(fontSize: 12, color: AppColors.ink3),
+                    style: TextStyle(fontSize: 12, color: colors.ink3),
                   ),
                   const SizedBox(height: 10),
                   CountStepper(
@@ -146,16 +153,28 @@ class _StockFormState extends ConsumerState<_StockForm> {
                     onEdit: () => _typeCount(sku),
                   ),
                   if (_units[sku.id] == 0)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 10),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
                       child: Row(
                         children: [
-                          Icon(Icons.warning_amber_outlined, size: 15, color: AppColors.crit),
-                          SizedBox(width: 7),
+                          // The icon keeps raw crit (a glyph paired with the
+                          // word); the WORDS take the AA-safe critText, which
+                          // clears 4.5:1 on the card's surface1 in both themes —
+                          // raw crit as text fails AA in dark.
+                          Icon(
+                            Icons.warning_amber_outlined,
+                            size: 15,
+                            color: colors.crit,
+                          ),
+                          const SizedBox(width: 7),
                           Expanded(
                             child: Text(
                               'Out of stock — this raises a task for the manager',
-                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.crit),
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: colors.critText,
+                              ),
                             ),
                           ),
                         ],
@@ -166,11 +185,16 @@ class _StockFormState extends ConsumerState<_StockForm> {
             ),
           ),
         const SizedBox(height: 12),
-        ElevatedButton(onPressed: _save, child: const Text('Save stock')),
+        // The inline save is the ONLY thing that persists this section — the
+        // wrapper's "Done" button just pops back to the hub. It must stay.
+        AgentButton(label: 'Save stock', onPressed: _save),
         if (_saved)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text('Stock saved — queued for sync'),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              'Stock saved — queued for sync',
+              style: TextStyle(fontSize: 13, color: colors.ink2),
+            ),
           ),
       ],
     );
@@ -190,8 +214,9 @@ class _CountInputDialog extends StatefulWidget {
 }
 
 class _CountInputDialogState extends State<_CountInputDialog> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initial?.toString() ?? '');
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial?.toString() ?? '',
+  );
 
   @override
   void dispose() {
@@ -201,24 +226,75 @@ class _CountInputDialogState extends State<_CountInputDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.surface1,
-      title: Text(widget.sku.name, style: const TextStyle(fontSize: 15)),
-      content: TextField(
-        key: ValueKey('units-input-${widget.sku.id}'),
-        controller: _controller,
-        autofocus: true,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(labelText: 'Units on shelf', isDense: true),
+    final colors = context.colors;
+    return Dialog(
+      backgroundColor: colors.surface1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+        side: BorderSide(color: colors.line),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        ElevatedButton(
-          key: ValueKey('units-confirm-${widget.sku.id}'),
-          onPressed: () => Navigator.of(context).pop(int.tryParse(_controller.text.trim())),
-          child: const Text('Set'),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.sku.name,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: colors.ink1,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              key: ValueKey('units-input-${widget.sku.id}'),
+              controller: _controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              style: TextStyle(fontSize: 16, color: colors.ink1),
+              decoration: InputDecoration(
+                labelText: 'Units on shelf',
+                labelStyle: TextStyle(color: colors.ink3),
+                isDense: true,
+                filled: true,
+                fillColor: colors.surface2,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppColors.radiusControl),
+                  borderSide: BorderSide(color: colors.lineStrong),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppColors.radiusControl),
+                  borderSide: BorderSide(color: colors.brand),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: AgentButton(
+                    label: 'Cancel',
+                    secondary: true,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: AgentButton(
+                    key: ValueKey('units-confirm-${widget.sku.id}'),
+                    label: 'Set',
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).pop(int.tryParse(_controller.text.trim())),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

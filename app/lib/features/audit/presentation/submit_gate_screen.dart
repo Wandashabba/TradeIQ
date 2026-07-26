@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
+import '../../../core/widgets/console.dart';
 import '../data/visit_progress.dart';
 import '../data/visit_review.dart';
 
@@ -40,10 +42,9 @@ class SubmitGateScreen extends ConsumerWidget {
     final key = (visitDraftId: visitDraftId, outletId: outletId);
     final reviewAsync = ref.watch(visitReviewProvider(key));
     final progressAsync = ref.watch(visitProgressProvider(key));
-    final offline = ref.watch(syncStatusProvider).maybeWhen(
-          data: (s) => s.pending.isNotEmpty,
-          orElse: () => false,
-        );
+    final offline = ref
+        .watch(syncStatusProvider)
+        .maybeWhen(data: (s) => s.pending.isNotEmpty, orElse: () => false);
 
     return AgentScaffold(
       title: 'Submit visit',
@@ -74,6 +75,7 @@ class SubmitGateScreen extends ConsumerWidget {
           ),
         ),
         data: (review) {
+          final colors = context.colors;
           final progress = progressAsync.maybeWhen(
             data: (p) => p,
             orElse: () => null,
@@ -82,13 +84,13 @@ class SubmitGateScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
             children: [
-              const Text(
+              Text(
                 'Check this over before it goes to your manager. After '
                 'submitting you cannot change it.',
                 style: TextStyle(
                   fontSize: 13.5,
                   height: 1.5,
-                  color: AppColors.ink2,
+                  color: colors.ink2,
                 ),
               ),
               const SizedBox(height: 16),
@@ -105,13 +107,8 @@ class SubmitGateScreen extends ConsumerWidget {
                 const _Heading('This will raise'),
                 Reveal(
                   index: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface1,
-                      border: Border.all(color: AppColors.line),
-                      borderRadius:
-                          BorderRadius.circular(AppColors.radiusPanel),
-                    ),
+                  child: PanelCard(
+                    padded: false,
                     child: Column(
                       children: [
                         for (final task in review.willRaise)
@@ -123,18 +120,15 @@ class SubmitGateScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
                 Text(
                   _accusation(review.willRaise.length),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
                     height: 1.5,
-                    color: AppColors.ink3,
+                    color: colors.ink3,
                   ),
                 ),
               ] else ...[
                 const SizedBox(height: 18),
-                Reveal(
-                  index: 1,
-                  child: _NothingWrong(),
-                ),
+                Reveal(index: 1, child: _NothingWrong()),
               ],
             ],
           );
@@ -177,16 +171,17 @@ class _CapturedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
-        color: AppColors.surface1,
-        border: Border.all(color: AppColors.line),
+        color: colors.surface1,
+        border: Border.all(color: colors.line),
         borderRadius: BorderRadius.circular(AppColors.radiusPanel),
       ),
       child: Row(
         children: [
-          const TickMark(done: true, size: 22),
+          TickMark(done: true, size: 22, color: colors.good),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -194,16 +189,16 @@ class _CapturedCard extends StatelessWidget {
               children: [
                 Text(
                   '$sectionsDone of $sectionsTotal sections complete',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.ink1,
+                    color: colors.ink1,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   line,
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.ink3),
+                  style: TextStyle(fontSize: 12.5, color: colors.ink3),
                 ),
               ],
             ),
@@ -221,7 +216,12 @@ class _TaskRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = task.isUrgent ? AppColors.crit : AppColors.warn;
+    final colors = context.colors;
+    // The box wash follows the token; the glyph on it must clear AA. Urgent
+    // needs critText — raw crit fails 4.5:1 in dark — while warn reads on its
+    // own wash in both themes.
+    final wash = task.isUrgent ? colors.crit : colors.warn;
+    final glyph = task.isUrgent ? colors.critText : colors.warn;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
@@ -233,13 +233,13 @@ class _TaskRow extends StatelessWidget {
             height: 20,
             margin: const EdgeInsets.only(top: 1),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
+              color: _wash(colors, wash),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Icon(
               task.isUrgent ? Icons.priority_high : Icons.adjust,
               size: 13,
-              color: color,
+              color: glyph,
             ),
           ),
           const SizedBox(width: 10),
@@ -249,9 +249,9 @@ class _TaskRow extends StatelessWidget {
               children: [
                 Text(
                   task.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.ink1,
+                    color: colors.ink1,
                     height: 1.35,
                   ),
                 ),
@@ -261,7 +261,7 @@ class _TaskRow extends StatelessWidget {
                   // by the colour alone — a colour-blind agent in bad light
                   // still has to be able to tell urgent from routine.
                   'Task for the manager · ${task.priority}',
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.ink3),
+                  style: TextStyle(fontSize: 11.5, color: colors.ink3),
                 ),
               ],
             ),
@@ -276,26 +276,23 @@ class _TaskRow extends StatelessWidget {
 class _NothingWrong extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: AppColors.good.withValues(alpha: 0.10),
-        border: Border.all(color: AppColors.good.withValues(alpha: 0.35)),
+        color: colors.good.withValues(alpha: 0.10),
+        border: Border.all(color: colors.good.withValues(alpha: 0.35)),
         borderRadius: BorderRadius.circular(AppColors.radiusPanel),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.check_circle_outline, size: 20, color: AppColors.good),
-          SizedBox(width: 10),
+          Icon(Icons.check_circle_outline, size: 20, color: colors.good),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Nothing to raise. You found no stockouts and flagged no risks — '
               'this store is in good shape.',
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.45,
-                color: AppColors.ink2,
-              ),
+              style: TextStyle(fontSize: 13, height: 1.45, color: colors.ink2),
             ),
           ),
         ],
@@ -315,13 +312,20 @@ class _Heading extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.08 * 11,
-          color: AppColors.ink3,
+          color: context.colors.ink3,
         ),
       ),
     );
   }
 }
+
+/// A status token composited to an OPAQUE 12% wash over surface1 — the ground a
+/// coloured glyph reads against at ≥4.5:1. A local twin of the hub's `_wash`
+/// (audit_shell_screen.dart); folding the two into one shared helper is tracked
+/// in #214.
+Color _wash(TiqColors colors, Color token) =>
+    Color.alphaBlend(token.withValues(alpha: 0.12), colors.surface1);
