@@ -381,7 +381,11 @@ void main() {
         final confirm = find.byKey(const ValueKey('confirm-closure'));
         expect(tester.widget<ElevatedButton>(confirm).onPressed, isNull);
 
-        await tester.tap(find.byKey(const ValueKey('photo-camera')));
+        // Evidence now comes through the guided screen: the tile opens it, and
+        // the big Capture button launches the (faked) camera and pops the photo.
+        await tester.tap(find.byKey(const ValueKey('photo-add')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('guided-capture')));
         await tester.pumpAndSettle();
         await tester.tap(confirm);
         await tester.pumpAndSettle();
@@ -404,7 +408,9 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('close-t-open')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('photo-camera')));
+      await tester.tap(find.byKey(const ValueKey('photo-add')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-capture')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('confirm-closure')));
       await tester.pumpAndSettle();
@@ -421,7 +427,13 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('close-t-open')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('photo-camera')));
+      await tester.tap(find.byKey(const ValueKey('photo-add')));
+      await tester.pumpAndSettle();
+      // The camera cancels (gateway returns null), so the guide stays up; back
+      // out of it to land on the sheet with no photo.
+      await tester.tap(find.byKey(const ValueKey('guided-capture')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-close')));
       await tester.pumpAndSettle();
 
       // No photo captured → the confirm stays disabled and nothing closed.
@@ -464,7 +476,9 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('close-t-open')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('photo-camera')));
+      await tester.tap(find.byKey(const ValueKey('photo-add')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-capture')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('confirm-closure')));
 

@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../camera/photo_capture_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/tiq_colors.dart';
+import 'agent_motion.dart';
 import 'console.dart';
+import 'guided_capture_screen.dart';
 
 /// Capture a photo, see what you captured, and be able to retake it.
 ///
@@ -34,33 +36,36 @@ class PhotoCaptureField extends ConsumerStatefulWidget {
 class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
   String? _dataUrl;
   String? _error;
-  bool _busy = false;
 
-  Future<void> _capture(PhotoSource source) async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+  /// The tile is now a single affordance that hands off to the full-screen
+  /// [GuidedCaptureScreen]. That screen owns the capture — it drives the
+  /// unchanged [PhotoCaptureService] and surfaces its own errors inline — and
+  /// pops the encoded `dataUrl`, or `null` when the agent backs out.
+  Future<void> _openGuidedCapture() async {
+    // A framing line for the guide: the section's own helper if it has one,
+    // otherwise a sensible default derived from the label.
+    final hint =
+        widget.helperText ??
+        'Frame the ${widget.label.toLowerCase()} '
+            'inside the guides, edge to edge.';
     try {
-      final photo = await ref.read(photoCaptureServiceProvider).capture(source);
-      // A cancel is a normal outcome, not a failure — leave the field as it was.
-      if (photo == null) return;
-      setState(() => _dataUrl = photo.dataUrl);
-      widget.onCaptured(photo.dataUrl);
-    } on PhotoTooLargeException catch (e) {
-      setState(() => _error = e.toString());
+      final dataUrl = await Navigator.of(context).push<String>(
+        agentSectionRoute(GuidedCaptureScreen(label: widget.label, hint: hint)),
+      );
+      if (!mounted) return;
+      // A cancel returns null — leave the field exactly as it was (a retake
+      // that is backed out of keeps the existing photo).
+      if (dataUrl == null) return;
+      setState(() {
+        _dataUrl = dataUrl;
+        _error = null;
+      });
+      widget.onCaptured(dataUrl);
     } catch (e) {
-      // Denied camera permission lands here. Say so — an agent who thinks the
-      // button is broken will stop filing evidence.
-      setState(() => _error = 'Could not capture a photo: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      // The guided screen surfaces capture errors itself; this only guards the
+      // handoff, so a permission-denied still reads as an explanation here.
+      if (mounted) setState(() => _error = 'Could not capture a photo: $e');
     }
-  }
-
-  void _remove() {
-    setState(() => _dataUrl = null);
-    widget.onCaptured(null);
   }
 
   @override
@@ -78,46 +83,53 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
           ),
         ],
         const SizedBox(height: 8),
-        if (_dataUrl != null) _Preview(dataUrl: _dataUrl!, onRemove: _remove),
+        if (_dataUrl != null)
+          _Preview(dataUrl: _dataUrl!, onRetake: _openGuidedCapture),
         if (_dataUrl == null)
-          // A console-tokened tile frames the capture affordance so the empty
-          // state reads as a deliberate slot, not two loose buttons. (The full
-          // guided-camera redesign is sub-5c — this only re-skins the shell.)
+          // A console-tokened tile framing a single "Add photo" affordance:
+          // tapping anywhere on it opens the full-screen GuidedCaptureScreen,
+          // which shows what to shoot before the OS camera launches.
           Container(
             key: const ValueKey('photo-capture-tile'),
-            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: colors.surface2,
               border: Border.all(color: colors.line),
               borderRadius: BorderRadius.circular(AppColors.radiusControl),
             ),
-            // Wrap, not Row: the tile's inset narrows the ground, and in a
-            // constrained context (the tasks closure sheet) the two buttons
-            // must fall to a second line rather than overflow.
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  key: const ValueKey('photo-camera'),
-                  onPressed: _busy ? null : () => _capture(PhotoSource.camera),
-                  icon: const Icon(Icons.photo_camera_outlined, size: 15),
-                  label: const Text('Take photo'),
-                ),
-                OutlinedButton.icon(
-                  key: const ValueKey('photo-gallery'),
-                  onPressed: _busy ? null : () => _capture(PhotoSource.gallery),
-                  icon: const Icon(Icons.photo_library_outlined, size: 15),
-                  label: const Text('Choose'),
-                ),
-                if (_busy)
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(AppColors.radiusControl),
+              child: InkWell(
+                key: const ValueKey('photo-add'),
+                borderRadius: BorderRadius.circular(AppColors.radiusControl),
+                onTap: _openGuidedCapture,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 15,
                   ),
-              ],
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.add_a_photo_outlined,
+                        size: 18,
+                        color: colors.brand,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Add photo',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colors.ink1,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.chevron_right, size: 18, color: colors.ink3),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         if (_error != null) ...[
@@ -143,10 +155,13 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
 }
 
 class _Preview extends StatelessWidget {
-  const _Preview({required this.dataUrl, required this.onRemove});
+  const _Preview({required this.dataUrl, required this.onRetake});
 
   final String dataUrl;
-  final VoidCallback onRemove;
+
+  /// Retake re-opens the guided screen; the current photo survives until a new
+  /// one is captured, so a backed-out retake loses nothing.
+  final VoidCallback onRetake;
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +201,7 @@ class _Preview extends StatelessWidget {
             const SizedBox(height: 6),
             OutlinedButton(
               key: const ValueKey('photo-remove'),
-              onPressed: onRemove,
+              onPressed: onRetake,
               child: const Text('Retake'),
             ),
           ],
