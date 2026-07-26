@@ -118,7 +118,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('S10 Scorecard'), findsOneWidget, reason: name);
+        // No inline screen header — the shared section wrapper titles it.
+        // The content itself is what must render:
         for (final key in const [
           'score-availability',
           'score-visibility',

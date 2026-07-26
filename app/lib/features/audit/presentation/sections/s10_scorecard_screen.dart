@@ -77,15 +77,8 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'S10 Scorecard',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colors.ink1,
-              ),
-            ),
-            const SizedBox(height: 12),
+            // No inline screen header: the shared section wrapper already
+            // titles this "Score" (matches the other seven sections).
             PanelCard(
               title: 'Dimension scores',
               padded: false,
