@@ -23,13 +23,24 @@ String formatPeriodLabel(String period) {
   // Full ISO timestamps carry a `T` separator; the date portion is all we show.
   final datePart = period.contains('T') ? period.split('T').first : period;
 
-  if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(datePart)) {
+  final date = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(datePart);
+  if (date != null) {
+    final year = int.parse(date.group(1)!);
+    final month = int.parse(date.group(2)!);
+    final day = int.parse(date.group(3)!);
     try {
-      final d = DateTime.parse(datePart);
-      return '${d.day} ${_monthAbbrev[d.month - 1]}';
+      final d = DateTime(year, month, day);
+      // DateTime silently rolls overflow forward (month 13 → next January,
+      // day 45 → the following month), so a regex-valid but impossible date
+      // would otherwise render as some *other* day. Only format when the value
+      // round-trips exactly; anything else falls through to passthrough.
+      if (d.year == year && d.month == month && d.day == day) {
+        return '${d.day} ${_monthAbbrev[d.month - 1]}';
+      }
     } catch (_) {
-      return period;
+      // Defensive only: the constructor is lenient, but never let a throw escape.
     }
+    return period;
   }
 
   final week = RegExp(r'^\d{4}-(W\d{1,2})$').firstMatch(period);

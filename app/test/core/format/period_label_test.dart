@@ -26,5 +26,17 @@ void main() {
     test('an empty string passes through unchanged', () {
       expect(formatPeriodLabel(''), '');
     });
+
+    // The headline guarantee: a regex-valid but impossible date must render
+    // as-is — neither thrown nor silently mangled into some other day. Dart's
+    // DateTime normalises overflow (month 13 → next Jan, day 30 of Feb → Mar),
+    // so this pins the round-trip check that rejects such values.
+    test('an out-of-range month passes through unchanged', () {
+      expect(formatPeriodLabel('2026-13-45'), '2026-13-45');
+    });
+
+    test('an out-of-range day passes through unchanged', () {
+      expect(formatPeriodLabel('2026-02-30'), '2026-02-30');
+    });
   });
 }
