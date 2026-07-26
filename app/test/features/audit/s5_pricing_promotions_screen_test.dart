@@ -196,9 +196,9 @@ void main() {
         await tester.pumpAndSettle();
 
         // The evidence capture — wired to queuePhoto(section: 'pricing') — must
-        // survive the console rebuild. (The section string is asserted unchanged
-        // by the source; here we prove the field still renders with its label
-        // intact.)
+        // survive the console rebuild. (The section string itself is guarded by
+        // the source-literal test below; here we prove the field still renders
+        // with its label intact.)
         expect(
           find.byType(PhotoCaptureField),
           findsOneWidget,
@@ -223,5 +223,18 @@ void main() {
       r'AppColors\.(?!radiusPanel|radiusControl)\w+',
     ).allMatches(src).map((m) => m.group(0)).toSet().toList();
     expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
+  });
+
+  test('the shelf-price photo is queued under section: pricing', () {
+    // The section string is the evidence-linkage key that later joins this
+    // photo to the pricing section on the manager side. Nothing in the widget
+    // tests captures a photo, so queuePhoto(section:) is never exercised at
+    // runtime — this source-literal guard is what catches a silent flip to e.g.
+    // 'visibility', which would misfile the evidence with the whole suite still
+    // green.
+    final src = File(
+      'lib/features/audit/presentation/sections/s5_pricing_promotions_screen.dart',
+    ).readAsStringSync();
+    expect(src, contains("section: 'pricing'"));
   });
 }
