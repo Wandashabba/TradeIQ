@@ -32,7 +32,9 @@ export interface TrendSeries {
  * Truncate a timestamp to the start of its bucket in UTC. For 'day' this is
  * 00:00 of the same date; for 'week' it is the Monday 00:00 of the row's week.
  */
-function bucketStart(date: Date, interval: TrendInterval): Date {
+// Exported so the demo seed's calendar can assert week-boundary parity against
+// the real bucketing rule rather than reimplementing it.
+export function bucketStart(date: Date, interval: TrendInterval): Date {
   const dayStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
   if (interval === 'day') {
     return new Date(dayStart);
