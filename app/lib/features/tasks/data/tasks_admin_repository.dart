@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// A manager-facing view of one S9 corrective task returned by GET /tasks.
 class TaskItem {
@@ -50,7 +51,7 @@ class TaskItem {
 }
 
 abstract class TasksAdminRepository {
-  Future<List<TaskItem>> listTasks({
+  Future<PaginatedResponse<TaskItem>> listTasks({
     String? status,
     String? priority,
     String? outletId,
@@ -64,7 +65,7 @@ abstract class TasksAdminRepository {
 
 class DioTasksAdminRepository implements TasksAdminRepository {
   @override
-  Future<List<TaskItem>> listTasks({
+  Future<PaginatedResponse<TaskItem>> listTasks({
     String? status,
     String? priority,
     String? outletId,
@@ -74,9 +75,10 @@ class DioTasksAdminRepository implements TasksAdminRepository {
     if (priority != null) query['priority'] = priority;
     if (outletId != null) query['outletId'] = outletId;
     final response = await dio.get('/tasks', queryParameters: query);
-    return (response.data as List)
-        .map((json) => TaskItem.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<TaskItem>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => TaskItem.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -105,6 +107,12 @@ final tasksAdminRepositoryProvider = Provider<TasksAdminRepository>(
   (ref) => DioTasksAdminRepository(),
 );
 
-final tasksListProvider = FutureProvider<List<TaskItem>>((ref) {
-  return ref.read(tasksAdminRepositoryProvider).listTasks();
+// The provider exposes the FIRST PAGE as a plain list: the admin task queue
+// wants the current open tasks, not the whole history, and "load more" UI is
+// deliberately out of scope for the pagination sweep (see the spec).
+// `nextCursor` is available on the repository for any screen that later needs
+// to page; this provider intentionally drops it.
+final tasksListProvider = FutureProvider<List<TaskItem>>((ref) async {
+  final page = await ref.read(tasksAdminRepositoryProvider).listTasks();
+  return page.data;
 });

@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { computeSlaDueAt, TaskPriority } from '../../lib/slaClock';
+import { buildPage } from '../../lib/pagination';
 import { attachEvidencePhotoIds } from '../photos/photos.service';
 
 export type TaskStatusInput = 'open' | 'in_progress' | 'closed';
@@ -67,10 +68,12 @@ export interface ListTasksInput {
   status?: TaskStatusInput;
   priority?: TaskPriority;
   outletId?: string;
+  limit: number;
+  cursor?: string;
 }
 
 export async function listTasks(input: ListTasksInput) {
-  const tasks = await prisma.task.findMany({
+  const rows = await prisma.task.findMany({
     where: {
       // Tasks carry no clientId of their own — tenant scope goes through the
       // outlet relation.
@@ -79,10 +82,20 @@ export async function listTasks(input: ListTasksInput) {
       ...(input.priority ? { priority: input.priority } : {}),
       ...(input.outletId ? { outletId: input.outletId } : {}),
     },
-    orderBy: { slaDueAt: 'asc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two tasks share a slaDueAt — same reasoning as alerts.service.ts.
+    //
+    // COPYING THIS PATTERN: the tiebreaker's direction MUST match the primary
+    // sort's direction (both `asc` here).
+    orderBy: [{ slaDueAt: 'asc' }, { id: 'asc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
-  // evidencePhotoId (newest photo of the linked visit) — one batched query.
-  return attachEvidencePhotoIds(tasks);
+  const page = buildPage(rows, input.limit);
+  // evidencePhotoId (newest photo of the linked visit) — one batched query,
+  // AFTER buildPage so the dropped probe row costs nothing and the cursor
+  // (last kept row's id) is untouched.
+  return { data: await attachEvidencePhotoIds(page.data), nextCursor: page.nextCursor };
 }
 
 export async function findTaskForClient(taskId: string, clientId: string) {

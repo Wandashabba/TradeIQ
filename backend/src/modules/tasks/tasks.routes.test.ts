@@ -149,10 +149,10 @@ describe('tasks routes', () => {
     const res = await request(app).get('/tasks').set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    const ids = res.body.map((t: { id: string }) => t.id);
+    const ids = res.body.data.map((t: { id: string }) => t.id);
     expect(ids).toContain(taskId);
     expect(ids).not.toContain(otherTaskId);
-    const dueDates = res.body.map((t: { slaDueAt: string }) => new Date(t.slaDueAt).getTime());
+    const dueDates = res.body.data.map((t: { slaDueAt: string }) => new Date(t.slaDueAt).getTime());
     expect(dueDates).toEqual([...dueDates].sort((a: number, b: number) => a - b));
   });
 
@@ -162,14 +162,14 @@ describe('tasks routes', () => {
       .query({ status: 'closed' })
       .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.map((t: { id: string }) => t.id)).not.toContain(taskId);
+    expect(res.body.data.map((t: { id: string }) => t.id)).not.toContain(taskId);
 
     const openRes = await request(app)
       .get('/tasks')
       .query({ status: 'open' })
       .set('Authorization', `Bearer ${managerToken}`);
     expect(openRes.status).toBe(200);
-    expect(openRes.body.map((t: { id: string }) => t.id)).toContain(taskId);
+    expect(openRes.body.data.map((t: { id: string }) => t.id)).toContain(taskId);
   });
 
   it('rejects a garbage status filter with 400', async () => {
@@ -338,25 +338,134 @@ describe('tasks routes', () => {
     });
 
     it("lists the newest photo of a task's visit as evidencePhotoId", async () => {
-      const res = await request(app).get('/tasks').set('Authorization', `Bearer ${managerToken}`);
+      const res = await request(app)
+        .get('/tasks')
+        .query({ limit: 200 })
+        .set('Authorization', `Bearer ${managerToken}`);
       expect(res.status).toBe(200);
 
-      const row = res.body.find((t: { id: string }) => t.id === taskWithPhotosId);
+      const row = res.body.data.find((t: { id: string }) => t.id === taskWithPhotosId);
       expect(row).toBeDefined();
       expect(row.evidencePhotoId).toBe(newestPhotoId);
     });
 
     it('lists null evidencePhotoId for tasks without a visit and for photoless visits', async () => {
-      const res = await request(app).get('/tasks').set('Authorization', `Bearer ${managerToken}`);
+      const res = await request(app)
+        .get('/tasks')
+        .query({ limit: 200 })
+        .set('Authorization', `Bearer ${managerToken}`);
       expect(res.status).toBe(200);
 
-      const noVisit = res.body.find((t: { id: string }) => t.id === taskWithoutVisitId);
+      const noVisit = res.body.data.find((t: { id: string }) => t.id === taskWithoutVisitId);
       expect(noVisit).toBeDefined();
       expect(noVisit.evidencePhotoId).toBeNull();
 
-      const photoless = res.body.find((t: { id: string }) => t.id === taskPhotolessVisitId);
+      const photoless = res.body.data.find((t: { id: string }) => t.id === taskPhotolessVisitId);
       expect(photoless).toBeDefined();
       expect(photoless.evidencePhotoId).toBeNull();
+    });
+  });
+
+  describe('GET /tasks pagination', () => {
+    let pagedOutletId: string;
+    const pagedTaskIds: string[] = [];
+    const PAGE_SEED_COUNT = 25;
+
+    beforeAll(async () => {
+      // A fresh outlet keeps this describe block's row count independent of
+      // whatever earlier tests in this file created.
+      const outlet = await prisma.outlet.create({
+        data: {
+          name: 'Tasks Paging Outlet',
+          code: 'TASKS-PAGE-001',
+          channelType: 'hypermarket',
+          lat: -26.2041,
+          lng: 28.0473,
+          territoryId: 't-page',
+          clientId,
+        },
+      });
+      pagedOutletId = outlet.id;
+
+      // Distinct slaDueAt per row so ordering is unambiguous, plus enough rows
+      // to require three pages at limit=10 (25 rows / 10 = 3 pages).
+      for (let i = 0; i < PAGE_SEED_COUNT; i++) {
+        const task = await prisma.task.create({
+          data: {
+            findingType: `paging-task-${i}`,
+            outletId: pagedOutletId,
+            requiredFix: 'Restock',
+            priority: 'normal',
+            slaDueAt: new Date(Date.UTC(2027, 0, 1, 0, 0, i)),
+            ownerId: agentId,
+          },
+        });
+        pagedTaskIds.push(task.id);
+      }
+    });
+
+    it('default page size caps the result at 50', async () => {
+      const res = await request(app)
+        .get('/tasks')
+        .query({ outletId: pagedOutletId })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(50);
+      expect(res.body.data).toHaveLength(PAGE_SEED_COUNT); // fewer than 50 seeded
+    });
+
+    it('honours ?limit=N', async () => {
+      const res = await request(app)
+        .get('/tasks')
+        .query({ outletId: pagedOutletId, limit: 5 })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(5);
+      expect(res.body.nextCursor).not.toBeNull();
+    });
+
+    it.each([['0'], ['abc'], ['-1']])('rejects ?limit=%s with 400', async (limit) => {
+      const res = await request(app)
+        .get('/tasks')
+        .query({ outletId: pagedOutletId, limit })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
+
+    it('pages through with no gap and no overlap across the full set', async () => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let guard = 0;
+
+      do {
+        const res: request.Response = await request(app)
+          .get('/tasks')
+          .query({
+            outletId: pagedOutletId,
+            limit: 10,
+            ...(cursor ? { cursor } : {}),
+          })
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.map((t: { id: string }) => t.id));
+        cursor = res.body.nextCursor ?? undefined;
+        guard++;
+      } while (cursor && guard < 10);
+
+      // No overlap: every id appears exactly once across all pages.
+      expect(new Set(seen).size).toBe(seen.length);
+      // No gap: every seeded id for this outlet was eventually returned.
+      expect(new Set(seen)).toEqual(new Set(pagedTaskIds));
+    });
+
+    it("never returns another client's tasks even across pages", async () => {
+      const res = await request(app)
+        .get('/tasks')
+        .query({ limit: 200 })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((t: { id: string }) => t.id);
+      expect(ids).not.toContain(otherTaskId);
     });
   });
 });
