@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/geo/label_declutter.dart';
 import '../../../core/geo/mercator_fit.dart';
 import '../../../core/widgets/agent_motion.dart' show reduceMotion;
 import '../../../core/widgets/basemap.dart';
@@ -141,6 +142,17 @@ final _markerAlignment = Marker.computePixelAlignment(
 /// can't drift apart.
 const _trailZoom = 13.0;
 
+/// The label box relative to a marker's geographic point: the full marker
+/// width, starting just below the disc. Deliberately the box width rather than
+/// the measured text width — conservative (it suppresses slightly more than
+/// strictly necessary) and deterministic, needing no text layout pass.
+final _labelRect = Rect.fromLTWH(
+  -_markerWidth / 2,
+  _discSize / 2 + 3,
+  _markerWidth,
+  _markerHeight - _discSize - 3,
+);
+
 /// The trail map itself.
 ///
 /// The centre/zoom are computed OURSELVES, by `fitFor` — not by
@@ -156,7 +168,11 @@ const _trailZoom = 13.0;
 /// flutter_map camera state left to race — the result is handed to
 /// flutter_map as plain `initialCenter`/`initialZoom`, values it applies
 /// synchronously and unconditionally on every mount.
-class _TrailMap extends StatelessWidget {
+///
+/// It IS stateful, but only to observe the camera for label decluttering
+/// (#197) — see `_TrailMapState._camera`. Nothing observed there flows back
+/// into the centre/zoom above.
+class _TrailMap extends StatefulWidget {
   const _TrailMap({required this.day, required this.withStops});
 
   final DateTime day;
@@ -166,7 +182,25 @@ class _TrailMap extends StatelessWidget {
   final List<AgentActivity> withStops;
 
   @override
+  State<_TrailMap> createState() => _TrailMapState();
+}
+
+class _TrailMapState extends State<_TrailMap> {
+  /// The live camera, used ONLY to decide which labels collide (#197).
+  ///
+  /// This does not reintroduce the race the class docstring above warns about.
+  /// That race came from *seeding* the camera from flutter_map before it had a
+  /// size; nothing here flows back into `initialCenter`/`initialZoom`, which
+  /// are still computed by `fitFor` from our own measured viewport. Null until
+  /// the first `onPositionChanged`, and until then decluttering runs against
+  /// the same fit we handed flutter_map — so the very first frame is already
+  /// correct rather than briefly garbled.
+  ({LatLng center, double zoom})? _camera;
+
+  @override
   Widget build(BuildContext context) {
+    final withStops = widget.withStops;
+    final day = widget.day;
     final points = [
       for (final a in withStops)
         for (final s in a.stops) LatLng(s.lat, s.lng),
@@ -188,6 +222,32 @@ class _TrailMap extends StatelessWidget {
           padding: 40,
           singleZoom: _trailZoom,
         );
+
+        // Decluttering runs against the live camera once flutter_map reports
+        // one, and against our own fit before that — so the first frame is
+        // already correct rather than briefly showing the garbled overlap.
+        final camera = _camera ?? (center: center, zoom: zoom);
+
+        // Priority, lower wins: an agent's LAST stop is where they are now,
+        // which is the question a manager opens this screen to answer, so it
+        // outranks every earlier stop. Within each group, earlier ordinals
+        // win — a reader follows the trail forwards.
+        final labelVisible = declutterLabels(
+          points: points,
+          priority: [
+            for (final a in withStops)
+              for (var i = 0; i < a.stops.length; i++)
+                (i == a.stops.length - 1 ? 0 : 1000) + i,
+          ],
+          center: camera.center,
+          zoom: camera.zoom,
+          labelRect: _labelRect,
+        );
+
+        // `points`, `labelVisible` and the marker loop below must all walk the
+        // agents/stops in the same order for the flags to line up. One shared
+        // flat index keeps that honest.
+        var flatIndex = 0;
 
         return FlutterMap(
           // Keyed on the day AND a fingerprint of the plotted coordinates: a
@@ -211,7 +271,23 @@ class _TrailMap extends StatelessWidget {
           // scrollable parent competing for the wheel, so there is nothing
           // for a wheel-zoom to fight with. The asymmetry between the two
           // maps is deliberate, not a missed case.
-          options: MapOptions(initialCenter: center, initialZoom: zoom),
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: zoom,
+            // Observed, never fed back (#197). `initialCenter`/`initialZoom`
+            // above still come from our own `fitFor`; this only tells the
+            // label declutterer where things currently sit, so a pan or zoom
+            // re-resolves which captions collide. Guarded against redundant
+            // setState so an idle map does not rebuild every frame.
+            onPositionChanged: (position, _) {
+              final next = (center: position.center, zoom: position.zoom);
+              if (_camera?.center == next.center &&
+                  _camera?.zoom == next.zoom) {
+                return;
+              }
+              setState(() => _camera = next);
+            },
+          ),
           children: [
             const TiqTileLayer(),
             // The navy wash sits between the tiles and the trail geometry:
@@ -262,6 +338,7 @@ class _TrailMap extends StatelessWidget {
                         stop: a.stops[i],
                         ordinal: i + 1,
                         isLast: i == a.stops.length - 1,
+                        showLabel: labelVisible[flatIndex++],
                       ),
                     ),
               ],
@@ -335,12 +412,20 @@ class _StopPin extends StatefulWidget {
     required this.stop,
     required this.ordinal,
     required this.isLast,
+    required this.showLabel,
   });
 
   final String agentName;
   final AgentStop stop;
   final int ordinal;
   final bool isLast;
+
+  /// False when this label would collide with a higher-priority one (#197).
+  ///
+  /// Only the label is dropped — never the disc — so no stop disappears from
+  /// the map, and the Semantics label below still carries outlet and time for
+  /// a screen reader regardless.
+  final bool showLabel;
 
   @override
   State<_StopPin> createState() => _StopPinState();
@@ -487,18 +572,24 @@ class _StopPinState extends State<_StopPin>
             // The luminous label: what the old map hid in a hover tooltip,
             // now readable on the map itself. The heavy dark shadow is what
             // keeps it legible over whatever tile detail sits beneath.
-            Text(
-              '${stop.outletName} · $time',
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFD9E6FF),
-                shadows: [Shadow(blurRadius: 5, color: Colors.black)],
+            //
+            // Suppressed when it would collide with a higher-priority label
+            // (#197) — two stops at outlets ~20m apart drew their labels over
+            // each other as garbled text. The disc above always survives, so
+            // the stop itself is never lost, only its caption.
+            if (widget.showLabel)
+              Text(
+                '${stop.outletName} · $time',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFD9E6FF),
+                  shadows: [Shadow(blurRadius: 5, color: Colors.black)],
+                ),
               ),
-            ),
           ],
         ),
       ),
