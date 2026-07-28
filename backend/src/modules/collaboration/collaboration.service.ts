@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { buildPage } from '../../lib/pagination';
 
 export interface CreateMessageInput {
   clientId: string;
@@ -34,10 +35,12 @@ export async function createMessage(input: CreateMessageInput) {
 export interface ListMessagesInput {
   clientId: string;
   userId: string;
+  limit: number;
+  cursor?: string;
 }
 
 export async function listMessages(input: ListMessagesInput) {
-  return prisma.message.findMany({
+  const rows = await prisma.message.findMany({
     where: {
       clientId: input.clientId,
       // Visible to the caller: sent by them, addressed to them, or a broadcast
@@ -48,8 +51,16 @@ export async function listMessages(input: ListMessagesInput) {
         { recipientId: null },
       ],
     },
-    orderBy: { createdAt: 'desc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two messages share a createdAt — same reasoning as alerts.service.ts.
+    //
+    // COPYING THIS PATTERN: the tiebreaker's direction MUST match the primary
+    // sort's direction (both `desc` here).
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export interface MarkMessageReadInput {
@@ -92,9 +103,24 @@ export async function createAnnouncement(input: CreateAnnouncementInput) {
   });
 }
 
-export async function listAnnouncements(clientId: string) {
-  return prisma.announcement.findMany({
-    where: { clientId },
-    orderBy: { createdAt: 'desc' },
+export interface ListAnnouncementsInput {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listAnnouncements(input: ListAnnouncementsInput) {
+  const rows = await prisma.announcement.findMany({
+    where: { clientId: input.clientId },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two announcements share a createdAt — same reasoning as
+    // alerts.service.ts.
+    //
+    // COPYING THIS PATTERN: the tiebreaker's direction MUST match the primary
+    // sort's direction (both `desc` here).
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }

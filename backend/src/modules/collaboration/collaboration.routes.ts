@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   createAnnouncement,
   createMessage,
@@ -42,11 +43,14 @@ messagesRouter.post('/', async (req: AuthedRequest, res) => {
 });
 
 messagesRouter.get('/', async (req: AuthedRequest, res) => {
-  const messages = await listMessages({
+  const { limit, cursor } = parsePagination(req);
+  const page = await listMessages({
     clientId: req.user!.clientId,
     userId: req.user!.userId,
+    limit,
+    cursor,
   });
-  res.status(200).json(messages);
+  res.status(200).json(page);
 });
 
 messagesRouter.patch('/:id/read', async (req: AuthedRequest, res) => {
@@ -85,6 +89,7 @@ announcementsRouter.post('/', requireRole('manager', 'admin'), async (req: Authe
 });
 
 announcementsRouter.get('/', async (req: AuthedRequest, res) => {
-  const announcements = await listAnnouncements(req.user!.clientId);
-  res.status(200).json(announcements);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listAnnouncements({ clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
