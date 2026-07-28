@@ -189,7 +189,7 @@ The field-agent offline-first audit app + manager dashboard, on lean infra
 | Manager-facing GET listings for every section + `GET /visits` | ✅ |
 | Per-row `createdAt` timestamps + measured check-in distance | ✅ |
 | Field-agent UX polish — Today screen, submit gate, outcome screen, motion/haptics (#110/#113/#116/#117) | ✅ |
-| Seed: client/users/outlets/SKUs/planograms/promos/demo visits+scorecards+tasks+**admin** | ✅ |
+| Seed: realistic demo dataset — 3 territories, 31 outlets, 9 users, 20 SKUs, 12 weeks of visit history (342 visits), tasks/alerts/incentives, comms, orders, and a home-base outlet for live geofence check-in | ✅ |
 | Migrations, docker-compose (Postgres), isolated test DB (#109), CI (app + backend) | ✅ |
 
 **Phase-1 follow-ups — all closed:** admin clients-config (#46), admin user
