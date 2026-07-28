@@ -9,6 +9,10 @@
  * the fixed-seed PRNG in `rng.ts` instead.
  */
 
+// Every date operation in this file goes through Date.UTC / getTime, never a
+// local-time accessor. DST is a local-rendering concept in JS Date, so UTC
+// epoch arithmetic is always exactly 86,400,000 ms per day — fixed-width week
+// maths below is safe.
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Weeks of history generated behind the anchor, inclusive of the anchor week. */
@@ -23,6 +27,12 @@ export function startOfUtcDay(date: Date): Date {
 /**
  * Monday 00:00 UTC of the week containing `date`. Must agree with
  * `bucketStart(date, 'week')` in the trends service — asserted in the tests.
+ *
+ * This duplicates `bucketStart`'s rule rather than importing it, deliberately:
+ * `trends.service.ts` imports `lib/prisma`, which constructs a `PrismaClient`
+ * at module load. Importing it here would drag a live database client into a
+ * module that must stay pure and testable without one. The parity test gives
+ * equivalent protection against drift — do not "fix" this by importing.
  */
 export function mondayOfWeek(date: Date): Date {
   const dayStart = startOfUtcDay(date);

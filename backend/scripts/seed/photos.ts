@@ -18,8 +18,19 @@ const WIDTH = 320;
 const HEIGHT = 240;
 const JPEG_QUALITY = 82;
 
-/** One tint per section, so a manager's evidence rows look different. */
-export const SECTION_TINTS: Record<string, Tint> = {
+/** The sections the seed attaches evidence photos to. */
+export type PhotoSection = 'visibility' | 'pricing' | 'competitive' | 'closure';
+
+/**
+ * One tint per section, so a manager's evidence rows look different.
+ *
+ * Keyed by a closed union rather than `string`: `noUncheckedIndexedAccess` is
+ * off in this tsconfig, so a `Record<string, Tint>` would type a misspelled
+ * `SECTION_TINTS.visiblity` as `Tint` and only fail at runtime, deep inside
+ * `demoPhotoDataUrl`. A closed key set turns that typo into a compile error and
+ * removes the need for `!` at every call site.
+ */
+export const SECTION_TINTS: Record<PhotoSection, Tint> = {
   visibility: [86, 122, 178],
   pricing: [196, 138, 62],
   competitive: [110, 148, 104],
