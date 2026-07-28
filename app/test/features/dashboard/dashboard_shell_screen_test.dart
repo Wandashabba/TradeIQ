@@ -199,7 +199,8 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
   final List<Territory> territories;
 
   @override
-  Future<List<Territory>> listTerritories() async => territories;
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      PaginatedResponse(data: territories, nextCursor: null);
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>
