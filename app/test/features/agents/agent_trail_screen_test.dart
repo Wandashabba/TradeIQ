@@ -653,4 +653,61 @@ void main() {
       greaterThanOrEqualTo(3.0),
     );
   });
+
+  // #197: two stops at outlets ~20m apart drew their luminous labels over one
+  // another as garbled text. The repro from the ticket, as a widget test.
+  group('colliding labels (#197)', () {
+    // ~20m apart — the ticket's reported distance.
+    final coincident = AgentActivity(
+      agentId: 'a9',
+      name: 'lerato@example.com',
+      state: AgentState.inTransit,
+      lastSeenAt: DateTime(2026, 7, 22, 10),
+      stops: [
+        _stop('v1', '555 Media Tech', -26.1076, 28.0567, 9),
+        _stop('v2', 'Ncondo Chambers', -26.1076, 28.0569, 10),
+      ],
+    );
+
+    testWidgets('draws only one label when two stops nearly coincide', (
+      tester,
+    ) async {
+      await tester.pumpWidget(routedApp(
+        const AgentTrailScreen(),
+        overrides: [
+          agentsRepositoryProvider
+              .overrideWithValue(_FakeAgentsRepository([coincident])),
+        ],
+      ));
+      await tester.pumpAndSettle();
+
+      // Both pins survive — only the caption is suppressed, never the stop.
+      expect(find.byKey(const ValueKey<String>('agent-stop-a9-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('agent-stop-a9-1')), findsOneWidget);
+
+      // The last stop is where the agent is now — the question this screen
+      // exists to answer — so its label is the one that wins.
+      expect(find.textContaining('Ncondo Chambers'), findsOneWidget);
+      expect(find.textContaining('555 Media Tech'), findsNothing);
+    });
+
+    testWidgets('keeps both labels when the stops are far apart', (
+      tester,
+    ) async {
+      // The guard against over-suppression: _thabo's two stops are ~4km
+      // apart, and both labels must survive. Without this, a declutterer that
+      // hid everything would pass the test above.
+      await tester.pumpWidget(routedApp(
+        const AgentTrailScreen(),
+        overrides: [
+          agentsRepositoryProvider
+              .overrideWithValue(_FakeAgentsRepository([_thabo])),
+        ],
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Sandton Spar'), findsOneWidget);
+      expect(find.textContaining('Rosebank Pick n Pay'), findsOneWidget);
+    });
+  });
 }
