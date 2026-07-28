@@ -706,6 +706,26 @@ class _TerritoryPanel extends ConsumerWidget {
   }
 }
 
+/// The panel's two settled-but-nothing-to-plot states: no territories at all,
+/// and territories with no scores yet. Both are *answers*, so neither may
+/// render as a loader (#222).
+class _TerritoryPlaceholder extends StatelessWidget {
+  const _TerritoryPlaceholder(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 24),
+    child: Center(
+      child: Text(
+        message,
+        style: TextStyle(fontSize: 12, color: context.colors.ink3),
+      ),
+    ),
+  );
+}
+
 /// Fetches every territory's KPIs in a single `GET /dashboard/by-territory`
 /// call — see #97.
 class _TerritoryScoreBars extends ConsumerWidget {
@@ -716,15 +736,7 @@ class _TerritoryScoreBars extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (territories.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: Text(
-            'No territories defined',
-            style: TextStyle(fontSize: 12, color: context.colors.ink3),
-          ),
-        ),
-      );
+      return _TerritoryPlaceholder('No territories defined');
     }
 
     final byTerritoryAsync = ref.watch(dashboardByTerritoryProvider);
@@ -745,7 +757,12 @@ class _TerritoryScoreBars extends ConsumerWidget {
             if (byId[t.id] != null)
               (label: t.name, value: byId[t.id]!.kpis.executionScore),
         ];
-        if (points.isEmpty) return const _InlineLoader(height: 40);
+        // Territories exist but no summary overlaps them — a real backend
+        // state, not a pending fetch. The future already completed, so a
+        // loader here would spin forever (#222); same rule as the error arm.
+        if (points.isEmpty) {
+          return _TerritoryPlaceholder('No territory scores yet');
+        }
         points.sort((a, b) => b.value.compareTo(a.value));
         return BarChart(points: points, target: 75);
       },

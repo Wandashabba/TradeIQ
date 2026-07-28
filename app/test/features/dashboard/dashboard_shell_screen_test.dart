@@ -763,6 +763,39 @@ void main() {
     },
   );
 
+  testWidgets(
+    'territories with no by-territory data show an empty state, not an '
+    'eternal spinner',
+    (tester) async {
+      // The regression this guards (#222): the *data* arm returned
+      // _InlineLoader when no summary overlapped the territory list — a real
+      // backend state (territories created before any KPI data exists for
+      // them). The future had already completed successfully, so that spinner
+      // could never resolve. Exactly the anti-pattern the error arm above
+      // was fixed for, one branch over.
+      const territories = [
+        Territory(id: 't-north', name: 'North', code: 'north'),
+      ];
+
+      // Territories exist; the by-territory fetch just has nothing for them.
+      await _pump(
+        tester,
+        _app(
+          territories: territories,
+          dashboard: _FakeDashboardRepository(byTerritory: const []),
+        ),
+      );
+
+      expect(find.text('No territory scores yet'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(BarChart), findsNothing);
+
+      // Territories *are* defined — borrowing the sibling copy would be a lie
+      // about which of the two empty states this is.
+      expect(find.text('No territories defined'), findsNothing);
+    },
+  );
+
   testWidgets('renders the KPI filter bar (territory + date range)', (
     tester,
   ) async {
