@@ -104,7 +104,7 @@ Safety constraints, in order of importance:
 | | |
 |---|---|
 | **Org** | 1 client, 3 territories (Gauteng / Western Cape / KZN), 9 users — 1 admin, 2 managers, 6 field agents |
-| **Retail** | ~30 outlets across the 3 regions, ~20 SKUs, ZAR pricing, invented-but-plausible chain names |
+| **Retail** | ~30 outlets across the 3 regions (one of them the home-base outlet, below), ~20 SKUs, ZAR pricing, invented-but-plausible chain names |
 | **History** | ~12 weeks, ~360 visits (6 agents × ~5/week), each with full S1–S10 section rows |
 | **Live** | today's beat plan with real stops, open alerts, overdue SLA tasks, an active incentive scheme with standings |
 
@@ -112,6 +112,42 @@ Safety constraints, in order of importance:
 names, ZAR pricing, SA address and phone formats — but no real company
 trademarks. The existing seed's Johannesburg framing (Sandton, Rosebank) is
 kept and extended.
+
+### The home-base outlet
+
+One extra outlet is seeded at the demonstrator's own physical location, so a
+live walkthrough can include a **real geofence check-in** — walk in, open the
+app, check in for real — rather than a simulated one. It is the only part of the
+field-agent flow that cannot otherwise be shown honestly.
+
+**Coordinates come from `DEMO_HOME_LAT` / `DEMO_HOME_LNG`**, read from the local
+environment, falling back to a generic Johannesburg point when unset. The
+demonstrator's real location therefore never enters git, and re-pointing it for a
+different venue is an `.env` edit rather than a code change. The fallback keeps a
+fresh clone seeding the full outlet count.
+
+The outlet is otherwise a normal member of the dataset — it belongs to a
+territory, carries visit history, and appears in lists — so it does not read as a
+test artefact. It is given a plausible name and assigned to the agent account the
+demonstrator signs in as, and it appears on **today's** beat plan so the check-in
+is the natural next action rather than something hunted for.
+
+**Known risk, to be stated plainly in the seed's output.** The geofence is 50 m
+(`isWithinGeofence`, hardcoded default — `Outlet` has no per-store radius), and
+`visits.service.ts` *throws* `GeofenceRejectedError` outside it, so check-in is
+blocked rather than flagged. Indoor GPS routinely drifts 20–50 m, which means a
+live check-in can legitimately fail in front of an audience through no fault of
+the software. Two things follow:
+
+1. The seed prints the configured home coordinates and the 50 m radius on
+   completion, so the setup is verifiable before the demo rather than during it.
+2. A rejected check-in still writes a `CheckInAttempt` row, so the failure path
+   is itself demonstrable — "the system refuses check-ins from outside the
+   store, and records the attempt" is a feature, not a save. Worth knowing in
+   advance rather than improvising.
+
+Widening the radius is deliberately *not* proposed here: it would weaken a real
+fraud control for a presentation convenience.
 
 ### The curve
 
@@ -163,6 +199,10 @@ a database:
   reimplementation of its regex.
 - `reset.ts` — deletion is scoped: rows belonging to a second, non-demo client
   survive a reset. This is the safety-critical test.
+- `catalog.ts` — the home-base outlet uses `DEMO_HOME_LAT`/`DEMO_HOME_LNG` when
+  both are set and valid, falls back when unset, and does not silently accept a
+  malformed value (a non-numeric or out-of-range coordinate must fail loudly,
+  not quietly seed a store in the Gulf of Guinea).
 
 To test bucketing against the real production logic rather than a copy,
 `bucketStart` will be exported from `trends.service.ts`.
