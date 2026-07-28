@@ -4,16 +4,28 @@
 //
 // The assets are obtainable (sqlite3.wasm from the sqlite3.dart release tagged
 // `sqlite3-<version>`, drift_worker.js from drift's own release), so this is a
-// choice rather than a blocker. The reason not to take it: this connection is
-// effectively unreachable on web today. Only `AgentScaffold` opens the local
-// database, and agents work on mobile — `ManagerScaffold`, the entire web
-// surface, never touches it. Bundling ~1.5MB of WASM into every manager's page
-// load to silence a deprecation on a path that does not execute is a poor
-// trade.
+// choice rather than a blocker.
+//
+// The reason not to take it — stated precisely, because an earlier version of
+// this comment claimed the web surface never opens this connection, and that
+// was wrong. It does. `SessionController.logout` calls `_dropSyncedRows`
+// unconditionally, with no role check, and its `.go()` is a real query — so a
+// manager signing out of the web console opens this database.
+//
+// What makes that survivable is not that the path is dead, but that it is
+// inert: the delete runs against an empty in-memory database (managers never
+// capture, so the outbox has no rows) inside a `catch (_)` that swallows
+// everything. The capture paths that would give this connection real work —
+// `syncStatusProvider`, watched only by `AgentScaffold`, my-work and the submit
+// gate — are agent-side, and agents are on mobile.
+//
+// So: bundling ~1.5MB of WASM into every manager's page load to silence a
+// deprecation on a swallowed no-op is still a poor trade. Same conclusion,
+// honest reasoning.
 //
 // Revisit when the premise changes, not on a schedule: if agents ever capture
-// on web, this connection becomes live, and #177 should be done at the same
-// time as the encryption question below — not before it.
+// on web, this connection carries real data, and #177 should be done at the
+// same time as the encryption question below — not before it.
 // ignore_for_file: deprecated_member_use
 import 'package:drift/drift.dart';
 import 'package:drift/web.dart';
