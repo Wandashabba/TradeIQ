@@ -9,7 +9,6 @@
  * mulberry32 — small, fast, and good enough for demo data. Not for anything
  * security-sensitive.
  */
-/** Deterministic sequence generator — same seed, same numbers. */
 export function makeRng(seed: number): () => number {
   let a = seed >>> 0;
   return function next(): number {
