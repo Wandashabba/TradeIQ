@@ -32,6 +32,17 @@ describe('intBetween', () => {
     for (let i = 0; i < 500; i += 1) seen.add(intBetween(rng, 1, 3));
     expect([...seen].sort()).toEqual([1, 2, 3]);
   });
+
+  // Six later modules call this helper. A transposed min/max must crash at the
+  // call site, not silently emit plausible-looking wrong numbers.
+  it('throws when min is greater than max rather than returning nonsense', () => {
+    expect(() => intBetween(makeRng(1), 5, 1)).toThrow('intBetween: min 5 is greater than max 1');
+  });
+
+  it('returns the value itself when min equals max', () => {
+    const rng = makeRng(11);
+    for (let i = 0; i < 20; i += 1) expect(intBetween(rng, 4, 4)).toBe(4);
+  });
 });
 
 describe('pick', () => {
