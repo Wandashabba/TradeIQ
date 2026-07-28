@@ -76,9 +76,12 @@ class _FailingTerritoriesRepository implements TerritoriesRepository {
 
 class _FakeUsersRepository implements UsersRepository {
   @override
-  Future<List<AppUser>> listUsers() async => const [
-        AppUser(id: 'a1', email: 'agent@x.com', role: 'field_agent', active: true),
-      ];
+  Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
+        data: [
+          AppUser(id: 'a1', email: 'agent@x.com', role: 'field_agent', active: true),
+        ],
+        nextCursor: null,
+      );
 
   @override
   Future<AppUser> createUser({
