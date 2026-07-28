@@ -2,56 +2,78 @@ import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { databaseNameOf, workerDatabaseUrl } from './jest.worker-db';
 
-export default async function globalSetup(): Promise<void> {
+/**
+ * Builds one migrated database per jest worker (#186).
+ *
+ * Suites used to share a single `tradeiq_test`, so a suite asserting on global
+ * counts, "newest first", or "then it is gone" could see rows another suite was
+ * concurrently creating or deleting. The result was a random single failure
+ * about one run in three — a different test each time, since the casualty was
+ * whichever suite lost that particular race.
+ *
+ * The base database is migrated once and then used as a Postgres TEMPLATE, so
+ * each worker database is a cheap file copy rather than a fresh
+ * `prisma migrate deploy`. Dropping and recreating per run also removes the
+ * need to truncate: every worker starts from a guaranteed-empty schema.
+ */
+export default async function globalSetup(globalConfig?: {
+  maxWorkers?: number;
+}): Promise<void> {
   dotenv.config({ path: path.resolve(__dirname, '.env.test'), override: true });
 
-  const testDatabaseUrl = process.env.DATABASE_URL;
-  if (!testDatabaseUrl) {
+  const baseUrl = process.env.DATABASE_URL;
+  if (!baseUrl) {
     throw new Error('DATABASE_URL not set after loading .env.test');
   }
 
-  const url = new URL(testDatabaseUrl);
-  const testDbName = url.pathname.replace(/^\//, '');
+  const baseName = databaseNameOf(baseUrl);
+  const workerCount = Math.max(1, globalConfig?.maxWorkers ?? 1);
 
-  // Connect to Postgres's default maintenance database to create the test
-  // database if it doesn't exist yet (first run on this machine/container).
-  const adminUrl = new URL(testDatabaseUrl);
+  const adminUrl = new URL(baseUrl);
   adminUrl.pathname = '/postgres';
   const adminPrisma = new PrismaClient({ datasources: { db: { url: adminUrl.toString() } } });
+
   try {
+    // The template database. Created once per machine, migrated every run so
+    // the schema is current.
     const existing = await adminPrisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
       `SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1) as exists`,
-      testDbName,
+      baseName,
     );
     if (!existing[0]?.exists) {
-      // CREATE DATABASE cannot be parameterized or run inside a transaction;
-      // testDbName comes from our own .env.test, not user input.
-      await adminPrisma.$executeRawUnsafe(`CREATE DATABASE "${testDbName}"`);
+      // CREATE DATABASE cannot be parameterised or run inside a transaction;
+      // baseName comes from our own .env.test, not user input.
+      await adminPrisma.$executeRawUnsafe(`CREATE DATABASE "${baseName}"`);
+    }
+
+    execSync('npx prisma migrate deploy', {
+      cwd: path.resolve(__dirname),
+      env: { ...process.env, DATABASE_URL: baseUrl },
+      stdio: 'inherit',
+    });
+
+    for (let worker = 1; worker <= workerCount; worker += 1) {
+      const workerName = databaseNameOf(workerDatabaseUrl(baseUrl, String(worker)));
+
+      // A previous run that was killed mid-suite can leave connections open,
+      // and Postgres refuses to drop a database that anything is attached to.
+      await adminPrisma.$executeRawUnsafe(
+        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+         WHERE datname = $1 AND pid <> pg_backend_pid()`,
+        workerName,
+      );
+      await adminPrisma.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${workerName}"`);
+
+      // TEMPLATE copies the migrated schema without re-running migrations.
+      // Postgres requires the template to have no other connections, which is
+      // why prisma migrate deploy above runs as a subprocess that has exited.
+      await adminPrisma.$executeRawUnsafe(
+        `CREATE DATABASE "${workerName}" TEMPLATE "${baseName}"`,
+      );
     }
   } finally {
     await adminPrisma.$disconnect();
-  }
-
-  // Ensure the schema is current.
-  execSync('npx prisma migrate deploy', {
-    cwd: path.resolve(__dirname),
-    env: { ...process.env, DATABASE_URL: testDatabaseUrl },
-    stdio: 'inherit',
-  });
-
-  // Truncate every table so this run starts from a guaranteed-clean slate,
-  // regardless of whether a previous run's afterAll cleanup completed.
-  const testPrisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
-  try {
-    const tables = await testPrisma.$queryRawUnsafe<Array<{ tablename: string }>>(
-      `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN ('_prisma_migrations')`,
-    );
-    if (tables.length > 0) {
-      const tableList = tables.map((t) => `"${t.tablename}"`).join(', ');
-      await testPrisma.$executeRawUnsafe(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
-    }
-  } finally {
-    await testPrisma.$disconnect();
   }
 }
