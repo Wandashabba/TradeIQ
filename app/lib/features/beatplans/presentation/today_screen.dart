@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/status_pill_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
+import '../../../core/widgets/worklist.dart';
 import '../data/today_route.dart';
 
 /// The agent's day.
@@ -222,13 +224,11 @@ class _GlassHero extends StatelessWidget {
   }
 }
 
-/// The house "done / positive" pill pair — DeltaPill's good tone. Fixed hexes,
-/// not theme slots: a status verdict reads the same in both themes, and the
-/// pair is self-contained (a self-tint — the token over its own 14% wash —
-/// tops out near 1:1 and cannot clear AA; this pair clears 4.5:1 on its own
-/// wash in light and dark). Kept in sync with delta_pill.dart's DeltaTone.good.
-const _goodPillBg = Color(0xFFE7F5E7);
-const _goodPillFg = Color(0xFF0B6B0B);
+/// The house "done / positive" pill pair — the shared good status wash. Fixed
+/// hexes, not theme slots: a status verdict reads the same in both themes, and
+/// the pair is self-contained (it clears 4.5:1 on its own wash in light and
+/// dark). Single-sourced — see status_pill_colors.dart.
+const _goodPill = statusPillGood;
 
 /// "N left" / "Route done" — a word on a wash, never colour alone AND never
 /// below the AA floor. Complete takes the fixed good pair; before that it is a
@@ -245,7 +245,7 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: complete ? _goodPillBg : colors.surface2,
+        color: complete ? _goodPill.bg : colors.surface2,
         borderRadius: BorderRadius.circular(AppColors.radiusPill),
       ),
       child: Text(
@@ -253,7 +253,7 @@ class _StatusPill extends StatelessWidget {
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w600,
-          color: complete ? _goodPillFg : colors.ink2,
+          color: complete ? _goodPill.fg : colors.ink2,
         ),
       ),
     );
@@ -334,107 +334,79 @@ class _StopCard extends StatelessWidget {
 
     return PressFeedback(
       onTap: onTap,
-      child: Container(
+      // The shared card shell single-sources the chrome, the concentric clip
+      // and the 3px edge (see WorklistCardShell). This card keeps its own
+      // interaction (PressFeedback), sequence badge and DONE/NEXT tags — the
+      // parts that diverge from WorklistRow and so stay here.
+      child: WorklistCardShell(
+        edgeColor: edge,
         margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          color: colors.surface1,
-          border: Border.all(color: colors.line),
-          borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-        ),
-        child: ClipRRect(
-          // The `- 1` is the hairline width, so the clipped edge bar never
-          // overlaps the border itself (WorklistRow's convention).
-          borderRadius: BorderRadius.circular(AppColors.radiusPanel - 1),
-          child: IntrinsicHeight(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: kTapTarget + 8),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(width: 3, color: edge),
+                _Seq(sequence: stop.sequence, done: done, isNext: isNext),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: kTapTarget + 8,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
-                      child: Row(
-                        children: [
-                          _Seq(
-                            sequence: stop.sequence,
-                            done: done,
-                            isNext: isNext,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  stop.outlet.name,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    // A visited store recedes. The agent's eye
-                                    // should land on what is left, not behind.
-                                    fontWeight: done
-                                        ? FontWeight.w400
-                                        : FontWeight.w600,
-                                    color: done ? colors.ink2 : colors.ink1,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  stop.outlet.code,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colors.ink3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (stop.distanceLabel != null)
-                                Text(
-                                  stop.distanceLabel!,
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                    color: colors.ink2,
-                                  ),
-                                ),
-                              if (done || isNext)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  // DONE takes the fixed good pair; NEXT the
-                                  // console's active-chip pattern (white on the
-                                  // solid brand) — both AA-clear, theme-constant.
-                                  child: done
-                                      ? const _StateTag(
-                                          label: 'DONE',
-                                          bg: _goodPillBg,
-                                          fg: _goodPillFg,
-                                        )
-                                      : _StateTag(
-                                          label: 'NEXT',
-                                          bg: colors.brand,
-                                          fg: Colors.white,
-                                        ),
-                                ),
-                            ],
-                          ),
-                        ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        stop.outlet.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          // A visited store recedes. The agent's eye
+                          // should land on what is left, not behind.
+                          fontWeight: done ? FontWeight.w400 : FontWeight.w600,
+                          color: done ? colors.ink2 : colors.ink1,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 2),
+                      Text(
+                        stop.outlet.code,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: colors.ink3),
+                      ),
+                    ],
                   ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (stop.distanceLabel != null)
+                      Text(
+                        stop.distanceLabel!,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          color: colors.ink2,
+                        ),
+                      ),
+                    if (done || isNext)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        // DONE takes the fixed good pair; NEXT the
+                        // console's active-chip pattern (white on the
+                        // solid brand) — both AA-clear, theme-constant.
+                        child: done
+                            ? _StateTag(
+                                label: 'DONE',
+                                bg: _goodPill.bg,
+                                fg: _goodPill.fg,
+                              )
+                            : _StateTag(
+                                label: 'NEXT',
+                                bg: colors.brand,
+                                fg: Colors.white,
+                              ),
+                      ),
+                  ],
                 ),
               ],
             ),

@@ -245,10 +245,14 @@ void main() {
       expect(inactive.border, palette.line, reason: '$name inactive border');
       expect(inactive.text, palette.ink2, reason: '$name inactive text');
 
-      // The active state must reach a screen reader, not colour alone.
+      // The active state must reach a screen reader, not colour alone. The
+      // key now rides the shared PillSegment, whose Semantics sits just inside
+      // it — so this reads the segment's own Semantics as a descendant of the
+      // key rather than an ancestor (was `find.ancestor(...).first`). Same
+      // button/selected assertions, unchanged.
       final sem = tester.widget<Semantics>(
         find
-            .ancestor(
+            .descendant(
               of: find.byKey(const ValueKey<String>('scope-mine')),
               matching: find.byType(Semantics),
             )

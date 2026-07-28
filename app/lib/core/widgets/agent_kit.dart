@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/status_pill_colors.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_motion.dart';
 
@@ -52,8 +53,11 @@ extension BannerLevelStyle on BannerLevel {
     if (this == BannerLevel.bad) return colors.critText;
     if (brightness == Brightness.light) {
       return switch (this) {
-        BannerLevel.good => const Color(0xFF0B6B0B),
-        BannerLevel.warn => const Color(0xFF8A5A00),
+        // The status-text tints are the shared good/warn fg — see
+        // status_pill_colors.dart. (DeltaPill has no blue tone, so info's
+        // darkened blue rides on the theme's brandHover.)
+        BannerLevel.good => statusPillGood.fg,
+        BannerLevel.warn => statusPillWarn.fg,
         BannerLevel.info => TiqColors.light.brandHover, // == 0xFF0857C4
         BannerLevel.bad => colors.critText, // unreachable — bad handled above
       };

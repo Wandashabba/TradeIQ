@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/status_pill_colors.dart';
 import '../theme/tiq_colors.dart';
 
 /// The SLA verdict as a pill — `OVERDUE 2d`, `DUE TODAY`, `DUE FRI`,
@@ -41,10 +42,10 @@ class SlaPill extends StatelessWidget {
     'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
   ];
 
-  // The DeltaPill wash family — see delta_pill.dart.
-  static const _greenWash = (Color(0xFFE7F5E7), Color(0xFF0B6B0B));
-  static const _amberWash = (Color(0xFFFDF3E2), Color(0xFF8A5A00));
-  static const _redWash = (Color(0xFFFDEEEE), Color(0xFFA52A2A));
+  // The fixed status wash family — single-sourced, see status_pill_colors.dart.
+  static const _greenWash = statusPillGood;
+  static const _amberWash = statusPillWarn;
+  static const _redWash = statusPillBad;
 
   /// Whole calendar days from [from]'s day to [to]'s day.
   ///
@@ -63,12 +64,12 @@ class SlaPill extends StatelessWidget {
   ).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
 
   (String, Color, Color) _resolve(TiqColors colors) {
-    if (done) return ('✓ DONE', _greenWash.$1, _greenWash.$2);
+    if (done) return ('✓ DONE', _greenWash.bg, _greenWash.fg);
 
     if (now.isAfter(slaDueAt)) {
       final days = now.difference(slaDueAt).inDays; // floors toward zero
       final label = days < 1 ? 'OVERDUE <1d' : 'OVERDUE ${days}d';
-      return (label, _redWash.$1, _redWash.$2);
+      return (label, _redWash.bg, _redWash.fg);
     }
 
     // Instant comparisons above are zone-safe; calendar fields are NOT. The
@@ -82,7 +83,7 @@ class SlaPill extends StatelessWidget {
     // out even when it is 20 hours away.
     final dayDiff = calendarDayDiff(now, due);
 
-    if (dayDiff == 0) return ('DUE TODAY', _amberWash.$1, _amberWash.$2);
+    if (dayDiff == 0) return ('DUE TODAY', _amberWash.bg, _amberWash.fg);
     if (dayDiff < 7) {
       return (
         'DUE ${_weekdays[due.weekday - 1]}',

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/brand_media.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/evidence_thumb.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/widgets/pill_segment.dart';
 import '../../../core/widgets/sla_pill.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../../core/widgets/photo_capture_field.dart';
@@ -159,11 +159,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 }
 
-/// The sub-2 pill filter treatment (see the dashboard's range control —
-/// private there, so restated rather than imported): active is solid brand
-/// under white, inactive a surface1 chip with a hairline, 11px w600, fully
-/// rounded. The active pill is otherwise colour-only to a screen reader —
-/// `selected` carries the state, `button` makes each chip actionable.
+/// The sub-2 pill filter treatment, rendered via the shared [PillSegment]:
+/// active is solid brand under white, inactive a surface1 chip with a hairline,
+/// 11px w600, fully rounded. Labels carry the per-filter counts.
 class _FilterChips extends StatelessWidget {
   const _FilterChips({
     required this.chips,
@@ -177,47 +175,16 @@ class _FilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       children: [
         for (final chip in chips)
-          Semantics(
-            button: true,
+          PillSegment(
+            key: ValueKey('filter-${chip.value.name}'),
+            label: chip.label,
             selected: chip.value == selected,
-            child: InkWell(
-              key: ValueKey('filter-${chip.value.name}'),
-              onTap: () => onChanged(chip.value),
-              borderRadius: BorderRadius.circular(AppColors.radiusPill),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  // White-on-brand is a self-contained pair: brand is the
-                  // same #0A6CF0 in both themes (4.98:1 under white), so
-                  // neither theme's ink may sit on it.
-                  color: chip.value == selected
-                      ? colors.brand
-                      : colors.surface1,
-                  border: Border.all(
-                    color: chip.value == selected ? colors.brand : colors.line,
-                  ),
-                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
-                ),
-                child: Text(
-                  chip.label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: chip.value == selected ? Colors.white : colors.ink2,
-                  ),
-                ),
-              ),
-            ),
+            onTap: () => onChanged(chip.value),
           ),
       ],
     );
