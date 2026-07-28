@@ -205,6 +205,116 @@ void main() {
       );
       expect(tester.hasRunningAnimations, isFalse);
     });
+
+    testWidgets('without a count-up opt-in the figure is the static string', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const SizedBox(
+            width: 220,
+            child: StatTile(label: 'Share of shelf', value: '34.8%'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('34.8%'), findsOneWidget);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('count-up: the figure sweeps 0 → value, once, then quiet', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          SizedBox(
+            width: 220,
+            child: StatTile(
+              label: 'On-shelf availability',
+              value: '92.1%',
+              countUpValue: 92.1,
+              countUpFormat: (v) => '${v.toStringAsFixed(1)}%',
+            ),
+          ),
+        ),
+      );
+
+      // t≈0: the sweep is at its start, not the final figure.
+      expect(find.text('92.1%'), findsNothing);
+      expect(find.text('0.0%'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(find.text('92.1%'), findsOneWidget);
+      // One-shot: nothing loops, nothing is left running.
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('count-up under reduced motion: final on the first frame', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+
+      await tester.pumpWidget(
+        _wrap(
+          SizedBox(
+            width: 220,
+            child: StatTile(
+              label: 'On-shelf availability',
+              value: '92.1%',
+              countUpValue: 92.1,
+              countUpFormat: (v) => '${v.toStringAsFixed(1)}%',
+            ),
+          ),
+        ),
+      );
+
+      // No sweep at all — the final figure IS the first frame.
+      expect(find.text('92.1%'), findsOneWidget);
+      expect(find.text('0.0%'), findsNothing);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('count-up latches: a rebuild does not replay it', (
+      tester,
+    ) async {
+      final rebuild = ValueNotifier(0);
+      addTearDown(rebuild.dispose);
+
+      await tester.pumpWidget(
+        _wrap(
+          ValueListenableBuilder<int>(
+            valueListenable: rebuild,
+            builder: (context, _, _) => SizedBox(
+              width: 220,
+              child: StatTile(
+                label: 'On-shelf availability',
+                value: '92.1%',
+                countUpValue: 92.1,
+                countUpFormat: (v) => '${v.toStringAsFixed(1)}%',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('92.1%'), findsOneWidget);
+
+      // Rebuild the subtree; the completed sweep must not restart. Zero-duration
+      // pumps: a replayed count-up would sit at 0.0% on an unadvancing clock and
+      // never reach the final figure again.
+      rebuild.value = 1;
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(Duration.zero);
+      }
+      expect(find.text('0.0%'), findsNothing);
+      expect(find.text('92.1%'), findsOneWidget);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
   });
 
   group('OneShotEntrance', () {

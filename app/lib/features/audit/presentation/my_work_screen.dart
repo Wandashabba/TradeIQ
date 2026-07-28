@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/human_error.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
@@ -45,7 +46,7 @@ class MyWorkScreen extends ConsumerWidget {
           child: StatusBanner(
             level: BannerLevel.bad,
             title: 'Could not read your work',
-            subtitle: '$err',
+            subtitle: humanErrorMessage(err),
           ),
         ),
         data: (s) => ListView(

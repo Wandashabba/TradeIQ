@@ -1130,9 +1130,19 @@ class _ScrubReadout extends StatelessWidget {
   }
 }
 
+/// The **chart-scrub-tooltip** delta: an arrow icon + the absolute magnitude +
+/// an optional [suffix] (e.g. a unit), painted in the theme's good/crit colours.
+/// Used only inside the scrub readout ([_ScrubReadout]) to annotate the value
+/// under the caret.
+///
 /// Up is green, down is red — and the sign is spelled out, so the direction
 /// survives greyscale, print, and colour-vision deficiency. Colour reinforces
 /// the sign; it never replaces it.
+///
+/// Do NOT confuse this with [DeltaPill] (`delta_pill.dart`), the status pill
+/// used across the console (▲/▼/– glyph + fixed [DeltaTone] washes, no suffix).
+/// The two are intentionally distinct — a tooltip annotation vs. a status pill —
+/// not a fork waiting to be merged.
 class DeltaBadge extends StatelessWidget {
   const DeltaBadge({
     super.key,

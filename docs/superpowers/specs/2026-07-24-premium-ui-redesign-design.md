@@ -182,9 +182,12 @@ restyle:
 - Bottom bar: active pill slides between tabs; menu sheet springs up, scrim fades.
 - Lists: rows cascade with a short stagger; acknowledging an alert collapses it.
 - Maps: camera easing and one-shot at-store halo (as shipped) + a slow ambient
-  breathing on pin glow (~2% opacity swing — the only looping animation anywhere).
-- Discipline: one-shot entrances; nothing else loops. Perpetual motion on an
-  all-day dashboard becomes noise.
+  breathing on pin glow (~2% opacity swing).
+- Discipline: entrances are one-shot. The only sanctioned loops are two small,
+  transient, reduceMotion-gated signals — the map pin-glow breathing above, and
+  the sync-in-flight PulseDot (`agent_motion.dart`), which breathes *only* while
+  a flush is actually in flight. Nothing loops on an idle, all-day dashboard;
+  perpetual motion there becomes noise.
 
 ## Accessibility and honesty (carried forward, non-negotiable)
 

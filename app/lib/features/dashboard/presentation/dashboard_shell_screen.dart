@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/format/period_label.dart';
 import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
@@ -269,7 +270,8 @@ class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel>
               ),
               data: (points) => LineChart(
                 points: [
-                  for (final p in points) (label: p.period, value: p.value),
+                  for (final p in points)
+                    (label: formatPeriodLabel(p.period), value: p.value),
                 ],
                 target: 75,
                 seriesName: 'Execution score',
@@ -477,6 +479,11 @@ const _kpis = <_Kpi>[
   (label: 'Numeric distribution', read: _numeric, note: 'outlets stocking'),
 ];
 
+/// The one KPI figure format — one decimal, a trailing percent. Shared by the
+/// static string and the count-up so the sweeping number and its final value
+/// are always the same shape.
+String _fmtPct(num v) => '${v.toStringAsFixed(1)}%';
+
 double _osa(DashboardKpis k) => k.osaPct;
 double _perfect(DashboardKpis k) => k.perfectStoreRate;
 double _price(DashboardKpis k) => k.priceCompliancePct;
@@ -550,9 +557,10 @@ class _KpiStripState extends ConsumerState<_KpiStrip>
             for (final k in _kpis)
               (
                 k.label,
-                '${k.read(snap.current).toStringAsFixed(1)}%',
+                _fmtPct(k.read(snap.current)),
                 k.note,
                 snap.of(k.read),
+                k.read(snap.current),
               ),
           ];
 
@@ -574,7 +582,7 @@ class _KpiStripState extends ConsumerState<_KpiStrip>
 
               // Chunk into rows and let each row divide the full width, so a
               // short final row fills instead of leaving a ragged empty cell.
-              final rows = <List<(String, String, String, KpiDelta)>>[];
+              final rows = <List<(String, String, String, KpiDelta, double)>>[];
               for (var i = 0; i < tiles.length; i += columns) {
                 rows.add(tiles.sublist(i, math.min(i + columns, tiles.length)));
               }
@@ -609,6 +617,15 @@ class _KpiStripState extends ConsumerState<_KpiStrip>
                                   label: rows[r][c].$1,
                                   value: rows[r][c].$2,
                                   note: rows[r][c].$3,
+                                  // The figure counts up to its value once, on
+                                  // this first data build — the spec's motion
+                                  // table wants stat-tile numbers to sweep like
+                                  // the hero score. Same `animate` epoch as the
+                                  // pill below, so a reload remounting the tile
+                                  // comes up sweep-free (latched at mount).
+                                  countUpValue: rows[r][c].$5,
+                                  countUpFormat: _fmtPct,
+                                  animateCountUp: animate,
                                   // Measured against the window immediately
                                   // before this one — a second real request, not
                                   // an invented baseline. Null when there is
@@ -752,7 +769,10 @@ class _AvailabilityPanel extends ConsumerWidget {
           onRetry: () => ref.invalidate(availabilityTrendProvider),
         ),
         data: (points) => ColumnChart(
-          points: [for (final p in points) (label: p.period, value: p.value)],
+          points: [
+            for (final p in points)
+              (label: formatPeriodLabel(p.period), value: p.value),
+          ],
           valueSuffix: '%',
           seriesName: 'On-shelf availability',
         ),
@@ -1543,6 +1563,11 @@ String _age(DateTime? at) => at == null ? 'no check-in today' : formatAgo(at);
 // Filters — one row, above everything it scopes
 // ═══════════════════════════════════════════════════════════════════════
 
+/// Sentinel for the "All territories" menu entry. A null [PopupMenuItem] value
+/// would be swallowed as a cancel, so the null filter travels as this token and
+/// is mapped back to `clearTerritory` at selection.
+const _allTerritoriesValue = '__all_territories__';
+
 class _FilterBar extends ConsumerWidget {
   const _FilterBar();
 
@@ -1556,28 +1581,70 @@ class _FilterBar extends ConsumerWidget {
         ref.read(dashboardFilterProvider.notifier).set(next);
 
     final territoryDropdown = territories.maybeWhen(
-      data: (list) => DropdownButton<String?>(
-        key: const ValueKey('filter-territory'),
-        value: filter.territoryId,
-        hint: const Text('All territories'),
-        underline: const SizedBox.shrink(),
-        isDense: true,
-        style: TextStyle(fontSize: 12.5, color: colors.ink1),
-        dropdownColor: colors.surface2,
-        items: [
-          const DropdownMenuItem<String?>(
-            value: null,
-            child: Text('All territories'),
+      data: (list) {
+        // Territories are an arbitrary-length list, so this is a pill-STYLED
+        // menu trigger, not a segmented pill row. It wears the inactive
+        // range-pill look (surface1 + hairline + radiusPill) so it reads as a
+        // control that shares the bar's idiom.
+        var selectedLabel = 'All territories';
+        for (final t in list) {
+          if (t.id == filter.territoryId) {
+            selectedLabel = t.name;
+            break;
+          }
+        }
+        return PopupMenuButton<String>(
+          key: const ValueKey('filter-territory'),
+          // PopupMenuButton treats a null selected value as a cancel, so the
+          // "All territories" option carries a sentinel rather than null; it is
+          // mapped back to clearTerritory below. The provider wiring is
+          // unchanged.
+          initialValue: filter.territoryId ?? _allTerritoriesValue,
+          tooltip: 'Filter by territory',
+          color: colors.surface2,
+          onSelected: (v) => update(
+            v == _allTerritoriesValue
+                ? filter.copyWith(clearTerritory: true)
+                : filter.copyWith(territoryId: v),
           ),
-          for (final t in list)
-            DropdownMenuItem<String?>(value: t.id, child: Text(t.name)),
-        ],
-        onChanged: (v) => update(
-          v == null
-              ? filter.copyWith(clearTerritory: true)
-              : filter.copyWith(territoryId: v),
-        ),
-      ),
+          itemBuilder: (context) => [
+            PopupMenuItem<String>(
+              value: _allTerritoriesValue,
+              child: Text(
+                'All territories',
+                style: TextStyle(fontSize: 12.5, color: colors.ink1),
+              ),
+            ),
+            for (final t in list)
+              PopupMenuItem<String>(
+                value: t.id,
+                child: Text(
+                  t.name,
+                  style: TextStyle(fontSize: 12.5, color: colors.ink1),
+                ),
+              ),
+          ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: colors.surface1,
+              border: Border.all(color: colors.line),
+              borderRadius: BorderRadius.circular(AppColors.radiusPill),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  selectedLabel,
+                  style: TextStyle(fontSize: 12.5, color: colors.ink2),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.expand_more, size: 18, color: colors.ink2),
+              ],
+            ),
+          ),
+        );
+      },
       orElse: () => const SizedBox.shrink(),
     );
 
