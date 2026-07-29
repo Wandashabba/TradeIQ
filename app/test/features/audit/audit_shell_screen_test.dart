@@ -56,7 +56,11 @@ class _FakeOutletsRepository implements OutletsRepository {
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => const [];
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(data: [], nextCursor: null);
 }
 
 class _SucceedingVisitsRepository implements VisitsRepository {

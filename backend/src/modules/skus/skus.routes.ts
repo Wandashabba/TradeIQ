@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
+import { parsePagination } from '../../lib/pagination';
 import { listSkusForClient } from './skus.service';
 
 export const skusRouter = Router();
@@ -11,6 +12,7 @@ skusRouter.get('/', async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'outletId query param is required' });
     return;
   }
-  const skus = await listSkusForClient(req.user!.clientId, outletId);
-  res.status(200).json(skus);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listSkusForClient({ clientId: req.user!.clientId, outletId, limit, cursor });
+  res.status(200).json(page);
 });

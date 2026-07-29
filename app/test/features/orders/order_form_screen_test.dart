@@ -58,28 +58,35 @@ class _FakeOutletsRepository implements OutletsRepository {
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => const [
-        Sku(
-          id: 'sku1',
-          name: 'Cola 500ml',
-          category: 'beverage',
-          minFacingsStandard: 4,
-          rrp: 10.00,
-          daysOutOfStock: 0,
-          velocityAvg: 0,
-          effectivePrice: 8.00,
-        ),
-        Sku(
-          id: 'sku2',
-          name: 'Chips 100g',
-          category: 'snack',
-          minFacingsStandard: 2,
-          rrp: 5.00,
-          daysOutOfStock: 0,
-          velocityAvg: 0,
-          effectivePrice: 4.00,
-        ),
-      ];
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+        data: [
+          Sku(
+            id: 'sku1',
+            name: 'Cola 500ml',
+            category: 'beverage',
+            minFacingsStandard: 4,
+            rrp: 10.00,
+            daysOutOfStock: 0,
+            velocityAvg: 0,
+            effectivePrice: 8.00,
+          ),
+          Sku(
+            id: 'sku2',
+            name: 'Chips 100g',
+            category: 'snack',
+            minFacingsStandard: 2,
+            rrp: 5.00,
+            daysOutOfStock: 0,
+            velocityAvg: 0,
+            effectivePrice: 4.00,
+          ),
+        ],
+        nextCursor: null,
+      );
 }
 
 Widget _app(_RecordingOrdersRepository repo) => ProviderScope(

@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { buildPage } from '../../lib/pagination';
 import { computeDaysOutOfStock, computeVelocityAvg, fetchStockHistoryForOutlet } from '../../services/stock-derived.service';
 
 interface PromoDiscount {
@@ -27,9 +28,27 @@ function computeEffectivePrice(rrp: number, promo: PromoDiscount | undefined): n
   return rrp; // unrecognized discountType -> no discount rather than guessing
 }
 
-export async function listSkusForClient(clientId: string, outletId: string) {
-  const [skus, historyBySku, outlet, activePromos] = await Promise.all([
-    prisma.sku.findMany({ where: { clientId }, orderBy: { name: 'asc' } }),
+export interface ListSkusForClientInput {
+  clientId: string;
+  outletId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listSkusForClient(input: ListSkusForClientInput) {
+  const { clientId, outletId, limit, cursor } = input;
+  const [rows, historyBySku, outlet, activePromos] = await Promise.all([
+    prisma.sku.findMany({
+      where: { clientId },
+      // `id` is the unique tiebreaker that makes the cursor deterministic
+      // when two SKUs share a name — same reasoning as alerts.service.ts.
+      //
+      // COPYING THIS PATTERN: the tiebreaker's direction MUST match the
+      // primary sort's direction (both `asc` here).
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    }),
     fetchStockHistoryForOutlet(outletId, clientId),
     prisma.outlet.findUnique({ where: { id: outletId }, select: { code: true } }),
     // Fetches every active promo for the client, then filters by outlet/SKU scope
@@ -48,10 +67,12 @@ export async function listSkusForClient(clientId: string, outletId: string) {
     }),
   ]);
 
+  const { data: skus, nextCursor } = buildPage(rows, limit);
+
   const outletCode = outlet?.code;
   const asOf = new Date();
 
-  return skus.map((sku) => {
+  const data = skus.map((sku) => {
     const history = historyBySku.get(sku.id) ?? [];
     const promo = outletCode
       ? (activePromos.find(
@@ -67,4 +88,6 @@ export async function listSkusForClient(clientId: string, outletId: string) {
       effectivePrice: computeEffectivePrice(sku.rrp, promo),
     };
   });
+
+  return { data, nextCursor };
 }

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
@@ -14,19 +15,26 @@ class _FakeSkusRepository implements SkusRepository {
   final int count;
 
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => [
-    for (var i = 0; i < count; i++)
-      Sku(
-        id: 's$i',
-        name: 'SKU $i',
-        category: 'c',
-        rrp: 10,
-        minFacingsStandard: 2,
-        daysOutOfStock: 0,
-        velocityAvg: 0,
-        effectivePrice: 10,
-      ),
-  ];
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async => PaginatedResponse(
+    data: [
+      for (var i = 0; i < count; i++)
+        Sku(
+          id: 's$i',
+          name: 'SKU $i',
+          category: 'c',
+          rrp: 10,
+          minFacingsStandard: 2,
+          daysOutOfStock: 0,
+          velocityAvg: 0,
+          effectivePrice: 10,
+        ),
+    ],
+    nextCursor: null,
+  );
 }
 
 Future<void> _enqueue(
