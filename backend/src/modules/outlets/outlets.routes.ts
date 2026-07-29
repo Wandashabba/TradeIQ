@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import { createOutlet, listOutletsForClient } from './outlets.service';
 
 export const outletsRouter = Router();
@@ -16,10 +17,14 @@ outletsRouter.get('/', async (req: AuthedRequest, res) => {
   // see every outlet in the tenant, because being unable to check in at a
   // store you are standing in is a worse failure than a long list.
   const mine = req.query.mine === 'true';
-  const outlets = await listOutletsForClient(req.user!.clientId, {
+  const { limit, cursor } = parsePagination(req);
+  const page = await listOutletsForClient({
+    clientId: req.user!.clientId,
     assignedTo: mine ? req.user!.userId : undefined,
+    limit,
+    cursor,
   });
-  res.status(200).json(outlets);
+  res.status(200).json(page);
 });
 
 outletsRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {

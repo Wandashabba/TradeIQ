@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { ValidationError } from '../../middleware/errorHandler';
+import { buildPage } from '../../lib/pagination';
 
 export interface CreateOutletInput {
   name: string;
@@ -28,13 +29,29 @@ export interface CreateOutletInput {
  * roster is far more likely to mean nobody has set assignments up yet than to
  * mean this agent is meant to visit no outlets at all.
  */
-export async function listOutletsForClient(
-  clientId: string,
-  options: { assignedTo?: string } = {},
-) {
-  const { assignedTo } = options;
+export interface ListOutletsForClientInput {
+  clientId: string;
+  assignedTo?: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listOutletsForClient(input: ListOutletsForClientInput) {
+  const { clientId, assignedTo, limit, cursor } = input;
+  // `id` is the unique tiebreaker that makes the cursor deterministic when
+  // two outlets share a name — same reasoning as alerts.service.ts.
+  //
+  // COPYING THIS PATTERN: the tiebreaker's direction MUST match the primary
+  // sort's direction (both `asc` here).
+  const paging = {
+    orderBy: [{ name: 'asc' as const }, { id: 'asc' as const }],
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+  };
+
   if (!assignedTo) {
-    return prisma.outlet.findMany({ where: { clientId } });
+    const rows = await prisma.outlet.findMany({ where: { clientId }, ...paging });
+    return buildPage(rows, limit);
   }
 
   const assignments = await prisma.userTerritory.findMany({
@@ -48,12 +65,15 @@ export async function listOutletsForClient(
 
   const codes = assignments.map((a) => a.territory.code);
   if (codes.length === 0) {
-    return prisma.outlet.findMany({ where: { clientId } });
+    const rows = await prisma.outlet.findMany({ where: { clientId }, ...paging });
+    return buildPage(rows, limit);
   }
 
-  return prisma.outlet.findMany({
+  const rows = await prisma.outlet.findMany({
     where: { clientId, territoryId: { in: codes } },
+    ...paging,
   });
+  return buildPage(rows, limit);
 }
 
 export async function createOutlet(input: CreateOutletInput) {

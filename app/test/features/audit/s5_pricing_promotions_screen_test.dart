@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
@@ -13,18 +14,25 @@ import 'package:tradeiq_app/features/audit/presentation/sections/s5_pricing_prom
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => const [
-    Sku(
-      id: 's1',
-      name: 'Test Cola',
-      category: 'Beverages',
-      minFacingsStandard: 4,
-      rrp: 19.99,
-      daysOutOfStock: 0,
-      velocityAvg: 0,
-      effectivePrice: 19.99,
-    ),
-  ];
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+    data: [
+      Sku(
+        id: 's1',
+        name: 'Test Cola',
+        category: 'Beverages',
+        minFacingsStandard: 4,
+        rrp: 19.99,
+        daysOutOfStock: 0,
+        velocityAvg: 0,
+        effectivePrice: 19.99,
+      ),
+    ],
+    nextCursor: null,
+  );
 }
 
 class _SpyPricingRepository implements PricingRepository {

@@ -3,34 +3,42 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_review.dart';
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => const [
-    Sku(
-      id: 'sku-1',
-      name: 'Fanta Orange 2L',
-      category: 'CSD',
-      minFacingsStandard: 3,
-      rrp: 24.99,
-      daysOutOfStock: 0,
-      velocityAvg: 0,
-      effectivePrice: 24.99,
-    ),
-    Sku(
-      id: 'sku-2',
-      name: 'Coke Zero 500ml',
-      category: 'CSD',
-      minFacingsStandard: 2,
-      rrp: 12.50,
-      daysOutOfStock: 0,
-      velocityAvg: 0,
-      effectivePrice: 12.50,
-    ),
-  ];
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+    data: [
+      Sku(
+        id: 'sku-1',
+        name: 'Fanta Orange 2L',
+        category: 'CSD',
+        minFacingsStandard: 3,
+        rrp: 24.99,
+        daysOutOfStock: 0,
+        velocityAvg: 0,
+        effectivePrice: 24.99,
+      ),
+      Sku(
+        id: 'sku-2',
+        name: 'Coke Zero 500ml',
+        category: 'CSD',
+        minFacingsStandard: 2,
+        rrp: 12.50,
+        daysOutOfStock: 0,
+        velocityAvg: 0,
+        effectivePrice: 12.50,
+      ),
+    ],
+    nextCursor: null,
+  );
 }
 
 Future<void> _queue(LocalDb db, String type, Map<String, dynamic> payload) =>

@@ -32,10 +32,17 @@ class _RecordingOrdersRepository implements OrdersRepository {
 
 class _FakeOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [
-        Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-        Outlet(id: 'ou2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
-      ];
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+        data: [
+          Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
+          Outlet(id: 'ou2', name: 'Shop Two', code: 'S2', lat: 0, lng: 0),
+        ],
+        nextCursor: null,
+      );
 
   @override
   Future<Outlet> createOutlet({
@@ -51,28 +58,35 @@ class _FakeOutletsRepository implements OutletsRepository {
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => const [
-        Sku(
-          id: 'sku1',
-          name: 'Cola 500ml',
-          category: 'beverage',
-          minFacingsStandard: 4,
-          rrp: 10.00,
-          daysOutOfStock: 0,
-          velocityAvg: 0,
-          effectivePrice: 8.00,
-        ),
-        Sku(
-          id: 'sku2',
-          name: 'Chips 100g',
-          category: 'snack',
-          minFacingsStandard: 2,
-          rrp: 5.00,
-          daysOutOfStock: 0,
-          velocityAvg: 0,
-          effectivePrice: 4.00,
-        ),
-      ];
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+        data: [
+          Sku(
+            id: 'sku1',
+            name: 'Cola 500ml',
+            category: 'beverage',
+            minFacingsStandard: 4,
+            rrp: 10.00,
+            daysOutOfStock: 0,
+            velocityAvg: 0,
+            effectivePrice: 8.00,
+          ),
+          Sku(
+            id: 'sku2',
+            name: 'Chips 100g',
+            category: 'snack',
+            minFacingsStandard: 2,
+            rrp: 5.00,
+            daysOutOfStock: 0,
+            velocityAvg: 0,
+            effectivePrice: 4.00,
+          ),
+        ],
+        nextCursor: null,
+      );
 }
 
 Widget _app(_RecordingOrdersRepository repo) => ProviderScope(

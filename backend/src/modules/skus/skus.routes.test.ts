@@ -54,8 +54,8 @@ describe('skus routes', () => {
   it("lists SKUs for the caller's client", async () => {
     const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].name).toBe('Test Cola 500ml');
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].name).toBe('Test Cola 500ml');
   });
 
   it('rejects requests without a bearer token', async () => {
@@ -76,7 +76,7 @@ describe('skus routes', () => {
     try {
       const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${tokenB}`);
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(0);
+      expect(res.body.data).toHaveLength(0);
     } finally {
       // The cross-tenant token belongs to a real user now, and the FK blocks
       // deleting a client that still has one.
@@ -97,8 +97,8 @@ describe('skus routes', () => {
       .query({ outletId: bogusOutletId })
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
-    expect(res.body.length).toBeGreaterThan(0);
-    expect(res.body.every((s: { daysOutOfStock: number; velocityAvg: number }) => s.daysOutOfStock === 0 && s.velocityAvg === 0)).toBe(
+    expect(res.body.data.length).toBeGreaterThan(0);
+    expect(res.body.data.every((s: { daysOutOfStock: number; velocityAvg: number }) => s.daysOutOfStock === 0 && s.velocityAvg === 0)).toBe(
       true,
     );
   });
@@ -162,7 +162,7 @@ describe('skus routes', () => {
 
     const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
-    const historySku = res.body.find((s: { id: string }) => s.id === sku.id);
+    const historySku = res.body.data.find((s: { id: string }) => s.id === sku.id);
     expect(historySku).toBeDefined();
     expect(historySku.velocityAvg).toBe(4);
     // Days since the most recent in-stock reading (5 days ago), not 0 —
@@ -188,8 +188,8 @@ describe('skus routes', () => {
     try {
       const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
-      expect(res.body.length).toBeGreaterThan(0);
-      for (const sku of res.body) {
+      expect(res.body.data.length).toBeGreaterThan(0);
+      for (const sku of res.body.data) {
         expect(sku.effectivePrice).toBeCloseTo(sku.rrp * 0.8, 2);
       }
     } finally {
@@ -215,8 +215,8 @@ describe('skus routes', () => {
     try {
       const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
-      expect(res.body.length).toBeGreaterThan(0);
-      for (const sku of res.body) {
+      expect(res.body.data.length).toBeGreaterThan(0);
+      for (const sku of res.body.data) {
         expect(sku.effectivePrice).toBe(sku.rrp);
       }
     } finally {
@@ -242,8 +242,8 @@ describe('skus routes', () => {
     try {
       const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
-      expect(res.body.length).toBeGreaterThan(0);
-      for (const sku of res.body) {
+      expect(res.body.data.length).toBeGreaterThan(0);
+      for (const sku of res.body.data) {
         expect(sku.effectivePrice).toBe(sku.rrp);
       }
     } finally {
@@ -274,11 +274,11 @@ describe('skus routes', () => {
       const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
 
-      const cola = res.body.find((s: { name: string }) => s.name === 'Test Cola 500ml');
+      const cola = res.body.data.find((s: { name: string }) => s.name === 'Test Cola 500ml');
       expect(cola).toBeDefined();
       expect(cola.effectivePrice).toBeCloseTo(cola.rrp - 5, 2);
 
-      const cheap = res.body.find((s: { id: string }) => s.id === cheapSku.id);
+      const cheap = res.body.data.find((s: { id: string }) => s.id === cheapSku.id);
       expect(cheap).toBeDefined();
       // discountValue (5) exceeds rrp (3) — the Math.max(0, ...) floor must kick in
       // rather than going negative.
@@ -320,14 +320,14 @@ describe('skus routes', () => {
     try {
       const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
-      expect(res.body.length).toBeGreaterThan(0);
+      expect(res.body.data.length).toBeGreaterThan(0);
 
       // Both promos match every outlet+SKU here; listSkusForClient's
       // `activePromos.find(...)` picks whichever comes first in Prisma's
       // (unordered) result set. This pins that observed behavior down as a
       // regression check rather than leaving the tie-break implicit — it is
       // not a guarantee about which promo "should" win.
-      const discountedPrices = new Set(res.body.map((s: { effectivePrice: number; rrp: number }) => Math.round((1 - s.effectivePrice / s.rrp) * 100)));
+      const discountedPrices = new Set(res.body.data.map((s: { effectivePrice: number; rrp: number }) => Math.round((1 - s.effectivePrice / s.rrp) * 100)));
       expect(discountedPrices.size).toBe(1);
       const appliedDiscountPct = [...discountedPrices][0];
       expect([10, 50]).toContain(appliedDiscountPct);
@@ -363,8 +363,8 @@ describe('skus routes', () => {
       const res = await request(app).get('/skus').query({ outletId }).set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
 
-      const scoped = res.body.find((s: { id: string }) => s.id === scopedSku.id);
-      const other = res.body.find((s: { id: string }) => s.id === otherSku.id);
+      const scoped = res.body.data.find((s: { id: string }) => s.id === scopedSku.id);
+      const other = res.body.data.find((s: { id: string }) => s.id === otherSku.id);
       expect(scoped).toBeDefined();
       expect(other).toBeDefined();
       expect(scoped.effectivePrice).toBeCloseTo(5, 2);
@@ -401,12 +401,149 @@ describe('skus routes', () => {
         .query({ outletId: bogusOutletId })
         .set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
-      expect(res.body.length).toBeGreaterThan(0);
-      for (const sku of res.body) {
+      expect(res.body.data.length).toBeGreaterThan(0);
+      for (const sku of res.body.data) {
         expect(sku.effectivePrice).toBe(sku.rrp);
       }
     } finally {
       await prisma.promoCalendar.delete({ where: { id: promo.id } });
     }
+  });
+
+  describe('GET /skus pagination', () => {
+    const pagedSkuIds: string[] = [];
+    const PAGE_SEED_COUNT = 25;
+
+    beforeAll(async () => {
+      // Distinct, sortable names (zero-padded so lexical order == numeric
+      // order) and enough rows to require three pages at limit=10.
+      for (let i = 0; i < PAGE_SEED_COUNT; i++) {
+        const padded = String(i).padStart(2, '0');
+        const sku = await prisma.sku.create({
+          data: {
+            clientId,
+            name: `zzz-paging-sku-${padded}`,
+            category: 'Beverages',
+            minFacingsStandard: 4,
+            rrp: 9.99,
+          },
+        });
+        pagedSkuIds.push(sku.id);
+      }
+    });
+
+    it('returns an envelope with data and nextCursor, alphabetical by name', async () => {
+      const res = await request(app)
+        .get('/skus')
+        .query({ outletId })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const names = (res.body.data as Array<{ name: string }>)
+        .map((s) => s.name)
+        .filter((n) => n.startsWith('zzz-paging-sku-'));
+      expect(names).toEqual([...names].sort());
+    });
+
+    it('default page size caps the result at 50', async () => {
+      const res = await request(app)
+        .get('/skus')
+        .query({ outletId })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(50);
+    });
+
+    it('honours ?limit=N', async () => {
+      const res = await request(app)
+        .get('/skus')
+        .query({ outletId, limit: 5 })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(5);
+      expect(res.body.nextCursor).not.toBeNull();
+    });
+
+    it.each([['0'], ['abc'], ['-1']])('rejects ?limit=%s with 400', async (limit) => {
+      const res = await request(app)
+        .get('/skus')
+        .query({ outletId, limit })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(400);
+    });
+
+    it('pages through with no gap and no overlap across the seeded set', async () => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let guard = 0;
+
+      do {
+        const res: request.Response = await request(app)
+          .get('/skus')
+          .query({
+            outletId,
+            limit: 10,
+            ...(cursor ? { cursor } : {}),
+          })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.map((s: { id: string }) => s.id));
+        cursor = res.body.nextCursor ?? undefined;
+        guard++;
+      } while (cursor && guard < 20);
+
+      // No overlap: every id appears exactly once across all pages.
+      expect(new Set(seen).size).toBe(seen.length);
+      // No gap: every seeded id was eventually returned somewhere.
+      for (const id of pagedSkuIds) {
+        expect(seen).toContain(id);
+      }
+    });
+
+    it("never returns another client's SKUs even across pages, and that client's own token sees its own", async () => {
+      const otherClient = await prisma.client.create({
+        data: {
+          name: 'Sku Paging Other Client',
+          industry: 'FMCG',
+          scorecardWeights: {},
+          kpiThresholds: {},
+        },
+      });
+      const otherToken = (await userIn(otherClient.id, 'field_agent')).token;
+      const otherSku = await prisma.sku.create({
+        data: {
+          clientId: otherClient.id,
+          name: 'zzz-other-tenant-sku',
+          category: 'Beverages',
+          minFacingsStandard: 4,
+          rrp: 9.99,
+        },
+      });
+
+      try {
+        const res = await request(app)
+          .get('/skus')
+          .query({ outletId, limit: 200 })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(200);
+        const ids = res.body.data.map((s: { id: string }) => s.id);
+        expect(ids).not.toContain(otherSku.id);
+
+        // The other tenant's own token DOES see its SKU — proves the scoping
+        // is per-tenant, not a global filter that happens to exclude it.
+        const otherRes = await request(app)
+          .get('/skus')
+          .query({ outletId })
+          .set('Authorization', `Bearer ${otherToken}`);
+        expect(otherRes.status).toBe(200);
+        const otherIds = otherRes.body.data.map((s: { id: string }) => s.id);
+        expect(otherIds).toContain(otherSku.id);
+      } finally {
+        await prisma.sku.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.user.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.client.delete({ where: { id: otherClient.id } });
+      }
+    });
   });
 });

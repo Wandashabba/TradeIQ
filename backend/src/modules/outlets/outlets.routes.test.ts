@@ -64,8 +64,8 @@ describe('outlets routes', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(listRes.status).toBe(200);
-    expect(listRes.body).toHaveLength(1);
-    expect(listRes.body[0].code).toBe('TH-001');
+    expect(listRes.body.data).toHaveLength(1);
+    expect(listRes.body.data[0].code).toBe('TH-001');
   });
 
   it('creates an outlet with 201 when teamProfile is omitted', async () => {
@@ -304,7 +304,7 @@ describe('outlets routes', () => {
         .set('Authorization', `Bearer ${agent.token}`);
 
       expect(res.status).toBe(200);
-      const names = (res.body as Array<{ name: string }>).map((o) => o.name);
+      const names = (res.body.data as Array<{ name: string }>).map((o) => o.name);
       expect(names).toContain('In My Patch');
       expect(names).not.toContain('Someone Else');
     });
@@ -330,8 +330,8 @@ describe('outlets routes', () => {
         .set('Authorization', `Bearer ${agent.token}`);
 
       // If this returns [] the filter is matching on id.
-      expect((res.body as unknown[]).length).toBeGreaterThan(0);
-      expect((res.body as Array<{ name: string }>).map((o) => o.name)).toContain('Found By Code');
+      expect((res.body.data as unknown[]).length).toBeGreaterThan(0);
+      expect((res.body.data as Array<{ name: string }>).map((o) => o.name)).toContain('Found By Code');
     });
 
     it('falls back to every outlet when the agent has no assignments', async () => {
@@ -345,7 +345,7 @@ describe('outlets routes', () => {
         .set('Authorization', `Bearer ${agent.token}`);
 
       expect(res.status).toBe(200);
-      expect((res.body as unknown[]).length).toBeGreaterThan(0);
+      expect((res.body.data as unknown[]).length).toBeGreaterThan(0);
     });
 
     it('still returns everything without the flag', async () => {
@@ -366,8 +366,8 @@ describe('outlets routes', () => {
         .get('/outlets')
         .set('Authorization', `Bearer ${agent.token}`);
 
-      expect((all.body as unknown[]).length).toBeGreaterThan(
-        (scoped.body as unknown[]).length,
+      expect((all.body.data as unknown[]).length).toBeGreaterThan(
+        (scoped.body.data as unknown[]).length,
       );
     });
   });
@@ -406,7 +406,7 @@ describe('outlets routes', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(listResA.status).toBe(200);
-      expect(listResA.body.some((outlet: { code: string }) => outlet.code === 'CB-001')).toBe(false);
+      expect(listResA.body.data.some((outlet: { code: string }) => outlet.code === 'CB-001')).toBe(false);
     } finally {
       await prisma.outlet.deleteMany({ where: { clientId: clientB.id } });
       await prisma.territory.deleteMany({ where: { clientId: clientB.id } });
@@ -415,5 +415,146 @@ describe('outlets routes', () => {
       await prisma.user.deleteMany({ where: { clientId: clientB.id } });
       await prisma.client.delete({ where: { id: clientB.id } });
     }
+  });
+
+  describe('GET /outlets pagination', () => {
+    const pagedOutletIds: string[] = [];
+    const PAGE_SEED_COUNT = 25;
+
+    beforeAll(async () => {
+      // Distinct, sortable names (zero-padded so lexical order == numeric
+      // order) and enough rows to require three pages at limit=10.
+      for (let i = 0; i < PAGE_SEED_COUNT; i++) {
+        const padded = String(i).padStart(2, '0');
+        const outlet = await prisma.outlet.create({
+          data: {
+            name: `zzz-paging-outlet-${padded}`,
+            code: `OUT-PAGE-${padded}`,
+            channelType: 'convenience',
+            lat: -26.1,
+            lng: 28.0,
+            territoryId: 'territory-1',
+            clientId,
+          },
+        });
+        pagedOutletIds.push(outlet.id);
+      }
+    });
+
+    it('returns an envelope with data and nextCursor, alphabetical by name', async () => {
+      const res = await request(app)
+        .get('/outlets')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const names = (res.body.data as Array<{ name: string }>)
+        .map((o) => o.name)
+        .filter((n) => n.startsWith('zzz-paging-outlet-'));
+      expect(names).toEqual([...names].sort());
+    });
+
+    it('default page size caps the result at 50', async () => {
+      const res = await request(app)
+        .get('/outlets')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(50);
+    });
+
+    it('honours ?limit=N', async () => {
+      const res = await request(app)
+        .get('/outlets')
+        .query({ limit: 5 })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(5);
+      expect(res.body.nextCursor).not.toBeNull();
+    });
+
+    it.each([['0'], ['abc'], ['-1']])('rejects ?limit=%s with 400', async (limit) => {
+      const res = await request(app)
+        .get('/outlets')
+        .query({ limit })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(400);
+    });
+
+    it('pages through with no gap and no overlap across the seeded set', async () => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let guard = 0;
+
+      do {
+        const res: request.Response = await request(app)
+          .get('/outlets')
+          .query({
+            limit: 10,
+            ...(cursor ? { cursor } : {}),
+          })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.map((o: { id: string }) => o.id));
+        cursor = res.body.nextCursor ?? undefined;
+        guard++;
+      } while (cursor && guard < 20);
+
+      // No overlap: every id appears exactly once across all pages.
+      expect(new Set(seen).size).toBe(seen.length);
+      // No gap: every seeded id was eventually returned somewhere.
+      for (const id of pagedOutletIds) {
+        expect(seen).toContain(id);
+      }
+    });
+
+    it("never returns another client's outlets even across pages, and that client's own token sees its own", async () => {
+      const otherClient = await prisma.client.create({
+        data: {
+          name: 'Paging Other Client',
+          industry: 'FMCG',
+          scorecardWeights: {},
+          kpiThresholds: {},
+        },
+      });
+      const otherToken = (await userIn(otherClient.id, 'manager')).token;
+      await prisma.territory.create({
+        data: { clientId: otherClient.id, name: 'Other Territory', code: 'other-territory' },
+      });
+      const otherOutlet = await prisma.outlet.create({
+        data: {
+          name: 'zzz-other-tenant-outlet',
+          code: 'OUT-OTHER-PAGE',
+          channelType: 'convenience',
+          lat: -26.1,
+          lng: 28.0,
+          territoryId: 'other-territory',
+          clientId: otherClient.id,
+        },
+      });
+
+      try {
+        const res = await request(app)
+          .get('/outlets')
+          .query({ limit: 200 })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(200);
+        const ids = res.body.data.map((o: { id: string }) => o.id);
+        expect(ids).not.toContain(otherOutlet.id);
+
+        // The other tenant's own token DOES see its outlet — proves the
+        // scoping is per-tenant, not a global filter that happens to exclude it.
+        const otherRes = await request(app)
+          .get('/outlets')
+          .set('Authorization', `Bearer ${otherToken}`);
+        expect(otherRes.status).toBe(200);
+        const otherIds = otherRes.body.data.map((o: { id: string }) => o.id);
+        expect(otherIds).toContain(otherOutlet.id);
+      } finally {
+        await prisma.outlet.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.territory.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.user.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.client.delete({ where: { id: otherClient.id } });
+      }
+    });
   });
 });

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
@@ -14,18 +15,25 @@ import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 
 class _FakeSkusRepository implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => const [
-    Sku(
-      id: 's1',
-      name: 'Test Cola',
-      category: 'Beverages',
-      minFacingsStandard: 4,
-      rrp: 19.99,
-      daysOutOfStock: 0,
-      velocityAvg: 4.2,
-      effectivePrice: 19.99,
-    ),
-  ];
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+    data: [
+      Sku(
+        id: 's1',
+        name: 'Test Cola',
+        category: 'Beverages',
+        minFacingsStandard: 4,
+        rrp: 19.99,
+        daysOutOfStock: 0,
+        velocityAvg: 4.2,
+        effectivePrice: 19.99,
+      ),
+    ],
+    nextCursor: null,
+  );
 }
 
 /// A SKU with exactly one prior in-stock reading: `daysOutOfStock` only needs
@@ -34,18 +42,25 @@ class _FakeSkusRepository implements SkusRepository {
 /// contradiction.
 class _FakeSkusRepositoryNoHistory implements SkusRepository {
   @override
-  Future<List<Sku>> listSkus({required String outletId}) async => const [
-    Sku(
-      id: 's1',
-      name: 'Test Cola',
-      category: 'Beverages',
-      minFacingsStandard: 4,
-      rrp: 19.99,
-      daysOutOfStock: 5,
-      velocityAvg: 0,
-      effectivePrice: 19.99,
-    ),
-  ];
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+    data: [
+      Sku(
+        id: 's1',
+        name: 'Test Cola',
+        category: 'Beverages',
+        minFacingsStandard: 4,
+        rrp: 19.99,
+        daysOutOfStock: 5,
+        velocityAvg: 0,
+        effectivePrice: 19.99,
+      ),
+    ],
+    nextCursor: null,
+  );
 }
 
 class _SpyStockRepository implements StockRepository {

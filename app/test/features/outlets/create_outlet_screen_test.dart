@@ -42,7 +42,11 @@ class _RecordingOutletsRepository implements OutletsRepository {
   String? sentTerritoryId;
 
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [];
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<Outlet> createOutlet({

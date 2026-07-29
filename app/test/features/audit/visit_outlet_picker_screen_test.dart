@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/network/human_error.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
@@ -19,34 +20,41 @@ class ScopeAwareOutletsRepository implements OutletsRepository {
   final List<bool> calls = [];
 
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async {
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async {
     calls.add(mine);
-    return mine
-        ? const [
-            Outlet(
-              id: 'o1',
-              name: 'My Store',
-              code: 'MS-1',
-              lat: -26.1,
-              lng: 28.0,
-            ),
-          ]
-        : const [
-            Outlet(
-              id: 'o1',
-              name: 'My Store',
-              code: 'MS-1',
-              lat: -26.1,
-              lng: 28.0,
-            ),
-            Outlet(
-              id: 'o2',
-              name: 'Other Store',
-              code: 'OS-1',
-              lat: -26.2,
-              lng: 28.1,
-            ),
-          ];
+    return PaginatedResponse(
+      data: mine
+          ? const [
+              Outlet(
+                id: 'o1',
+                name: 'My Store',
+                code: 'MS-1',
+                lat: -26.1,
+                lng: 28.0,
+              ),
+            ]
+          : const [
+              Outlet(
+                id: 'o1',
+                name: 'My Store',
+                code: 'MS-1',
+                lat: -26.1,
+                lng: 28.0,
+              ),
+              Outlet(
+                id: 'o2',
+                name: 'Other Store',
+                code: 'OS-1',
+                lat: -26.2,
+                lng: 28.1,
+              ),
+            ],
+      nextCursor: null,
+    );
   }
 
   @override
@@ -68,7 +76,11 @@ class FailingOutletsRepository implements OutletsRepository {
   final Object error;
 
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async => throw error;
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => throw error;
 
   @override
   Future<Outlet> createOutlet({
@@ -83,15 +95,22 @@ class FailingOutletsRepository implements OutletsRepository {
 
 class FakeOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [
-    Outlet(
-      id: 'o1',
-      name: 'Test Outlet',
-      code: 'TO-001',
-      lat: -26.2041,
-      lng: 28.0473,
-    ),
-  ];
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+    data: [
+      Outlet(
+        id: 'o1',
+        name: 'Test Outlet',
+        code: 'TO-001',
+        lat: -26.2041,
+        lng: 28.0473,
+      ),
+    ],
+    nextCursor: null,
+  );
 
   @override
   Future<Outlet> createOutlet({

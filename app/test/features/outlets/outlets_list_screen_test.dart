@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/outlets/presentation/outlets_list_screen.dart';
 
@@ -7,18 +8,25 @@ import '../../helpers/routed_app.dart';
 
 class FakeOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [
-        Outlet(
-          id: 'o1',
-          name: 'Test Hypermarket',
-          code: 'TH-001',
-          lat: -26.2041,
-          lng: 28.0473,
-        ),
-        // An outlet at 0,0 has no usable coordinates — it cannot be geofenced,
-        // so a visit to it cannot be verified. The list has to say so.
-        Outlet(id: 'o2', name: 'Unplaced Spaza', code: 'US-002', lat: 0, lng: 0),
-      ];
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+        data: [
+          Outlet(
+            id: 'o1',
+            name: 'Test Hypermarket',
+            code: 'TH-001',
+            lat: -26.2041,
+            lng: 28.0473,
+          ),
+          // An outlet at 0,0 has no usable coordinates — it cannot be geofenced,
+          // so a visit to it cannot be verified. The list has to say so.
+          Outlet(id: 'o2', name: 'Unplaced Spaza', code: 'US-002', lat: 0, lng: 0),
+        ],
+        nextCursor: null,
+      );
 
   @override
   Future<Outlet> createOutlet({
