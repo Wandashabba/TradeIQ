@@ -89,7 +89,7 @@ describe('collaboration routes', () => {
   it("includes the direct message in the recipient's GET /messages", async () => {
     const res = await request(app).get('/messages').set('Authorization', `Bearer ${agentBToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.map((m: { id: string }) => m.id)).toContain(directMessageId);
+    expect(res.body.data.map((m: { id: string }) => m.id)).toContain(directMessageId);
   });
 
   it('makes a broadcast (null recipient) visible to both sender and other users', async () => {
@@ -102,9 +102,9 @@ describe('collaboration routes', () => {
     const broadcastId: string = created.body.id;
 
     const forA = await request(app).get('/messages').set('Authorization', `Bearer ${agentAToken}`);
-    expect(forA.body.map((m: { id: string }) => m.id)).toContain(broadcastId);
+    expect(forA.body.data.map((m: { id: string }) => m.id)).toContain(broadcastId);
     const forB = await request(app).get('/messages').set('Authorization', `Bearer ${agentBToken}`);
-    expect(forB.body.map((m: { id: string }) => m.id)).toContain(broadcastId);
+    expect(forB.body.data.map((m: { id: string }) => m.id)).toContain(broadcastId);
   });
 
   it('rejects an empty message body with 400', async () => {
@@ -153,7 +153,7 @@ describe('collaboration routes', () => {
   it("lets agents see the client's announcements via GET /announcements", async () => {
     const res = await request(app).get('/announcements').set('Authorization', `Bearer ${agentAToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.map((a: { title: string }) => a.title)).toContain('Weekly focus');
+    expect(res.body.data.map((a: { title: string }) => a.title)).toContain('Weekly focus');
   });
 
   it('rejects an announcement missing its body with 400', async () => {
@@ -182,16 +182,204 @@ describe('collaboration routes', () => {
 
   it("does not leak another client's messages or announcements", async () => {
     const messages = await request(app).get('/messages').set('Authorization', `Bearer ${agentAToken}`);
-    expect(messages.body.map((m: { id: string }) => m.id)).not.toContain(otherMessageId);
+    expect(messages.body.data.map((m: { id: string }) => m.id)).not.toContain(otherMessageId);
 
     const announcements = await request(app)
       .get('/announcements')
       .set('Authorization', `Bearer ${agentAToken}`);
-    expect(announcements.body.map((a: { id: string }) => a.id)).not.toContain(otherAnnouncementId);
+    expect(announcements.body.data.map((a: { id: string }) => a.id)).not.toContain(otherAnnouncementId);
 
     // And the other tenant never sees this client's data.
     const otherMessages = await request(app).get('/messages').set('Authorization', `Bearer ${otherToken}`);
-    expect(otherMessages.body.map((m: { id: string }) => m.id)).toContain(otherMessageId);
-    expect(otherMessages.body.map((m: { id: string }) => m.id)).not.toContain(directMessageId);
+    expect(otherMessages.body.data.map((m: { id: string }) => m.id)).toContain(otherMessageId);
+    expect(otherMessages.body.data.map((m: { id: string }) => m.id)).not.toContain(directMessageId);
+  });
+
+  describe('GET /messages pagination', () => {
+    const pagedMessageIds: string[] = [];
+    const PAGE_SEED_COUNT = 25;
+
+    beforeAll(async () => {
+      // Distinct createdAt per row so ordering is unambiguous, plus enough
+      // rows to require three pages at limit=10. Sorted newest-first, so the
+      // LAST created row (index PAGE_SEED_COUNT - 1) comes back FIRST.
+      for (let i = 0; i < PAGE_SEED_COUNT; i++) {
+        const message = await prisma.message.create({
+          data: {
+            clientId,
+            senderId: agentAId,
+            body: `paging-message-${i}`,
+            createdAt: new Date(Date.UTC(2027, 0, 1, 0, 0, i)),
+          },
+        });
+        pagedMessageIds.push(message.id);
+      }
+    });
+
+    it('default page size caps the result at 50', async () => {
+      const res = await request(app)
+        .get('/messages')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(50);
+    });
+
+    it('honours ?limit=N, newest first', async () => {
+      const res = await request(app)
+        .get('/messages')
+        .query({ limit: 5 })
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(5);
+      expect(res.body.nextCursor).not.toBeNull();
+      const bodies = (res.body.data as Array<{ body: string }>).map((m) => m.body);
+      // The last-seeded paging message (index 24) has the latest createdAt.
+      expect(bodies[0]).toBe('paging-message-24');
+    });
+
+    it.each([['0'], ['abc'], ['-1']])('rejects ?limit=%s with 400', async (limit) => {
+      const res = await request(app)
+        .get('/messages')
+        .query({ limit })
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(400);
+    });
+
+    it('pages through with no gap and no overlap across the seeded set', async () => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let guard = 0;
+
+      do {
+        const res: request.Response = await request(app)
+          .get('/messages')
+          .query({
+            limit: 10,
+            ...(cursor ? { cursor } : {}),
+          })
+          .set('Authorization', `Bearer ${agentAToken}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.map((m: { id: string }) => m.id));
+        cursor = res.body.nextCursor ?? undefined;
+        guard++;
+      } while (cursor && guard < 20);
+
+      // No overlap: every id appears exactly once across all pages.
+      const pagedSeen = seen.filter((id) => pagedMessageIds.includes(id));
+      expect(new Set(pagedSeen).size).toBe(pagedSeen.length);
+      // No gap: every seeded id was eventually returned somewhere.
+      for (const id of pagedMessageIds) {
+        expect(seen).toContain(id);
+      }
+    });
+
+    it("never returns another client's messages even across pages, and that client's own token sees its own", async () => {
+      const res = await request(app)
+        .get('/messages')
+        .query({ limit: 200 })
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((m: { id: string }) => m.id);
+      expect(ids).not.toContain(otherMessageId);
+
+      const otherRes = await request(app)
+        .get('/messages')
+        .set('Authorization', `Bearer ${otherToken}`);
+      expect(otherRes.status).toBe(200);
+      const otherIds = otherRes.body.data.map((m: { id: string }) => m.id);
+      expect(otherIds).toContain(otherMessageId);
+    });
+  });
+
+  describe('GET /announcements pagination', () => {
+    const pagedAnnouncementIds: string[] = [];
+    const PAGE_SEED_COUNT = 25;
+
+    beforeAll(async () => {
+      for (let i = 0; i < PAGE_SEED_COUNT; i++) {
+        const announcement = await prisma.announcement.create({
+          data: {
+            clientId,
+            authorId: agentAId,
+            title: `paging-announcement-${i}`,
+            body: 'body',
+            createdAt: new Date(Date.UTC(2027, 0, 1, 0, 0, i)),
+          },
+        });
+        pagedAnnouncementIds.push(announcement.id);
+      }
+    });
+
+    it('default page size caps the result at 50', async () => {
+      const res = await request(app)
+        .get('/announcements')
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(50);
+    });
+
+    it('honours ?limit=N, newest first', async () => {
+      const res = await request(app)
+        .get('/announcements')
+        .query({ limit: 5 })
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(5);
+      expect(res.body.nextCursor).not.toBeNull();
+      const titles = (res.body.data as Array<{ title: string }>).map((a) => a.title);
+      // The last-seeded paging announcement (index 24) has the latest createdAt.
+      expect(titles[0]).toBe('paging-announcement-24');
+    });
+
+    it.each([['0'], ['abc'], ['-1']])('rejects ?limit=%s with 400', async (limit) => {
+      const res = await request(app)
+        .get('/announcements')
+        .query({ limit })
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(400);
+    });
+
+    it('pages through with no gap and no overlap across the seeded set', async () => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let guard = 0;
+
+      do {
+        const res: request.Response = await request(app)
+          .get('/announcements')
+          .query({
+            limit: 10,
+            ...(cursor ? { cursor } : {}),
+          })
+          .set('Authorization', `Bearer ${agentAToken}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.map((a: { id: string }) => a.id));
+        cursor = res.body.nextCursor ?? undefined;
+        guard++;
+      } while (cursor && guard < 20);
+
+      const pagedSeen = seen.filter((id) => pagedAnnouncementIds.includes(id));
+      expect(new Set(pagedSeen).size).toBe(pagedSeen.length);
+      for (const id of pagedAnnouncementIds) {
+        expect(seen).toContain(id);
+      }
+    });
+
+    it("never returns another client's announcements even across pages, and that client's own token sees its own", async () => {
+      const res = await request(app)
+        .get('/announcements')
+        .query({ limit: 200 })
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((a: { id: string }) => a.id);
+      expect(ids).not.toContain(otherAnnouncementId);
+
+      const otherRes = await request(app)
+        .get('/announcements')
+        .set('Authorization', `Bearer ${otherToken}`);
+      expect(otherRes.status).toBe(200);
+      const otherIds = otherRes.body.data.map((a: { id: string }) => a.id);
+      expect(otherIds).toContain(otherAnnouncementId);
+    });
   });
 });

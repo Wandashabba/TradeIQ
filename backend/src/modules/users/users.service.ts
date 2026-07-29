@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { buildPage } from '../../lib/pagination';
 import { hashPassword } from '../auth/auth.service';
 
 export type Role = 'field_agent' | 'manager' | 'admin';
@@ -41,12 +42,29 @@ export async function createUser(input: CreateUserInput) {
   });
 }
 
-export function listUsersForClient(clientId: string) {
-  return prisma.user.findMany({
-    where: { clientId },
+export interface ListUsersForClientInput {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function listUsersForClient(input: ListUsersForClientInput) {
+  const rows = await prisma.user.findMany({
+    where: { clientId: input.clientId },
     select: safeUserSelect,
-    orderBy: { email: 'asc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic
+    // (Email is globally unique — see issue #188 — but two users sharing a
+    // client never share an email, so this tiebreaker is belt-and-braces
+    // rather than strictly required. It still must match the primary sort's
+    // direction, same reasoning as alerts.service.ts.)
+    //
+    // COPYING THIS PATTERN: the tiebreaker's direction MUST match the primary
+    // sort's direction (both `asc` here).
+    orderBy: [{ email: 'asc' }, { id: 'asc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+  return buildPage(rows, input.limit);
 }
 
 export interface UpdateUserInput {

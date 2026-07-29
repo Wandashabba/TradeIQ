@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/territories/presentation/territory_form_screen.dart';
 
@@ -8,7 +9,8 @@ class _RecordingTerritoriesRepository implements TerritoriesRepository {
   Map<String, dynamic>? createdArgs;
 
   @override
-  Future<List<Territory>> listTerritories() async => const [];
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>

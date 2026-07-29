@@ -199,7 +199,8 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
   final List<Territory> territories;
 
   @override
-  Future<List<Territory>> listTerritories() async => territories;
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      PaginatedResponse(data: territories, nextCursor: null);
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>
@@ -238,11 +239,11 @@ class _FakeTasksRepository implements TasksAdminRepository {
   final List<TaskItem> tasks;
 
   @override
-  Future<List<TaskItem>> listTasks({
+  Future<PaginatedResponse<TaskItem>> listTasks({
     String? status,
     String? priority,
     String? outletId,
-  }) async => tasks;
+  }) async => PaginatedResponse(data: tasks, nextCursor: null);
 
   @override
   Future<TaskItem> closeTask({

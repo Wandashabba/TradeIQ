@@ -105,7 +105,7 @@ describe('templates routes', () => {
       .get('/templates')
       .set('Authorization', `Bearer ${agentToken}`);
     expect(defaultRes.status).toBe(200);
-    const defaultIds = (defaultRes.body as Array<{ id: string }>).map((t) => t.id);
+    const defaultIds = (defaultRes.body.data as Array<{ id: string }>).map((t) => t.id);
     expect(defaultIds).toContain(active.id);
     expect(defaultIds).not.toContain(inactive.id);
 
@@ -113,7 +113,7 @@ describe('templates routes', () => {
       .get('/templates?includeInactive=true')
       .set('Authorization', `Bearer ${managerToken}`);
     expect(allRes.status).toBe(200);
-    const allIds = (allRes.body as Array<{ id: string }>).map((t) => t.id);
+    const allIds = (allRes.body.data as Array<{ id: string }>).map((t) => t.id);
     expect(allIds).toContain(active.id);
     expect(allIds).toContain(inactive.id);
   });
@@ -214,7 +214,7 @@ describe('templates routes', () => {
     const listRes = await request(app)
       .get('/templates')
       .set('Authorization', `Bearer ${agentToken}`);
-    const ids = (listRes.body as Array<{ id: string }>).map((t) => t.id);
+    const ids = (listRes.body.data as Array<{ id: string }>).map((t) => t.id);
     expect(ids).not.toContain(template.id);
   });
 
@@ -227,5 +227,125 @@ describe('templates routes', () => {
       .set('Authorization', `Bearer ${agentToken}`)
       .send({ name: 'TMPL-Nope' });
     expect(res.status).toBe(403);
+  });
+
+  describe('GET /templates pagination', () => {
+    const pagedTemplateIds: string[] = [];
+    const PAGE_SEED_COUNT = 25;
+
+    beforeAll(async () => {
+      // Distinct, sortable names (zero-padded so lexical order == numeric
+      // order) and enough rows to require three pages at limit=10.
+      for (let i = 0; i < PAGE_SEED_COUNT; i++) {
+        const padded = String(i).padStart(2, '0');
+        const template = await prisma.auditTemplate.create({
+          data: { clientId, name: `zzz-paging-template-${padded}`, schema: sampleSchema },
+        });
+        pagedTemplateIds.push(template.id);
+      }
+    });
+
+    it('returns an envelope with data and nextCursor, alphabetical by name', async () => {
+      const res = await request(app)
+        .get('/templates')
+        .query({ includeInactive: 'true' })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const names = (res.body.data as Array<{ name: string }>)
+        .map((t) => t.name)
+        .filter((n) => n.startsWith('zzz-paging-template-'));
+      expect(names).toEqual([...names].sort());
+    });
+
+    it('default page size caps the result at 50', async () => {
+      const res = await request(app)
+        .get('/templates')
+        .query({ includeInactive: 'true' })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(50);
+    });
+
+    it('honours ?limit=N', async () => {
+      const res = await request(app)
+        .get('/templates')
+        .query({ includeInactive: 'true', limit: 5 })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(5);
+      expect(res.body.nextCursor).not.toBeNull();
+    });
+
+    it.each([['0'], ['abc'], ['-1']])('rejects ?limit=%s with 400', async (limit) => {
+      const res = await request(app)
+        .get('/templates')
+        .query({ includeInactive: 'true', limit })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
+
+    it('pages through with no gap and no overlap across the seeded set', async () => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let guard = 0;
+
+      do {
+        const res: request.Response = await request(app)
+          .get('/templates')
+          .query({
+            includeInactive: 'true',
+            limit: 10,
+            ...(cursor ? { cursor } : {}),
+          })
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.map((t: { id: string }) => t.id));
+        cursor = res.body.nextCursor ?? undefined;
+        guard++;
+      } while (cursor && guard < 20);
+
+      // No overlap: every id appears exactly once across all pages.
+      expect(new Set(seen).size).toBe(seen.length);
+      // No gap: every seeded id was eventually returned somewhere.
+      for (const id of pagedTemplateIds) {
+        expect(seen).toContain(id);
+      }
+    });
+
+    it("never returns another client's templates even across pages", async () => {
+      const otherClient = await prisma.client.create({
+        data: { name: 'TMPL-Paging Other Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+      });
+      const otherToken = (await userIn(otherClient.id, 'manager')).token;
+      const otherTemplate = await prisma.auditTemplate.create({
+        data: { clientId: otherClient.id, name: 'zzz-other-tenant-template', schema: sampleSchema },
+      });
+
+      try {
+        const res = await request(app)
+          .get('/templates')
+          .query({ includeInactive: 'true', limit: 200 })
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(200);
+        const ids = res.body.data.map((t: { id: string }) => t.id);
+        expect(ids).not.toContain(otherTemplate.id);
+
+        // The other tenant's own token DOES see its template — proves the
+        // scoping is per-tenant, not a global filter that happens to exclude it.
+        const otherRes = await request(app)
+          .get('/templates')
+          .query({ includeInactive: 'true' })
+          .set('Authorization', `Bearer ${otherToken}`);
+        expect(otherRes.status).toBe(200);
+        const otherIds = otherRes.body.data.map((t: { id: string }) => t.id);
+        expect(otherIds).toEqual([otherTemplate.id]);
+      } finally {
+        await prisma.auditTemplate.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.user.deleteMany({ where: { clientId: otherClient.id } });
+        await prisma.client.delete({ where: { id: otherClient.id } });
+      }
+    });
   });
 });

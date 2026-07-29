@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import {
   createTemplate,
   getTemplate,
@@ -45,8 +46,14 @@ templatesRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedReq
 
 templatesRouter.get('/', async (req: AuthedRequest, res) => {
   const includeInactive = req.query.includeInactive === 'true';
-  const templates = await listTemplatesForClient(req.user!.clientId, includeInactive);
-  res.status(200).json(templates);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listTemplatesForClient({
+    clientId: req.user!.clientId,
+    includeInactive,
+    limit,
+    cursor,
+  });
+  res.status(200).json(page);
 });
 
 templatesRouter.get('/:id', async (req: AuthedRequest, res) => {

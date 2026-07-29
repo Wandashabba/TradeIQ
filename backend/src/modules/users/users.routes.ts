@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import { createUser, listUsersForClient, Role, updateUser } from './users.service';
 
 const ROLES = ['field_agent', 'manager', 'admin'] as const;
@@ -45,8 +46,9 @@ usersRouter.post('/', requireRole('admin'), async (req: AuthedRequest, res) => {
 });
 
 usersRouter.get('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
-  const users = await listUsersForClient(req.user!.clientId);
-  res.status(200).json(users);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listUsersForClient({ clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
 
 usersRouter.patch('/:id', requireRole('admin'), async (req: AuthedRequest, res) => {

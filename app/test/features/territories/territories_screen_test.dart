@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/territories/presentation/territories_screen.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
@@ -25,7 +26,8 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
   String? assignedUserId;
 
   @override
-  Future<List<Territory>> listTerritories() async => const [_north, _south];
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      const PaginatedResponse(data: [_north, _south], nextCursor: null);
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async => const TerritoryCoverage(
@@ -53,7 +55,7 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
 
 class _FailingTerritoriesRepository implements TerritoriesRepository {
   @override
-  Future<List<Territory>> listTerritories() async => throw Exception('boom');
+  Future<PaginatedResponse<Territory>> listTerritories() async => throw Exception('boom');
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>
@@ -74,9 +76,12 @@ class _FailingTerritoriesRepository implements TerritoriesRepository {
 
 class _FakeUsersRepository implements UsersRepository {
   @override
-  Future<List<AppUser>> listUsers() async => const [
-        AppUser(id: 'a1', email: 'agent@x.com', role: 'field_agent', active: true),
-      ];
+  Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
+        data: [
+          AppUser(id: 'a1', email: 'agent@x.com', role: 'field_agent', active: true),
+        ],
+        nextCursor: null,
+      );
 
   @override
   Future<AppUser> createUser({

@@ -44,10 +44,13 @@ class _RecordingBeatPlansRepository implements BeatPlansRepository {
 
 class _FakeUsersRepository implements UsersRepository {
   @override
-  Future<List<AppUser>> listUsers() async => const [
-        AppUser(id: 'a1', email: 'agent-one@x.com', role: 'field_agent', active: true),
-        AppUser(id: 'm1', email: 'manager@x.com', role: 'manager', active: true),
-      ];
+  Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
+        data: [
+          AppUser(id: 'a1', email: 'agent-one@x.com', role: 'field_agent', active: true),
+          AppUser(id: 'm1', email: 'manager@x.com', role: 'manager', active: true),
+        ],
+        nextCursor: null,
+      );
 
   @override
   Future<AppUser> createUser({
@@ -64,9 +67,11 @@ class _FakeUsersRepository implements UsersRepository {
 
 class _FakeTerritoriesRepository implements TerritoriesRepository {
   @override
-  Future<List<Territory>> listTerritories() async => const [
-        Territory(id: 't1', name: 'Gauteng North', code: 'GN'),
-      ];
+  Future<PaginatedResponse<Territory>> listTerritories() async =>
+      const PaginatedResponse(
+        data: [Territory(id: 't1', name: 'Gauteng North', code: 'GN')],
+        nextCursor: null,
+      );
 
   @override
   Future<TerritoryCoverage> getCoverage(String id) async =>

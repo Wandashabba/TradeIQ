@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/widgets/evidence_thumb.dart';
 import 'package:tradeiq_app/core/widgets/sla_pill.dart';
 import 'package:tradeiq_app/core/widgets/worklist.dart';
@@ -80,11 +81,11 @@ class _FakeTasksAdminRepository implements TasksAdminRepository {
   String? verifiedId;
 
   @override
-  Future<List<TaskItem>> listTasks({
+  Future<PaginatedResponse<TaskItem>> listTasks({
     String? status,
     String? priority,
     String? outletId,
-  }) async => tasks;
+  }) async => PaginatedResponse(data: tasks, nextCursor: null);
 
   @override
   Future<TaskItem> closeTask({

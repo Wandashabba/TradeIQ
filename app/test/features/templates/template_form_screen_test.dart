@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 import 'package:tradeiq_app/features/templates/presentation/template_form_screen.dart';
 
@@ -26,7 +27,8 @@ const _detail = AuditTemplateDetail(
 
 class _FakeTemplatesRepository implements TemplatesRepository {
   @override
-  Future<List<AuditTemplate>> listTemplates() async => const [];
+  Future<PaginatedResponse<AuditTemplate>> listTemplates() async =>
+      const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<AuditTemplateDetail> fetchTemplate(String id) async => _detail;
@@ -34,7 +36,8 @@ class _FakeTemplatesRepository implements TemplatesRepository {
 
 class _FailingTemplatesRepository implements TemplatesRepository {
   @override
-  Future<List<AuditTemplate>> listTemplates() async => const [];
+  Future<PaginatedResponse<AuditTemplate>> listTemplates() async =>
+      const PaginatedResponse(data: [], nextCursor: null);
 
   @override
   Future<AuditTemplateDetail> fetchTemplate(String id) async =>

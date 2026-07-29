@@ -10,6 +10,7 @@ describe('territories routes', () => {
   let managerId: string;
   let agentId: string;
   let otherAgentId: string;
+  let otherManagerToken: string;
   let managerToken: string;
   let agentToken: string;
 
@@ -45,6 +46,16 @@ describe('territories routes', () => {
       },
     });
     otherAgentId = otherAgent.id;
+
+    const otherManager = await prisma.user.create({
+      data: {
+        email: 'TERR-other-manager@example.com',
+        passwordHash: 'x',
+        role: 'manager',
+        clientId: otherClient.id,
+      },
+    });
+    otherManagerToken = issueToken({ userId: otherManager.id, role: 'manager', clientId: otherClientId });
   });
 
   afterAll(async () => {
@@ -109,8 +120,8 @@ describe('territories routes', () => {
       .get('/territories')
       .set('Authorization', `Bearer ${managerToken}`);
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    const names = (res.body as Array<{ name: string }>).map((t) => t.name);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    const names = (res.body.data as Array<{ name: string }>).map((t) => t.name);
     expect(names).toContain('TERR-North');
     expect(names).toContain('TERR-Alpha');
     // ordered by name asc
@@ -530,5 +541,111 @@ describe('territories routes', () => {
       expect(err).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
       expect((err as Prisma.PrismaClientKnownRequestError).code).toBe('P2002');
     }
+  });
+
+  describe('GET /territories pagination', () => {
+    const pagedTerritoryIds: string[] = [];
+    const PAGE_SEED_COUNT = 25;
+
+    beforeAll(async () => {
+      // Distinct, sortable names (zero-padded so lexical order == numeric
+      // order) and enough rows to require three pages at limit=10.
+      for (let i = 0; i < PAGE_SEED_COUNT; i++) {
+        const padded = String(i).padStart(2, '0');
+        const territory = await prisma.territory.create({
+          data: { clientId, name: `zzz-paging-territory-${padded}`, code: `TERR-PAGE-${padded}` },
+        });
+        pagedTerritoryIds.push(territory.id);
+      }
+    });
+
+    it('returns an envelope with data and nextCursor, alphabetical by name', async () => {
+      const res = await request(app)
+        .get('/territories')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('nextCursor');
+      const names = (res.body.data as Array<{ name: string }>)
+        .map((t) => t.name)
+        .filter((n) => n.startsWith('zzz-paging-territory-'));
+      expect(names).toEqual([...names].sort());
+    });
+
+    it('default page size caps the result at 50', async () => {
+      const res = await request(app)
+        .get('/territories')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(50);
+    });
+
+    it('honours ?limit=N', async () => {
+      const res = await request(app)
+        .get('/territories')
+        .query({ limit: 5 })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(5);
+      expect(res.body.nextCursor).not.toBeNull();
+    });
+
+    it.each([['0'], ['abc'], ['-1']])('rejects ?limit=%s with 400', async (limit) => {
+      const res = await request(app)
+        .get('/territories')
+        .query({ limit })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(400);
+    });
+
+    it('pages through with no gap and no overlap across the seeded set', async () => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let guard = 0;
+
+      do {
+        const res: request.Response = await request(app)
+          .get('/territories')
+          .query({
+            limit: 10,
+            ...(cursor ? { cursor } : {}),
+          })
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(200);
+        seen.push(...res.body.data.map((t: { id: string }) => t.id));
+        cursor = res.body.nextCursor ?? undefined;
+        guard++;
+      } while (cursor && guard < 20);
+
+      // No overlap: every id appears exactly once across all pages.
+      expect(new Set(seen).size).toBe(seen.length);
+      // No gap: every seeded id was eventually returned somewhere.
+      for (const id of pagedTerritoryIds) {
+        expect(seen).toContain(id);
+      }
+    });
+
+    it("never returns another client's territories even across pages, and that client's own token sees its own", async () => {
+      const otherTerritory = await prisma.territory.create({
+        data: { clientId: otherClientId, name: 'zzz-other-tenant-territory', code: 'TERR-OTHER-PAGE' },
+      });
+
+      const res = await request(app)
+        .get('/territories')
+        .query({ limit: 200 })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((t: { id: string }) => t.id);
+      expect(ids).not.toContain(otherTerritory.id);
+
+      // The other tenant's own token DOES see its territory — proves the
+      // scoping is per-tenant, not a global filter that happens to exclude it.
+      const otherRes = await request(app)
+        .get('/territories')
+        .set('Authorization', `Bearer ${otherManagerToken}`);
+      expect(otherRes.status).toBe(200);
+      const otherIds = otherRes.body.data.map((t: { id: string }) => t.id);
+      expect(otherIds).toContain(otherTerritory.id);
+    });
   });
 });

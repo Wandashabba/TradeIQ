@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { parseIsoInstant } from '../../lib/parseIsoInstant';
+import { parsePagination } from '../../lib/pagination';
 import {
   assignAgentToTerritory,
   createTerritory,
@@ -51,8 +52,9 @@ territoriesRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedR
 // (`POST /outlets`, `POST /beatplans`), so an agent reaching either could only
 // ever be refused on submit.
 territoriesRouter.get('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
-  const territories = await listTerritoriesForClient(req.user!.clientId);
-  res.status(200).json(territories);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listTerritoriesForClient({ clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
 
 territoriesRouter.post('/:id/agents', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
