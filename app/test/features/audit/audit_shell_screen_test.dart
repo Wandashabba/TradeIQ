@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
@@ -25,15 +26,22 @@ import '../../helpers/routed_app.dart';
 
 class _FakeOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [
-    Outlet(
-      id: 'o1',
-      name: 'Test Outlet',
-      code: 'TO-001',
-      lat: -26.2041,
-      lng: 28.0473,
-    ),
-  ];
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+    data: [
+      Outlet(
+        id: 'o1',
+        name: 'Test Outlet',
+        code: 'TO-001',
+        lat: -26.2041,
+        lng: 28.0473,
+      ),
+    ],
+    nextCursor: null,
+  );
 
   @override
   Future<Outlet> createOutlet({

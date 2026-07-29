@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 class Outlet {
   const Outlet({
@@ -36,7 +37,14 @@ abstract class OutletsRepository {
   /// When [mine] is true the backend narrows the list to the caller's assigned
   /// territories. It is a filter, not a permission: the same call without it
   /// still returns every outlet in the tenant.
-  Future<List<Outlet>> listOutlets({bool mine = false});
+  ///
+  /// One page of GET /outlets. [limit]/[cursor] mirror the backend's
+  /// `?limit=&cursor=` — see `PaginatedResponse`.
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  });
   Future<Outlet> createOutlet({
     required String name,
     required String code,
@@ -47,16 +55,32 @@ abstract class OutletsRepository {
   });
 }
 
+/// The highest `?limit=` the backend's `parsePagination` accepts (see
+/// `backend/src/lib/pagination.ts`'s `MAX_LIMIT`). `_fetchAllOutlets` below
+/// requests pages at this size purely to minimise round trips over a field
+/// agent's connection — the backend still enforces its own cap regardless of
+/// what is asked for.
+const _maxPageSize = 200;
+
 class DioOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async {
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async {
     final response = await dio.get(
       '/outlets',
-      queryParameters: mine ? const {'mine': 'true'} : null,
+      queryParameters: {
+        if (mine) 'mine': 'true',
+        'limit': ?limit?.toString(),
+        'cursor': ?cursor,
+      },
     );
-    return (response.data as List)
-        .map((json) => Outlet.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return PaginatedResponse<Outlet>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => Outlet.fromJson(e as Map<String, dynamic>),
+    );
   }
 
   @override
@@ -82,8 +106,43 @@ class DioOutletsRepository implements OutletsRepository {
 
 final outletsRepositoryProvider = Provider<OutletsRepository>((ref) => DioOutletsRepository());
 
+/// Walks every page of GET /outlets and concatenates them.
+///
+/// Outlets are reference data an agent finds by identity, not an activity
+/// feed a "most recent 50" view suits: the check-in screen looks an outlet up
+/// by id (`audit_shell_screen.dart`), `today_route.dart` resolves a beat
+/// plan's stops the same way, every outlet-picking form (campaigns, orders,
+/// reports, beat plans, dispatch) renders the set as a dropdown/checklist a
+/// user must find a specific store in, and the dashboard map plots the whole
+/// tenant as a base layer under the agent pins. Capping any of those at the
+/// first page is not the "screen shows the most recent N" tradeoff the rest
+/// of the pagination sweep makes deliberately — it is silent data loss: an
+/// outlet past page 1 becomes impossible to check into, route to, pick, or
+/// plot. So — unlike the sweep's other list providers, which expose the
+/// repository's first page as-is — this one pages through the whole set
+/// itself. The backend request is still bounded per call (the OOM concern
+/// pagination#141 exists to fix); only the app-side reassembly is unbounded,
+/// and only where completeness is a correctness requirement, not a UX nicety.
+Future<List<Outlet>> _fetchAllOutlets(
+  OutletsRepository repo, {
+  required bool mine,
+}) async {
+  final outlets = <Outlet>[];
+  String? cursor;
+  do {
+    final page = await repo.listOutlets(
+      mine: mine,
+      limit: _maxPageSize,
+      cursor: cursor,
+    );
+    outlets.addAll(page.data);
+    cursor = page.nextCursor;
+  } while (cursor != null);
+  return outlets;
+}
+
 final outletsListProvider = FutureProvider<List<Outlet>>((ref) {
-  return ref.read(outletsRepositoryProvider).listOutlets();
+  return _fetchAllOutlets(ref.read(outletsRepositoryProvider), mine: false);
 });
 
 /// Whether the agent's picker is currently narrowed to their own territories.
@@ -112,5 +171,5 @@ final onlyMyTerritoriesProvider =
 /// would strand them somewhere they cannot fix it from.
 final assignedOutletsProvider = FutureProvider<List<Outlet>>((ref) {
   final mine = ref.watch(onlyMyTerritoriesProvider);
-  return ref.read(outletsRepositoryProvider).listOutlets(mine: mine);
+  return _fetchAllOutlets(ref.read(outletsRepositoryProvider), mine: mine);
 });

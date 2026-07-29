@@ -32,9 +32,16 @@ class _RecordingReportsRepository implements ReportsRepository {
 
 class _FakeOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [
-        Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
-      ];
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+        data: [
+          Outlet(id: 'ou1', name: 'Shop One', code: 'S1', lat: 0, lng: 0),
+        ],
+        nextCursor: null,
+      );
 
   @override
   Future<Outlet> createOutlet({

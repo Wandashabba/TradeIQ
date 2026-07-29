@@ -24,15 +24,22 @@ class _FixedSessionController extends SessionController {
 
 class _FakeOutletsRepository implements OutletsRepository {
   @override
-  Future<List<Outlet>> listOutlets({bool mine = false}) async => const [
-    Outlet(
-      id: 'o1',
-      name: 'Test Outlet',
-      code: 'TO-001',
-      lat: -26.2041,
-      lng: 28.0473,
-    ),
-  ];
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse(
+    data: [
+      Outlet(
+        id: 'o1',
+        name: 'Test Outlet',
+        code: 'TO-001',
+        lat: -26.2041,
+        lng: 28.0473,
+      ),
+    ],
+    nextCursor: null,
+  );
 
   @override
   Future<Outlet> createOutlet({
