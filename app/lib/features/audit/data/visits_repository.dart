@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/geo/geofence.dart';
 import '../../../core/location/location_service.dart';
+import '../../../core/network/human_error.dart';
 import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_service.dart';
 
@@ -26,6 +28,19 @@ class CheckInLocationUnavailable extends CheckInResult {
   final String message;
 }
 
+/// The check-in could not be started for a reason that is not the agent's
+/// fault and not about where they are standing — the local database refusing
+/// to open, a plugin channel error, a bug.
+///
+/// It exists so that "this failed" is a *result* the screen must handle rather
+/// than an exception it can forget to catch. The distinction matters: an
+/// uncaught failure here renders as the locating radar, which tells the agent
+/// the app is still trying when it has already given up.
+class CheckInFailed extends CheckInResult {
+  CheckInFailed(this.message);
+  final String message;
+}
+
 abstract class VisitsRepository {
   Future<CheckInResult> checkIn({
     required String outletId,
@@ -43,11 +58,24 @@ class DriftVisitsRepository implements VisitsRepository {
     required this.db,
     required this.locationService,
     required this.syncService,
+    this.flushTimeout = _defaultFlushTimeout,
   });
 
   final LocalDb db;
   final LocationService locationService;
   final SyncService syncService;
+
+  /// How long a check-in or submit will wait for the outbox to drain before
+  /// carrying on without it.
+  ///
+  /// The flush is already best-effort — the work is on disk and queued before
+  /// it starts. What this bounds is the *waiting*: `flushPending` walks the
+  /// whole queue one item at a time, so a backlog serialises Dio's per-request
+  /// timeouts and the agent stands at the door of the shop watching a spinner
+  /// for something that was never theirs to wait for.
+  final Duration flushTimeout;
+
+  static const _defaultFlushTimeout = Duration(seconds: 10);
 
   static const _uuid = Uuid();
 
@@ -57,21 +85,40 @@ class DriftVisitsRepository implements VisitsRepository {
     required double outletLat,
     required double outletLng,
   }) async {
-    final locationResult = await locationService.getCurrentPosition();
+    try {
+      final locationResult = await locationService.getCurrentPosition();
 
-    return switch (locationResult) {
-      LocationDenied() => CheckInLocationUnavailable(
-        'Location permission denied',
-      ),
-      LocationError(:final message) => CheckInLocationUnavailable(message),
-      LocationGranted(:final lat, :final lng) => await _checkInAt(
-        outletId,
-        outletLat,
-        outletLng,
-        lat,
-        lng,
-      ),
-    };
+      return switch (locationResult) {
+        LocationDenied() => CheckInLocationUnavailable(
+          'Location permission denied',
+        ),
+        LocationError(:final message) => CheckInLocationUnavailable(message),
+        LocationGranted(:final lat, :final lng) => await _checkInAt(
+          outletId,
+          outletLat,
+          outletLng,
+          lat,
+          lng,
+        ),
+      };
+    } catch (error, stack) {
+      // The agent gets the app's one voice; the detail goes to the log, which
+      // is where a database-open failure or a channel error is actually
+      // diagnosable. Returning rather than rethrowing is the point — see
+      // [CheckInFailed].
+      debugPrint('Check-in failed for outlet $outletId: $error\n$stack');
+      return CheckInFailed(humanErrorMessage(error));
+    }
+  }
+
+  /// Drains the outbox without letting it become something the agent waits on.
+  Future<void> _flushBestEffort() async {
+    try {
+      await syncService.flushPending().timeout(flushTimeout);
+    } catch (_) {
+      // Best-effort: the work is already saved locally and queued, so a failed
+      // or slow flush just means it stays queued for the next attempt.
+    }
   }
 
   Future<CheckInResult> _checkInAt(
@@ -117,12 +164,7 @@ class DriftVisitsRepository implements VisitsRepository {
       );
     });
 
-    try {
-      await syncService.flushPending();
-    } catch (_) {
-      // Best-effort: the visit is already saved locally and queued; a
-      // failed flush just means it stays queued for the next attempt.
-    }
+    await _flushBestEffort();
 
     return CheckInSucceeded(id);
   }
@@ -159,11 +201,7 @@ class DriftVisitsRepository implements VisitsRepository {
       );
     });
 
-    try {
-      await syncService.flushPending();
-    } catch (_) {
-      // Best-effort: submission is recorded locally and queued for sync.
-    }
+    await _flushBestEffort();
   }
 }
 

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,6 +27,14 @@ class _ThrowingFlusher implements QueueFlusher {
   Future<void> flush(SyncQueueItem item) async {
     throw Exception('network error');
   }
+}
+
+/// A send that neither succeeds nor fails — a half-open socket, or a captive
+/// portal swallowing the request. Dio's timeouts bound one call; a queue with
+/// a backlog of them serialises those bounds.
+class _HangingFlusher implements QueueFlusher {
+  @override
+  Future<void> flush(SyncQueueItem item) => Completer<void>().future;
 }
 
 void main() {
@@ -182,4 +192,64 @@ void main() {
       expect(items.where((i) => i.entityType == 'visit_submit'), hasLength(1));
     },
   );
+
+  test('a flush that never returns does not hold the agent at the door', () async {
+    final repository = DriftVisitsRepository(
+      db: db,
+      locationService: _FakeLocationService(
+        LocationGranted(-26.20400, 28.0473),
+      ),
+      syncService: SyncService(db: db, flusher: _HangingFlusher()),
+      flushTimeout: const Duration(milliseconds: 20),
+    );
+
+    // The visit is already on disk by the time the flush starts; making the
+    // agent wait for the network to answer before the visit opens is exactly
+    // the spinner this bounds. The outer timeout is what fails the test
+    // rather than hanging it if the bound is missing.
+    final result = await repository
+        .checkIn(
+          outletId: 'outlet-1',
+          outletLat: -26.2041,
+          outletLng: 28.0473,
+        )
+        .timeout(const Duration(seconds: 5));
+
+    expect(result, isA<CheckInSucceeded>());
+    final drafts = await db.select(db.visitDrafts).get();
+    expect(drafts, hasLength(1));
+  });
+
+  test('a local write that throws surfaces as CheckInFailed, not an exception', () async {
+    // A database whose file cannot be opened at all. This is the class of
+    // failure the check-in screen used to swallow: the future threw, the
+    // post-frame callback that awaited it had no catch, and the agent was
+    // left on the locating radar with no error and no way forward.
+    final unopenable = LocalDb(
+      NativeDatabase(File('/nonexistent-directory/tradeiq_local.sqlite')),
+    );
+    addTearDown(() async {
+      try {
+        await unopenable.close();
+      } catch (_) {
+        // It never opened; closing it is allowed to fail.
+      }
+    });
+
+    final repository = DriftVisitsRepository(
+      db: unopenable,
+      locationService: _FakeLocationService(
+        LocationGranted(-26.20400, 28.0473),
+      ),
+      syncService: SyncService(db: unopenable, flusher: _NoopFlusher()),
+    );
+
+    final result = await repository.checkIn(
+      outletId: 'outlet-1',
+      outletLat: -26.2041,
+      outletLng: 28.0473,
+    );
+
+    expect(result, isA<CheckInFailed>());
+  });
 }
