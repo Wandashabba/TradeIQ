@@ -62,6 +62,15 @@ abstract class OutletsRepository {
 /// what is asked for.
 const _maxPageSize = 200;
 
+/// A hard page cap on the fetch-all loops below.
+///
+/// Not paranoia: those loops trust the server's cursor to terminate, and this
+/// whole sweep exists because unbounded reads kill processes. An unbounded
+/// client loop is the same bug wearing different clothes. 50 pages × 200 is
+/// 10,000 outlets — far beyond any real tenant — so reaching it means the
+/// server is misbehaving, and failing loudly beats hanging silently.
+const _maxFetchAllPages = 50;
+
 class DioOutletsRepository implements OutletsRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
@@ -129,16 +138,31 @@ Future<List<Outlet>> _fetchAllOutlets(
 }) async {
   final outlets = <Outlet>[];
   String? cursor;
-  do {
-    final page = await repo.listOutlets(
+
+  for (var page = 0; page < _maxFetchAllPages; page += 1) {
+    final result = await repo.listOutlets(
       mine: mine,
       limit: _maxPageSize,
       cursor: cursor,
     );
-    outlets.addAll(page.data);
-    cursor = page.nextCursor;
-  } while (cursor != null);
-  return outlets;
+    outlets.addAll(result.data);
+
+    final next = result.nextCursor;
+    if (next == null) return outlets;
+    // A cursor that does not advance means the server is wrong — a stale id
+    // whose `skip: 1` re-yields the same page would otherwise spin here
+    // forever, accumulating rows until the app dies.
+    if (next == cursor) {
+      throw StateError('Outlet paging stalled: the server repeated cursor "$next".');
+    }
+    cursor = next;
+  }
+
+  throw StateError(
+    'Outlet paging exceeded $_maxFetchAllPages pages of $_maxPageSize. '
+    'Either this tenant is far larger than the design anticipated, or the '
+    'server is returning an endless cursor.',
+  );
 }
 
 final outletsListProvider = FutureProvider<List<Outlet>>((ref) {

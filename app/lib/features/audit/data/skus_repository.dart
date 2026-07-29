@@ -51,6 +51,15 @@ abstract class SkusRepository {
 /// what is asked for.
 const _maxPageSize = 200;
 
+/// A hard page cap on the fetch-all loop below.
+///
+/// Not paranoia: the loop trusts the server's cursor to terminate, and this
+/// whole sweep exists because unbounded reads kill processes. An unbounded
+/// client loop is the same bug wearing different clothes. 50 pages × 200 is
+/// 10,000 SKUs — far beyond any real catalog — so reaching it means the server
+/// is misbehaving, and failing loudly beats hanging silently.
+const _maxFetchAllPages = 50;
+
 class DioSkusRepository implements SkusRepository {
   @override
   Future<PaginatedResponse<Sku>> listSkus({
@@ -93,16 +102,31 @@ final skusRepositoryProvider = Provider<SkusRepository>(
 Future<List<Sku>> _fetchAllSkus(SkusRepository repo, String outletId) async {
   final skus = <Sku>[];
   String? cursor;
-  do {
-    final page = await repo.listSkus(
+
+  for (var page = 0; page < _maxFetchAllPages; page += 1) {
+    final result = await repo.listSkus(
       outletId: outletId,
       limit: _maxPageSize,
       cursor: cursor,
     );
-    skus.addAll(page.data);
-    cursor = page.nextCursor;
-  } while (cursor != null);
-  return skus;
+    skus.addAll(result.data);
+
+    final next = result.nextCursor;
+    if (next == null) return skus;
+    // A cursor that does not advance means the server is wrong — a stale id
+    // whose `skip: 1` re-yields the same page would otherwise spin here
+    // forever, accumulating rows until the app dies.
+    if (next == cursor) {
+      throw StateError('SKU paging stalled: the server repeated cursor "$next".');
+    }
+    cursor = next;
+  }
+
+  throw StateError(
+    'SKU paging exceeded $_maxFetchAllPages pages of $_maxPageSize. '
+    'Either this catalog is far larger than the design anticipated, or the '
+    'server is returning an endless cursor.',
+  );
 }
 
 final skusListProvider = FutureProvider.family<List<Sku>, String>(

@@ -62,6 +62,37 @@ class _FakeSkusRepository implements SkusRepository {
   }
 }
 
+/// Always hands back the SAME cursor — a server bug (or a stale id whose
+/// `skip: 1` re-yields its own page). Without a guard, `_fetchAllSkus` would
+/// spin on this forever, accumulating rows until the app died.
+class _StalledCursorSkusRepository implements SkusRepository {
+  int calls = 0;
+
+  @override
+  Future<PaginatedResponse<Sku>> listSkus({
+    required String outletId,
+    int? limit,
+    String? cursor,
+  }) async {
+    calls += 1;
+    return const PaginatedResponse(
+      data: [
+        Sku(
+          id: 's1',
+          name: 'Cola',
+          category: 'Beverages',
+          minFacingsStandard: 4,
+          rrp: 10,
+          daysOutOfStock: 0,
+          velocityAvg: 0,
+          effectivePrice: 10,
+        ),
+      ],
+      nextCursor: 'stuck',
+    );
+  }
+}
+
 /// Returns two pages then stops, so a test can prove `skusListProvider`
 /// walks the cursor rather than stopping at page 1 like every other list
 /// provider in the sweep — see the divergence documented on
@@ -149,6 +180,28 @@ void main() {
       expect(fake.cursorsSeen, [null, 's1']);
     },
   );
+
+  // This sweep exists because unbounded reads kill processes. An unbounded
+  // CLIENT loop is the same bug wearing different clothes, so the fetch-all
+  // providers must not trust the server's cursor to terminate.
+  test('skusListProvider fails loudly on a cursor that never advances', () async {
+    final fake = _StalledCursorSkusRepository();
+    final container = ProviderContainer(
+      overrides: [skusRepositoryProvider.overrideWithValue(fake)],
+    );
+    addTearDown(container.dispose);
+
+    await expectLater(
+      container.read(skusListProvider('outlet-1').future),
+      throwsA(
+        isA<StateError>().having((e) => e.message, 'message', contains('stalled')),
+      ),
+    );
+
+    // Caught on the second call — the first cannot know the cursor is stuck,
+    // the second can. It must not keep going.
+    expect(fake.calls, 2);
+  });
 
   test('Sku.fromJson parses numeric fields', () {
     final sku = Sku.fromJson({

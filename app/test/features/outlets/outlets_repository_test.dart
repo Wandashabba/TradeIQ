@@ -71,6 +71,36 @@ class _TwoPageOutletsRepository implements OutletsRepository {
   }) => throw UnimplementedError();
 }
 
+/// Always hands back the SAME cursor — a server bug (or a stale id whose
+/// `skip: 1` re-yields its own page). Without a guard, `_fetchAllOutlets`
+/// would spin on this forever, accumulating rows until the app died.
+class _StalledCursorOutletsRepository implements OutletsRepository {
+  int calls = 0;
+
+  @override
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async {
+    calls += 1;
+    return const PaginatedResponse(
+      data: [Outlet(id: 'o1', name: 'Shop One', code: 'S1', lat: 0, lng: 0)],
+      nextCursor: 'stuck',
+    );
+  }
+
+  @override
+  Future<Outlet> createOutlet({
+    required String name,
+    required String code,
+    required String channelType,
+    required double lat,
+    required double lng,
+    required String territoryId,
+  }) => throw UnimplementedError();
+}
+
 void main() {
   group('DioOutletsRepository.listOutlets', () {
     late HttpClientAdapter originalAdapter;
@@ -154,6 +184,33 @@ void main() {
         expect(repo.calls.every((c) => c.limit == 200), isTrue);
       },
     );
+
+    // This sweep exists because unbounded reads kill processes. An unbounded
+    // CLIENT loop is the same bug wearing different clothes, so the fetch-all
+    // providers must not trust the server's cursor to terminate.
+    test('outletsListProvider fails loudly on a cursor that never advances',
+        () async {
+      final repo = _StalledCursorOutletsRepository();
+      final container = ProviderContainer(
+        overrides: [outletsRepositoryProvider.overrideWithValue(repo)],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container.read(outletsListProvider.future),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('stalled'),
+          ),
+        ),
+      );
+
+      // Caught on the second call — the first cannot know the cursor is stuck,
+      // the second can. It must not keep going.
+      expect(repo.calls, 2);
+    });
 
     test('assignedOutletsProvider forwards mine through every page it walks',
         () async {
