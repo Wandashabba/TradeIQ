@@ -102,6 +102,24 @@ class _LocationUnavailableVisitsRepository implements VisitsRepository {
   Future<void> submitVisit(String visitDraftId) async {}
 }
 
+/// A check-in that throws rather than returning a [CheckInResult].
+///
+/// The screen used to await this with no catch, so the failure went to the
+/// console and the agent was left on the locating radar with no error and no
+/// way out. Anything the repository cannot anticipate — a local database that
+/// will not open, a plugin channel error — arrives here.
+class _ThrowingVisitsRepository implements VisitsRepository {
+  @override
+  Future<CheckInResult> checkIn({
+    required String outletId,
+    required double outletLat,
+    required double outletLng,
+  }) async => throw StateError('local database unavailable');
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
+}
+
 // The S10 scorecard section computes from the local DB on build, so the
 // shell tests need a real (in-memory) LocalDb behind the provider.
 /// Nothing captured — the state a visit starts in, so submit is blocked.
@@ -250,6 +268,22 @@ void main() {
 
     expect(find.text('Location permission denied'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
+  });
+
+  testWidgets('a thrown check-in ends on a failure screen, not the radar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWith(_ThrowingVisitsRepository(), _testDb()),
+    );
+    await tester.pumpAndSettle();
+
+    // The radar is the "we are still looking for you" state. Staying on it
+    // after a failure is the bug: it says the app is working when it has
+    // already given up.
+    expect(find.text('Finding you…'), findsNothing);
+    expect(find.text('Could not start the visit'), findsOneWidget);
+    expect(find.byKey(const ValueKey('checkin-retry')), findsOneWidget);
   });
 
   testWidgets('tapping logout clears the session', (tester) async {

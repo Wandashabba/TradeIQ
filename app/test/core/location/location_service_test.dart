@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:tradeiq_app/core/location/geolocator_gateway.dart';
@@ -60,7 +62,76 @@ class _ThrowingPermissionGateway implements GeolocatorGateway {
   Future<Position> getCurrentPosition() async => throw UnimplementedError();
 }
 
+/// A gateway that answers permission questions but never delivers a fix.
+///
+/// This is not hypothetical: on macOS and on a phone indoors, CoreLocation
+/// and the Android fused provider can both accept the request and then simply
+/// never call back. Geolocator only bounds that if it is given a time limit.
+class _NeverFixesGateway implements GeolocatorGateway {
+  @override
+  Future<LocationPermission> checkPermission() async =>
+      LocationPermission.whileInUse;
+
+  @override
+  Future<LocationPermission> requestPermission() async =>
+      LocationPermission.whileInUse;
+
+  @override
+  Future<bool> isLocationServiceEnabled() async => true;
+
+  @override
+  Future<Position> getCurrentPosition() => Completer<Position>().future;
+}
+
+/// A gateway whose permission request never returns — the macOS failure mode
+/// where the authorization status stays `notDetermined`, so geolocator's
+/// delegate callback never fires.
+class _NeverAnswersPermissionGateway implements GeolocatorGateway {
+  @override
+  Future<LocationPermission> checkPermission() async =>
+      LocationPermission.denied;
+
+  @override
+  Future<LocationPermission> requestPermission() =>
+      Completer<LocationPermission>().future;
+
+  @override
+  Future<bool> isLocationServiceEnabled() async => true;
+
+  @override
+  Future<Position> getCurrentPosition() async => throw UnimplementedError();
+}
+
 void main() {
+  test('returns LocationError instead of hanging when the fix never arrives', () async {
+    final service = LocationService(
+      gateway: _NeverFixesGateway(),
+      fixTimeout: const Duration(milliseconds: 20),
+    );
+
+    // The outer timeout is the assertion's teeth: without a bound inside the
+    // service this future never completes and the test hangs rather than fails.
+    final result = await service.getCurrentPosition().timeout(
+      const Duration(seconds: 5),
+    );
+
+    expect(result, isA<LocationError>());
+    expect((result as LocationError).message, contains('location'));
+  });
+
+  test('returns LocationError instead of hanging when the permission request never returns', () async {
+    final service = LocationService(
+      gateway: _NeverAnswersPermissionGateway(),
+      permissionTimeout: const Duration(milliseconds: 20),
+    );
+
+    final result = await service.getCurrentPosition().timeout(
+      const Duration(seconds: 5),
+    );
+
+    expect(result, isA<LocationError>());
+  });
+
   test('returns LocationGranted with the device coordinates when permission is already granted', () async {
     final service = LocationService(
       gateway: _FakeGateway(

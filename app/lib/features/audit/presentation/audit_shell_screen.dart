@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
@@ -47,13 +48,24 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   String? _visitDraftId;
 
   Future<void> _startCheckIn(double outletLat, double outletLng) async {
-    final result = await ref
-        .read(visitsRepositoryProvider)
-        .checkIn(
-          outletId: widget.outletId,
-          outletLat: outletLat,
-          outletLng: outletLng,
-        );
+    // The repository is written not to throw, but this is the one place where
+    // a throw is invisible: it happens inside a post-frame callback, so it
+    // goes to the console and the screen simply stays on the locating radar —
+    // "still looking for you" long after the app has stopped looking. The
+    // catch is what guarantees this screen always leaves the loading state.
+    CheckInResult result;
+    try {
+      result = await ref
+          .read(visitsRepositoryProvider)
+          .checkIn(
+            outletId: widget.outletId,
+            outletLat: outletLat,
+            outletLng: outletLng,
+          );
+    } catch (error, stack) {
+      debugPrint('Check-in threw for outlet ${widget.outletId}: $error\n$stack');
+      result = CheckInFailed(humanErrorMessage(error));
+    }
     if (!mounted) return;
     setState(() {
       _checkInResult = result;
@@ -190,6 +202,14 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
             }),
           ),
           CheckInLocationUnavailable(:final message) => _NoLocation(
+            outlet: outlet,
+            message: message,
+            onRetry: () => setState(() {
+              _checkInStarted = false;
+              _checkInResult = null;
+            }),
+          ),
+          CheckInFailed(:final message) => _CheckInFailed(
             outlet: outlet,
             message: message,
             onRetry: () => setState(() {
@@ -814,6 +834,83 @@ class _NoLocation extends StatelessWidget {
               message,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13.5, color: colors.ink2, height: 1.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The visit could not be started, for a reason that is not about location.
+///
+/// Distinct from [_NoLocation] on purpose: telling an agent to move or to
+/// check their GPS when the real fault is a database that will not open sends
+/// them walking around the car park for nothing. This screen says the app
+/// failed, not that they did.
+class _CheckInFailed extends StatelessWidget {
+  const _CheckInFailed({
+    required this.outlet,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final Outlet outlet;
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return AgentScaffold(
+      title: outlet.name,
+      subtitle: outlet.code,
+      showSyncChip: false,
+      bottomAction: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AgentButton(
+            key: const ValueKey('checkin-retry'),
+            label: 'Try again',
+            onPressed: onRetry,
+          ),
+          const SizedBox(height: 8),
+          AgentButton(
+            label: 'Back to route',
+            secondary: true,
+            onPressed: () => context.go('/audit'),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 52, color: colors.crit),
+            const SizedBox(height: 20),
+            Text(
+              'Could not start the visit',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: colors.ink1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13.5, color: colors.ink2, height: 1.5),
+            ),
+            const SizedBox(height: 18),
+            // Nothing was captured yet, so nothing can have been lost. Saying
+            // so is the difference between retrying and giving up on the shop.
+            Text(
+              'Nothing has been lost — the visit had not started yet.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.5),
             ),
           ],
         ),
