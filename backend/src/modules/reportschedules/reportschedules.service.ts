@@ -1,5 +1,6 @@
 import { Prisma, ReportSchedule } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { findReportForClient, generateReport } from '../reports/reports.service';
 
@@ -37,12 +38,20 @@ export async function createSchedule(input: CreateScheduleInput): Promise<Report
   });
 }
 
-export async function listSchedules(clientId: string) {
-  return prisma.reportSchedule.findMany({
-    where: { clientId },
+export async function listSchedules(input: {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}) {
+  const rows = await prisma.reportSchedule.findMany({
+    where: { clientId: input.clientId },
     include: { reportDefinition: { select: { name: true } } },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+
+  return buildPage(rows, input.limit);
 }
 
 export async function findScheduleForClient(id: string, clientId: string): Promise<ReportSchedule> {

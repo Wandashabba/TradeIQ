@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { getVisitFraud, listAttempts, listFlagged } from './fraud.service';
+import { parsePagination } from '../../lib/pagination';
 
 const DEFAULT_MIN_SCORE = 50;
 
@@ -49,13 +50,16 @@ fraudRouter.get('/attempts', async (req: AuthedRequest, res) => {
     }
   }
 
-  const attempts = await listAttempts({
+  const { limit, cursor } = parsePagination(req);
+  const page = await listAttempts({
     clientId: req.user!.clientId,
     outletId,
     agentId,
     passed: passedFilter,
+    limit,
+    cursor,
   });
-  res.status(200).json(attempts);
+  res.status(200).json(page);
 });
 
 // GET /fraud/flagged — submitted visits scoring >= minScore (default 50).

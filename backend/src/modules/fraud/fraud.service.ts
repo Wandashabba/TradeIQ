@@ -1,5 +1,6 @@
 import { Prisma, VisitStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { buildPage } from '../../lib/pagination';
 import { haversineDistanceMeters } from '../../lib/geofence';
 import { NotFoundError } from '../../middleware/errorHandler';
 
@@ -266,6 +267,8 @@ export interface AttemptFilters {
   outletId?: string;
   agentId?: string;
   passed?: boolean;
+  limit: number;
+  cursor?: string;
 }
 
 /** GET /fraud/attempts — tenant-scoped, optionally filtered, newest first. */
@@ -281,7 +284,17 @@ export async function listAttempts(filters: AttemptFilters) {
     where.passed = filters.passed;
   }
 
-  return prisma.checkInAttempt.findMany({ where, orderBy: { createdAt: 'desc' } });
+  const rows = await prisma.checkInAttempt.findMany({
+    where,
+    // Tiebreaker direction matches the primary sort — see alerts.service.ts.
+    // Attempts arrive in bursts (an agent retrying at the door), so identical
+    // createdAt values are the norm here rather than the exception.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: filters.limit + 1,
+    ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
+  });
+
+  return buildPage(rows, filters.limit);
 }
 
 export interface FlaggedVisit {

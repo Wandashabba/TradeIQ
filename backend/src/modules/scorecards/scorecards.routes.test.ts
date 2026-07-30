@@ -295,8 +295,35 @@ describe('scorecards routes', () => {
       .set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.some((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.some((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
+  });
+
+  it('GET / returns an envelope and rejects a non-positive limit', async () => {
+    const res = await request(app)
+      .get('/scorecards?limit=1')
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body).toHaveProperty('nextCursor');
+
+    const bad = await request(app)
+      .get('/scorecards?limit=0')
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(bad.status).toBe(400);
+  });
+
+  it('GET /history defaults to the last handful, and an explicit limit wins', async () => {
+    // The old hard-coded `take: 5` is now this endpoint's default limit. The
+    // guarantee worth pinning is that it is a DEFAULT, not a second ceiling:
+    // asking for fewer must give fewer, and the envelope must still be there.
+    const res = await request(app)
+      .get(`/scorecards/history?outletId=${outletId}&limit=1`)
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body).toHaveProperty('nextCursor');
   });
 
   it('GET / forbids a field agent with 403', async () => {
@@ -324,7 +351,7 @@ describe('scorecards routes', () => {
         .set('Authorization', `Bearer ${agentToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.some((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
+      expect(res.body.data.some((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
     });
 
     it('does not show one agent another agent’s scores', async () => {
@@ -365,7 +392,7 @@ describe('scorecards routes', () => {
         .set('Authorization', `Bearer ${agentToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.some((row: { visitId: string }) => row.visitId === otherVisit.id)).toBe(
+      expect(res.body.data.some((row: { visitId: string }) => row.visitId === otherVisit.id)).toBe(
         false,
       );
 
@@ -376,7 +403,7 @@ describe('scorecards routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(
-        managerRes.body.some((row: { visitId: string }) => row.visitId === otherVisit.id),
+        managerRes.body.data.some((row: { visitId: string }) => row.visitId === otherVisit.id),
       ).toBe(true);
     });
 

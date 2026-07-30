@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import { parsePagination } from '../../lib/pagination';
 import { checkIn, listVisits, submitVisit } from './visits.service';
 
 const VISIT_STATUSES = ['in_progress', 'submitted'] as const;
@@ -67,12 +68,15 @@ visitsRouter.get('/', async (req: AuthedRequest, res) => {
     return;
   }
 
-  const visits = await listVisits({
+  const { limit, cursor } = parsePagination(req);
+  const page = await listVisits({
     clientId: req.user!.clientId,
     role: req.user!.role,
     agentId: req.user!.userId,
     outletId,
     status,
+    limit,
+    cursor,
   });
-  res.status(200).json(visits);
+  res.status(200).json(page);
 });

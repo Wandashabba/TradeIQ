@@ -165,10 +165,10 @@ describe('report-schedules routes', () => {
       .set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    const ids = res.body.map((s: { id: string }) => s.id);
+    const ids = res.body.data.map((s: { id: string }) => s.id);
     expect(ids).toContain(scheduleId);
     expect(ids).not.toContain(otherScheduleId);
-    const mine = res.body.find((s: { id: string }) => s.id === scheduleId);
+    const mine = res.body.data.find((s: { id: string }) => s.id === scheduleId);
     expect(mine.reportDefinition.name).toBe('SCHED-Visits Report');
   });
 

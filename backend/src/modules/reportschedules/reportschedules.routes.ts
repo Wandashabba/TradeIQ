@@ -11,6 +11,7 @@ import {
   updateSchedule,
   type Cadence,
 } from './reportschedules.service';
+import { parsePagination } from '../../lib/pagination';
 
 export const reportSchedulesRouter = Router();
 reportSchedulesRouter.use(requireAuth);
@@ -47,8 +48,9 @@ reportSchedulesRouter.post('/', async (req: AuthedRequest, res) => {
 });
 
 reportSchedulesRouter.get('/', async (req: AuthedRequest, res) => {
-  const schedules = await listSchedules(req.user!.clientId);
-  res.status(200).json(schedules);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listSchedules({ clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
 
 reportSchedulesRouter.patch('/:id', async (req: AuthedRequest, res) => {

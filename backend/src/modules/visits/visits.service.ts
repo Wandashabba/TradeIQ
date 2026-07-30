@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { buildPage } from '../../lib/pagination';
 import { haversineDistanceMeters, isWithinGeofence } from '../../lib/geofence';
 import { GeofenceRejectedError, NotFoundError } from '../../middleware/errorHandler';
 import { Prisma } from '@prisma/client';
@@ -142,8 +143,15 @@ export interface ListVisitsInput {
   agentId?: string;
   outletId?: string;
   status?: 'in_progress' | 'submitted';
+  limit: number;
+  cursor?: string;
 }
 
+/**
+ * The tenant-wide visit list — the worst case #141 named explicitly: roughly
+ * 190k rows a year for a busy client, previously returned in one unbounded
+ * `findMany`.
+ */
 export async function listVisits(input: ListVisitsInput) {
   const where: Prisma.VisitWhereInput = { clientId: input.clientId };
   if (input.role === 'field_agent') {
@@ -156,8 +164,18 @@ export async function listVisits(input: ListVisitsInput) {
     where.status = input.status;
   }
 
-  return prisma.visit.findMany({
+  const rows = await prisma.visit.findMany({
     where,
-    orderBy: { checkinTs: 'desc' },
+    // `id` is the unique tiebreaker that makes the cursor deterministic when
+    // two visits share a checkinTs — offline drafts sync in bursts, so equal
+    // timestamps are ordinary here rather than theoretical. Its direction must
+    // match the primary sort's (both `desc`): Prisma seeks the cursor by the
+    // whole orderBy tuple, and a mismatch silently drops or repeats rows at
+    // every page boundary.
+    orderBy: [{ checkinTs: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+
+  return buildPage(rows, input.limit);
 }
