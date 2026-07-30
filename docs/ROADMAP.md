@@ -8,7 +8,7 @@ Scope authority: `docs/superpowers/specs/2026-07-02-tradeiq-scaffold-design.md`
 (§2 reconciles the detailed build prompt with the pitch deck). Real-vs-stubbed
 detail: `docs/architecture/stubs-and-interfaces.md`.
 
-## Active — remediation of the 2026-07-17 audit — 🟢 Plans 1, 2, 3 & 4 merged; 2b outstanding
+## Audit remediation (2026-07-17) — ✅ COMPLETE, all plans merged
 
 A full-codebase audit on 2026-07-17 found 2 Critical and ~13 High issues. The
 phases below describe what is *built*; this section tracks what must be *fixed*
@@ -29,10 +29,31 @@ DNS-rebinding TOCTOU (#143), and assorted small cleanups (#145).
 client hardening); Plan 4 closed the design/a11y integration (#144). The
 release build that "could not ship at all" now can.
 
-**Plan 2b (#141) is the only audit work still outstanding**, and it is now half
-done: the per-tenant uniqueness migration on `Outlet.code` shipped in PR #173,
-leaving pagination and `User.email`. It is also the gating dependency for #153's
-T1 tier, since that endpoint must be bounded from day one.
+**Plan 2b (#141) closed 2026-07-30.** `Outlet.code` per-tenant uniqueness
+shipped in PR #173. The pagination sweep finished in PRs #189–#192 (14
+endpoints), #235 (the five tenant-wide lists — `/visits`, `/scorecards`,
+`/scorecards/history`, `/fraud/attempts`, `/report-schedules`) and #237 (the
+seven visit-scoped lists, plus the `agents` envelope-key rename that removed
+the app's last `PaginatedResponse` special case). `User.email` was split out to
+**#188**, because per-tenant email uniqueness needs a login-identity decision
+rather than a migration. #153's T1 tier is no longer gated.
+
+**One list endpoint is deliberately NOT paginated** (→ **#236**).
+`GET /fraud/flagged` filters and sorts by a *computed* risk score, so there is
+no column to key a cursor on. Its real exposure is the input scan —
+`findMany` over every submitted visit **with photo bytes included** — not the
+response size, so a cursor on the output would look like progress while
+leaving the risk untouched. It needs a persisted score column or a bounded
+window, which is a design decision, not a mechanical conversion.
+
+**Two endpoints the pagination issue mislabelled as backend-only** were caught
+by checking the Flutter client rather than trusting the ticket:
+`/scorecards/history` (the agent's post-visit score delta) and `/photos` (the
+manager's evidence dialog) both parsed `response.data as List`. Converting
+either server-side alone would have broken the app at runtime — precisely the
+silent contract break the sweep exists to prevent. Both moved with their
+callers. **When converting a list endpoint, grep the Flutter app for it; do
+not trust a "backend-only" label.**
 
 **Separate workstream — premium UI** (not audit remediation): the dual light/dark
 theme system (spec §1–3) is merged; motion & polish (spec §4–5) is **also
@@ -44,7 +65,7 @@ See `docs/superpowers/specs/2026-07-17-premium-ui-theme-motion-design.md`.
 |---|---|---|---|
 | 1 | `docs/superpowers/plans/2026-07-17-security-critical.md` | C3 JWT payload cast → cross-tenant read · H1 published default secret · C1 bcrypt-hash disclosure · H6 webhook SSRF (+H7 timeout) · N8 401-instead-of-404 | ✅ **done** (branch `fix/security-critical-audit`; 575 tests green, proven end-to-end) |
 | 2 | `2026-07-17-backend-scale.md` | **backend-only, non-breaking** — H3 zero DB indexes · H5 fraud base64 over-fetch · M9 N+1 (gamification 151 queries, incentives ~500) · dispatch over-fetch · global Prisma `omit` floor · M1 capture paths not agent-scoped · M5 CSV formula injection · N5 kpiMath drift · N9 dead `JWT_SECRET` in `backend-ci.yml` | ✅ **done** — Tasks 1–7 merged via PR #130; Tasks 8–11 (CSV, kpiMath, CI, docs) in follow-up branch `fix/plan2-remainder` |
-| 2b | **#141** | **coordinated backend + Flutter** (contract-breaking, split out of Plan 2) — H4 pagination (`?limit`/cursor + `{data,nextCursor}`, every list repository + screen) · M4/N7 per-tenant uniqueness migrations on `Outlet.code` / `User.email` | 🟡 **half done** — `Outlet.code` shipped (PR #173); pagination + `User.email` outstanding |
+| 2b | **#141** | **coordinated backend + Flutter** (contract-breaking, split out of Plan 2) — H4 pagination (`?limit`/cursor + `{data,nextCursor}`, every list repository + screen) · M4/N7 per-tenant uniqueness migrations on `Outlet.code` / `User.email` | ✅ **done** — `Outlet.code` (PR #173); pagination PRs #189–#192, #235, #237. `User.email` → #188; `/fraud/flagged` → #236 |
 | 3 | **#137 #138 #139 #140** | Flutter ship-blockers & client security — **#137 (CRITICAL)** H8 no INTERNET permission in release + H9 debug signing keys · **#138** C2 offline DB unencrypted/never cleared/outbox not user-scoped · **#139** H10 no 401 handling or `exp` check + H12 web token key beside ciphertext + M12 `_rememberMe` no-op · **#140** M11 no Dio timeouts + M14 `allowBackup` + M15 volatile web DB | ✅ **done** — all four closed |
 | 4 | **#144** | N1 Inter declared but never bundled · M6 `ink3` 3.48:1 contrast (66 text sites) + crit banner 3.74:1 · M7 raw `$err` via `AsyncSection` (20 screens) · N2 landing video WCAG 2.2 A · N3 error-renders-as-spinner · N4 map pins color-alone · N6 `PrimaryGradientButton` fossil · M10 2.6MB dead asset | ✅ **done** — closed |
 
@@ -108,6 +129,62 @@ catches a **removed** role (via `auth.routes.ts:20` feeding `UserRole` into
 obvious-looking cleanup — silently removes the add-direction guard. Consolidate
 deliberately, with a test, or not at all.
 
+**Running the Flutter app on macOS desktop — no Apple account needed.**
+
+`flutter run -d macos` signs ad-hoc (`CODE_SIGN_IDENTITY = "-"`). The
+data-protection keychain that `flutter_secure_storage` uses by default
+requires a signed `application-identifier`, so every keychain write returned
+`errSecMissingEntitlement (-34018)` — including the one that generates the
+local database's encryption key. The database therefore never opened and a
+check-in could not save anything, from 2026-07-21 (when encryption landed)
+until 2026-07-30.
+
+Fixed by pinning macOS to the file-based keychain in
+`app/lib/core/storage/secure_storage.dart` — one `appSecureStorage` that every
+secret-holder shares. **Do not construct `FlutterSecureStorage()` inline**; a
+test asserts nothing does, because an inline one silently takes the failing
+default back and fails only on macOS, only at runtime.
+
+Two remedies were measured and rejected: declaring `keychain-access-groups`
+(what the plugin's README asks for) makes the build fail without a development
+certificate, and dropping the app sandbox does not help — the data-protection
+keychain wants a signing identity, not a sandbox exception. The entitlements
+files are therefore untouched.
+
+Related: **#159** — iOS has never been built, and there are currently *zero*
+code-signing identities installed on the development machine.
+
+**Testing — `npx jest --maxWorkers=4` is now the command.**
+
+Two separate causes of parallel-run flakiness have since been fixed, and the
+`--runInBand` advice below is kept only as the history of why:
+
+1. **Shared test database** (#186, PR #228). Every worker now gets its own
+   database, so `jest.global-setup.ts`'s TRUNCATE can no longer wipe another
+   worker's fixtures mid-flight.
+2. **Supertest socket churn** (#227). `request(app)` handed supertest an
+   express *function*, which it wrapped in a fresh `http.Server` and bound an
+   ephemeral port for — **per HTTP request**, then closed it again
+   (`supertest/lib/test.js`: `if (!addr) this._server = app.listen(0)`). Ports
+   linger in TIME_WAIT, and at thousands of bind/close cycles per run one gets
+   rebound while a previous connection is still draining, crossing a response
+   into the wrong client. The proof was an `errorHandler` test whose only route
+   throws — no path through it can produce a 400 — receiving a 400. Route tests
+   now import `httpServer` from `src/testHttpServer.ts`, a server that is
+   already listening, so supertest reuses one socket per file instead of
+   binding one per request.
+
+   **If you write a new route test, import `httpServer as app` from
+   `src/testHttpServer.ts` — not `app` from `src/app.ts`.**
+
+Still true regardless: **never run two jest processes at once**, and this
+laptop's Docker VM shares memory with an unrelated Supabase stack, so a
+`Can't reach database server` failure here should be re-run before it is
+believed.
+
+<details>
+<summary>Historical — the original --runInBand guidance (superseded)</summary>
+
 **Testing constraint — verify with `npx jest --runInBand`, not `npm test`.**
 
 The suite reports mass phantom failures at default parallelism on a loaded
@@ -147,6 +224,8 @@ transient Docker Desktop port-forwarding stall, not a crash. A `Can't reach
 database server` failure on this box should be re-run before being believed.
 The real fix is host-side: stop the unrelated Supabase stack, or give Docker
 more headroom.
+
+</details>
 
 **Deferred with a reason — not forgotten:**
 
