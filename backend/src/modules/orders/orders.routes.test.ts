@@ -328,4 +328,118 @@ describe('orders routes', () => {
       expect(res.status).toBe(400);
     });
   });
+  describe('campaign attribution (#94)', () => {
+    it('stamps the active campaign covering this outlet', async () => {
+      const now = new Date();
+      const campaign = await prisma.campaign.create({
+        data: {
+          clientId,
+          name: 'ATTR- Live now',
+          startDate: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+          endDate: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+          budget: 500,
+          status: 'active',
+          outlets: { create: [{ outletId }] },
+        },
+      });
+
+      const res = await request(app)
+        .post('/orders')
+        .set('Authorization', `Bearer ${agent1Token}`)
+        .send({ outletId, lines: [{ skuId: skuAId, quantity: 1, unitPrice: 10 }] });
+
+      expect(res.status).toBe(201);
+      const order = await prisma.order.findUniqueOrThrow({ where: { id: res.body.id } });
+      expect(order.campaignId).toBe(campaign.id);
+
+      await prisma.campaignOutlet.deleteMany({ where: { campaignId: campaign.id } });
+      await prisma.order.updateMany({
+        where: { campaignId: campaign.id },
+        data: { campaignId: null },
+      });
+      await prisma.campaign.delete({ where: { id: campaign.id } });
+    });
+
+    it('leaves campaignId null when no campaign covers the outlet', async () => {
+      const res = await request(app)
+        .post('/orders')
+        .set('Authorization', `Bearer ${agent1Token}`)
+        .send({ outletId, lines: [{ skuId: skuAId, quantity: 1, unitPrice: 10 }] });
+
+      expect(res.status).toBe(201);
+      const order = await prisma.order.findUniqueOrThrow({ where: { id: res.body.id } });
+      expect(order.campaignId).toBeNull();
+    });
+
+    it('ignores a draft campaign — it has not started spending', async () => {
+      // A draft that quietly accumulated revenue would show a return before
+      // anyone launched it.
+      const now = new Date();
+      const draft = await prisma.campaign.create({
+        data: {
+          clientId,
+          name: 'ATTR- Draft',
+          startDate: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+          endDate: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+          budget: 500,
+          status: 'draft',
+          outlets: { create: [{ outletId }] },
+        },
+      });
+
+      const res = await request(app)
+        .post('/orders')
+        .set('Authorization', `Bearer ${agent1Token}`)
+        .send({ outletId, lines: [{ skuId: skuAId, quantity: 1, unitPrice: 10 }] });
+
+      expect(res.status).toBe(201);
+      const order = await prisma.order.findUniqueOrThrow({ where: { id: res.body.id } });
+      expect(order.campaignId).toBeNull();
+
+      await prisma.campaignOutlet.deleteMany({ where: { campaignId: draft.id } });
+      await prisma.campaign.delete({ where: { id: draft.id } });
+    });
+
+    it('picks the most recently started campaign when two overlap', async () => {
+      // Deterministic, so a retry never lands the same order differently.
+      const now = new Date();
+      const older = await prisma.campaign.create({
+        data: {
+          clientId,
+          name: 'ATTR- National',
+          startDate: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+          endDate: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+          budget: 500,
+          status: 'active',
+          outlets: { create: [{ outletId }] },
+        },
+      });
+      const newer = await prisma.campaign.create({
+        data: {
+          clientId,
+          name: 'ATTR- Regional',
+          startDate: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+          endDate: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+          budget: 500,
+          status: 'active',
+          outlets: { create: [{ outletId }] },
+        },
+      });
+
+      const res = await request(app)
+        .post('/orders')
+        .set('Authorization', `Bearer ${agent1Token}`)
+        .send({ outletId, lines: [{ skuId: skuAId, quantity: 1, unitPrice: 10 }] });
+
+      expect(res.status).toBe(201);
+      const order = await prisma.order.findUniqueOrThrow({ where: { id: res.body.id } });
+      expect(order.campaignId).toBe(newer.id);
+
+      for (const c of [older, newer]) {
+        await prisma.campaignOutlet.deleteMany({ where: { campaignId: c.id } });
+        await prisma.order.updateMany({ where: { campaignId: c.id }, data: { campaignId: null } });
+        await prisma.campaign.delete({ where: { id: c.id } });
+      }
+    });
+  });
 });

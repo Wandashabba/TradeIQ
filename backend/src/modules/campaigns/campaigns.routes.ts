@@ -8,6 +8,7 @@ import {
   createCampaign,
   getCampaign,
   getCampaignCompliance,
+  getCampaignRoi,
   listCampaigns,
   updateCampaign,
 } from './campaigns.service';
@@ -122,4 +123,12 @@ campaignsRouter.get('/:id/compliance', requireRole('manager', 'admin'), async (r
   const { id } = req.params as { id: string };
   const compliance = await getCampaignCompliance(id, req.user!.clientId);
   res.status(200).json(compliance);
+});
+
+// Return on the campaign — the other half of the activation loop (#94).
+// Manager/admin only, matching /compliance: spend is commercially sensitive.
+campaignsRouter.get('/:id/roi', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
+  const { id } = req.params as { id: string };
+  const roi = await getCampaignRoi(id, req.user!.clientId);
+  res.status(200).json(roi);
 });

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { mean, pct } from '../../lib/kpiMath';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { baselineWindow, computeRoi, type Roi } from './roi';
 import { buildPage } from '../../lib/pagination';
 
 export type CampaignStatus = 'draft' | 'active' | 'completed';
@@ -155,5 +156,81 @@ export async function getCampaignCompliance(id: string, clientId: string): Promi
     avgPlanogramCompliancePct: mean(visibilityRows.map((row) => row.planogramCompliancePct)),
     avgAbsPriceDeviationPct: mean(pricingRows.map((row) => Math.abs(row.deviationPct))),
     promoComplianceRate: pct(pricingRows.filter((row) => row.promoActive).length, pricingRows.length),
+  };
+}
+
+export interface CampaignRoi extends Roi {
+  campaignId: string;
+  outletsTotal: number;
+  /** The campaign window, echoed so a caller need not re-fetch it. */
+  window: { from: string; to: string };
+  /** The equal-length window the baseline was measured over. */
+  baselineWindow: { from: string; to: string };
+  /** Orders attributed to the campaign, and orders in the baseline window. */
+  orderCount: { attributed: number; baseline: number };
+}
+
+/**
+ * Return on a campaign, as incremental sell-in against spend (#94).
+ *
+ * `Campaign.budget` was previously stored and read by nothing; this is what
+ * reads it. The measurement is deliberately conservative:
+ *
+ * - **Attributed** revenue comes from `Order.campaignId`, stamped at creation.
+ *   It is not recomputed by date here, because an outlet can leave a campaign
+ *   and a campaign's window can be edited — recomputing would quietly change a
+ *   number someone has already acted on.
+ * - **Baseline** is the same outlets over an equal-length, contiguous window
+ *   immediately before the campaign, counted by date rather than attribution
+ *   (there was no campaign then to attribute to).
+ * - **Cancelled orders are excluded from both sides.** A cancelled order is not
+ *   revenue, and leaving it in the baseline while excluding it from the campaign
+ *   period would understate the lift.
+ */
+export async function getCampaignRoi(id: string, clientId: string): Promise<CampaignRoi> {
+  const campaign = await prisma.campaign.findFirst({
+    where: { id, clientId },
+    include: { outlets: { select: { outletId: true } } },
+  });
+  if (!campaign) {
+    throw new NotFoundError('Campaign not found');
+  }
+
+  const outletIds = campaign.outlets.map((link) => link.outletId);
+  const base = baselineWindow(campaign.startDate, campaign.endDate);
+
+  const [attributed, baseline] = await Promise.all([
+    prisma.order.aggregate({
+      where: { clientId, campaignId: id, status: { not: 'cancelled' } },
+      _sum: { total: true },
+      _count: true,
+    }),
+    // Empty outlet list would make `in: []` match nothing, which is the correct
+    // answer for a campaign with no outlets — guarded anyway so intent is plain.
+    outletIds.length === 0
+      ? Promise.resolve({ _sum: { total: null }, _count: 0 })
+      : prisma.order.aggregate({
+          where: {
+            clientId,
+            outletId: { in: outletIds },
+            status: { not: 'cancelled' },
+            createdAt: { gte: base.from, lt: base.to },
+          },
+          _sum: { total: true },
+          _count: true,
+        }),
+  ]);
+
+  return {
+    campaignId: id,
+    outletsTotal: outletIds.length,
+    window: { from: campaign.startDate.toISOString(), to: campaign.endDate.toISOString() },
+    baselineWindow: { from: base.from.toISOString(), to: base.to.toISOString() },
+    orderCount: { attributed: attributed._count, baseline: baseline._count },
+    ...computeRoi({
+      attributedRevenue: attributed._sum.total ?? 0,
+      baselineRevenue: baseline._sum.total ?? 0,
+      spend: campaign.budget,
+    }),
   };
 }
