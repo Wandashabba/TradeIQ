@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../storage/secure_storage.dart';
 
 /// Persists the manager's theme choice across app restarts. Abstracted (like
 /// TokenStore) so tests use an in-memory fake instead of the platform
@@ -15,7 +16,7 @@ abstract class ThemeModeStore {
 
 class SecureThemeModeStore implements ThemeModeStore {
   SecureThemeModeStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? FlutterSecureStorage();
+      : _storage = storage ?? appSecureStorage;
 
   final FlutterSecureStorage _storage;
 

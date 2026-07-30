@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'secure_storage.dart';
 
 /// Supplies the 256-bit key the local database is encrypted with.
 ///
@@ -21,7 +22,7 @@ abstract class DbKeyStore {
 
 class SecureDbKeyStore implements DbKeyStore {
   SecureDbKeyStore({FlutterSecureStorage? storage, Random? random})
-      : _storage = storage ?? const FlutterSecureStorage(),
+      : _storage = storage ?? appSecureStorage,
         _random = random ?? Random.secure();
 
   final FlutterSecureStorage _storage;
