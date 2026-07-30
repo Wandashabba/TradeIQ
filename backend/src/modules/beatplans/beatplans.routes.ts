@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
+import type { Recurrence } from './recurrence';
 import { parsePagination } from '../../lib/pagination';
 import {
   BeatPlanStatus,
@@ -23,12 +24,13 @@ beatplansRouter.use(requireAuth);
 // Planning is a manager/admin action. A field_agent executes plans (marks
 // stops visited) but does not author them.
 beatplansRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
-  const { agentId, name, scheduledDate, territoryId, outletIds } = req.body as {
+  const { agentId, name, scheduledDate, territoryId, outletIds, recurrence } = req.body as {
     agentId?: unknown;
     name?: unknown;
     scheduledDate?: unknown;
     territoryId?: unknown;
     outletIds?: unknown;
+    recurrence?: unknown;
   };
 
   const outletIdsValid =
@@ -52,6 +54,47 @@ beatplansRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedReq
     return;
   }
 
+  // A recurrence is optional, but a MALFORMED one is a 400 rather than a
+  // silently-dropped field: quietly creating a one-off when the manager asked
+  // for a weekly series is the failure they would not notice until the week
+  // they expected a route and got none. The date arithmetic itself validates
+  // interval/daysOfWeek/until and throws ValidationError — see recurrence.ts.
+  let parsedRecurrence: Recurrence | undefined;
+  if (recurrence !== undefined) {
+    if (typeof recurrence !== 'object' || recurrence === null || Array.isArray(recurrence)) {
+      res.status(400).json({ error: 'recurrence must be an object when given' });
+      return;
+    }
+    const r = recurrence as Record<string, unknown>;
+    if (r.frequency !== 'daily' && r.frequency !== 'weekly') {
+      res.status(400).json({ error: "recurrence.frequency must be 'daily' or 'weekly'" });
+      return;
+    }
+    if (typeof r.until !== 'string' || Number.isNaN(Date.parse(r.until))) {
+      res.status(400).json({ error: 'recurrence.until must be an ISO-8601 date' });
+      return;
+    }
+    if (r.interval !== undefined && typeof r.interval !== 'number') {
+      res.status(400).json({ error: 'recurrence.interval must be a number when given' });
+      return;
+    }
+    if (
+      r.daysOfWeek !== undefined &&
+      (!Array.isArray(r.daysOfWeek) || r.daysOfWeek.some((d) => typeof d !== 'number'))
+    ) {
+      res.status(400).json({ error: 'recurrence.daysOfWeek must be an array of numbers when given' });
+      return;
+    }
+    parsedRecurrence = {
+      frequency: r.frequency,
+      // Defaulting to 1 rather than requiring it: "weekly" already means
+      // "every 1 week" to everyone who is not writing an rrule.
+      interval: (r.interval as number | undefined) ?? 1,
+      daysOfWeek: r.daysOfWeek as number[] | undefined,
+      until: new Date(r.until),
+    };
+  }
+
   const plan = await createBeatPlan({
     clientId: req.user!.clientId,
     agentId,
@@ -60,6 +103,7 @@ beatplansRouter.post('/', requireRole('manager', 'admin'), async (req: AuthedReq
     territoryId,
     // Validated as a non-empty array of strings above.
     outletIds: outletIds as string[],
+    recurrence: parsedRecurrence,
   });
   res.status(201).json(plan);
 });

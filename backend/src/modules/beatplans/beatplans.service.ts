@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { randomUUID } from 'crypto';
 import { round2 } from '../../lib/kpiMath';
+import { expandOccurrences, type Recurrence } from './recurrence';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { buildPage } from '../../lib/pagination';
 import type { AuthTokenPayload } from '../auth/auth.service';
@@ -23,6 +25,11 @@ export interface CreateBeatPlanInput {
   scheduledDate: string; // ISO
   territoryId?: string;
   outletIds: string[];
+  /**
+   * Absent for a one-off plan. Present turns this into a permanent journey
+   * plan (#98): the same stops, on every date the rule lands on.
+   */
+  recurrence?: Recurrence;
 }
 
 export async function createBeatPlan(input: CreateBeatPlanInput) {
@@ -58,30 +65,57 @@ export async function createBeatPlan(input: CreateBeatPlanInput) {
     }
   }
 
-  // Plan + its ordered stops are written atomically so a plan never exists
-  // without the stops it was created from. Sequence is the 1-based array index.
+  // Every date this plan lands on. A one-off is the degenerate series of one,
+  // so there is a single code path rather than two that can drift.
+  const start = new Date(input.scheduledDate);
+  const dates = input.recurrence ? expandOccurrences(start, input.recurrence) : [start];
+
+  // A series is created ALL-OR-NOTHING. Half a journey plan is worse than none:
+  // an agent would work a route that stops mid-month with nothing saying why.
+  // Stops are written with the plan for the same reason — a plan has never
+  // existed without the stops it was created from. Sequence is the 1-based index.
+  const seriesId = input.recurrence ? randomUUID() : null;
+
   return prisma.$transaction(async (tx) => {
-    const plan = await tx.beatPlan.create({
-      data: {
-        clientId: input.clientId,
-        agentId: input.agentId,
-        territoryId: input.territoryId,
-        name: input.name,
-        scheduledDate: new Date(input.scheduledDate),
-      },
-    });
-    await tx.beatPlanStop.createMany({
-      data: input.outletIds.map((outletId, index) => ({
-        beatPlanId: plan.id,
-        outletId,
-        sequence: index + 1,
-      })),
-    });
-    const stops = await tx.beatPlanStop.findMany({
-      where: { beatPlanId: plan.id },
-      orderBy: { sequence: 'asc' },
-    });
-    return { ...plan, stops };
+    const created = [];
+    for (const scheduledDate of dates) {
+      const plan = await tx.beatPlan.create({
+        data: {
+          clientId: input.clientId,
+          agentId: input.agentId,
+          territoryId: input.territoryId,
+          name: input.name,
+          scheduledDate,
+          seriesId,
+          recurrence: input.recurrence
+            ? {
+                frequency: input.recurrence.frequency,
+                interval: input.recurrence.interval,
+                daysOfWeek: input.recurrence.daysOfWeek ?? [],
+                until: input.recurrence.until.toISOString(),
+              }
+            : undefined,
+        },
+      });
+      await tx.beatPlanStop.createMany({
+        data: input.outletIds.map((outletId, index) => ({
+          beatPlanId: plan.id,
+          outletId,
+          sequence: index + 1,
+        })),
+      });
+      const stops = await tx.beatPlanStop.findMany({
+        where: { beatPlanId: plan.id },
+        orderBy: { sequence: 'asc' },
+      });
+      created.push({ ...plan, stops });
+    }
+
+    // The first occurrence is returned as the created resource, so a one-off
+    // create is byte-identical to what it always was. `occurrences` tells a
+    // recurring caller how many plans it actually made — silence there is how
+    // a manager assumes a year was scheduled when the cap allowed three months.
+    return { ...created[0], seriesId, occurrences: created.length };
   });
 }
 
