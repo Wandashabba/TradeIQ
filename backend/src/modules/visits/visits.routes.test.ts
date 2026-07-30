@@ -339,18 +339,18 @@ describe('visits routes', () => {
       const res = await request(app).get('/visits').set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
-      const ids = res.body.map((v: { id: string }) => v.id);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      const ids = res.body.data.map((v: { id: string }) => v.id);
       expect(ids).toContain(agentAVisitId);
       // Every returned visit belongs to the requesting agent.
-      expect(res.body.every((v: { agentId: string }) => v.agentId === agentAId)).toBe(true);
+      expect(res.body.data.every((v: { agentId: string }) => v.agentId === agentAId)).toBe(true);
     });
 
     it('does not let a field agent see another agent visit', async () => {
       const res = await request(app).get('/visits').set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      const ids = res.body.map((v: { id: string }) => v.id);
+      const ids = res.body.data.map((v: { id: string }) => v.id);
       expect(ids).not.toContain(agentBVisitId);
     });
 
@@ -358,7 +358,7 @@ describe('visits routes', () => {
       const res = await request(app).get('/visits').set('Authorization', `Bearer ${agentBToken}`);
 
       expect(res.status).toBe(200);
-      const ids = res.body.map((v: { id: string }) => v.id);
+      const ids = res.body.data.map((v: { id: string }) => v.id);
       expect(ids).toContain(agentBVisitId);
       expect(ids).not.toContain(agentAVisitId);
     });
@@ -367,7 +367,7 @@ describe('visits routes', () => {
       const res = await request(app).get('/visits').set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.status).toBe(200);
-      const ids = res.body.map((v: { id: string }) => v.id);
+      const ids = res.body.data.map((v: { id: string }) => v.id);
       expect(ids).toContain(agentAVisitId);
       expect(ids).toContain(agentBVisitId);
     });
@@ -380,12 +380,12 @@ describe('visits routes', () => {
 
       expect(agentRes.status).toBe(200);
       expect(managerRes.status).toBe(200);
-      const agentIds = agentRes.body.map((v: { id: string }) => v.id);
-      const managerIds = managerRes.body.map((v: { id: string }) => v.id);
+      const agentIds = agentRes.body.data.map((v: { id: string }) => v.id);
+      const managerIds = managerRes.body.data.map((v: { id: string }) => v.id);
       expect(agentIds).not.toContain(clientBVisitId);
       expect(managerIds).not.toContain(clientBVisitId);
       // Never any foreign-client rows at all.
-      expect(managerRes.body.every((v: { clientId: string }) => v.clientId === clientId)).toBe(true);
+      expect(managerRes.body.data.every((v: { clientId: string }) => v.clientId === clientId)).toBe(true);
     });
 
     it('filters by status', async () => {
@@ -403,8 +403,8 @@ describe('visits routes', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.every((v: { status: string }) => v.status === 'submitted')).toBe(true);
-      const ids = res.body.map((v: { id: string }) => v.id);
+      expect(res.body.data.every((v: { status: string }) => v.status === 'submitted')).toBe(true);
+      const ids = res.body.data.map((v: { id: string }) => v.id);
       expect(ids).toContain(submittedVisitId);
       // The seeded in_progress visit is excluded by the filter.
       expect(ids).not.toContain(agentAVisitId);
@@ -421,6 +421,82 @@ describe('visits routes', () => {
     it('rejects requests without a bearer token', async () => {
       const res = await request(app).get('/visits');
       expect(res.status).toBe(401);
+    });
+
+    describe('pagination', () => {
+      it('returns an envelope with data and nextCursor, newest first', async () => {
+        const res = await request(app)
+          .get('/visits')
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+        expect(res.body).toHaveProperty('nextCursor');
+        const times = res.body.data.map((v: { checkinTs: string }) =>
+          new Date(v.checkinTs).getTime(),
+        );
+        expect([...times].sort((a: number, b: number) => b - a)).toEqual(times);
+      });
+
+      it('caps the page at limit and pages on without repeating a visit', async () => {
+        const first = await request(app)
+          .get('/visits?limit=1')
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(first.status).toBe(200);
+        expect(first.body.data).toHaveLength(1);
+        expect(first.body.nextCursor).not.toBeNull();
+
+        const second = await request(app)
+          .get(`/visits?limit=1&cursor=${first.body.nextCursor}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(second.status).toBe(200);
+        const firstIds = first.body.data.map((v: { id: string }) => v.id);
+        const secondIds = second.body.data.map((v: { id: string }) => v.id);
+        expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+      });
+
+      it('keeps the agent scope while paging — a cursor cannot widen it', async () => {
+        // A cursor is an opaque id, so the obvious attack is to page a
+        // field agent past their own rows into someone else's. The where
+        // clause is applied on every page, not just the first.
+        const res = await request(app)
+          .get('/visits?limit=1')
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(200);
+        expect(
+          res.body.data.every((v: { agentId: string }) => v.agentId === agentAId),
+        ).toBe(true);
+
+        if (res.body.nextCursor) {
+          const next = await request(app)
+            .get(`/visits?limit=1&cursor=${res.body.nextCursor}`)
+            .set('Authorization', `Bearer ${token}`);
+          expect(next.status).toBe(200);
+          expect(
+            next.body.data.every((v: { agentId: string }) => v.agentId === agentAId),
+          ).toBe(true);
+        }
+      });
+
+      it('clamps a limit above the max to 200', async () => {
+        const res = await request(app)
+          .get('/visits?limit=9999')
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+      });
+
+      it('rejects a non-positive limit with 400', async () => {
+        const res = await request(app)
+          .get('/visits?limit=0')
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(400);
+      });
     });
   });
 });

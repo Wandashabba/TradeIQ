@@ -6,7 +6,9 @@ import {
   getScorecardByVisit,
   listScorecardHistory,
   listScorecardsForClient,
+  SCORECARD_HISTORY_DEFAULT_LIMIT,
 } from './scorecards.service';
+import { parsePagination } from '../../lib/pagination';
 
 export const scorecardsRouter = Router();
 scorecardsRouter.use(requireAuth);
@@ -25,8 +27,13 @@ scorecardsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest
 
 // Registered before '/:visitId' so the bare list route isn't shadowed.
 scorecardsRouter.get('/', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
-  const scorecards = await listScorecardsForClient(req.user!.clientId);
-  res.status(200).json(scorecards);
+  const { limit, cursor } = parsePagination(req);
+  const page = await listScorecardsForClient({
+    clientId: req.user!.clientId,
+    limit,
+    cursor,
+  });
+  res.status(200).json(page);
 });
 
 // Also registered before '/:visitId', which would otherwise swallow the word
@@ -40,12 +47,17 @@ scorecardsRouter.get('/history', async (req: AuthedRequest, res) => {
 
   // An agent's history at an outlet is their own. Scoping it here rather than
   // trusting a query param means an agent cannot ask for a colleague's scores.
-  const scorecards = await listScorecardHistory({
+  // Defaults to the last handful, which is what this endpoint has always
+  // meant; an explicit ?limit= overrides it like any other list.
+  const { limit, cursor } = parsePagination(req, SCORECARD_HISTORY_DEFAULT_LIMIT);
+  const page = await listScorecardHistory({
     clientId: req.user!.clientId,
     outletId,
     agentId: req.user!.role === 'field_agent' ? req.user!.userId : undefined,
+    limit,
+    cursor,
   });
-  res.status(200).json(scorecards);
+  res.status(200).json(page);
 });
 
 scorecardsRouter.get('/:visitId', async (req: AuthedRequest, res) => {

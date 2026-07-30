@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { facingsTotal, round2 } from '../../lib/kpiMath';
 
@@ -167,11 +168,22 @@ export async function generateScorecard(input: GenerateScorecardInput) {
   });
 }
 
-export async function listScorecardsForClient(clientId: string) {
-  return prisma.scorecard.findMany({
-    where: { visit: { clientId } },
-    orderBy: { createdAt: 'desc' },
+export async function listScorecardsForClient(input: {
+  clientId: string;
+  limit: number;
+  cursor?: string;
+}) {
+  const rows = await prisma.scorecard.findMany({
+    where: { visit: { clientId: input.clientId } },
+    // The `id` tiebreaker must share the primary sort's direction — see the
+    // note in alerts.service.ts. Scorecards are written in bursts as a day's
+    // offline visits sync, so equal createdAt values are routine.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+
+  return buildPage(rows, input.limit);
 }
 
 /// The scores this outlet has been given, most recent first.
@@ -179,13 +191,21 @@ export async function listScorecardsForClient(clientId: string) {
 /// A field agent may only see the ones from *their own* visits: "up 6 points
 /// from your last visit here" is feedback on their own work, not a window onto
 /// a colleague's. Managers see the outlet's whole history.
+/// Note on the page size: this was the codebase's only `take:` before the
+/// pagination sweep, a bare `take: 5` meaning "the last handful". That intent
+/// survives as the *default limit* the route asks for, rather than a second,
+/// invisible cap layered under the shared helper — two ceilings on one query
+/// is how a caller asks for 50 and silently gets 5.
+export const SCORECARD_HISTORY_DEFAULT_LIMIT = 5;
+
 export async function listScorecardHistory(input: {
   clientId: string;
   outletId: string;
   agentId?: string;
-  take?: number;
+  limit: number;
+  cursor?: string;
 }) {
-  return prisma.scorecard.findMany({
+  const rows = await prisma.scorecard.findMany({
     where: {
       visit: {
         clientId: input.clientId,
@@ -193,9 +213,12 @@ export async function listScorecardHistory(input: {
         ...(input.agentId ? { agentId: input.agentId } : {}),
       },
     },
-    orderBy: { createdAt: 'desc' },
-    take: input.take ?? 5,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+
+  return buildPage(rows, input.limit);
 }
 
 export async function getScorecardByVisit(visitId: string, clientId: string) {

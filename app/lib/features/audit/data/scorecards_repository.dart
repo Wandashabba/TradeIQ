@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/paginated_response.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/local_db.dart';
@@ -95,9 +96,17 @@ class DioScorecardsRepository implements ScorecardsRepository {
       '/scorecards/history',
       queryParameters: {'outletId': outletId},
     );
-    return (response.data as List)
-        .map((json) => ServerScorecard.fromJson(json as Map<String, dynamic>))
-        .toList();
+    // The endpoint now answers with the shared `{data, nextCursor}` envelope.
+    // Only the first page is read, and deliberately: this is the "last
+    // handful of scores at this outlet" that feeds the up-or-down delta on
+    // the outcome screen, not a browsable history — there is no "load more"
+    // to hang the cursor off. The server's default limit is what "handful"
+    // means, so it lives in one place rather than being re-guessed here.
+    final page = PaginatedResponse<ServerScorecard>.fromJson(
+      response.data as Map<String, dynamic>,
+      (json) => ServerScorecard.fromJson(json as Map<String, dynamic>),
+    );
+    return page.data;
   }
 }
 

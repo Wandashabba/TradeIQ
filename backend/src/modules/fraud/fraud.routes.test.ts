@@ -304,9 +304,9 @@ describe('fraud routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(3);
-      expect(res.body.every((a: { clientId: string }) => a.clientId === clientId)).toBe(true);
-      const times = res.body.map((a: { createdAt: string }) => new Date(a.createdAt).getTime());
+      expect(res.body.data).toHaveLength(3);
+      expect(res.body.data.every((a: { clientId: string }) => a.clientId === clientId)).toBe(true);
+      const times = res.body.data.map((a: { createdAt: string }) => new Date(a.createdAt).getTime());
       expect(times).toEqual([...times].sort((x, y) => y - x));
     });
 
@@ -316,8 +316,8 @@ describe('fraud routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(2);
-      expect(res.body.every((a: { passed: boolean }) => a.passed === false)).toBe(true);
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.data.every((a: { passed: boolean }) => a.passed === false)).toBe(true);
     });
 
     it('filters by passed=true', async () => {
@@ -326,8 +326,35 @@ describe('fraud routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(1);
-      expect(res.body[0].passed).toBe(true);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].passed).toBe(true);
+    });
+
+    it('returns an envelope, caps at limit and pages on without repeating', async () => {
+      const first = await request(app)
+        .get('/fraud/attempts?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(first.status).toBe(200);
+      expect(first.body.data).toHaveLength(2);
+      expect(first.body.nextCursor).not.toBeNull();
+
+      const second = await request(app)
+        .get(`/fraud/attempts?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(second.status).toBe(200);
+      const firstIds = first.body.data.map((a: { id: string }) => a.id);
+      const secondIds = second.body.data.map((a: { id: string }) => a.id);
+      expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await request(app)
+        .get('/fraud/attempts?limit=0')
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(400);
     });
 
     it('forbids a field agent with 403', async () => {

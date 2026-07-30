@@ -21,11 +21,19 @@ export interface Pagination {
  * ask we can satisfy with 200, but "give me 0" or "give me abc" is a bug in
  * the caller we should surface, not paper over.
  */
-export function parsePagination(req: Request): Pagination {
+export function parsePagination(
+  req: Request,
+  // Overridable because one endpoint means something narrower by default:
+  // `/scorecards/history` has always meant "the last handful", and that used
+  // to be a hard `take: 5` buried in the service. Expressing it as this
+  // endpoint's default limit keeps one ceiling instead of two — a caller
+  // asking for 50 gets 50, and a caller asking for nothing still gets 5.
+  defaultLimit: number = DEFAULT_LIMIT,
+): Pagination {
   const rawLimit = req.query.limit;
   const rawCursor = req.query.cursor;
 
-  let limit = DEFAULT_LIMIT;
+  let limit = defaultLimit;
   if (rawLimit !== undefined) {
     if (typeof rawLimit !== 'string') {
       throw new ValidationError('limit must be a single positive integer');
