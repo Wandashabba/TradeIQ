@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { prisma } from '../../lib/prisma';
-import { app } from '../../app';
+import { httpServer as app } from '../../testHttpServer';
 import { issueToken } from '../auth/auth.service';
 
 /**

@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app } from './app';
+import { httpServer as app } from './testHttpServer';
 
 describe('GET /health', () => {
   it('returns 200 with status ok', async () => {

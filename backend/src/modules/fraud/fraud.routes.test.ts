@@ -1,3 +1,4 @@
+import { createServer } from 'http';
 import express from 'express';
 import request from 'supertest';
 import { prisma } from '../../lib/prisma';
@@ -9,10 +10,14 @@ import { userIn } from '../../test-utils/tenants';
 // The fraud router is mounted on a local app here rather than the shared
 // `src/app.ts`, because wiring it into app.ts is out of this change's scope
 // (parallel work owns app.ts). This mirrors exactly how app.ts will mount it.
-const app = express();
-app.use(express.json());
-app.use('/fraud', fraudRouter);
-app.use(errorHandler);
+const expressApp = express();
+expressApp.use(express.json());
+expressApp.use('/fraud', fraudRouter);
+expressApp.use(errorHandler);
+// Listening once, so supertest reuses this socket instead of binding a fresh
+// ephemeral port per request — see src/testHttpServer.ts (#227).
+const app = createServer(expressApp).listen(0);
+app.unref();
 
 // Outlet / check-in reference location.
 const OUTLET_LAT = -26.2041;

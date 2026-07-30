@@ -1,7 +1,7 @@
 import request from 'supertest';
 import sharp from 'sharp';
 import { prisma } from '../../lib/prisma';
-import { app } from '../../app';
+import { httpServer as app } from '../../testHttpServer';
 import { issueToken } from '../auth/auth.service';
 import { foreignTenant, userIn } from '../../test-utils/tenants';
 import { thumbnailCacheProbe } from './thumbnails';
