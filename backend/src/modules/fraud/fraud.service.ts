@@ -306,14 +306,73 @@ export interface FlaggedVisit {
 }
 
 /** GET /fraud/flagged — submitted visits scoring at or above minScore. */
-export async function listFlagged(clientId: string, minScore: number): Promise<FlaggedVisit[]> {
+/** How many submitted visits one call will score. See [listFlagged]. */
+export const MAX_FRAUD_SCAN = 2000;
+
+/** Default scan window when the caller does not name one. */
+export const DEFAULT_FRAUD_WINDOW_DAYS = 30;
+
+export interface ListFlaggedInput {
+  clientId: string;
+  minScore: number;
+  from?: Date;
+  to?: Date;
+}
+
+export interface FlaggedPage {
+  data: FlaggedVisit[];
+  /** How many visits were actually scored. */
+  scanned: number;
+  /** True when the scan hit [MAX_FRAUD_SCAN] and older visits went unscored. */
+  truncated: boolean;
+}
+
+/**
+ * Submitted visits scoring at or above `minScore`, newest-first within a
+ * bounded window.
+ *
+ * This endpoint cannot paginate the way every other list does (#236): it
+ * filters and sorts by a risk score **computed in memory**, so there is no
+ * column to key a cursor on. What it can do — and now does — is refuse to scan
+ * without limit. Previously it loaded every submitted visit the tenant had ever
+ * recorded, on every request, which grows without bound at the ~190k
+ * visits/year this schema anticipates.
+ *
+ * Two bounds, because either alone can be defeated: a date window (default the
+ * last 30 days, which is the horizon a fraud review actually cares about) and a
+ * hard `MAX_FRAUD_SCAN` ceiling on rows scored.
+ *
+ * `truncated` exists because a flagged list that quietly stops short is worse
+ * than one that says it stopped. A manager who cannot see a suspicious visit
+ * concludes there was not one. Same rule as `AgentActivityPage.truncated`.
+ */
+export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage> {
+  const { clientId, minScore } = input;
+  const to = input.to ?? new Date();
+  const from =
+    input.from ?? new Date(to.getTime() - DEFAULT_FRAUD_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
   const [visits, failedAttempts] = await Promise.all([
     prisma.visit.findMany({
-      where: { clientId, status: 'submitted' },
+      where: { clientId, status: 'submitted', checkinTs: { gte: from, lte: to } },
       include: fraudVisitInclude,
+      // Newest first, so a truncated scan drops the OLDEST visits — the ones
+      // least likely to still be actionable — rather than an arbitrary slice.
+      orderBy: [{ checkinTs: 'desc' }, { id: 'desc' }],
+      take: MAX_FRAUD_SCAN + 1,
     }),
-    prisma.checkInAttempt.findMany({ where: { clientId, passed: false } }),
+    // Scoped to the same window: the failed-attempt signal only ever matches
+    // attempts by the same agent at the same outlet, so attempts from outside
+    // the window cannot contribute to a visit inside it.
+    prisma.checkInAttempt.findMany({
+      where: { clientId, passed: false, createdAt: { gte: from, lte: to } },
+    }),
   ]);
+
+  const truncated = visits.length > MAX_FRAUD_SCAN;
+  if (truncated) {
+    visits.length = MAX_FRAUD_SCAN;
+  }
 
   const flagged: FlaggedVisit[] = [];
   for (const visit of visits) {
@@ -337,5 +396,5 @@ export async function listFlagged(clientId: string, minScore: number): Promise<F
   }
 
   flagged.sort((a, b) => b.riskScore - a.riskScore);
-  return flagged;
+  return { data: flagged, scanned: visits.length, truncated };
 }
