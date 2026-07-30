@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { app } from '../../app';
+import { httpServer as app } from '../../testHttpServer';
 import { issueToken } from '../auth/auth.service';
 
 describe('report-schedules routes', () => {

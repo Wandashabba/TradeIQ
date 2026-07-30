@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app } from '../../app';
+import { httpServer as app } from '../../testHttpServer';
 import { prisma } from '../../lib/prisma';
 import { hashPassword } from './auth.service';
 

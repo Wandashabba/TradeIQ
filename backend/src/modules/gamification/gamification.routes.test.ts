@@ -1,3 +1,4 @@
+import { createServer } from 'http';
 import express from 'express';
 import request from 'supertest';
 import { prisma } from '../../lib/prisma';
@@ -8,9 +9,13 @@ import { gamificationRouter } from './gamification.routes';
 // (app.ts is owned elsewhere / parallel work in flight), so we mount it on a
 // minimal local app. This keeps the suite self-contained without touching
 // app.ts. Deviation from dashboard.routes.test.ts, which imports the shared app.
-const app = express();
-app.use(express.json());
-app.use('/gamification', gamificationRouter);
+const expressApp = express();
+expressApp.use(express.json());
+expressApp.use('/gamification', gamificationRouter);
+// Listening once, so supertest reuses this socket instead of binding a fresh
+// ephemeral port per request — see src/testHttpServer.ts (#227).
+const app = createServer(expressApp).listen(0);
+app.unref();
 
 describe('gamification routes', () => {
   let clientId: string;
