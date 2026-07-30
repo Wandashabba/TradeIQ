@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../storage/secure_storage.dart';
 
 /// A persisted authentication session: the bearer token plus the user's role,
 /// enough to restore a logged-in session on app restart without re-login.
@@ -21,7 +22,7 @@ abstract class TokenStore {
 
 class SecureTokenStore implements TokenStore {
   SecureTokenStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? FlutterSecureStorage();
+      : _storage = storage ?? appSecureStorage;
 
   final FlutterSecureStorage _storage;
 
