@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { extractPriceFromPhoto } from '../../services/ocr.stub';
 import { computeSlaDueAt } from '../../lib/slaClock';
@@ -26,15 +27,27 @@ export interface RecordPricingInput {
   items: PricingItemInput[];
 }
 
-export async function listPricingForVisit(visitId: string, clientId: string) {
+  // Bounded by one visit's children rather than a whole tenant, so this is
+  // consistency work, not an OOM fix — but a caller should not have to know
+  // which lists carry an envelope and which do not.
+export async function listPricingForVisit(
+  visitId: string,
+  clientId: string,
+  page: { limit: number; cursor?: string },
+) {
   const visit = await prisma.visit.findFirst({ where: { id: visitId, clientId } });
   if (!visit) {
     throw new NotFoundError('Visit not found');
   }
-  return prisma.visitPricing.findMany({
+  const rows = await prisma.visitPricing.findMany({
     where: { visitId },
-    orderBy: { createdAt: 'desc' },
+    // Tiebreaker direction matches the primary sort — see alerts.service.ts.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: page.limit + 1,
+    ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {}),
   });
+
+  return buildPage(rows, page.limit);
 }
 
 export async function recordPricing(input: RecordPricingInput) {

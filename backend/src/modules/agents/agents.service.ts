@@ -97,7 +97,7 @@ const MAX_LIMIT = 200;
  */
 export async function listAgentActivity(
   input: ListAgentActivityInput,
-): Promise<{ agents: AgentActivity[]; nextCursor: string | null }> {
+): Promise<{ data: AgentActivity[]; nextCursor: string | null }> {
   const { clientId, from, to, territoryId } = input;
   // Clamp both ends. A non-positive `limit` (a bad query param, or a `NaN`
   // forwarded from the route) must not be read as "unbounded" — left
@@ -126,7 +126,7 @@ export async function listAgentActivity(
     });
     agentIdFilter = assignments.map((a) => a.userId);
     if (agentIdFilter.length === 0) {
-      return { agents: [], nextCursor: null };
+      return { data: [], nextCursor: null };
     }
   }
 
@@ -147,7 +147,7 @@ export async function listAgentActivity(
   const nextCursor = agents.length > limit ? page[page.length - 1].id : null;
 
   if (page.length === 0) {
-    return { agents: [], nextCursor: null };
+    return { data: [], nextCursor: null };
   }
 
   const visits = await prisma.visit.findMany({
@@ -192,7 +192,7 @@ export async function listAgentActivity(
   }
 
   return {
-    agents: page.map((a) => {
+    data: page.map((a) => {
       const stops = byAgent.get(a.id) ?? [];
       const { state, currentOutlet } = deriveAgentState(stops);
       return {

@@ -201,16 +201,16 @@ describe('template-responses routes', () => {
       .set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThanOrEqual(1);
-    expect(res.body.every((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.data.every((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
 
     const filtered = await request(app)
       .get('/template-responses')
       .query({ visitId, templateId: 'no-such-template' })
       .set('Authorization', `Bearer ${managerToken}`);
     expect(filtered.status).toBe(200);
-    expect(filtered.body).toHaveLength(0);
+    expect(filtered.body.data).toHaveLength(0);
   });
 
   it('rejects a GET without visitId with 400', async () => {

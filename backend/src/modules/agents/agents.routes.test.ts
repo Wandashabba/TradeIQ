@@ -59,7 +59,7 @@ describe('agents routes', () => {
         .get(`/agents/activity${qs}`)
         .set('Authorization', `Bearer ${managerToken}`);
       expect(res.status).toBe(200);
-      expect(res.body.agents).toEqual([
+      expect(res.body.data).toEqual([
         {
           agentId,
           name: 'AGTR-agent@example.com',
@@ -133,7 +133,7 @@ describe('agents routes', () => {
         .get(`/agents/activity${qs}`)
         .set('Authorization', `Bearer ${managerToken}`);
       expect(res.status).toBe(200);
-      const agentIds = (res.body.agents as Array<{ agentId: string }>).map((a) => a.agentId);
+      const agentIds = (res.body.data as Array<{ agentId: string }>).map((a) => a.agentId);
       expect(agentIds).not.toContain(otherAgentId);
       expect(agentIds).toEqual([agentId]);
     });
@@ -151,7 +151,7 @@ describe('agents routes', () => {
           .get(`/agents/activity${qs}&territoryId=${territory.id}`)
           .set('Authorization', `Bearer ${managerToken}`);
         expect(res.status).toBe(200);
-        expect((res.body.agents as Array<{ agentId: string }>).map((a) => a.agentId)).toEqual([
+        expect((res.body.data as Array<{ agentId: string }>).map((a) => a.agentId)).toEqual([
           agentId,
         ]);
       } finally {
@@ -173,7 +173,7 @@ describe('agents routes', () => {
           .get(`/agents/activity${qs}&territoryId=${territory.code}`)
           .set('Authorization', `Bearer ${managerToken}`);
         expect(res.status).toBe(200);
-        expect((res.body.agents as Array<{ agentId: string }>).map((a) => a.agentId)).toEqual([]);
+        expect((res.body.data as Array<{ agentId: string }>).map((a) => a.agentId)).toEqual([]);
       } finally {
         await prisma.userTerritory.deleteMany({ where: { territoryId: territory.id } });
         await prisma.territory.delete({ where: { id: territory.id } });
@@ -190,15 +190,15 @@ describe('agents routes', () => {
           .get(`/agents/activity${qs}&limit=1`)
           .set('Authorization', `Bearer ${managerToken}`);
         expect(first.status).toBe(200);
-        expect(first.body.agents).toHaveLength(1);
+        expect(first.body.data).toHaveLength(1);
         expect(first.body.nextCursor).not.toBeNull();
 
         const second = await request(app)
           .get(`/agents/activity${qs}&limit=1&cursor=${first.body.nextCursor}`)
           .set('Authorization', `Bearer ${managerToken}`);
         expect(second.status).toBe(200);
-        expect(second.body.agents).toHaveLength(1);
-        expect(second.body.agents[0].agentId).not.toBe(first.body.agents[0].agentId);
+        expect(second.body.data).toHaveLength(1);
+        expect(second.body.data[0].agentId).not.toBe(first.body.data[0].agentId);
         expect(second.body.nextCursor).toBeNull();
       } finally {
         await prisma.user.delete({ where: { id: agent2.id } });

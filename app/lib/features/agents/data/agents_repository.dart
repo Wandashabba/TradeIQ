@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 import '../../dashboard/data/dashboard_repository.dart'
     show dashboardFilterProvider, nowProvider;
 
@@ -153,12 +154,19 @@ class DioAgentsRepository implements AgentsRepository {
         'territoryId': ?territoryId,
       },
     );
-    final agents = (response.data?['agents'] as List?) ?? const [];
+    // Reads the shared envelope like every other list — this endpoint used to
+    // key its rows under `agents` and was the app's one exception to
+    // PaginatedResponse. The exception is what made it easy to forget.
+    final page = PaginatedResponse<AgentActivity>.fromJson(
+      response.data ?? const <String, dynamic>{},
+      (json) => AgentActivity.fromJson(json as Map<String, dynamic>),
+    );
     return AgentActivityPage(
-      agents: agents
-          .map((a) => AgentActivity.fromJson(a as Map<String, dynamic>))
-          .toList(),
-      truncated: response.data?['nextCursor'] != null,
+      agents: page.data,
+      // Deliberately not a cursor the caller can follow: the panel asks for
+      // the server's MAX_LIMIT in one go, so a non-null cursor means the team
+      // is larger than one page and the panel says so rather than paging.
+      truncated: page.nextCursor != null,
     );
   }
 }

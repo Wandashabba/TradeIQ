@@ -170,7 +170,7 @@ describe('listAgentActivity', () => {
 
   it('returns the agent with their stop and derived state', async () => {
     const result = await listAgentActivity({ clientId, from: FROM, to: TO });
-    const mine = result.agents.find((a) => a.agentId === agentId);
+    const mine = result.data.find((a) => a.agentId === agentId);
     expect(mine).toBeDefined();
     expect(mine!.stops).toHaveLength(1);
     expect(mine!.stops[0].outletName).toBe('Sandton Spar');
@@ -180,7 +180,7 @@ describe('listAgentActivity', () => {
 
   it('never returns another tenant\'s agents', async () => {
     const result = await listAgentActivity({ clientId, from: FROM, to: TO });
-    expect(result.agents.map((a) => a.agentId)).not.toContain(otherAgentId);
+    expect(result.data.map((a) => a.agentId)).not.toContain(otherAgentId);
   });
 
   it('reports an agent with no visits in range as idle with a null lastSeenAt', async () => {
@@ -189,7 +189,7 @@ describe('listAgentActivity', () => {
       from: new Date('2026-07-01T00:00:00Z'),
       to: new Date('2026-07-02T00:00:00Z'),
     });
-    const mine = result.agents.find((a) => a.agentId === agentId);
+    const mine = result.data.find((a) => a.agentId === agentId);
     expect(mine!.state).toBe('idle');
     expect(mine!.lastSeenAt).toBeNull();
     expect(mine!.stops).toEqual([]);
@@ -200,14 +200,14 @@ describe('listAgentActivity', () => {
   // than silently claiming there's nothing more to fetch.
   it('clamps a non-positive limit up to 1 instead of returning everything', async () => {
     const result = await listAgentActivity({ clientId, from: FROM, to: TO, limit: 0 });
-    expect(result.agents).toHaveLength(1);
+    expect(result.data).toHaveLength(1);
     expect(result.nextCursor).not.toBeNull();
   });
 
   it('limit: 1 returns one agent with nextCursor equal to that agent\'s id', async () => {
     const result = await listAgentActivity({ clientId, from: FROM, to: TO, limit: 1 });
-    expect(result.agents).toHaveLength(1);
-    expect(result.nextCursor).toBe(result.agents[0].agentId);
+    expect(result.data).toHaveLength(1);
+    expect(result.nextCursor).toBe(result.data[0].agentId);
   });
 
   it('fetches the second page using the cursor from the first', async () => {
@@ -219,8 +219,8 @@ describe('listAgentActivity', () => {
       limit: 1,
       cursor: first.nextCursor!,
     });
-    expect(second.agents).toHaveLength(1);
-    expect(second.agents[0].agentId).not.toBe(first.agents[0].agentId);
+    expect(second.data).toHaveLength(1);
+    expect(second.data[0].agentId).not.toBe(first.data[0].agentId);
     expect(second.nextCursor).toBeNull();
   });
 
@@ -228,8 +228,8 @@ describe('listAgentActivity', () => {
   // also emit a cursor implying there is more.
   it('nextCursor is null when limit equals the total number of matching agents', async () => {
     const result = await listAgentActivity({ clientId, from: FROM, to: TO, limit: 2 });
-    expect(result.agents).toHaveLength(2);
-    expect(result.agents.map((a) => a.agentId).sort()).toEqual([agentId, agentId2].sort());
+    expect(result.data).toHaveLength(2);
+    expect(result.data.map((a) => a.agentId).sort()).toEqual([agentId, agentId2].sort());
     expect(result.nextCursor).toBeNull();
   });
 
@@ -246,7 +246,7 @@ describe('listAgentActivity', () => {
 
     try {
       const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: territory.id });
-      expect(result.agents.map((a) => a.agentId)).toEqual([agentId]);
+      expect(result.data.map((a) => a.agentId)).toEqual([agentId]);
     } finally {
       await prisma.userTerritory.deleteMany({ where: { territoryId: territory.id } });
       await prisma.territory.delete({ where: { id: territory.id } });
@@ -266,7 +266,7 @@ describe('listAgentActivity', () => {
 
     try {
       const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: territory.code });
-      expect(result).toEqual({ agents: [], nextCursor: null });
+      expect(result).toEqual({ data: [], nextCursor: null });
     } finally {
       await prisma.userTerritory.deleteMany({ where: { territoryId: territory.id } });
       await prisma.territory.delete({ where: { id: territory.id } });
@@ -275,7 +275,7 @@ describe('listAgentActivity', () => {
 
   it('returns no agents when the territory id has zero assignments', async () => {
     const result = await listAgentActivity({ clientId, from: FROM, to: TO, territoryId: 'AGT-NOPE' });
-    expect(result).toEqual({ agents: [], nextCursor: null });
+    expect(result).toEqual({ data: [], nextCursor: null });
   });
 
   // Two open visits with an identical checkinTs is plausible from a retried
@@ -345,8 +345,8 @@ describe('listAgentActivity', () => {
 
       const first = await listAgentActivity({ clientId: tieClient.id, from: FROM, to: TO });
       const second = await listAgentActivity({ clientId: tieClient.id, from: FROM, to: TO });
-      expect(first.agents[0].currentOutlet?.id).toBe(expectedOutletId);
-      expect(second.agents[0].currentOutlet?.id).toBe(expectedOutletId);
+      expect(first.data[0].currentOutlet?.id).toBe(expectedOutletId);
+      expect(second.data[0].currentOutlet?.id).toBe(expectedOutletId);
     } finally {
       await prisma.visit.deleteMany({ where: { clientId: tieClient.id } });
       await prisma.outlet.deleteMany({ where: { clientId: tieClient.id } });

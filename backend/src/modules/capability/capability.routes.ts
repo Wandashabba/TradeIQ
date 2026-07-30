@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { Router } from 'express';
+import { parsePagination } from '../../lib/pagination';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { listCapabilityForVisit, recordCapability } from './capability.service';
@@ -46,6 +47,6 @@ capabilityRouter.get('/', async (req: AuthedRequest, res) => {
     return;
   }
 
-  const rows = await listCapabilityForVisit(visitId, req.user!.clientId);
+  const rows = await listCapabilityForVisit(visitId, req.user!.clientId, parsePagination(req));
   res.status(200).json(rows);
 });

@@ -403,9 +403,9 @@ describe('stock routes', () => {
       .set('Authorization', `Bearer ${agentToken}`);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThanOrEqual(1);
-    expect(res.body.every((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.data.every((row: { visitId: string }) => row.visitId === visitId)).toBe(true);
   });
 
   it('rejects a GET without visitId with 400', async () => {

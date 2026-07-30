@@ -256,22 +256,26 @@ class _ThumbAdapter implements HttpClientAdapter {
     }
     if (options.path == '/photos') {
       return ResponseBody.fromString(
-        jsonEncode([
-          {
-            'id': 'p-new',
-            'visitId': 'v1',
-            'section': 'shelf',
-            'url': 'data:image/png;base64,AQID',
-            'timestamp': '2026-07-22T10:00:00.000Z',
-          },
-          {
-            'id': 'p-old',
-            'visitId': 'v1',
-            'section': 'shelf',
-            'url': 'data:image/png;base64,BAUG',
-            'timestamp': '2026-07-21T10:00:00.000Z',
-          },
-        ]),
+        // The shared {data, nextCursor} envelope, as GET /photos now answers.
+        jsonEncode({
+          'data': [
+            {
+              'id': 'p-new',
+              'visitId': 'v1',
+              'section': 'shelf',
+              'url': 'data:image/png;base64,AQID',
+              'timestamp': '2026-07-22T10:00:00.000Z',
+            },
+            {
+              'id': 'p-old',
+              'visitId': 'v1',
+              'section': 'shelf',
+              'url': 'data:image/png;base64,BAUG',
+              'timestamp': '2026-07-21T10:00:00.000Z',
+            },
+          ],
+          'nextCursor': null,
+        }),
         200,
         headers: {
           Headers.contentTypeHeader: [Headers.jsonContentType],

@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
 
 export interface RecordTemplateResponseInput {
@@ -16,6 +17,8 @@ export interface ListTemplateResponsesInput {
   visitId: string;
   clientId: string;
   templateId?: string;
+  limit: number;
+  cursor?: string;
 }
 
 export async function listTemplateResponsesForVisit(input: ListTemplateResponsesInput) {
@@ -25,13 +28,18 @@ export async function listTemplateResponsesForVisit(input: ListTemplateResponses
   if (!visit) {
     throw new NotFoundError('Visit not found');
   }
-  return prisma.visitTemplateResponse.findMany({
+  const rows = await prisma.visitTemplateResponse.findMany({
     where: {
       visitId: input.visitId,
       ...(input.templateId !== undefined ? { templateId: input.templateId } : {}),
     },
-    orderBy: { createdAt: 'desc' },
+    // Tiebreaker direction matches the primary sort — see alerts.service.ts.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
+
+  return buildPage(rows, input.limit);
 }
 
 export async function recordTemplateResponse(input: RecordTemplateResponseInput) {
