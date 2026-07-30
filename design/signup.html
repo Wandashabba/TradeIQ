@@ -1,4 +1,22 @@
 <!DOCTYPE html>
+<!--
+  WORKSPACE SETUP — NOT a self-serve sign-up, and NOT currently built.
+
+  Decision 2026-07-30 (#102): there is no public registration. Users are
+  provisioned by an admin via POST /users, and email is globally unique — a
+  person belongs to exactly one tenant. The landing page's primary CTA is
+  therefore "Sign In", not "Get Started".
+
+  This prototype is kept because the flow it shows — create the Client (name +
+  industry, which seed the scorecard weights) plus its first admin — is the one
+  that maps onto the real data model, and is what a sales-assisted onboarding
+  would use. It is reachable from landing.html and signin.html as a secondary
+  link, deliberately not as a primary call to action.
+
+  Do not build this as self-serve without reopening #102. Doing so also
+  reopens #188: if the same person can belong to two tenants, email can no
+  longer be globally unique.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
