@@ -376,16 +376,53 @@ describe('fraud routes', () => {
   });
 
   describe('GET /fraud/flagged', () => {
+    it('bounds the scan and says so, rather than silently truncating (#236)', async () => {
+      // The endpoint scores visits in memory, so it cannot key a cursor on the
+      // result. What it CAN do is refuse to scan without limit — and admit it
+      // when the limit bit. A flagged list that quietly stops short is worse
+      // than one that says it stopped: a manager who cannot see a suspicious
+      // visit concludes there wasn't one.
+      const res = await request(app)
+        .get('/fraud/flagged')
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('scanned');
+      expect(res.body).toHaveProperty('truncated');
+      expect(res.body.truncated).toBe(false);
+    });
+
+    it('rejects a scan window that is not a date with 400', async () => {
+      const res = await request(app)
+        .get('/fraud/flagged?from=not-a-date')
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('honours an explicit from/to window', async () => {
+      // A window in the distant past must find nothing, proving the window is
+      // applied to the scan rather than ignored.
+      const res = await request(app)
+        .get('/fraud/flagged?from=2020-01-01T00:00:00.000Z&to=2020-01-02T00:00:00.000Z')
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(0);
+      expect(res.body.scanned).toBe(0);
+    });
+
     it('returns the suspicious visit and excludes the clean one', async () => {
       const res = await request(app)
         .get('/fraud/flagged')
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.status).toBe(200);
-      const ids = res.body.map((v: { visitId: string }) => v.visitId);
+      const ids = res.body.data.map((v: { visitId: string }) => v.visitId);
       expect(ids).toContain(suspiciousVisitId);
       expect(ids).not.toContain(cleanVisitId);
-      const flagged = res.body.find((v: { visitId: string }) => v.visitId === suspiciousVisitId);
+      const flagged = res.body.data.find((v: { visitId: string }) => v.visitId === suspiciousVisitId);
       expect(flagged.riskScore).toBe(85);
       expect(flagged.outletId).toBe(outletId);
       expect(flagged.agentId).toBe(agentId);
@@ -397,7 +434,7 @@ describe('fraud routes', () => {
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.status).toBe(200);
-      const ids = res.body.map((v: { visitId: string }) => v.visitId);
+      const ids = res.body.data.map((v: { visitId: string }) => v.visitId);
       expect(ids).not.toContain(suspiciousVisitId);
     });
 

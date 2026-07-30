@@ -75,6 +75,20 @@ fraudRouter.get('/flagged', async (req: AuthedRequest, res) => {
     min = Number(minScore);
   }
 
-  const flagged = await listFlagged(req.user!.clientId, min);
-  res.status(200).json(flagged);
+  // The scan window. Rejected rather than coerced when malformed: a silently
+  // ignored `from` would quietly widen the scan back to everything, which is
+  // the exact behaviour this endpoint was changed to stop doing.
+  const window: { from?: Date; to?: Date } = {};
+  for (const key of ['from', 'to'] as const) {
+    const raw = (req.query as Record<string, unknown>)[key];
+    if (raw === undefined) continue;
+    if (typeof raw !== 'string' || Number.isNaN(Date.parse(raw))) {
+      res.status(400).json({ error: `${key} must be an ISO-8601 date` });
+      return;
+    }
+    window[key] = new Date(raw);
+  }
+
+  const page = await listFlagged({ clientId: req.user!.clientId, minScore: min, ...window });
+  res.status(200).json(page);
 });
