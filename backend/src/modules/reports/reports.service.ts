@@ -209,14 +209,35 @@ function csvCell(value: unknown): string {
   return /[",\n\r]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
 }
 
-// Serialize generated rows to CSV: a header row from the first row's keys, then
-// one line per row. Nested/JSON values are stringified; empty input yields ''.
+// Serialize generated rows to CSV: a header row, then one line per row.
+// Nested/JSON values are stringified; empty input yields ''.
 export function rowsToCsv(rows: ReportRow[]): string {
   if (rows.length === 0) {
     return '';
   }
-  const columns = Object.keys(rows[0]);
-  const header = columns.join(',');
+
+  // The column set is the UNION of every row's keys, in first-seen order — not
+  // the first row's keys alone. Report rows are assembled per record, so a
+  // nullable field absent from row 1 is ordinary. Taking only row 1's keys
+  // silently dropped later columns, and a row missing an early field shifted
+  // every later value one column left: a file that reads as clean data while
+  // attributing values to the wrong column. Misaligned data is worse than
+  // absent data, because nothing about it looks wrong.
+  const columns: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      if (!seen.has(key)) {
+        seen.add(key);
+        columns.push(key);
+      }
+    }
+  }
+
+  // Header cells go through the same escaping as data cells. A report
+  // definition whose field is named `price, ex VAT` otherwise emitted one more
+  // header column than every data row.
+  const header = columns.map((col) => csvCell(col)).join(',');
   const lines = rows.map((row) => columns.map((col) => csvCell(row[col])).join(','));
   return [header, ...lines].join('\n');
 }
