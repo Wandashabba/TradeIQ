@@ -20,4 +20,33 @@ describe('rowsToCsv', () => {
     const csv = rowsToCsv([{ name: 'Corner Shop', qty: '5' }]);
     expect(csv.split('\n')[1]).toBe('Corner Shop,5');
   });
+  it('keeps columns aligned when later rows carry different keys', () => {
+    // The header was built from the FIRST row's keys alone, so a row with an
+    // extra field silently lost it, and a row missing an early field shifted
+    // every later value one column left — a report that reads as clean data
+    // while attributing values to the wrong column.
+    const csv = rowsToCsv([
+      { outlet: 'A', qty: 1 },
+      { outlet: 'B', qty: 2, note: 'late column' },
+      { qty: 3 },
+    ]);
+    const [header, ...rows] = csv.split('\n');
+
+    expect(header).toBe('outlet,qty,note');
+    expect(rows[0]).toBe('A,1,');
+    expect(rows[1]).toBe('B,2,late column');
+    // Missing leading field stays an empty cell rather than shifting qty left.
+    expect(rows[2]).toBe(',3,');
+  });
+
+  it('escapes a column name that contains a comma or quote', () => {
+    // Header names went out raw. A report definition whose field is named
+    // 'price, ex VAT' produced one more header column than every data row.
+    const csv = rowsToCsv([{ 'price, ex VAT': 10, 'say "hi"': 'x' }]);
+    const header = csv.split('\n')[0];
+
+    expect(header).toBe('"price, ex VAT","say ""hi"""');
+    // Quoted commas must not read as extra columns.
+    expect(header.split('","')).toHaveLength(2);
+  });
 });
