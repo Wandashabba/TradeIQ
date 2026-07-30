@@ -426,8 +426,23 @@ model BeatPlan {
   createdAt     DateTime       @default(now()) @map("created_at")
   stops         BeatPlanStop[]
 
+  /// Every occurrence generated from one recurrence shares this id, so a series
+  /// can be listed or cancelled as a unit. Null for a one-off plan.
+  ///
+  /// Occurrences are real rows rather than a rule expanded on read because
+  /// `BeatPlanStop.visited` is per-occurrence state — there is nowhere to record
+  /// "today's third stop was visited" against a computed date.
+  seriesId      String?        @map("series_id")
+
+  /// The rule the series was generated from — `{frequency, interval, daysOfWeek,
+  /// until}`. Denormalised onto every occurrence so a screen can say "repeats
+  /// weekly" without a second query. Read for display only: the dates are
+  /// already materialised, so nothing re-derives them from this.
+  recurrence    Json?
+
   @@index([clientId])
   @@index([agentId])
+  @@index([seriesId])
   @@map("beat_plans")
 }
 

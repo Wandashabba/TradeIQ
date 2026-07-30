@@ -515,4 +515,132 @@ describe('beatplans routes', () => {
       expect(res.status).toBe(403);
     });
   });
+  describe('POST / recurrence (#98)', () => {
+    it('materialises one plan per occurrence, all sharing a seriesId', async () => {
+      const res = await request(app)
+        .post('/beatplans')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          agentId: agentAId,
+          name: 'RECUR- Weekly Tuesday beat',
+          scheduledDate: '2026-07-07T00:00:00.000Z',
+          outletIds: [outlet1Id, outlet2Id],
+          recurrence: { frequency: 'weekly', until: '2026-07-28T00:00:00.000Z' },
+        });
+
+      expect(res.status).toBe(201);
+      // Four Tuesdays: 07, 14, 21, 28 July.
+      expect(res.body.occurrences).toBe(4);
+      expect(res.body.seriesId).not.toBeNull();
+
+      const series = await prisma.beatPlan.findMany({
+        where: { seriesId: res.body.seriesId },
+        include: { stops: true },
+        orderBy: { scheduledDate: 'asc' },
+      });
+      expect(series).toHaveLength(4);
+      expect(
+        series.map((p) => p.scheduledDate.toISOString().slice(0, 10)),
+      ).toEqual(['2026-07-07', '2026-07-14', '2026-07-21', '2026-07-28']);
+
+      // Every occurrence carries its own stops, which is the whole reason these
+      // are rows rather than a rule expanded on read — `visited` is per-date.
+      for (const plan of series) {
+        expect(plan.stops).toHaveLength(2);
+        expect(plan.stops.every((stop) => stop.visited === false)).toBe(true);
+      }
+    });
+
+    it('marking one occurrence visited does not touch its siblings', async () => {
+      const created = await request(app)
+        .post('/beatplans')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          agentId: agentAId,
+          name: 'RECUR- Daily beat',
+          scheduledDate: '2026-08-03T00:00:00.000Z',
+          outletIds: [outlet1Id],
+          recurrence: { frequency: 'daily', until: '2026-08-05T00:00:00.000Z' },
+        });
+      expect(created.status).toBe(201);
+
+      const series = await prisma.beatPlan.findMany({
+        where: { seriesId: created.body.seriesId },
+        include: { stops: true },
+        orderBy: { scheduledDate: 'asc' },
+      });
+      expect(series).toHaveLength(3);
+
+      await prisma.beatPlanStop.update({
+        where: { id: series[0].stops[0].id },
+        data: { visited: true },
+      });
+
+      const after = await prisma.beatPlan.findMany({
+        where: { seriesId: created.body.seriesId },
+        include: { stops: true },
+        orderBy: { scheduledDate: 'asc' },
+      });
+      expect(after[0].stops[0].visited).toBe(true);
+      expect(after[1].stops[0].visited).toBe(false);
+      expect(after[2].stops[0].visited).toBe(false);
+    });
+
+    it('a one-off create is unchanged — no seriesId, one occurrence', async () => {
+      const res = await request(app)
+        .post('/beatplans')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          agentId: agentAId,
+          name: 'RECUR- One off',
+          scheduledDate: '2026-09-01T00:00:00.000Z',
+          outletIds: [outlet1Id],
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.seriesId).toBeNull();
+      expect(res.body.occurrences).toBe(1);
+    });
+
+    it('rejects a malformed recurrence rather than silently creating a one-off', async () => {
+      for (const recurrence of [
+        { frequency: 'yearly', until: '2026-08-01T00:00:00.000Z' },
+        { frequency: 'weekly' },
+        { frequency: 'weekly', until: 'not-a-date' },
+        { frequency: 'weekly', until: '2026-08-01T00:00:00.000Z', interval: 'two' },
+        { frequency: 'weekly', until: '2026-08-01T00:00:00.000Z', daysOfWeek: ['mon'] },
+      ]) {
+        const res = await request(app)
+          .post('/beatplans')
+          .set('Authorization', `Bearer ${managerToken}`)
+          .send({
+            agentId: agentAId,
+            name: 'RECUR- Bad',
+            scheduledDate: '2026-07-07T00:00:00.000Z',
+            outletIds: [outlet1Id],
+            recurrence,
+          });
+        expect(res.status).toBe(400);
+      }
+    });
+
+    it('refuses a series that would exceed the cap, and writes nothing', async () => {
+      const before = await prisma.beatPlan.count();
+
+      const res = await request(app)
+        .post('/beatplans')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          agentId: agentAId,
+          name: 'RECUR- Five years daily',
+          scheduledDate: '2026-07-07T00:00:00.000Z',
+          outletIds: [outlet1Id],
+          recurrence: { frequency: 'daily', until: '2031-07-07T00:00:00.000Z' },
+        });
+
+      expect(res.status).toBe(400);
+      // All-or-nothing: half a journey plan is worse than none.
+      expect(await prisma.beatPlan.count()).toBe(before);
+    });
+  });
 });
