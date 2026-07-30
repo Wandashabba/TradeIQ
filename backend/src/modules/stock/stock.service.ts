@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { buildPage } from '../../lib/pagination';
 import { NotFoundError, ValidationError } from '../../middleware/errorHandler';
 import { predictCoverageDays } from '../../services/forecast.service';
 import {
@@ -49,15 +50,27 @@ function coverageFor(unitsAvailable: number, velocityAvg: number): number {
   return Number.isFinite(coverage) ? coverage : 0;
 }
 
-export async function listStockForVisit(visitId: string, clientId: string) {
+  // Bounded by one visit's children rather than a whole tenant, so this is
+  // consistency work, not an OOM fix — but a caller should not have to know
+  // which lists carry an envelope and which do not.
+export async function listStockForVisit(
+  visitId: string,
+  clientId: string,
+  page: { limit: number; cursor?: string },
+) {
   const visit = await prisma.visit.findFirst({ where: { id: visitId, clientId } });
   if (!visit) {
     throw new NotFoundError('Visit not found');
   }
-  return prisma.visitStock.findMany({
+  const rows = await prisma.visitStock.findMany({
     where: { visitId },
-    orderBy: { createdAt: 'desc' },
+    // Tiebreaker direction matches the primary sort — see alerts.service.ts.
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: page.limit + 1,
+    ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {}),
   });
+
+  return buildPage(rows, page.limit);
 }
 
 export async function recordStock(input: RecordStockInput) {

@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { Router } from 'express';
+import { parsePagination } from '../../lib/pagination';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import {
@@ -62,10 +63,13 @@ templateResponsesRouter.get('/', async (req: AuthedRequest, res) => {
     return;
   }
 
+  const { limit, cursor } = parsePagination(req);
   const rows = await listTemplateResponsesForVisit({
     visitId,
     clientId: req.user!.clientId,
     ...(templateId !== undefined ? { templateId } : {}),
+    limit,
+    cursor,
   });
   res.status(200).json(rows);
 });

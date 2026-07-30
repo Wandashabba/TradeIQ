@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { Router } from 'express';
+import { parsePagination } from '../../lib/pagination';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { createPhoto, getPhotoThumbnail, listPhotosForVisit } from './photos.service';
@@ -63,7 +64,7 @@ photosRouter.get('/', async (req: AuthedRequest, res) => {
     return;
   }
 
-  const photos = await listPhotosForVisit(visitId, req.user!.clientId);
+  const photos = await listPhotosForVisit(visitId, req.user!.clientId, parsePagination(req));
   res.status(200).json(photos);
 });
 

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/network/api_client.dart' as api;
+import '../../../core/network/paginated_response.dart';
 import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_service.dart';
 
@@ -111,9 +112,15 @@ class DioPhotosRepository implements PhotosRepository {
       '/photos',
       queryParameters: {'visitId': visitId},
     );
-    return (response.data as List)
-        .map((json) => VisitPhoto.fromJson(json as Map<String, dynamic>))
-        .toList();
+    // The shared `{data, nextCursor}` envelope. Only the first page is read:
+    // this backs the evidence dialog, which shows one visit's photos — a
+    // handful — and a visit that somehow exceeded a page would be a data
+    // problem to investigate, not a list to keep scrolling.
+    final page = PaginatedResponse<VisitPhoto>.fromJson(
+      response.data as Map<String, dynamic>,
+      (json) => VisitPhoto.fromJson(json as Map<String, dynamic>),
+    );
+    return page.data;
   }
 
   @override

@@ -176,10 +176,25 @@ describe('photos routes', () => {
       .set('Authorization', `Bearer ${agentToken}`);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThanOrEqual(2);
-    const createdAts = res.body.map((p: { createdAt: string }) => new Date(p.createdAt).getTime());
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(2);
+    const createdAts = res.body.data.map((p: { createdAt: string }) => new Date(p.createdAt).getTime());
     expect(createdAts).toEqual([...createdAts].sort((a: number, b: number) => b - a));
+  });
+
+  it('answers GET /photos with an envelope, capped and cursored', async () => {
+    const first = await request(app)
+      .get(`/photos?visitId=${visitId}&limit=1`)
+      .set('Authorization', `Bearer ${agentToken}`);
+
+    expect(first.status).toBe(200);
+    expect(first.body.data).toHaveLength(1);
+    expect(first.body).toHaveProperty('nextCursor');
+
+    const bad = await request(app)
+      .get(`/photos?visitId=${visitId}&limit=0`)
+      .set('Authorization', `Bearer ${agentToken}`);
+    expect(bad.status).toBe(400);
   });
 
   it('rejects a GET without a visitId with 400', async () => {
