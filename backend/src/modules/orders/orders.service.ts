@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
@@ -26,6 +27,52 @@ export interface CreateOrderInput {
 function computeTotal(lines: OrderLineInput[]): number {
   const raw = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
   return Math.round(raw * 100) / 100;
+}
+
+/**
+ * The campaign an order placed now at this outlet belongs to, or null.
+ *
+ * Attribution happens at creation and is never back-filled: an order placed
+ * outside any campaign genuinely belongs to none, and re-attributing later would
+ * silently rewrite a campaign's measured return after someone had read it.
+ *
+ * Only `active` campaigns count. A `draft` campaign has not started spending and
+ * a `completed` one is closed for measurement, so neither should acquire new
+ * orders — a draft that quietly accumulated revenue would show a return before
+ * anyone launched it.
+ *
+ * ## When more than one campaign matches
+ *
+ * Overlapping campaigns on one outlet are legitimate (a national promo and a
+ * regional push), but `Order.campaignId` is a single column, so the order can
+ * only be credited to one. The tie-break is the most recently STARTED campaign,
+ * then the highest id — deterministic, so the same order never lands differently
+ * on a retry, and biased toward the more specific/newer initiative, which is
+ * usually the one being measured.
+ *
+ * This is a real limitation, not a solved problem: true multi-touch attribution
+ * needs an allocation model (split by weight, or an order↔campaign join), and
+ * that is a product decision nobody has made. Documented here so a surprising
+ * ROI figure is traceable rather than mysterious.
+ */
+async function attributeToCampaign(
+  tx: Prisma.TransactionClient,
+  clientId: string,
+  outletId: string,
+  at: Date,
+): Promise<string | null> {
+  const campaign = await tx.campaign.findFirst({
+    where: {
+      clientId,
+      status: 'active',
+      startDate: { lte: at },
+      endDate: { gte: at },
+      outlets: { some: { outletId } },
+    },
+    orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
+    select: { id: true },
+  });
+  return campaign?.id ?? null;
 }
 
 export async function createOrder(input: CreateOrderInput) {
@@ -58,6 +105,13 @@ export async function createOrder(input: CreateOrderInput) {
     throw new NotFoundError(`SKU not found: ${unknown}`);
   }
 
+  // Campaign attribution and the write share one transaction, so an order can
+  // never exist with an attribution decided against a campaign that changed
+  // underneath it.
+  const campaignId = await prisma.$transaction((tx) =>
+    attributeToCampaign(tx, input.clientId, input.outletId, new Date()),
+  );
+
   // Nested create runs the order + its lines in a single implicit transaction.
   const order = await prisma.order.create({
     data: {
@@ -65,6 +119,7 @@ export async function createOrder(input: CreateOrderInput) {
       outletId: input.outletId,
       agentId: input.agentId,
       visitId: input.visitId,
+      campaignId,
       status: 'submitted',
       total: computeTotal(input.lines),
       lines: {

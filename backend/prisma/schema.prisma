@@ -393,6 +393,7 @@ model Campaign {
   status    String           @default("draft") // draft | active | completed
   createdAt DateTime         @default(now()) @map("created_at")
   outlets   CampaignOutlet[]
+  orders    Order[]
 
   @@index([clientId])
   @@map("campaigns")
@@ -566,6 +567,13 @@ model Order {
   agentId   String      @map("agent_id")
   agent     User        @relation(fields: [agentId], references: [id])
   visitId   String?     @map("visit_id")
+
+  /// The campaign this order is attributed to, stamped at creation when the
+  /// outlet was in an active campaign's window. Nullable and never back-filled:
+  /// an order placed outside any campaign genuinely belongs to none, and
+  /// re-attributing later would silently rewrite a campaign's measured return.
+  campaignId String?    @map("campaign_id")
+  campaign   Campaign?  @relation(fields: [campaignId], references: [id])
   visit     Visit?      @relation(fields: [visitId], references: [id])
   status    String      @default("submitted") // submitted | confirmed | cancelled
   total     Float       @default(0)

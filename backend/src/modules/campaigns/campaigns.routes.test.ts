@@ -105,6 +105,14 @@ describe('campaigns routes', () => {
   });
 
   afterAll(async () => {
+    // Orders first: the ROI tests create them, and they hold FKs to both the
+    // outlets and the campaigns deleted below. Lines before orders, orders
+    // before campaigns, campaigns before outlets — the FK order, not the
+    // reading order.
+    await prisma.orderLine.deleteMany({ where: { order: { clientId } } });
+    await prisma.order.deleteMany({
+      where: { clientId: { in: [clientId, otherClientId] } },
+    });
     await prisma.campaignOutlet.deleteMany({ where: { campaign: { clientId } } });
     await prisma.visitVisibility.deleteMany({ where: { visit: { clientId } } });
     await prisma.visitPricing.deleteMany({ where: { visit: { clientId } } });
@@ -113,6 +121,10 @@ describe('campaigns routes', () => {
     await prisma.outlet.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
     await prisma.sku.deleteMany({ where: { clientId } });
     await prisma.user.deleteMany({ where: { clientId } });
+    // The ROI cross-tenant test creates its own client + campaign; sweep any
+    // ROI- prefixed leftovers so the suite is re-runnable.
+    await prisma.campaign.deleteMany({ where: { name: { startsWith: 'ROI-' } } });
+    await prisma.client.deleteMany({ where: { name: { startsWith: 'ROI-' } } });
     await prisma.client.deleteMany({ where: { id: { in: [clientId, otherClientId] } } });
     await prisma.$disconnect();
   });
@@ -386,6 +398,149 @@ describe('campaigns routes', () => {
         .get('/campaigns?limit=0')
         .set('Authorization', `Bearer ${managerToken}`);
       expect(res.status).toBe(400);
+    });
+  });
+  describe('GET /:id/roi (#94)', () => {
+    let roiCampaignId: string;
+
+    beforeAll(async () => {
+      // A campaign that ran last month over outlet 1.
+      const start = new Date('2026-06-01T00:00:00.000Z');
+      const end = new Date('2026-07-01T00:00:00.000Z');
+      const campaign = await prisma.campaign.create({
+        data: {
+          clientId,
+          name: 'ROI- Winter push',
+          startDate: start,
+          endDate: end,
+          budget: 1000,
+          status: 'active',
+          outlets: { create: [{ outletId: outletId1 }] },
+        },
+      });
+      roiCampaignId = campaign.id;
+
+      // Baseline: the equal-length window immediately before (May). Counted by
+      // date, because there was no campaign then to attribute to.
+      await prisma.order.create({
+        data: {
+          clientId,
+          outletId: outletId1,
+          agentId,
+          status: 'submitted',
+          total: 2000,
+          createdAt: new Date('2026-05-15T00:00:00.000Z'),
+        },
+      });
+
+      // Attributed: stamped with the campaign id, as order creation now does.
+      await prisma.order.create({
+        data: {
+          clientId,
+          outletId: outletId1,
+          agentId,
+          campaignId: campaign.id,
+          status: 'submitted',
+          total: 5000,
+          createdAt: new Date('2026-06-15T00:00:00.000Z'),
+        },
+      });
+
+      // Cancelled, inside the campaign — must count on neither side.
+      await prisma.order.create({
+        data: {
+          clientId,
+          outletId: outletId1,
+          agentId,
+          campaignId: campaign.id,
+          status: 'cancelled',
+          total: 9999,
+          createdAt: new Date('2026-06-20T00:00:00.000Z'),
+        },
+      });
+    });
+
+    it('measures incremental sell-in against spend', async () => {
+      const res = await request(app)
+        .get(`/campaigns/${roiCampaignId}/roi`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.attributedRevenue).toBe(5000);
+      expect(res.body.baselineRevenue).toBe(2000);
+      expect(res.body.incrementalRevenue).toBe(3000);
+      expect(res.body.spend).toBe(1000);
+      // (3000 - 1000) / 1000
+      expect(res.body.roiPct).toBe(200);
+      expect(res.body.unmeasurable).toBeNull();
+    });
+
+    it('excludes cancelled orders — 9999 of them, in this case', async () => {
+      const res = await request(app)
+        .get(`/campaigns/${roiCampaignId}/roi`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.body.attributedRevenue).toBe(5000);
+      expect(res.body.orderCount.attributed).toBe(1);
+    });
+
+    it('reports the baseline window it actually used', async () => {
+      const res = await request(app)
+        .get(`/campaigns/${roiCampaignId}/roi`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.body.baselineWindow.to).toBe('2026-06-01T00:00:00.000Z');
+      expect(res.body.baselineWindow.from).toBe('2026-05-02T00:00:00.000Z');
+    });
+
+    it('says unmeasurable rather than inventing a number when there is no budget', async () => {
+      const noBudget = await prisma.campaign.create({
+        data: {
+          clientId,
+          name: 'ROI- No budget',
+          startDate: new Date('2026-06-01T00:00:00.000Z'),
+          endDate: new Date('2026-07-01T00:00:00.000Z'),
+          status: 'active',
+          outlets: { create: [{ outletId: outletId2 }] },
+        },
+      });
+
+      const res = await request(app)
+        .get(`/campaigns/${noBudget.id}/roi`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.roiPct).toBeNull();
+      expect(res.body.unmeasurable).toBe('no_budget');
+    });
+
+    it('404s a campaign from another client', async () => {
+      const other = await prisma.client.create({
+        data: { name: 'ROI- Other', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+      });
+      const foreign = await prisma.campaign.create({
+        data: {
+          clientId: other.id,
+          name: 'ROI- Foreign',
+          startDate: new Date('2026-06-01T00:00:00.000Z'),
+          endDate: new Date('2026-07-01T00:00:00.000Z'),
+          status: 'active',
+        },
+      });
+
+      const res = await request(app)
+        .get(`/campaigns/${foreign.id}/roi`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(404);
+    });
+
+    it('forbids a field agent — spend is commercially sensitive', async () => {
+      const res = await request(app)
+        .get(`/campaigns/${roiCampaignId}/roi`)
+        .set('Authorization', `Bearer ${agentToken}`);
+
+      expect(res.status).toBe(403);
     });
   });
 });
