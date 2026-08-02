@@ -248,6 +248,28 @@ more headroom.
   outbox) and encryption at rest via `sqlcipher_flutter_libs` with the key in
   `flutter_secure_storage`. It does **not** need a separate ticket.
 
+## Conversational TradeIQ (2026-08-02) — 📐 planned, not started
+
+A cross-cutting interface initiative, orthogonal to the product phases below:
+replace the 21-destination manager sidebar with a conversation. The manager
+prompts or speaks; one orchestrator resolves their role, calls the existing
+service layer through a role-scoped tool roster, and answers with narrative plus
+the charts the dashboard already renders. Voice both directions; write actions
+behind a risk gate; interactive, filterable, PDF-exportable artifacts.
+
+- **Plan:** `docs/superpowers/plans/2026-08-02-conversational-tradeiq.md`
+- **Spec:** `docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md`
+- **Live status:** `STATUS.md` at the repo root
+
+Six phases: read-only spine → voice → artifacts → actions → shrink the console →
+memory and digests. Nothing is implemented yet.
+
+> ⚠️ **Conflict with Phase 4 item 4 (#61, "ML route optimisation").** The
+> 2026-07-29 practitioner interview ruled this out explicitly — *"you don't want
+> to be a fleet management tool. There's fleet management companies that deal
+> with your FMCGs."* Route planning is a solved, competitive market. #61 should
+> be re-scoped to "next-best-action" only, or closed, before anyone builds it.
+
 ## Phase 1 — Foundation (months 1-3) — ✅ implemented
 
 The field-agent offline-first audit app + manager dashboard, on lean infra

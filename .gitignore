@@ -25,3 +25,7 @@ app/**/*.g.dart
 # AI assistant session files
 .claude/
 .superpowers/
+
+# Interview/recording transcripts — may contain third-party PII
+*.pdf
+!docs/**/*.pdf

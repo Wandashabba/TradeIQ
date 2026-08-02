@@ -1,0 +1,262 @@
+# TradeIQ — Project Status
+
+**Last updated:** 2026-08-02
+**Current initiative:** Conversational TradeIQ (dashboard → chatbot)
+**Plan:** [docs/superpowers/plans/2026-08-02-conversational-tradeiq.md](docs/superpowers/plans/2026-08-02-conversational-tradeiq.md) — sequencing and tasks
+**Spec:** [docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md](docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md) — contracts, wire protocol, security model
+
+> **How to use this file.** The plan is the *what and why*; this is the *where we
+> are*. As work lands, move the line from **Next up** to **Done** with a date.
+> When a choice is made, add a row to **Decisions** — that table is the record of
+> *why*, which neither the plan nor the code carries. When something turns out to
+> be wrong, correct it in place and say so; a status file that hides its own
+> errors is worse than none.
+
+---
+
+## At a glance
+
+| Phase | Scope | Status | Gate |
+|---|---|---|---|
+| 0 | Read-only chat spine | ⬜ Not started | ≥90% tool-selection accuracy · cache hit on turn 2 |
+| 1 | Voice in + voice out | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
+| 2 | **Artifacts** — filterable, responsive, PDF | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
+| 3 | Write actions + audit | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
+| 4 | Shrink sidebar 21 → 5 | ⬜ Not started | Every retired destination still deep-linkable |
+| 5 | Memory + digests | ⬜ Not started | Preferences injected late; cache hit still holds |
+
+**Nothing is implemented yet.** Research and planning are complete; no
+application code has been written for this initiative.
+
+**Blocking prerequisite:** `ANTHROPIC_API_KEY` + a Langfuse Cloud project. Both
+are being provided.
+
+---
+
+## Success criteria for the initiative
+
+Not phase gates — how we'll know the whole thing worked.
+
+| Measure | Target |
+|---|---|
+| Manager can answer a stats question without touching the sidebar | The core bet |
+| "Filter → export → re-filter → overlay in Excel" is gone | The workflow the practitioner asked us to kill |
+| Fraud question answerable in seconds | Was *"two or three months"* to spot duplicate coordinates |
+| Tool-selection accuracy | ≥ 90%, tracked per release |
+| Cross-tenant leaks | Zero. Non-negotiable |
+| Cost per conversation | Measured from Phase 0, not estimated |
+
+---
+
+## Done
+
+### Planning & research — 2026-08-02
+- [x] Audited current state: 21 sidebar destinations, 38 backend route modules,
+      no LLM integration anywhere in the repo
+- [x] Desk research: agent frameworks, memory layers, semantic-layer accuracy,
+      generative UI, voice architecture, write-action safety, tool-selection
+      limits, prompt-injection defence, eval reliability
+- [x] Domain grounding from the 2026-07-29 practitioner interview (four pillars,
+      period vocabulary, the Excel-overlay workflow, fraud latency)
+- [x] Architecture decided — see Decisions
+- [x] Implementation plan written (6 phases, gates, sequencing, cost model)
+- [x] Design spec written — contracts, SSE wire protocol, turn lifecycle,
+      security model
+- [x] This tracker created
+
+### Shipped — 2026-08-02
+- [x] `backend-ci.yml` hardened: added `npm run typecheck` (covers `scripts/`,
+      which `build` misses) and switched to `jest --runInBand` (#181 pool
+      exhaustion on shared runners)
+
+> **Correction:** an earlier version of this file and of the agent's memory
+> claimed the backend had **no CI**. Wrong — `backend-ci.yml` existed and worked;
+> the note predated the merge from `main`, and a plan was briefly written around
+> a gap that did not exist. Both are fixed.
+
+### Pre-existing (not part of this initiative)
+- [x] Backend: 38 route modules, JWT auth + RBAC, multi-tenant scoping
+- [x] Backend: pagination standardised across all list endpoints (#194, PRs #235/#237)
+- [x] App: premium UI pass — charts, maps, worklists, agent visit trail
+- [x] App: release build, offline DB encryption, session handling (#137–#140)
+- [x] Audit remediation plans 1–4 merged
+
+---
+
+## In progress
+
+_Nothing currently in progress._
+
+---
+
+## Next up — Phase 0
+
+**Exit gate:** unit green · integration green · ≥ 90% tool-selection accuracy on
+25 golden questions · cache-hit assertion passing · `assistant-evals.yml` running
+its cheap slice on every assistant PR.
+
+**Suggested order** — security boundary before anything that uses it:
+
+1. Foundation
+   - [ ] Add `@anthropic-ai/sdk`; `ANTHROPIC_API_KEY` into `.env.example`
+   - [ ] Langfuse Cloud project, tracing wired in from the first request
+   - [ ] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
+         nightly, gated behind `secrets.ANTHROPIC_API_KEY`
+2. Security boundary **first**
+   - [ ] `roster.ts` — role → tool list
+   - [ ] Roster matrix unit test: every `(role × tool)` pair, incl. the negative
+         case that `field_agent` cannot reach a manager tool
+3. One vertical slice
+   - [ ] `prompt.ts` — frozen system prompt, no interpolation
+   - [ ] First tool (agent scorecard) wrapping the existing service
+   - [ ] `sanitize.ts` — spotlight-wrap tool results as untrusted
+   - [ ] `quarantine.ts` — tool-less Haiku pass over free text (dual-LLM pattern)
+   - [ ] `viewspec.ts` — `agent_scorecard` spec + Zod validation
+   - [ ] `orchestrator.ts` — `tool_runner` loop, cache breakpoint after tools+system
+   - [ ] `POST /assistant/chat` (SSE), reusing `requireAuth`
+   - [ ] Flutter: chat screen + streaming text
+   - [ ] Flutter: refactor the scorecard screen into a parameterised widget
+   - [ ] Flutter: view-spec registry renders it inline
+4. Widen and prove
+   - [ ] Remaining 7 tools, grouped by the four pillars
+   - [ ] `trend_chart` + `outlet_map` specs
+   - [ ] Integration test: stubbed model → correct service, correct `clientId`
+   - [ ] View-spec validation test (unknown types, malformed params)
+   - [ ] 25-question eval harness scored on tool-selection accuracy
+   - [ ] Cache-hit assertion (`cache_read_input_tokens > 0` on turn 2)
+
+**Exit demo:** *"How has Tumo been performing this month?"* returns narrative
+plus the real scorecard widget, at manager scope, with a cache hit on turn 2.
+
+---
+
+## Decisions
+
+Grouped by area. Each row is a choice we should not re-litigate without new
+information.
+
+### Architecture
+
+| Decision | Choice | Why |
+|---|---|---|
+| Orchestration | Anthropic SDK `tool_runner`, **no LangChain/LangGraph** | Single-model request/response workload; the SDK loop already gives approval hooks. LangGraph adds 20–80ms/layer, worst-in-class debugging, steepest learning curve — its wins (durable resume, multi-provider) don't apply. **Tripwire:** durable multi-day resume or >3 loop branches re-opens this |
+| Anthropic surface | Messages API + `tool_runner` — **not** the Claude *Agent* SDK (Claude Code as a library), **not** Managed Agents (Phase 5 only) | Public comparisons blur these three; only the plain SDK fits a data assistant |
+| Brains | **One** orchestrator, many single-purpose tools | Two brains on one manager's data = slower, costlier, no quality gain |
+| Model | Opus 5 orchestrator, Haiku 4.5 for classification + quarantine | Tier by task, not parallel brains |
+| Data access | Tools wrap `*.service.ts`. **Never SQL/Prisma** | Semantic layer ≈ 98% vs ≈ 90% for text-to-SQL — and it fails by refusing rather than inventing a number |
+| Tool exposure | Roster derived from JWT role | Selection accuracy collapses past 30–50 tools; role-scoping fixes accuracy *and* is the security boundary |
+| Tool taxonomy | Grouped by the **four pillars** (sales, stock, visibility, competition) + execution | The practitioner's own mental model — *"those are your four pillars… your input KPIs"*. Not REST endpoints |
+
+### Interface
+
+| Decision | Choice | Why |
+|---|---|---|
+| Rendering | Typed view specs → registered Flutter widgets | Reuses existing chart/map/worklist widgets; the model never emits UI |
+| GenUI SDK | Adopt the A2UI **pattern**, not the package | `flutter/genui` is "highly experimental", API churn expected, no streaming UI |
+| Charts | Reuse `core/widgets/charts.dart` | `LineChart`/`ColumnChart`/`BarChart`/`Sparkline` already exist as hand-rolled `CustomPainter`; no new dep. A closed spec catalog protects the design rules |
+| Artifact state | `params` is the single source of truth; one Zod schema written by **both** model and UI | Prevents the two control paths from drifting apart |
+| Filter changes | `POST /artifacts/:id/refine` re-runs the **same tool closure** — no model call | A slider drag must not cost 3s and a paid request; reusing the closure means scope was never a tamperable parameter |
+| Artifact navigation | Real route `/artifact/:id` | Back button, deep links, sharing come free from go_router instead of bespoke state machinery |
+| Period vocabulary | `today · yesterday · previous_week · mtd · ytd · custom` | Taken verbatim from what they filter by daily — not invented |
+| Comparison | First-class in artifacts, not an add-on | The workflow being killed is *"export, save, export again, overlay in Excel"* — comparison **is** the job |
+| PDF | Client-side `pdf` + `printing`, hybrid vector text + rasterised chart | Vector-only means reimplementing every `CustomPainter`; raster-only gives a blurry, unsearchable report. Bundled Inter TTFs keep it on-brand |
+| Scheduled PDF | **Out of scope** — separate from artifact export | `/reports` + `/report-schedules` are server-side and cannot reuse Flutter charts |
+| Sidebar | 21 → 5 | Business conversation said *"29 down to five, six"*; code has 21 manager destinations. Same intent |
+
+### Voice
+
+| Decision | Choice | Why |
+|---|---|---|
+| Architecture | Cascaded STT → LLM → TTS | S2S is ~10× cost and leaves no auditable text boundary; TradeIQ needs deep tools + RBAC + confirmations |
+| STT | `speech_to_text`, on-device | Free, no key, no audio upload. Its "short phrases" limitation *is* our use case |
+| TTS | Backend-proxied, vendor behind an interface (Cartesia first) | Keeps the key server-side; SSM architecture holds P99 tail latency. Rejected the community Dart Deepgram package — individual maintainer + client-side key |
+| Voice-out default | **Off**, per-user toggle | Open-plan offices |
+
+### Safety & operations
+
+| Decision | Choice | Why |
+|---|---|---|
+| Write actions | 3-tier risk gate | Gating everything causes confirmation fatigue — the named failure mode of approval UX |
+| Recommendations | Allowed, but must cite tool-retrieved figures | Their dashboards give none, so it's the differentiator — but an ungrounded recommendation is the exact failure the semantic layer prevents |
+| Prompt injection | Dual-LLM quarantine + spotlighting, layered | No single defence closes the gap; instruction-based defence is the weakest layer and never the only one |
+| Observability | **Langfuse Cloud** (MIT, self-host escape hatch) | Self-hosting is a 6-service stack — real operational weight for a small team. Braintrust is nicer but $249/mo with no self-host |
+| Memory | Postgres preferences now; defer mem0/Zep | Temporal truth already lives in Postgres — don't build a graph over it |
+| Testing | Five layers, every phase gated | API key available day one, so nothing defers to a hardening pass |
+| Rollout | Per-client feature flag; additive until Phase 4 | Nothing is removed until the replacement is proven |
+
+---
+
+## Backlog — surfaced by the 2026-07-29 practitioner interview
+
+Independent of the assistant. The chatbot can only report signals the backend
+computes, so these are **backend** work items.
+
+**Fraud signals described in the field but not implemented** (existing:
+`failed_attempts`, `fast_completion`, `geofence_distance`, `no_capture`,
+`photo_gps_divergence`):
+
+- [ ] Duplicate photo reuse across outlets / visits
+- [ ] Flat or repeating stock figures across periods (*"2-1, 2-1"*)
+- [ ] Gap between stock-entry timestamp and photo timestamp
+- [ ] Dwell time **above** benchmark — only `fast_completion` exists; ~12 min is
+      the practitioner's benchmark and *both* tails are signals
+- [ ] Stock scanned outside its assigned outlet
+
+**Product direction, not yet scoped:**
+- [ ] Macro overlay (interest rates, fuel, disposable income) → price/volume
+      strategy advice. Needs external data feeds
+- [ ] Decoder/serial lifecycle: warehouse → trade → sold → activated
+
+**Roadmap conflict to resolve:**
+- [ ] **#61 "ML route optimisation & next-best-action"** (Phase 4, ticketed) is
+      half-contradicted by the interview: *"you don't want to be a fleet
+      management tool."* Re-scope to next-best-action only, or close, before
+      anyone starts it. Flagged in `docs/ROADMAP.md`
+
+---
+
+## Open questions
+
+| # | Question | Blocks | Owner |
+|---|---|---|---|
+| 1 | Does the field-agent app get chat too, or manager console only? The agent app is offline-first; chat needs connectivity | Phase 0 scope | — |
+| 2 | Risk-tier assignment for write actions — which are truly irreversible in *your* customers' eyes? Too loose is dangerous, too tight is confirmation fatigue | Phase 3 | — |
+| 3 | Retention policy for conversation transcripts — they will contain outlet and agent PII | Phase 5 | — |
+| 4 | Any POPIA / client-contract data-residency requirement? Anthropic's *managed* features are unavailable via Bedrock, so Phase 5 digests would be affected. The `tool_runner` choice stays portable either way | Phase 5 | — |
+
+**Answered:** bot speaks back ✅ · bot can take actions ✅ · API key provided ✅ ·
+period vocabulary ✅ (from the interview)
+
+---
+
+## Risks
+
+| Risk | Mitigation |
+|---|---|
+| **Indirect prompt injection** via agent-authored visit notes, outlet names, messages | Dual-LLM quarantine — free text summarised by a **tool-less** Haiku call before reaching the orchestrator. Spotlight-wrap anything passing through verbatim. `sanitize.ts` scans for instruction patterns. Red-team eval set in Phase 3 |
+| **Cross-tenant leak** if the model supplies `clientId` | Tools are closures over `req.user`; tenant is never a model argument, so it is enforced by the type signature rather than by validation. Roster matrix test is the regression guard |
+| **Prompt cache silently invalidated** → cost blowout with no functional failure | Frozen system prompt, deterministic tool order, `cache_read_input_tokens > 0` asserted in CI as a *cost* regression test |
+| **Unbounded chat endpoint = cost DoS.** `express-rate-limit` is a dependency but `middleware/rateLimit.ts` currently guards `/auth/login` **only** | Per-user *and* per-tenant limits on `/assistant/chat` in Phase 0. An authenticated user looping Opus turns has no ceiling otherwise |
+| **No spend floor** if a key leaks or a loop runs away | Hard monthly cap in the Anthropic console + Langfuse budget alerts at 50% / 80%. Client disconnect must abort the in-flight call, not orphan a paid request |
+| **Eval suite becomes flaky and gets disabled** | Score-and-threshold, never equality. Measure grader self-agreement — `UNSTABLE` is a failing state. Most of the suite is deterministic tool-selection comparison needing no judge |
+| **Confirmation fatigue** makes approvals meaningless | Gate on risk tier only; reads never prompt. Instrument the prompt rate — >1 in 10 turns in a routine session is a calibration bug |
+| **`orchestrator.ts` accretes branches** until it's an unmaintainable while-loop — the named DIY failure mode | Loop stays logic-free; conversation state in Postgres from day one; explicit tripwire in the file header to re-open the LangGraph decision |
+| **Artifact state desync** — user filters via UI, then asks a follow-up answered against stale params | UI changes append a compact `[artifact:id params → …]` note to history; a live-artifact manifest lets the model target an existing card. Round-trip convergence test in Phase 2 |
+| Chat becomes a graveyard of near-identical charts | Model patches artifacts in place via the manifest; inline cards deliberately minimal, controls only in Expanded |
+| Chat answers a question no widget can display | View-spec catalog is closed; an unknown spec falls back to a text answer, never a blank card |
+| Semantic-layer scope gaps (*"I can't answer that"*) | Acceptable failure mode **by design** — track refusals in the eval harness and add tools where they cluster |
+| PDF generation freezes the app on a large report | Generate in an Isolate; golden-file test on output bytes |
+| Assistant implies fraud detection we don't have | Phase 0 scopes the fraud tool to the five implemented signals; the gap is tracked in the backlog above, not assumed |
+
+---
+
+## Glossary
+
+Full definitions in the plan. Quick reference:
+
+**Four pillars** — sales, stock, visibility, competition; the user's own framing.
+**Roster** — per-request tool set derived from the JWT role; accuracy control *and* security boundary.
+**View spec** — `{type, params}` from a closed catalog; the model never generates UI.
+**Artifact** — a stateful view spec with an id, persisted params, history, and its own route.
+**Quarantine** — a tool-less model call over untrusted text; an injection has no tool to reach.
+**Risk tier** — read / reversible / irreversible; decides whether an action prompts.
