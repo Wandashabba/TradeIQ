@@ -153,6 +153,55 @@ function tierOf(toolName: string): RiskTier;   // pure, table-driven
 
 Reads never prompt. Gating everything is how approval UX dies.
 
+### 7. Provider — the only vendor-aware seam
+
+Two providers, one interface. The **SSE event vocabulary below is the
+normalisation boundary**: an adapter's entire job is vendor stream →
+`TurnEvent`. Everything above it — orchestrator, routes, Flutter client — is
+vendor-blind.
+
+```ts
+interface LlmProvider {
+  readonly name: 'anthropic' | 'gemini';
+  readonly models: { orchestrator: string; quarantine: string };
+
+  runTurn(input: TurnInput, signal: AbortSignal): AsyncIterable<TurnEvent>;
+  normaliseUsage(raw: unknown): Usage;
+}
+
+interface TurnInput {
+  system: string;                          // frozen; cached prefix
+  tools: AssistantTool<never, unknown>[];  // our shape; adapter converts
+  messages: Message[];
+  toolChoice?: 'auto' | 'none';
+}
+
+interface Usage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;   // hides cache_read_input_tokens vs cachedContentTokenCount
+  costCents: number;
+}
+```
+
+What each adapter absorbs, and must not leak upward:
+
+| Concern | Anthropic | Gemini |
+|---|---|---|
+| Tool call shape | `tool_use` content blocks | `function_call` steps |
+| System prompt | Top-level `system` parameter | Handled differently — **the most common migration bug** |
+| Caching | Explicit `cache_control` breakpoint | Implicit by default; explicit `CachedContent` + TTL optional |
+| Usage field | `cache_read_input_tokens` | `cachedContentTokenCount` |
+
+**Provider is pinned per conversation**, recorded on the conversation row. It
+cannot change mid-thread: history carries vendor-specific artifacts that do not
+transfer, and switching would invalidate the cached prefix regardless.
+
+**Contract test.** Both adapters run the same scripted turn and must emit the
+same normalised `TurnEvent` sequence. That test is what stops the second adapter
+from silently diverging, and it is why the interface stays two methods wide —
+anything broader is a contract that cannot be held.
+
 ## The SSE wire protocol
 
 `POST /assistant/chat` streams `text/event-stream`. Event names are stable; the

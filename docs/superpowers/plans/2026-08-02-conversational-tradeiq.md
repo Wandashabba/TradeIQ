@@ -18,9 +18,16 @@ handed to the model is derived per-request from the caller's JWT role. Responses
 carry text plus typed **view specs**; the Flutter client maps each spec to a
 widget already built for the equivalent screen.
 
-**Tech Stack:** TypeScript, Express, `@anthropic-ai/sdk`, Claude Opus 5
-(orchestrator) + Claude Haiku 4.5 (cheap classification), Postgres/Prisma,
-Flutter + Riverpod 3, SSE over the existing `ApiClient`.
+**Tech Stack:** TypeScript, Express, Postgres/Prisma, Flutter + Riverpod 3,
+SSE over the existing `ApiClient`. Two LLM providers behind one interface:
+
+| Provider | Orchestrator | Quarantine | Status |
+|---|---|---|---|
+| **Gemini** | `gemini-3.1-pro` | `gemini-3.6-flash` | Key available — **build against this first** |
+| **Anthropic** | `claude-opus-5` | `claude-haiku-4-5` | Key expected later this week |
+
+See *Provider abstraction* below. The provider is selected per conversation, not
+per turn.
 
 **Sources:** (1) a 2026-07-29 interview with a trade-marketing practitioner —
 domain grounding below; (2) 2026-08-02 desk research on agent frameworks, memory,
@@ -240,11 +247,110 @@ Write that tripwire into the file header so the next engineer sees it.
 
 ---
 
+## Provider abstraction — Gemini as the fallback
+
+**Added 2026-08-02, after the initial design.** The Anthropic key may arrive
+later in the week, and a Gemini key is available now. Rather than idle, we build
+behind a **narrow provider interface** and develop against Gemini until the
+Anthropic key lands.
+
+This partially reverses ADR 0008's *"committed to Claude"*. That ADR has been
+amended rather than left to ship a claim we no longer hold.
+
+### What was already portable, and what wasn't
+
+The expensive layer — tools wrapping services, the roster, view specs, artifacts
+— was **never provider-specific**. What is:
+
+| Provider-specific | Why |
+|---|---|
+| Loop driver | `tool_runner` is an Anthropic SDK helper |
+| Tool schema envelope | Anthropic returns `tool_use` content blocks; Gemini returns `function_call` steps |
+| System prompt placement | Anthropic takes `system` as a top-level parameter; Gemini handles it differently. This is the single most common source of migration bugs |
+| Caching mechanism | Anthropic: explicit `cache_control` breakpoints. Gemini: implicit caching on by default, plus opt-in `CachedContent` with a TTL |
+| Usage field names | `cache_read_input_tokens` vs `cachedContentTokenCount` |
+| Thinking / reasoning config | Different parameters, different defaults |
+
+### The interface
+
+The normalisation boundary already exists: **the SSE event vocabulary in the
+spec**. An adapter's whole job is vendor stream → our `TurnEvent` union. The
+orchestrator, the SSE layer, and the entire Flutter client stay unchanged.
+
+```ts
+interface LlmProvider {
+  readonly name: 'anthropic' | 'gemini';
+  readonly models: { orchestrator: string; quarantine: string };
+  runTurn(input: TurnInput, signal: AbortSignal): AsyncIterable<TurnEvent>;
+  normaliseUsage(raw: unknown): Usage;   // hides the field-name difference
+}
+```
+
+Tools are declared **once** in our own shape (`AssistantTool` with a Zod schema);
+each adapter converts to the vendor envelope. Zod → JSON Schema is solved, and
+both vendors accept JSON-Schema-shaped declarations.
+
+### The caching discipline is portable even though the API is not
+
+A useful accident: Gemini's *implicit* caching hashes recent inputs and applies
+the cached rate automatically when prefixes overlap. So the discipline this plan
+already mandates — **frozen system prompt, deterministic tool order, volatile
+content last** — earns the discount on *both* providers. Only the mechanism and
+the assertion differ:
+
+| | Anthropic | Gemini |
+|---|---|---|
+| Mechanism | Explicit `cache_control` breakpoint after tools+system | Implicit by default; explicit `CachedContent` + TTL available |
+| Discount | ~0.1× on cached reads | ~90% on repeated input |
+| CI assertion reads | `cache_read_input_tokens` | `cachedContentTokenCount` |
+
+Hence `normaliseUsage` — the cost-regression test asserts against one normalised
+number and runs identically on either provider.
+
+### Provider is pinned per conversation, not per turn
+
+**You cannot cleanly switch providers mid-conversation.** History carries
+vendor-specific artifacts (thinking blocks, tool-call block shapes) that do not
+transfer, and switching would invalidate the cached prefix anyway. So:
+
+- The provider is chosen at conversation start and recorded on the conversation
+  row.
+- "Fallback" here means **a development substitute and a deployment switch** —
+  not per-turn runtime failover.
+- If runtime failover is ever wanted, it is *per conversation* (start a new one
+  on the healthy provider), never mid-thread.
+
+### Does this re-open LangGraph?
+
+Fair question, since multi-provider portability is part of its pitch. **No —
+but the tripwire gains a condition.**
+
+Our loop behind this interface is roughly a hundred lines; the framework's
+portability win is "you don't rewrite the loop," which is a small prize here.
+Its costs are unchanged: per-layer overhead, the steepest learning curve of the
+major frameworks, and worse debugging than a plain loop. Two providers behind a
+two-method interface is not a framework-shaped problem.
+
+**Re-open the decision if** we need a *third* provider, dynamic per-request
+routing, or durable multi-day resume.
+
+### Evals become a matrix
+
+Tool-calling fidelity differs by vendor, so **the ≥90% tool-selection gate is
+per provider**, not global. A regression on one provider must not be masked by
+the other passing. The nightly sweep runs both; the cheap PR slice runs whichever
+provider that branch targets.
+
+This is the real ongoing cost of the decision, and it is worth stating plainly:
+**every eval, every red-team case, and every cost assertion now runs twice.**
+
+---
+
 ## Platform choices — pros, cons, and the mitigation
 
 | Layer | Choice | Pro | Con | Mitigation |
 |---|---|---|---|---|
-| **Orchestration** | Anthropic Messages API + `tool_runner` | No new abstraction; per-turn approval hooks; native prompt caching | Claude-only; loop can sprawl | Tools behind a plain interface; tripwire above |
+| **Orchestration** | Vendor SDK behind a two-method `LlmProvider` interface — Gemini adapter first, Anthropic second | No framework abstraction; per-turn approval hooks; caching discipline pays off on both vendors | Loop can sprawl; every eval and cost assertion now runs twice | Loop stays logic-free; contract test across both adapters; 3-condition tripwire above |
 | **Observability / evals** | **Langfuse Cloud** (hobby → $29/mo) | MIT-licensed, so self-hosting is always an escape hatch; tracing + prompt versioning + datasets + LLM-as-judge in one tool | Self-hosted stack is 6 services (web, worker, ClickHouse, MinIO, Redis, Postgres) — real operational weight for a small team | **Start on cloud, not self-hosted.** Revisit self-host only if a client demands data residency |
 | _(alternative)_ | Braintrust | Best eval-first UX; evals native to trace view | $249/mo Pro; no self-host | Reconsider if eval workflow becomes the bottleneck |
 | **STT (voice in)** | `speech_to_text` (on-device) | Free, no API key, no audio upload, WASM web support | Vendor docs say it targets "commands and short phrases, not continuous conversion" | That *is* our use case — a prompt is a short phrase. Server-side fallback for unsupported browsers |
@@ -516,7 +622,10 @@ Flutter is not installed locally.
 | File | Responsibility | Phase | Pure? |
 |---|---|---|---|
 | `backend/src/modules/assistant/assistant.routes.ts` | `POST /assistant/chat` (SSE), `/confirm`, `/artifacts/*` | 0 | ✗ |
-| `backend/src/modules/assistant/orchestrator.ts` | `tool_runner` loop, streaming, cache breakpoints. **Loop only — no business logic** | 0 | ✗ |
+| `backend/src/modules/assistant/providers/types.ts` | `LlmProvider`, `TurnInput`, `TurnEvent`, `Usage` | 0 | ✓ |
+| `backend/src/modules/assistant/providers/gemini.ts` | Gemini adapter — **built first** | 0 | ✗ |
+| `backend/src/modules/assistant/providers/anthropic.ts` | Anthropic adapter — added when the key lands | 0 | ✗ |
+| `backend/src/modules/assistant/orchestrator.ts` | Loop, streaming, cache breakpoints — **provider-agnostic, loop only, no business logic** | 0 | ✗ |
 | `backend/src/modules/assistant/roster.ts` | Role → tool list. **The security boundary** | 0 | ✓ |
 | `backend/src/modules/assistant/prompt.ts` | Frozen system prompt. No interpolation, ever | 0 | ✓ |
 | `backend/src/modules/assistant/tools/{sales,stock,visibility,competition,execution}.ts` | One file per pillar. Wrappers over `*.service.ts` | 0 | ✗ |
@@ -562,10 +671,22 @@ without the "why" is not an audit trail.
 ## Phase 0 — Read-only spine
 
 **Testing gate for this phase:** unit suite green · integration suite green ·
-≥ 90% tool-selection accuracy on the 25-question eval set · cache-hit assertion
-passing · `assistant-evals.yml` running its cheap slice on every assistant PR.
+≥ 90% tool-selection accuracy on the 25-question eval set **per provider** ·
+cache-hit assertion passing on the active provider · provider contract tests
+green on both adapters · `assistant-evals.yml` running its cheap slice on every
+assistant PR.
 
-- [ ] Add `@anthropic-ai/sdk` to `backend/`; `ANTHROPIC_API_KEY` in `.env.example`
+> **Gemini first.** The key is available now, so Phase 0 is built and proven
+> against Gemini. When the Anthropic key arrives, adding `anthropic.ts` should
+> be an adapter and a config flag — if it turns out to be more than that, the
+> interface leaked and that is the bug to fix.
+
+- [ ] `providers/` — `LlmProvider` interface + `gemini.ts` adapter first
+      (`@google/genai`), `anthropic.ts` (`@anthropic-ai/sdk`) when the key lands.
+      `LLM_PROVIDER`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` in `.env.example`
+- [ ] Contract test suite run against **both** adapters — same scripted turn,
+      same normalised `TurnEvent` stream out. This is what stops the second
+      adapter from silently diverging
 - [x] ~~Add `backend-ci`~~ — **it already existed.** Hardened 2026-08-02 with a
       `typecheck` step and `--runInBand`
 - [ ] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
@@ -795,8 +916,9 @@ magnitude, not a forecast — replace with measured numbers after Phase 0.
 
 | Driver | Control |
 |---|---|
-| Orchestrator turns (Opus 5, $5/$25 per MTok) | Prompt caching on the tools+system prefix. Cached reads are ~0.1× — the single biggest lever |
-| Quarantine passes (Haiku 4.5, $1/$5) | Only free-text fields, only when present |
+| Orchestrator turns — Gemini 3.1 Pro ($2/$12) or Opus 5 ($5/$25) per MTok | Prompt caching on the tools+system prefix. ~0.1× on Anthropic cached reads, ~90% discount on Gemini — the single biggest lever on either |
+| Quarantine passes — Gemini 3.6 Flash ($1.50/$7.50) or Haiku 4.5 ($1/$5) | Only free-text fields, only when present |
+| **Running both providers in evals** | The nightly sweep costs roughly double. Bounded and predictable, but real — budget for it rather than discovering it |
 | Filter changes | **Zero.** `refine` re-runs the tool with no model call — this is why that design matters commercially, not just for latency |
 | Nightly eval sweep | Fixed, bounded by dataset size. Runs on schedule, not per PR |
 | TTS | Per character, and only when voice-out is on — which defaults to **off** |
@@ -846,7 +968,8 @@ Terms used throughout this plan with specific meanings.
 
 | Rejected | Why |
 |---|---|
-| LangChain / LangGraph | Overhead and abstraction for a workload the SDK loop already covers. **Tripwire:** durable multi-day resume, or >3 branches in the loop, re-opens this |
+| LangChain / LangGraph | Overhead and abstraction for a workload a ~100-line loop behind a provider interface already covers. **Tripwire (3 conditions):** a *third* provider, dynamic per-request routing, or durable multi-day resume re-opens this |
+| Per-turn runtime failover between providers | History carries vendor-specific artifacts (thinking blocks, tool-call shapes) that do not transfer, and switching invalidates the cached prefix. Provider is pinned **per conversation** |
 | Claude **Agent** SDK | That's Claude Code as a library — filesystem/coding shaped, wrong product for a data assistant |
 | Self-hosted Langfuse (for now) | 6-service stack (web, worker, ClickHouse, MinIO, Redis, Postgres) is real operational weight for a small team. MIT licence keeps it as an escape hatch |
 | Braintrust | Better eval UX, but $249/mo Pro and no self-host option |

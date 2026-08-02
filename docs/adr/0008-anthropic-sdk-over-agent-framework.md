@@ -1,7 +1,7 @@
-# 0008. Anthropic Messages API + `tool_runner`, not an agent framework
+# 0008. Drive the vendor SDK directly, not an agent framework
 
 Date: 2026-08-02
-Status: Accepted
+Status: Accepted (amended same day — see *Amendment*)
 
 ## Context
 
@@ -50,9 +50,8 @@ Conversation state persists in Postgres from the first commit, not in memory.
 - No new abstraction over an SDK we would be using anyway. The `tool_runner`
   per-turn hooks already provide the approval gates, error interception, and
   result modification that write actions need.
-- Committed to Claude. Model portability would mean rewriting the loop — an
-  accepted trade, since the tool layer (where the real work lives) is
-  provider-agnostic.
+- ~~Committed to Claude. Model portability would mean rewriting the loop.~~
+  **Superseded by the Amendment below.**
 - **The known failure mode of this path is loop sprawl** — *"complexity
   accumulates fast; long-horizon workflows force you to rebuild LangGraph's
   checkpointing."* Mitigated by keeping the loop logic-free and state in
@@ -63,6 +62,46 @@ Conversation state persists in Postgres from the first commit, not in memory.
   next engineer sees it without reading this ADR.
 - Managed Agents remains the right tool for Phase 5 scheduled digests. Choosing
   the plain SDK here does not preclude it there.
+
+## Amendment (2026-08-02, same day)
+
+**Context.** The Anthropic key was expected later in the week; a Gemini key was
+already available. Rather than idle, we build against Gemini now and switch when
+the Anthropic key lands.
+
+**What changes.** The "committed to Claude" consequence above no longer holds.
+The loop sits behind a two-method `LlmProvider` interface with adapters for both
+vendors. The Gemini adapter is built first.
+
+**What does not change.** The framework decision stands. The portability prize
+LangGraph offers is "you don't rewrite the loop" — but the loop behind this
+interface is roughly a hundred lines, so the prize is small while the costs
+(per-layer overhead, learning curve, worse debugging) are unchanged. Two
+providers behind a two-method interface is not a framework-shaped problem.
+
+**The tripwire gains a third condition.** Re-open this decision if we need:
+
+1. durable multi-day resume, **or**
+2. more than three conditional branches in the loop, **or**
+3. **a third provider, or dynamic per-request routing.**
+
+**Costs we are accepting, stated plainly:**
+
+- Every eval, red-team case, and cost assertion now runs **twice**. The ≥90%
+  tool-selection gate is *per provider* — a regression on one must not be masked
+  by the other passing.
+- Providers are pinned **per conversation**, not per turn. History carries
+  vendor-specific artifacts (thinking blocks, tool-call shapes) that do not
+  transfer, and switching invalidates the cached prefix. "Fallback" therefore
+  means a development substitute and a deployment switch — not per-turn failover.
+- A contract test running both adapters over the same scripted turn is
+  mandatory; without it the second adapter drifts silently.
+
+**One thing got easier.** Gemini caches implicitly by hashing recent inputs, so
+the discipline this design already mandates — frozen system prompt,
+deterministic tool order, volatile content last — earns the discount on both
+providers. Only the mechanism and the usage field name differ, which
+`normaliseUsage` hides.
 
 ## References
 

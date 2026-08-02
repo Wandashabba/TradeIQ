@@ -18,7 +18,7 @@
 
 | Phase | Scope | Status | Gate |
 |---|---|---|---|
-| 0 | Read-only chat spine | ⬜ Not started | ≥90% tool-selection accuracy · cache hit on turn 2 |
+| 0 | Read-only chat spine | ⬜ Not started | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | Voice in + voice out | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
 | 2 | **Artifacts** — filterable, responsive, PDF | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | Write actions + audit | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
@@ -28,8 +28,10 @@
 **Nothing is implemented yet.** Research and planning are complete; no
 application code has been written for this initiative.
 
-**Blocking prerequisite:** `ANTHROPIC_API_KEY` + a Langfuse Cloud project. Both
-are being provided.
+**Prerequisites:** a Langfuse Cloud project, plus **either** provider key.
+`GEMINI_API_KEY` is available now, so Phase 0 is **unblocked** and builds against
+Gemini first; `ANTHROPIC_API_KEY` is expected later this week and slots in as a
+second adapter behind the same interface.
 
 ---
 
@@ -98,7 +100,10 @@ its cheap slice on every assistant PR.
 **Suggested order** — security boundary before anything that uses it:
 
 1. Foundation
-   - [ ] Add `@anthropic-ai/sdk`; `ANTHROPIC_API_KEY` into `.env.example`
+   - [ ] `providers/types.ts` — `LlmProvider`, `TurnInput`, `TurnEvent`, `Usage`
+   - [ ] `providers/gemini.ts` (`@google/genai`) — **first adapter**
+   - [ ] `LLM_PROVIDER`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` in `.env.example`
+   - [ ] Provider contract test — same scripted turn, same `TurnEvent` stream
    - [ ] Langfuse Cloud project, tracing wired in from the first request
    - [ ] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
          nightly, gated behind `secrets.ANTHROPIC_API_KEY`
@@ -141,8 +146,10 @@ information.
 |---|---|---|
 | Orchestration | Anthropic SDK `tool_runner`, **no LangChain/LangGraph** | Single-model request/response workload; the SDK loop already gives approval hooks. LangGraph adds 20–80ms/layer, worst-in-class debugging, steepest learning curve — its wins (durable resume, multi-provider) don't apply. **Tripwire:** durable multi-day resume or >3 loop branches re-opens this |
 | Anthropic surface | Messages API + `tool_runner` — **not** the Claude *Agent* SDK (Claude Code as a library), **not** Managed Agents (Phase 5 only) | Public comparisons blur these three; only the plain SDK fits a data assistant |
+| **Providers** | **Two, behind a two-method `LlmProvider` interface.** Gemini built **first** (key available); Anthropic when its key lands | Amends ADR 0008's "committed to Claude". The SSE event vocabulary is the normalisation boundary, so orchestrator/routes/Flutter stay vendor-blind |
+| Provider scope | Pinned **per conversation**, never per turn | History carries vendor-specific artifacts (thinking blocks, tool-call shapes) that don't transfer; switching also invalidates the cached prefix |
 | Brains | **One** orchestrator, many single-purpose tools | Two brains on one manager's data = slower, costlier, no quality gain |
-| Model | Opus 5 orchestrator, Haiku 4.5 for classification + quarantine | Tier by task, not parallel brains |
+| Model | Gemini 3.1 Pro / Opus 5 orchestrating; Gemini 3.6 Flash / Haiku 4.5 for quarantine | Tier by task, not parallel brains |
 | Data access | Tools wrap `*.service.ts`. **Never SQL/Prisma** | Semantic layer ≈ 98% vs ≈ 90% for text-to-SQL — and it fails by refusing rather than inventing a number |
 | Tool exposure | Roster derived from JWT role | Selection accuracy collapses past 30–50 tools; role-scoping fixes accuracy *and* is the security boundary |
 | Tool taxonomy | Grouped by the **four pillars** (sales, stock, visibility, competition) + execution | The practitioner's own mental model — *"those are your four pillars… your input KPIs"*. Not REST endpoints |
@@ -237,7 +244,10 @@ period vocabulary ✅ (from the interview)
 | **Cross-tenant leak** if the model supplies `clientId` | Tools are closures over `req.user`; tenant is never a model argument, so it is enforced by the type signature rather than by validation. Roster matrix test is the regression guard |
 | **Prompt cache silently invalidated** → cost blowout with no functional failure | Frozen system prompt, deterministic tool order, `cache_read_input_tokens > 0` asserted in CI as a *cost* regression test |
 | **Unbounded chat endpoint = cost DoS.** `express-rate-limit` is a dependency but `middleware/rateLimit.ts` currently guards `/auth/login` **only** | Per-user *and* per-tenant limits on `/assistant/chat` in Phase 0. An authenticated user looping Opus turns has no ceiling otherwise |
-| **No spend floor** if a key leaks or a loop runs away | Hard monthly cap in the Anthropic console + Langfuse budget alerts at 50% / 80%. Client disconnect must abort the in-flight call, not orphan a paid request |
+| **No spend floor** if a key leaks or a loop runs away | Hard monthly cap in **both** provider consoles + Langfuse budget alerts at 50% / 80%. Client disconnect must abort the in-flight call, not orphan a paid request |
+| **The second provider adapter drifts silently** — passes its own tests, behaves differently in production | Contract test runs both adapters over the same scripted turn and asserts an identical normalised `TurnEvent` stream. Interface stays two methods wide; anything broader is a contract that can't be held |
+| **A regression on one provider masked by the other passing** | The ≥90% tool-selection gate is **per provider**, not an average. Nightly sweep runs both — and costs roughly double, which is budgeted rather than discovered |
+| Provider abstraction leaks, making the Anthropic swap a rewrite instead of a config flag | If adding `anthropic.ts` turns out to be more than an adapter plus a flag, that is the bug — fix the interface, don't special-case the caller |
 | **Eval suite becomes flaky and gets disabled** | Score-and-threshold, never equality. Measure grader self-agreement — `UNSTABLE` is a failing state. Most of the suite is deterministic tool-selection comparison needing no judge |
 | **Confirmation fatigue** makes approvals meaningless | Gate on risk tier only; reads never prompt. Instrument the prompt rate — >1 in 10 turns in a routine session is a calibration bug |
 | **`orchestrator.ts` accretes branches** until it's an unmaintainable while-loop — the named DIY failure mode | Loop stays logic-free; conversation state in Postgres from day one; explicit tripwire in the file header to re-open the LangGraph decision |
