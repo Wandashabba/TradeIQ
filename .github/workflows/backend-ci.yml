@@ -49,5 +49,12 @@ jobs:
       # Currently clean, so it starts as a ratchet rather than noise.
       - run: npm audit --audit-level=high
       - run: npm run lint
+      # `build` only typechecks src/. `typecheck` also covers scripts/ via
+      # tsconfig.scripts.json, so a broken seed script cannot reach main.
+      - run: npm run typecheck
       - run: npm run build
-      - run: npm test
+      # Serial on purpose. jest.config.js caps workers at 4 for developer
+      # machines, but a shared runner still exhausts the Prisma connection
+      # pool (#181), which surfaces as a wall of unrelated suite failures.
+      # #186's per-worker databases made parallel *correct*, not *safe here*.
+      - run: npx jest --runInBand
