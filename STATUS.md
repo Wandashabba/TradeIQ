@@ -33,10 +33,17 @@
 **Nothing is implemented yet.** Research and planning are complete; no
 application code has been written for this initiative.
 
-**Prerequisites:** a Langfuse Cloud project, plus **either** provider key.
-`GEMINI_API_KEY` is available now, so Phase 0 is **unblocked** and builds against
-Gemini first; `ANTHROPIC_API_KEY` is expected later this week and slots in as a
-second adapter behind the same interface.
+**Prerequisites:** a Langfuse Cloud project, plus **either** provider key. Both
+are now declared in `backend/.env.example`; neither is set in `backend/.env`.
+
+> **Correction (2026-08-03).** An earlier version of this line said
+> `GEMINI_API_KEY` "is available now, so Phase 0 is **unblocked**". The key
+> exists, but it is not in this repo's environment — `backend/.env` carries only
+> `DATABASE_URL`, `JWT_SECRET` and `PORT`. Phase 0 splits either side of that:
+> the provider **interface** and the `.env.example` declarations need no key and
+> can proceed; `providers/gemini.ts`, the provider contract test, and Langfuse
+> tracing cannot. Whoever holds the key needs to put it in `backend/.env` before
+> the adapter is written, or it will be written against nothing.
 
 ---
 
@@ -107,7 +114,7 @@ its cheap slice on every assistant PR.
 1. Foundation
    - [ ] `providers/types.ts` — `LlmProvider`, `TurnInput`, `TurnEvent`, `Usage`
    - [ ] `providers/gemini.ts` (`@google/genai`) — **first adapter**
-   - [ ] `LLM_PROVIDER`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` in `.env.example`
+   - [x] `LLM_PROVIDER`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` in `.env.example` ✅ 2026-08-03 (Langfuse keys too)
    - [ ] Provider contract test — same scripted turn, same `TurnEvent` stream
    - [ ] Langfuse Cloud project, tracing wired in from the first request
    - [ ] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
@@ -134,6 +141,21 @@ its cheap slice on every assistant PR.
    - [ ] View-spec validation test (unknown types, malformed params)
    - [ ] 25-question eval harness scored on tool-selection accuracy
    - [ ] Cache-hit assertion (`cache_read_input_tokens > 0` on turn 2)
+5. Rollout and spend controls — **stated in the plan, previously missing here**
+   - [ ] Per-client feature flag, from Phase 0 (`clients.service.ts` already
+         carries client config). Do this **first**: a flag added last has to be
+         threaded back through every route and screen already built
+   - [ ] Kill switch — flag off degrades to today's dashboard with no data loss.
+         Free to guarantee while Phases 0–2 mutate nothing; much harder to
+         retrofit once Phase 3 adds writes
+   - [ ] Rate-limit `/assistant/chat` per-user **and** per-tenant.
+         `express-rate-limit` is a dependency but `middleware/rateLimit.ts`
+         guards `/auth/login` only
+   - [ ] Hard monthly cap in **both** provider consoles + Langfuse budget alerts
+         at 50% / 80%. Rate limiting bounds *a user*; the console cap bounds
+         *the account* — a leaked key is not rate-limited by anything in this repo
+   - [ ] Client disconnect aborts the in-flight provider call rather than
+         orphaning a paid request
 
 **Exit demo:** *"How has Tumo been performing this month?"* returns narrative
 plus the real scorecard widget, at manager scope, with a cache hit on turn 2.
