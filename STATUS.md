@@ -158,6 +158,7 @@ information.
 | Data access | Tools wrap `*.service.ts`. **Never SQL/Prisma** | Semantic layer ≈ 98% vs ≈ 90% for text-to-SQL — and it fails by refusing rather than inventing a number |
 | Tool exposure | Roster derived from JWT role | Selection accuracy collapses past 30–50 tools; role-scoping fixes accuracy *and* is the security boundary |
 | Tool taxonomy | Grouped by the **four pillars** (sales, stock, visibility, competition) + execution | The practitioner's own mental model — *"those are your four pillars… your input KPIs"*. Not REST endpoints |
+| **Audience** | **Manager console only for Phase 0.** Revisit for field agents at Phase 5, and as a narrow non-chat surface rather than the full spine | Every piece of evidence behind this plan is manager-shaped — the interview, the Excel-overlay workflow, the 21 `managerDestinations`. Chat also contradicts the agent app's core promise: captures queue offline and sync later, but a chat turn has nothing sensible to queue, so an agent with no signal gets a spinner from an app built to keep working without one. Agents are mid-capture, not mid-enquiry; they also author the free text that is the injection vector (outlet names, visit notes), and they outnumber managers, so the rate-limit and red-team surface both widen for demand nobody has demonstrated. **Reopen if** agent-side questions show up — #52 (route screen) is the one real signal, and it wants a screen that works offline, not a turn that doesn't |
 
 ### Interface
 
@@ -233,13 +234,21 @@ Filed as **#251** so they are assignable.
 
 | # | Question | Blocks | Owner |
 |---|---|---|---|
-| 1 | Does the field-agent app get chat too, or manager console only? The agent app is offline-first; chat needs connectivity | Phase 0 scope | — |
 | 2 | Risk-tier assignment for write actions — which are truly irreversible in *your* customers' eyes? Too loose is dangerous, too tight is confirmation fatigue | Phase 3 | — |
 | 3 | Retention policy for conversation transcripts — they will contain outlet and agent PII | Phase 5 | — |
 | 4 | Any POPIA / client-contract data-residency requirement? Anthropic's *managed* features are unavailable via Bedrock, so Phase 5 digests would be affected. The `tool_runner` choice stays portable either way | Phase 5 | — |
 
 **Answered:** bot speaks back ✅ · bot can take actions ✅ · API key provided ✅ ·
-period vocabulary ✅ (from the interview)
+period vocabulary ✅ (from the interview) · **audience — manager console only for
+Phase 0 ✅** (2026-08-03; see Decisions → Architecture → Audience)
+
+> **Q3 and Q4 are worth answering now, not at Phase 5.** Both are
+> retention/residency questions, and Q3 is the same question as #178 about a
+> different data type. Answering them late risks Phase 5 designing around a
+> capability the contract may not permit — the specific trap is already known:
+> Anthropic's *managed* features are unavailable via Bedrock, which is exactly
+> what the scheduled-digest task depends on. Q2 can wait; it needs a customer in
+> the room and Phase 3 is three phases out.
 
 ---
 
