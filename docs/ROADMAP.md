@@ -154,10 +154,18 @@ files are therefore untouched.
 Related: **#159** — iOS has never been built, and there are currently *zero*
 code-signing identities installed on the development machine.
 
-**Testing — `npx jest --maxWorkers=4` is now the command.**
+**Testing — `npx jest --maxWorkers=4` locally; CI runs `--runInBand`.**
 
-Two separate causes of parallel-run flakiness have since been fixed, and the
-`--runInBand` advice below is kept only as the history of why:
+The two commands differ on purpose, and the difference is about the *machine*,
+not the code. Two separate causes of parallel-run flakiness have been fixed, so
+parallel is now *correct* — but CI's shared runner is small enough that four
+workers still exhaust the Prisma connection pool (#181), which surfaces as a
+wall of unrelated suite failures. So `.github/workflows/backend-ci.yml` runs
+serially by choice. **Do not "fix" CI back to parallel** on the strength of the
+two fixes below; they make parallel safe on a developer machine, not on a
+2-core runner.
+
+The `--runInBand` advice further down is kept only as the history of why:
 
 1. **Shared test database** (#186, PR #228). Every worker now gets its own
    database, so `jest.global-setup.ts`'s TRUNCATE can no longer wipe another
