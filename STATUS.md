@@ -18,12 +18,17 @@
 
 | Phase | Scope | Status | Gate |
 |---|---|---|---|
-| 0 | Read-only chat spine | ⬜ Not started | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
-| 1 | Voice in + voice out | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
-| 2 | **Artifacts** — filterable, responsive, PDF | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
-| 3 | Write actions + audit | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
-| 4 | Shrink sidebar 21 → 5 | ⬜ Not started | Every retired destination still deep-linkable |
-| 5 | Memory + digests | ⬜ Not started | Preferences injected late; cache hit still holds |
+| 0 | [Read-only chat spine](../../issues/253) | ⬜ Not started | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
+| 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
+| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
+| 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
+| 4 | [Shrink sidebar 21 → 5](../../issues/257) | ⬜ Not started | Every retired destination still deep-linkable |
+| 5 | [Memory + digests](../../issues/258) | ⬜ Not started | Preferences injected late; cache hit still holds |
+
+> **Tickets.** Each phase has a tracking issue carrying its gate and task list
+> (#253–#258). The backlog below is filed as #244–#250; the open questions as
+> #251. The plan remains the *what and why* — the issues are where progress is
+> claimed, so a task is done when its checkbox is ticked *there*, not here.
 
 **Nothing is implemented yet.** Research and planning are complete; no
 application code has been written for this initiative.
@@ -202,27 +207,29 @@ computes, so these are **backend** work items.
 `failed_attempts`, `fast_completion`, `geofence_distance`, `no_capture`,
 `photo_gps_divergence`):
 
-- [ ] Duplicate photo reuse across outlets / visits
-- [ ] Flat or repeating stock figures across periods (*"2-1, 2-1"*)
-- [ ] Gap between stock-entry timestamp and photo timestamp
-- [ ] Dwell time **above** benchmark — only `fast_completion` exists; ~12 min is
-      the practitioner's benchmark and *both* tails are signals
-- [ ] Stock scanned outside its assigned outlet
+- [ ] #244 — Duplicate photo reuse across outlets / visits
+- [ ] #245 — Flat or repeating stock figures across periods (*"2-1, 2-1"*)
+- [ ] #246 — Gap between stock-entry timestamp and photo timestamp
+- [ ] #247 — Dwell time **above** benchmark; only `fast_completion` exists, and
+      ~12 min is the practitioner's benchmark, so *both* tails are signals
+- [ ] #248 — Stock scanned outside its assigned outlet
 
 **Product direction, not yet scoped:**
-- [ ] Macro overlay (interest rates, fuel, disposable income) → price/volume
-      strategy advice. Needs external data feeds
-- [ ] Decoder/serial lifecycle: warehouse → trade → sold → activated
+- [ ] #249 — Macro overlay (interest rates, fuel, disposable income) →
+      price/volume strategy advice. Needs external data feeds
+- [ ] #250 — Decoder/serial lifecycle: warehouse → trade → sold → activated
 
 **Roadmap conflict to resolve:**
 - [ ] **#61 "ML route optimisation & next-best-action"** (Phase 4, ticketed) is
       half-contradicted by the interview: *"you don't want to be a fleet
       management tool."* Re-scope to next-best-action only, or close, before
-      anyone starts it. Flagged in `docs/ROADMAP.md`
+      anyone starts it. Flagged in `docs/ROADMAP.md` and on the issue itself
 
 ---
 
 ## Open questions
+
+Filed as **#251** so they are assignable.
 
 | # | Question | Blocks | Owner |
 |---|---|---|---|
