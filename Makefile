@@ -13,7 +13,7 @@ setup: ## One-time setup: start Postgres, install deps, migrate, seed
 	@echo "==> Starting Postgres..."
 	docker compose up -d
 	@$(MAKE) wait-for-db
-	@if [ ! -f backend/.env ]; then cp .env.example backend/.env; echo "==> Created backend/.env"; fi
+	@if [ ! -f backend/.env ]; then cp backend/.env.example backend/.env; echo "==> Created backend/.env"; fi
 	@echo "==> Installing backend dependencies..."
 	cd backend && npm install
 	@echo "==> Applying migrations..."
