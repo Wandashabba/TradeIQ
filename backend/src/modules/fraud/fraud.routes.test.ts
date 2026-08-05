@@ -25,8 +25,24 @@ const OUTLET_LNG = 28.0473;
 // ~500m due south of the check-in — well past the 150m photo-divergence line.
 const FAR_PHOTO_LAT = -26.2086;
 
-const CLEAN_CHECKIN = new Date('2026-07-01T08:00:00.000Z');
-const SUS_CHECKIN = new Date('2026-07-05T12:00:00.000Z');
+// Anchored to the run day, NOT pinned to a calendar date.
+//
+// `GET /fraud/flagged` always bounds its scan, defaulting to the last
+// DEFAULT_FRAUD_WINDOW_DAYS (#236). A fixture pinned to an absolute date
+// therefore slides out of that window as the calendar moves, and the suite
+// starts failing on a day nobody touched the code. That is exactly what
+// happened: these were `2026-07-01` and `2026-07-05`, which sat inside the
+// 30-day window when #236 landed on 2026-07-30 and fell outside it on
+// 2026-08-04. `GET /fraud/flagged` then scanned nothing and returned [].
+//
+// Keep every date here relative to `now`, and keep the offsets well inside
+// DEFAULT_FRAUD_WINDOW_DAYS. The demo seed anchors to its run day for the same
+// reason.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const daysAgo = (n: number): Date => new Date(Date.now() - n * DAY_MS);
+
+const CLEAN_CHECKIN = daysAgo(6);
+const SUS_CHECKIN = daysAgo(2);
 
 describe('fraud routes', () => {
   let clientId: string;
@@ -158,7 +174,11 @@ describe('fraud routes', () => {
     });
 
     // Two failed attempts (within 6h before the suspicious check-in) + one
-    // passing attempt, all for the same (agent, outlet).
+    // passing attempt, all for the same (agent, outlet). Offsets are taken from
+    // SUS_CHECKIN rather than restated as absolute dates, so the "within 6h"
+    // relationship the failed_attempts signal keys on survives the anchor
+    // moving with the run day.
+    const beforeSus = (ms: number): Date => new Date(SUS_CHECKIN.getTime() - ms);
     await prisma.checkInAttempt.createMany({
       data: [
         {
@@ -169,7 +189,7 @@ describe('fraud routes', () => {
           lng: OUTLET_LNG,
           distanceM: 120,
           passed: false,
-          createdAt: new Date('2026-07-05T11:00:00.000Z'),
+          createdAt: beforeSus(60 * 60 * 1000),
         },
         {
           clientId,
@@ -179,7 +199,7 @@ describe('fraud routes', () => {
           lng: OUTLET_LNG,
           distanceM: 80,
           passed: false,
-          createdAt: new Date('2026-07-05T11:30:00.000Z'),
+          createdAt: beforeSus(30 * 60 * 1000),
         },
         {
           clientId,
@@ -189,7 +209,7 @@ describe('fraud routes', () => {
           lng: OUTLET_LNG,
           distanceM: 20,
           passed: true,
-          createdAt: new Date('2026-07-05T11:45:00.000Z'),
+          createdAt: beforeSus(15 * 60 * 1000),
         },
       ],
     });
