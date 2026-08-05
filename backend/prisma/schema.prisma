@@ -36,6 +36,11 @@ model Client {
   industry           String
   scorecardWeights   Json                @map("scorecard_weights")
   kpiThresholds      Json                @map("kpi_thresholds")
+  /// Conversational assistant rollout flag. Defaults false: the assistant ships
+  /// alongside the existing console, never in place of it, and no client gets it
+  /// without a deliberate opt-in. Off is a true kill switch — Phases 0-2 mutate
+  /// nothing, so degrading to today's dashboard loses no data.
+  assistantEnabled   Boolean             @default(false) @map("assistant_enabled")
   users              User[]
   outlets            Outlet[]
   skus               Sku[]
