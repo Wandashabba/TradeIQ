@@ -30,8 +30,12 @@
 > #251. The plan remains the *what and why* — the issues are where progress is
 > claimed, so a task is done when its checkbox is ticked *there*, not here.
 
-**Nothing is implemented yet.** Research and planning are complete; no
-application code has been written for this initiative.
+**Started 2026-08-06.** The key-independent half of Phase 0 foundation has
+landed: the provider interface, the roster security boundary and its matrix
+test, the per-client feature flag and kill switch, and both chat rate limiters.
+Everything that needs a provider key — the Gemini adapter, the contract test,
+Langfuse tracing — is still untouched, as is every tool, the orchestrator and
+the route.
 
 **Prerequisites:** a Langfuse Cloud project, plus **either** provider key. Both
 are now declared in `backend/.env.example`; neither is set in `backend/.env`.
@@ -44,6 +48,13 @@ are now declared in `backend/.env.example`; neither is set in `backend/.env`.
 > can proceed; `providers/gemini.ts`, the provider contract test, and Langfuse
 > tracing cannot. Whoever holds the key needs to put it in `backend/.env` before
 > the adapter is written, or it will be written against nothing.
+>
+> **Follow-up (2026-08-06).** That instruction had a trap in it. `make setup`
+> generated `backend/.env` from the **root** `.env.example`, a 15-line fossil
+> carrying only `DATABASE_URL`, `JWT_SECRET` and `PORT` — not from
+> `backend/.env.example`, where the assistant variables were declared. So the
+> file the correction above tells you to edit was being created without a single
+> line to edit. The root copy is deleted and `setup` now copies the backend one.
 
 ---
 
@@ -112,7 +123,7 @@ its cheap slice on every assistant PR.
 **Suggested order** — security boundary before anything that uses it:
 
 1. Foundation
-   - [ ] `providers/types.ts` — `LlmProvider`, `TurnInput`, `TurnEvent`, `Usage`
+   - [x] `providers/types.ts` — `LlmProvider`, `TurnInput`, `TurnEvent`, `Usage` ✅ 2026-08-06
    - [ ] `providers/gemini.ts` (`@google/genai`) — **first adapter**
    - [x] `LLM_PROVIDER`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` in `.env.example` ✅ 2026-08-03 (Langfuse keys too)
    - [ ] Provider contract test — same scripted turn, same `TurnEvent` stream
@@ -120,9 +131,11 @@ its cheap slice on every assistant PR.
    - [ ] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
          nightly, gated behind `secrets.ANTHROPIC_API_KEY`
 2. Security boundary **first**
-   - [ ] `roster.ts` — role → tool list
-   - [ ] Roster matrix unit test: every `(role × tool)` pair, incl. the negative
-         case that `field_agent` cannot reach a manager tool
+   - [x] `roster.ts` — role → tool list ✅ 2026-08-06
+   - [x] Roster matrix unit test: every `(role × tool)` pair, incl. the negative
+         case that `field_agent` cannot reach a manager tool ✅ 2026-08-06
+         (41 assertions; `field_agent` is empty in Phase 0 per the Audience
+         decision, which is what makes the negative case meaningful)
 3. One vertical slice
    - [ ] `prompt.ts` — frozen system prompt, no interpolation
    - [ ] First tool (agent scorecard) wrapping the existing service
@@ -142,15 +155,26 @@ its cheap slice on every assistant PR.
    - [ ] 25-question eval harness scored on tool-selection accuracy
    - [ ] Cache-hit assertion (`cache_read_input_tokens > 0` on turn 2)
 5. Rollout and spend controls — **stated in the plan, previously missing here**
-   - [ ] Per-client feature flag, from Phase 0 (`clients.service.ts` already
-         carries client config). Do this **first**: a flag added last has to be
-         threaded back through every route and screen already built
-   - [ ] Kill switch — flag off degrades to today's dashboard with no data loss.
-         Free to guarantee while Phases 0–2 mutate nothing; much harder to
-         retrofit once Phase 3 adds writes
-   - [ ] Rate-limit `/assistant/chat` per-user **and** per-tenant.
-         `express-rate-limit` is a dependency but `middleware/rateLimit.ts`
-         guards `/auth/login` only
+   - [x] Per-client feature flag, from Phase 0 ✅ 2026-08-06 —
+         `Client.assistantEnabled`, default **false**. Readable via
+         `GET /clients/me` so the app can gate its entry point, deliberately
+         **not** writable via `PATCH /clients/me`: it is a rollout lever, not a
+         customer preference, and a client admin switching on a metered AI
+         feature for their own tenant is the thing a rollout flag exists to
+         prevent. Operators toggle it directly until a cross-tenant admin
+         surface exists
+   - [x] Kill switch ✅ 2026-08-06 — `requireAssistantEnabled` answers **404,
+         not 403**: 403 concedes the feature exists and this tenant is merely
+         not entitled, which invites probing. It fails closed on a DB error,
+         because defaulting a metered feature *open* on an infrastructure blip
+         is a spend incident
+   - [~] Rate-limit `/assistant/chat` per-user **and** per-tenant — limiters
+         **built and tested** ✅ 2026-08-06, **not yet mounted**: the route does
+         not exist. `createAssistantUserRateLimiter` /
+         `createAssistantTenantRateLimiter` key on the JWT, never the IP (a team
+         behind one corporate NAT would otherwise throttle each other). Tick
+         this fully when `POST /assistant/chat` lands with both mounted after
+         `requireAuth`
    - [ ] Hard monthly cap in **both** provider consoles + Langfuse budget alerts
          at 50% / 80%. Rate limiting bounds *a user*; the console cap bounds
          *the account* — a leaked key is not rate-limited by anything in this repo
@@ -180,6 +204,9 @@ information.
 | Data access | Tools wrap `*.service.ts`. **Never SQL/Prisma** | Semantic layer ≈ 98% vs ≈ 90% for text-to-SQL — and it fails by refusing rather than inventing a number |
 | Tool exposure | Roster derived from JWT role | Selection accuracy collapses past 30–50 tools; role-scoping fixes accuracy *and* is the security boundary |
 | Tool taxonomy | Grouped by the **four pillars** (sales, stock, visibility, competition) + execution | The practitioner's own mental model — *"those are your four pillars… your input KPIs"*. Not REST endpoints |
+| Validation | **Zod**, added 2026-08-06 | The design spec already commits to it — tool `args`, view specs and artifact params are all "validated by the tool's Zod schema". Adding it with the provider types rather than later keeps `AssistantTool` expressible at the point it is first declared |
+| `TurnEvent` scope | **Narrower than the SSE wire vocabulary.** Providers emit `token` · `tool_call` · `usage` · `error` · `done`; the orchestrator adds `tool_start`/`tool_end`/`artifact`/`confirm` | `artifact` is a validated spec from our closed catalog and `confirm` is our risk gate — no model stream can produce either, so including them would oblige every adapter to declare cases it can never emit. The mapping table lives in `providers/types.ts`. **Confirm against the design spec before the first adapter**: the spec calls the SSE table "the normalisation boundary", which is true for the client but sits one layer above where vendor differences actually live |
+| Roster immutability | **Fresh `Set` per call**, not a shared frozen one | `Object.freeze` does not make a `Set` immutable — contents live in internal slots, not properties, so a "frozen" roster still accepts `.add()` and the mutation would persist for every later request in the process. At nine entries beside an LLM call, copying does not register |
 | **Audience** | **Manager console only for Phase 0.** Revisit for field agents at Phase 5, and as a narrow non-chat surface rather than the full spine | Every piece of evidence behind this plan is manager-shaped — the interview, the Excel-overlay workflow, the 21 `managerDestinations`. Chat also contradicts the agent app's core promise: captures queue offline and sync later, but a chat turn has nothing sensible to queue, so an agent with no signal gets a spinner from an app built to keep working without one. Agents are mid-capture, not mid-enquiry; they also author the free text that is the injection vector (outlet names, visit notes), and they outnumber managers, so the rate-limit and red-team surface both widen for demand nobody has demonstrated. **Reopen if** agent-side questions show up — #52 (route screen) is the one real signal, and it wants a screen that works offline, not a turn that doesn't |
 
 ### Interface
