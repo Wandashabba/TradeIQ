@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 20+ — matches the version pinned in `.github/workflows/backend-ci.yml`
+- Node.js 24+ — matches the version pinned in `.github/workflows/backend-ci.yml`
 - Flutter 3.44+ (stable channel) — matches the version pinned in
   `.github/workflows/app-ci.yml`; the app's `pubspec.yaml` requires Dart SDK
   `^3.12.0`, which ships with Flutter 3.44, so older Flutter installs (e.g.

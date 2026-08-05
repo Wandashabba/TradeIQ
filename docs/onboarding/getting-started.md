@@ -12,19 +12,20 @@ make dev        # starts Postgres (waits for healthy) + backend dev server
 Then in a second terminal:
 
 ```bash
-make app        # flutter pub get + flutter run -d chrome
+make app        # pub get + build_runner codegen + flutter run -d chrome
 ```
 
 If you have more than one Flutter SDK on your machine and `flutter --version`
 doesn't resolve to 3.44+, override the binary per-command instead of editing
-your shell's `PATH`:
+your shell's `PATH`. Pass `DART` alongside it, so codegen runs on the same
+SDK:
 
 ```bash
-make app FLUTTER=/path/to/flutter-3.44/bin/flutter
+make app FLUTTER=/path/to/flutter-3.44/bin/flutter DART=/path/to/flutter-3.44/bin/dart
 ```
 
-Run `make help` to see every target (`test`, `backend-test`, `app-test`,
-`stop`, `restart`). The rest of this doc explains what those targets do
+Run `make help` to see every target (`codegen`, `test`, `backend-test`,
+`app-test`, `stop`, `restart`). The rest of this doc explains what those targets do
 under the hood — useful if something goes wrong, or you want to run a step
 manually.
 
@@ -51,11 +52,30 @@ curl http://localhost:4000/health
 # {"status":"ok"}
 ```
 
-`npm run seed` seeds a demo FMCG client, two demo users, three outlets, and
-one SKU, and prints a confirmation line, e.g.:
+`npm run seed` builds the full demo dataset — one client (Kalahari
+Beverages), 3 territories, 9 users, 31 outlets, 20 SKUs and 12 weeks of visit
+history ending on the day you run it, plus the tasks, alerts, incentives,
+orders and messages derived from that history. It prints a summary:
 
 ```
-Seeded client Demo FMCG Brand, manager manager@demo-fmcg.tradeiq.com, 3 outlets, 1 SKU
+Seeded Kalahari Beverages — 12 weeks of history ending today
+sign in with any of: admin@demo-fmcg.tradeiq.com, manager@demo-fmcg.tradeiq.com, ...
+password: demo-password-123
+31 outlets, 20 SKUs, 348 visits
+85 tasks (22 open), 33 alerts (27 unacknowledged)
+6 messages, 2 announcements
+```
+
+Counts shift slightly run to run — the calendar is anchored to the day you
+seed, so the exact number of visits that land inside the window varies.
+
+The seed also creates a **home-base outlet** for testing a live geofenced
+check-in. It defaults to central Johannesburg; set both `DEMO_HOME_LAT` and
+`DEMO_HOME_LNG` to seed it where you actually are, or the 50m geofence will
+reject you:
+
+```bash
+DEMO_HOME_LAT=-26.1076 DEMO_HOME_LNG=28.0567 npm run seed
 ```
 
 Log in as the seeded demo manager:
@@ -76,8 +96,15 @@ In a second terminal:
 ```bash
 cd app
 flutter pub get
-flutter run -d chrome   # or an attached device/simulator
+dart run build_runner build   # REQUIRED on a fresh clone — see below
+flutter run -d chrome         # or an attached device/simulator
 ```
+
+**Do not skip the `build_runner` step.** Drift's generated database code
+(`*.g.dart`) is gitignored, so a fresh clone has none of it and the app will
+not compile — you get a wall of `The method 'select' isn't defined for the
+type 'LocalDb'` errors ending in `Failed to compile application`. `make app`
+and `make app-test` run it for you; the manual path does not.
 
 The app boots to the login screen (`/login`), which has a working form.
 Sign in with a seeded account (see `backend/scripts/seed.ts` — e.g.
@@ -118,6 +145,11 @@ cd app && flutter test
   Postgres, or a stale container from an old worktree of this repo). Find it
   with `docker ps --format 'table {{.Names}}\t{{.Ports}}'` and stop it
   (`docker stop <name>`), then retry.
+- **`The method 'select' isn't defined for the type 'LocalDb'`** (or
+  `syncQueueItems` / `transaction`), ending in `Failed to compile
+  application` — Drift's generated code is missing. `*.g.dart` is gitignored,
+  so a fresh clone never has it. Run `cd app && dart run build_runner build`,
+  or just use `make app`, which now does it for you.
 - **`flutter: command not found`** — install Flutter and ensure it's on your
   `PATH`; run `flutter doctor` to verify.
 - **`flutter pub get` fails to resolve dependencies** (`requires SDK version

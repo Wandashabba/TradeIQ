@@ -20,9 +20,10 @@ sequence is by exploitability, not convenience.**
 payload cast, published default secret, bcrypt-hash disclosure, webhook SSRF,
 401-vs-404), proven end-to-end. Plan 2 closed the scale and correctness set (34
 DB indexes, two N+1 rewrites, agent-scoped capture writes, CSV formula
-injection, kpiMath drift). Residuals deliberately left open are recorded below
-and **now tracked as issues**: token revocation (#142), the webhook
-DNS-rebinding TOCTOU (#143), and assorted small cleanups (#145).
+injection, kpiMath drift). **Every residual they left open has since been
+closed** — token revocation (#142), the webhook DNS-rebinding TOCTOU (#143),
+and the small cleanups (#145). The entries below are kept as the record of what
+was decided and why, not as outstanding work.
 
 **Plans 3 and 4 have since merged.** Plan 3 closed every Flutter ship-blocker
 (#137 release build, #138 offline-DB encryption, #139 session handling, #140
@@ -87,47 +88,43 @@ allowlist, and fixes the `dispatch.service.ts:31` over-fetch for free. It is
 allowlist also withholds `clientId`/GPS. `omit` is the floor; the allowlist is
 the deliberate public ceiling.
 
-**Known residual after Plan 1 — webhook SSRF is narrowed, not sealed** (→ **#143**). Plan 1
-blocks `169.254.169.254`, `localhost`, RFC1918, `[::1]` and every obfuscated
-encoding (`new URL()` normalises decimal/octal/hex/IDNA before the guard sees
-them), catches pre-existing private URLs at dispatch, kills redirect-to-metadata
-via `redirect: 'manual'`, and caps the 300s hang at 5s. Two gaps remain:
+**Webhook SSRF — ✅ sealed** (**#143**, closed). Plan 1 blocked
+`169.254.169.254`, `localhost`, RFC1918, `[::1]` and every obfuscated encoding
+(`new URL()` normalises decimal/octal/hex/IDNA before the guard sees them),
+caught pre-existing private URLs at dispatch, killed redirect-to-metadata via
+`redirect: 'manual'`, and capped the 300s hang at 5s. The DNS-rebinding gap it
+left open is now closed too:
 
-1. **DNS rebinding (TOCTOU).** `assertPublicHostname` and `fetch` perform two
-   *independent* resolutions, so an attacker with authoritative DNS and TTL=0
-   flips the answer between check and connect. Proven end-to-end against the
-   real `urlGuard` during review: the guard passed on `93.184.216.34` while the
-   fetch returned attacker content. Re-resolving closes *registration→fire*
-   drift, not *check→connect* drift. **Fix:** an undici `Agent` with a custom
-   `connect.lookup` that runs `isPrivateAddress` on the address actually handed
-   to the socket, so validation and connection share one resolution. Needs
-   `undici` as a direct dependency — a deliberate decision, hence deferred. Do
-   NOT hand-roll a substitute: resolving then fetching the raw IP breaks TLS SNI
-   and certificate validation for https.
-2. `::7f00:1` (IPv4-compatible IPv6) classifies as public. Deprecated and
-   verified `EHOSTUNREACH` in practice; left alone deliberately.
+- **DNS rebinding (TOCTOU) — fixed** in `backend/src/lib/ssrfAgent.ts`.
+  `assertPublicHostname` and `fetch` used to perform two *independent*
+  resolutions, so an attacker with authoritative DNS and TTL=0 could flip the
+  answer between check and connect. `createGuardedLookup` now runs
+  `isPrivateAddress` inside undici's `connect.lookup`, so validation and
+  connection share one resolution and the socket cannot be handed an address
+  that was never checked. `webhooks.service.ts` passes `ssrfSafeAgent` as the
+  `dispatcher` and imports `fetch` from `undici` rather than the global — the
+  global silently drops `dispatcher`, which would have left rebinding open
+  while the code read as though it were closed. Covered by `ssrfAgent.test.ts`.
+  The pre-check in `webhooks.service.ts` is deliberately kept: it fails a bad
+  host before a connection is attempted and gives a clearer error.
+- `::7f00:1` (IPv4-compatible IPv6) still classifies as public. Deprecated and
+  verified `EHOSTUNREACH` in practice; left alone deliberately.
 
-Exploiting either requires a manager/admin role, so this is a real but
-materially harder attack than the one Plan 1 closed.
-
-**Other small items logged during Plan 1** (→ **#145**):
-- `dispatch.service.ts:31` — `findMany` with no `select` loads `passwordHash`
-  into memory. Projected into `DispatchCandidate` before serializing, so it is
-  an over-fetch, **not** a disclosure. Low priority; global `omit` fixes it.
-- `territories.routes.ts:44` — `GET /territories` has no `requireRole`. Returns
-  no user data, so not a leak, but it is inconsistent with the rest of that
-  router now that `/coverage` is gated.
-
-**Trap discovered during Plan 1 — read before touching roles** (→ **#145**). There are three
-declarations of the role union: `ROLES` in `auth.service.ts` (now the source of
-truth for `AuthTokenPayload['role']`), the Prisma `UserRole` enum, and a
-hand-written literal union in `middleware/roleGuard.ts:4`. Drift is currently
-closed in both directions, but by two *different* mechanisms: the Prisma link
-catches a **removed** role (via `auth.routes.ts:20` feeding `UserRole` into
-`issueToken`), while an **added** role is caught only incidentally by
-`roleGuard.ts:4`. Retyping `roleGuard.ts:4` as `AuthTokenPayload['role']` — the
-obvious-looking cleanup — silently removes the add-direction guard. Consolidate
-deliberately, with a test, or not at all.
+**Small items logged during Plan 1 — ✅ all closed** (**#145**):
+- `dispatch.service.ts` — the `findMany` that loaded `passwordHash` into memory
+  now carries an explicit `select`, and the global Prisma `omit` in
+  `lib/prisma.ts` is the floor underneath it.
+- `territories.routes.ts` — `GET /territories` is now
+  `requireRole('manager', 'admin')`, matching the rest of that router. No agent
+  flow loses anything: both app callers are manager/admin actions at the write
+  end.
+- **The role-union triplication is consolidated.** `roleGuard.ts` now imports
+  the shared `Role` from `auth.service.ts` instead of restating the union as a
+  literal. That restatement was the only thing catching a role *added* to
+  `ROLES` but not to Prisma — an accident, not a design, and the reason this
+  cleanup was flagged as a trap. `auth.service.ts` now carries a mutual
+  compile-time assignability assertion between `ROLES` and Prisma's `UserRole`,
+  which guards both directions deliberately, so sharing the type is safe.
 
 **Running the Flutter app on macOS desktop — no Apple account needed.**
 
@@ -237,12 +234,17 @@ more headroom.
 
 **Deferred with a reason — not forgotten:**
 
-- **H2 — no token revocation** (→ **#142**). A valid JWT for a deactivated or demoted user
-  keeps working for up to 12h; `requireAuth` never re-checks the DB. The fix
-  needs a lookup in `requireAuth`, which turns the fabricated-userId tokens in
-  19 test files into 401s — including the 16 cross-tenant tests that rely on
-  `clientId: 'no-such-client'`. Multi-day change; own plan. **This is the
-  largest auth gap remaining after Plan 1.**
+- ~~**H2 — no token revocation**~~ (→ **#142**) — ✅ **shipped**. A valid JWT for
+  a deactivated or demoted user used to keep working for up to 12h because
+  `requireAuth` never re-checked the DB. It does now (`middleware/auth.ts`):
+  one indexed primary-key read per request, checking `active`, `role` **and**
+  `clientId` against the token's claims — the tenant is re-checked because it
+  is the blast radius of every query built from that payload. Every mismatch
+  returns the same 401, so a stale token cannot distinguish "deactivated" from
+  "demoted" from "deleted". A DB failure is a 500, never a pass-through. The
+  test-fixture churn this was deferred for (19 files minting fabricated
+  userIds, 16 of them relying on `clientId: 'no-such-client'`) was absorbed
+  along with it.
 - **H11 photos → object storage** — already tracked as #65 (ADR 0007 commits to
   it). Independently urgent: `tasks.service.ts:98` matches on the base64 `url`
   column, which is unindexable (btree caps ~2704 bytes), so closing one task
@@ -250,11 +252,15 @@ more headroom.
   API change regardless of storage.
 - **Durable webhook outbox** — related to #62. Plan 1 adds the 5s timeout that
   caps the 300s hang; the retry/outbox half stays ticketed.
-- **C2 (encryption half) — SQLCipher at rest for the Drift DB** (→ **#138**).
-  The offline DB holds GPS trails and base64 shelf photos in plain SQLite.
-  #138 covers both halves: the *leak* half (clear on logout, user-scope the
-  outbox) and encryption at rest via `sqlcipher_flutter_libs` with the key in
-  `flutter_secure_storage`. It does **not** need a separate ticket.
+- ~~**C2 (encryption half) — SQLCipher at rest for the Drift DB** (→ **#138**)~~
+  — ✅ **shipped**, listed here only so the history reads straight. The offline
+  DB holds GPS trails and base64 shelf photos, and both halves of #138 are now
+  done: the *leak* half (clear on logout, user-scope the outbox) and encryption
+  at rest. `pubspec.yaml` overrides `sqlite3` to the `sqlcipher` source,
+  `local_db_connection_native.dart` applies `PRAGMA key` and then **verifies**
+  `PRAGMA cipher_version` rather than assuming it took, and `db_key.dart` keeps
+  the 256-bit key in the platform keychain — never beside the file it encrypts.
+  An existing plaintext database is migrated via `sqlcipher_export`.
 
 ## Conversational TradeIQ (2026-08-02) — 📐 planned, not started
 
