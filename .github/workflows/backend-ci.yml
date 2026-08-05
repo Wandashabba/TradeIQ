@@ -45,9 +45,6 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npx prisma migrate deploy
-      # Fails the build on a high/critical advisory in a shipped dependency.
-      # Currently clean, so it starts as a ratchet rather than noise.
-      - run: npm audit --audit-level=high
       - run: npm run lint
       # `build` only typechecks src/. `typecheck` also covers scripts/ via
       # tsconfig.scripts.json, so a broken seed script cannot reach main.
@@ -58,3 +55,31 @@ jobs:
       # pool (#181), which surfaces as a wall of unrelated suite failures.
       # #186's per-worker databases made parallel *correct*, not *safe here*.
       - run: npx jest --runInBand
+
+  # A separate job, deliberately.
+  #
+  # This used to be a step inside `test`, sitting between `npm ci` and every
+  # correctness check. Steps run sequentially and a failure ends the job, so
+  # when advisories landed against undici, brace-expansion and ip-address, lint,
+  # typecheck, build and all 912 tests were skipped — for every backend PR,
+  # silently. A red X still appeared, so nothing looked wrong; the signal that
+  # vanished was the one nobody thinks to check for absence.
+  #
+  # A supply-chain advisory and a broken test are independent facts and neither
+  # should be able to hide the other. Split out, both always report. The audit
+  # stays blocking: it is a ratchet, not a warning.
+  audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --ignore-scripts
+      # Fails on a high/critical advisory in any dependency.
+      - run: npm audit --audit-level=high
