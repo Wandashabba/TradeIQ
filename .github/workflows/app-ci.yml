@@ -28,6 +28,8 @@ jobs:
           channel: stable
       - run: flutter pub get
       # Generated Drift/etc. code (*.g.dart) is not committed; regenerate it here.
-      - run: dart run build_runner build --delete-conflicting-outputs
+      # `--delete-conflicting-outputs` was removed in build_runner 2.15 and is
+      # now warned about and ignored, so it is gone rather than silently dead.
+      - run: dart run build_runner build
       - run: flutter analyze
       - run: flutter test

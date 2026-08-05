@@ -1,6 +1,10 @@
-.PHONY: setup dev app stop restart test backend-test app-test wait-for-db help
+.PHONY: setup dev app codegen stop restart test backend-test app-test wait-for-db help
 
 FLUTTER ?= flutter
+# Kept separate from FLUTTER so an overridden SDK path can supply both. If you
+# pass FLUTTER=/path/to/flutter-3.44/bin/flutter, pass the matching DART too —
+# a `dart` from a different SDK will regenerate against the wrong analyzer.
+DART ?= dart
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -34,15 +38,18 @@ dev: ## Start Postgres (if needed) and the backend dev server
 	@$(MAKE) wait-for-db
 	cd backend && npm run dev
 
-app: ## Install deps and launch the Flutter app in Chrome (override Flutter binary with FLUTTER=/path/to/flutter)
-	cd app && $(FLUTTER) pub get && $(FLUTTER) run -d chrome
+codegen: ## Install app deps and regenerate Drift's *.g.dart (gitignored — a fresh clone has none)
+	cd app && $(FLUTTER) pub get && $(DART) run build_runner build
+
+app: codegen ## Launch the Flutter app in Chrome (override the SDK with FLUTTER=/path/to/flutter DART=/path/to/dart)
+	cd app && $(FLUTTER) run -d chrome
 
 test: backend-test app-test ## Run both test suites
 
 backend-test: ## Lint + test the backend
 	cd backend && npm run lint && npm test
 
-app-test: ## Analyze + test the Flutter app
+app-test: codegen ## Analyze + test the Flutter app
 	cd app && $(FLUTTER) analyze && $(FLUTTER) test
 
 stop: ## Stop Postgres
