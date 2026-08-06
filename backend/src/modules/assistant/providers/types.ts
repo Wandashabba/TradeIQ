@@ -57,9 +57,62 @@ export interface TurnInput {
 
 export type Role = 'user' | 'assistant';
 
-export interface Message {
+/**
+ * What the model said, or what the user asked.
+ *
+ * `toolCalls` records the calls an assistant turn requested. It has to be
+ * carried on the message rather than reconstructed, because both vendors
+ * require the assistant's own tool-call turn to be present in history before
+ * the matching results — omit it and Gemini rejects the request outright while
+ * Anthropic accepts a subtly wrong conversation.
+ */
+export interface TextMessage {
   role: Role;
   content: string;
+  toolCalls?: readonly ToolCallRecord[];
+}
+
+/** One tool call the model asked for, as replayed back to it in history. */
+export interface ToolCallRecord {
+  id: string;
+  name: string;
+  args: unknown;
+}
+
+/**
+ * The result of running one tool, on its way back to the model.
+ *
+ * **`content` is a string, deliberately.** By the time a result reaches here it
+ * has been through `sanitize.ts` and is spotlight-wrapped as untrusted data —
+ * wrapping produces text, and re-parsing it into structured fields would undo
+ * the wrapping that makes it safe to show the model.
+ *
+ * `ok: false` carries a failed tool run rather than aborting the turn. A tool
+ * that throws is a normal event — a stale id, an empty period — and the model
+ * recovers better from "that returned nothing" than from a dropped turn.
+ */
+export interface ToolResultMessage {
+  role: 'tool';
+  /** Correlates with the `id` of the {@link TurnEvent} `tool_call` that asked for it. */
+  callId: string;
+  name: string;
+  ok: boolean;
+  content: string;
+}
+
+/**
+ * Amended from `{ role, content }` when the first adapter landed.
+ *
+ * A `tool_runner` loop cannot be expressed without a way to send results back:
+ * `TurnEvent`'s `tool_call.id` exists specifically to "correlate the later
+ * result", and there was no message shape carrying one. The union is additive —
+ * `TextMessage` is the original shape — so it widens the contract rather than
+ * changing it, and `content: string` stays universal across all variants.
+ */
+export type Message = TextMessage | ToolResultMessage;
+
+export function isToolResult(message: Message): message is ToolResultMessage {
+  return message.role === 'tool';
 }
 
 export interface Usage {
