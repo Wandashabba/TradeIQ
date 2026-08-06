@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
-import { facingsTotal, round2 } from '../../lib/kpiMath';
+import { facingsTotal, mean, round2 } from '../../lib/kpiMath';
 
 export const SCORECARD_DIMENSIONS = [
   'availability',
@@ -231,4 +231,111 @@ export async function getScorecardByVisit(visitId: string, clientId: string) {
     throw new NotFoundError('Scorecard not found');
   }
   return scorecard;
+}
+
+export interface AgentPerformanceInput {
+  clientId: string;
+  agentId: string;
+  /** Half-open `[from, to)`. A day boundary belongs to exactly one period. */
+  from: Date;
+  to: Date;
+}
+
+export interface AgentPerformance {
+  agentId: string;
+  /** The agent's email — `User` has no display-name column. Named for its role. */
+  agentName: string | null;
+  visits: number;
+  outletsVisited: number;
+  scoredVisits: number;
+  averageScore: number;
+  ratingBands: Record<string, number>;
+  dimensionAverages: Record<string, number>;
+  /** Same window, every other agent in the tenant. `null` when there are none. */
+  teamAverageScore: number | null;
+  /** The agent's score minus the team's. Positive is better than the team. */
+  deltaVsTeam: number | null;
+}
+
+/**
+ * One agent's execution quality over a window, against their team's.
+ *
+ * **The comparison is not an extra.** The workflow this replaces is "export,
+ * save, export again, overlay in Excel" — so a scorecard that reports a number
+ * without something to read it against has reproduced the problem rather than
+ * solved it. "82" means nothing; "82, against a team average of 71" is the
+ * answer to the question the manager actually asked.
+ *
+ * The team baseline deliberately **excludes the agent being scored**. Including
+ * them pulls the average toward their own figure, which compresses the gap most
+ * for exactly the outliers a manager is looking for — and does it worst on
+ * small teams, where the outliers matter most.
+ *
+ * Scoped by `clientId` on every query. This function is reached from an
+ * assistant tool bound to the caller, but it is also an ordinary service and
+ * must not rely on its callers for tenancy.
+ */
+export async function getAgentPerformance(input: AgentPerformanceInput): Promise<AgentPerformance> {
+  const { clientId, agentId, from, to } = input;
+
+  const agent = await prisma.user.findFirst({
+    where: { id: agentId, clientId },
+    select: { id: true, email: true },
+  });
+  // Not a NotFoundError: an agent id from another tenant and an agent id that
+  // does not exist must be indistinguishable, or the endpoint becomes an
+  // existence oracle for other clients' user ids.
+  if (!agent) {
+    throw new NotFoundError('Agent not found');
+  }
+
+  const window = { gte: from, lt: to };
+
+  const [visits, scorecards, teamScorecards] = await Promise.all([
+    prisma.visit.findMany({
+      where: { clientId, agentId, checkinTs: window },
+      select: { outletId: true },
+    }),
+    prisma.scorecard.findMany({
+      where: { visit: { clientId, agentId, checkinTs: window } },
+      select: { weightedTotal: true, ratingBand: true, dimensionScores: true },
+    }),
+    prisma.scorecard.findMany({
+      where: { visit: { clientId, agentId: { not: agentId }, checkinTs: window } },
+      select: { weightedTotal: true },
+    }),
+  ]);
+
+  const ratingBands: Record<string, number> = {};
+  for (const row of scorecards) {
+    ratingBands[row.ratingBand] = (ratingBands[row.ratingBand] ?? 0) + 1;
+  }
+
+  const dimensionAverages: Record<string, number> = {};
+  for (const dimension of SCORECARD_DIMENSIONS) {
+    const values = scorecards
+      .map((row) => asNumberRecord(row.dimensionScores)[dimension])
+      .filter((value): value is number => typeof value === 'number');
+    // Omitted rather than reported as 0 when nothing was captured. A zero here
+    // reads as "they scored nothing on pricing" instead of "pricing was never
+    // captured", and those call for opposite responses from a manager.
+    if (values.length > 0) dimensionAverages[dimension] = mean(values);
+  }
+
+  const averageScore = mean(scorecards.map((row) => row.weightedTotal));
+  const teamAverageScore =
+    teamScorecards.length > 0 ? mean(teamScorecards.map((row) => row.weightedTotal)) : null;
+
+  return {
+    agentId,
+    agentName: agent.email,
+    visits: visits.length,
+    outletsVisited: new Set(visits.map((v) => v.outletId)).size,
+    scoredVisits: scorecards.length,
+    averageScore,
+    ratingBands,
+    dimensionAverages,
+    teamAverageScore,
+    deltaVsTeam: teamAverageScore === null ? null : round2(averageScore - teamAverageScore),
+  };
 }

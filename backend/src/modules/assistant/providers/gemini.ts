@@ -281,9 +281,16 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
         return;
       }
 
-      const declarations = toFunctionDeclarations(input.tools);
+      // A quarantine turn must reach the model with no tool declarations at
+      // all. `toolChoice: 'none'` alone is a policy the request carries; an
+      // empty declaration list is the absence of anything to call. The dual-LLM
+      // defence rests on the second, so the two are enforced together here
+      // rather than trusted to every caller.
+      const suppressTools = input.toolChoice === 'none' || input.model === 'quarantine';
+      const declarations = suppressTools ? [] : toFunctionDeclarations(input.tools);
+
       const params: GenerateContentParameters = {
-        model: orchestratorModel,
+        model: input.model === 'quarantine' ? quarantineModel : orchestratorModel,
         contents: toGeminiContents(input.messages),
         config: {
           // NOT a prepended user turn. See the file header.
@@ -291,10 +298,7 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
           ...(declarations.length > 0 ? { tools: [{ functionDeclarations: declarations }] } : {}),
           toolConfig: {
             functionCallingConfig: {
-              mode:
-                input.toolChoice === 'none'
-                  ? FunctionCallingConfigMode.NONE
-                  : FunctionCallingConfigMode.AUTO,
+              mode: suppressTools ? FunctionCallingConfigMode.NONE : FunctionCallingConfigMode.AUTO,
             },
           },
           // ⚠️ Client-side only, per the SDK's own note: aborting stops us

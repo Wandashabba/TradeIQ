@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 
+
 /**
  * The four pillars a manager actually thinks in, plus execution quality.
  *
@@ -39,7 +40,47 @@ export interface AssistantTool<A extends ToolArgs = ToolArgs, R = unknown> {
   readonly args: z.ZodType<A>;
   /** Already bound to the caller. Identity never crosses this signature. */
   readonly run: (args: A) => Promise<R>;
+  /**
+   * What this tool's result draws, if anything.
+   *
+   * **The model never emits UI.** It chooses a tool; the tool declares which
+   * spec from the closed catalog its data renders as. That is what makes the
+   * catalog a real constraint rather than a suggestion — there is no path by
+   * which a model could name a spec type at all.
+   *
+   * Returning `null` is normal: a tool whose answer is a sentence has nothing
+   * to draw, and a blank card would be worse than prose.
+   */
+  readonly view?: (args: A, result: R) => { type: string; params: unknown } | null;
 }
 
 /** A tool of unknown arg/return shape — what a roster or a provider handles. */
 export type AnyAssistantTool = AssistantTool<ToolArgs, unknown>;
+
+/**
+ * Erase a tool's argument type so it can sit in a heterogeneous roster.
+ *
+ * `run` takes its arguments, which makes `AssistantTool` contravariant in `A` —
+ * a `Tool<{agentId: string}>` is genuinely *not* assignable to a
+ * `Tool<ToolArgs>`, and TypeScript is right to say so. A collection of tools
+ * with different argument shapes cannot be typed any other way.
+ *
+ * **The cast inside is guarded by a real runtime check, not by hope.** The
+ * orchestrator calls `tool.args.safeParse(...)` and only invokes `run` with the
+ * parsed value, so by the time `args as A` executes, Zod has already proven the
+ * shape. Doing the erasure here — in one function, next to that explanation —
+ * is what keeps the assertion from being scattered across every pillar file
+ * where the reasoning would be re-derived or, more likely, not.
+ */
+export function eraseToolTypes<A extends ToolArgs, R>(tool: AssistantTool<A, R>): AnyAssistantTool {
+  return {
+    name: tool.name,
+    pillar: tool.pillar,
+    description: tool.description,
+    args: tool.args as unknown as z.ZodType<ToolArgs>,
+    run: (args: ToolArgs) => tool.run(args as A),
+    ...(tool.view
+      ? { view: (args: ToolArgs, result: unknown) => tool.view!(args as A, result as R) }
+      : {}),
+  };
+}

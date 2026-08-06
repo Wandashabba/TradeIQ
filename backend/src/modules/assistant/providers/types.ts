@@ -53,6 +53,17 @@ export interface TurnInput {
   tools: readonly AnyAssistantTool[];
   messages: readonly Message[];
   toolChoice?: 'auto' | 'none';
+  /**
+   * Which of the provider's two model tiers to run on. Defaults to
+   * `orchestrator`.
+   *
+   * The quarantine pass is the reason this exists: it is a deliberately cheap,
+   * deliberately tool-less call over untrusted text, and running it on the
+   * orchestrator model would multiply the cost of every turn carrying a visit
+   * note. Naming a *tier* rather than a model id keeps the caller vendor-blind
+   * — `providers/index.ts` is the only place a model string is chosen.
+   */
+  model?: 'orchestrator' | 'quarantine';
 }
 
 export type Role = 'user' | 'assistant';

@@ -1,0 +1,217 @@
+import { describePeriod, InvalidPeriodError, resolvePeriod, type Period } from './period';
+import { validateViewSpec, VIEW_SPEC_TYPES } from './viewspec';
+
+const NOW = new Date('2026-08-06T14:30:00.000Z'); // a Thursday
+
+describe('resolvePeriod', () => {
+  it('gives today a half-open range covering exactly one day', () => {
+    // Half-open, so a row written at 23:59:59.999 is still "today". An
+    // inclusive end of 23:59:59 silently drops the final second's rows.
+    const { from, to } = resolvePeriod({ kind: 'today' }, NOW);
+    expect(from.toISOString()).toBe('2026-08-06T00:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-08-07T00:00:00.000Z');
+  });
+
+  it('gives yesterday the day before, not the last 24 hours', () => {
+    const { from, to } = resolvePeriod({ kind: 'yesterday' }, NOW);
+    expect(from.toISOString()).toBe('2026-08-05T00:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-08-06T00:00:00.000Z');
+  });
+
+  it('gives previous_week the previous calendar week, Monday to Monday', () => {
+    // Not "the last 7 days". A manager asking about last week means the week
+    // that finished; a rolling window folds today's partial data into it.
+    const { from, to } = resolvePeriod({ kind: 'previous_week' }, NOW);
+    expect(from.toISOString()).toBe('2026-07-27T00:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-08-03T00:00:00.000Z');
+    expect(from.getUTCDay()).toBe(1);
+  });
+
+  it('handles previous_week when today is a Monday', () => {
+    // The boundary case: on a Monday, "this Monday" is today, so the previous
+    // week must not collapse to zero days.
+    const monday = new Date('2026-08-03T09:00:00.000Z');
+    const { from, to } = resolvePeriod({ kind: 'previous_week' }, monday);
+    expect(from.toISOString()).toBe('2026-07-27T00:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-08-03T00:00:00.000Z');
+  });
+
+  it('handles previous_week when today is a Sunday', () => {
+    const sunday = new Date('2026-08-09T09:00:00.000Z');
+    const { from } = resolvePeriod({ kind: 'previous_week' }, sunday);
+    expect(from.toISOString()).toBe('2026-07-27T00:00:00.000Z');
+  });
+
+  it('runs mtd from the first of the month through the end of today', () => {
+    const { from, to } = resolvePeriod({ kind: 'mtd' }, NOW);
+    expect(from.toISOString()).toBe('2026-08-01T00:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-08-07T00:00:00.000Z');
+  });
+
+  it('runs ytd from 1 January', () => {
+    const { from, to } = resolvePeriod({ kind: 'ytd' }, NOW);
+    expect(from.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-08-07T00:00:00.000Z');
+  });
+
+  it('includes the whole of a custom range\'s final day', () => {
+    // The user's `to` is the last day they mean. Using it as the exclusive
+    // bound drops that entire day — an off-by-one that reads as missing data.
+    const { from, to } = resolvePeriod(
+      { kind: 'custom', from: '2026-07-01', to: '2026-07-31' },
+      NOW,
+    );
+    expect(from.toISOString()).toBe('2026-07-01T00:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-08-01T00:00:00.000Z');
+  });
+
+  it('accepts a single-day custom range', () => {
+    const { from, to } = resolvePeriod(
+      { kind: 'custom', from: '2026-07-15', to: '2026-07-15' },
+      NOW,
+    );
+    expect(to.getTime() - from.getTime()).toBe(86_400_000);
+  });
+
+  it('rejects a custom range that runs backwards', () => {
+    expect(() =>
+      resolvePeriod({ kind: 'custom', from: '2026-07-31', to: '2026-07-01' }, NOW),
+    ).toThrow(InvalidPeriodError);
+  });
+
+  it('is stable across a year boundary', () => {
+    const newYear = new Date('2027-01-01T02:00:00.000Z');
+    expect(resolvePeriod({ kind: 'ytd' }, newYear).from.toISOString()).toBe(
+      '2027-01-01T00:00:00.000Z',
+    );
+    expect(resolvePeriod({ kind: 'previous_week' }, newYear).from.toISOString()).toBe(
+      '2026-12-21T00:00:00.000Z',
+    );
+  });
+
+  it('takes now as a parameter rather than reading the clock', () => {
+    // A service that reads its own clock is a test that fails on a date nobody
+    // chose — the trap that bit the fraud suite in #262.
+    const a = resolvePeriod({ kind: 'mtd' }, new Date('2026-03-15T00:00:00Z'));
+    expect(a.from.toISOString()).toBe('2026-03-01T00:00:00.000Z');
+  });
+});
+
+describe('describePeriod', () => {
+  it.each<[Period, string]>([
+    [{ kind: 'today' }, 'today'],
+    [{ kind: 'mtd' }, 'month to date'],
+    [{ kind: 'custom', from: '2026-01-01', to: '2026-01-31' }, '2026-01-01 to 2026-01-31'],
+  ])('describes %j', (period, expected) => {
+    expect(describePeriod(period)).toBe(expected);
+  });
+});
+
+describe('validateViewSpec', () => {
+  it('accepts a well-formed agent_scorecard', () => {
+    const result = validateViewSpec({
+      type: 'agent_scorecard',
+      params: { agentId: 'agent-1', period: { kind: 'mtd' } },
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects a spec type outside the catalog', () => {
+    // The catalog is closed. An unknown type must degrade to text, never to a
+    // blank card — a blank card reads as an app bug.
+    const result = validateViewSpec({ type: 'pie_of_doom', params: {} });
+    expect(result.ok).toBe(false);
+    expect((result as { reason: string }).reason).toMatch(/Unknown view spec/);
+  });
+
+  it('does not resolve a type off the prototype chain', () => {
+    // `"constructor" in catalog` is true. Using `in` instead of hasOwnProperty
+    // would hand a Function to safeParse and throw inside the orchestrator.
+    for (const evil of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      const result = validateViewSpec({ type: evil, params: {} });
+      expect(result.ok).toBe(false);
+    }
+  });
+
+  it('rejects malformed params and says which field', () => {
+    const result = validateViewSpec({
+      type: 'agent_scorecard',
+      params: { agentId: '', period: { kind: 'mtd' } },
+    });
+    expect(result.ok).toBe(false);
+    expect((result as { issues: string[] }).issues.join()).toMatch(/agentId/);
+  });
+
+  it('rejects an unknown period kind', () => {
+    const result = validateViewSpec({
+      type: 'agent_scorecard',
+      params: { agentId: 'a', period: { kind: 'last_fortnight' } },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a custom period without dates', () => {
+    const result = validateViewSpec({
+      type: 'agent_scorecard',
+      params: { agentId: 'a', period: { kind: 'custom' } },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a non-ISO custom date', () => {
+    const result = validateViewSpec({
+      type: 'agent_scorecard',
+      params: { agentId: 'a', period: { kind: 'custom', from: '01/07/2026', to: '2026-07-31' } },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a metric the backend cannot compute', () => {
+    // A metric with no series behind it renders an empty chart, and the model
+    // has no way to know that in advance.
+    const result = validateViewSpec({
+      type: 'trend_chart',
+      params: { metric: 'vibes', period: { kind: 'mtd' } },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('defaults a trend interval rather than requiring one', () => {
+    const result = validateViewSpec({
+      type: 'trend_chart',
+      params: { metric: 'availability', period: { kind: 'mtd' } },
+    });
+    expect(result.ok).toBe(true);
+    expect((result as { spec: { params: { interval: string } } }).spec.params.interval).toBe('day');
+  });
+
+  it('requires an outlet map to be scoped', () => {
+    // An unscoped map is every outlet in the tenant: not a useful answer to any
+    // question, and slow on a large client.
+    expect(validateViewSpec({ type: 'outlet_map', params: {} }).ok).toBe(false);
+    expect(validateViewSpec({ type: 'outlet_map', params: { outletIds: [] } }).ok).toBe(false);
+    expect(validateViewSpec({ type: 'outlet_map', params: { territoryId: 't1' } }).ok).toBe(true);
+    expect(validateViewSpec({ type: 'outlet_map', params: { outletIds: ['o1'] } }).ok).toBe(true);
+  });
+
+  it.each([[null], [undefined], ['a string'], [42], [[]]])('rejects %p as a spec', (value) => {
+    expect(validateViewSpec(value).ok).toBe(false);
+  });
+
+  it('rejects a spec with no type', () => {
+    expect(validateViewSpec({ params: {} }).ok).toBe(false);
+  });
+
+  it('covers every catalog entry with at least one valid example', () => {
+    // Guards against a spec being added to the catalog and never exercised —
+    // which is how an unvalidatable schema ships.
+    const examples: Record<string, unknown> = {
+      agent_scorecard: { agentId: 'a', period: { kind: 'today' } },
+      trend_chart: { metric: 'execution_score', period: { kind: 'ytd' } },
+      outlet_map: { territoryId: 't1' },
+    };
+    for (const type of VIEW_SPEC_TYPES) {
+      expect(validateViewSpec({ type, params: examples[type] })).toMatchObject({ ok: true });
+    }
+  });
+});
