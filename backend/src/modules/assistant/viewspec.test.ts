@@ -1,4 +1,11 @@
-import { describePeriod, InvalidPeriodError, resolvePeriod, type Period } from './period';
+import { z } from 'zod';
+import {
+  describePeriod,
+  InvalidPeriodError,
+  periodSchema,
+  resolvePeriod,
+  type Period,
+} from './period';
 import { validateViewSpec, VIEW_SPEC_TYPES } from './viewspec';
 
 const NOW = new Date('2026-08-06T14:30:00.000Z'); // a Thursday
@@ -156,6 +163,26 @@ describe('validateViewSpec', () => {
       params: { agentId: 'a', period: { kind: 'custom' } },
     });
     expect(result.ok).toBe(false);
+  });
+
+  it('rejects dates supplied alongside a fixed period', () => {
+    // `{kind: 'mtd', from: '2026-01-01'}` is the model contradicting itself.
+    // Silently ignoring the dates answers a different question from the one
+    // asked, which is the worst way to be wrong here.
+    const result = validateViewSpec({
+      type: 'agent_scorecard',
+      params: { agentId: 'a', period: { kind: 'mtd', from: '2026-01-01', to: '2026-01-31' } },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('declares the period as a flat object, not a oneOf', () => {
+    // Gemini's Schema has no `oneOf`, and every tool takes a period — so a
+    // discriminated union here is a 400 on literally every turn. Caught once
+    // by tools.test.ts; pinned here so the spelling cannot quietly revert.
+    const shape = JSON.stringify(z.toJSONSchema(periodSchema, { io: 'input' }));
+    expect(shape).not.toContain('oneOf');
+    expect(shape).not.toContain('anyOf');
   });
 
   it('rejects a non-ISO custom date', () => {

@@ -33,20 +33,55 @@ const isoDate = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected an ISO date, YYYY-MM-DD')
   .refine((value) => !Number.isNaN(Date.parse(`${value}T00:00:00Z`)), 'Not a real calendar date');
 
-export const periodSchema = z
-  .discriminatedUnion('kind', [
-    z.object({ kind: z.literal('today') }),
-    z.object({ kind: z.literal('yesterday') }),
-    z.object({ kind: z.literal('previous_week') }),
-    z.object({ kind: z.literal('mtd') }),
-    z.object({ kind: z.literal('ytd') }),
-    z.object({ kind: z.literal('custom'), from: isoDate, to: isoDate }),
-  ])
-  .describe(
-    'The reporting period. Use mtd when the user is vague ("lately", "recently") and say so in your answer.',
-  );
+/** The validated shape everything downstream works with. */
+export type Period =
+  | { kind: Exclude<PeriodKind, 'custom'> }
+  | { kind: 'custom'; from: string; to: string };
 
-export type Period = z.infer<typeof periodSchema>;
+/**
+ * **Flat on the wire, a discriminated union out.**
+ *
+ * The obvious spelling is `z.discriminatedUnion('kind', [...])`, and it was
+ * that until `tools.test.ts` caught what it produces: Zod emits a discriminated
+ * union as JSON Schema `oneOf`, and **Gemini's `Schema` has no `oneOf`**. Every
+ * tool takes a period, so that would have been a 400 on literally every turn —
+ * and it would not have been found until a request went out, because nothing
+ * about the Zod schema looks wrong.
+ *
+ * So the *input* is one flat object that Gemini can declare, and `transform`
+ * narrows it back to the union afterwards. Nothing downstream changes: the
+ * output type is still the union, and `z.toJSONSchema(..., { io: 'input' })` —
+ * which is what the adapter declares — sees the flat form.
+ *
+ * Strictness is not traded away for this. `refine` still rejects a `custom`
+ * period with no dates, and rejects dates supplied alongside a fixed period,
+ * which is where a model most plausibly gets it wrong.
+ */
+export const periodSchema = z
+  .object({
+    kind: z
+      .enum(PERIOD_KINDS)
+      .describe('Use mtd when the user is vague ("lately", "recently") and say so in your answer.'),
+    from: isoDate.optional().describe('Start date. Required when kind is custom, omit otherwise.'),
+    to: isoDate.optional().describe('End date, inclusive. Required when kind is custom.'),
+  })
+  .refine((value) => value.kind !== 'custom' || (value.from !== undefined && value.to !== undefined), {
+    message: 'A custom period needs both from and to.',
+    path: ['from'],
+  })
+  .refine((value) => value.kind === 'custom' || (value.from === undefined && value.to === undefined), {
+    // A model that sends `{kind: 'mtd', from: …}` has contradicted itself, and
+    // silently ignoring the dates answers a different question from the one
+    // asked — the worst way to be wrong here.
+    message: 'from and to are only valid when kind is custom.',
+    path: ['from'],
+  })
+  .transform((value): Period =>
+    value.kind === 'custom'
+      ? { kind: 'custom', from: value.from!, to: value.to! }
+      : { kind: value.kind },
+  )
+  .describe('The reporting period.');
 
 export interface DateRange {
   from: Date;

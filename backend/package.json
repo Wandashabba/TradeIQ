@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
-    "lint": "eslint src scripts --ext .ts",
+    "lint": "eslint src scripts evals --ext .ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
