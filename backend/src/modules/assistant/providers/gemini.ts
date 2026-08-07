@@ -45,20 +45,27 @@ export const GEMINI_QUARANTINE_MODEL = process.env.GEMINI_QUARANTINE_MODEL ?? 'g
 /**
  * Dollars per million tokens.
  *
- * ⚠️ **These rates are a placeholder and must be confirmed against Google's
- * published pricing before any spend dashboard is trusted.** They are declared
- * here, overridable by env, rather than left out: `Usage.costCents` is part of
- * the provider contract, and returning `0` would make a cost regression look
+ * ⚠️ **Placeholders. Confirm against Google's published pricing before any
+ * spend dashboard is trusted.**
+ *
+ * Seeded from the plan's cost-model table (`$2 / $12` for Gemini 3.1 Pro, with
+ * cached reads at roughly a 90% discount) rather than from a second guess, so
+ * there is **one** set of numbers to correct rather than two that can quietly
+ * disagree — the plan says its own figures are "orders of magnitude, not a
+ * forecast", and that caveat travels with them to here.
+ *
+ * Declared at all, rather than left out, because `Usage.costCents` is part of
+ * the provider contract and returning `0` would make a cost regression look
  * like a cost saving. A wrong-but-visible number gets corrected; a zero does
- * not. `assistant-evals.yml` reports the figure, so drift shows up in review.
+ * not.
  *
  * Cached input is billed at a discount on every provider that offers it, which
  * is the entire economic argument for the frozen prompt prefix.
  */
 const RATES = {
-  inputPerMTok: Number(process.env.GEMINI_INPUT_USD_PER_MTOK ?? 1.25),
-  outputPerMTok: Number(process.env.GEMINI_OUTPUT_USD_PER_MTOK ?? 10),
-  cachedInputPerMTok: Number(process.env.GEMINI_CACHED_INPUT_USD_PER_MTOK ?? 0.31),
+  inputPerMTok: Number(process.env.GEMINI_INPUT_USD_PER_MTOK ?? 2),
+  outputPerMTok: Number(process.env.GEMINI_OUTPUT_USD_PER_MTOK ?? 12),
+  cachedInputPerMTok: Number(process.env.GEMINI_CACHED_INPUT_USD_PER_MTOK ?? 0.2),
 } as const;
 
 /**

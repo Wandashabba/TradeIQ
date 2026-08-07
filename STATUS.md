@@ -1,7 +1,9 @@
 # TradeIQ — Project Status
 
-**Last updated:** 2026-08-02
+**Last updated:** 2026-08-07
 **Current initiative:** Conversational TradeIQ (dashboard → chatbot)
+**Active branch:** `orchestration` — PR [#265](../../pull/265), stacked on the
+foundation PR [#264](../../pull/264). Retarget to `main` once #264 lands.
 **Plan:** [docs/superpowers/plans/2026-08-02-conversational-tradeiq.md](docs/superpowers/plans/2026-08-02-conversational-tradeiq.md) — sequencing and tasks
 **Spec:** [docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md](docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md) — contracts, wire protocol, security model
 
@@ -18,7 +20,7 @@
 
 | Phase | Scope | Status | Gate |
 |---|---|---|---|
-| 0 | [Read-only chat spine](../../issues/253) | 🟡 Backend done, app not started | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
+| 0 | [Read-only chat spine](../../issues/253) | 🟡 Built end to end; **gate unmeasured** | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
 | 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
@@ -105,6 +107,36 @@ Not phase gates — how we'll know the whole thing worked.
 > the note predated the merge from `main`, and a plan was briefly written around
 > a gap that did not exist. Both are fixed.
 
+### Shipped — 2026-08-06 · Phase 0 foundation (PR [#264](../../pull/264), open)
+- [x] `providers/types.ts` — the `LlmProvider` seam
+- [x] `roster.ts` + a 41-assertion matrix test — the security boundary
+- [x] `Client.assistantEnabled` rollout flag and 404 kill switch
+- [x] Per-user **and** per-tenant chat rate limiters
+- [x] `make setup` generated an `.env` missing every assistant variable — fixed
+
+### Shipped — 2026-08-06/07 · Phase 0 spine (PR [#265](../../pull/265), open)
+
+Everything in **In progress** below. Grouped here so the two PRs are legible as
+separate units of review: #264 is the boundary and the flags, #265 is everything
+that uses them.
+
+Two repo-wide fixes that were not the point but blocked the work:
+
+- [x] **`evals/` was invisible to `build` *and* `typecheck`** — reachable only
+      from a `*.test.ts`, which `tsconfig.json` excludes. The golden set could
+      have drifted out of sync with the tool registry and `tsc` would have
+      reported success. The same gap the repo already fixed once for `scripts/`
+- [x] **The lockfile was pruned by a Windows `npm install`**, dropping `sharp`'s
+      optional `@emnapi` entries. `npm ci` then failed in the *first* step of
+      all three CI jobs, so lint, typecheck, build and every test never
+      reported — three red crosses and no test signal. Regenerated on
+      `node:24-alpine`. **Anyone changing dependencies from Windows will hit
+      this again:** check `git diff <base> -- backend/package-lock.json` for
+      removed `node_modules/` keys before pushing; a dependency change should
+      only ever *add* entries
+- [x] A new high-severity `js-yaml` advisory (CVE-2026-59870) that landed
+      against a dev transitive after #264 was authored
+
 ### Pre-existing (not part of this initiative)
 - [x] Backend: 38 route modules, JWT auth + RBAC, multi-tenant scoping
 - [x] Backend: pagination standardised across all list endpoints (#194, PRs #235/#237)
@@ -116,21 +148,50 @@ Not phase gates — how we'll know the whole thing worked.
 
 ## In progress
 
-**Phase 0 backend is complete and green; the Flutter client is not started.**
-Branch `orchestration`, stacked on the foundation PR (#264).
+**Phase 0 is built end to end and green on CI. It is not *done*, because its
+gate has never been measured.**
 
-The read-only spine works end to end: a question reaches a real service at the
-caller's tenant and returns narrative plus a validated artifact. What remains
-before the phase can be called done:
+The spine works: a question reaches a real service at the caller's tenant and
+comes back as narrative plus a validated artifact the app renders. Backend and
+app both. What it has never done is speak to a model — every test in the branch
+runs against a scripted provider.
 
-- [ ] **Flutter** — chat screen, streaming text, and the view-spec registry.
-      Nothing renders an artifact yet, so `trend_chart` and `outlet_map` are
-      validated but unemitted
-- [ ] **Langfuse tracing** — needs the Cloud project
-- [ ] **Live eval sweep** — the workflow exists and skips itself with a warning
-      until `secrets.GEMINI_API_KEY` is set. The ≥90% number is therefore
-      **unmeasured**, and the gate is not met yet
+**Shipped on `orchestration` (8 commits, ~9,800 lines, all checks green):**
+
+| | Landed |
+|---|---|
+| Provider | `gemini.ts` adapter · `geminiSchema.ts` · `contract.ts` suite · `LLM_PROVIDER` selector |
+| Spine | `prompt.ts` · `sanitize.ts` · `quarantine.ts` · `viewspec.ts` · `period.ts` · `orchestrator.ts` · `POST /assistant/chat` (SSE) |
+| Tools | All 9, across the four pillars + execution, over `pillars.service.ts` and `scorecards.service.ts` |
+| Proof | 26 golden questions · scorer · cache-hit cost gate · `assistant-evals.yml` |
+| App | Chat screen · SSE client · view-spec registry · `AgentScorecardCard` · rollout gate |
+| Ops | `tracing.ts` (Langfuse, no-op unconfigured) |
+
+**What is genuinely not done:**
+
+- [ ] **The ≥90% accuracy gate is UNMEASURED, and no further code closes it.**
+      `assistant-evals.yml` skips itself with a warning until
+      `secrets.GEMINI_API_KEY` exists. This is the phase's exit condition and it
+      is the one item nothing in this repo can satisfy
+- [ ] **Langfuse Cloud project** — the client and the seam exist; there is no
+      project, so tracing no-ops
+- [ ] **`trend_chart` + `outlet_map`** — in the catalog and validated, but no
+      tool emits them and no widget draws them. Deliberately unticked
 - [ ] **Provider console spend caps** — the one ceiling this repo cannot provide
+- [ ] **`anthropic.ts`** — waiting on its key. The contract suite is written so
+      that adding it should be an adapter plus a flag; if it turns out to be
+      more, the interface leaked and *that* is the bug
+
+**Three defects found by tests during the build**, each invisible to review:
+
+1. `z.discriminatedUnion` emits JSON Schema `oneOf`, which **Gemini's `Schema`
+   does not have**. Every tool takes a period, so this was a 400 on *every
+   turn* — caught by converting every registered tool's schema in a test.
+2. The tracer's queue cap did nothing: `flush()` splices synchronously before
+   its first `await`, so the queue drained every 50 events and never reached the
+   bound — trading unbounded memory for unbounded concurrent requests.
+3. The app resolved repeated calls to one tool **backwards** (`lastIndexWhere`),
+   with a comment above it claiming the opposite.
 
 > **A limitation worth knowing before it surprises someone.** Gemini's
 > `abortSignal` is *client-side only*, per the SDK's own note: a client
@@ -272,11 +333,22 @@ its cheap slice on every assistant PR.
    - [ ] Hard monthly cap in **both** provider consoles + Langfuse budget alerts
          at 50% / 80%. Rate limiting bounds *a user*; the console cap bounds
          *the account* — a leaked key is not rate-limited by anything in this repo
-   - [ ] Client disconnect aborts the in-flight provider call rather than
-         orphaning a paid request
+   - [~] Client disconnect aborts the in-flight provider call ✅ 2026-08-06 —
+         the route aborts on `res.close`, the orchestrator checks between
+         rounds and between tool calls, and the signal reaches the SDK.
+         ⚠️ **Gemini's `abortSignal` is client-side only**, per the SDK's own
+         note: it stops us reading, not Google generating or billing. So this
+         is only *partly* satisfiable in code, and the rest is the console cap
+         above
 
 **Exit demo:** *"How has Tumo been performing this month?"* returns narrative
 plus the real scorecard widget, at manager scope, with a cache hit on turn 2.
+
+> **The demo passes as a test, against a scripted model.**
+> `assistant.routes.test.ts` and `chat_screen_test.dart` both assert exactly
+> that sentence end to end — tool call, real service at the caller's tenant,
+> validated artifact, rendered widget. It has **never been run against Gemini.**
+> Treat it as unproven until it has.
 
 ---
 
@@ -350,7 +422,9 @@ information.
 | Prompt injection | Dual-LLM quarantine + spotlighting, layered | No single defence closes the gap; instruction-based defence is the weakest layer and never the only one |
 | Observability | **Langfuse Cloud** (MIT, self-host escape hatch) | Self-hosting is a 6-service stack — real operational weight for a small team. Braintrust is nicer but $249/mo with no self-host |
 | Memory | Postgres preferences now; defer mem0/Zep | Temporal truth already lives in Postgres — don't build a graph over it |
-| Testing | Five layers, every phase gated | API key available day one, so nothing defers to a hardening pass |
+| Testing | Five layers, every phase gated | ~~API key available day one, so nothing defers to a hardening pass~~ — **the premise was wrong** (2026-08-07). No key ever arrived. Four of the five layers turned out not to need one and are green; the *live eval* layer is the exception, and it is the phase gate. The conclusion survives by accident rather than by design: nothing was deferred, but nothing was proven either |
+| **Trace content** | **Metadata only. Conversation text behind `LANGFUSE_TRACE_CONTENT`, default off** | Transcripts carry outlet and agent PII, and retention (#251 Q3) plus POPIA residency (Q4) are both **open**. Shipping capture to a third-party cloud would answer them without anyone deciding. Tool *results* are never sent at any setting — they are simultaneously the untrusted surface and the richest PII source in the system |
+| **Cost rates** | Placeholder, seeded from the plan's cost table, `costCents` never `0` | Google's pricing is unconfirmed. One set of numbers to correct rather than two that can disagree; a zero would make a cost regression look like a saving |
 | Rollout | Per-client feature flag; additive until Phase 4 | Nothing is removed until the replacement is proven |
 
 ---
