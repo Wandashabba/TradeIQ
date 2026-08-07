@@ -36,7 +36,7 @@ class AssistantGate extends ConsumerWidget {
     return ref.watch(assistantEnabledProvider).when(
           data: (enabled) =>
               enabled ? const AssistantChatScreen() : const _NotEnabled(),
-          error: (_, __) => const AssistantChatScreen(),
+          error: (_, _) => const AssistantChatScreen(),
           loading: () => const ManagerScaffold(
             title: 'Ask TradeIQ',
             body: Center(

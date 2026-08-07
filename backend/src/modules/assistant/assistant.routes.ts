@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, type AuthedRequest } from '../../middleware/auth';
@@ -118,6 +119,14 @@ assistantRouter.post(
         tools,
         messages,
         signal: controller.signal,
+        // Identity for tracing only — it never reaches a tool, which closes
+        // over `req.user` instead. `randomUUID` rather than a counter so ids
+        // stay unique across processes and restarts.
+        trace: {
+          traceId: randomUUID(),
+          userId: user.userId,
+          clientId: user.clientId,
+        },
       })) {
         writeEvent(res, frame);
       }

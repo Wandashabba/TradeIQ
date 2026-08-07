@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { runTurn, type WireEvent } from './orchestrator';
 import type { LlmProvider, TurnEvent, TurnInput } from './providers/types';
+import type { AssistantTracer, TurnSummary, TurnTrace } from './tracing';
 import { eraseToolTypes, type AnyAssistantTool } from './types';
 
 /**
@@ -553,6 +554,204 @@ describe('orchestrator', () => {
       // The first tool ran; the second was never started.
       expect(events.filter((e) => e.event === 'tool_start')).toHaveLength(1);
       expect(events[events.length - 1]).toMatchObject({ event: 'error', data: { code: 'aborted' } });
+    });
+  });
+
+  describe('tracing', () => {
+    function recordingTracer() {
+      const turns: { trace: TurnTrace; summary: TurnSummary }[] = [];
+      return {
+        turns,
+        tracer: {
+          recordTurn: (trace: TurnTrace, summary: TurnSummary) =>
+            void turns.push({ trace, summary }),
+          flush: async () => {},
+        } as AssistantTracer,
+      };
+    }
+
+    const trace = { traceId: 't-1', userId: 'u-1', clientId: 'c-1' };
+
+    it('records one turn with the provider, model and cost', async () => {
+      const provider = scriptedProvider([
+        [
+          { type: 'usage', usage: { inputTokens: 900, outputTokens: 40, cacheReadTokens: 800, costCents: 0.2 } },
+          { type: 'done' },
+        ],
+      ]);
+      const recorder = recordingTracer();
+
+      await collect(
+        runTurn({
+          provider,
+          tools: [],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          trace,
+          tracer: recorder.tracer,
+        }),
+      );
+
+      expect(recorder.turns).toHaveLength(1);
+      expect(recorder.turns[0].trace).toMatchObject({
+        traceId: 't-1',
+        clientId: 'c-1',
+        provider: 'gemini',
+        model: 'big',
+      });
+      expect(recorder.turns[0].summary.usage.cacheReadTokens).toBe(800);
+    });
+
+    it('records a span per tool with its pillar and outcome', async () => {
+      const provider = scriptedProvider([
+        callTool('getAgentScorecard', { agentId: 'a' }),
+        say('done'),
+      ]);
+      const recorder = recordingTracer();
+
+      await collect(
+        runTurn({
+          provider,
+          tools: [testTool()],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          trace,
+          tracer: recorder.tracer,
+        }),
+      );
+
+      expect(recorder.turns[0].summary.tools).toEqual([
+        expect.objectContaining({ name: 'getAgentScorecard', pillar: 'execution', ok: true }),
+      ]);
+    });
+
+    it('records a failed tool as a failed span, not a failed turn', async () => {
+      const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const provider = scriptedProvider([
+        callTool('getAgentScorecard', { agentId: 'a' }),
+        say('sorry'),
+      ]);
+      const recorder = recordingTracer();
+
+      await collect(
+        runTurn({
+          provider,
+          tools: [
+            testTool({
+              run: async () => {
+                throw new Error('boom');
+              },
+            } as never),
+          ],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          trace,
+          tracer: recorder.tracer,
+        }),
+      );
+
+      expect(recorder.turns[0].summary.tools[0].ok).toBe(false);
+      expect(recorder.turns[0].summary.errorCode).toBeUndefined();
+      errors.mockRestore();
+    });
+
+    it('records a provider error with its code', async () => {
+      const provider = scriptedProvider([[{ type: 'error', code: 'rate_limited', message: 'busy' }]]);
+      const recorder = recordingTracer();
+
+      await collect(
+        runTurn({
+          provider,
+          tools: [],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          trace,
+          tracer: recorder.tracer,
+        }),
+      );
+
+      expect(recorder.turns[0].summary.errorCode).toBe('rate_limited');
+    });
+
+    it('records an aborted turn, which still cost something', async () => {
+      // A cost dashboard that only sees completed turns under-reports exactly
+      // the ones worth investigating.
+      const controller = new AbortController();
+      controller.abort();
+      const recorder = recordingTracer();
+
+      await collect(
+        runTurn({
+          provider: scriptedProvider([say('unreachable')]),
+          tools: [],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: controller.signal,
+          trace,
+          tracer: recorder.tracer,
+        }),
+      );
+
+      expect(recorder.turns[0].summary.errorCode).toBe('aborted');
+    });
+
+    it('traces nothing when no identity is supplied', async () => {
+      // Better than a trace attributed to nobody, which pollutes the
+      // per-tenant cost figures rather than merely being absent from them.
+      const recorder = recordingTracer();
+
+      await collect(
+        runTurn({
+          provider: scriptedProvider([say('hi')]),
+          tools: [],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          tracer: recorder.tracer,
+        }),
+      );
+
+      expect(recorder.turns).toEqual([]);
+    });
+
+    it('does not send conversation content to the tracer', async () => {
+      // The retention policy for transcripts is an open question, so the
+      // orchestrator does not hand them over in the first place.
+      const recorder = recordingTracer();
+
+      await collect(
+        runTurn({
+          provider: scriptedProvider([say('Tumo scored 82 at Kasi Spaza.')]),
+          tools: [],
+          messages: [{ role: 'user', content: 'How is Tumo doing?' }],
+          signal: signal(),
+          trace,
+          tracer: recorder.tracer,
+        }),
+      );
+
+      expect(JSON.stringify(recorder.turns[0])).not.toContain('Tumo');
+    });
+
+    it('a tracer that throws does not fail the turn', async () => {
+      // The contract in tracing.ts, asserted from the caller's side too.
+      const exploding: AssistantTracer = {
+        recordTurn: () => {
+          throw new Error('tracing is down');
+        },
+        flush: async () => {},
+      };
+
+      const events = await collect(
+        runTurn({
+          provider: scriptedProvider([say('an answer')]),
+          tools: [],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          trace,
+          tracer: exploding,
+        }),
+      );
+
+      expect(names(events)).toContain('done');
     });
   });
 

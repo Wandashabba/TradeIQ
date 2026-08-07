@@ -3,6 +3,7 @@ import type { LlmProvider, Message, ToolCallRecord, Usage } from './providers/ty
 import { quarantineFreeText } from './quarantine';
 import { pillarOf, type ToolName } from './roster';
 import { sanitizeToolResult } from './sanitize';
+import { tracer as processTracer, type AssistantTracer, type ToolSpan } from './tracing';
 import type { AnyAssistantTool } from './types';
 import { validateViewSpec, type ViewSpec } from './viewspec';
 
@@ -51,6 +52,17 @@ export interface OrchestratorInput {
   /** Overridden in tests. */
   system?: string;
   maxToolRounds?: number;
+  /**
+   * Who is asking, for tracing only.
+   *
+   * Optional so the orchestrator stays testable without inventing a user, and
+   * so a caller that has no tracing story still works. When absent, nothing is
+   * traced — rather than a trace attributed to nobody, which is worse than no
+   * trace because it pollutes the per-tenant cost figures.
+   */
+  trace?: { traceId: string; userId: string; clientId: string };
+  /** Injected by tests. Defaults to the process tracer. */
+  tracer?: AssistantTracer;
 }
 
 function zeroUsage(): Usage {
@@ -84,8 +96,51 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
   let totalUsage = zeroUsage();
   let artifactIndex = 0;
 
+  // Tracing state. Collected as the turn runs and emitted once at the end —
+  // a trace per event would multiply the request count by the number of tools
+  // for no extra signal.
+  const startedAt = Date.now();
+  const toolSpans: ToolSpan[] = [];
+  let roundsUsed = 0;
+  let errorCode: string | undefined;
+
+  const emitTrace = (): void => {
+    const trace = input.trace;
+    if (!trace) return;
+    // Guarded here as well as inside the tracer. `AssistantTracer` documents
+    // that `recordTurn` must not throw, but a contract every implementation is
+    // trusted to honour is one that breaks on the first implementation that
+    // does not — and the cost of being wrong is a manager's question dying
+    // because a metrics client had a bad day. Observability is never worth a
+    // turn.
+    try {
+      (input.tracer ?? processTracer()).recordTurn(
+        {
+          ...trace,
+          provider: provider.name,
+          model: provider.models.orchestrator,
+        },
+        {
+          usage: totalUsage,
+          durationMs: Date.now() - startedAt,
+          rounds: roundsUsed,
+          tools: toolSpans,
+          ...(errorCode ? { errorCode } : {}),
+        },
+      );
+    } catch (err) {
+      console.error('[assistant] tracer threw while recording a turn', err);
+    }
+  };
+
   for (let round = 0; round <= maxRounds; round += 1) {
+    roundsUsed = round + 1;
     if (signal.aborted) {
+      errorCode = 'aborted';
+      // An abandoned turn is traced too. It still cost whatever it had already
+      // spent, and a cost dashboard that only sees completed turns
+      // under-reports exactly the ones worth investigating.
+      emitTrace();
       yield { event: 'error', data: { code: 'aborted', message: 'Request cancelled.' } };
       return;
     }
@@ -124,6 +179,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
 
         case 'error':
           // The adapter has already made this message user-safe.
+          errorCode = event.code;
           yield { event: 'error', data: { code: event.code, message: event.message } };
           failed = true;
           break;
@@ -134,11 +190,15 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       if (failed) break;
     }
 
-    if (failed) return;
+    if (failed) {
+      emitTrace();
+      return;
+    }
 
     // No tool calls means the model has answered. This is the only exit that
     // is not an error or a bound — everything else is a failure of some kind.
     if (calls.length === 0) {
+      emitTrace();
       yield { event: 'usage', data: totalUsage };
       yield { event: 'done', data: {} };
       return;
@@ -148,6 +208,8 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
 
     for (const call of calls) {
       if (signal.aborted) {
+        errorCode = 'aborted';
+        emitTrace();
         yield { event: 'error', data: { code: 'aborted', message: 'Request cancelled.' } };
         return;
       }
@@ -171,9 +233,19 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       }
 
       yield { event: 'tool_start', data: { name: tool.name, pillar: tool.pillar } };
+      const toolStartedAt = Date.now();
+      const span = (ok: boolean): void => {
+        toolSpans.push({
+          name: tool.name,
+          pillar: tool.pillar,
+          ok,
+          durationMs: Date.now() - toolStartedAt,
+        });
+      };
 
       const parsed = tool.args.safeParse(call.args);
       if (!parsed.success) {
+        span(false);
         yield { event: 'tool_end', data: { name: tool.name, ok: false } };
         messages.push({
           role: 'tool',
@@ -197,6 +269,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         // message is ours, never the exception's: a Prisma error carries table
         // and column names straight into the model's context.
         console.error(`[assistant] tool ${tool.name} failed`, err);
+        span(false);
         yield { event: 'tool_end', data: { name: tool.name, ok: false } };
         messages.push({
           role: 'tool',
@@ -208,6 +281,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         continue;
       }
 
+      span(true);
       yield { event: 'tool_end', data: { name: tool.name, ok: true } };
 
       // The artifact carries the RAW result, and the model gets the sanitized
@@ -248,6 +322,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
   // Unreachable: the final round runs with tools withdrawn, so it cannot
   // produce calls and must exit through the `calls.length === 0` branch. Kept
   // because "unreachable" is a claim about code that changes.
+  emitTrace();
   yield { event: 'usage', data: totalUsage };
   yield { event: 'done', data: {} };
 }

@@ -6,8 +6,8 @@ import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
 
 /// A repository that replays scripted events and records what it was sent.
-class _StubRepository implements AssistantRepository {
-  _StubRepository(this.script);
+class StubRepository implements AssistantRepository {
+  StubRepository(this.script);
 
   final List<AssistantEvent> script;
   final List<String> messages = [];
@@ -29,7 +29,7 @@ class _StubRepository implements AssistantRepository {
   }
 }
 
-ProviderContainer containerWith(_StubRepository repository) {
+ProviderContainer containerWith(StubRepository repository) {
   final container = ProviderContainer(
     overrides: [assistantRepositoryProvider.overrideWithValue(repository)],
   );
@@ -40,7 +40,7 @@ ProviderContainer containerWith(_StubRepository repository) {
 void main() {
   group('ChatController', () {
     test('appends the user turn and a streaming assistant turn', () async {
-      final repository = _StubRepository([
+      final repository = StubRepository([
         const TokenEvent('Tumo is up 6 points.'),
         const DoneEvent(),
       ]);
@@ -60,7 +60,7 @@ void main() {
     });
 
     test('concatenates streamed tokens in order', () async {
-      final repository = _StubRepository([
+      final repository = StubRepository([
         const TokenEvent('Stock is '),
         const TokenEvent('down '),
         const TokenEvent('4%.'),
@@ -75,7 +75,7 @@ void main() {
     });
 
     test('ignores empty and whitespace-only messages', () async {
-      final repository = _StubRepository([const DoneEvent()]);
+      final repository = StubRepository([const DoneEvent()]);
       final container = containerWith(repository);
 
       await container.read(chatControllerProvider.notifier).send('   ');
@@ -85,7 +85,7 @@ void main() {
     });
 
     test('trims the message before sending', () async {
-      final repository = _StubRepository([const DoneEvent()]);
+      final repository = StubRepository([const DoneEvent()]);
       final container = containerWith(repository);
 
       await container.read(chatControllerProvider.notifier).send('  hi  ');
@@ -95,7 +95,7 @@ void main() {
 
     group('tool activity', () {
       test('records a tool start and resolves it on end', () async {
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const ToolStartEvent(name: 'getStockLevels', pillar: 'stock'),
           const ToolEndEvent(name: 'getStockLevels', ok: true),
           const TokenEvent('Here you go.'),
@@ -113,7 +113,7 @@ void main() {
       test('resolves repeated calls to one tool in start order', () async {
         // Matching first-first would land both results on the first chip, so
         // one would spin forever while the other resolved twice.
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const ToolStartEvent(name: 'getAgentScorecard', pillar: 'execution'),
           const ToolStartEvent(name: 'getAgentScorecard', pillar: 'execution'),
           const ToolEndEvent(name: 'getAgentScorecard', ok: true),
@@ -129,7 +129,7 @@ void main() {
       });
 
       test('carries a failed tool through without failing the turn', () async {
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const ToolStartEvent(name: 'getFraudFlags', pillar: 'execution'),
           const ToolEndEvent(name: 'getFraudFlags', ok: false),
           const TokenEvent('I could not retrieve that.'),
@@ -148,7 +148,7 @@ void main() {
 
     group('artifacts', () {
       test('collects an artifact onto the assistant turn', () async {
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const ArtifactEvent(
             id: 'getAgentScorecard-0',
             type: 'agent_scorecard',
@@ -170,7 +170,7 @@ void main() {
       test('patches in place when the same id arrives twice', () async {
         // Appending instead is what turns a chat into a graveyard of
         // near-identical cards.
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const ArtifactEvent(
             id: 'a1',
             type: 'agent_scorecard',
@@ -196,7 +196,7 @@ void main() {
       });
 
       test('keeps two artifacts with different ids', () async {
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const ArtifactEvent(id: 'a1', type: 'agent_scorecard', params: {}, data: {}),
           const ArtifactEvent(id: 'a2', type: 'agent_scorecard', params: {}, data: {}),
           const DoneEvent(),
@@ -212,7 +212,7 @@ void main() {
 
     group('failure', () {
       test('renders a server error instead of prose', () async {
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const ErrorEvent(code: 'rate_limited', message: 'Busy right now.'),
         ]);
         final container = containerWith(repository);
@@ -225,7 +225,7 @@ void main() {
       });
 
       test('reports a transport failure in the transcript', () async {
-        final repository = _StubRepository([])..throwError = Exception('offline');
+        final repository = StubRepository([])..throwError = Exception('offline');
         final container = containerWith(repository);
 
         await container.read(chatControllerProvider.notifier).send('q');
@@ -237,7 +237,7 @@ void main() {
       test('clears streaming when the stream ends with no done frame', () async {
         // A dropped connection. Without this the caret blinks forever on a turn
         // that is never coming back.
-        final repository = _StubRepository([const TokenEvent('half an ans')]);
+        final repository = StubRepository([const TokenEvent('half an ans')]);
         final container = containerWith(repository);
 
         await container.read(chatControllerProvider.notifier).send('q');
@@ -248,7 +248,7 @@ void main() {
       });
 
       test('explains an empty turn that produced nothing at all', () async {
-        final repository = _StubRepository([]);
+        final repository = StubRepository([]);
         final container = containerWith(repository);
 
         await container.read(chatControllerProvider.notifier).send('q');
@@ -261,7 +261,7 @@ void main() {
           () async {
         // A stuck `sending` flag disables the input permanently — the user
         // cannot even retry.
-        final repository = _StubRepository([])..throwError = Exception('boom');
+        final repository = StubRepository([])..throwError = Exception('boom');
         final container = containerWith(repository);
 
         await container.read(chatControllerProvider.notifier).send('q');
@@ -272,7 +272,7 @@ void main() {
 
     group('history', () {
       test('sends no history on the first turn', () async {
-        final repository = _StubRepository([const DoneEvent()]);
+        final repository = StubRepository([const DoneEvent()]);
         final container = containerWith(repository);
 
         await container.read(chatControllerProvider.notifier).send('first');
@@ -281,7 +281,7 @@ void main() {
       });
 
       test('replays prior turns on the second', () async {
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const TokenEvent('An answer.'),
           const DoneEvent(),
         ]);
@@ -300,7 +300,7 @@ void main() {
       test('excludes an errored turn from history', () async {
         // Replaying "could not reach the assistant" as though the model said it
         // teaches it that such a reply is in character.
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const ErrorEvent(code: 'x', message: 'Busy.'),
         ]);
         final container = containerWith(repository);
@@ -318,7 +318,7 @@ void main() {
 
       test('caps history so a long conversation forgets rather than fails',
           () async {
-        final repository = _StubRepository([
+        final repository = StubRepository([
           const TokenEvent('ok'),
           const DoneEvent(),
         ]);
@@ -335,7 +335,7 @@ void main() {
     });
 
     test('clear() empties the transcript', () async {
-      final repository = _StubRepository([const DoneEvent()]);
+      final repository = StubRepository([const DoneEvent()]);
       final container = containerWith(repository);
       final controller = container.read(chatControllerProvider.notifier);
 

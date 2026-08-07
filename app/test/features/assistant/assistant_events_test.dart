@@ -111,7 +111,7 @@ void main() {
     test('keeps a trailing partial frame buffered', () {
       final parser = SseParser();
       final events = parser.add(
-        frame('token', '{"text":"a"}') + 'event: token\ndata: {"text":"b"',
+        '${frame('token', '{"text":"a"}')}event: token\ndata: {"text":"b"',
       );
       expect(events, hasLength(1));
       // The second frame completes on the next chunk, not this one.

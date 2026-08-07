@@ -173,7 +173,15 @@ its cheap slice on every assistant PR.
          is asserted identically. **No key, no network** — a contract test that
          needs a live provider runs on one machine, which is how a contract
          stops being enforced
-   - [ ] Langfuse Cloud project, tracing wired in from the first request
+   - [~] Langfuse tracing wired in from the first request ✅ 2026-08-06 —
+         **the seam and the client exist; the Cloud project does not.** No-op
+         when unconfigured, which is this repo's state. Fire-and-forget behind a
+         bounded, serialised queue: observability must never fail a turn, and
+         the orchestrator guards the tracer as well as the tracer guarding
+         itself. **Metadata only — conversation content is behind
+         `LANGFUSE_TRACE_CONTENT`, default off**, because the retention policy
+         for transcripts is still open (#251 Q3) and shipping capture would
+         quietly decide it. Tool *results* are never sent at any setting
    - [x] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
          nightly ✅ 2026-08-06. Matrix is **per provider and `fail-fast: false`**,
          because the ≥90% gate is per adapter and a mean is exactly what hides a
@@ -209,9 +217,19 @@ its cheap slice on every assistant PR.
          than cutting the turn off, so the model still answers from what it
          retrieved instead of wasting every paid call already made
    - [x] `POST /assistant/chat` (SSE), reusing `requireAuth` ✅ 2026-08-06
-   - [ ] Flutter: chat screen + streaming text
-   - [ ] Flutter: refactor the scorecard screen into a parameterised widget
-   - [ ] Flutter: view-spec registry renders it inline
+   - [x] Flutter: chat screen + streaming text ✅ 2026-08-06. SSE over a POST
+         read with a stream response, not `EventSource` — the message and
+         history do not belong in a URL, and `EventSource` cannot send an
+         `Authorization` header. `SseParser` is split from the transport and
+         tested a character at a time, because framing bugs only appear under
+         chunk boundaries a real server happens to produce
+   - [x] Flutter: scorecard as a parameterised widget ✅ 2026-08-06 —
+         `AgentScorecardCard`, deliberately minimal (the anti-crowding rule).
+         Every payload read is type-**tested**, never cast: a field that changes
+         type would otherwise throw and take the narrative down with it
+   - [x] Flutter: view-spec registry renders it inline ✅ 2026-08-06. An unknown
+         spec renders a note, never a blank card — including the *older-client*
+         case, where the server has added a spec this build has not heard of
 4. Widen and prove
    - [x] Remaining 8 tools, grouped by the four pillars ✅ 2026-08-06.
          `pillars.service.ts` holds the aggregates — a new service rather than

@@ -9,8 +9,8 @@ import 'package:tradeiq_app/features/assistant/view_specs/agent_scorecard_card.d
 
 import '../../helpers/routed_app.dart';
 
-class _StubRepository implements AssistantRepository {
-  _StubRepository(this.script);
+class StubRepository implements AssistantRepository {
+  StubRepository(this.script);
 
   final List<AssistantEvent> script;
   final List<String> sent = [];
@@ -28,7 +28,7 @@ class _StubRepository implements AssistantRepository {
   }
 }
 
-Future<void> pumpChat(WidgetTester tester, _StubRepository repository) async {
+Future<void> pumpChat(WidgetTester tester, StubRepository repository) async {
   // Wide enough for ManagerScaffold's sidebar layout, and tall enough that the
   // composer and the transcript both fit without an overflow.
   tester.view.physicalSize = const Size(1400, 1600);
@@ -47,7 +47,7 @@ void main() {
   testWidgets('the empty state says what it can and cannot do', (tester) async {
     // An assistant that silently declines the first thing you ask teaches you
     // not to ask again. Phase 0 is read-only, and it says so up front.
-    await pumpChat(tester, _StubRepository([]));
+    await pumpChat(tester, StubRepository([]));
 
     expect(find.textContaining('sales, stock, visibility or competition'),
         findsOneWidget);
@@ -56,7 +56,7 @@ void main() {
 
   testWidgets('a suggestion chip sends its question', (tester) async {
     // A blank chat box is the hardest possible first move.
-    final repository = _StubRepository([
+    final repository = StubRepository([
       const TokenEvent('Here you go.'),
       const DoneEvent(),
     ]);
@@ -69,7 +69,7 @@ void main() {
   });
 
   testWidgets('typing and sending renders both turns', (tester) async {
-    final repository = _StubRepository([
+    final repository = StubRepository([
       const TokenEvent('Tumo is up 6 points.'),
       const DoneEvent(),
     ]);
@@ -85,7 +85,7 @@ void main() {
 
   testWidgets('a tool shows its pillar, not its function name', (tester) async {
     // `getShareOfShelf` is our vocabulary; "visibility" is the manager's.
-    final repository = _StubRepository([
+    final repository = StubRepository([
       const ToolStartEvent(name: 'getShareOfShelf', pillar: 'visibility'),
       const ToolEndEvent(name: 'getShareOfShelf', ok: true),
       const TokenEvent('You hold 34%.'),
@@ -103,7 +103,7 @@ void main() {
 
   testWidgets('the exit demo: narrative plus the real scorecard widget',
       (tester) async {
-    final repository = _StubRepository([
+    final repository = StubRepository([
       const ToolStartEvent(name: 'getAgentScorecard', pillar: 'execution'),
       const ToolEndEvent(name: 'getAgentScorecard', ok: true),
       const ArtifactEvent(
@@ -138,7 +138,7 @@ void main() {
 
   testWidgets('a server error renders instead of prose', (tester) async {
     // A half-answer followed by an error reads as a bug.
-    final repository = _StubRepository([
+    final repository = StubRepository([
       const ErrorEvent(code: 'rate_limited', message: 'The assistant is busy.'),
     ]);
     await pumpChat(tester, repository);
@@ -152,7 +152,7 @@ void main() {
 
   testWidgets('an unknown artifact type does not blank the answer',
       (tester) async {
-    final repository = _StubRepository([
+    final repository = StubRepository([
       const ArtifactEvent(id: 'a1', type: 'hologram', params: {}, data: {}),
       const TokenEvent('Availability is 91%.'),
       const DoneEvent(),
@@ -169,7 +169,7 @@ void main() {
   });
 
   testWidgets('the composer clears after sending', (tester) async {
-    final repository = _StubRepository([const DoneEvent()]);
+    final repository = StubRepository([const DoneEvent()]);
     await pumpChat(tester, repository);
 
     await tester.enterText(find.byType(TextField), 'a question');
@@ -181,7 +181,7 @@ void main() {
   });
 
   testWidgets('sending an empty message does nothing', (tester) async {
-    final repository = _StubRepository([const DoneEvent()]);
+    final repository = StubRepository([const DoneEvent()]);
     await pumpChat(tester, repository);
 
     await tester.enterText(find.byType(TextField), '   ');

@@ -55,7 +55,7 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
     final state = ref.watch(chatControllerProvider);
     // Tokens arrive many times a second; following them keeps the newest text
     // on screen without the user chasing it.
-    ref.listen(chatControllerProvider, (_, __) => _scrollToEnd());
+    ref.listen(chatControllerProvider, (_, _) => _scrollToEnd());
 
     return ManagerScaffold(
       title: 'Ask TradeIQ',
@@ -68,7 +68,7 @@ class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     itemCount: state.messages.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 14),
+                    separatorBuilder: (_, _) => const SizedBox(height: 14),
                     itemBuilder: (context, i) =>
                         _MessageView(message: state.messages[i]),
                   ),
