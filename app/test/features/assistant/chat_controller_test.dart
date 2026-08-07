@@ -111,8 +111,9 @@ void main() {
       });
 
       test('resolves repeated calls to one tool in start order', () async {
-        // Matching first-first would land both results on the first chip, so
-        // one would spin forever while the other resolved twice.
+        // `tool_end` carries no call id, so this is FIFO by convention. The
+        // first version used `lastIndexWhere` and resolved them backwards —
+        // which this test caught, and which no single-call test could have.
         final repository = StubRepository([
           const ToolStartEvent(name: 'getAgentScorecard', pillar: 'execution'),
           const ToolStartEvent(name: 'getAgentScorecard', pillar: 'execution'),

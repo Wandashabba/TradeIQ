@@ -192,9 +192,16 @@ class ChatController extends Notifier<ChatState> {
         );
       case ToolEndEvent(:final name, :final ok):
         final tools = [...current.tools];
-        // Last-first, so two calls to the same tool in one turn resolve in the
-        // order they were started rather than both landing on the first.
-        final at = tools.lastIndexWhere((t) => t.name == name && t.ok == null);
+        // **FIFO: the oldest unresolved call of this name.**
+        //
+        // `tool_end` carries no call id — that is the wire protocol, not an
+        // oversight — so matching a result to a chip is inherently a heuristic
+        // when one turn calls the same tool twice. It does not bite today,
+        // because the orchestrator emits each pair strictly sequentially
+        // (start, run, end, then the next call), so there is never more than
+        // one unresolved chip of a given name. FIFO is the convention to hold
+        // if that ever changes to run tools concurrently.
+        final at = tools.indexWhere((t) => t.name == name && t.ok == null);
         if (at != -1) tools[at] = tools[at].finished(ok);
         messages[index] = current.copyWith(tools: tools);
       case ArtifactEvent(:final id, :final type, :final params, :final data):
