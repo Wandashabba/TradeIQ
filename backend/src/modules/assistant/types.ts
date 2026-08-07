@@ -58,6 +58,31 @@ export interface AssistantTool<A extends ToolArgs = ToolArgs, R = unknown> {
 export type AnyAssistantTool = AssistantTool<ToolArgs, unknown>;
 
 /**
+ * A tool failure whose message is **safe to show the model**.
+ *
+ * The orchestrator deliberately replaces a thrown tool error with a generic
+ * line, and it is right to: a Prisma error carries table and column names
+ * straight into context, and a stack trace is worse. But that also destroys the
+ * failures that are *actionable* — "there are two people matching Sipho, which
+ * one?" is information the model needs in order to ask a sensible follow-up,
+ * and hiding it turns a one-question clarification into a dead end.
+ *
+ * So a tool opts in. Throwing this says: I wrote this string, I know it reaches
+ * the model, and it contains nothing but what the caller is already entitled to
+ * see. Anything else stays generic.
+ *
+ * **It must never carry data from outside the caller's tenant** — the closure
+ * makes that hard to do by accident, but this is the one path where a tool
+ * chooses its own wording, so it is worth saying out loud.
+ */
+export class ToolFacingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ToolFacingError';
+  }
+}
+
+/**
  * Erase a tool's argument type so it can sit in a heterogeneous roster.
  *
  * `run` takes its arguments, which makes `AssistantTool` contravariant in `A` —

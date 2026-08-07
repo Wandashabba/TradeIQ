@@ -4,7 +4,7 @@ import { quarantineFreeText } from './quarantine';
 import { pillarOf, type ToolName } from './roster';
 import { sanitizeToolResult } from './sanitize';
 import { tracer as processTracer, type AssistantTracer, type ToolSpan } from './tracing';
-import type { AnyAssistantTool } from './types';
+import { ToolFacingError, type AnyAssistantTool } from './types';
 import { validateViewSpec, type ViewSpec } from './viewspec';
 
 /**
@@ -265,10 +265,26 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       try {
         result = await tool.run(parsed.data);
       } catch (err) {
-        // A tool that throws is ordinary — a stale id, an empty period. The
-        // message is ours, never the exception's: a Prisma error carries table
-        // and column names straight into the model's context.
-        console.error(`[assistant] tool ${tool.name} failed`, err);
+        // A tool that throws is ordinary — a stale id, an empty period.
+        //
+        // The message is ours, never the exception's: a Prisma error carries
+        // table and column names straight into the model's context. The one
+        // exception is `ToolFacingError`, which a tool throws to say "I wrote
+        // this string for the model deliberately" — that is how a tool asks a
+        // clarifying question ("which Sipho?") instead of failing opaquely.
+        const forModel =
+          err instanceof ToolFacingError
+            ? err.message
+            : 'That lookup failed. Tell the user you could not retrieve it.';
+
+        // Logged at different levels because they are different events: an
+        // ambiguous name is the system working, and a Prisma failure is not.
+        if (err instanceof ToolFacingError) {
+          console.warn(`[assistant] tool ${tool.name} declined: ${err.message}`);
+        } else {
+          console.error(`[assistant] tool ${tool.name} failed`, err);
+        }
+
         span(false);
         yield { event: 'tool_end', data: { name: tool.name, ok: false } };
         messages.push({
@@ -276,7 +292,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
           callId: call.id,
           name: call.name,
           ok: false,
-          content: 'That lookup failed. Tell the user you could not retrieve it.',
+          content: forModel,
         });
         continue;
       }

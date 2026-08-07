@@ -227,7 +227,7 @@ describe('POST /assistant/chat', () => {
             type: 'tool_call',
             id: 'c0',
             name: 'getAgentScorecard',
-            args: { agentId: agent.userId, period: { kind: 'mtd' } },
+            args: { agent: agent.userId, period: { kind: 'mtd' } },
           },
           { type: 'done' },
         ],
@@ -256,6 +256,105 @@ describe('POST /assistant/chat', () => {
       });
     });
 
+    it('resolves a NAME to the right agent in one hop', async () => {
+      // The finding from the first live eval sweep. Requiring an id meant
+      // "How has Tumo been performing?" had to spend a discovery round first,
+      // so the exit demo routed to getVisitHistory — correctly, given the tools
+      // it had. Managers say names.
+      const localPart = agent.email.split('@')[0];
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getAgentScorecard',
+            args: { agent: localPart, period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'They scored 82.' }, { type: 'done' }],
+      ];
+
+      const res = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: `How has ${localPart} been performing this month?` });
+
+      const frames = parseSse(res.text);
+      const artifact = frames.find((f) => f.event === 'artifact');
+      // The artifact carries the CANONICAL id even though the model passed a
+      // name — Phase 2's `refine` re-runs from these params, and "Tumo" is not
+      // something a tool closure can be re-invoked with.
+      expect(artifact?.data).toMatchObject({
+        type: 'agent_scorecard',
+        params: { agentId: agent.userId },
+        data: { averageScore: 82 },
+      });
+    });
+
+    it('asks which one when a name matches several people', async () => {
+      // Picking the first would report one person's numbers under another's
+      // name — the kind of wrong that gets taken into a meeting.
+      const twin = await userIn(clientId, 'field_agent');
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getAgentScorecard',
+            // Both seeded users share the `test-field_agent-` prefix.
+            args: { agent: 'test-field_agent-', period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Which one did you mean?' }, { type: 'done' }],
+      ];
+
+      const res = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'how is the agent doing' });
+
+      const frames = parseSse(res.text);
+      expect(frames.find((f) => f.event === 'tool_end')?.data).toMatchObject({ ok: false });
+
+      // The disambiguation must REACH the model — a generic "that lookup
+      // failed" would strand the turn on an answerable question.
+      const secondRound = script.calls.filter((c) => c.model !== 'quarantine')[1];
+      const toolMessage = secondRound.messages.find((m) => m.role === 'tool') as {
+        content: string;
+      };
+      expect(toolMessage.content).toMatch(/matches \d+ people/);
+      expect(toolMessage.content).toContain(twin.email);
+    });
+
+    it('tells the model when nobody matches, rather than failing opaquely',
+      async () => {
+        script.rounds = [
+          [
+            {
+              type: 'tool_call',
+              id: 'c0',
+              name: 'getAgentScorecard',
+              args: { agent: 'Nobody McNoone', period: { kind: 'mtd' } },
+            },
+            { type: 'done' },
+          ],
+          [{ type: 'token', text: 'I could not find them.' }, { type: 'done' }],
+        ];
+
+        await request(app)
+          .post('/assistant/chat')
+          .set('Authorization', `Bearer ${manager.token}`)
+          .send({ message: 'how is Nobody McNoone doing' });
+
+        const secondRound = script.calls.filter((c) => c.model !== 'quarantine')[1];
+        const toolMessage = secondRound.messages.find((m) => m.role === 'tool') as {
+          content: string;
+        };
+        expect(toolMessage.content).toContain('Nobody McNoone');
+      });
+
     it('cannot reach another tenant\'s agent', async () => {
       // The cross-tenant probe. The model names a real user id from another
       // client; the tool is a closure over OUR clientId, so the lookup finds
@@ -267,7 +366,7 @@ describe('POST /assistant/chat', () => {
             type: 'tool_call',
             id: 'c0',
             name: 'getAgentScorecard',
-            args: { agentId: other.userId, period: { kind: 'mtd' } },
+            args: { agent: other.userId, period: { kind: 'mtd' } },
           },
           { type: 'done' },
         ],

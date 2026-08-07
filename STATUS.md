@@ -20,7 +20,7 @@ foundation PR [#264](../../pull/264). Retarget to `main` once #264 lands.
 
 | Phase | Scope | Status | Gate |
 |---|---|---|---|
-| 0 | [Read-only chat spine](../../issues/253) | 🟡 92% on Flash; exit demo still routes wrong | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
+| 0 | [Read-only chat spine](../../issues/253) | 🟡 100% on Flash; unmeasured on Pro | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
 | 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
@@ -176,35 +176,50 @@ runs against a scripted provider.
 
 ### First live measurement — 2026-08-07
 
-A key was provided. The sweep has now run against Gemini for real.
+A key was provided. The sweep has now run against Gemini for real, three times.
 
-| | |
-|---|---|
-| Model | `gemini-3.6-flash` (cheap tier, chosen to conserve credits) |
-| Tool-selection accuracy | **92.0% (23/25)** — above the 90% gate |
-| Failures | `exec-1`, `exec-2` — both the *agent scorecard* questions |
+| Run | Accuracy | What changed |
+|---|---|---|
+| 1 | 88.0% (22/25) — **fail** | baseline |
+| 2 | 92.0% (23/25) — pass | fixed a harness bug + a tool-description overlap |
+| 3 | **100.0% (25/25)** | added name → id resolution |
 
-**The gate passes and the exit demo does not, which is the more useful fact.**
-`exec-1` is *"How has Tumo been performing this month?"* — the sentence the plan
-names as the Phase 0 exit demo. It routes to `getVisitHistory`.
+Model: `gemini-3.6-flash` (cheap tier, to conserve credits).
 
-**That is the model behaving correctly, and the eval mismeasuring it.**
-`getAgentScorecard` requires an `agentId`, and **nothing in the roster resolves a
-name to an id.** So given "Tumo", the model reaches for the one tool that
-returns agent identities — a discovery hop — and the eval scores only the first
-reach (`maxToolRounds: 1`). In a real four-round turn it would very likely find
-the id and then call the scorecard.
+**What run 1 actually found — a missing tool, not a wording problem.**
+`exec-1` is *"How has Tumo been performing this month?"*, the sentence the plan
+names as the exit demo, and it routed to `getVisitHistory`. That was the model
+being **right**: `getAgentPerformance` needed an `agentId`, nothing resolved a
+name to one, and the visit list was the only tool returning agent identities. It
+was doing a discovery hop because the roster left it no alternative.
 
-Two things follow, and neither is "adjust the expected answer":
+Managers say names. Ids only come from tool results. `resolveAgent` now bridges
+the two, `getAgentScorecard` takes `agent` (name, email or id), and the exit
+demo is a single hop.
 
-- [ ] **Add a name → id resolution path.** Either a lookup tool, or let
-      `getAgentScorecard` accept a name. This is a real product gap the eval
-      found, not a prompt-tuning problem
-- [ ] **The eval scores one hop; some questions legitimately need two.** Scoring
-      the first reach is what makes the metric deterministic and judge-free, so
-      the fix is probably to score *whether the expected tool was called during
-      the turn*, not *first* — a change to the harness, with a cost implication
-      (full turns, not one round)
+**Two bugs on the way there, one of them in the measurement itself:**
+
+- A Gemini **503** on `comp-1` was being scored as the model choosing the wrong
+  tool, so the headline was part accuracy and part Google's uptime. That single
+  conflation was the whole difference between 88% (fail) and 92% (pass).
+  Transient errors are now retried once, then excluded from the denominator
+  **and reported** — a shrinking denominator flatters the percentage.
+- `getVisitHistory`'s description ended *"…or whether an agent has been checking
+  in"*, which a model reasonably reads as covering how an agent is *doing*.
+
+> **The expected answers were never loosened to make this pass.** Adding
+> `acceptable: ['getVisitHistory']` to `exec-1` would have produced a green
+> number in run 1 without changing a thing about the product. An eval tuned to
+> match current behaviour is a record, not a gate.
+
+**Read 100% carefully.** It means *no misses on 25 questions we wrote ourselves,
+once, on the cheap model*. It is not evidence of a solved problem:
+
+- [ ] Re-measure on **Gemini 3.1 Pro** — the gate is stated per model
+- [ ] The set is small and non-adversarial. Growing it is Phase 1 work, and a
+      set that never fails is a set that has stopped measuring
+- [ ] Single run. Selection is not deterministic; a re-run can differ
+- [ ] `stock-4` passes on an `acceptable` alternative, not an exact match
 
 > **The number was 88% before two fixes, and one of them was a measurement bug
 > in my own harness.** A Gemini 503 on `comp-1` was being scored as the model

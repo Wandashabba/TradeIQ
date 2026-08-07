@@ -1,8 +1,18 @@
 import { z } from 'zod';
 import type { AuthTokenPayload } from '../../auth/auth.service';
-import { getAgentPerformance } from '../../scorecards/scorecards.service';
+import {
+  AgentNotFoundError,
+  AmbiguousAgentError,
+  getAgentPerformance,
+  resolveAgent,
+} from '../../scorecards/scorecards.service';
 import { periodSchema, resolvePeriod } from '../period';
-import { eraseToolTypes, type AnyAssistantTool, type AssistantTool } from '../types';
+import {
+  eraseToolTypes,
+  ToolFacingError,
+  type AnyAssistantTool,
+  type AssistantTool,
+} from '../types';
 
 /**
  * Execution-pillar tools — how well the field team is actually working.
@@ -25,10 +35,17 @@ export interface ToolContext {
 }
 
 const agentScorecardArgs = z.object({
-  agentId: z
+  // Was `agentId`, and requiring an id is what broke the exit demo: managers
+  // say names, ids only come from tool results, and nothing bridged the two —
+  // so the model had to spend a discovery round before it could ever call this.
+  // Accepting either makes "How has Tumo been performing?" a single hop.
+  agent: z
     .string()
     .min(1)
-    .describe('The id of the field agent. Ids come from other tool results, never from the user.'),
+    .describe(
+      "The agent's name, email, or id — pass whatever the user said. " +
+        'If it matches more than one person you will be told who, so you can ask which.',
+    ),
   period: periodSchema,
 });
 
@@ -57,21 +74,43 @@ export function buildExecutionTools(ctx: ToolContext): AnyAssistantTool[] {
     args: agentScorecardArgs,
     run: async (args) => {
       const { from, to } = resolvePeriod(args.period, now);
+      // Both of these are tenant-scoped by `user.clientId`, so a name from
+      // another client resolves to nothing rather than to somebody else.
+      //
+      // Translated here rather than by making the service errors extend
+      // `ToolFacingError`: `scorecards.service.ts` is an ordinary service with
+      // other callers, and it should not know that an LLM is one of them.
+      // These two messages are written to be read by the model — "no one
+      // matching X" and "did you mean A or B" are both answerable questions,
+      // and the generic "that lookup failed" would strand the turn.
+      let agent;
+      try {
+        agent = await resolveAgent({ clientId: user.clientId, query: args.agent });
+      } catch (err) {
+        if (err instanceof AmbiguousAgentError || err instanceof AgentNotFoundError) {
+          throw new ToolFacingError(err.message);
+        }
+        throw err;
+      }
+
       return getAgentPerformance({
         // The tenant comes from the JWT. It is not, and must never become, an
         // argument the model supplies.
         clientId: user.clientId,
-        agentId: args.agentId,
+        agentId: agent.id,
         from,
         to,
       });
     },
-    // The tool declares what it draws; the model never names a spec type. The
-    // period is echoed from the args rather than from the result so the
-    // artifact can be re-run against a different one in Phase 2.
-    view: (args) => ({
+    // The tool declares what it draws; the model never names a spec type.
+    //
+    // `agentId` comes from the RESULT, not the args: the model may have passed
+    // "Tumo", and an artifact whose params say "Tumo" cannot be re-run in
+    // Phase 2 — `refine` needs the canonical id. The period is echoed from the
+    // args because that one is already canonical.
+    view: (args, result) => ({
       type: 'agent_scorecard',
-      params: { agentId: args.agentId, period: args.period },
+      params: { agentId: (result as { agentId: string }).agentId, period: args.period },
     }),
   };
 

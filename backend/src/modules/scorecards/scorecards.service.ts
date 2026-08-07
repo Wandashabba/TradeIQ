@@ -233,6 +233,100 @@ export async function getScorecardByVisit(visitId: string, clientId: string) {
   return scorecard;
 }
 
+export interface ResolvedAgent {
+  id: string;
+  email: string;
+}
+
+export class AgentNotFoundError extends Error {}
+export class AmbiguousAgentError extends Error {
+  constructor(readonly query: string, readonly candidates: ResolvedAgent[]) {
+    super(
+      `"${query}" matches ${candidates.length} people: ` +
+        `${candidates.map((c) => c.email).join(', ')}. Ask which one they mean.`,
+    );
+    this.name = 'AmbiguousAgentError';
+  }
+}
+
+/** How many candidates to name back before it stops being a useful question. */
+const MAX_AGENT_CANDIDATES = 5;
+
+/**
+ * Turn what a manager actually typed into an agent id.
+ *
+ * **This exists because the first live eval sweep found it missing.** The exit
+ * demo — *"How has Tumo been performing this month?"* — routed to
+ * `getVisitHistory` rather than the scorecard, and the model was right to do
+ * that: `getAgentPerformance` needs an id, nothing resolved a name to one, and
+ * the visit list was the only tool returning agent identities. The model was
+ * doing a discovery hop because the roster gave it no alternative.
+ *
+ * Managers say names. Ids come from tool results. Without something in between,
+ * every question about a person costs an extra paid round trip — or fails.
+ *
+ * **Matching is against `email`, because `User` has no display-name column.**
+ * That is a real product limitation, not a shortcut: `agents.service.ts` makes
+ * the same observation about what it can show in the UI. So "Tumo" matches
+ * `tumo@acme.com` on the local part. Add a display-name column and this
+ * function is where it plugs in.
+ *
+ * **Ambiguity is answered, not guessed.** Two people matching "Sipho" raises
+ * {@link AmbiguousAgentError} naming both, so the assistant can ask. Picking
+ * the first would silently report one person's numbers under another's name,
+ * which is the kind of wrong that gets taken into a meeting.
+ *
+ * Tenant-scoped on every branch. A name from another client resolves to nothing.
+ */
+export async function resolveAgent(input: {
+  clientId: string;
+  query: string;
+}): Promise<ResolvedAgent> {
+  const query = input.query.trim();
+  if (query.length === 0) {
+    throw new AgentNotFoundError('No agent was named.');
+  }
+
+  const select = { id: true, email: true } as const;
+
+  // An exact id, which is what a follow-up turn supplies after a tool result.
+  const byId = await prisma.user.findFirst({
+    where: { id: query, clientId: input.clientId },
+    select,
+  });
+  if (byId) return byId;
+
+  // An exact email beats a partial match even when the partial would also hit:
+  // "sam@acme.com" must not be ambiguous merely because "sam.taylor@acme.com"
+  // exists.
+  const byEmail = await prisma.user.findFirst({
+    where: { email: { equals: query, mode: 'insensitive' }, clientId: input.clientId },
+    select,
+  });
+  if (byEmail) return byEmail;
+
+  const matches = await prisma.user.findMany({
+    where: {
+      clientId: input.clientId,
+      email: { contains: query, mode: 'insensitive' },
+    },
+    select,
+    // One more than we will name, so "and others" is honest rather than a guess.
+    take: MAX_AGENT_CANDIDATES + 1,
+    orderBy: { email: 'asc' },
+  });
+
+  if (matches.length === 0) {
+    throw new AgentNotFoundError(
+      `No one matching "${query}" works here. Ask the user to check the name, ` +
+        'or use a tool that lists agents.',
+    );
+  }
+  if (matches.length === 1) return matches[0];
+
+  throw new AmbiguousAgentError(query, matches.slice(0, MAX_AGENT_CANDIDATES));
+}
+
 export interface AgentPerformanceInput {
   clientId: string;
   agentId: string;
