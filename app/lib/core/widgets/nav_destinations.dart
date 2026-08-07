@@ -81,6 +81,24 @@ const managerDestinations = <NavDestination>[
     group: NavGroup.operate,
   ),
   // Insight
+  //
+  // First in the group deliberately. The whole bet is that a manager asks a
+  // question instead of hunting for the screen that answers it, and a
+  // destination buried under five others is one nobody reaches for first.
+  //
+  // Not conditional on the rollout flag. This is a `const` list, so it cannot
+  // depend on runtime tenant state without becoming a provider — and the flag
+  // is decided by a network call the menu would then have to wait on. The
+  // gate screen (`AssistantGate`) resolves it in place instead, so a tenant
+  // outside the rollout sees the item and gets a sentence explaining it. That
+  // is a better answer than an item that silently is not there, which reads as
+  // the feature having been removed.
+  NavDestination(
+    route: '/assistant',
+    label: 'Ask TradeIQ',
+    icon: Icons.auto_awesome_outlined,
+    group: NavGroup.insight,
+  ),
   NavDestination(
     route: '/reports',
     label: 'Reports',

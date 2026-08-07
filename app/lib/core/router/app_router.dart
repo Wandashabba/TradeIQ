@@ -32,6 +32,7 @@ import '../../features/templates/presentation/template_form_screen.dart';
 import '../../features/templates/presentation/templates_screen.dart';
 import '../../features/dispatch/presentation/dispatch_screen.dart';
 import '../../features/trends/presentation/trends_screen.dart';
+import '../../features/assistant/presentation/assistant_gate.dart';
 import '../auth/session_controller.dart';
 import 'manager_page.dart';
 import 'session_refresh_listenable.dart';
@@ -194,6 +195,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/fraud',
         pageBuilder: (context, state) => managerPage(const FraudScreen()),
+      ),
+      // The rollout flag is checked inside AssistantGate rather than here.
+      // A router redirect would have to await `/clients/me` before it could
+      // decide, which blocks navigation on a network call — so a manager taps
+      // the item and nothing happens until it returns. The gate renders
+      // immediately and resolves in place.
+      GoRoute(
+        path: '/assistant',
+        pageBuilder: (context, state) => managerPage(const AssistantGate()),
       ),
       GoRoute(
         path: '/reports',

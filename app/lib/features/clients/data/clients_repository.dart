@@ -7,10 +7,24 @@ class ClientConfig {
     required this.name,
     required this.scorecardWeights,
     required this.kpiThresholds,
+    this.assistantEnabled = false,
   });
   final String name;
   final Map<String, double> scorecardWeights;
   final Map<String, double> kpiThresholds;
+
+  /// Whether the conversational assistant is switched on for this tenant.
+  ///
+  /// **Read-only, and defaults to `false`.** It is a rollout lever rather than
+  /// a customer preference, so `PATCH /clients/me` deliberately does not accept
+  /// it — a client admin switching on an unproven, metered AI feature for their
+  /// own tenant is the thing the flag exists to prevent.
+  ///
+  /// Defaulting to `false` also matters for the *older-server* case: an app
+  /// built against a backend that predates the field gets no key back, and
+  /// hiding the entry point is the safe way to be wrong. The route is gated
+  /// server-side regardless — this only decides whether we offer it.
+  final bool assistantEnabled;
 
   factory ClientConfig.fromJson(Map<String, dynamic> json) => ClientConfig(
         name: json['name'] as String,
@@ -19,6 +33,7 @@ class ClientConfig {
                 .map((k, v) => MapEntry(k, (v as num).toDouble())),
         kpiThresholds: (json['kpiThresholds'] as Map<String, dynamic>? ?? {})
             .map((k, v) => MapEntry(k, (v as num).toDouble())),
+        assistantEnabled: json['assistantEnabled'] as bool? ?? false,
       );
 }
 
