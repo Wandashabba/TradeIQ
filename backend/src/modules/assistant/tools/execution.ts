@@ -40,10 +40,20 @@ export function buildExecutionTools(ctx: ToolContext): AnyAssistantTool[] {
     pillar: 'execution',
     // Prescriptive, not descriptive. Stating the trigger condition measurably
     // improves should-call rate over "Returns an agent's scorecard".
+    // Leads with the named-person trigger, and says outright that a *quality*
+    // question about a person belongs here. The first live eval sweep routed
+    // both "How has Tumo been performing this month?" and "Compare Sipho
+    // against the rest of the team" to `getVisitHistory` — whose description
+    // ended "...or whether an agent has been checking in", which a model
+    // reasonably reads as covering how an agent is doing. The two tools are
+    // now explicitly disambiguated in both directions.
     description:
-      'Call this when the user asks how a specific field agent has been performing, or asks ' +
-      'to compare an agent against their team. Returns visit counts, an average execution ' +
-      'score, per-dimension averages, and the team average over the same period.',
+      'Call this when the user asks how well a NAMED field agent is performing, how good ' +
+      'their work is, or asks to compare an agent against their team or another agent. ' +
+      'This is the tool for questions about an individual\'s quality or score. ' +
+      'Returns visit counts, an average execution score, per-dimension averages, and the ' +
+      'team average over the same period. ' +
+      'Use getVisitHistory instead if they want the raw list of visits rather than a judgement.',
     args: agentScorecardArgs,
     run: async (args) => {
       const { from, to } = resolvePeriod(args.period, now);

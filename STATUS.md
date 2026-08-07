@@ -20,7 +20,7 @@ foundation PR [#264](../../pull/264). Retarget to `main` once #264 lands.
 
 | Phase | Scope | Status | Gate |
 |---|---|---|---|
-| 0 | [Read-only chat spine](../../issues/253) | 🟡 Built end to end; **gate unmeasured** | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
+| 0 | [Read-only chat spine](../../issues/253) | 🟡 92% on Flash; exit demo still routes wrong | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
 | 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
@@ -46,7 +46,14 @@ the per-client feature flag and kill switch, and both chat rate limiters.
 > tracing and the live accuracy sweep genuinely do still need credentials.
 
 **Prerequisites:** a Langfuse Cloud project, plus **either** provider key. Both
-are now declared in `backend/.env.example`; neither is set in `backend/.env`.
+are declared in `backend/.env.example`.
+
+> **Update (2026-08-07). A `GEMINI_API_KEY` now exists on one developer
+> machine**, in `backend/.env` (gitignored). It is *not* in CI: `secrets.GEMINI_API_KEY`
+> is unset, so `assistant-evals.yml` still skips itself there. So the sweep is
+> runnable by hand and the gate is still unenforced on every PR — which are
+> different things, and only the first has changed. The Langfuse project still
+> does not exist.
 
 > **Correction (2026-08-03).** An earlier version of this line said
 > `GEMINI_API_KEY` "is available now, so Phase 0 is **unblocked**". The key
@@ -163,16 +170,63 @@ runs against a scripted provider.
 | Provider | `gemini.ts` adapter · `geminiSchema.ts` · `contract.ts` suite · `LLM_PROVIDER` selector |
 | Spine | `prompt.ts` · `sanitize.ts` · `quarantine.ts` · `viewspec.ts` · `period.ts` · `orchestrator.ts` · `POST /assistant/chat` (SSE) |
 | Tools | All 9, across the four pillars + execution, over `pillars.service.ts` and `scorecards.service.ts` |
-| Proof | 26 golden questions · scorer · cache-hit cost gate · `assistant-evals.yml` |
+| Proof | 25 golden questions · scorer · cache-hit cost gate · `assistant-evals.yml` |
 | App | Chat screen · SSE client · view-spec registry · `AgentScorecardCard` · rollout gate |
 | Ops | `tracing.ts` (Langfuse, no-op unconfigured) |
 
-**What is genuinely not done:**
+### First live measurement — 2026-08-07
 
-- [ ] **The ≥90% accuracy gate is UNMEASURED, and no further code closes it.**
-      `assistant-evals.yml` skips itself with a warning until
-      `secrets.GEMINI_API_KEY` exists. This is the phase's exit condition and it
-      is the one item nothing in this repo can satisfy
+A key was provided. The sweep has now run against Gemini for real.
+
+| | |
+|---|---|
+| Model | `gemini-3.6-flash` (cheap tier, chosen to conserve credits) |
+| Tool-selection accuracy | **92.0% (23/25)** — above the 90% gate |
+| Failures | `exec-1`, `exec-2` — both the *agent scorecard* questions |
+
+**The gate passes and the exit demo does not, which is the more useful fact.**
+`exec-1` is *"How has Tumo been performing this month?"* — the sentence the plan
+names as the Phase 0 exit demo. It routes to `getVisitHistory`.
+
+**That is the model behaving correctly, and the eval mismeasuring it.**
+`getAgentScorecard` requires an `agentId`, and **nothing in the roster resolves a
+name to an id.** So given "Tumo", the model reaches for the one tool that
+returns agent identities — a discovery hop — and the eval scores only the first
+reach (`maxToolRounds: 1`). In a real four-round turn it would very likely find
+the id and then call the scorecard.
+
+Two things follow, and neither is "adjust the expected answer":
+
+- [ ] **Add a name → id resolution path.** Either a lookup tool, or let
+      `getAgentScorecard` accept a name. This is a real product gap the eval
+      found, not a prompt-tuning problem
+- [ ] **The eval scores one hop; some questions legitimately need two.** Scoring
+      the first reach is what makes the metric deterministic and judge-free, so
+      the fix is probably to score *whether the expected tool was called during
+      the turn*, not *first* — a change to the harness, with a cost implication
+      (full turns, not one round)
+
+> **The number was 88% before two fixes, and one of them was a measurement bug
+> in my own harness.** A Gemini 503 on `comp-1` was being scored as the model
+> choosing the wrong tool, so the headline was part accuracy and part Google's
+> uptime. Transient provider errors are now retried once and then *excluded from
+> the denominator and reported*, never counted as a miss. That single conflation
+> was the difference between 88% (fail) and 92% (pass).
+>
+> The other fix was real: `getVisitHistory`'s description ended *"…or whether an
+> agent has been checking in"*, which a model reasonably reads as covering how
+> an agent is doing. Both descriptions now disambiguate in each direction. It
+> recovered `comp-1` but not the two scorecard questions — because those are the
+> missing-lookup problem above, not a wording problem.
+
+**Also corrected:** the golden set has **25** questions. Earlier commits and all
+three documents said 26. Miscounted, and now counted programmatically.
+
+**What is still not done:**
+
+- [ ] **Re-measure on the real model.** 92% is `gemini-3.6-flash`. The gate is
+      stated per model, and the plan's target orchestrator is Gemini 3.1 Pro.
+      This number is a floor, not the number
 - [ ] **Langfuse Cloud project** — the client and the seam exist; there is no
       project, so tracing no-ops
 - [ ] **`trend_chart` + `outlet_map`** — in the catalog and validated, but no
@@ -304,7 +358,7 @@ its cheap slice on every assistant PR.
          another tenant and the closure returns nothing
    - [x] View-spec validation test (unknown types, malformed params) ✅ 2026-08-06
    - [x] 25-question eval harness scored on tool-selection accuracy ✅ 2026-08-06 —
-         26 questions including two **refusal** cases, because a suite with no
+         25 questions including two **refusal** cases, because a suite with no
          refusals rewards a model that always guesses
    - [x] Cache-hit assertion (`cache_read_input_tokens > 0` on turn 2) ✅ 2026-08-06,
          with a companion test proving the assertion has teeth by interpolating

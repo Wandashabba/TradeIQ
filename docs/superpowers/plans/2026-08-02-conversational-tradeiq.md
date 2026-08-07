@@ -764,7 +764,7 @@ assistant PR.
       service ran with the caller's `clientId`, **including the cross-tenant
       probe** — the model names a real user id from another tenant and the
       closure returns nothing
-- [x] Eval harness: 26 golden questions with expected tool, scored on
+- [x] Eval harness: 25 golden questions with expected tool, scored on
       tool-selection accuracy. Includes **two refusal cases**, because a suite
       with no refusals rewards a model that always guesses. ⚠️ **Written and
       unrun** — see the status note above

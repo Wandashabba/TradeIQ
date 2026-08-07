@@ -118,9 +118,15 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
     eraseToolTypes({
       name: 'getVisitHistory',
       pillar: 'execution' as const,
+      // "…or whether an agent has been checking in" used to end this line, and
+      // it was stealing the exit-demo question from getAgentScorecard on the
+      // first live sweep: a model reasonably reads it as covering how an agent
+      // is doing. Narrowed to activity and coverage, with the hand-off stated.
       description:
-        'Call this when the user asks what visits happened, coverage, which outlets were ' +
-        'called on, or whether an agent has been checking in.',
+        'Call this when the user asks what visits happened, coverage, or which outlets were ' +
+        'called on in a period. This tool counts activity; it does not judge quality. ' +
+        'Use getAgentScorecard instead if the user asks how WELL a named agent is doing, ' +
+        'or wants them compared against their team.',
       args: windowArgs.extend({
         agentId: z.string().min(1).optional().describe('Narrow to one agent.'),
         outletId: z.string().min(1).optional().describe('Narrow to one outlet.'),

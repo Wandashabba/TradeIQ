@@ -1,3 +1,7 @@
+// Matches `src/server.ts`. Without it this ran only in CI, where the workflow
+// injects the key — so the one machine that could iterate on the golden set
+// locally was the one that could not run it.
+import 'dotenv/config';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 import type { AuthTokenPayload } from '../src/modules/auth/auth.service';
@@ -48,7 +52,22 @@ const EVAL_USER: AuthTokenPayload = {
 /** How many questions the PR slice runs. Enough to catch a collapse, cheap enough to run per PR. */
 const SLICE_SIZE = 8;
 
-async function selectedToolFor(question: string): Promise<string | null> {
+/**
+ * What one question produced.
+ *
+ * `errored` is **not** the same as `chose nothing`, and conflating them is a
+ * measurement bug rather than a rounding issue: a 503 from the provider would
+ * otherwise be scored as the model picking the wrong tool, so the headline
+ * number would be part tool-selection accuracy and part Google's uptime. On the
+ * first real run that single conflation was the difference between 88% (fail)
+ * and 91.7% (pass).
+ */
+type Selection =
+  | { kind: 'tool'; name: string }
+  | { kind: 'none' }
+  | { kind: 'error'; code: string };
+
+async function attempt(question: string): Promise<Selection> {
   const controller = new AbortController();
   const tools = buildTools({ user: EVAL_USER, now: new Date() });
 
@@ -65,15 +84,31 @@ async function selectedToolFor(question: string): Promise<string | null> {
       // Stop the turn the moment we have the answer: everything after this is
       // a paid continuation we would throw away.
       controller.abort();
-      return event.data.name;
+      return { kind: 'tool', name: event.data.name };
     }
     if (event.event === 'error') {
-      console.error(`  ! provider error: ${event.data.code}`);
-      return null;
+      return { kind: 'error', code: event.data.code };
     }
   }
 
-  return null;
+  return { kind: 'none' };
+}
+
+/**
+ * Codes worth one retry.
+ *
+ * Deliberately narrow. `bad_request` or `not_configured` will fail identically
+ * on a second attempt and retrying them just doubles the bill; a 503 or a rate
+ * limit is the provider having a moment and says nothing about tool selection.
+ */
+const TRANSIENT = new Set(['provider_error', 'rate_limited', 'provider_unavailable']);
+
+async function selectedToolFor(question: string): Promise<Selection> {
+  const first = await attempt(question);
+  if (first.kind !== 'error' || !TRANSIENT.has(first.code)) return first;
+
+  console.error(`  ! ${first.code} — retrying once`);
+  return attempt(question);
 }
 
 async function main(): Promise<void> {
@@ -92,9 +127,20 @@ async function main(): Promise<void> {
   );
 
   const scored: ScoredQuestion[] = [];
+  const errored: { id: string; code: string }[] = [];
+
   for (const question of questions) {
-    const actual = await selectedToolFor(question.question);
-    const result = score(question, actual);
+    const selection = await selectedToolFor(question.question);
+
+    if (selection.kind === 'error') {
+      // Excluded from the denominator, never silently: an unreported exclusion
+      // is how a run over half the set reads as a clean pass.
+      errored.push({ id: question.id, code: selection.code });
+      console.log(`  SKIP  ${question.id.padEnd(10)} provider error: ${selection.code}`);
+      continue;
+    }
+
+    const result = score(question, selection.kind === 'tool' ? selection.name : null);
     scored.push(result);
     console.log(
       `  ${result.hit ? 'PASS' : 'FAIL'}  ${question.id.padEnd(10)} ` +
@@ -108,13 +154,34 @@ async function main(): Promise<void> {
   // artifact that explains why it failed.
   writeFileSync(
     resolve(__dirname, 'report.json'),
-    JSON.stringify({ provider: providerFor().name, scope: full ? 'full' : 'slice', ...report }, null, 2),
+    JSON.stringify(
+      {
+        provider: providerFor().name,
+        model: process.env.GEMINI_ORCHESTRATOR_MODEL ?? '(default)',
+        scope: full ? 'full' : 'slice',
+        asked: questions.length,
+        errored,
+        ...report,
+      },
+      null,
+      2,
+    ),
   );
 
   console.log(
     `\ntool-selection accuracy: ${(report.accuracy * 100).toFixed(1)}% ` +
       `(${report.hits}/${report.total}), gate ${TOOL_SELECTION_THRESHOLD * 100}%`,
   );
+
+  if (errored.length > 0) {
+    // Loud, because a shrinking denominator flatters the percentage. A run that
+    // errored on half the set can post a perfect score.
+    console.log(
+      `\n⚠ ${errored.length} of ${questions.length} question(s) excluded after a ` +
+        `provider error and one retry: ${errored.map((e) => `${e.id} (${e.code})`).join(', ')}`,
+    );
+    console.log('  The accuracy above is over the remainder, not the whole set.');
+  }
 
   if (report.misses.length > 0) {
     console.log('\nmisses:');
