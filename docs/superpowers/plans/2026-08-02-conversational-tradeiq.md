@@ -23,7 +23,7 @@ SSE over the existing `ApiClient`. Two LLM providers behind one interface:
 
 | Provider | Orchestrator | Quarantine | Status |
 |---|---|---|---|
-| **Gemini** | `gemini-3.1-pro` | `gemini-3.6-flash` | Key available — **build against this first** |
+| **Gemini** | `gemini-3.1-pro-preview` | `gemini-3.6-flash` | Key available — **build against this first** |
 | **Anthropic** | `claude-opus-5` | `claude-haiku-4-5` | Key expected later this week |
 
 See *Provider abstraction* below. The provider is selected per conversation, not

@@ -39,7 +39,21 @@ import {
  *    assertion reads `Usage.cacheReadTokens`, so the rename lives here.
  */
 
-export const GEMINI_ORCHESTRATOR_MODEL = process.env.GEMINI_ORCHESTRATOR_MODEL ?? 'gemini-3.1-pro';
+/**
+ * The orchestrator default is `-preview` because that is the model's actual
+ * name. `gemini-3.1-pro` — what the plan's table says, and what this line said
+ * until the first sweep tried to use it — is a 404 on `v1beta`: there is no GA
+ * 3.1 Pro to fall back to. Nothing caught it because every measured run so far
+ * set `GEMINI_ORCHESTRATOR_MODEL` to a Flash tier, and CI skips the live sweep
+ * for want of a key, so this default had never once been called.
+ *
+ * A preview name will eventually stop resolving too. That is a property of the
+ * model, not a mistake here: the failure is loud (404 → `provider_error` →
+ * every question excluded → `passed: false`), and the override exists so a
+ * rename is an env change rather than a deploy.
+ */
+export const GEMINI_ORCHESTRATOR_MODEL =
+  process.env.GEMINI_ORCHESTRATOR_MODEL ?? 'gemini-3.1-pro-preview';
 export const GEMINI_QUARANTINE_MODEL = process.env.GEMINI_QUARANTINE_MODEL ?? 'gemini-3.6-flash';
 
 /**

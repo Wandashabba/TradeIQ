@@ -12,7 +12,7 @@ const TRACE: TurnTrace = {
   userId: 'user-1',
   clientId: 'client-1',
   provider: 'gemini',
-  model: 'gemini-3.1-pro',
+  model: 'gemini-3.1-pro-preview',
 };
 
 function summary(overrides: Partial<TurnSummary> = {}): TurnSummary {
