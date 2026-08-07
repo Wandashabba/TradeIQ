@@ -6,15 +6,6 @@ import '../../../core/widgets/manager_scaffold.dart';
 import '../../clients/data/clients_repository.dart';
 import 'chat_screen.dart';
 
-/// Whether this tenant is in the assistant rollout.
-///
-/// Reads `GET /clients/me`, which is the same call the config screen already
-/// makes, so this is usually a cache hit rather than an extra round trip.
-final assistantEnabledProvider = FutureProvider<bool>((ref) async {
-  final config = await ref.watch(clientsRepositoryProvider).getConfig();
-  return config.assistantEnabled;
-});
-
 /// The entry point, gated on the rollout flag.
 ///
 /// **This gate is a courtesy, not the security boundary.** The server 404s
@@ -28,14 +19,20 @@ final assistantEnabledProvider = FutureProvider<bool>((ref) async {
 /// show the composer anyway: the request will be refused server-side with a
 /// message, which is a better outcome than telling someone their feature is
 /// switched off because one unrelated call timed out.
+///
+/// It watches `clientConfigProvider` — the provider the config screen already
+/// uses — rather than issuing its own `/clients/me`. A second provider over the
+/// same endpoint would be a second round trip and, worse, a second cache: the
+/// two could disagree about the flag after an admin changed something.
 class AssistantGate extends ConsumerWidget {
   const AssistantGate({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(assistantEnabledProvider).when(
-          data: (enabled) =>
-              enabled ? const AssistantChatScreen() : const _NotEnabled(),
+    return ref.watch(clientConfigProvider).when(
+          data: (config) => config.assistantEnabled
+              ? const AssistantChatScreen()
+              : const _NotEnabled(),
           error: (_, _) => const AssistantChatScreen(),
           loading: () => const ManagerScaffold(
             title: 'Ask TradeIQ',
