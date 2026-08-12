@@ -9,6 +9,7 @@ import {
   getStockLevels,
   getVisibilityCompliance,
   getVisitSummary,
+  type StockLevels,
 } from '../pillars.service';
 import { eraseToolTypes, type AnyAssistantTool } from '../types';
 import type { ToolContext } from './execution';
@@ -64,7 +65,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       pillar: 'sales' as const,
       description:
         'Call this when the user asks which products are moving or not moving, about SKU ' +
-        'velocity, or which lines have been out of stock longest.',
+        'velocity, how long a product has been out of stock, or which lines have been out ' +
+        'of stock longest.',
       args: windowArgs.extend({
         limit: z.number().int().min(1).max(50).default(20).describe('How many SKUs to return.'),
       }),
@@ -80,6 +82,17 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
         'on-shelf availability, or which outlets keep running dry.',
       args: windowArgs,
       run: async (args) => getStockLevels(scope(args)),
+      // The tool declares what it draws; the model never names a spec type.
+      //
+      // Outlet ids come from the RESULT — canonical, so a Phase 2 `refine` can
+      // re-run them — and the coordinates ride in the artifact's `data`. `null`
+      // when nothing is out of stock: a map of no problems is not an answer,
+      // and returning null is the normal case, not a failure.
+      view: (_args, result) => {
+        const outlets = (result as StockLevels).worstOutlets;
+        if (outlets.length === 0) return null;
+        return { type: 'outlet_map', params: { outletIds: outlets.map((o) => o.outletId) } };
+      },
     }),
 
     // ── Visibility ───────────────────────────────────────────────────────

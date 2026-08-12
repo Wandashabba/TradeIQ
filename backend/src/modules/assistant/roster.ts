@@ -29,6 +29,7 @@ export const TOOL_REGISTRY = {
   getAgentScorecard: 'execution',
   getVisitHistory: 'execution',
   getFraudFlags: 'execution',
+  getMetricTrend: 'execution',
 } as const satisfies Record<string, Pillar>;
 
 export type ToolName = keyof typeof TOOL_REGISTRY;
@@ -79,6 +80,7 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
     'getAgentScorecard',
     'getVisitHistory',
     'getFraudFlags',
+    'getMetricTrend',
   ],
 
   // Written out rather than spread from `manager`. Identical today; the point
@@ -93,6 +95,7 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
     'getAgentScorecard',
     'getVisitHistory',
     'getFraudFlags',
+    'getMetricTrend',
   ],
 };
 

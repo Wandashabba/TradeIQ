@@ -73,6 +73,21 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     expectedTool: 'getFraudFlags',
     acceptable: ['getVisitHistory'],
   },
+  // getMetricTrend is registered under execution, so its questions carry the
+  // exec- prefix — the pillar-coverage test pins the prefix vocabulary.
+  {
+    id: 'exec-8',
+    question: 'Is our on-shelf availability getting better or worse month to date?',
+    expectedTool: 'getMetricTrend',
+    expectedSpec: 'trend_chart',
+    note: 'Movement, not a level — the phrasing that separates this from getStockLevels.',
+  },
+  {
+    id: 'exec-9',
+    question: 'How has the execution score moved week on week this year?',
+    expectedTool: 'getMetricTrend',
+    expectedSpec: 'trend_chart',
+  },
 
   // ── Sales ────────────────────────────────────────────────────────────────
   {

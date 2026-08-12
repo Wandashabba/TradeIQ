@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
 
@@ -48,8 +50,10 @@ void main() {
     testWidgets('survives a spec type the server added after this build',
         (tester) async {
       // Not an error state — a normal consequence of shipping the backend and
-      // the app separately.
-      await tester.pumpWidget(wrap(ArtifactView(artifact: artifact('trend_chart'))));
+      // the app separately. The fixture was `trend_chart` until this build
+      // learned to draw it; `leaderboard` is the plan's next catalog entry
+      // (Phase 1), so it plays the newer-server role now.
+      await tester.pumpWidget(wrap(ArtifactView(artifact: artifact('leaderboard'))));
 
       expect(tester.takeException(), isNull);
       expect(find.byType(UnsupportedArtifactNote), findsOneWidget);
@@ -88,6 +92,127 @@ void main() {
       )));
 
       expect(find.textContaining('No other agent'), findsOneWidget);
+    });
+  });
+
+  group('TrendChartCard', () {
+    testWidgets('renders a titled line chart from the tool result', (tester) async {
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('trend_chart', data: const {
+          'metric': 'availability',
+          'interval': 'day',
+          'points': [
+            {'period': '2026-08-01T00:00:00.000Z', 'value': 62.0, 'count': 4},
+            {'period': '2026-08-02T00:00:00.000Z', 'value': 71.0, 'count': 6},
+          ],
+        }),
+      )));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LineChart), findsOneWidget);
+      expect(find.text('On-shelf availability'), findsOneWidget);
+      expect(find.text('By day'), findsOneWidget);
+    });
+
+    testWidgets('skips unreadable rows instead of plotting them as zero',
+        (tester) async {
+      // A fabricated zero IS a data point on a chart — it changes what the
+      // line says. One readable point remains, which is below the chart's own
+      // two-point minimum, so its honest empty state shows.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('trend_chart', data: const {
+          'metric': 'execution_score',
+          'points': [
+            {'period': '2026-08-01', 'value': 'not a number'},
+            'not even a map',
+            {'period': '2026-08-02', 'value': 74.0},
+          ],
+        }),
+      )));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Not enough data to plot'), findsOneWidget);
+    });
+
+    testWidgets('renders when the tool result is missing everything', (tester) async {
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('trend_chart', data: const {}),
+      )));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Trend'), findsOneWidget);
+      expect(find.text('Not enough data to plot'), findsOneWidget);
+    });
+  });
+
+  group('OutletMapCard', () {
+    testWidgets('draws a pin per outlet with the count in its semantics',
+        (tester) async {
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('outlet_map', data: const {
+          'worstOutlets': [
+            {
+              'outletId': 'o1',
+              'outletName': 'Kasi Spaza',
+              'outOfStockLines': 3,
+              'lat': -26.2,
+              'lng': 28.04,
+            },
+            {
+              'outletId': 'o2',
+              'outletName': 'Corner Shop',
+              'outOfStockLines': 1,
+              'lat': -26.1,
+              'lng': 28.1,
+            },
+          ],
+        }),
+      )));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(FlutterMap), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('stockout-pin-icon-o1')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('stockout-pin-icon-o2')), findsOneWidget);
+      expect(find.bySemanticsLabel('Kasi Spaza, 3 lines out of stock'), findsOneWidget);
+      expect(find.text('2 outlets'), findsOneWidget);
+    });
+
+    testWidgets('skips rows without a finite coordinate rather than guessing',
+        (tester) async {
+      // A pin at (0, 0) is an answer about the Gulf of Guinea, not about
+      // stock. The one readable outlet still gets its map.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('outlet_map', data: const {
+          'worstOutlets': [
+            {'outletId': 'o1', 'outletName': 'No coords'},
+            {
+              'outletId': 'o2',
+              'outletName': 'Kasi Spaza',
+              'outOfStockLines': 2,
+              'lat': -26.2,
+              'lng': 28.04,
+            },
+          ],
+        }),
+      )));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey<String>('stockout-pin-icon-o2')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('stockout-pin-icon-o1')), findsNothing);
+      expect(find.text('1 outlet'), findsOneWidget);
+    });
+
+    testWidgets('says so when no outlet location can be read', (tester) async {
+      // The tool only declares this spec when it has outlets to point at, so
+      // an unreadable list means the result shape moved under this build. An
+      // empty world map would read as "no problem anywhere".
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('outlet_map', data: const {'worstOutlets': 'unexpected'}),
+      )));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(FlutterMap), findsNothing);
+      expect(find.textContaining('could not be read'), findsOneWidget);
     });
   });
 }

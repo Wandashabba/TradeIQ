@@ -171,7 +171,18 @@ export interface StockLevels {
   linesObserved: number;
   outOfStockLines: number;
   outletsWithStockout: number;
-  worstOutlets: { outletId: string; outletName: string; outOfStockLines: number }[];
+  /**
+   * Coordinates ride here so the `outlet_map` artifact can draw pins straight
+   * from the tool result — the spec params carry only outlet ids, and the
+   * client never re-fetches to render an inline card.
+   */
+  worstOutlets: {
+    outletId: string;
+    outletName: string;
+    outOfStockLines: number;
+    lat: number;
+    lng: number;
+  }[];
   truncated: boolean;
 }
 
@@ -181,7 +192,9 @@ export async function getStockLevels(input: PillarWindow): Promise<StockLevels> 
     where: { visit: await visitScope(input) },
     select: {
       unitsAvailable: true,
-      visit: { select: { outletId: true, outlet: { select: { name: true } } } },
+      visit: {
+        select: { outletId: true, outlet: { select: { name: true, lat: true, lng: true } } },
+      },
     },
     take: MAX_SCAN + 1,
   });
@@ -189,7 +202,7 @@ export async function getStockLevels(input: PillarWindow): Promise<StockLevels> 
   const scanned = rows.slice(0, MAX_SCAN);
   const outOfStock = scanned.filter((r) => r.unitsAvailable <= 0);
 
-  const byOutlet = new Map<string, { outletId: string; outletName: string; outOfStockLines: number }>();
+  const byOutlet = new Map<string, StockLevels['worstOutlets'][number]>();
   for (const row of outOfStock) {
     const key = row.visit.outletId;
     const existing = byOutlet.get(key);
@@ -199,6 +212,8 @@ export async function getStockLevels(input: PillarWindow): Promise<StockLevels> 
         outletId: key,
         outletName: row.visit.outlet.name,
         outOfStockLines: 1,
+        lat: row.visit.outlet.lat,
+        lng: row.visit.outlet.lng,
       });
   }
 

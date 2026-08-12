@@ -114,11 +114,29 @@ describe('POST /assistant/chat', () => {
         ratingBand: 'green',
       },
     });
+
+    // One line out of stock, so getStockLevels has an outlet to put on a map.
+    const sku = await prisma.sku.create({
+      data: { clientId, name: 'Cola 500ml', category: 'beverages', minFacingsStandard: 2, rrp: 12 },
+    });
+    await prisma.visitStock.create({
+      data: {
+        visitId: visit.id,
+        skuId: sku.id,
+        unitsAvailable: 0,
+        lastStockinDate: new Date(),
+        daysOutOfStock: 3,
+        velocityAvg: 1.5,
+        coverageDaysPredicted: 0,
+      },
+    });
   });
 
   afterAll(async () => {
+    await prisma.visitStock.deleteMany({ where: { visit: { clientId } } });
     await prisma.scorecard.deleteMany({ where: { visit: { clientId } } });
     await prisma.visit.deleteMany({ where: { clientId } });
+    await prisma.sku.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId } });
     await prisma.user.deleteMany({ where: { clientId } });
     await prisma.client.delete({ where: { id: clientId } });
@@ -254,6 +272,69 @@ describe('POST /assistant/chat', () => {
         params: { agentId: agent.userId },
         data: { averageScore: 82, scoredVisits: 1 },
       });
+    });
+
+    it('streams an outlet map when stockouts have somewhere to point', async () => {
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getStockLevels',
+            args: { period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'One outlet is dry.' }, { type: 'done' }],
+      ];
+
+      const res = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'Which stores keep running out of stock?' });
+
+      const artifact = parseSse(res.text).find((f) => f.event === 'artifact');
+      // Ids in the params (canonical, so Phase 2 can re-run them), coordinates
+      // in the data — the client draws pins without a second fetch.
+      expect(artifact?.data).toMatchObject({
+        type: 'outlet_map',
+        params: { outletIds: [outletId] },
+        data: {
+          worstOutlets: [{ outletId, outletName: 'Kasi Spaza', outOfStockLines: 1, lat: -26.2, lng: 28.04 }],
+        },
+      });
+    });
+
+    it('streams a trend chart from the real trends service', async () => {
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getMetricTrend',
+            // No interval: the schema default must fill it in, and the spec
+            // params must carry the defaulted value, not undefined.
+            args: { metric: 'execution_score', period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Holding steady.' }, { type: 'done' }],
+      ];
+
+      const res = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How has the execution score moved this month?' });
+
+      const artifact = parseSse(res.text).find((f) => f.event === 'artifact');
+      expect(artifact?.data).toMatchObject({
+        type: 'trend_chart',
+        params: { metric: 'execution_score', interval: 'day' },
+      });
+      // The one seeded scorecard (82) lands in exactly one daily bucket.
+      const data = (artifact?.data as { data: { points: { value: number }[] } }).data;
+      expect(data.points).toHaveLength(1);
+      expect(data.points[0].value).toBe(82);
     });
 
     it('resolves a NAME to the right agent in one hop', async () => {

@@ -2,6 +2,7 @@ import { rosterFor, type ToolName } from '../roster';
 import type { AnyAssistantTool } from '../types';
 import { buildExecutionTools, type ToolContext } from './execution';
 import { buildPillarTools } from './pillars';
+import { buildTrendTools } from './trends';
 
 export type { ToolContext } from './execution';
 
@@ -21,7 +22,11 @@ export type { ToolContext } from './execution';
  *    should fail in — adding a file must not silently widen the boundary.
  */
 export function buildTools(ctx: ToolContext): AnyAssistantTool[] {
-  const implemented = [...buildExecutionTools(ctx), ...buildPillarTools(ctx)];
+  const implemented = [
+    ...buildExecutionTools(ctx),
+    ...buildPillarTools(ctx),
+    ...buildTrendTools(ctx),
+  ];
   const allowed = rosterFor(ctx.user.role);
 
   // Ordering is the roster's, not the implementation files'. Tool declarations
@@ -46,7 +51,9 @@ export function buildTools(ctx: ToolContext): AnyAssistantTool[] {
  */
 export function unimplementedTools(ctx: ToolContext): ToolName[] {
   const implemented = new Set(
-    [...buildExecutionTools(ctx), ...buildPillarTools(ctx)].map((tool) => tool.name),
+    [...buildExecutionTools(ctx), ...buildPillarTools(ctx), ...buildTrendTools(ctx)].map(
+      (tool) => tool.name,
+    ),
   );
   return [...rosterFor(ctx.user.role)].filter((name) => !implemented.has(name)) as ToolName[];
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../data/chat_controller.dart';
 import 'agent_scorecard_card.dart';
+import 'outlet_map_card.dart';
+import 'trend_chart_card.dart';
 
 /// Spec type → widget.
 ///
@@ -22,6 +24,8 @@ typedef ViewSpecBuilder = Widget Function(BuildContext context, ChatArtifact art
 
 final Map<String, ViewSpecBuilder> viewSpecRegistry = {
   'agent_scorecard': (context, artifact) => AgentScorecardCard(artifact: artifact),
+  'trend_chart': (context, artifact) => TrendChartCard(artifact: artifact),
+  'outlet_map': (context, artifact) => OutletMapCard(artifact: artifact),
 };
 
 /// Render an artifact, or explain why it could not be drawn.
