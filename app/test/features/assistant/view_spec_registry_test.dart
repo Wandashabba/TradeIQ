@@ -173,7 +173,18 @@ void main() {
       expect(find.byType(FlutterMap), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('stockout-pin-icon-o1')), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('stockout-pin-icon-o2')), findsOneWidget);
-      expect(find.bySemanticsLabel('Kasi Spaza, 3 lines out of stock'), findsOneWidget);
+      // Asserted on the widget's own property rather than through the
+      // compiled semantics tree, which is sensitive to node-merging rules
+      // that are not what this test is about.
+      final pinSemantics = tester.widget<Semantics>(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey<String>('stockout-pin-icon-o1')),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      expect(pinSemantics.properties.label, 'Kasi Spaza, 3 lines out of stock');
       expect(find.text('2 outlets'), findsOneWidget);
     });
 

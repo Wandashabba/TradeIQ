@@ -171,6 +171,11 @@ class _StockoutPin extends StatelessWidget {
     final lines = outlet.outOfStockLines;
 
     return Semantics(
+      // Its own node, not a merge into the map's: a screen reader should walk
+      // N outlets as N stops, and without `container` the label folds into an
+      // ancestor (the territory pin gets the same effect from `button: true`,
+      // which would be a lie here — these pins do nothing when tapped).
+      container: true,
       label: lines == null
           ? outlet.name
           : '${outlet.name}, $lines ${lines == 1 ? 'line' : 'lines'} out of stock',
