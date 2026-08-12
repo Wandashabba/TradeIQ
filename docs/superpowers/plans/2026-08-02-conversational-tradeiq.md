@@ -754,10 +754,11 @@ assistant PR.
       the remainder is the console cap above
 - [x] Flutter: chat screen, text composer, streaming text render
 - [x] Flutter: scorecard as a parameterised widget (`AgentScorecardCard`)
-- [ ] Flutter: view-spec registry renders **all three** widgets inline — the
-      registry exists and renders `agent_scorecard`; `trend_chart` and
-      `outlet_map` are validated but no tool emits them and no widget draws
-      them. **Deliberately unticked**
+- [x] Flutter: view-spec registry renders **all three** widgets inline
+      ✅ 2026-08-12 — `TrendChartCard` on the shared `LineChart`,
+      `OutletMapCard` on the Tiq basemap kit; emitted by `getMetricTrend`
+      (new, wraps `trends.service.ts`) and `getStockLevels` (`worstOutlets`
+      rows now carry coordinates)
 - [x] Unit: roster matrix test — every `(role × tool)` pair (landed in #264)
 - [x] Unit: view-spec validation rejects unknown spec types and malformed params
 - [x] Integration: stubbed model → scripted tool call → asserts the correct

@@ -169,8 +169,8 @@ runs against a scripted provider.
 |---|---|
 | Provider | `gemini.ts` adapter · `geminiSchema.ts` · `contract.ts` suite · `LLM_PROVIDER` selector |
 | Spine | `prompt.ts` · `sanitize.ts` · `quarantine.ts` · `viewspec.ts` · `period.ts` · `orchestrator.ts` · `POST /assistant/chat` (SSE) |
-| Tools | All 9, across the four pillars + execution, over `pillars.service.ts` and `scorecards.service.ts` |
-| Proof | 25 golden questions · scorer · cache-hit cost gate · `assistant-evals.yml` |
+| Tools | All 10, across the four pillars + execution, over `pillars.service.ts`, `scorecards.service.ts` and `trends.service.ts` |
+| Proof | 27 golden questions · scorer · cache-hit cost gate · `assistant-evals.yml` |
 | App | Chat screen · SSE client · view-spec registry · `AgentScorecardCard` · rollout gate |
 | Ops | `tracing.ts` (Langfuse, no-op unconfigured) |
 
@@ -215,11 +215,15 @@ demo is a single hop.
 **Read 100% carefully.** It means *no misses on 25 questions we wrote ourselves,
 once, on the cheap model*. It is not evidence of a solved problem:
 
-- [ ] Re-measure on **Gemini 3.1 Pro** — the gate is stated per model
+- [x] Re-measure on **Gemini 3.1 Pro** — the gate is stated per model
+      ✅ 2026-08-12, see the section below: 96% first run, 100% after one
+      description fix
 - [ ] The set is small and non-adversarial. Growing it is Phase 1 work, and a
       set that never fails is a set that has stopped measuring
 - [ ] Single run. Selection is not deterministic; a re-run can differ
-- [ ] `stock-4` passes on an `acceptable` alternative, not an exact match
+- [x] `stock-4` passes on an `acceptable` alternative, not an exact match —
+      resolved 2026-08-12 on the target model, exact match after
+      `getSkuMovement`'s description gained the out-of-stock-duration trigger
 
 > **The number was 88% before two fixes, and one of them was a measurement bug
 > in my own harness.** A Gemini 503 on `comp-1` was being scored as the model
@@ -237,15 +241,42 @@ once, on the cheap model*. It is not evidence of a solved problem:
 **Also corrected:** the golden set has **25** questions. Earlier commits and all
 three documents said 26. Miscounted, and now counted programmatically.
 
+### Measured on the target model — 2026-08-12
+
+The number the gate is actually stated in. Full 25-question sweep on
+`gemini-3.1-pro-preview`, zero provider errors, nothing excluded from the
+denominator.
+
+| Run | Accuracy | What changed |
+|---|---|---|
+| 1 | 96.0% (24/25) — pass | baseline on the target model |
+| 2 | **100.0% (25/25)** | one tool-description trigger added |
+| 3 | **100.0% (26/26)** | roster grew to 10 tools (`getMetricTrend`) and the set to 27 questions; `vis-1` excluded after a 503 and one retry — Google had a high-demand spike that evening, and the exclusion is reported rather than counted |
+
+The single miss was `stock-4` (*"How long has the 500ml been out at those
+outlets?"*): Flash had answered it with the `acceptable` alternative, Pro chose
+**nothing**. Same diagnosis as `comp-1` in the Flash runs — the question asks a
+*duration* and `getSkuMovement`'s description only stated the *ranking* trigger
+("out of stock longest"). The description now states "how long a product has
+been out of stock" as well; the expected answers were not touched. On the
+re-run `stock-4` hits `getSkuMovement` exactly, not the alternative.
+
+The Flash caveats still apply here: one run per configuration, a small
+non-adversarial set, and a set that never fails has stopped measuring. But the
+Phase 0 exit number is no longer a floor read off the cheap tier — it is
+measured on the model the plan names.
+
 **What is still not done:**
 
-- [ ] **Re-measure on the real model.** 92% is `gemini-3.6-flash`. The gate is
-      stated per model, and the plan's target orchestrator is Gemini 3.1 Pro.
-      This number is a floor, not the number
+- [x] **Re-measure on the real model** ✅ 2026-08-12 — 100% (25/25) on
+      `gemini-3.1-pro-preview`, section above
 - [ ] **Langfuse Cloud project** — the client and the seam exist; there is no
       project, so tracing no-ops
-- [ ] **`trend_chart` + `outlet_map`** — in the catalog and validated, but no
-      tool emits them and no widget draws them. Deliberately unticked
+- [x] **`trend_chart` + `outlet_map`** ✅ 2026-08-12 — `getMetricTrend` (new
+      tool wrapping `trends.service.ts`) emits `trend_chart`; `getStockLevels`
+      emits `outlet_map` over its `worstOutlets`, whose rows now carry
+      coordinates. `TrendChartCard` (shared `LineChart`) and `OutletMapCard`
+      (Tiq basemap kit + `fitFor`) render them inline
 - [ ] **Provider console spend caps** — the one ceiling this repo cannot provide
 - [ ] **`anthropic.ts`** — waiting on its key. The contract suite is written so
       that adding it should be an adapter plus a flag; if it turns out to be
@@ -365,9 +396,11 @@ its cheap slice on every assistant PR.
          `pillars.service.ts` holds the aggregates — a new service rather than
          additions to six existing pillar modules, which are being edited by
          other branches and are the semantic-conflict surface
-   - [ ] `trend_chart` + `outlet_map` specs — catalog and validation exist; no
-         tool emits them yet, because nothing renders them until the Flutter
-         registry lands. **Deliberately not ticked**
+   - [x] `trend_chart` + `outlet_map` specs ✅ 2026-08-12 — emitted
+         (`getMetricTrend` → `trend_chart`; `getStockLevels` → `outlet_map`,
+         ids in params, coordinates in the artifact data) and rendered
+         (`TrendChartCard`, `OutletMapCard`, both registered). Integration
+         tests assert both artifact frames end to end
    - [x] Integration test: stubbed model → correct service, correct `clientId` ✅ 2026-08-06,
          including the cross-tenant probe: the model names a real user id from
          another tenant and the closure returns nothing
@@ -392,13 +425,11 @@ its cheap slice on every assistant PR.
          not entitled, which invites probing. It fails closed on a DB error,
          because defaulting a metered feature *open* on an infrastructure blip
          is a spend incident
-   - [~] Rate-limit `/assistant/chat` per-user **and** per-tenant — limiters
-         **built and tested** ✅ 2026-08-06, **not yet mounted**: the route does
-         not exist. `createAssistantUserRateLimiter` /
-         `createAssistantTenantRateLimiter` key on the JWT, never the IP (a team
-         behind one corporate NAT would otherwise throttle each other). Tick
-         this fully when `POST /assistant/chat` lands with both mounted after
-         `requireAuth`
+   - [x] Rate-limit `/assistant/chat` per-user **and** per-tenant ✅ 2026-08-06,
+         mounted ✅ (verified 2026-08-12: both limiters sit on the chat route in
+         `assistant.routes.ts`, after `requireAuth`). They key on the JWT, never
+         the IP — a team behind one corporate NAT would otherwise throttle each
+         other
    - [ ] Hard monthly cap in **both** provider consoles + Langfuse budget alerts
          at 50% / 80%. Rate limiting bounds *a user*; the console cap bounds
          *the account* — a leaked key is not rate-limited by anything in this repo
