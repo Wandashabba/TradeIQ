@@ -4,10 +4,15 @@
   // But leaving scripts/ out of tsconfig.json entirely meant it was never
   // typechecked at all: the seed broke against a schema change and `tsc`
   // reported success. This config exists purely to check it.
+  //
+  // evals/ is here for exactly the same reason. It is reachable only from a
+  // `*.test.ts`, which tsconfig.json excludes, so it was invisible to both
+  // `build` and `typecheck` — the golden question set could have drifted out of
+  // sync with the tool registry and `tsc` would still have reported success.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
     "rootDir": "."
   },
-  "include": ["scripts", "src"]
+  "include": ["scripts", "src", "evals"]
 }

@@ -262,7 +262,7 @@ more headroom.
   the 256-bit key in the platform keychain — never beside the file it encrypts.
   An existing plaintext database is migrated via `sqlcipher_export`.
 
-## Conversational TradeIQ (2026-08-02) — 📐 planned, not started
+## Conversational TradeIQ (2026-08-02) — 🚧 Phase 0 built, gate unmeasured
 
 A cross-cutting interface initiative, orthogonal to the product phases below:
 replace the 21-destination manager sidebar with a conversation. The manager
@@ -276,7 +276,17 @@ behind a risk gate; interactive, filterable, PDF-exportable artifacts.
 - **Live status:** `STATUS.md` at the repo root
 
 Six phases: read-only spine → voice → artifacts → actions → shrink the console →
-memory and digests. Nothing is implemented yet.
+memory and digests.
+
+**Phase 0 is built end to end** — backend and app — across PRs #264 and #265,
+green on CI. It is **not complete**: its exit gate is ≥90% tool-selection
+accuracy, and that has never been measured, because no provider key exists in
+this environment. Everything in the branch is tested against a scripted model.
+Phases 1–5 are not started.
+
+> **Correction (2026-08-07):** this section said *"Nothing is implemented yet."*
+> That was true when written and is not now. `STATUS.md` is the live tracker —
+> prefer it over this paragraph, which will go stale again.
 
 > ⚠️ **Conflict with Phase 4 item 4 (#61, "ML route optimisation").** The
 > 2026-07-29 practitioner interview ruled this out explicitly — *"you don't want

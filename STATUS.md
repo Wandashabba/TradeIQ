@@ -1,7 +1,9 @@
 # TradeIQ — Project Status
 
-**Last updated:** 2026-08-02
+**Last updated:** 2026-08-07
 **Current initiative:** Conversational TradeIQ (dashboard → chatbot)
+**Active branch:** `orchestration` — PR [#265](../../pull/265), stacked on the
+foundation PR [#264](../../pull/264). Retarget to `main` once #264 lands.
 **Plan:** [docs/superpowers/plans/2026-08-02-conversational-tradeiq.md](docs/superpowers/plans/2026-08-02-conversational-tradeiq.md) — sequencing and tasks
 **Spec:** [docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md](docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md) — contracts, wire protocol, security model
 
@@ -18,7 +20,7 @@
 
 | Phase | Scope | Status | Gate |
 |---|---|---|---|
-| 0 | [Read-only chat spine](../../issues/253) | ⬜ Not started | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
+| 0 | [Read-only chat spine](../../issues/253) | 🟡 100% on Flash; unmeasured on Pro | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
 | 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
@@ -30,15 +32,28 @@
 > #251. The plan remains the *what and why* — the issues are where progress is
 > claimed, so a task is done when its checkbox is ticked *there*, not here.
 
-**Started 2026-08-06.** The key-independent half of Phase 0 foundation has
-landed: the provider interface, the roster security boundary and its matrix
-test, the per-client feature flag and kill switch, and both chat rate limiters.
-Everything that needs a provider key — the Gemini adapter, the contract test,
-Langfuse tracing — is still untouched, as is every tool, the orchestrator and
-the route.
+**Started 2026-08-06.** The key-independent half of Phase 0 foundation landed
+first: the provider interface, the roster security boundary and its matrix test,
+the per-client feature flag and kill switch, and both chat rate limiters.
+
+> **Correction (2026-08-06, later the same day).** The paragraph above continued
+> *"Everything that needs a provider key — the Gemini adapter, the contract
+> test, Langfuse tracing — is still untouched, as is every tool, the
+> orchestrator and the route."* That conflated two different things. Writing the
+> adapter needs no key; only *exercising it against Google* does. The adapter,
+> the contract suite, all nine tools, the orchestrator and the SSE route have
+> since been built and are green, tested against a scripted provider. Langfuse
+> tracing and the live accuracy sweep genuinely do still need credentials.
 
 **Prerequisites:** a Langfuse Cloud project, plus **either** provider key. Both
-are now declared in `backend/.env.example`; neither is set in `backend/.env`.
+are declared in `backend/.env.example`.
+
+> **Update (2026-08-07). A `GEMINI_API_KEY` now exists on one developer
+> machine**, in `backend/.env` (gitignored). It is *not* in CI: `secrets.GEMINI_API_KEY`
+> is unset, so `assistant-evals.yml` still skips itself there. So the sweep is
+> runnable by hand and the gate is still unenforced on every PR — which are
+> different things, and only the first has changed. The Langfuse project still
+> does not exist.
 
 > **Correction (2026-08-03).** An earlier version of this line said
 > `GEMINI_API_KEY` "is available now, so Phase 0 is **unblocked**". The key
@@ -99,6 +114,36 @@ Not phase gates — how we'll know the whole thing worked.
 > the note predated the merge from `main`, and a plan was briefly written around
 > a gap that did not exist. Both are fixed.
 
+### Shipped — 2026-08-06 · Phase 0 foundation (PR [#264](../../pull/264), open)
+- [x] `providers/types.ts` — the `LlmProvider` seam
+- [x] `roster.ts` + a 41-assertion matrix test — the security boundary
+- [x] `Client.assistantEnabled` rollout flag and 404 kill switch
+- [x] Per-user **and** per-tenant chat rate limiters
+- [x] `make setup` generated an `.env` missing every assistant variable — fixed
+
+### Shipped — 2026-08-06/07 · Phase 0 spine (PR [#265](../../pull/265), open)
+
+Everything in **In progress** below. Grouped here so the two PRs are legible as
+separate units of review: #264 is the boundary and the flags, #265 is everything
+that uses them.
+
+Two repo-wide fixes that were not the point but blocked the work:
+
+- [x] **`evals/` was invisible to `build` *and* `typecheck`** — reachable only
+      from a `*.test.ts`, which `tsconfig.json` excludes. The golden set could
+      have drifted out of sync with the tool registry and `tsc` would have
+      reported success. The same gap the repo already fixed once for `scripts/`
+- [x] **The lockfile was pruned by a Windows `npm install`**, dropping `sharp`'s
+      optional `@emnapi` entries. `npm ci` then failed in the *first* step of
+      all three CI jobs, so lint, typecheck, build and every test never
+      reported — three red crosses and no test signal. Regenerated on
+      `node:24-alpine`. **Anyone changing dependencies from Windows will hit
+      this again:** check `git diff <base> -- backend/package-lock.json` for
+      removed `node_modules/` keys before pushing; a dependency change should
+      only ever *add* entries
+- [x] A new high-severity `js-yaml` advisory (CVE-2026-59870) that landed
+      against a dev transitive after #264 was authored
+
 ### Pre-existing (not part of this initiative)
 - [x] Backend: 38 route modules, JWT auth + RBAC, multi-tenant scoping
 - [x] Backend: pagination standardised across all list endpoints (#194, PRs #235/#237)
@@ -110,7 +155,155 @@ Not phase gates — how we'll know the whole thing worked.
 
 ## In progress
 
-_Nothing currently in progress._
+**Phase 0 is built end to end and green on CI. It is not *done*, because its
+gate has never been measured.**
+
+The spine works: a question reaches a real service at the caller's tenant and
+comes back as narrative plus a validated artifact the app renders. Backend and
+app both. What it has never done is speak to a model — every test in the branch
+runs against a scripted provider.
+
+**Shipped on `orchestration` (8 commits, ~9,800 lines, all checks green):**
+
+| | Landed |
+|---|---|
+| Provider | `gemini.ts` adapter · `geminiSchema.ts` · `contract.ts` suite · `LLM_PROVIDER` selector |
+| Spine | `prompt.ts` · `sanitize.ts` · `quarantine.ts` · `viewspec.ts` · `period.ts` · `orchestrator.ts` · `POST /assistant/chat` (SSE) |
+| Tools | All 10, across the four pillars + execution, over `pillars.service.ts`, `scorecards.service.ts` and `trends.service.ts` |
+| Proof | 27 golden questions · scorer · cache-hit cost gate · `assistant-evals.yml` |
+| App | Chat screen · SSE client · view-spec registry · `AgentScorecardCard` · rollout gate |
+| Ops | `tracing.ts` (Langfuse, no-op unconfigured) |
+
+### First live measurement — 2026-08-07
+
+A key was provided. The sweep has now run against Gemini for real, three times.
+
+| Run | Accuracy | What changed |
+|---|---|---|
+| 1 | 88.0% (22/25) — **fail** | baseline |
+| 2 | 92.0% (23/25) — pass | fixed a harness bug + a tool-description overlap |
+| 3 | **100.0% (25/25)** | added name → id resolution |
+
+Model: `gemini-3.6-flash` (cheap tier, to conserve credits).
+
+**What run 1 actually found — a missing tool, not a wording problem.**
+`exec-1` is *"How has Tumo been performing this month?"*, the sentence the plan
+names as the exit demo, and it routed to `getVisitHistory`. That was the model
+being **right**: `getAgentPerformance` needed an `agentId`, nothing resolved a
+name to one, and the visit list was the only tool returning agent identities. It
+was doing a discovery hop because the roster left it no alternative.
+
+Managers say names. Ids only come from tool results. `resolveAgent` now bridges
+the two, `getAgentScorecard` takes `agent` (name, email or id), and the exit
+demo is a single hop.
+
+**Two bugs on the way there, one of them in the measurement itself:**
+
+- A Gemini **503** on `comp-1` was being scored as the model choosing the wrong
+  tool, so the headline was part accuracy and part Google's uptime. That single
+  conflation was the whole difference between 88% (fail) and 92% (pass).
+  Transient errors are now retried once, then excluded from the denominator
+  **and reported** — a shrinking denominator flatters the percentage.
+- `getVisitHistory`'s description ended *"…or whether an agent has been checking
+  in"*, which a model reasonably reads as covering how an agent is *doing*.
+
+> **The expected answers were never loosened to make this pass.** Adding
+> `acceptable: ['getVisitHistory']` to `exec-1` would have produced a green
+> number in run 1 without changing a thing about the product. An eval tuned to
+> match current behaviour is a record, not a gate.
+
+**Read 100% carefully.** It means *no misses on 25 questions we wrote ourselves,
+once, on the cheap model*. It is not evidence of a solved problem:
+
+- [x] Re-measure on **Gemini 3.1 Pro** — the gate is stated per model
+      ✅ 2026-08-12, see the section below: 96% first run, 100% after one
+      description fix
+- [ ] The set is small and non-adversarial. Growing it is Phase 1 work, and a
+      set that never fails is a set that has stopped measuring
+- [ ] Single run. Selection is not deterministic; a re-run can differ
+- [x] `stock-4` passes on an `acceptable` alternative, not an exact match —
+      resolved 2026-08-12 on the target model, exact match after
+      `getSkuMovement`'s description gained the out-of-stock-duration trigger
+
+> **The number was 88% before two fixes, and one of them was a measurement bug
+> in my own harness.** A Gemini 503 on `comp-1` was being scored as the model
+> choosing the wrong tool, so the headline was part accuracy and part Google's
+> uptime. Transient provider errors are now retried once and then *excluded from
+> the denominator and reported*, never counted as a miss. That single conflation
+> was the difference between 88% (fail) and 92% (pass).
+>
+> The other fix was real: `getVisitHistory`'s description ended *"…or whether an
+> agent has been checking in"*, which a model reasonably reads as covering how
+> an agent is doing. Both descriptions now disambiguate in each direction. It
+> recovered `comp-1` but not the two scorecard questions — because those are the
+> missing-lookup problem above, not a wording problem.
+
+**Also corrected:** the golden set has **25** questions. Earlier commits and all
+three documents said 26. Miscounted, and now counted programmatically.
+
+### Measured on the target model — 2026-08-12
+
+The number the gate is actually stated in. Full 25-question sweep on
+`gemini-3.1-pro-preview`, zero provider errors, nothing excluded from the
+denominator.
+
+| Run | Accuracy | What changed |
+|---|---|---|
+| 1 | 96.0% (24/25) — pass | baseline on the target model |
+| 2 | **100.0% (25/25)** | one tool-description trigger added |
+| 3 | **100.0% (26/26)** | roster grew to 10 tools (`getMetricTrend`) and the set to 27 questions; `vis-1` excluded after a 503 and one retry — Google had a high-demand spike that evening, and the exclusion is reported rather than counted |
+
+The single miss was `stock-4` (*"How long has the 500ml been out at those
+outlets?"*): Flash had answered it with the `acceptable` alternative, Pro chose
+**nothing**. Same diagnosis as `comp-1` in the Flash runs — the question asks a
+*duration* and `getSkuMovement`'s description only stated the *ranking* trigger
+("out of stock longest"). The description now states "how long a product has
+been out of stock" as well; the expected answers were not touched. On the
+re-run `stock-4` hits `getSkuMovement` exactly, not the alternative.
+
+The Flash caveats still apply here: one run per configuration, a small
+non-adversarial set, and a set that never fails has stopped measuring. But the
+Phase 0 exit number is no longer a floor read off the cheap tier — it is
+measured on the model the plan names.
+
+**What is still not done:**
+
+- [x] **Re-measure on the real model** ✅ 2026-08-12 — 100% (25/25) on
+      `gemini-3.1-pro-preview`, section above
+- [ ] **Langfuse Cloud project** — the client and the seam exist; there is no
+      project, so tracing no-ops
+- [x] **`trend_chart` + `outlet_map`** ✅ 2026-08-12 — `getMetricTrend` (new
+      tool wrapping `trends.service.ts`) emits `trend_chart`; `getStockLevels`
+      emits `outlet_map` over its `worstOutlets`, whose rows now carry
+      coordinates. `TrendChartCard` (shared `LineChart`) and `OutletMapCard`
+      (Tiq basemap kit + `fitFor`) render them inline
+- [ ] **Provider console spend caps** — the one ceiling this repo cannot provide
+- [ ] **`anthropic.ts`** — waiting on its key. The contract suite is written so
+      that adding it should be an adapter plus a flag; if it turns out to be
+      more, the interface leaked and *that* is the bug
+
+**Three defects found by tests during the build**, each invisible to review:
+
+1. `z.discriminatedUnion` emits JSON Schema `oneOf`, which **Gemini's `Schema`
+   does not have**. Every tool takes a period, so this was a 400 on *every
+   turn* — caught by converting every registered tool's schema in a test.
+2. The tracer's queue cap did nothing: `flush()` splices synchronously before
+   its first `await`, so the queue drained every 50 events and never reached the
+   bound — trading unbounded memory for unbounded concurrent requests.
+3. The app resolved repeated calls to one tool **backwards** (`lastIndexWhere`),
+   with a comment above it claiming the opposite.
+
+> **A limitation worth knowing before it surprises someone.** Gemini's
+> `abortSignal` is *client-side only*, per the SDK's own note: a client
+> disconnect stops us reading the stream, it does not stop Google generating or
+> billing it. The plan's "client disconnect must not orphan a paid request" is
+> therefore only partly satisfiable in code, and the rest genuinely is the
+> console cap.
+
+> **`RATES` in `providers/gemini.ts` is a placeholder.** Google's published
+> pricing has not been confirmed, so `costCents` is directionally right and
+> not yet trustworthy. It is a visible wrong number rather than a `0`, because
+> a zero would make a cost regression look like a saving.
 
 ---
 
@@ -124,12 +317,38 @@ its cheap slice on every assistant PR.
 
 1. Foundation
    - [x] `providers/types.ts` — `LlmProvider`, `TurnInput`, `TurnEvent`, `Usage` ✅ 2026-08-06
-   - [ ] `providers/gemini.ts` (`@google/genai`) — **first adapter**
+   - [x] `providers/gemini.ts` (`@google/genai`) — **first adapter** ✅ 2026-08-06.
+         Absorbs the three vendor differences that bite: the system prompt is
+         `config.systemInstruction` (prepending it as a `user` turn is the
+         common migration bug — it works, and silently destroys the cache prefix
+         and the instruction hierarchy); `FunctionCall.id` is optional on the
+         wire so a deterministic one is synthesised; cache hits arrive as
+         `cachedContentTokenCount`. `providers/geminiSchema.ts` is split out and
+         **pure** — Gemini's `Schema` is not JSON Schema, and two of the
+         differences (`anyOf: [T, null]`, `const`) fail *silently* by widening
+         what the model believes it may send
    - [x] `LLM_PROVIDER`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` in `.env.example` ✅ 2026-08-03 (Langfuse keys too)
-   - [ ] Provider contract test — same scripted turn, same `TurnEvent` stream
-   - [ ] Langfuse Cloud project, tracing wired in from the first request
-   - [ ] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
-         nightly, gated behind `secrets.ANTHROPIC_API_KEY`
+   - [x] Provider contract test — same scripted turn, same `TurnEvent` stream ✅ 2026-08-06.
+         `providers/contract.ts` is a suite *definition*: each adapter renders
+         one abstract script into its own wire shape, and everything after that
+         is asserted identically. **No key, no network** — a contract test that
+         needs a live provider runs on one machine, which is how a contract
+         stops being enforced
+   - [~] Langfuse tracing wired in from the first request ✅ 2026-08-06 —
+         **the seam and the client exist; the Cloud project does not.** No-op
+         when unconfigured, which is this repo's state. Fire-and-forget behind a
+         bounded, serialised queue: observability must never fail a turn, and
+         the orchestrator guards the tracer as well as the tracer guarding
+         itself. **Metadata only — conversation content is behind
+         `LANGFUSE_TRACE_CONTENT`, default off**, because the retention policy
+         for transcripts is still open (#251 Q3) and shipping capture would
+         quietly decide it. Tool *results* are never sent at any setting
+   - [x] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
+         nightly ✅ 2026-08-06. Matrix is **per provider and `fail-fast: false`**,
+         because the ≥90% gate is per adapter and a mean is exactly what hides a
+         one-provider regression. Skips cleanly on fork PRs and warns loudly on
+         a missing key, since a 0% score and an absent secret are otherwise
+         indistinguishable
 2. Security boundary **first**
    - [x] `roster.ts` — role → tool list ✅ 2026-08-06
    - [x] Roster matrix unit test: every `(role × tool)` pair, incl. the negative
@@ -137,23 +356,61 @@ its cheap slice on every assistant PR.
          (41 assertions; `field_agent` is empty in Phase 0 per the Audience
          decision, which is what makes the negative case meaningful)
 3. One vertical slice
-   - [ ] `prompt.ts` — frozen system prompt, no interpolation
-   - [ ] First tool (agent scorecard) wrapping the existing service
-   - [ ] `sanitize.ts` — spotlight-wrap tool results as untrusted
-   - [ ] `quarantine.ts` — tool-less Haiku pass over free text (dual-LLM pattern)
-   - [ ] `viewspec.ts` — `agent_scorecard` spec + Zod validation
-   - [ ] `orchestrator.ts` — `tool_runner` loop, cache breakpoint after tools+system
-   - [ ] `POST /assistant/chat` (SSE), reusing `requireAuth`
-   - [ ] Flutter: chat screen + streaming text
-   - [ ] Flutter: refactor the scorecard screen into a parameterised widget
-   - [ ] Flutter: view-spec registry renders it inline
+   - [x] `prompt.ts` — frozen system prompt, no interpolation ✅ 2026-08-06.
+         Exported as a `const`, not a builder, so there is no parameter to
+         accidentally thread through
+   - [x] First tool (agent scorecard) wrapping the existing service ✅ 2026-08-06.
+         `getAgentPerformance` added to `scorecards.service.ts`; the team
+         baseline **excludes the agent being scored**, because including them
+         pulls the average toward their own figure and compresses the gap most
+         for exactly the outliers a manager is looking for
+   - [x] `sanitize.ts` — spotlight-wrap tool results as untrusted ✅ 2026-08-06.
+         The fence is stripped from the payload before wrapping — a wrapper the
+         payload can close is the classic spotlighting failure. Also strips
+         Unicode tag characters and bidi overrides, which carry instructions no
+         human reviewing the record can see
+   - [x] `quarantine.ts` — tool-less pass over free text (dual-LLM) ✅ 2026-08-06.
+         **Fails closed**: on error, timeout, or a quarantine turn that somehow
+         emits a tool call, the text is omitted rather than passed through raw
+   - [x] `viewspec.ts` — `agent_scorecard` spec + Zod validation ✅ 2026-08-06
+   - [x] `orchestrator.ts` — loop, cache breakpoint after tools+system ✅ 2026-08-06.
+         Bounded at four tool rounds; the last round *withdraws tools* rather
+         than cutting the turn off, so the model still answers from what it
+         retrieved instead of wasting every paid call already made
+   - [x] `POST /assistant/chat` (SSE), reusing `requireAuth` ✅ 2026-08-06
+   - [x] Flutter: chat screen + streaming text ✅ 2026-08-06. SSE over a POST
+         read with a stream response, not `EventSource` — the message and
+         history do not belong in a URL, and `EventSource` cannot send an
+         `Authorization` header. `SseParser` is split from the transport and
+         tested a character at a time, because framing bugs only appear under
+         chunk boundaries a real server happens to produce
+   - [x] Flutter: scorecard as a parameterised widget ✅ 2026-08-06 —
+         `AgentScorecardCard`, deliberately minimal (the anti-crowding rule).
+         Every payload read is type-**tested**, never cast: a field that changes
+         type would otherwise throw and take the narrative down with it
+   - [x] Flutter: view-spec registry renders it inline ✅ 2026-08-06. An unknown
+         spec renders a note, never a blank card — including the *older-client*
+         case, where the server has added a spec this build has not heard of
 4. Widen and prove
-   - [ ] Remaining 7 tools, grouped by the four pillars
-   - [ ] `trend_chart` + `outlet_map` specs
-   - [ ] Integration test: stubbed model → correct service, correct `clientId`
-   - [ ] View-spec validation test (unknown types, malformed params)
-   - [ ] 25-question eval harness scored on tool-selection accuracy
-   - [ ] Cache-hit assertion (`cache_read_input_tokens > 0` on turn 2)
+   - [x] Remaining 8 tools, grouped by the four pillars ✅ 2026-08-06.
+         `pillars.service.ts` holds the aggregates — a new service rather than
+         additions to six existing pillar modules, which are being edited by
+         other branches and are the semantic-conflict surface
+   - [x] `trend_chart` + `outlet_map` specs ✅ 2026-08-12 — emitted
+         (`getMetricTrend` → `trend_chart`; `getStockLevels` → `outlet_map`,
+         ids in params, coordinates in the artifact data) and rendered
+         (`TrendChartCard`, `OutletMapCard`, both registered). Integration
+         tests assert both artifact frames end to end
+   - [x] Integration test: stubbed model → correct service, correct `clientId` ✅ 2026-08-06,
+         including the cross-tenant probe: the model names a real user id from
+         another tenant and the closure returns nothing
+   - [x] View-spec validation test (unknown types, malformed params) ✅ 2026-08-06
+   - [x] 25-question eval harness scored on tool-selection accuracy ✅ 2026-08-06 —
+         25 questions including two **refusal** cases, because a suite with no
+         refusals rewards a model that always guesses
+   - [x] Cache-hit assertion (`cache_read_input_tokens > 0` on turn 2) ✅ 2026-08-06,
+         with a companion test proving the assertion has teeth by interpolating
+         the system prompt and watching the prefix diverge
 5. Rollout and spend controls — **stated in the plan, previously missing here**
    - [x] Per-client feature flag, from Phase 0 ✅ 2026-08-06 —
          `Client.assistantEnabled`, default **false**. Readable via
@@ -168,21 +425,30 @@ its cheap slice on every assistant PR.
          not entitled, which invites probing. It fails closed on a DB error,
          because defaulting a metered feature *open* on an infrastructure blip
          is a spend incident
-   - [~] Rate-limit `/assistant/chat` per-user **and** per-tenant — limiters
-         **built and tested** ✅ 2026-08-06, **not yet mounted**: the route does
-         not exist. `createAssistantUserRateLimiter` /
-         `createAssistantTenantRateLimiter` key on the JWT, never the IP (a team
-         behind one corporate NAT would otherwise throttle each other). Tick
-         this fully when `POST /assistant/chat` lands with both mounted after
-         `requireAuth`
+   - [x] Rate-limit `/assistant/chat` per-user **and** per-tenant ✅ 2026-08-06,
+         mounted ✅ (verified 2026-08-12: both limiters sit on the chat route in
+         `assistant.routes.ts`, after `requireAuth`). They key on the JWT, never
+         the IP — a team behind one corporate NAT would otherwise throttle each
+         other
    - [ ] Hard monthly cap in **both** provider consoles + Langfuse budget alerts
          at 50% / 80%. Rate limiting bounds *a user*; the console cap bounds
          *the account* — a leaked key is not rate-limited by anything in this repo
-   - [ ] Client disconnect aborts the in-flight provider call rather than
-         orphaning a paid request
+   - [~] Client disconnect aborts the in-flight provider call ✅ 2026-08-06 —
+         the route aborts on `res.close`, the orchestrator checks between
+         rounds and between tool calls, and the signal reaches the SDK.
+         ⚠️ **Gemini's `abortSignal` is client-side only**, per the SDK's own
+         note: it stops us reading, not Google generating or billing. So this
+         is only *partly* satisfiable in code, and the rest is the console cap
+         above
 
 **Exit demo:** *"How has Tumo been performing this month?"* returns narrative
 plus the real scorecard widget, at manager scope, with a cache hit on turn 2.
+
+> **The demo passes as a test, against a scripted model.**
+> `assistant.routes.test.ts` and `chat_screen_test.dart` both assert exactly
+> that sentence end to end — tool call, real service at the caller's tenant,
+> validated artifact, rendered widget. It has **never been run against Gemini.**
+> Treat it as unproven until it has.
 
 ---
 
@@ -208,6 +474,19 @@ information.
 | `TurnEvent` scope | **Narrower than the SSE wire vocabulary.** Providers emit `token` · `tool_call` · `usage` · `error` · `done`; the orchestrator adds `tool_start`/`tool_end`/`artifact`/`confirm` | `artifact` is a validated spec from our closed catalog and `confirm` is our risk gate — no model stream can produce either, so including them would oblige every adapter to declare cases it can never emit. The mapping table lives in `providers/types.ts`. **Confirm against the design spec before the first adapter**: the spec calls the SSE table "the normalisation boundary", which is true for the client but sits one layer above where vendor differences actually live |
 | Roster immutability | **Fresh `Set` per call**, not a shared frozen one | `Object.freeze` does not make a `Set` immutable — contents live in internal slots, not properties, so a "frozen" roster still accepts `.add()` and the mutation would persist for every later request in the process. At nine entries beside an LLM call, copying does not register |
 | **Audience** | **Manager console only for Phase 0.** Revisit for field agents at Phase 5, and as a narrow non-chat surface rather than the full spine | Every piece of evidence behind this plan is manager-shaped — the interview, the Excel-overlay workflow, the 21 `managerDestinations`. Chat also contradicts the agent app's core promise: captures queue offline and sync later, but a chat turn has nothing sensible to queue, so an agent with no signal gets a spinner from an app built to keep working without one. Agents are mid-capture, not mid-enquiry; they also author the free text that is the injection vector (outlet names, visit notes), and they outnumber managers, so the rate-limit and red-team surface both widen for demand nobody has demonstrated. **Reopen if** agent-side questions show up — #52 (route screen) is the one real signal, and it wants a screen that works offline, not a turn that doesn't |
+
+### Implementation — decided while building Phase 0
+
+| Decision | Choice | Why |
+|---|---|---|
+| **`Period` on the wire** | **Flat `{kind, from?, to?}`**, narrowed back to a discriminated union by `transform` | `z.discriminatedUnion` emits JSON Schema `oneOf`, and **Gemini's `Schema` has no `oneOf`**. Every tool takes a period, so the obvious spelling was a 400 on *every turn* — caught by `tools.test.ts`, not by a request. Strictness is unchanged: `refine` still rejects a `custom` period with no dates, and dates supplied alongside a fixed period |
+| Inexpressible tool schemas | `toGeminiSchema` **throws**, never drops | A silently discarded constraint is a schema that lies to the model. `anyOf: [T, null]` and `const` are the dangerous cases because Gemini *accepts* the truncated version |
+| Who names a view spec | **The tool**, never the model | Makes the closed catalog a real constraint rather than a suggestion — there is no path by which a model could name a spec type at all |
+| Artifact data vs model data | Artifact carries the **raw** result; the model gets the sanitized copy | Fencing would put `«untrusted» …` inside a chart label. The model is what an injection targets; a widget is not |
+| Quarantine failure | **Fails closed** — text omitted, never passed through raw | Falling back to the original on failure switches the defence off exactly when something is already going wrong |
+| Loop bound | 4 rounds; the last **withdraws tools** rather than cutting off | Every round is a paid request. Stopping dead would waste every call the turn already made, when the model can still answer from what it retrieved |
+| Pillar aggregates | New `pillars.service.ts`, not additions to six existing modules | Those files are being edited by other branches and are the semantic-conflict surface — two green PRs, one red `main`. These are also a different shape: capture services read *one visit*, these summarise many |
+| `eraseToolTypes` | One documented assertion, in one place | `AssistantTool` is contravariant in its args, so a heterogeneous roster cannot be typed without it. The cast is guarded by the orchestrator's `safeParse`, which runs before `run` is reached |
 
 ### Interface
 
@@ -243,7 +522,9 @@ information.
 | Prompt injection | Dual-LLM quarantine + spotlighting, layered | No single defence closes the gap; instruction-based defence is the weakest layer and never the only one |
 | Observability | **Langfuse Cloud** (MIT, self-host escape hatch) | Self-hosting is a 6-service stack — real operational weight for a small team. Braintrust is nicer but $249/mo with no self-host |
 | Memory | Postgres preferences now; defer mem0/Zep | Temporal truth already lives in Postgres — don't build a graph over it |
-| Testing | Five layers, every phase gated | API key available day one, so nothing defers to a hardening pass |
+| Testing | Five layers, every phase gated | ~~API key available day one, so nothing defers to a hardening pass~~ — **the premise was wrong** (2026-08-07). No key ever arrived. Four of the five layers turned out not to need one and are green; the *live eval* layer is the exception, and it is the phase gate. The conclusion survives by accident rather than by design: nothing was deferred, but nothing was proven either |
+| **Trace content** | **Metadata only. Conversation text behind `LANGFUSE_TRACE_CONTENT`, default off** | Transcripts carry outlet and agent PII, and retention (#251 Q3) plus POPIA residency (Q4) are both **open**. Shipping capture to a third-party cloud would answer them without anyone deciding. Tool *results* are never sent at any setting — they are simultaneously the untrusted surface and the richest PII source in the system |
+| **Cost rates** | Placeholder, seeded from the plan's cost table, `costCents` never `0` | Google's pricing is unconfirmed. One set of numbers to correct rather than two that can disagree; a zero would make a cost regression look like a saving |
 | Rollout | Per-client feature flag; additive until Phase 4 | Nothing is removed until the replacement is proven |
 
 ---

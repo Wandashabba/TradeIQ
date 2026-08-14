@@ -20,6 +20,7 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
     getAgentScorecard: false,
     getVisitHistory: false,
     getFraudFlags: false,
+    getMetricTrend: false,
   },
   manager: {
     getRateOfSale: true,
@@ -31,6 +32,7 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
     getAgentScorecard: true,
     getVisitHistory: true,
     getFraudFlags: true,
+    getMetricTrend: true,
   },
   admin: {
     getRateOfSale: true,
@@ -42,6 +44,7 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
     getAgentScorecard: true,
     getVisitHistory: true,
     getFraudFlags: true,
+    getMetricTrend: true,
   },
 };
 
