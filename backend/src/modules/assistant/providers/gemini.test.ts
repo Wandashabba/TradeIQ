@@ -119,6 +119,37 @@ describe('gemini adapter — vendor specifics', () => {
     });
   });
 
+  it('replays the thought signature the call was issued with', () => {
+    // Gemini 3.x answers a follow-up request with 400 INVALID_ARGUMENT
+    // ("Function call is missing a thought_signature in functionCall parts")
+    // when a functionCall returns without it. Because the model's tool-call
+    // turn must be in history before the matching result, dropping the token
+    // killed every turn that called a tool: the tool ran, and the request
+    // carrying its result was refused. The signature rides on the Part, beside
+    // functionCall rather than inside it.
+    const contents = toGeminiContents([
+      {
+        role: 'assistant',
+        content: '',
+        toolCalls: [
+          { id: 'c0', name: 'getStockLevels', args: {}, providerSignature: 'sig-abc' },
+        ],
+      },
+    ]);
+
+    expect(contents[0].parts?.[0].thoughtSignature).toBe('sig-abc');
+  });
+
+  it('omits the signature entirely for a provider that issues none', () => {
+    // Anthropic has no equivalent. The key must be absent rather than
+    // undefined — Gemini validates the shape it is sent.
+    const contents = toGeminiContents([
+      { role: 'assistant', content: '', toolCalls: [{ id: 'c0', name: 'getStockLevels', args: {} }] },
+    ]);
+
+    expect(contents[0].parts?.[0]).not.toHaveProperty('thoughtSignature');
+  });
+
   it('merges parallel tool results into one turn', () => {
     // Two adjacent turns of the same role is a 400 from Gemini, and it only
     // happens once the model starts calling two tools at once.

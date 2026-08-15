@@ -151,6 +151,11 @@ export function toGeminiContents(messages: readonly Message[]): Content[] {
           name: call.name,
           args: (call.args ?? {}) as Record<string, unknown>,
         },
+        // Replayed verbatim. Without it Gemini 3.x rejects the whole request
+        // with 400 INVALID_ARGUMENT ("missing a thought_signature in
+        // functionCall parts"), so every turn that calls a tool dies on the
+        // follow-up request that carries the tool's result.
+        ...(call.providerSignature ? { thoughtSignature: call.providerSignature } : {}),
       });
     }
     // An assistant turn that was pure tool calls has no text. Gemini rejects an
@@ -359,6 +364,10 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
                 id: part.functionCall.id ?? `call_${callIndex}`,
                 name: part.functionCall.name ?? '',
                 args: part.functionCall.args ?? {},
+                // Carried, not read. Gemini 3.x refuses the next request if this
+                // call returns without the signature it was issued with, and the
+                // signature rides on the Part rather than inside functionCall.
+                ...(part.thoughtSignature ? { signature: part.thoughtSignature } : {}),
               };
               callIndex += 1;
             }

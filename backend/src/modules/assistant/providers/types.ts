@@ -88,6 +88,20 @@ export interface ToolCallRecord {
   id: string;
   name: string;
   args: unknown;
+
+  /**
+   * Vendor-opaque token the provider attached to this call, replayed verbatim
+   * when the call goes back in history. Never inspected, never logged, never
+   * persisted beyond the turn — treat it as a blob the vendor handed us.
+   *
+   * Gemini 3.x rejects a follow-up request outright (400 INVALID_ARGUMENT) when
+   * a `functionCall` comes back without the `thoughtSignature` it was issued
+   * with. Since the model's tool-call turn *must* be in history before the
+   * matching results, dropping the token breaks every multi-round turn — the
+   * first tool runs, and the request that carries its result is refused.
+   * Anthropic has no equivalent, so it leaves this unset.
+   */
+  providerSignature?: string;
 }
 
 /**
@@ -162,8 +176,14 @@ export interface Usage {
  */
 export type TurnEvent =
   | { type: 'token'; text: string }
-  /** The model wants a tool run. `id` correlates the later result. */
-  | { type: 'tool_call'; id: string; name: string; args: unknown }
+  /**
+   * The model wants a tool run. `id` correlates the later result.
+   *
+   * `signature` is the vendor-opaque token that must travel back with this call
+   * in history — see {@link ToolCallRecord.providerSignature}. Absent for
+   * providers that do not issue one.
+   */
+  | { type: 'tool_call'; id: string; name: string; args: unknown; signature?: string }
   | { type: 'usage'; usage: Usage }
   /** Terminal. `message` must be user-safe — never a stack trace or a raw vendor error. */
   | { type: 'error'; code: string; message: string }
