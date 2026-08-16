@@ -94,6 +94,8 @@ class LineChart extends StatefulWidget {
     this.seriesName = '',
     this.lineWidth = 2,
     this.gradientFill = false,
+    this.comparison = const [],
+    this.comparisonName = '',
   });
 
   final List<ChartPoint> points;
@@ -109,6 +111,32 @@ class LineChart extends StatefulWidget {
   /// When true the area under the line fades brand 28% → 0% top-to-bottom —
   /// the redesign's "glass" recipe — instead of the flat series wash.
   final bool gradientFill;
+
+  /// A second series drawn beside the first — the same metric over an earlier
+  /// window, which is the comparison that replaces exporting twice and
+  /// overlaying the two in Excel.
+  ///
+  /// **This does not break "one series, one hue."** That rule forbids *cycling
+  /// or generating* colours across nominal categories; two named series take
+  /// the palette's two fixed series slots, and the widget refuses to draw a
+  /// third. The comparison takes [TiqColors.series2], gets no area fill and no
+  /// endpoint label — the current period stays the figure being read, and the
+  /// comparison is the reference behind it.
+  ///
+  /// **Aligned by position, not by date.** The two windows are different
+  /// stretches of calendar with their own bucket labels, and a bucket with no
+  /// visits produces no point at all, so nth-against-nth is the only alignment
+  /// available — the same one a period-over-period overlay has always used.
+  /// The scrub readout names both buckets so that alignment is visible rather
+  /// than assumed.
+  ///
+  /// Empty (the default) means every existing caller is byte-for-byte
+  /// unchanged: no legend row, no second stroke, no scale contribution.
+  final List<ChartPoint> comparison;
+
+  /// What the comparison is, for the legend and the readout — "the month before
+  /// this one". Colour is never the only carrier of which line is which.
+  final String comparisonName;
 
   @override
   State<LineChart> createState() => _LineChartState();
@@ -128,11 +156,13 @@ class _LineChartState extends State<LineChart> {
 
     final colors = context.colors;
     final scale = _niceScale(
-      widget.points.map((p) => p.value),
+      // Both series, or the comparison rides off the top of the plot on the
+      // first month it beat the current one.
+      [...widget.points, ...widget.comparison].map((p) => p.value),
       forceMin: widget.target,
     );
 
-    return SizedBox(
+    final plot = SizedBox(
       height: widget.height,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -151,6 +181,7 @@ class _LineChartState extends State<LineChart> {
             builder: (context, t, _) {
               final painter = _LinePainter(
                 points: widget.points,
+                comparison: widget.comparison,
                 scale: scale,
                 target: widget.target,
                 hover: _hover,
@@ -201,6 +232,8 @@ class _LineChartState extends State<LineChart> {
                             previous: _hover! > 0
                                 ? widget.points[_hover! - 1].value
                                 : null,
+                            against: _comparisonAt(_hover!),
+                            againstName: widget.comparisonName,
                             suffix: widget.valueSuffix,
                             seriesName: widget.seriesName,
                             x: painter.xFor(_hover!, constraints.maxWidth),
@@ -214,6 +247,55 @@ class _LineChartState extends State<LineChart> {
         },
       ),
     );
+
+    if (widget.comparison.isEmpty) return plot;
+
+    // Two lines need a legend, always: the palette's series slots are the only
+    // thing distinguishing them on the canvas, and colour may not be the sole
+    // carrier of meaning. Added only in the comparison case, so a single-series
+    // caller keeps exactly the footprint it had.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 38, bottom: 6),
+          child: Wrap(
+            spacing: 14,
+            runSpacing: 4,
+            children: [
+              _LegendItem(
+                color: colors.series1,
+                label: widget.seriesName.isEmpty
+                    ? 'This period'
+                    : widget.seriesName,
+              ),
+              _LegendItem(
+                color: colors.series2,
+                label: widget.comparisonName.isEmpty
+                    ? 'Comparison'
+                    : widget.comparisonName,
+              ),
+            ],
+          ),
+        ),
+        plot,
+      ],
+    );
+  }
+
+  /// The comparison point that sits under index [i] of the main series.
+  ///
+  /// Positional, and deliberately: see [LineChart.comparison]. Returns null
+  /// when there is no comparison rather than reaching for a nearby bucket —
+  /// a value the user cannot trace back to a date is worse than a gap.
+  ChartPoint? _comparisonAt(int i) {
+    final other = widget.comparison;
+    if (other.isEmpty) return null;
+    if (other.length == 1) return other.first;
+    if (widget.points.length < 2) return other.first;
+    final t = i / (widget.points.length - 1);
+    return other[(t * (other.length - 1)).round().clamp(0, other.length - 1)];
   }
 
   void _updateHover(Offset local, double width, _LinePainter painter) {
@@ -233,12 +315,17 @@ class _LinePainter extends CustomPainter {
     required this.hover,
     required this.valueSuffix,
     required this.colors,
+    this.comparison = const [],
     this.progress = 1,
     this.lineWidth = 2,
     this.gradientFill = false,
   });
 
   final List<ChartPoint> points;
+
+  /// The second series, spanning the same plot width. Empty for every
+  /// single-series caller.
+  final List<ChartPoint> comparison;
   final ({double min, double max, double step}) scale;
   final double? target;
   final int? hover;
@@ -310,6 +397,35 @@ class _LinePainter extends CustomPainter {
       }
       final tp = _text('Target', style: _labelStyle(colors));
       tp.paint(canvas, Offset(_pad.left + innerW + 5, y - tp.height / 2));
+    }
+
+    // The comparison, under everything else and inside the same reveal clip.
+    // No fill: two washes over one plot muddy both, and the current period is
+    // the figure being read — the comparison is the reference behind it.
+    if (comparison.length > 1) {
+      final other = Path();
+      for (var i = 0; i < comparison.length; i++) {
+        final inner = size.width - _pad.left - _pad.right;
+        final o = Offset(
+          _pad.left + (i / (comparison.length - 1)) * inner,
+          _yFor(comparison[i].value, size.height),
+        );
+        i == 0 ? other.moveTo(o.dx, o.dy) : other.lineTo(o.dx, o.dy);
+      }
+      canvas.save();
+      canvas.clipRect(
+        Rect.fromLTWH(_pad.left, 0, innerW * progress.clamp(0, 1), size.height),
+      );
+      canvas.drawPath(
+        other,
+        Paint()
+          ..color = colors.series2
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round,
+      );
+      canvas.restore();
     }
 
     // Area + line, revealed left-to-right by `progress`.
@@ -424,6 +540,7 @@ class _LinePainter extends CustomPainter {
   @override
   bool shouldRepaint(_LinePainter old) =>
       old.points != points ||
+      old.comparison != comparison ||
       old.hover != hover ||
       old.target != target ||
       old.progress != progress ||
@@ -1050,6 +1167,8 @@ class _ScrubReadout extends StatelessWidget {
     required this.seriesName,
     required this.x,
     required this.plotWidth,
+    this.against,
+    this.againstName = '',
   });
 
   final ChartPoint point;
@@ -1059,9 +1178,16 @@ class _ScrubReadout extends StatelessWidget {
   final double x;
   final double plotWidth;
 
+  /// The comparison series' point under the caret, when there is one. It shows
+  /// its own LABEL as well as its value: the two series are aligned by
+  /// position, not by date, and the reader is entitled to see which bucket
+  /// they are being shown rather than assume it is the same day.
+  final ChartPoint? against;
+  final String againstName;
+
   @override
   Widget build(BuildContext context) {
-    const w = 150.0;
+    const w = 176.0;
     final left = (x + 12).clamp(0.0, math.max(0.0, plotWidth - w)).toDouble();
     final delta = previous == null ? null : point.value - previous!;
 
@@ -1118,6 +1244,19 @@ class _ScrubReadout extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppColors.ink3,
+                      ),
+                    ),
+                  ),
+                if (against != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '${_trim(against!.value)}$suffix · ${against!.label}'
+                      '${againstName.isEmpty ? '' : ' ($againstName)'}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.ink3,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                   ),

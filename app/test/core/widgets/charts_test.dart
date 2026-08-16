@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -15,6 +18,23 @@ class _PaintLog implements Canvas {
 
   @override
   void drawPath(Path path, Paint paint) => pathPaints.add(paint);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+/// Records only the vertical extent of what is drawn, so a test can assert the
+/// plot actually contains its data rather than trusting the scale arithmetic.
+class _PathBounds implements Canvas {
+  double top = double.infinity;
+  double bottom = double.negativeInfinity;
+
+  @override
+  void drawPath(Path path, Paint paint) {
+    final bounds = path.getBounds();
+    top = math.min(top, bounds.top);
+    bottom = math.max(bottom, bounds.bottom);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
@@ -76,6 +96,148 @@ void main() {
 
       expect(find.text('78.4'), findsOneWidget);
       expect(find.text('Execution score'), findsOneWidget);
+    });
+  });
+
+  group('LineChart comparison series', () {
+    const earlier = <ChartPoint>[
+      (label: '14 May', value: 70.0),
+      (label: '20 May', value: 71.5),
+      (label: '29 May', value: 70.8),
+      (label: '6 Jun', value: 72.0),
+      (label: '13 Jun', value: 71.1),
+    ];
+
+    testWidgets('draws a second stroke in the second series slot', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const LineChart(
+            points: _series,
+            comparison: earlier,
+            seriesName: 'This month',
+            comparisonName: 'The month before',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final paints = _recordPaths(
+        tester,
+        find.byType(LineChart),
+        const Size(600, 208),
+      );
+      final strokes = paints
+          .where((p) => p.style == PaintingStyle.stroke)
+          .toList();
+
+      expect(
+        strokes,
+        hasLength(2),
+        reason: 'both series must reach the canvas',
+      );
+      // Fixed palette slots, never a generated or cycled hue.
+      expect(strokes.map((p) => p.color.toARGB32()).toSet(), {
+        TiqColors.dark.series1.toARGB32(),
+        TiqColors.dark.series2.toARGB32(),
+      });
+      // One fill only: the comparison gets no wash, or two washes over one plot
+      // muddy both.
+      expect(paints.where((p) => p.style == PaintingStyle.fill), hasLength(1));
+    });
+
+    testWidgets('names both lines, so colour is never the only carrier', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const LineChart(
+            points: _series,
+            comparison: earlier,
+            seriesName: 'This month',
+            comparisonName: 'The month before',
+          ),
+        ),
+      );
+
+      expect(find.text('This month'), findsOneWidget);
+      expect(find.text('The month before'), findsOneWidget);
+    });
+
+    testWidgets('scales to whichever series is higher', (tester) async {
+      // A comparison that beat the current period must not ride off the top of
+      // the plot — the whole point is reading the two against each other.
+      const towering = <ChartPoint>[
+        (label: 'a', value: 400),
+        (label: 'b', value: 420),
+      ];
+      await tester.pumpWidget(
+        _wrap(const LineChart(points: _series, comparison: towering)),
+      );
+      await tester.pumpAndSettle();
+
+      final chart = find.byType(LineChart);
+      final cp = tester.widget<CustomPaint>(
+        find.descendant(of: chart, matching: find.byType(CustomPaint)),
+      );
+      final bounds = _PathBounds();
+      cp.painter!.paint(bounds, const Size(600, 208));
+
+      expect(bounds.top, greaterThanOrEqualTo(0.0));
+      expect(bounds.bottom, lessThanOrEqualTo(208.0));
+    });
+
+    testWidgets('a single comparison point is not drawn as a line', (
+      tester,
+    ) async {
+      // Same rule the main series follows: one point is not a trend.
+      await tester.pumpWidget(
+        _wrap(
+          const LineChart(
+            points: _series,
+            comparison: [(label: 'a', value: 5)],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final paints = _recordPaths(
+        tester,
+        find.byType(LineChart),
+        const Size(600, 208),
+      );
+      expect(
+        paints.where((p) => p.style == PaintingStyle.stroke),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('a scrub reads out the compared bucket by name', (
+      tester,
+    ) async {
+      // The two series are aligned by POSITION, not by date. Showing the
+      // comparison bucket's own label is what makes that visible instead of
+      // leaving the reader to assume it is the same day.
+      await tester.pumpWidget(
+        _wrap(
+          const LineChart(
+            points: _series,
+            comparison: earlier,
+            comparisonName: 'The month before',
+          ),
+        ),
+      );
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(
+        tester.getCenter(find.byType(LineChart)) + const Offset(240, 0),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('71.1 · 13 Jun (The month before)'), findsOneWidget);
     });
   });
 

@@ -19,8 +19,10 @@ import {
   createArtifact,
   readArtifact,
   refineArtifact,
+  takeParamsChanges,
   undoArtifact,
 } from './artifacts.service';
+import { paramsChangeNote } from './paramsNote';
 
 export const assistantRouter = Router();
 
@@ -159,12 +161,26 @@ assistantRouter.post(
       console.error('[assistant] could not load artifact manifest', err);
     }
 
+    // …and what the user changed with their own hands since the last answer.
+    //
+    // The manifest says what is open; this says what *moved*, and that the user
+    // moved it. Without it, "now break that down by territory" is answered
+    // against the params the model last saw rather than the ones on screen —
+    // confidently, which is the worst way to be wrong. Same placement rule as
+    // the manifest, for the same cache reason.
+    let changeNote = '';
+    try {
+      changeNote = paramsChangeNote(await takeParamsChanges(conversationId, owner));
+    } catch (err) {
+      console.error('[assistant] could not load artifact params changes', err);
+    }
+
     const messages: Message[] = [
       ...(parsed.data.history ?? []).map((m) => ({ role: m.role, content: m.content })),
       // Prepended to the user's own turn rather than sent as its own message:
       // Gemini rejects two adjacent turns of the same role, and a synthetic
       // `user` turn immediately before the real one is exactly that.
-      { role: 'user' as const, content: manifestNote + parsed.data.message },
+      { role: 'user' as const, content: manifestNote + changeNote + parsed.data.message },
     ];
 
     try {

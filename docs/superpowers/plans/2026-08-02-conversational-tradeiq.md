@@ -842,12 +842,18 @@ tests at phone / tablet / desktop breakpoints.
       schema is a **tagged object, not a discriminated union**, because a union
       serialises as `oneOf`, which `geminiSchema.ts` refuses outright and which
       breaks *every* declaration in the roster, not just this one.
-- [ ] Charts render the comparison as a second series; the table twin gains a
+- [x] Charts render the comparison as a second series; the table twin gains a
       delta column (absolute and %)
-      → **Not started.** #272 renders per-figure deltas on the
-      `pillar_metrics` card, which is not the same thing. A real second series
-      needs `LineChart` to accept one — a shared widget the whole console uses,
-      so it is a more careful change than the card was.
+      → **Done.** `LineChart` takes an optional `comparison` series in the
+      palette's second slot, with a legend (colour is never the only carrier)
+      and a scale computed over both series. `getMetricTrend` gained
+      `compareTo`, so there is a second series to draw; the trend's basis is
+      **period-only**, because `TrendFilters` has no territory narrowing and a
+      territory basis would return the whole business twice. The table twin
+      carries value, baseline, Δ and Δ%. The two series align **by position**,
+      not by date — different calendar stretches, and an empty bucket produces
+      no point — so the readout and the table both name the compared bucket
+      rather than letting the reader assume it is the same day.
 - [x] "Compare X to Y" resolves in one turn — this is the workflow the
       practitioner explicitly asked us to kill, so it must not require the user
       to open two artifacts and read across them
@@ -861,37 +867,63 @@ tests at phone / tablet / desktop breakpoints.
       model and the UI write through
 - [x] `POST /assistant/artifacts/:id/refine` — validate params, re-invoke the
       **same tool closure** (same RBAC), return fresh data. **No model call.**
-- [ ] Append a compact `[artifact:<id> params → …]` note to conversation history
+- [x] Append a compact `[artifact:<id> params → …]` note to conversation history
       on every UI-driven change, so the model never reasons from stale params
-      → **Not started, and it is the next backend gap.** `refine` currently
-      updates the row without telling the model, so after a UI filter change the
-      model's picture of the artifact is stale. The manifest (#270) covers the
-      *start* of a turn; this covers changes made mid-conversation.
-      ⚠️ Whatever shape it takes, it must ride with the **user message**, not the
-      system prompt — the cached prefix is `[tools][system]` and caching is a
-      prefix match, so volatile text in there misses the cache and, since #267,
-      bills for a new cache entry each turn.
+      → **Done.** A `refine` or an `undo` flags the row (`paramsChangedAt`);
+      the next turn in that conversation renders the note, hands it to the
+      model **with the user message**, and clears the flag. Announced once,
+      not forever: restating it every turn spends tokens saying what the
+      manifest already carries. The note renders from the params *at turn
+      time*, so repeated drags of one slider collapse to where it landed, and
+      it says the **user** made the change — otherwise the model reads it as
+      its own earlier work and may put the view back.
+      ⚠️ Placement is load-bearing and a route test asserts it: the cached
+      prefix is `[tools][system]` and caching is a prefix match, so volatile
+      text in there misses the cache and, since #267, bills for a new cache
+      entry each turn.
+- [x] **The app echoes the conversation id.** Not previously listed, and it is
+      why none of the above could have worked live: the server announces a
+      conversation id on every turn and the client ignored it, so each turn
+      opened a *new* conversation and the manifest (#270) always found nothing.
 - [x] Inject a live-artifact manifest (`{id, type, params}`) into context so the
       model can target an existing artifact instead of emitting a duplicate
 - [x] `GET /assistant/artifacts/:id` — rehydrate on reopen
 - [x] `POST /assistant/artifacts/:id/undo` — pop `paramsHistory`
 
 ### Flutter — three render modes
-- [~] **Inline** (in the chat stream): headline figure + existing `Sparkline` +
+- [x] **Inline** (in the chat stream): headline figure + existing `Sparkline` +
       one-line caption + Expand. Deliberately minimal — this is the
       anti-crowding rule
-      → **Partial.** Four inline cards exist (`agent_scorecard`, `trend_chart`,
-      `outlet_map`, `pillar_metrics`). None has an **Expand** affordance yet,
-      because there is nothing to expand into.
-- [ ] **Expanded**: full `LineChart`/`ColumnChart`/`BarChart`, filter controls,
-      and the **table twin** `charts.dart` already mandates. Side panel on
-      web/tablet (chat stays visible), full-screen sheet on phone
+      → **Done.** Four inline cards, each now carrying an **Expand**
+      affordance — offered only for an artifact with a persisted (uuid) id,
+      since a turn that failed to persist falls back to a turn-local one and
+      `/artifact/getStockLevels-0` is a 404 waiting to happen. The comparison
+      series is *not* held back for Expanded: a turn that asked to compare two
+      windows asked for two lines.
+- [x] **Expanded**: full `LineChart`, filter controls, and the **table twin**
+      `charts.dart` already mandates. Side panel on web/tablet, stacked on
+      phone
+      → **Done** for `trend_chart` (chart, table twin, Δ and Δ% columns) and
+      `pillar_metrics` (figures, baseline, Δ, Δ%). `agent_scorecard` and
+      `outlet_map` fall back to their inline card inside the same shell — a
+      table of pin coordinates is not a table twin, and a map is already the
+      whole answer at any size. What they gain is the controls and the route.
 - [ ] **Print**: paginated, controls stripped
-- [ ] Route `/artifact/:id` so the browser back button and deep links work —
+- [x] Route `/artifact/:id` so the browser back button and deep links work —
       this is what makes "go back" free rather than bespoke state juggling
-- [ ] Filter controls: date-range picker, period granularity, territory/agent
-      scope. Labelled for screen readers (the a11y work in #144 set the bar)
-- [ ] Optimistic UI on filter change with a rollback on server rejection
+      → **Done.** Reached with `push`, so Back returns to the transcript. The
+      screen re-reads by id, so a shared link re-runs the tool through the
+      *follower's* roster: a refusal, never someone else's figures.
+- [x] Filter controls: date-range picker, period granularity, territory scope.
+      Labelled for screen readers (the a11y work in #144 set the bar)
+      → **Done**, with one narrowing: agent scope is not offered, because no
+      tool behind a drawable spec takes an agent as a filter. Controls are
+      offered per spec type from one table, conservatively — Zod *strips* an
+      undeclared key rather than rejecting it, so a control for a param its
+      tool never had would appear to work and silently change nothing.
+- [x] Optimistic UI on filter change with a rollback on server rejection
+      → **Done.** The rollback is the point: a control left sitting on a value
+      the server refused disagrees with the figures underneath it.
 
 ### PDF export
 - [ ] `pdf` + `printing` packages; generate **in an Isolate** so the UI thread

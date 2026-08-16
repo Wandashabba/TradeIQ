@@ -3,6 +3,7 @@ import {
   compareToSchema,
   describeComparison,
   numericDeltas,
+  periodCompareToSchema,
 } from './compare';
 import type { Period } from './period';
 import { z } from 'zod';
@@ -62,6 +63,14 @@ describe('comparison basis', () => {
     // refinement instead — the union shape serialises as `oneOf`, which Gemini
     // has no equivalent for and geminiSchema.ts refuses outright.
     expect(compareToSchema.safeParse({ kind: 'territory' }).success).toBe(false);
+  });
+
+  it('offers a trend only the bases a time series can honour', () => {
+    // `trends.service.ts` has no territory narrowing, so a trend that accepted
+    // one would answer with the whole business twice and label it a comparison.
+    expect(periodCompareToSchema.safeParse({ kind: 'previous_period' }).success).toBe(true);
+    expect(periodCompareToSchema.safeParse({ kind: 'same_period_last_year' }).success).toBe(true);
+    expect(periodCompareToSchema.safeParse({ kind: 'territory', id: 't1' }).success).toBe(false);
   });
 
   it('declares a schema Gemini will actually accept', () => {

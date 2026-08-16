@@ -19,6 +19,7 @@ class StubRepository implements AssistantRepository {
   Stream<AssistantEvent> chat({
     required String message,
     List<ChatHistoryEntry> history = const [],
+    String? conversationId,
     CancelToken? cancelToken,
   }) async* {
     sent.add(message);

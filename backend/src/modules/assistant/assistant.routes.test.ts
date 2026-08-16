@@ -370,6 +370,120 @@ describe('POST /assistant/chat', () => {
       expect(turn.system).not.toContain('Views already open');
     });
 
+    it('tells the model what the user changed with the filter controls', async () => {
+      // The stale-params bug, end to end: answer, user drags a filter, user
+      // asks a follow-up. Without the note the follow-up is answered against
+      // the params the model last saw — which are no longer on screen.
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getAgentScorecard',
+            args: { agent: agent.userId, period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Solid month.' }, { type: 'done' }],
+      ];
+
+      const first = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How has the agent been performing this month?' });
+
+      const firstFrames = parseSse(first.text);
+      const conversationId = (firstFrames[0].data as { id: string }).id;
+      const artifactId = (firstFrames.find((f) => f.event === 'artifact')!.data as { id: string })
+        .id;
+
+      // The user moves the control themselves. No model call — that is the
+      // whole point of `refine` — so this is the only way the model finds out.
+      await request(app)
+        .post(`/assistant/artifacts/${artifactId}/refine`)
+        .set('Authorization', `Bearer ${manager.token}`)
+        // The TOOL's args, not the view spec's params — `refine` re-runs the
+        // tool, so the tool's own schema is the one contract it validates
+        // through. See artifacts.service.ts.
+        .send({ params: { agent: agent.userId, period: { kind: 'ytd' } } })
+        .expect(200);
+
+      script.calls.length = 0;
+      script.rounds = [[{ type: 'token', text: 'Sure.' }, { type: 'done' }]];
+
+      await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ conversationId, message: 'Now compare that to the team.' });
+
+      const turn = script.calls.find((c) => c.model !== 'quarantine')!;
+      const lastMessage = turn.messages[turn.messages.length - 1];
+
+      expect(lastMessage.content).toContain(`[artifact:${artifactId} params → `);
+      expect(lastMessage.content).toContain('period=ytd');
+      // Said to be the user's doing, not the model's own earlier work.
+      expect(lastMessage.content).toContain('The user changed these views themselves');
+      expect(lastMessage.content).toContain('Now compare that to the team.');
+      // Same cache rule as the manifest: volatile text never enters the prefix,
+      // where — since caching went explicit — it would bill a new cache entry
+      // every turn rather than merely missing the old one.
+      expect(turn.system).not.toContain('The user changed these views');
+      expect(turn.system).not.toContain(artifactId);
+    });
+
+    it('announces a change once, not on every turn after it', async () => {
+      // A note restated forever costs tokens to say what the manifest already
+      // carries, and reads as a change that keeps happening.
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getAgentScorecard',
+            args: { agent: agent.userId, period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Solid.' }, { type: 'done' }],
+      ];
+
+      const first = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How is the agent doing?' });
+
+      const firstFrames = parseSse(first.text);
+      const conversationId = (firstFrames[0].data as { id: string }).id;
+      const artifactId = (firstFrames.find((f) => f.event === 'artifact')!.data as { id: string })
+        .id;
+
+      await request(app)
+        .post(`/assistant/artifacts/${artifactId}/refine`)
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ params: { agent: agent.userId, period: { kind: 'ytd' } } })
+        .expect(200);
+
+      script.rounds = [[{ type: 'token', text: 'Sure.' }, { type: 'done' }]];
+      await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ conversationId, message: 'And the team?' });
+
+      script.calls.length = 0;
+      await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ conversationId, message: 'What about stock?' });
+
+      const turn = script.calls.find((c) => c.model !== 'quarantine')!;
+      const lastMessage = turn.messages[turn.messages.length - 1];
+
+      expect(lastMessage.content).not.toContain('The user changed these views');
+      // The manifest still carries the current params, which is what a later
+      // turn actually needs — the note is about the *change*, not the state.
+      expect(lastMessage.content).toContain('Views already open');
+    });
+
     it('streams an outlet map when stockouts have somewhere to point', async () => {
       script.rounds = [
         [
@@ -431,6 +545,54 @@ describe('POST /assistant/chat', () => {
       const data = (artifact?.data as { data: { points: { value: number }[] } }).data;
       expect(data.points).toHaveLength(1);
       expect(data.points[0].value).toBe(82);
+    });
+
+    it('plots a comparison as a second series, in one turn', async () => {
+      // The workflow being killed is "export, save, export again, overlay the
+      // two in Excel". Two lines from one question is the whole point, so the
+      // second window has to come back as its own SERIES — a per-figure delta
+      // is a different thing and cannot be plotted.
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getMetricTrend',
+            args: {
+              metric: 'execution_score',
+              period: { kind: 'mtd' },
+              compareTo: { kind: 'previous_period' },
+            },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Up on last month.' }, { type: 'done' }],
+      ];
+
+      const res = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How does execution this month compare with last month?' });
+
+      const artifact = parseSse(res.text).find((f) => f.event === 'artifact');
+      expect(artifact?.data).toMatchObject({
+        type: 'trend_chart',
+        // The basis rides in the params, so reopening the artifact redraws both
+        // lines rather than silently dropping one.
+        params: { metric: 'execution_score', compareTo: { kind: 'previous_period' } },
+      });
+
+      const data = (
+        artifact?.data as {
+          data: { points: unknown[]; comparison: { label: string; points: unknown[] } };
+        }
+      ).data;
+      expect(data.points).toHaveLength(1);
+      // Nothing was seeded in the previous window, and an empty second series is
+      // the honest answer — not a reason to omit the comparison and leave the
+      // user wondering whether it was asked for.
+      expect(data.comparison.points).toEqual([]);
+      expect(data.comparison.label).toMatch(/before this one/);
     });
 
     it('resolves a NAME to the right agent in one hop', async () => {

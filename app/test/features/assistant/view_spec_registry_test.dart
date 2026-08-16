@@ -39,6 +39,52 @@ void main() {
       expect(find.text('tumo@example.com'), findsOneWidget);
     });
 
+    testWidgets('offers Expand only for an artifact the routes can find',
+        (tester) async {
+      // A turn that could not persist falls back to a turn-local id like
+      // `getAgentScorecard-0`. The card still renders — that is the point of
+      // the fallback — but /artifact/getAgentScorecard-0 is a 404, and a
+      // control that cannot work is worse than an absent one.
+      await tester.pumpWidget(wrap(ArtifactView(
+        expandable: true,
+        artifact: ChatArtifact(
+          id: 'getAgentScorecard-0',
+          type: 'agent_scorecard',
+          params: const {'agentId': 'agent-1'},
+          data: const {'averageScore': 82.0},
+        ),
+      )));
+      expect(find.text('Expand'), findsNothing);
+
+      await tester.pumpWidget(wrap(ArtifactView(
+        expandable: true,
+        artifact: ChatArtifact(
+          id: '2b3f0d0e-1f2a-4c3b-9d4e-5f6a7b8c9d0e',
+          type: 'agent_scorecard',
+          params: const {'agentId': 'agent-1'},
+          data: const {'averageScore': 82.0},
+        ),
+      )));
+      expect(find.text('Expand'), findsOneWidget);
+    });
+
+    testWidgets('does not offer Expand where it was not asked for',
+        (tester) async {
+      // Expanded mode renders these same cards for the specs it has no
+      // purpose-built view for, and a card inside Expanded must not offer a
+      // link to itself.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: ChatArtifact(
+          id: '2b3f0d0e-1f2a-4c3b-9d4e-5f6a7b8c9d0e',
+          type: 'agent_scorecard',
+          params: const {'agentId': 'agent-1'},
+          data: const {'averageScore': 82.0},
+        ),
+      )));
+
+      expect(find.text('Expand'), findsNothing);
+    });
+
     testWidgets('falls back to a note for an unknown spec type', (tester) async {
       // Never a blank card. A blank card reads as a bug in the app — the user
       // retries, sees the same nothing, and stops trusting the screen.
@@ -224,6 +270,40 @@ void main() {
       expect(find.byType(LineChart), findsOneWidget);
       expect(find.text('On-shelf availability'), findsOneWidget);
       expect(find.text('By day'), findsOneWidget);
+    });
+
+    testWidgets('draws the comparison inline as a second series',
+        (tester) async {
+      // #271 shipped comparison with nowhere to land. A card that renders the
+      // current period and drops the window the user explicitly asked to
+      // compare against would do the same thing again.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('trend_chart', data: const {
+          'metric': 'execution_score',
+          'interval': 'day',
+          'points': [
+            {'period': '2026-08-01', 'value': 74.0},
+            {'period': '2026-08-02', 'value': 78.0},
+          ],
+          'comparison': {
+            'label': 'the month to date before this one',
+            'basis': {'kind': 'previous_period'},
+            'points': [
+              {'period': '2026-07-01', 'value': 70.0},
+              {'period': '2026-07-02', 'value': 72.0},
+            ],
+          },
+        }),
+      )));
+
+      final chart = tester.widget<LineChart>(find.byType(LineChart));
+      expect(chart.comparison, hasLength(2));
+      expect(chart.comparisonName, 'the month to date before this one');
+      // And the header says what the second line is, in words.
+      expect(
+        find.text('By day · vs the month to date before this one'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('skips unreadable rows instead of plotting them as zero',

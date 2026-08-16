@@ -31,6 +31,17 @@ void main() {
       expect((artifact.data as Map)['averageScore'], 82);
     });
 
+    test('reads the conversation id the server mints', () {
+      final event = AssistantEvent.parse('conversation', '{"id":"conv-7"}');
+      expect((event! as ConversationEvent).id, 'conv-7');
+    });
+
+    test('drops a conversation frame with no id', () {
+      // Nothing to echo back, and storing a null would look like a first turn
+      // forever. Better to keep the id we already have.
+      expect(AssistantEvent.parse('conversation', '{}'), isNull);
+    });
+
     test('ignores an unknown event type rather than throwing', () {
       // The contract that lets the server add events without a lockstep app
       // release. A client that threw here would turn every additive server

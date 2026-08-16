@@ -9,6 +9,7 @@ import {
   createArtifact,
   readArtifact,
   refineArtifact,
+  takeParamsChanges,
   undoArtifact,
 } from './artifacts.service';
 
@@ -207,6 +208,92 @@ describe('assistant artifacts', () => {
     expect(manifest).toHaveLength(1);
     expect(manifest[0]).toEqual({ id: created.id, type: 'outlet_map', params: MTD });
     expect(manifest[0]).not.toHaveProperty('data');
+  });
+
+  it('flags a refine so the next turn can tell the model, then forgets it', async () => {
+    // The stale-params bug: the user filters, and the model answers the next
+    // question against what it last saw. The flag is how the turn finds out.
+    const conversationId = `conv-change-${Date.now()}`;
+    const created = await seedArtifact(manager, conversationId);
+    const owner = { userId: manager.userId, clientId: manager.clientId };
+
+    // Nothing to say before anything moved.
+    expect(await takeParamsChanges(conversationId, owner)).toEqual([]);
+
+    await refineArtifact(created.id, YTD, ctxFor(manager));
+
+    const changes = await takeParamsChanges(conversationId, owner);
+    expect(changes).toEqual([{ id: created.id, type: 'outlet_map', params: YTD }]);
+
+    // Taken means delivered: announcing it again next turn would spend tokens
+    // restating what the manifest already carries.
+    expect(await takeParamsChanges(conversationId, owner)).toEqual([]);
+  });
+
+  it('collapses repeated changes into where the user actually landed', async () => {
+    // Three drags of one slider are one fact — the params it ended on. Three
+    // notes would be two stale ones and a true one.
+    const conversationId = `conv-collapse-${Date.now()}`;
+    const created = await seedArtifact(manager, conversationId);
+
+    await refineArtifact(created.id, YTD, ctxFor(manager));
+    await refineArtifact(created.id, MTD, ctxFor(manager));
+    await refineArtifact(created.id, YTD, ctxFor(manager));
+
+    const changes = await takeParamsChanges(conversationId, {
+      userId: manager.userId,
+      clientId: manager.clientId,
+    });
+
+    expect(changes).toEqual([{ id: created.id, type: 'outlet_map', params: YTD }]);
+  });
+
+  it('flags an undo too', async () => {
+    // The worst case would be telling the model about a change and then never
+    // telling it the change was taken back.
+    const conversationId = `conv-undo-note-${Date.now()}`;
+    const created = await seedArtifact(manager, conversationId);
+    const owner = { userId: manager.userId, clientId: manager.clientId };
+
+    await refineArtifact(created.id, YTD, ctxFor(manager));
+    await takeParamsChanges(conversationId, owner);
+
+    await undoArtifact(created.id, ctxFor(manager));
+
+    expect(await takeParamsChanges(conversationId, owner)).toEqual([
+      { id: created.id, type: 'outlet_map', params: MTD },
+    ]);
+  });
+
+  it('does not leak another user\'s changes into this conversation', async () => {
+    const conversationId = `conv-change-scope-${Date.now()}`;
+    const created = await seedArtifact(manager, conversationId);
+    await refineArtifact(created.id, YTD, ctxFor(manager));
+
+    expect(
+      await takeParamsChanges(conversationId, {
+        userId: colleague.userId,
+        clientId: colleague.clientId,
+      }),
+    ).toEqual([]);
+  });
+
+  it('leaves the artifact\'s own updatedAt alone when a note is delivered', async () => {
+    // Marking a note delivered is bookkeeping, not a change to the view. A
+    // bumped updatedAt would reorder the manifest and tell the client the
+    // artifact moved when nothing about it did.
+    const conversationId = `conv-touch-${Date.now()}`;
+    const created = await seedArtifact(manager, conversationId);
+    const refined = await refineArtifact(created.id, YTD, ctxFor(manager));
+
+    await takeParamsChanges(conversationId, {
+      userId: manager.userId,
+      clientId: manager.clientId,
+    });
+
+    const row = await prisma.assistantArtifact.findUniqueOrThrow({ where: { id: created.id } });
+    expect(row.updatedAt).toEqual(refined.updatedAt);
+    expect(row.paramsChangedAt).toBeNull();
   });
 
   it('scopes the manifest to the asking user', async () => {

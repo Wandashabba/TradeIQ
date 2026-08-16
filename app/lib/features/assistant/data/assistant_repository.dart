@@ -36,12 +36,19 @@ class AssistantRepository {
   Stream<AssistantEvent> chat({
     required String message,
     List<ChatHistoryEntry> history = const [],
+    String? conversationId,
     CancelToken? cancelToken,
   }) async* {
     final response = await dio.post<ResponseBody>(
       '/assistant/chat',
       data: {
         'message': message,
+        // Absent on the first turn — the server mints one and announces it. Sent
+        // on every turn after that, which is what keeps this conversation's
+        // artifacts findable: without it the server opens a fresh conversation
+        // each turn, and both the live-artifact manifest and the params-change
+        // note quietly have nothing to report.
+        'conversationId': ?conversationId,
         if (history.isNotEmpty)
           'history': history.map((entry) => entry.toJson()).toList(),
       },
