@@ -1,0 +1,271 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'assistant_events.dart';
+import 'assistant_repository.dart';
+
+/// One artifact the assistant produced, as the transcript holds it.
+class ChatArtifact {
+  const ChatArtifact({
+    required this.id,
+    required this.type,
+    required this.params,
+    required this.data,
+  });
+
+  final String id;
+  final String type;
+  final dynamic params;
+  final dynamic data;
+}
+
+/// What a tool did, for the "checking stock levels…" affordance.
+class ToolActivity {
+  const ToolActivity({required this.name, required this.pillar, this.ok});
+
+  final String name;
+  final String pillar;
+
+  /// `null` while running. Set when the tool finishes.
+  final bool? ok;
+
+  ToolActivity finished(bool succeeded) =>
+      ToolActivity(name: name, pillar: pillar, ok: succeeded);
+}
+
+enum ChatRole { user, assistant }
+
+class ChatMessage {
+  const ChatMessage({
+    required this.role,
+    required this.text,
+    this.artifacts = const [],
+    this.tools = const [],
+    this.error,
+    this.streaming = false,
+  });
+
+  final ChatRole role;
+  final String text;
+  final List<ChatArtifact> artifacts;
+  final List<ToolActivity> tools;
+
+  /// A user-safe message from the server. Rendered instead of prose, not
+  /// alongside it — a half-answer followed by an error reads as a bug.
+  final String? error;
+  final bool streaming;
+
+  ChatMessage copyWith({
+    String? text,
+    List<ChatArtifact>? artifacts,
+    List<ToolActivity>? tools,
+    String? error,
+    bool? streaming,
+  }) =>
+      ChatMessage(
+        role: role,
+        text: text ?? this.text,
+        artifacts: artifacts ?? this.artifacts,
+        tools: tools ?? this.tools,
+        error: error ?? this.error,
+        streaming: streaming ?? this.streaming,
+      );
+}
+
+class ChatState {
+  const ChatState({this.messages = const [], this.sending = false});
+
+  final List<ChatMessage> messages;
+  final bool sending;
+
+  ChatState copyWith({List<ChatMessage>? messages, bool? sending}) => ChatState(
+        messages: messages ?? this.messages,
+        sending: sending ?? this.sending,
+      );
+}
+
+/// Drives one conversation.
+///
+/// History is held here rather than on the server for Phase 0: the backend is
+/// stateless per turn and replays what it is given, which keeps the turn
+/// contract simple while there is nothing to persist. Phase 2 introduces real
+/// conversation rows, and this is the seam that changes.
+class ChatController extends Notifier<ChatState> {
+  CancelToken? _cancelToken;
+  StreamSubscription<AssistantEvent>? _subscription;
+
+  @override
+  ChatState build() {
+    // A user who leaves the screen mid-turn should stop paying for the rest of
+    // it. Every turn is a metered provider call, so this is a cost path, not
+    // just a tidiness one.
+    ref.onDispose(cancel);
+    return const ChatState();
+  }
+
+  /// How many prior turns go back with the next message.
+  ///
+  /// History is replayed on every turn, so its length is a direct multiplier on
+  /// cost and latency. The server caps it at 40 and rejects more; stopping
+  /// short of that here means a long conversation degrades by forgetting its
+  /// oldest turns rather than by failing outright.
+  static const historyLimit = 20;
+
+  Future<void> send(String message) async {
+    final trimmed = message.trim();
+    if (trimmed.isEmpty || state.sending) return;
+
+    final history = _history();
+
+    state = state.copyWith(
+      messages: [
+        ...state.messages,
+        ChatMessage(role: ChatRole.user, text: trimmed),
+        const ChatMessage(role: ChatRole.assistant, text: '', streaming: true),
+      ],
+      sending: true,
+    );
+
+    final cancelToken = CancelToken();
+    _cancelToken = cancelToken;
+
+    final completer = Completer<void>();
+    _subscription = ref
+        .read(assistantRepositoryProvider)
+        .chat(message: trimmed, history: history, cancelToken: cancelToken)
+        .listen(
+          _apply,
+          onError: (Object err) {
+            // A cancelled request is the user's own doing, not a failure to
+            // report back to them.
+            if (err is DioException && CancelToken.isCancel(err)) {
+              _finish();
+            } else {
+              _apply(const ErrorEvent(
+                code: 'network',
+                message: 'Could not reach the assistant. Check your connection.',
+              ));
+              _finish();
+            }
+            if (!completer.isCompleted) completer.complete();
+          },
+          onDone: () {
+            _finish();
+            if (!completer.isCompleted) completer.complete();
+          },
+          cancelOnError: true,
+        );
+
+    await completer.future;
+  }
+
+  List<ChatHistoryEntry> _history() {
+    final entries = <ChatHistoryEntry>[];
+    for (final message in state.messages) {
+      // An errored turn is deliberately excluded: replaying "Could not reach
+      // the assistant" as though the model had said it teaches it that such a
+      // reply is in character.
+      if (message.error != null || message.text.isEmpty) continue;
+      entries.add(ChatHistoryEntry(
+        role: message.role == ChatRole.user ? 'user' : 'assistant',
+        content: message.text,
+      ));
+    }
+    if (entries.length <= historyLimit) return entries;
+    return entries.sublist(entries.length - historyLimit);
+  }
+
+  void _apply(AssistantEvent event) {
+    final messages = [...state.messages];
+    if (messages.isEmpty) return;
+    final index = messages.length - 1;
+    final current = messages[index];
+
+    switch (event) {
+      case TokenEvent(:final text):
+        messages[index] = current.copyWith(text: current.text + text);
+      case ToolStartEvent(:final name, :final pillar):
+        messages[index] = current.copyWith(
+          tools: [...current.tools, ToolActivity(name: name, pillar: pillar)],
+        );
+      case ToolEndEvent(:final name, :final ok):
+        final tools = [...current.tools];
+        // **FIFO: the oldest unresolved call of this name.**
+        //
+        // `tool_end` carries no call id — that is the wire protocol, not an
+        // oversight — so matching a result to a chip is inherently a heuristic
+        // when one turn calls the same tool twice. It does not bite today,
+        // because the orchestrator emits each pair strictly sequentially
+        // (start, run, end, then the next call), so there is never more than
+        // one unresolved chip of a given name. FIFO is the convention to hold
+        // if that ever changes to run tools concurrently.
+        final at = tools.indexWhere((t) => t.name == name && t.ok == null);
+        if (at != -1) tools[at] = tools[at].finished(ok);
+        messages[index] = current.copyWith(tools: tools);
+      case ArtifactEvent(:final id, :final type, :final params, :final data):
+        final artifacts = [...current.artifacts];
+        final artifact =
+            ChatArtifact(id: id, type: type, params: params, data: data);
+        // Same id patches in place. Appending instead is what turns a chat into
+        // a graveyard of near-identical cards.
+        final at = artifacts.indexWhere((a) => a.id == id);
+        if (at == -1) {
+          artifacts.add(artifact);
+        } else {
+          artifacts[at] = artifact;
+        }
+        messages[index] = current.copyWith(artifacts: artifacts);
+      case ErrorEvent(:final message):
+        messages[index] = current.copyWith(error: message, streaming: false);
+      case UsageEvent():
+        // Nothing to render. The cost dashboard reads this server-side; the
+        // manager asking about stock does not need a token count.
+        return;
+      case DoneEvent():
+        messages[index] = current.copyWith(streaming: false);
+    }
+
+    state = state.copyWith(messages: messages);
+  }
+
+  void _finish() {
+    final messages = [...state.messages];
+    if (messages.isNotEmpty) {
+      final index = messages.length - 1;
+      final last = messages[index];
+      // A stream that ended without a `done` frame — a dropped connection —
+      // must still clear the streaming flag, or the caret blinks forever on a
+      // turn that is never coming back.
+      if (last.streaming) {
+        messages[index] = last.copyWith(
+          streaming: false,
+          error: last.text.isEmpty && last.error == null
+              ? 'The assistant stopped responding. Please try again.'
+              : null,
+        );
+      }
+    }
+    state = state.copyWith(messages: messages, sending: false);
+    _cancelToken = null;
+    _subscription = null;
+  }
+
+  void cancel() {
+    _subscription?.cancel();
+    _subscription = null;
+    if (_cancelToken?.isCancelled == false) {
+      _cancelToken?.cancel('left the conversation');
+    }
+    _cancelToken = null;
+  }
+
+  void clear() {
+    cancel();
+    state = const ChatState();
+  }
+}
+
+final chatControllerProvider =
+    NotifierProvider<ChatController, ChatState>(ChatController.new);

@@ -1,3 +1,8 @@
 node_modules
 # Keep environment variables out of version control
 .env
+
+# Written by evals/run.ts on every sweep. The scored result is uploaded as a CI
+# artifact, which is where it is useful — committing it would turn a
+# non-deterministic model output into a diff on every run.
+evals/report.json

@@ -10,6 +10,13 @@ const CLIENT_CONFIG_SELECT = {
   industry: true,
   scorecardWeights: true,
   kpiThresholds: true,
+  // Readable so the app knows whether to offer the assistant at all, but
+  // deliberately absent from UpdateClientConfigInput below: this is a rollout
+  // lever, not a customer preference. A client admin flipping on an unproven,
+  // metered AI feature for their own tenant is the exact thing a rollout flag
+  // exists to prevent. Operators toggle it directly until there is a
+  // cross-tenant admin surface to do it from.
+  assistantEnabled: true,
 } satisfies Prisma.ClientSelect;
 
 export type ClientConfig = Prisma.ClientGetPayload<{ select: typeof CLIENT_CONFIG_SELECT }>;

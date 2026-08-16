@@ -1,0 +1,113 @@
+name: assistant-evals
+
+# The live half of the Phase 0 gate.
+#
+# Everything that can be checked without a provider already runs in
+# `backend-ci` — the dataset's shape, the scorer, and the cache-hit cost
+# assertion all live in `src/modules/assistant/evals.test.ts`. This workflow is
+# only for what genuinely needs a model: does it pick the right tool?
+#
+# **Split cheap-on-PR / full-nightly on purpose.** A live sweep on every push is
+# a real per-PR bill and a slow signal on a queue. A cheap slice catches the
+# regression that matters — someone reworded a tool description and selection
+# collapsed — while the nightly run measures the number the gate is stated in.
+#
+# **The 90% gate is per provider, never averaged.** A regression on one adapter
+# masked by the other passing is precisely what a mean hides, and it is why the
+# matrix below fails independently per provider rather than aggregating.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/src/modules/assistant/**'
+      - 'backend/evals/**'
+      - '.github/workflows/assistant-evals.yml'
+  schedule:
+    # 02:00 UTC — off-peak, and before anyone reads the result over coffee.
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  # A live sweep costs money per run. Superseded runs on the same branch are
+  # cancelled rather than left to finish and bill for a result nobody reads.
+  group: assistant-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    # Forks do not get repository secrets, so a fork PR would run this with an
+    # empty key and fail in a way that looks like a quality regression. Skipped
+    # explicitly, so the reason is legible rather than mysterious.
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
+    strategy:
+      # One provider's failure must not cancel the other's run — otherwise the
+      # per-provider gate degrades into "whichever failed first".
+      fail-fast: false
+      matrix:
+        provider: [gemini]
+        # Anthropic joins this list when its adapter and key land. Adding it
+        # here early would fail every night against a provider we have not
+        # built, training people to ignore a red cross.
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      LLM_PROVIDER: ${{ matrix.provider }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+      LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+      # Cheap slice on a PR; the whole set nightly and on demand.
+      EVAL_SCOPE: ${{ github.event_name == 'pull_request' && 'slice' || 'full' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+
+      # Without a key this job would report a 0% selection rate — indistinguishable
+      # from the model having become useless overnight. Say which it is.
+      #
+      # **A missing key fails the nightly and only warns on a PR**, because the
+      # two runs are answering different questions. The PR slice is a smoke
+      # test: skipping it costs a little coverage on one branch, and hard
+      # failing would block contributors over a repository setting they cannot
+      # change. The scheduled run *is* the gate — it is the only thing that ever
+      # measures the number Phase 0 exits on — so a skip there is not a reduced
+      # signal, it is no signal wearing a green tick.
+      #
+      # That is not hypothetical. Every assistant-evals run up to 2026-08-07
+      # passed in about 30 seconds without calling a provider once, and the
+      # first sweep that did run found the configured model 404s.
+      - name: Check the provider key is present
+        id: key
+        run: |
+          if [ -n "${GEMINI_API_KEY}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "::warning::No GEMINI_API_KEY secret is set, so the live eval sweep cannot run."
+            echo "::warning::Everything that does not need a provider already ran in backend-ci."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::No GEMINI_API_KEY secret is set, so the tool-selection gate did not run."
+            echo "::error::This is the scheduled sweep — measuring that number is its entire purpose,"
+            echo "::error::and passing without it reports a gate nobody checked. Add the secret in"
+            echo "::error::Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Run the tool-selection sweep
+        if: steps.key.outputs.present == 'true'
+        run: npx ts-node evals/run.ts
+
+      - name: Upload the scored results
+        if: steps.key.outputs.present == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ matrix.provider }}
+          path: backend/evals/report.json
+          if-no-files-found: warn

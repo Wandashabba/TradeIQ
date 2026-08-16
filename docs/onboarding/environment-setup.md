@@ -14,10 +14,10 @@
 
 ## Environment variables
 
-Copy the root example env file for the backend:
+Copy the backend's example env file:
 
 ```bash
-cp .env.example backend/.env
+cp backend/.env.example backend/.env
 ```
 
 `DATABASE_URL` and `JWT_SECRET` are read from `backend/.env` by both the

@@ -23,7 +23,7 @@ SSE over the existing `ApiClient`. Two LLM providers behind one interface:
 
 | Provider | Orchestrator | Quarantine | Status |
 |---|---|---|---|
-| **Gemini** | `gemini-3.1-pro` | `gemini-3.6-flash` | Key available — **build against this first** |
+| **Gemini** | `gemini-3.1-pro-preview` | `gemini-3.6-flash` | Key available — **build against this first** |
 | **Anthropic** | `claude-opus-5` | `claude-haiku-4-5` | Key expected later this week |
 
 See *Provider abstraction* below. The provider is selected per conversation, not
@@ -681,60 +681,124 @@ assistant PR.
 > be an adapter and a config flag — if it turns out to be more than that, the
 > interface leaked and that is the bug to fix.
 
-- [ ] `providers/` — `LlmProvider` interface + `gemini.ts` adapter first
-      (`@google/genai`), `anthropic.ts` (`@anthropic-ai/sdk`) when the key lands.
-      `LLM_PROVIDER`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` in `.env.example`
-- [ ] Contract test suite run against **both** adapters — same scripted turn,
-      same normalised `TurnEvent` stream out. This is what stops the second
-      adapter from silently diverging
+> **Status, 2026-08-07.** Everything below that does not need credentials is
+> built, tested and green on CI, across PRs
+> [#264](https://github.com/Wandashabba/TradeIQ/pull/264) and
+> [#265](https://github.com/Wandashabba/TradeIQ/pull/265).
+> **The phase is not complete**: its headline gate
+> — ≥90% tool-selection accuracy — has never been measured, because no provider
+> key exists in this environment. Every test in the branch runs against a
+> scripted provider. `STATUS.md` is the live tracker; this list is ticked to
+> match it, and the two unticked-on-purpose items say why.
+>
+> The note above says "the key is available now". It is not available *here* —
+> see the 2026-08-03 correction in `STATUS.md`. That single sentence is the
+> difference between this phase being finishable and not.
+>
+> `[~]` means **partly done, and the remainder is named** — borrowed from
+> `STATUS.md`. A ticked box that overstates is how a plan stops being worth
+> reading, and the two here are both cases where the gap is real and external.
+
+- [x] `providers/` — `LlmProvider` interface + `gemini.ts` adapter first
+      (`@google/genai`). `LLM_PROVIDER`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`
+      in `.env.example`. `anthropic.ts` still waits on its key, and
+      `providerFor('anthropic')` throws a message saying so rather than being
+      absent from the union
+- [x] Contract test suite — same scripted turn, same normalised `TurnEvent`
+      stream out. Runs with **no key and no network**: each adapter renders one
+      abstract script into its own wire shape and everything after is asserted
+      identically. A contract test needing a live provider runs on one machine,
+      which is how a contract stops being enforced
 - [x] ~~Add `backend-ci`~~ — **it already existed.** Hardened 2026-08-02 with a
       `typecheck` step and `--runInBand`
-- [ ] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
-      nightly, gated behind `secrets.ANTHROPIC_API_KEY`
-- [ ] Langfuse Cloud project + tracing wired into `orchestrator.ts` from the
-      first request, not retrofitted
-- [ ] `quarantine.ts` — free-text fields summarised by a **tool-less** Haiku 4.5
-      call before they reach the orchestrator (dual-LLM pattern)
-- [ ] `prompt.ts`: frozen system prompt (no interpolated values)
-- [ ] `roster.ts`: role → tool list, with a unit test asserting `field_agent`
-      cannot reach any manager-only tool
-- [ ] 8 read tools, **grouped by the four pillars** (the manager's mental model),
-      each wrapping an existing service:
-      · *Sales* — rate of sale, SKU movement
-      · *Stock* — stock levels by outlet/territory
-      · *Visibility* — share of shelf, compliance
-      · *Competition* — competitor presence/pricing
-      · *Execution* — agent scorecard, visit history, fraud flags
-- [ ] `sanitize.ts`: wrap tool results as untrusted; strip instruction-like patterns
-- [ ] `viewspec.ts`: catalog + Zod validation for 3 specs — `agent_scorecard`,
-      `trend_chart`, `outlet_map`
-- [ ] `orchestrator.ts`: `tool_runner` loop, Opus 5, adaptive thinking, cache
-      breakpoint after tools+system
-- [ ] `POST /assistant/chat` as SSE; reuse `requireAuth`
-- [ ] **Rate-limit the chat endpoint.** `express-rate-limit` is already a
-      dependency but `middleware/rateLimit.ts` is wired to `/auth/login` **only**
-      — an unbounded LLM endpoint is a cost-DoS vector, not just a perf one.
-      Per-user and per-tenant limits, both
-- [ ] **Spend ceiling + budget alarm.** A runaway loop or a leaked key has no
-      cost floor. Hard monthly cap in the Anthropic console, plus a Langfuse
-      alert at 50% / 80% of budget
-- [ ] Abort handling: client disconnect must cancel the in-flight model call,
-      not orphan a paid request
-- [ ] Flutter: chat screen, text composer, streaming text render
-- [ ] Flutter: refactor scorecard / trend / map screens into parameterised widgets;
-      routes delegate to them
-- [ ] Flutter: view-spec registry renders those 3 widgets inline
-- [ ] Unit: roster matrix test — every `(role × tool)` pair, with the negative
-      case that `field_agent` cannot reach a manager tool
-- [ ] Unit: view-spec validation rejects unknown spec types and malformed params
-- [ ] Integration: stubbed model → scripted `tool_use` → assert correct service
-      called with the caller's `clientId`
-- [ ] Eval harness: 25 golden questions with expected tool + expected spec,
-      scored on tool-selection accuracy, traced to Langfuse
-- [ ] Cost regression: assert `cache_read_input_tokens > 0` on turn 2
+- [x] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
+      nightly. Matrix is **per provider, `fail-fast: false`**, because the gate
+      is per adapter and a mean is exactly what hides a one-provider
+      regression. Skips itself with a loud warning when no key is set: a 0%
+      score and an absent secret are otherwise indistinguishable
+- [~] Langfuse tracing wired into `orchestrator.ts` from the first request, not
+      retrofitted — **the seam and the client exist; the Cloud project does
+      not.** Fire-and-forget behind a bounded, serialised queue; no-op when
+      unconfigured. **Metadata only** — content is behind
+      `LANGFUSE_TRACE_CONTENT`, default off, because transcript retention is
+      still an open question (#251 Q3). Tool *results* are never sent at any
+      setting
+- [x] `quarantine.ts` — free text summarised by a **tool-less** call before it
+      reaches the orchestrator. **Fails closed**: on error, timeout, or a
+      quarantine turn that somehow emits a tool call, the text is omitted
+      rather than passed through raw
+- [x] `prompt.ts`: frozen system prompt, exported as a `const` rather than a
+      builder so there is no parameter to accidentally thread through
+- [x] `roster.ts`: role → tool list, with the matrix test (landed in #264)
+- [x] 8 read tools grouped by the four pillars, plus the agent scorecard — 9 in
+      total, over `pillars.service.ts` and `scorecards.service.ts`
+- [x] `sanitize.ts`: spotlight-wrap tool results as untrusted. The fence is
+      stripped from the payload *before* wrapping — a wrapper the payload can
+      close is the classic failure. Also strips Unicode tag characters and bidi
+      overrides, which carry instructions no human reviewing the record can see
+- [x] `viewspec.ts`: catalog + Zod validation for all 3 specs
+- [x] `orchestrator.ts`: loop, cache breakpoint after tools+system. Bounded at
+      four rounds; the last round **withdraws tools** rather than cutting the
+      turn off, so the model still answers from what it retrieved
+- [x] `POST /assistant/chat` as SSE; reuses `requireAuth`
+- [x] **Rate-limit the chat endpoint** — per-user *and* per-tenant (landed in
+      #264, mounted on the route in #265)
+- [ ] **Spend ceiling + budget alarm.** Hard monthly cap in the provider
+      console, plus a Langfuse alert at 50% / 80%. **Not doable from this
+      repo** — it is a console setting, and it is the only real ceiling on a
+      leaked key
+- [~] Abort handling — the orchestrator and the route both abort, and the signal
+      reaches the SDK. ⚠️ **Gemini's `abortSignal` is client-side only**, per the
+      SDK's own note: it stops us reading, not Google generating or billing. So
+      "must not orphan a paid request" is only *partly* satisfiable in code, and
+      the remainder is the console cap above
+- [x] Flutter: chat screen, text composer, streaming text render
+- [x] Flutter: scorecard as a parameterised widget (`AgentScorecardCard`)
+- [x] Flutter: view-spec registry renders **all three** widgets inline
+      ✅ 2026-08-12 — `TrendChartCard` on the shared `LineChart`,
+      `OutletMapCard` on the Tiq basemap kit; emitted by `getMetricTrend`
+      (new, wraps `trends.service.ts`) and `getStockLevels` (`worstOutlets`
+      rows now carry coordinates)
+- [x] Unit: roster matrix test — every `(role × tool)` pair (landed in #264)
+- [x] Unit: view-spec validation rejects unknown spec types and malformed params
+- [x] Integration: stubbed model → scripted tool call → asserts the correct
+      service ran with the caller's `clientId`, **including the cross-tenant
+      probe** — the model names a real user id from another tenant and the
+      closure returns nothing
+- [x] Eval harness: 25 golden questions with expected tool, scored on
+      tool-selection accuracy. Includes **two refusal cases**, because a suite
+      with no refusals rewards a model that always guesses. ⚠️ **Written and
+      unrun** — see the status note above
+- [x] Cost regression: asserts `cacheReadTokens > 0` on turn 2, with a companion
+      test that interpolates the system prompt and watches the prefix diverge —
+      so the assertion is *shown* to have teeth rather than merely passing
 
 **Exit:** "How has Tumo been performing this month?" returns narrative plus the
 real scorecard widget, at manager scope, with a cache hit on turn 2.
+
+> **The exit demo passes as a test, against a scripted model** — see
+> `assistant.routes.test.ts` and `chat_screen_test.dart`, which assert exactly
+> that sentence end to end. It has **not** been run against Gemini. Treat the
+> demo as unproven until it has.
+
+### What building it changed about the plan
+
+Recorded here because a plan that is only ever read forward hides what the work
+taught. Full reasoning in `STATUS.md` → Decisions → *Implementation*.
+
+- **`Message` had to become a union.** A `tool_runner` loop cannot be expressed
+  without a way to send results back, and `TurnEvent.tool_call.id` existed to
+  "correlate the later result" with no message shape carrying one.
+- **`Period` cannot be a discriminated union on the wire.** Zod emits one as
+  JSON Schema `oneOf`, and Gemini's `Schema` has no `oneOf`. Every tool takes a
+  period, so the obvious spelling was a 400 on every turn.
+- **Tools declare their view spec; the model never names one.** The plan said
+  "the model never emits UI"; this is the mechanism that makes the closed
+  catalog a constraint rather than a suggestion.
+- **The artifact carries raw data, the model gets the sanitized copy.** Fencing
+  would put `«untrusted» …` inside a chart label.
+- **Pillar aggregates live in a new `pillars.service.ts`**, not spread across
+  six existing service files that other branches are editing.
 
 ## Phase 1 — Voice, both directions
 
@@ -904,8 +968,24 @@ Phase 0 (spine) ──┬──► Phase 1 (voice)      ──┐
   strands users.
 - **Phase 5 depends on 0 and benefits from 2** (pinned artifacts need artifacts).
 
-**Hard prerequisite for all of it:** an `ANTHROPIC_API_KEY` and a Langfuse
-project. Both are being provided.
+**Hard prerequisite for all of it:** a provider key and a Langfuse project.
+
+> **Correction (2026-08-07). Neither has arrived, and this is now the binding
+> constraint.** "Both are being provided" was written in expectation and read
+> ever since as a settled fact. `backend/.env` carries only `DATABASE_URL`,
+> `JWT_SECRET` and `PORT`; there is no `GEMINI_API_KEY`, no `ANTHROPIC_API_KEY`
+> and no Langfuse project.
+>
+> Phase 0 turned out to split either side of that line far more favourably than
+> anyone assumed — the adapter, the contract suite, all nine tools, the
+> orchestrator, the route, the app, and the whole test suite needed no key, and
+> are built and green. What needs one is *proving it works*: the ≥90%
+> tool-selection gate, the live cost figure, and any trace at all.
+>
+> So the sequencing claim above holds with one amendment: **Phase 0 blocks
+> everything, and a provider key blocks Phase 0's exit — not its
+> construction.** Phases 1 and 2 could technically begin against an unproven
+> spine; whether that is wise is a call for whoever holds the key.
 
 ---
 
@@ -928,6 +1008,20 @@ first request, so Phase 0 exits with a real cost-per-conversation number rather
 than a guess. The cache-hit assertion is a *cost* regression test as much as a
 correctness one: a silently invalidated prefix multiplies spend without failing
 any functional test.
+
+> **Correction (2026-08-07).** The instrumentation exists; the number does not.
+> Tracing emits `costCents` per turn from the first request as intended — but
+> there is no Langfuse project receiving it, and the per-token rates in
+> `providers/gemini.ts` are **placeholders**. So Phase 0 as it stands exits with
+> a *computed* cost, not a *measured* one, and the distinction matters because
+> the whole point of the paragraph above is not to guess.
+>
+> The rates in the table above are also unverified — the section says so, "orders
+> of magnitude, not a forecast". `RATES` in `providers/gemini.ts` is now seeded
+> from these same figures deliberately, so there is **one** set of numbers to
+> correct against Google's pricing page rather than two that can disagree.
+> `costCents` returns a visible wrong number rather than `0`, because a zero
+> would make a cost regression look like a saving.
 
 ---
 

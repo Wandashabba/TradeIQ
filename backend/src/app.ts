@@ -38,6 +38,7 @@ import { clientsRouter } from './modules/clients/clients.routes';
 import { usersRouter } from './modules/users/users.routes';
 import { incentivesRouter } from './modules/incentives/incentives.routes';
 import { reportSchedulesRouter } from './modules/reportschedules/reportschedules.routes';
+import { assistantRouter } from './modules/assistant/assistant.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -131,6 +132,10 @@ app.use('/clients', clientsRouter);
 app.use('/users', usersRouter);
 app.use('/incentives', incentivesRouter);
 app.use('/report-schedules', reportSchedulesRouter);
+// Every route below /assistant is gated on the per-client rollout flag, which
+// 404s a tenant outside the rollout. The kill switch is therefore
+// indistinguishable from the feature never having shipped.
+app.use('/assistant', assistantRouter);
 
 // Every route is mounted above. Anything reaching here does not exist — say so,
 // rather than letting it fall through to a misleading 401.

@@ -19,6 +19,15 @@ export interface TestUser {
   userId: string;
   clientId: string;
   token: string;
+  /**
+   * The address the user was created with.
+   *
+   * `User` has no display-name column, so email is what the app shows for a
+   * person and what `resolveAgent` matches a typed name against. A test
+   * exercising name resolution needs the value, and re-querying for it in each
+   * suite is how two suites end up disagreeing about the format.
+   */
+  email: string;
 }
 
 /** Creates a user in an existing tenant and returns a usable bearer token. */
@@ -38,6 +47,7 @@ export async function userIn(
   return {
     userId: user.id,
     clientId,
+    email: user.email,
     token: issueToken({ userId: user.id, role, clientId }),
   };
 }
