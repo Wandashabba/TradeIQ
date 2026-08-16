@@ -74,6 +74,26 @@ class _MutableDashboardRepository implements DashboardRepository {
   }) async => const [];
 }
 
+/// Which of the dashboard's two fetches this is — the previous window, or the
+/// current one.
+///
+/// The console asks for the current window (`from` = now − 30d) and the equally
+/// long one before it (`from` = now − 60d), so any threshold strictly between
+/// those two separates them. This used to be the fixed date 2026-06-14, which
+/// only sat between them while the calendar cooperated: it stopped doing so on
+/// 2026-08-13 and took five tests down with it on a suite that had not changed
+/// a line. A midpoint 45 days back is the same discriminator expressed
+/// relatively — ~15 days of margin either side, and it cannot go stale.
+///
+/// Every test here drives the default `last30` range; a fake that must also
+/// serve a shorter or longer range would need the threshold derived from that
+/// range rather than pinned at 45.
+bool _isPreviousWindow(String? from) =>
+    from != null &&
+    DateTime.parse(
+      from,
+    ).isBefore(DateTime.now().subtract(const Duration(days: 45)));
+
 /// Returns a LOWER figure for the earlier window, so the console has a real rise
 /// to report rather than an invented one.
 class _ImprovingDashboardRepository implements DashboardRepository {
@@ -84,8 +104,7 @@ class _ImprovingDashboardRepository implements DashboardRepository {
     String? to,
   }) async {
     // The previous window is the one that ends where the current one starts.
-    final isPrevious =
-        from != null && DateTime.parse(from).isBefore(DateTime(2026, 6, 14));
+    final isPrevious = _isPreviousWindow(from);
     final osa = isPrevious ? 88.0 : 93.1;
     final perfect = isPrevious ? 60.0 : 55.6;
     final execution = isPrevious ? 76.3 : 78.4;
@@ -118,8 +137,7 @@ class _AllRisingDashboardRepository implements DashboardRepository {
     String? from,
     String? to,
   }) async {
-    final isPrevious =
-        from != null && DateTime.parse(from).isBefore(DateTime(2026, 6, 14));
+    final isPrevious = _isPreviousWindow(from);
     final bump = isPrevious ? -2.0 : 0.0;
     return DashboardKpis(
       numericDistribution: 72.5 + bump,
