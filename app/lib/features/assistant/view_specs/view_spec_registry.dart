@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../data/chat_controller.dart';
 import 'agent_scorecard_card.dart';
@@ -32,9 +33,28 @@ final Map<String, ViewSpecBuilder> viewSpecRegistry = {
 
 /// Render an artifact, or explain why it could not be drawn.
 class ArtifactView extends StatelessWidget {
-  const ArtifactView({super.key, required this.artifact});
+  const ArtifactView({
+    super.key,
+    required this.artifact,
+    this.expandable = false,
+  });
 
   final ChatArtifact artifact;
+
+  /// Whether to offer the Expand affordance beneath the card. False inside
+  /// Expanded mode itself, which is where the link would lead.
+  final bool expandable;
+
+  /// Whether this artifact exists as a row the artifact routes can find.
+  ///
+  /// A turn that could not persist falls back to a **turn-local** id like
+  /// `getStockLevels-0` — the card still renders, which is the point of that
+  /// fallback, but `/artifact/getStockLevels-0` is a 404 waiting to happen, and
+  /// a control that cannot work is worse than an absent one.
+  static bool isPersisted(String id) => RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+        r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      ).hasMatch(id);
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +65,32 @@ class ArtifactView extends StatelessWidget {
     // with it — including the narrative that already answered the question.
     // The data is server-validated against the spec's schema, so this should
     // not fire; "should not" is why it is caught rather than assumed.
+    final Widget card;
     try {
-      return builder(context, artifact);
+      card = builder(context, artifact);
     } catch (_) {
       return UnsupportedArtifactNote(type: artifact.type);
     }
+
+    if (!expandable || !isPersisted(artifact.id)) return card;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        card,
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            // `push`, not `go`: the chat is where the user came from and where
+            // they expect Back to return them, transcript intact.
+            onPressed: () => context.push('/artifact/${artifact.id}'),
+            icon: const Icon(Icons.open_in_full, size: 14),
+            label: const Text('Expand', style: TextStyle(fontSize: 12)),
+          ),
+        ),
+      ],
+    );
   }
 }
 

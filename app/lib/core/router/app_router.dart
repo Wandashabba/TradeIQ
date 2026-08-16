@@ -32,6 +32,7 @@ import '../../features/templates/presentation/template_form_screen.dart';
 import '../../features/templates/presentation/templates_screen.dart';
 import '../../features/dispatch/presentation/dispatch_screen.dart';
 import '../../features/trends/presentation/trends_screen.dart';
+import '../../features/assistant/presentation/artifact_screen.dart';
 import '../../features/assistant/presentation/assistant_gate.dart';
 import '../auth/session_controller.dart';
 import 'manager_page.dart';
@@ -204,6 +205,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/assistant',
         pageBuilder: (context, state) => managerPage(const AssistantGate()),
+      ),
+      // Expanded mode for one artifact. A real route, so the browser back
+      // button, deep links and sharing all work without bespoke state
+      // machinery — and so an artifact survives being reopened tomorrow: the
+      // row stores what to re-run, and the tool runs again through the roster
+      // of whoever follows the link.
+      GoRoute(
+        path: '/artifact/:id',
+        pageBuilder: (context, state) => managerPage(
+          ArtifactScreen(artifactId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: '/reports',

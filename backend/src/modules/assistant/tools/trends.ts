@@ -7,6 +7,7 @@ import {
   type TrendFilters,
   type TrendSeries,
 } from '../../trends/trends.service';
+import { comparisonWindow, describeComparison, periodCompareToSchema } from '../compare';
 import { periodSchema, resolvePeriod } from '../period';
 import { eraseToolTypes, type AnyAssistantTool } from '../types';
 import { TREND_INTERVALS, TREND_METRICS, type TrendMetric } from '../viewspec';
@@ -47,6 +48,7 @@ const trendArgs = z.object({
     .enum(TREND_INTERVALS)
     .default('day')
     .describe('Bucket width. Use week for periods longer than about a month.'),
+  compareTo: periodCompareToSchema.optional(),
 });
 
 export function buildTrendTools(ctx: ToolContext): AnyAssistantTool[] {
@@ -60,28 +62,57 @@ export function buildTrendTools(ctx: ToolContext): AnyAssistantTool[] {
         'Call this when the user asks how a metric has been trending, moving, or changing ' +
         'over time — improving or declining, week on week, day by day, over a period. ' +
         'Covers execution score, on-shelf availability, perfect-store rate, and share of ' +
-        'shelf as time series. Use the other pillar tools instead when the user wants a ' +
+        'shelf as time series, and can plot the same metric over an earlier window beside ' +
+        'it in one turn. Use the other pillar tools instead when the user wants a ' +
         'single figure for a period rather than its movement.',
       args: trendArgs,
       run: async (args) => {
-        const { from, to } = resolvePeriod(args.period, now);
-        const series = await SERIES_FOR[args.metric]({
-          clientId: user.clientId,
-          interval: args.interval,
-          from,
-          to,
-        });
+        const fetch = async (window: { from: Date; to: Date }) =>
+          SERIES_FOR[args.metric]({
+            clientId: user.clientId,
+            interval: args.interval,
+            ...window,
+          });
+
+        const series = await fetch(resolvePeriod(args.period, now));
         // The metric rides with the series so the widget can label the chart
         // without re-deriving it from the spec params.
-        return { metric: args.metric, interval: series.interval, points: series.points };
+        const current = { metric: args.metric, interval: series.interval, points: series.points };
+        if (!args.compareTo) return current;
+
+        // Sequential, like the pillar tools: the same indexed queries over the
+        // same tables, and a turn that fans out doubles the peak load on a
+        // database also serving the console.
+        const earlier = await fetch(comparisonWindow(args.period, args.compareTo, now));
+
+        // Shaped like the pillar tools' `Comparison` — same `label`, same
+        // `basis` — but carrying `points` instead of `values`, and no `deltas`.
+        // That is `compare.ts`'s own rule, not an omission: differencing two
+        // series means deciding what a bucket in one window corresponds to in
+        // the other, and a bucket with no visits produces no point at all. The
+        // client aligns them positionally and says so; inventing a per-bucket
+        // delta here would bury that judgement in a number.
+        return {
+          ...current,
+          comparison: {
+            label: describeComparison(args.period, args.compareTo),
+            basis: args.compareTo,
+            points: earlier.points,
+          },
+        };
       },
       // The tool declares what it draws; the model never names a spec type.
-      // Everything here is already canonical — metric and interval are enum
-      // args the schema validated, and the period is echoed the same way
-      // getAgentScorecard echoes it.
+      // Everything here is already canonical — metric, interval and the
+      // comparison basis are enum args the schema validated, and the period is
+      // echoed the same way getAgentScorecard echoes it.
       view: (args) => ({
         type: 'trend_chart',
-        params: { metric: args.metric, period: args.period, interval: args.interval },
+        params: {
+          metric: args.metric,
+          period: args.period,
+          interval: args.interval,
+          ...(args.compareTo ? { compareTo: args.compareTo } : {}),
+        },
       }),
     }),
   ];

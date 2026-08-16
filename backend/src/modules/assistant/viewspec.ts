@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { compareToSchema } from './compare';
+import { compareToSchema, periodCompareToSchema } from './compare';
 import { periodSchema } from './period';
 
 /**
@@ -59,6 +59,10 @@ const trendChartParams = z.object({
     .enum(TREND_INTERVALS)
     .default('day')
     .describe('Bucket width. Use week for periods longer than about a month.'),
+  // The chart's second line. Period bases only — see `periodCompareToSchema`:
+  // the trends service takes no territory, and a spec that accepted one would
+  // draw two identical lines and call them a comparison.
+  compareTo: periodCompareToSchema.optional(),
 });
 
 /**

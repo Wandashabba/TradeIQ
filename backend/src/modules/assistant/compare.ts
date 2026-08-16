@@ -68,6 +68,33 @@ export const compareToSchema = z
 export type CompareTo = z.infer<typeof compareToSchema>;
 
 /**
+ * The same idea, minus the basis a time series cannot honour.
+ *
+ * `trends.service.ts` has no territory narrowing — `TrendFilters` is
+ * `{clientId, interval, from, to}` and nothing else — so a trend tool that
+ * declared `kind: 'territory'` would be promising a comparison it can only
+ * answer by silently ignoring the territory and returning the whole business
+ * twice. Same rule as the three list-shaped pillar tools: a declaration the
+ * model can see is a capability the model will offer the user, so the narrower
+ * schema is the honest one.
+ */
+export const periodCompareToSchema = z
+  .object({
+    kind: z
+      .enum(['previous_period', 'same_period_last_year'])
+      .describe(
+        'previous_period = the equally long window just before this one. ' +
+          'same_period_last_year = the same dates a year earlier, for seasonality.',
+      ),
+  })
+  .describe(
+    'Optional. Set this when the user asks to compare the trend — "versus last month", ' +
+      '"against last year", "how does that compare" — and both lines come back in one turn.',
+  );
+
+export type PeriodCompareTo = z.infer<typeof periodCompareToSchema>;
+
+/**
  * The window the comparison series is measured over.
  *
  * A scope comparison (territory) keeps the *same* window — comparing Gauteng

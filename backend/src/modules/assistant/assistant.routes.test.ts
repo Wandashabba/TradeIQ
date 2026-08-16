@@ -547,6 +547,54 @@ describe('POST /assistant/chat', () => {
       expect(data.points[0].value).toBe(82);
     });
 
+    it('plots a comparison as a second series, in one turn', async () => {
+      // The workflow being killed is "export, save, export again, overlay the
+      // two in Excel". Two lines from one question is the whole point, so the
+      // second window has to come back as its own SERIES — a per-figure delta
+      // is a different thing and cannot be plotted.
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getMetricTrend',
+            args: {
+              metric: 'execution_score',
+              period: { kind: 'mtd' },
+              compareTo: { kind: 'previous_period' },
+            },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Up on last month.' }, { type: 'done' }],
+      ];
+
+      const res = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How does execution this month compare with last month?' });
+
+      const artifact = parseSse(res.text).find((f) => f.event === 'artifact');
+      expect(artifact?.data).toMatchObject({
+        type: 'trend_chart',
+        // The basis rides in the params, so reopening the artifact redraws both
+        // lines rather than silently dropping one.
+        params: { metric: 'execution_score', compareTo: { kind: 'previous_period' } },
+      });
+
+      const data = (
+        artifact?.data as {
+          data: { points: unknown[]; comparison: { label: string; points: unknown[] } };
+        }
+      ).data;
+      expect(data.points).toHaveLength(1);
+      // Nothing was seeded in the previous window, and an empty second series is
+      // the honest answer — not a reason to omit the comparison and leave the
+      // user wondering whether it was asked for.
+      expect(data.comparison.points).toEqual([]);
+      expect(data.comparison.label).toMatch(/before this one/);
+    });
+
     it('resolves a NAME to the right agent in one hop', async () => {
       // The finding from the first live eval sweep. Requiring an id meant
       // "How has Tumo been performing?" had to spend a discovery round first,

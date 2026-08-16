@@ -48,7 +48,7 @@ class AssistantRepository {
         // artifacts findable: without it the server opens a fresh conversation
         // each turn, and both the live-artifact manifest and the params-change
         // note quietly have nothing to report.
-        if (conversationId != null) 'conversationId': conversationId,
+        'conversationId': ?conversationId,
         if (history.isNotEmpty)
           'history': history.map((entry) => entry.toJson()).toList(),
       },

@@ -214,7 +214,11 @@ class _MessageView extends StatelessWidget {
 
         for (final artifact in message.artifacts) ...[
           const SizedBox(height: 10),
-          ArtifactView(artifact: artifact),
+          // Expandable here and only here: the inline card is deliberately
+          // impoverished, and Expand is how the filter controls and the table
+          // twin are reached without putting a date picker in every chat
+          // bubble.
+          ArtifactView(artifact: artifact, expandable: true),
         ],
       ],
     );

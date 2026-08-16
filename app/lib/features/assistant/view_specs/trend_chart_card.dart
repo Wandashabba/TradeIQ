@@ -7,9 +7,15 @@ import '../data/chat_controller.dart';
 
 /// The `trend_chart` spec, rendered inline in the chat stream.
 ///
-/// **Deliberately minimal — the anti-crowding rule.** One series on the shared
-/// [LineChart], a title, and nothing else: no table twin, no filter chrome, no
-/// period picker. Phase 2's Expanded mode is where those belong.
+/// **Deliberately minimal — the anti-crowding rule.** The shared [LineChart], a
+/// title, and nothing else: no table twin, no filter chrome, no period picker.
+/// Expanded mode (`/artifact/:id`) is where those belong.
+///
+/// The comparison series is *not* one of the things held back. A turn that
+/// asked to compare two windows asked for two lines, and showing one of them
+/// until the card is expanded answers half the question — the same mistake as
+/// shipping a backend comparison with nowhere to land. What Expanded adds is
+/// the table twin, the delta column and the controls.
 ///
 /// The data it reads is `getMetricTrend`'s result — `{ metric, interval,
 /// points: [{ period, value, count }] }` — but that shape is a convention with
@@ -49,8 +55,23 @@ class TrendChartCard extends StatelessWidget {
     return value is String ? value : null;
   }
 
-  List<ChartPoint> _points() {
-    final raw = _data['points'];
+  Map<String, dynamic> get _comparison {
+    final value = _data['comparison'];
+    return value is Map<String, dynamic> ? value : const {};
+  }
+
+  /// What the second series is measured against, in the user's own vocabulary.
+  /// Null on a turn that asked for no comparison — which is most turns.
+  String? get _comparisonLabel {
+    final label = _comparison['label'];
+    return label is String && label.isNotEmpty ? label : null;
+  }
+
+  /// Points from a `{period, value}` row list — the main series or the
+  /// comparison's. The source is explicit: defaulting to the main series would
+  /// draw the current period twice on a turn that asked for no comparison, and
+  /// the legend would then claim two lines over one.
+  List<ChartPoint> _points(dynamic raw) {
     if (raw is! List) return const [];
 
     final points = <ChartPoint>[];
@@ -72,15 +93,24 @@ class TrendChartCard extends StatelessWidget {
     final metric = _string('metric');
     final title = _metricLabels[metric] ?? metric ?? 'Trend';
     final interval = _string('interval');
+    final comparisonLabel = _comparisonLabel;
+    final subtitle = [
+      if (interval != null) 'By $interval',
+      if (comparisonLabel != null) 'vs $comparisonLabel',
+    ].join(' · ');
 
     return PanelCard(
       title: title,
-      subtitle: interval == null ? null : 'By $interval',
+      subtitle: subtitle.isEmpty ? null : subtitle,
       // Fewer than two readable points renders the chart's own honest empty
       // plot ("Not enough data to plot") rather than a dot pretending to be
       // a trend.
       child: LineChart(
-        points: _points(),
+        points: _points(_data['points']),
+        // The comparison IS drawn inline: two lines is what the question asked
+        // for, and it is the same chart either way.
+        comparison: _points(_comparison['points']),
+        comparisonName: comparisonLabel ?? '',
         seriesName: title,
         valueSuffix: metric != null && _percentMetrics.contains(metric) ? '%' : '',
       ),
