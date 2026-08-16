@@ -1,9 +1,11 @@
 # TradeIQ — Project Status
 
-**Last updated:** 2026-08-07
+**Last updated:** 2026-08-16
 **Current initiative:** Conversational TradeIQ (dashboard → chatbot)
-**Active branch:** `orchestration` — PR [#265](../../pull/265), stacked on the
-foundation PR [#264](../../pull/264). Retarget to `main` once #264 lands.
+**Active branch:** `orchestration` merged into `feat/assistant-phase0-foundation`
+via PR [#265](../../pull/265); that branch carries everything to `main` as PR
+[#264](../../pull/264), with the Gemini fixes stacked on it as
+[#267](../../pull/267).
 **Plan:** [docs/superpowers/plans/2026-08-02-conversational-tradeiq.md](docs/superpowers/plans/2026-08-02-conversational-tradeiq.md) — sequencing and tasks
 **Spec:** [docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md](docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md) — contracts, wire protocol, security model
 
@@ -20,7 +22,7 @@ foundation PR [#264](../../pull/264). Retarget to `main` once #264 lands.
 
 | Phase | Scope | Status | Gate |
 |---|---|---|---|
-| 0 | [Read-only chat spine](../../issues/253) | 🟡 100% on Flash; unmeasured on Pro | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
+| 0 | [Read-only chat spine](../../issues/253) | 🟢 gate met 2026-08-16 — 100% (27/27) on `gemini-3.1-pro-preview`, cache hit live | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
 | 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
@@ -31,6 +33,44 @@ foundation PR [#264](../../pull/264). Retarget to `main` once #264 lands.
 > (#253–#258). The backlog below is filed as #244–#250; the open questions as
 > #251. The plan remains the *what and why* — the issues are where progress is
 > claimed, so a task is done when its checkbox is ticked *there*, not here.
+
+> **Phase 0 gate closed 2026-08-16 — and three things were wrong on the way.**
+>
+> **1. Tool selection: 100% (27/27) on `gemini-3.1-pro-preview`**, gate 90%,
+> nothing excluded. The row above previously read *"100% on Flash; unmeasured on
+> Pro"*. That was already stale: a `report.json` showing 26/26 on Pro existed
+> from 2026-08-12 — but it is **gitignored and untracked**, so it was never
+> evidence anyone else could see, and it had silently dropped `vis-1` from the
+> denominator as a `provider_error`. On the fresh sweep `vis-1` passes. Do not
+> treat that file as a record; it is a local artifact of the last run.
+>
+> **2. Every tool-calling turn was broken in production, while the evals read
+> green.** Gemini 3.x attaches a `thoughtSignature` to the Part carrying a
+> `functionCall` and rejects the follow-up request without it. The adapter
+> rebuilt the call from `ToolCallRecord` and dropped it, so the request carrying
+> the tool's *result* was refused — the tool ran, chips streamed, then the turn
+> died. Fixed in #267. The evals could not see it because they run against a
+> scripted provider: **a green eval sweep says nothing about the live vendor
+> round trip.**
+>
+> **3. The cache discount was never actually being received.** Gemini's
+> *implicit* caching does not engage: two live turns both reported zero cached
+> tokens, and a direct probe sending a 6018-token identical prefix twice
+> back-to-back returned `usageMetadata` with no `cachedContentTokenCount` key at
+> all. `evals.test.ts` "passed" this gate only because the scripted provider
+> fabricates the number — it asserts prefix *stability*, which is real and
+> necessary, but not vendor caching. Fixed by asking for the discount explicitly
+> (`caches.create`, see `providers/promptCache.ts`):
+>
+> | | implicit (before) | explicit (after) |
+> |---|---|---|
+> | Turn 1 | 3.90c · 0 cached | **1.68c · 7 658 cached** |
+> | Turn 2 | 5.87c · 0 cached | **3.72c · 15 316 cached** |
+>
+> ~45% off the measured turn cost, and the plan's frozen-prefix cost argument
+> now actually holds. ⚠️ Cached content is billed **per token-hour for as long
+> as it exists**, so `GEMINI_PROMPT_CACHE_TTL_SECONDS` (default 3600) is a cost
+> dial to revisit against real traffic, not a performance one.
 
 **Started 2026-08-06.** The key-independent half of Phase 0 foundation landed
 first: the provider interface, the roster security boundary and its matrix test,
