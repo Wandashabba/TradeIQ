@@ -51,6 +51,13 @@ dependencies:
   image_picker: ^1.1.2
   flutter_map: ^8.3.1
   latlong2: ^0.10.1
+  # On-demand PDF export of the artifact the user is looking at (Phase 2).
+  # `pdf` builds the document, `printing` hands it to the platform's own
+  # share/print sheet — the viewer is the OS's, not one we maintain. Not to be
+  # confused with /reports and /report-schedules, which are server-side and
+  # cannot reuse Flutter's CustomPainter charts.
+  pdf: ^3.11.1
+  printing: ^5.13.4
   sqlite3: ^3.5.0
 dev_dependencies:
   flutter_test:
