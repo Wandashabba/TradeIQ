@@ -176,6 +176,15 @@ error interception, and result modification — which is exactly what write acti
 need. Revisit only if approval workflows become multi-day and need durable
 resume.
 
+> **This decision is load-bearing for something outside this plan.** A customer
+> arriving with their own ERP or field-force feed is a real ask (raised
+> 2026-08-17, decision note:
+> [2026-08-17-bring-your-own-data.md](2026-08-17-bring-your-own-data.md)), and
+> the reason it stays *possible* is the rule below: tools wrap services, never
+> Prisma. That is the seam a per-tenant data adapter would slot into. Pointing
+> tools at a customer API directly would give up both properties this section
+> is about.
+
 **2. The tools *are* the semantic layer.** Benchmarks put Claude at 90.0%
 accuracy on raw text-to-SQL versus 98.2% through a semantic layer — but the
 decisive difference is the failure mode. Text-to-SQL fails by returning a

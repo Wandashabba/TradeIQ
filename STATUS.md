@@ -2,13 +2,12 @@
 
 **Last updated:** 2026-08-17
 **Current initiative:** Conversational TradeIQ (dashboard → chatbot)
-**Active branch:** `feat/assistant-artifact-expanded` — the params-change note
-and Expanded mode, open for review. Everything through PR
-[#273](../../pull/273) is on `main`. Phase 0 landed via
-[#264](../../pull/264)/[#268](../../pull/268); Phase 2 so far via
-[#269](../../pull/269) (persistence), [#270](../../pull/270) (turn wiring),
-[#271](../../pull/271) (comparison) and [#272](../../pull/272) (the first
-comparison-aware card).
+**Active branch:** none — everything through PR [#275](../../pull/275) is on
+`main`. Phase 0 landed via [#264](../../pull/264)/[#268](../../pull/268);
+Phase 2 via [#269](../../pull/269) (persistence), [#270](../../pull/270) (turn
+wiring), [#271](../../pull/271) (comparison), [#272](../../pull/272) (the first
+comparison-aware card), [#274](../../pull/274) (the params-change note and
+Expanded mode) and [#275](../../pull/275) (PDF export).
 **Plan:** [docs/superpowers/plans/2026-08-02-conversational-tradeiq.md](docs/superpowers/plans/2026-08-02-conversational-tradeiq.md) — sequencing and tasks
 **Spec:** [docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md](docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md) — contracts, wire protocol, security model
 
@@ -95,8 +94,8 @@ comparison-aware card).
 > filter controls (period incl. a custom range, granularity, territory,
 > comparison) writing through the tool's own params schema; the table twin with
 > Δ and Δ% columns; and the comparison drawn as a genuine **second series** on
-> the shared `LineChart` rather than as a per-figure delta. **PDF export is the
-> only Phase 2 item left.**
+> the shared `LineChart` rather than as a per-figure delta. PDF export followed
+> the same day — see below.
 >
 > **The last backend gap is closed too.** `refine`/`undo` flag the row, and the
 > next turn hands the model `[artifact:<id> params → …]` *with the user
@@ -682,6 +681,18 @@ computes, so these are **backend** work items.
 - [ ] #249 — Macro overlay (interest rates, fuel, disposable income) →
       price/volume strategy advice. Needs external data feeds
 - [ ] #250 — Decoder/serial lifecycle: warehouse → trade → sold → activated
+- [ ] **Bring your own data** — a customer arrives with an existing ERP, feed
+      or field-force tool and TradeIQ answers about *their* data. Raised
+      2026-08-17; decision note at
+      [docs/superpowers/plans/2026-08-17-bring-your-own-data.md](docs/superpowers/plans/2026-08-17-bring-your-own-data.md).
+      **Deliberately unscheduled**: the blocker is not engineering time, it is
+      that nobody has seen one real customer export. Designing a mapping format
+      against imagined schemas produces a config language no customer can
+      express their data in, and it is unfalsifiable until someone tries.
+      The note's headline: **sync into our canonical model, do not federate
+      live**, because the tools are the semantic layer *and* the security
+      boundary, and both properties come from the tool wrapping a service we
+      wrote
 
 **Roadmap conflict to resolve:**
 - [ ] **#61 "ML route optimisation & next-best-action"** (Phase 4, ticketed) is
