@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/tiq_colors.dart';
@@ -153,11 +154,33 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
       // Reported in the same place a refused filter is: this screen already has
       // one honest place for "that did not work", and a second style of failure
       // message would be a second thing to learn.
-      setState(() => _error = 'That view could not be exported. Please try again.');
+      setState(() => _error = _exportFailureMessage(err));
       debugPrint('[assistant] pdf export failed: $err');
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
+  }
+
+  /// Why the export failed, in words that lead somewhere.
+  ///
+  /// "Please try again" is right for a share sheet the user dismissed or a
+  /// platform that refused once. It is **actively wrong** when nothing is
+  /// wired up to receive the document, because that fails identically on every
+  /// retry — so the message sends the user round a loop and whoever supports
+  /// them into an investigation.
+  ///
+  /// This is not hypothetical. It is the shape the bug actually took: a web
+  /// build whose generated plugin registrant predated `printing` being added
+  /// registered every other plugin, so `sharePdf` reached a method channel
+  /// with nothing behind it and threw [MissingPluginException]. The export
+  /// path was fine; the build was stale. An error message that says so is the
+  /// difference between a reload and an afternoon.
+  static String _exportFailureMessage(Object err) {
+    if (err is MissingPluginException || err is UnimplementedError) {
+      return 'Exporting is not available in this build of the app. Reload the '
+          'page — if it keeps happening, the build needs replacing.';
+    }
+    return 'That view could not be exported. Please try again.';
   }
 
   static String _filenameFor(ArtifactDetail detail) {

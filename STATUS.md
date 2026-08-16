@@ -152,6 +152,35 @@ Expanded mode) and [#275](../../pull/275) (PDF export).
 >    now live behind `ArtifactExporter`; the screen only describes what to
 >    export. The hang was the design telling us where the boundary was.
 >
+> **Export failed in the browser, and the code was innocent (2026-08-17).**
+> "That view could not be exported" on every click of Export PDF in the web
+> build. The cause was not in the export path at all: Flutter's **generated
+> web plugin registrant was stale**. It registered five plugins and not
+> `printing`, because it had been generated before `printing` was added and
+> the incremental build never re-ran that step — `.flutter-plugins-dependencies`
+> listed `printing` under `web`, the registrant did not. With
+> `PrintingPlugin.registerWith` never called, `PrintingPlatform.instance` stays
+> the default `MethodChannelPrinting`, so `sharePdf` reached the method channel
+> `net.nfet.printing`, which has no implementation in a browser. The built
+> `main.dart.js` proves it: it carried the channel name and **none** of
+> `printing_web.dart`'s strings, the whole class having been tree-shaken as
+> unreachable. Deleting `app/.dart_tool/flutter_build` and rebuilding restores
+> the registration. Two things worth keeping:
+>
+> 1. **A stale build is indistinguishable from a broken feature** unless the
+>    error says which. The message said *"Please try again"* — advice that can
+>    never work for a `MissingPluginException`, and it cost an investigation to
+>    find that out. It now names the build as the suspect for that class of
+>    failure, with a test that the retry wording is *absent*.
+> 2. **The seam that made the feature testable is also what hid this.**
+>    `ArtifactExporter` exists so a widget test can assert the right report was
+>    requested without a compositor — and every test swaps it out, so nothing
+>    ever ran `export()`. Its font loading is now covered (three assets
+>    addressed by literal path, which `analyze` cannot see into), as is the
+>    `compress: true` default that ships, which the golden's `compress: false`
+>    had left untested. What still cannot be covered here is `sharePdf` itself:
+>    that needs a platform, which is exactly why the seam is there.
+>
 > **Next: the two gate items, neither of which is a feature.** A round-trip
 > convergence test (UI-driven and prompt-driven changes landing on identical
 > state — the machinery exists, the proof does not) and responsive layout tests

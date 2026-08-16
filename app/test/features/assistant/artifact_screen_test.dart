@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
@@ -363,6 +364,29 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('could not be exported'), findsOneWidget);
+    });
+
+    testWidgets('a platform with nothing to share to is not told to retry', (
+      tester,
+    ) async {
+      // The failure that actually shipped: a stale web build registered every
+      // plugin but `printing`, so `sharePdf` reached a method channel with
+      // nothing behind it. Retrying that never once succeeds, so offering a
+      // retry sends the user round a loop — the message has to say the build
+      // is the problem.
+      final exporter = RecordingExporter()
+        ..throwThis = MissingPluginException('No implementation found');
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        exporter: exporter,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('artifact-export-pdf')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('not available in this build'), findsOneWidget);
+      expect(find.textContaining('Please try again'), findsNothing);
     });
   });
 }
