@@ -4,7 +4,7 @@ import { quarantineFreeText } from './quarantine';
 import { pillarOf, type ToolName } from './roster';
 import { sanitizeToolResult } from './sanitize';
 import { tracer as processTracer, type AssistantTracer, type ToolSpan } from './tracing';
-import { ToolFacingError, type AnyAssistantTool } from './types';
+import { ToolFacingError, type AnyAssistantTool, type ToolArgs } from './types';
 import { validateViewSpec, type ViewSpec } from './viewspec';
 
 /**
@@ -35,6 +35,12 @@ export const MAX_TOOL_ROUNDS = 4;
 
 /** What the route writes to the wire. Mirrors the SSE table in the design spec. */
 export type WireEvent =
+  /**
+   * Which conversation this turn belongs to — sent first, and by the route
+   * rather than the orchestrator, which has no notion of a conversation.
+   * The client echoes it on the next turn so artifacts stay findable.
+   */
+  | { event: 'conversation'; data: { id: string } }
   | { event: 'token'; data: { text: string } }
   | { event: 'tool_start'; data: { name: string; pillar: string } }
   | { event: 'tool_end'; data: { name: string; ok: boolean } }
@@ -63,6 +69,24 @@ export interface OrchestratorInput {
   trace?: { traceId: string; userId: string; clientId: string };
   /** Injected by tests. Defaults to the process tracer. */
   tracer?: AssistantTracer;
+  /**
+   * Persist an artifact this turn produced and return the id to publish.
+   *
+   * A callback rather than a database import: the orchestrator has no tenant,
+   * no request and no Prisma client, and giving it one would make every test
+   * that runs a turn need a database. Callers that omit it — every unit test —
+   * keep the turn-local ids, which is why adding persistence changed no
+   * existing assertion.
+   *
+   * Returning `null` means "could not persist"; the turn falls back to a
+   * turn-local id and carries on. A chart the user can see but not refine is a
+   * degraded artifact; a failed turn is no artifact at all.
+   */
+  saveArtifact?: (input: {
+    type: string;
+    toolName: string;
+    params: ToolArgs;
+  }) => Promise<string | null>;
 }
 
 function zeroUsage(): Usage {
@@ -314,17 +338,32 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       // needs spotlighting, because the model is the thing an injection targets.
       const spec = safeViewSpec(tool, parsed.data, result);
       if (spec) {
+        // A persisted id is what makes the card refinable after the turn ends:
+        // `/artifacts/:id/refine` has to find a row. Persistence failing must
+        // not cost the user the chart, so the turn-local id remains the
+        // fallback — deterministic within a turn, so a repeated call patches
+        // the card in place instead of appending a near-identical one.
+        let id = `${tool.name}-${artifactIndex}`;
+        if (input.saveArtifact) {
+          try {
+            const persisted = await input.saveArtifact({
+              type: spec.type,
+              toolName: tool.name,
+              // The tool's PARSED args, not the model's raw ones. Refine
+              // re-validates through the same schema, so storing anything
+              // Zod had not already accepted would put a row in the table
+              // that can never be re-run.
+              params: parsed.data,
+            });
+            if (persisted) id = persisted;
+          } catch (err) {
+            console.error('[assistant] could not persist artifact', err);
+          }
+        }
+
         yield {
           event: 'artifact',
-          data: {
-            // Deterministic within a turn so a repeated call patches the card
-            // in place instead of appending a near-identical one. Phase 2
-            // replaces this with a persisted id.
-            id: `${tool.name}-${artifactIndex}`,
-            type: spec.type,
-            params: spec.params,
-            data: result,
-          },
+          data: { id, type: spec.type, params: spec.params, data: result },
         };
         artifactIndex += 1;
       }

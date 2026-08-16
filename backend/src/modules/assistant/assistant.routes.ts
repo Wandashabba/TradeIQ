@@ -15,6 +15,8 @@ import {
   ArtifactNotFoundError,
   InvalidParamsError,
   ToolUnavailableError,
+  artifactManifest,
+  createArtifact,
   readArtifact,
   refineArtifact,
   undoArtifact,
@@ -31,6 +33,18 @@ const MAX_HISTORY_MESSAGES = 40;
 const MAX_MESSAGE_CHARS = 4_000;
 
 const chatBody = z.object({
+  /**
+   * Which conversation this turn belongs to, so artifacts it produces can be
+   * found again. Optional: the first turn has no id yet, so the server mints
+   * one and announces it on the stream. A client that ignores the announcement
+   * still works — it just gets a fresh conversation each turn, which is exactly
+   * today's behaviour.
+   *
+   * Not trusted as a lookup key on its own. Every artifact query is additionally
+   * scoped by the caller's user and tenant, so guessing someone else's
+   * conversation id reveals nothing.
+   */
+  conversationId: z.string().uuid().optional(),
   message: z.string().trim().min(1).max(MAX_MESSAGE_CHARS),
   history: z
     .array(
@@ -115,10 +129,42 @@ assistantRouter.post(
     // Identity is bound once, here. Nothing below takes a tenant argument.
     const now = new Date();
     const tools = buildTools({ user, now });
+    const owner = { userId: user.userId, clientId: user.clientId };
+    const conversationId = parsed.data.conversationId ?? randomUUID();
+
+    // Announced before anything can fail, so a client always learns the id it
+    // needs to send back — including on a turn that errors halfway.
+    writeEvent(res, { event: 'conversation', data: { id: conversationId } });
+
+    // What is already on screen, so the model refines an existing view instead
+    // of emitting a near-duplicate beside it.
+    //
+    // Deliberately NOT part of the system prompt. The cached prefix is
+    // `[tools][system]` and caching is a prefix match — folding a list that
+    // changes whenever an artifact is created into that prefix would miss the
+    // cache on most turns and, with explicit caching, bill for a new entry each
+    // time. Volatile context belongs after the prefix, with the history.
+    let manifestNote = '';
+    try {
+      const live = await artifactManifest(conversationId, owner);
+      if (live.length > 0) {
+        manifestNote =
+          'Views already open (refine one by name rather than creating another):\n' +
+          live.map((a) => `- ${a.id} — ${a.type} ${JSON.stringify(a.params)}`).join('\n') +
+          '\n\n';
+      }
+    } catch (err) {
+      // Context, not correctness. A turn without the manifest may duplicate a
+      // card; a turn that 500s because a read failed helps nobody.
+      console.error('[assistant] could not load artifact manifest', err);
+    }
 
     const messages: Message[] = [
       ...(parsed.data.history ?? []).map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user' as const, content: parsed.data.message },
+      // Prepended to the user's own turn rather than sent as its own message:
+      // Gemini rejects two adjacent turns of the same role, and a synthetic
+      // `user` turn immediately before the real one is exactly that.
+      { role: 'user' as const, content: manifestNote + parsed.data.message },
     ];
 
     try {
@@ -134,6 +180,23 @@ assistantRouter.post(
           traceId: randomUUID(),
           userId: user.userId,
           clientId: user.clientId,
+        },
+        // Returns null rather than throwing: a chart the user can see but not
+        // refine beats losing the turn to a write failure.
+        saveArtifact: async ({ type, toolName, params }) => {
+          try {
+            const saved = await createArtifact({
+              owner,
+              conversationId,
+              type,
+              toolName,
+              params,
+            });
+            return saved.id;
+          } catch (err) {
+            console.error('[assistant] could not persist artifact', err);
+            return null;
+          }
         },
       })) {
         writeEvent(res, frame);
