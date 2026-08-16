@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../data/artifact_repository.dart';
 import '../view_specs/expanded_views.dart';
@@ -202,7 +201,7 @@ class _Loaded extends StatelessWidget {
             _RefusalNote(message: error!),
             const SizedBox(height: 12),
           ],
-          _AppliedFilters(detail: detail, params: params),
+          _AppliedFilters(params: params),
           const SizedBox(height: 12),
           // Dimmed, not removed, while a change is in flight: the figures are
           // still the last true ones, and blanking them makes a 200ms query
@@ -244,9 +243,8 @@ class _Loaded extends StatelessWidget {
 /// and this screen is reachable by a link from someone else's conversation,
 /// where the user has none of the context the chat gave.
 class _AppliedFilters extends StatelessWidget {
-  const _AppliedFilters({required this.detail, required this.params});
+  const _AppliedFilters({required this.params});
 
-  final ArtifactDetail detail;
   final Map<String, dynamic> params;
 
   @override
@@ -316,25 +314,6 @@ class _LoadFailure extends StatelessWidget {
             OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// A PanelCard-friendly wrapper used by the filter panel.
-class FilterSection extends StatelessWidget {
-  const FilterSection({super.key, required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [SectionLabel(label), const SizedBox(height: 6), child],
       ),
     );
   }

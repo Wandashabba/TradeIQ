@@ -5,8 +5,6 @@ import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/artifact_repository.dart';
-import 'artifact_screen.dart' show FilterSection;
-
 /// The controls that steer an artifact without saying a word to the model.
 ///
 /// **They write through the tool's own params schema** — the same one the model
@@ -444,4 +442,23 @@ String describeParamsInWords(Map<String, dynamic> params) {
   }
 
   return parts.isEmpty ? 'No filters applied.' : '${parts.join(' · ')}.';
+}
+
+/// A PanelCard-friendly wrapper used by the filter panel.
+class FilterSection extends StatelessWidget {
+  const FilterSection({super.key, required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [SectionLabel(label), const SizedBox(height: 6), child],
+      ),
+    );
+  }
 }
