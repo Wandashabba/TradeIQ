@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import type { ArtifactParamsChange } from './paramsNote';
 import { buildTools, type ToolContext } from './tools';
 import type { AnyAssistantTool, ToolArgs } from './types';
 
@@ -194,7 +195,15 @@ export async function refineArtifact(
   const history = [...historyOf(row), toStored(row).params].slice(-PARAMS_HISTORY_LIMIT);
   const updated = await prisma.assistantArtifact.update({
     where: { id: row.id },
-    data: { params: valid as object, paramsHistory: history as object[] },
+    data: {
+      params: valid as object,
+      paramsHistory: history as object[],
+      // Flagged, not narrated. The note the model eventually reads is rendered
+      // at turn time from whatever the params are *then*, so three drags of the
+      // same slider collapse into one honest statement of where it ended up
+      // rather than three stale ones.
+      paramsChangedAt: new Date(),
+    },
   });
 
   return { ...toStored(updated), data, canUndo: history.length > 0 };
@@ -221,7 +230,14 @@ export async function undoArtifact(id: string, ctx: ToolContext): Promise<Artifa
   const remaining = history.slice(0, -1);
   const updated = await prisma.assistantArtifact.update({
     where: { id: row.id },
-    data: { params: valid as object, paramsHistory: remaining as object[] },
+    data: {
+      params: valid as object,
+      paramsHistory: remaining as object[],
+      // An undo is a UI-driven change like any other. Leaving it unflagged
+      // would be the worst case of all: the model told about a change, then
+      // never told it was taken back.
+      paramsChangedAt: new Date(),
+    },
   });
 
   return { ...toStored(updated), data, canUndo: remaining.length > 0 };
@@ -244,6 +260,62 @@ export async function artifactManifest(
     orderBy: { updatedAt: 'desc' },
     take: limit,
   });
+  return rows.map((row) => ({
+    id: row.id,
+    type: row.type,
+    params: (row.params ?? {}) as ToolArgs,
+  }));
+}
+
+/**
+ * The UI-driven changes this conversation has not told the model about — and
+ * clearing them as it hands them over.
+ *
+ * "Take" rather than "list": reading them is what marks them delivered, so a
+ * change is announced on exactly one turn. Announcing it every turn afterwards
+ * would spend tokens restating what the manifest already carries, and never
+ * announcing it is the stale-params bug this exists to close.
+ *
+ * Oldest first, because the order the user moved the controls in is the order
+ * that reads correctly. Bounded for the same reason the manifest is: a note is
+ * meant to cost a few tokens.
+ *
+ * A change made *between* the read and the clear survives — the clear is
+ * bounded by the newest timestamp actually returned, not by "everything
+ * currently flagged". The alternative silently swallows a filter change that
+ * landed mid-turn, which is precisely the failure this function exists to
+ * prevent.
+ */
+export async function takeParamsChanges(
+  conversationId: string,
+  owner: ArtifactOwner,
+  limit = 10,
+): Promise<ArtifactParamsChange[]> {
+  const rows = await prisma.assistantArtifact.findMany({
+    where: {
+      conversationId,
+      clientId: owner.clientId,
+      userId: owner.userId,
+      paramsChangedAt: { not: null },
+    },
+    orderBy: { paramsChangedAt: 'asc' },
+    take: limit,
+  });
+  if (rows.length === 0) return [];
+
+  const cutoff = rows[rows.length - 1].paramsChangedAt!;
+  // Raw, deliberately: `update` would touch `updatedAt`, and marking a note
+  // delivered is bookkeeping, not a change to the view. A bumped `updatedAt`
+  // would reorder the manifest and tell the client the artifact moved when
+  // nothing about it did.
+  await prisma.$executeRaw`
+    UPDATE assistant_artifacts
+       SET params_changed_at = NULL
+     WHERE conversation_id = ${conversationId}
+       AND client_id = ${owner.clientId}
+       AND user_id = ${owner.userId}
+       AND params_changed_at <= ${cutoff}`;
+
   return rows.map((row) => ({
     id: row.id,
     type: row.type,

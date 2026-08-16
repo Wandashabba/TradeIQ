@@ -96,6 +96,17 @@ class ChatController extends Notifier<ChatState> {
   CancelToken? _cancelToken;
   StreamSubscription<AssistantEvent>? _subscription;
 
+  /// The server's id for this conversation, learned from the first turn.
+  ///
+  /// Held here rather than in [ChatState] because nothing renders it — it is
+  /// transport state. It is what makes an artifact created three turns ago
+  /// still refinable by name, and what lets the server tell the model that the
+  /// user has since moved a filter.
+  String? _conversationId;
+
+  /// Exposed for the artifact screen and for tests. Null until the first turn.
+  String? get conversationId => _conversationId;
+
   @override
   ChatState build() {
     // A user who leaves the screen mid-turn should stop paying for the rest of
@@ -134,7 +145,12 @@ class ChatController extends Notifier<ChatState> {
     final completer = Completer<void>();
     _subscription = ref
         .read(assistantRepositoryProvider)
-        .chat(message: trimmed, history: history, cancelToken: cancelToken)
+        .chat(
+          message: trimmed,
+          history: history,
+          conversationId: _conversationId,
+          cancelToken: cancelToken,
+        )
         .listen(
           _apply,
           onError: (Object err) {
@@ -184,6 +200,12 @@ class ChatController extends Notifier<ChatState> {
     final current = messages[index];
 
     switch (event) {
+      case ConversationEvent(:final id):
+        // Transport state, not transcript state — recorded and not rendered.
+        // Returning early keeps it out of the message rebuild below, which has
+        // nothing to change.
+        _conversationId = id;
+        return;
       case TokenEvent(:final text):
         messages[index] = current.copyWith(text: current.text + text);
       case ToolStartEvent(:final name, :final pillar):
@@ -263,6 +285,10 @@ class ChatController extends Notifier<ChatState> {
 
   void clear() {
     cancel();
+    // A cleared screen is a new conversation. Keeping the id would carry the
+    // old one's artifacts into a thread the user believes is empty, and the
+    // manifest would offer the model views that are no longer on screen.
+    _conversationId = null;
     state = const ChatState();
   }
 }

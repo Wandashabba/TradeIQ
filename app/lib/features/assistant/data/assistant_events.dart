@@ -40,6 +40,9 @@ sealed class AssistantEvent {
     }
 
     switch (name) {
+      case 'conversation':
+        final id = data['id'];
+        return id is String ? ConversationEvent(id) : null;
       case 'token':
         final text = data['text'];
         return text is String ? TokenEvent(text) : null;
@@ -83,6 +86,19 @@ sealed class AssistantEvent {
         return null;
     }
   }
+}
+
+/// Which conversation this turn belongs to.
+///
+/// The server mints one on a turn that arrives without an id and announces it
+/// first, before anything can fail. Echoing it back on the next turn is what
+/// makes artifacts findable across turns — it is what the live-artifact
+/// manifest and the params-change note are both keyed by, so a client that
+/// drops it silently gets a brand-new conversation every turn and neither ever
+/// fires.
+class ConversationEvent extends AssistantEvent {
+  const ConversationEvent(this.id);
+  final String id;
 }
 
 class TokenEvent extends AssistantEvent {

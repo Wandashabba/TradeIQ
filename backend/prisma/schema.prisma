@@ -728,6 +728,12 @@ model AssistantArtifact {
   params         Json
   /// Previous params, oldest first, for undo. Capped in the service layer.
   paramsHistory  Json     @default("[]") @map("params_history")
+  /// Set when the USER moved a control, cleared once a turn has told the model.
+  /// Non-null means the model's picture of this view is stale — it is reasoning
+  /// from whatever params it last saw, which is no longer what is on screen.
+  /// A timestamp rather than a boolean so the notes can be ordered when several
+  /// views moved between two turns.
+  paramsChangedAt DateTime? @map("params_changed_at")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

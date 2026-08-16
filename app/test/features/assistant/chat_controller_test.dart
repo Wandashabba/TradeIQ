@@ -12,16 +12,19 @@ class StubRepository implements AssistantRepository {
   final List<AssistantEvent> script;
   final List<String> messages = [];
   final List<List<ChatHistoryEntry>> histories = [];
+  final List<String?> conversationIds = [];
   Object? throwError;
 
   @override
   Stream<AssistantEvent> chat({
     required String message,
     List<ChatHistoryEntry> history = const [],
+    String? conversationId,
     CancelToken? cancelToken,
   }) async* {
     messages.add(message);
     histories.add(history);
+    conversationIds.add(conversationId);
     if (throwError != null) throw throwError!;
     for (final event in script) {
       yield event;
@@ -332,6 +335,57 @@ void main() {
 
         expect(repository.histories.last.length,
             lessThanOrEqualTo(ChatController.historyLimit));
+      });
+    });
+
+    group('the conversation id', () {
+      test('is absent on the first turn and echoed on every one after', () async {
+        // Without the echo the server opens a new conversation per turn, and
+        // both the live-artifact manifest and the params-change note have
+        // nothing to report — the backend works and the feature is invisible.
+        final repository = StubRepository([
+          const ConversationEvent('conv-7'),
+          const TokenEvent('ok'),
+          const DoneEvent(),
+        ]);
+        final container = containerWith(repository);
+        final controller = container.read(chatControllerProvider.notifier);
+
+        await controller.send('first');
+        await controller.send('second');
+
+        expect(repository.conversationIds, [null, 'conv-7']);
+      });
+
+      test('is not rendered as a turn', () async {
+        final repository = StubRepository([
+          const ConversationEvent('conv-7'),
+          const DoneEvent(),
+        ]);
+        final container = containerWith(repository);
+
+        await container.read(chatControllerProvider.notifier).send('q');
+
+        final messages = container.read(chatControllerProvider).messages;
+        expect(messages, hasLength(2));
+        expect(messages.last.text, isEmpty);
+      });
+
+      test('is dropped by clear(), because that is a new conversation', () async {
+        // Keeping it would carry the old thread's artifacts into one the user
+        // believes is empty, and offer the model views that are no longer there.
+        final repository = StubRepository([
+          const ConversationEvent('conv-7'),
+          const DoneEvent(),
+        ]);
+        final container = containerWith(repository);
+        final controller = container.read(chatControllerProvider.notifier);
+
+        await controller.send('first');
+        controller.clear();
+        await controller.send('second');
+
+        expect(repository.conversationIds.last, isNull);
       });
     });
 
