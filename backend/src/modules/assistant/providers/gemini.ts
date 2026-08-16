@@ -6,7 +6,13 @@ import {
   type GenerateContentParameters,
   type GenerateContentResponse,
   type Part,
+  type Tool,
 } from '@google/genai';
+import {
+  forgetCachedPrefix,
+  getCachedPrefix,
+  type CachesClient,
+} from './promptCache';
 import { z } from 'zod';
 import type { AnyAssistantTool } from '../types';
 import { toGeminiSchema } from './geminiSchema';
@@ -95,6 +101,11 @@ export interface GeminiClient {
       params: GenerateContentParameters,
     ): Promise<AsyncGenerator<GenerateContentResponse>>;
   };
+  /**
+   * Optional so every existing scripted fake stays valid. A fake without it
+   * takes the inline path — the behaviour those tests were written against.
+   */
+  caches?: CachesClient;
 }
 
 export interface GeminiProviderOptions {
@@ -245,6 +256,20 @@ export class ProviderNotConfiguredError extends Error {
   }
 }
 
+/**
+ * Is this the vendor telling us the cache name we sent no longer exists?
+ *
+ * Matched on the message rather than the status alone: a bare 403/404 also
+ * covers a revoked key and a wrong model name, and retrying those inline would
+ * turn one clear failure into two confusing ones.
+ */
+export function isMissingCacheError(err: unknown): boolean {
+  const status = (err as { status?: number } | undefined)?.status;
+  if (status !== 403 && status !== 404) return false;
+  const message = err instanceof Error ? err.message : String(err);
+  return /cachedcontent|cached_content|cache/i.test(message);
+}
+
 export function classifyGeminiError(err: unknown): { code: string; message: string } {
   const status = (err as { status?: number })?.status;
   const raw = err instanceof Error ? err.message : String(err);
@@ -294,6 +319,15 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
     return client;
   }
 
+  /**
+   * Resolved through `getClient()` so a missing key still throws the same
+   * configuration error, rather than caching quietly disabling itself and
+   * leaving the real problem to surface one layer later.
+   */
+  function getCaches(): CachesClient | undefined {
+    return getClient().caches;
+  }
+
   return {
     name: 'gemini',
     models: { orchestrator: orchestratorModel, quarantine: quarantineModel },
@@ -314,19 +348,69 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
       // rather than trusted to every caller.
       const suppressTools = input.toolChoice === 'none' || input.model === 'quarantine';
       const declarations = suppressTools ? [] : toFunctionDeclarations(input.tools);
+      const model = input.model === 'quarantine' ? quarantineModel : orchestratorModel;
+      const toolsForRequest: Tool[] =
+        declarations.length > 0 ? [{ functionDeclarations: declarations }] : [];
 
-      const params: GenerateContentParameters = {
-        model: input.model === 'quarantine' ? quarantineModel : orchestratorModel,
+      // Resolving the cache reaches for the client, and a missing key throws
+      // from there — so this cannot sit above the try below. `runTurn` must end
+      // the stream with a `not_configured` **event**; a throw kills the SSE
+      // connection with no reason on it, which is the one thing the missing-key
+      // test exists to prevent.
+      let cachedPrefix: string | null = null;
+      let params: GenerateContentParameters | undefined;
+
+      try {
+        // The frozen prefix goes server-side when it can. Gemini's *implicit*
+        // caching never engages (measured — see promptCache.ts), so the
+        // discount the cost model assumes has to be requested explicitly. A
+        // null handle is the ordinary case for small prefixes, and means
+        // "send it inline".
+        cachedPrefix = await getCachedPrefix(
+          getCaches(),
+          model,
+          input.system,
+          toolsForRequest,
+        );
+      } catch (err) {
+        const { code, message } = classifyGeminiError(err);
+        console.error('[assistant] gemini turn failed', err);
+        yield { type: 'error', code, message };
+        return;
+      }
+
+      params = {
+        model,
         contents: toGeminiContents(input.messages),
         config: {
-          // NOT a prepended user turn. See the file header.
-          systemInstruction: input.system,
-          ...(declarations.length > 0 ? { tools: [{ functionDeclarations: declarations }] } : {}),
-          toolConfig: {
-            functionCallingConfig: {
-              mode: suppressTools ? FunctionCallingConfigMode.NONE : FunctionCallingConfigMode.AUTO,
-            },
-          },
+          // Sent inline only when there is no cache holding them. Passing both
+          // is a 400: the cached entry already carries this prefix, and the API
+          // refuses to be told it twice.
+          ...(cachedPrefix
+            ? {
+                cachedContent: cachedPrefix,
+                // `toolConfig` is omitted deliberately, not forgotten. The API
+                // refuses `system_instruction`, `tools` **and `tool_config`**
+                // alongside a cache — "move those values to CachedContent" —
+                // and a cache only exists when tools are present, which is
+                // exactly when the mode would have been AUTO, the vendor
+                // default. The suppressed case cannot reach here: no tools
+                // means no cache, so a NONE turn always takes the inline path
+                // below and keeps its explicit mode. The dual-LLM defence is
+                // therefore untouched by caching.
+              }
+            : {
+                // NOT a prepended user turn. See the file header.
+                systemInstruction: input.system,
+                ...(toolsForRequest.length > 0 ? { tools: toolsForRequest } : {}),
+                toolConfig: {
+                  functionCallingConfig: {
+                    mode: suppressTools
+                      ? FunctionCallingConfigMode.NONE
+                      : FunctionCallingConfigMode.AUTO,
+                  },
+                },
+              }),
           // ⚠️ Client-side only, per the SDK's own note: aborting stops us
           // reading the stream, it does not stop Google generating or billing
           // it. The plan's "client disconnect must not orphan a paid request"
@@ -343,7 +427,25 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
       let callIndex = 0;
 
       try {
-        const stream = await getClient().models.generateContentStream(params);
+        let stream: AsyncGenerator<GenerateContentResponse>;
+        try {
+          stream = await getClient().models.generateContentStream(params);
+        } catch (err) {
+          // A cache can vanish between our refresh check and Google's read —
+          // lapsed early, or deleted from the console. That must cost one
+          // retry, not the turn: forget the dead name and send the prefix
+          // inline. Only the opening request is retried, so nothing already
+          // streamed to the user can be duplicated.
+          if (!cachedPrefix || !isMissingCacheError(err)) throw err;
+          forgetCachedPrefix(cachedPrefix);
+          params.config = {
+            ...params.config,
+            cachedContent: undefined,
+            systemInstruction: input.system,
+            ...(toolsForRequest.length > 0 ? { tools: toolsForRequest } : {}),
+          };
+          stream = await getClient().models.generateContentStream(params);
+        }
 
         for await (const chunk of stream) {
           if (signal.aborted) {
