@@ -1,0 +1,88 @@
+name: security
+
+# What the other two workflows do not do.
+#
+# `backend-ci` runs `npm audit`, which answers one question: does a dependency
+# have a published advisory? It says nothing about the code in this repository,
+# and nothing about a secret that has already been committed. Those are the two
+# gaps this workflow closes, and they are the two that cannot be fixed after
+# the fact — a leaked key stays leaked once it is in the history, and a SQL
+# injection reaches production the moment it merges.
+#
+# Runs on every PR and on main, plus weekly. The weekly run matters more than
+# it looks: CodeQL's query pack is updated continuously, so code that was clean
+# when it merged can be found vulnerable later without anyone touching it.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Monday 03:00 UTC — after the nightly evals, before the week starts.
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+# A PR that is superseded does not need its scan finishing.
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL (JS/TS)
+    runs-on: ubuntu-latest
+    permissions:
+      # Required to upload results to the Security tab.
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # `security-extended` over the default pack. The default is tuned to
+          # keep noise low on any repository; this one handles multi-tenant
+          # data behind an LLM that can be argued into things, so the extra
+          # queries — path traversal, SSRF, unsafe deserialization — are the
+          # ones that matter here rather than the ones we can afford to skip.
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Gitleaks scans history, not just the diff. A key committed and then
+          # "removed" in a later commit is still in the pack file and still
+          # compromised, so the whole history is the thing worth scanning.
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The app has no dependency audit at all — `npm audit` covers backend/ only,
+  # and nothing has ever looked at pub.dev packages. The app ships secure
+  # storage, an encrypted offline database and a JWT, so its supply chain is
+  # not the low-stakes half.
+  pub-audit:
+    name: Dart dependency advisories
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+      - run: flutter pub get
+      # `pub` has no `audit` verb. Outdated is the closest signal it offers,
+      # and a package that is discontinued or many majors behind is the shape
+      # unmaintained risk actually takes on pub.dev.
+      - name: Report outdated and discontinued packages
+        run: flutter pub outdated --show-all

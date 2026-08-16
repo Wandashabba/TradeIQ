@@ -33,3 +33,78 @@ jobs:
       - run: dart run build_runner build
       - run: flutter analyze
       - run: flutter test
+
+  # A release build, because `analyze` and `test` both pass on code that cannot
+  # ship.
+  #
+  # `flutter test` runs on the Dart VM in debug. It never invokes dart2js, so
+  # it cannot see a tree-shaking failure, a const-evaluation error, a missing
+  # asset, or a plugin whose web implementation does not compile. The web build
+  # is the app's demo and review surface, so "it builds for web" is a fact
+  # worth having on every PR rather than discovering when someone opens it.
+  #
+  # It also regenerates the web plugin registrant from scratch. A registrant
+  # that silently omits a plugin — which cost an afternoon on 2026-08-17, when
+  # `printing` was missing and PDF export failed with a MissingPluginException
+  # — is a stale *local* artifact. Asserting the plugin list here is what turns
+  # "works on a clean checkout" from an assumption into a check.
+  build-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+      - run: flutter pub get
+      - run: dart run build_runner build
+      - run: flutter build web --release
+
+      # Every plugin resolved for web must actually be registered. Nothing else
+      # checks this: an unregistered plugin compiles, analyzes and tests green,
+      # then falls back to a method channel that does not exist in a browser.
+      - name: Every web plugin is registered
+        run: |
+          set -euo pipefail
+          registrant=$(find .dart_tool/flutter_build -name web_plugin_registrant.dart | head -1)
+          [ -n "$registrant" ] || { echo "::error::No web_plugin_registrant.dart was generated."; exit 1; }
+
+          missing=0
+          # The plugins Flutter resolved for the web platform, per its own file.
+          for plugin in $(jq -r '.plugins.web[]?.name' .flutter-plugins-dependencies); do
+            # `package:<name>/`, matching the import the generator writes.
+            # Verified against a real registrant in both directions: it passes
+            # on the current one and fails on the same file with `printing`
+            # stripped out — a check that cannot fail is not a check.
+            if ! grep -q "package:$plugin/" "$registrant"; then
+              echo "::error::'$plugin' is resolved for web but never registered in $registrant."
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -eq 1 ]; then
+            echo "::error::An unregistered plugin falls back to a method channel with no browser"
+            echo "::error::implementation, so the feature fails at runtime while CI stays green."
+            exit 1
+          fi
+          echo "All web-resolved plugins are registered."
+
+  # NOT ADDED, deliberately: `flutter test --platform chrome`.
+  #
+  # The gap is real. The VM and the browser are different runtimes — dart2js
+  # has no 64-bit ints, `compute` has no second isolate, `dart:io` does not
+  # exist — so a suite green on the VM proves nothing about the platform this
+  # app is demoed on. 119 of the 135 suites are free of `dart:io` and could run
+  # there.
+  #
+  # It is absent because it could not be made to pass locally: the dart2js
+  # compile for a single suite hung past ten minutes with no output, twice, on
+  # the machine this was written on. Adding a blocking job nobody has ever seen
+  # go green is how a pipeline gets a permanent red cross and then gets
+  # ignored, and a non-blocking one is a warning nobody reads. `build-web`
+  # above compiles the same code with the same compiler, which catches the
+  # compile-shaped half of the risk; what stays uncovered is browser-runtime
+  # *behaviour*. Worth a ticket, not a guess.

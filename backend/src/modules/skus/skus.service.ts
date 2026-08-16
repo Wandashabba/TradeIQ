@@ -50,7 +50,17 @@ export async function listSkusForClient(input: ListSkusForClientInput) {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     }),
     fetchStockHistoryForOutlet(outletId, clientId),
-    prisma.outlet.findUnique({ where: { id: outletId }, select: { code: true } }),
+    // Scoped to the caller's tenant, like every other read here.
+    //
+    // This was a `findUnique` on the bare id, and `outletId` arrives straight
+    // from `req.query` with no ownership check — so an outlet belonging to
+    // another client resolved, and its `code` then decided which promos matched
+    // and what `effectivePrice` came back. No other tenant's rows were ever
+    // returned, but the price shifting on a foreign id is an oracle for that
+    // id existing and for its code, and it is the only query in this file that
+    // did not name the tenant. `findFirst` with the pair yields null instead,
+    // which the `outletCode` guard below already handles as "no promo".
+    prisma.outlet.findFirst({ where: { id: outletId, clientId }, select: { code: true } }),
     // Fetches every active promo for the client, then filters by outlet/SKU scope
     // in JS below — unlike #120's windowed stock-history fetch, this is a
     // conscious choice, not an oversight: clients run a handful of promos at a
