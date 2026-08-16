@@ -1,5 +1,13 @@
 import { z } from 'zod';
 import { listFlagged } from '../../fraud/fraud.service';
+import {
+  compareToSchema,
+  comparisonWindow,
+  describeComparison,
+  numericDeltas,
+  type Comparison,
+  type CompareTo,
+} from '../compare';
 import { periodSchema, resolvePeriod } from '../period';
 import {
   getCompetitorActivity,
@@ -38,6 +46,19 @@ const windowArgs = z.object({
     .describe('Optional territory id to narrow to. Omit for the whole business.'),
 });
 
+/**
+ * …plus comparison, for the tools that actually honour it.
+ *
+ * Split rather than added to `windowArgs` so the schema cannot promise what a
+ * tool ignores. A declaration the model can see is a capability the model will
+ * offer the user, and the three list-shaped tools below (SKU movement, visit
+ * history, fraud flags) answer with rows: differencing those means matching
+ * records across two windows where either side may be missing, which is a
+ * per-tool judgement rather than something the generic helper can do. They keep
+ * the plain window until someone makes that judgement for each.
+ */
+const comparableWindowArgs = windowArgs.extend({ compareTo: compareToSchema.optional() });
+
 export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
   const { user, now } = ctx;
 
@@ -48,6 +69,55 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
     ...(args.territoryId ? { territoryId: args.territoryId } : {}),
   });
 
+  /**
+   * The same scope, moved to whatever the comparison measures.
+   *
+   * A period basis moves the window and keeps the territory; a territory basis
+   * moves the territory and keeps the window. Never both — a difference that
+   * mixed place and time would be uninterpretable, and the user would not be
+   * able to tell which half moved.
+   */
+  const comparisonScope = (args: z.infer<typeof comparableWindowArgs>, compareTo: CompareTo) => ({
+    clientId: user.clientId,
+    ...comparisonWindow(args.period, compareTo, now),
+    // `id` is optional in the declared shape and guaranteed present for a
+    // territory basis by the schema's refinement; the guard keeps the types
+    // honest rather than asserting past them.
+    ...(compareTo.kind === 'territory' && compareTo.id
+      ? { territoryId: compareTo.id }
+      : args.territoryId
+        ? { territoryId: args.territoryId }
+        : {}),
+  });
+
+  /**
+   * Run a pillar service once, or twice when the user asked to compare.
+   *
+   * Both runs go through the *same* service with the same tenant binding, so a
+   * comparison cannot reach data the uncompared call could not. The second run
+   * is sequential rather than parallel: these are the same indexed queries over
+   * the same tables, and a turn that fans out doubles the peak load on a
+   * database that is also serving the console.
+   */
+  const withComparison = async <R>(
+    args: z.infer<typeof comparableWindowArgs>,
+    run: (window: ReturnType<typeof scope>) => Promise<R>,
+  ): Promise<R | (R & { comparison: Comparison })> => {
+    const current = await run(scope(args));
+    if (!args.compareTo) return current;
+
+    const values = await run(comparisonScope(args, args.compareTo) as ReturnType<typeof scope>);
+    return {
+      ...current,
+      comparison: {
+        label: describeComparison(args.period, args.compareTo),
+        basis: args.compareTo,
+        values,
+        ...(numericDeltas(current, values) ? { deltas: numericDeltas(current, values) } : {}),
+      },
+    };
+  };
+
   const tools = [
     // ── Sales ────────────────────────────────────────────────────────────
     eraseToolTypes({
@@ -56,8 +126,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       description:
         'Call this when the user asks how sales are tracking against target, about rate of ' +
         'sale, attainment, or whether a territory is hitting its numbers.',
-      args: windowArgs,
-      run: async (args) => getSalesPerformance(scope(args)),
+      args: comparableWindowArgs,
+      run: async (args) => withComparison(args, (w) => getSalesPerformance(w)),
     }),
 
     eraseToolTypes({
@@ -80,8 +150,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       description:
         'Call this when the user asks about stock on hand, availability, out-of-stocks, ' +
         'on-shelf availability, or which outlets keep running dry.',
-      args: windowArgs,
-      run: async (args) => getStockLevels(scope(args)),
+      args: comparableWindowArgs,
+      run: async (args) => withComparison(args, (w) => getStockLevels(w)),
       // The tool declares what it draws; the model never names a spec type.
       //
       // Outlet ids come from the RESULT — canonical, so a Phase 2 `refine` can
@@ -102,8 +172,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       description:
         'Call this when the user asks about share of shelf, facings, or how much shelf space ' +
         'we hold against competitors.',
-      args: windowArgs,
-      run: async (args) => getShareOfShelf(scope(args)),
+      args: comparableWindowArgs,
+      run: async (args) => withComparison(args, (w) => getShareOfShelf(w)),
     }),
 
     eraseToolTypes({
@@ -112,8 +182,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       description:
         'Call this when the user asks about planogram compliance, merchandising standards, ' +
         'shelf cleanliness, or whether displays are in high-traffic positions.',
-      args: windowArgs,
-      run: async (args) => getVisibilityCompliance(scope(args)),
+      args: comparableWindowArgs,
+      run: async (args) => withComparison(args, (w) => getVisibilityCompliance(w)),
     }),
 
     // ── Competition ──────────────────────────────────────────────────────
@@ -123,8 +193,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       description:
         'Call this when the user asks what competitors are doing — their pricing, their ' +
         'facings, their promoters, or which competitor brands are showing up in outlets.',
-      args: windowArgs,
-      run: async (args) => getCompetitorActivity(scope(args)),
+      args: comparableWindowArgs,
+      run: async (args) => withComparison(args, (w) => getCompetitorActivity(w)),
     }),
 
     // ── Execution ────────────────────────────────────────────────────────
