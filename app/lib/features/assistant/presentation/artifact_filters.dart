@@ -5,6 +5,7 @@ import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/artifact_repository.dart';
+
 /// The controls that steer an artifact without saying a word to the model.
 ///
 /// **They write through the tool's own params schema** — the same one the model
@@ -76,6 +77,8 @@ class ArtifactFilters extends ConsumerWidget {
     required this.busy,
     required this.onApply,
     required this.onUndo,
+    this.exporting = false,
+    this.onExport,
   });
 
   final ArtifactDetail detail;
@@ -83,6 +86,13 @@ class ArtifactFilters extends ConsumerWidget {
   final bool busy;
   final ValueChanged<Map<String, dynamic>> onApply;
   final VoidCallback onUndo;
+
+  /// True while a PDF is being built.
+  final bool exporting;
+
+  /// Null hides the control entirely — there is no point offering an export on
+  /// a surface that cannot produce one.
+  final VoidCallback? onExport;
 
   Set<ArtifactControl> get _offered =>
       artifactControls[detail.type] ?? const {ArtifactControl.period};
@@ -182,6 +192,39 @@ class ArtifactFilters extends ConsumerWidget {
               color: context.colors.ink3,
             ),
           ),
+          if (onExport != null) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                key: const ValueKey('artifact-export-pdf'),
+                // Disabled mid-refine on purpose: exporting what is on screen
+                // while the figures underneath are being replaced would produce
+                // a report of neither state.
+                onPressed: exporting || busy ? null : onExport,
+                icon: exporting
+                    ? const SizedBox(
+                        width: 13,
+                        height: 13,
+                        child: CircularProgressIndicator(strokeWidth: 1.5),
+                      )
+                    : const Icon(Icons.picture_as_pdf_outlined, size: 15),
+                label: Text(
+                  exporting ? 'Preparing…' : 'Export PDF',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'The chart as an image, every figure as text you can select.',
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.4,
+                color: context.colors.ink3,
+              ),
+            ),
+          ],
         ],
       ),
     );
