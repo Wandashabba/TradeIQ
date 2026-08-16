@@ -60,6 +60,7 @@ model Client {
   reportDefinitions  ReportDefinition[]
   incentiveSchemes   IncentiveScheme[]
   reportSchedules    ReportSchedule[]
+  assistantArtifacts AssistantArtifact[]
 
   @@map("clients")
 }
@@ -114,12 +115,12 @@ model Outlet {
   checkInAttempts CheckInAttempt[]
   orders          Order[]
 
-  @@index([clientId])
   // Per-tenant, not global. A globally-unique code meant one tenant creating
   // 'SAN-001' made that code permanently unavailable to every other tenant —
   // and the 409 told them somebody else already had it, which is a
   // cross-tenant existence oracle. Territory already models it this way.
   @@unique([clientId, code])
+  @@index([clientId])
   @@index([territoryId])
   @@map("outlets")
 }
@@ -158,19 +159,19 @@ model PromoCalendar {
 }
 
 model Visit {
-  id               String      @id @default(uuid())
-  outletId         String      @map("outlet_id")
-  outlet           Outlet      @relation(fields: [outletId], references: [id])
-  agentId          String      @map("agent_id")
-  agent            User        @relation(fields: [agentId], references: [id])
-  clientId         String      @map("client_id")
-  client           Client      @relation(fields: [clientId], references: [id])
-  checkinTs        DateTime    @map("checkin_ts")
-  checkinLat       Float       @map("checkin_lat")
-  checkinLng       Float       @map("checkin_lng")
-  geofencePass     Boolean     @map("geofence_pass")
-  checkinDistanceM Float?      @map("checkin_distance_m")
-  status           VisitStatus @default(in_progress)
+  id                String      @id @default(uuid())
+  outletId          String      @map("outlet_id")
+  outlet            Outlet      @relation(fields: [outletId], references: [id])
+  agentId           String      @map("agent_id")
+  agent             User        @relation(fields: [agentId], references: [id])
+  clientId          String      @map("client_id")
+  client            Client      @relation(fields: [clientId], references: [id])
+  checkinTs         DateTime    @map("checkin_ts")
+  checkinLat        Float       @map("checkin_lat")
+  checkinLng        Float       @map("checkin_lng")
+  geofencePass      Boolean     @map("geofence_pass")
+  checkinDistanceM  Float?      @map("checkin_distance_m")
+  status            VisitStatus @default(in_progress)
   /// When the agent's DEVICE says the visit was completed.
   ///
   /// Dwell time (the fraud engine's fast-completion signal) is only meaningful
@@ -182,7 +183,7 @@ model Visit {
   ///
   /// Nullable: visits recorded before this existed have no honest dwell, and we
   /// would rather report nothing than a number we know to be wrong.
-  submittedAtClient DateTime? @map("submitted_at_client")
+  submittedAtClient DateTime?   @map("submitted_at_client")
 
   stock       VisitStock[]
   visibility  VisitVisibility?
@@ -438,13 +439,13 @@ model BeatPlan {
   /// Occurrences are real rows rather than a rule expanded on read because
   /// `BeatPlanStop.visited` is per-occurrence state — there is nowhere to record
   /// "today's third stop was visited" against a computed date.
-  seriesId      String?        @map("series_id")
+  seriesId String? @map("series_id")
 
   /// The rule the series was generated from — `{frequency, interval, daysOfWeek,
   /// until}`. Denormalised onto every occurrence so a screen can say "repeats
   /// weekly" without a second query. Read for display only: the dates are
   /// already materialised, so nothing re-derives them from this.
-  recurrence    Json?
+  recurrence Json?
 
   @@index([clientId])
   @@index([agentId])
@@ -564,26 +565,26 @@ model CheckInAttempt {
 
 /// An in-visit order / sell-in captured by an agent (Phase 3 #36).
 model Order {
-  id        String      @id @default(uuid())
-  clientId  String      @map("client_id")
-  client    Client      @relation(fields: [clientId], references: [id])
-  outletId  String      @map("outlet_id")
-  outlet    Outlet      @relation(fields: [outletId], references: [id])
-  agentId   String      @map("agent_id")
-  agent     User        @relation(fields: [agentId], references: [id])
-  visitId   String?     @map("visit_id")
+  id       String  @id @default(uuid())
+  clientId String  @map("client_id")
+  client   Client  @relation(fields: [clientId], references: [id])
+  outletId String  @map("outlet_id")
+  outlet   Outlet  @relation(fields: [outletId], references: [id])
+  agentId  String  @map("agent_id")
+  agent    User    @relation(fields: [agentId], references: [id])
+  visitId  String? @map("visit_id")
 
   /// The campaign this order is attributed to, stamped at creation when the
   /// outlet was in an active campaign's window. Nullable and never back-filled:
   /// an order placed outside any campaign genuinely belongs to none, and
   /// re-attributing later would silently rewrite a campaign's measured return.
-  campaignId String?    @map("campaign_id")
-  campaign   Campaign?  @relation(fields: [campaignId], references: [id])
-  visit     Visit?      @relation(fields: [visitId], references: [id])
-  status    String      @default("submitted") // submitted | confirmed | cancelled
-  total     Float       @default(0)
-  createdAt DateTime    @default(now()) @map("created_at")
-  lines     OrderLine[]
+  campaignId String?     @map("campaign_id")
+  campaign   Campaign?   @relation(fields: [campaignId], references: [id])
+  visit      Visit?      @relation(fields: [visitId], references: [id])
+  status     String      @default("submitted") // submitted | confirmed | cancelled
+  total      Float       @default(0)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  lines      OrderLine[]
 
   @@index([clientId])
   @@map("orders")
@@ -701,4 +702,35 @@ model ReportSchedule {
 
   @@index([clientId])
   @@map("report_schedules")
+}
+
+/// A persisted, refinable view produced by a tool call in an assistant turn.
+///
+/// **Stores what to re-run, never what was returned.** The row carries the tool
+/// name and its parameters; the data is fetched fresh on every read by invoking
+/// that tool again through the caller's own roster. Caching the result here
+/// would create a second copy of tenant data with its own staleness and its own
+/// access-control story — the thing the tool closure exists to avoid.
+///
+/// `userId` scopes an artifact to the person whose conversation produced it.
+/// Tenant scoping alone would let one manager refine a colleague's artifact,
+/// which is not a data leak (the roster still re-authorises every run) but is
+/// someone else's workspace.
+model AssistantArtifact {
+  id             String   @id @default(uuid())
+  clientId       String   @map("client_id")
+  client         Client   @relation(fields: [clientId], references: [id])
+  userId         String   @map("user_id")
+  conversationId String   @map("conversation_id")
+  /// The view-spec type from the closed catalog — `trend_chart`, `outlet_map`, …
+  type           String
+  toolName       String   @map("tool_name")
+  params         Json
+  /// Previous params, oldest first, for undo. Capped in the service layer.
+  paramsHistory  Json     @default("[]") @map("params_history")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([clientId, userId, conversationId])
+  @@map("assistant_artifacts")
 }

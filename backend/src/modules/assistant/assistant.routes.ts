@@ -10,7 +10,15 @@ import { requireAssistantEnabled } from './featureFlag';
 import { runTurn, type WireEvent } from './orchestrator';
 import { providerFor } from './providers';
 import type { Message } from './providers/types';
-import { buildTools } from './tools';
+import { buildTools, type ToolContext } from './tools';
+import {
+  ArtifactNotFoundError,
+  InvalidParamsError,
+  ToolUnavailableError,
+  readArtifact,
+  refineArtifact,
+  undoArtifact,
+} from './artifacts.service';
 
 export const assistantRouter = Router();
 
@@ -146,6 +154,96 @@ assistantRouter.post(
       // response whose headers are long gone, and express would log a
       // "headers already sent" that hides the real failure.
       if (!res.writableEnded) res.end();
+    }
+  },
+);
+
+/**
+ * Artifact routes — steering a view by its own controls rather than by talking.
+ *
+ * **None of these call the model.** A filter change is a re-query: routing it
+ * through the orchestrator would spend a paid turn, add latency no control can
+ * hide, and hand the model a chance to overrule a choice the user already made.
+ * That is also why the rate limiters below are the *user* one only — these are
+ * database reads bounded by the tool's own scoping, not spend against a vendor.
+ *
+ * `requireAssistantEnabled` still applies: an artifact is part of the assistant,
+ * and a tenant switched off must not keep a back door open to its endpoints.
+ */
+function artifactContext(req: AuthedRequest): ToolContext {
+  // A fresh roster per request, bound to whoever is asking now. See
+  // artifacts.service.ts — this is the entire authorisation story.
+  return { user: req.user!, now: new Date() };
+}
+
+/**
+ * Map a service error onto a status.
+ *
+ * `ArtifactNotFoundError` is 404 for both "no such id" and "not yours", which
+ * is deliberate — see the error's own comment.
+ */
+function sendArtifactError(res: Response, err: unknown): void {
+  if (err instanceof ArtifactNotFoundError) {
+    res.status(404).json({ error: err.message });
+    return;
+  }
+  if (err instanceof ToolUnavailableError) {
+    res.status(403).json({ error: err.message });
+    return;
+  }
+  if (err instanceof InvalidParamsError) {
+    res.status(400).json({ error: err.message, issues: err.issues });
+    return;
+  }
+  console.error('[assistant] artifact request failed', err);
+  res.status(500).json({ error: 'Something went wrong. Please try again.' });
+}
+
+assistantRouter.get(
+  '/artifacts/:id',
+  requireAuth,
+  requireAssistantEnabled,
+  assistantUserRateLimiter,
+  async (req: AuthedRequest, res: Response) => {
+    try {
+      const { id } = req.params as { id: string };
+      res.json(await readArtifact(id, artifactContext(req)));
+    } catch (err) {
+      sendArtifactError(res, err);
+    }
+  },
+);
+
+assistantRouter.post(
+  '/artifacts/:id/refine',
+  requireAuth,
+  requireAssistantEnabled,
+  assistantUserRateLimiter,
+  async (req: AuthedRequest, res: Response) => {
+    // No schema here on purpose. The tool's own `args` schema validates this
+    // body, so there is exactly one contract the model and the UI both write
+    // through — a second one here would be the one that drifts.
+    const params = (req.body as { params?: unknown } | undefined)?.params;
+    try {
+      const { id } = req.params as { id: string };
+      res.json(await refineArtifact(id, params, artifactContext(req)));
+    } catch (err) {
+      sendArtifactError(res, err);
+    }
+  },
+);
+
+assistantRouter.post(
+  '/artifacts/:id/undo',
+  requireAuth,
+  requireAssistantEnabled,
+  assistantUserRateLimiter,
+  async (req: AuthedRequest, res: Response) => {
+    try {
+      const { id } = req.params as { id: string };
+      res.json(await undoArtifact(id, artifactContext(req)));
+    } catch (err) {
+      sendArtifactError(res, err);
     }
   },
 );
