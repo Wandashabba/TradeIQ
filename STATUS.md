@@ -1,12 +1,14 @@
 # TradeIQ — Project Status
 
-**Last updated:** 2026-08-16
+**Last updated:** 2026-08-17
 **Current initiative:** Conversational TradeIQ (dashboard → chatbot)
-**Active branch:** none — everything through PR [#272](../../pull/272) is on
-`main`. Phase 0 landed via [#264](../../pull/264)/[#268](../../pull/268); Phase 2
-so far via [#269](../../pull/269) (persistence), [#270](../../pull/270) (turn
-wiring), [#271](../../pull/271) (comparison) and [#272](../../pull/272) (the
-first comparison-aware card).
+**Active branch:** `feat/assistant-artifact-expanded` — the params-change note
+and Expanded mode, open for review. Everything through PR
+[#273](../../pull/273) is on `main`. Phase 0 landed via
+[#264](../../pull/264)/[#268](../../pull/268); Phase 2 so far via
+[#269](../../pull/269) (persistence), [#270](../../pull/270) (turn wiring),
+[#271](../../pull/271) (comparison) and [#272](../../pull/272) (the first
+comparison-aware card).
 **Plan:** [docs/superpowers/plans/2026-08-02-conversational-tradeiq.md](docs/superpowers/plans/2026-08-02-conversational-tradeiq.md) — sequencing and tasks
 **Spec:** [docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md](docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md) — contracts, wire protocol, security model
 
@@ -25,7 +27,7 @@ first comparison-aware card).
 |---|---|---|---|
 | 0 | [Read-only chat spine](../../issues/253) | 🟢 gate met 2026-08-16 — 100% (27/27) on `gemini-3.1-pro-preview`, cache hit live | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
-| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | 🟡 backend done; client barely started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
+| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | 🟡 backend done; Expanded mode built; **PDF export is all that remains** | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
 | 4 | [Shrink sidebar 21 → 5](../../issues/257) | ⬜ Not started | Every retired destination still deep-linkable |
 | 5 | [Memory + digests](../../issues/258) | ⬜ Not started | Preferences injected late; cache hit still holds |
@@ -88,10 +90,24 @@ first comparison-aware card).
 > orchestrator would spend a paid turn and let the model overrule a choice the
 > user already made.
 >
-> **Client is barely started.** Four inline cards exist and one of them
-> (`pillar_metrics`) shows comparison deltas. There is no Expanded mode, no
-> table twin, no filter controls, no `/artifact/:id` route and no PDF export —
-> which is most of the phase by volume.
+> **Client — Expanded mode is built (2026-08-17, branch above).** Four inline
+> cards, each with an Expand affordance; `/artifact/:id` as a real route;
+> filter controls (period incl. a custom range, granularity, territory,
+> comparison) writing through the tool's own params schema; the table twin with
+> Δ and Δ% columns; and the comparison drawn as a genuine **second series** on
+> the shared `LineChart` rather than as a per-figure delta. **PDF export is the
+> only Phase 2 item left.**
+>
+> **The last backend gap is closed too.** `refine`/`undo` flag the row, and the
+> next turn hands the model `[artifact:<id> params → …]` *with the user
+> message*, then clears the flag. Announced once, not every turn — the manifest
+> already carries current params, and this note is about the *change*.
+>
+> **A gap nobody had noticed: none of it could have reached the model.** The
+> server announces a conversation id on every turn; the app dropped it, so each
+> turn opened a **new** conversation and the manifest (#270) always found
+> nothing. The client now echoes it. Worth generalising: an additive server
+> feature that the client is free to ignore is one nobody finds out is dead.
 >
 > **Three things worth carrying forward:**
 >
@@ -108,13 +124,19 @@ first comparison-aware card).
 >    CI: `app/test/features/audit/visits_repository_test.dart` and
 >    `backend/src/modules/auth/auth.service.test.ts` (the latter spawns `npx`
 >    through `spawnSync` without a shell → ENOENT). Both were confirmed failing
->    on a clean checkout of `main`. Do not attribute them to a new diff.
+>    on a clean checkout of `main`, and again on 2026-08-17 alongside 1 267
+>    green backend tests and 986 green app tests. Do not attribute them to a
+>    new diff.
+> 4. **A control the backend silently ignores is worse than a missing one**
+>    (2026-08-17). A Zod object *strips* an undeclared key rather than
+>    rejecting it, so offering a territory filter on a tool that takes no
+>    territory would look like it worked and change nothing. Expanded mode's
+>    control table is therefore per view-spec type and deliberately
+>    conservative.
 >
-> **Next, in order:** the `[artifact:<id> params → …]` history note (the last
-> backend gap — `refine` currently updates a row without telling the model);
-> then Expanded mode, which is where the second series, the table twin and the
-> filter controls all live. A real second series needs `LineChart` to accept
-> one, and that widget is used across the whole console.
+> **Next:** PDF export — client-side `pdf` + `printing` in an Isolate, hybrid
+> vector text plus a rasterised chart, bundled Inter, and a golden-file test.
+> The table twin now exists, which was its vector half's prerequisite.
 
 **Started 2026-08-06.** The key-independent half of Phase 0 foundation landed
 first: the provider interface, the roster security boundary and its matrix test,
@@ -580,6 +602,10 @@ information.
 | GenUI SDK | Adopt the A2UI **pattern**, not the package | `flutter/genui` is "highly experimental", API churn expected, no streaming UI |
 | Charts | Reuse `core/widgets/charts.dart` | `LineChart`/`ColumnChart`/`BarChart`/`Sparkline` already exist as hand-rolled `CustomPainter`; no new dep. A closed spec catalog protects the design rules |
 | Artifact state | `params` is the single source of truth; one Zod schema written by **both** model and UI | Prevents the two control paths from drifting apart |
+| **Params-change note** | Flag the row on `refine`/`undo`; render the note **at turn time** from the params as they then stand, deliver it once with the user message, then clear | Rendering later collapses repeated changes into where the user actually landed, instead of replaying two stale hops and a true one. Delivering once keeps a change from being restated forever — the manifest already carries current state. Clearing uses a raw `UPDATE` so bookkeeping does not bump `updatedAt` and reorder the manifest |
+| **Second series** | `LineChart` takes an optional `comparison`; empty by default | The rule is "no chart *cycles or generates* colours", not "one line per chart". Two named series take the two fixed palette slots, always with a legend, and a third is not expressible. Empty-by-default is what makes a shared console widget safe to change |
+| **Series alignment** | Position (nth vs nth), with both bucket labels shown | The windows are different calendar stretches and an empty bucket yields no point, so date-matching is not available. Showing both labels makes the approximation visible instead of implying the rows are the same day |
+| **Expanded controls** | Per view-spec type, from one table, conservative | Zod strips an undeclared key rather than rejecting it, so a control for a param its tool never had would appear to work and silently change nothing — the worst of the three outcomes |
 | Filter changes | `POST /artifacts/:id/refine` re-runs the **same tool closure** — no model call | A slider drag must not cost 3s and a paid request; reusing the closure means scope was never a tamperable parameter |
 | Artifact navigation | Real route `/artifact/:id` | Back button, deep links, sharing come free from go_router instead of bespoke state machinery |
 | Period vocabulary | `today · yesterday · previous_week · mtd · ytd · custom` | Taken verbatim from what they filter by daily — not invented |
