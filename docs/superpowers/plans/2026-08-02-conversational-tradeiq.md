@@ -830,34 +830,59 @@ converge on identical state; a params-tampering test proving a hand-edited
 tests at phone / tablet / desktop breakpoints.
 
 ### Comparison — the feature that kills the Excel overlay
-- [ ] Every artifact params schema carries an optional `compareTo`:
+- [~] Every artifact params schema carries an optional `compareTo`:
       `previous_period` · `same_period_last_year` · `{territory|agent|sku}: id`
+      → **Partial (#271).** Landed on the five pillar tools and the
+      `pillar_metrics` spec. Three deliberate narrowings: `agent` and `sku` are
+      *not* offered, because the pillar services take neither and a declared
+      capability is one the model will promise the user; SKU movement, visit
+      history and fraud flags answer with **rows**, and differencing rows means
+      matching records across two windows where either side may be absent — a
+      per-tool judgement, not something the generic helper can do; and the
+      schema is a **tagged object, not a discriminated union**, because a union
+      serialises as `oneOf`, which `geminiSchema.ts` refuses outright and which
+      breaks *every* declaration in the roster, not just this one.
 - [ ] Charts render the comparison as a second series; the table twin gains a
       delta column (absolute and %)
-- [ ] "Compare X to Y" resolves in one turn — this is the workflow the
+      → **Not started.** #272 renders per-figure deltas on the
+      `pillar_metrics` card, which is not the same thing. A real second series
+      needs `LineChart` to accept one — a shared widget the whole console uses,
+      so it is a more careful change than the card was.
+- [x] "Compare X to Y" resolves in one turn — this is the workflow the
       practitioner explicitly asked us to kill, so it must not require the user
       to open two artifacts and read across them
 
 ### Backend
-- [ ] `Artifact` Prisma model — `id`, `conversationId`, `type`, `toolName`,
+- [x] `Artifact` Prisma model — `id`, `conversationId`, `type`, `toolName`,
       `params`, `paramsHistory[]` (capped at 20), `createdAt`, `updatedAt`
-- [ ] `period` param enum straight from practitioner usage: `today` ·
+- [x] `period` param enum straight from practitioner usage: `today` ·
       `yesterday` · `previous_week` · `mtd` · `ytd` · `custom(from, to)`
-- [ ] Per-artifact-type Zod **params schema** — the single contract both the
+- [x] Per-artifact-type Zod **params schema** — the single contract both the
       model and the UI write through
-- [ ] `POST /assistant/artifacts/:id/refine` — validate params, re-invoke the
+- [x] `POST /assistant/artifacts/:id/refine` — validate params, re-invoke the
       **same tool closure** (same RBAC), return fresh data. **No model call.**
 - [ ] Append a compact `[artifact:<id> params → …]` note to conversation history
       on every UI-driven change, so the model never reasons from stale params
-- [ ] Inject a live-artifact manifest (`{id, type, params}`) into context so the
+      → **Not started, and it is the next backend gap.** `refine` currently
+      updates the row without telling the model, so after a UI filter change the
+      model's picture of the artifact is stale. The manifest (#270) covers the
+      *start* of a turn; this covers changes made mid-conversation.
+      ⚠️ Whatever shape it takes, it must ride with the **user message**, not the
+      system prompt — the cached prefix is `[tools][system]` and caching is a
+      prefix match, so volatile text in there misses the cache and, since #267,
+      bills for a new cache entry each turn.
+- [x] Inject a live-artifact manifest (`{id, type, params}`) into context so the
       model can target an existing artifact instead of emitting a duplicate
-- [ ] `GET /assistant/artifacts/:id` — rehydrate on reopen
-- [ ] `POST /assistant/artifacts/:id/undo` — pop `paramsHistory`
+- [x] `GET /assistant/artifacts/:id` — rehydrate on reopen
+- [x] `POST /assistant/artifacts/:id/undo` — pop `paramsHistory`
 
 ### Flutter — three render modes
-- [ ] **Inline** (in the chat stream): headline figure + existing `Sparkline` +
+- [~] **Inline** (in the chat stream): headline figure + existing `Sparkline` +
       one-line caption + Expand. Deliberately minimal — this is the
       anti-crowding rule
+      → **Partial.** Four inline cards exist (`agent_scorecard`, `trend_chart`,
+      `outlet_map`, `pillar_metrics`). None has an **Expand** affordance yet,
+      because there is nothing to expand into.
 - [ ] **Expanded**: full `LineChart`/`ColumnChart`/`BarChart`, filter controls,
       and the **table twin** `charts.dart` already mandates. Side panel on
       web/tablet (chat stays visible), full-screen sheet on phone

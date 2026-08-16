@@ -2,10 +2,11 @@
 
 **Last updated:** 2026-08-16
 **Current initiative:** Conversational TradeIQ (dashboard → chatbot)
-**Active branch:** `orchestration` merged into `feat/assistant-phase0-foundation`
-via PR [#265](../../pull/265); that branch carries everything to `main` as PR
-[#264](../../pull/264), with the Gemini fixes stacked on it as
-[#267](../../pull/267).
+**Active branch:** none — everything through PR [#272](../../pull/272) is on
+`main`. Phase 0 landed via [#264](../../pull/264)/[#268](../../pull/268); Phase 2
+so far via [#269](../../pull/269) (persistence), [#270](../../pull/270) (turn
+wiring), [#271](../../pull/271) (comparison) and [#272](../../pull/272) (the
+first comparison-aware card).
 **Plan:** [docs/superpowers/plans/2026-08-02-conversational-tradeiq.md](docs/superpowers/plans/2026-08-02-conversational-tradeiq.md) — sequencing and tasks
 **Spec:** [docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md](docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md) — contracts, wire protocol, security model
 
@@ -24,7 +25,7 @@ via PR [#265](../../pull/265); that branch carries everything to `main` as PR
 |---|---|---|---|
 | 0 | [Read-only chat spine](../../issues/253) | 🟢 gate met 2026-08-16 — 100% (27/27) on `gemini-3.1-pro-preview`, cache hit live | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
-| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | ⬜ Not started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
+| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | 🟡 backend done; client barely started | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
 | 4 | [Shrink sidebar 21 → 5](../../issues/257) | ⬜ Not started | Every retired destination still deep-linkable |
 | 5 | [Memory + digests](../../issues/258) | ⬜ Not started | Preferences injected late; cache hit still holds |
@@ -71,6 +72,49 @@ via PR [#265](../../pull/265); that branch carries everything to `main` as PR
 > now actually holds. ⚠️ Cached content is billed **per token-hour for as long
 > as it exists**, so `GEMINI_PROMPT_CACHE_TTL_SECONDS` (default 3600) is a cost
 > dial to revisit against real traffic, not a performance one.
+
+> **Phase 2 — where it actually stands (2026-08-16).**
+>
+> **Backend is done.** Artifacts persist *what to re-run, never what came back*:
+> a row holds a tool name and a params bag, and every read re-invokes that tool
+> through a roster built for whoever is asking now. There is no stored copy of
+> tenant data to leak and no second authorisation path to keep in step. `refine`
+> declares **no schema of its own** — it validates through the tool's own Zod
+> schema, so the model and the UI write through one contract rather than two,
+> and the one that drifts is the one an attacker uses.
+>
+> Endpoints: `GET /assistant/artifacts/:id`, `POST …/refine`, `POST …/undo`.
+> **None call the model.** A filter change is a re-query; routing it through the
+> orchestrator would spend a paid turn and let the model overrule a choice the
+> user already made.
+>
+> **Client is barely started.** Four inline cards exist and one of them
+> (`pillar_metrics`) shows comparison deltas. There is no Expanded mode, no
+> table twin, no filter controls, no `/artifact/:id` route and no PDF export —
+> which is most of the phase by volume.
+>
+> **Three things worth carrying forward:**
+>
+> 1. **Comparison shipped invisible, and nearly stayed that way.** #271 added
+>    `compareTo` to five tools; only one of them declared a view, so four drew
+>    nothing. Always check that a backend capability has somewhere to land
+>    before calling it delivered.
+> 2. **The cached prefix is load-bearing.** `[tools][system]` is frozen and
+>    caching is a prefix match, so any volatile context — the artifact manifest,
+>    the params-change note still to be written — must ride with the **user
+>    message**. Since #267 caching is explicit, so a changing prefix does not
+>    merely miss the cache, it bills for a new entry every turn.
+> 3. **Two tests cannot pass on the Windows dev machine** and are green on Linux
+>    CI: `app/test/features/audit/visits_repository_test.dart` and
+>    `backend/src/modules/auth/auth.service.test.ts` (the latter spawns `npx`
+>    through `spawnSync` without a shell → ENOENT). Both were confirmed failing
+>    on a clean checkout of `main`. Do not attribute them to a new diff.
+>
+> **Next, in order:** the `[artifact:<id> params → …]` history note (the last
+> backend gap — `refine` currently updates a row without telling the model);
+> then Expanded mode, which is where the second series, the table twin and the
+> filter controls all live. A real second series needs `LineChart` to accept
+> one, and that widget is used across the whole console.
 
 **Started 2026-08-06.** The key-independent half of Phase 0 foundation landed
 first: the provider interface, the roster security boundary and its matrix test,
