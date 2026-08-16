@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../../clients/data/clients_repository.dart';
 import '../data/artifact_repository.dart';
+import '../export/artifact_exporter.dart';
+import '../view_specs/artifact_table.dart';
 import '../view_specs/expanded_views.dart';
 import 'artifact_filters.dart';
 
@@ -40,6 +43,17 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
   Map<String, dynamic>? _pending;
   String? _error;
   bool _loading = true;
+
+  /// True while a PDF is being built. Shown even on platforms where the work
+  /// really is off the UI thread: a share sheet that appears a second after the
+  /// tap, with no acknowledgement in between, reads as a dead button.
+  bool _exporting = false;
+
+  /// Wraps the rendered view so the chart can be captured as pixels. The PDF is
+  /// hybrid — vector text and table, rasterised chart — and this is the raster
+  /// half's only source: the alternative is a second chart engine drawing the
+  /// same CustomPainter shapes against a PDF canvas.
+  final GlobalKey _captureKey = GlobalKey();
 
   @override
   void initState() {
@@ -108,6 +122,55 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
     }
   }
 
+  Future<void> _exportPdf() async {
+    final detail = _detail;
+    if (detail == null || _exporting) return;
+
+    setState(() {
+      _exporting = true;
+      _error = null;
+    });
+
+    try {
+      await ref.read(artifactExporterProvider).export(
+            ArtifactExportRequest(
+              title: expandedArtifactTitle(detail),
+              subtitle: expandedArtifactSubtitle(detail),
+              // The same sentence the screen shows, so the report and the view
+              // it came from cannot describe different filters — and the params
+              // it describes are the ones on screen, not the ones the artifact
+              // happened to be created with.
+              filters: describeParamsInWords(_pending ?? detail.params),
+              tenant: ref.read(clientConfigProvider).value?.name ?? 'TradeIQ',
+              table: artifactTableFor(detail),
+              captureKey: _captureKey,
+              devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+            ),
+            filename: '${_filenameFor(detail)}.pdf',
+          );
+    } catch (err) {
+      if (!mounted) return;
+      // Reported in the same place a refused filter is: this screen already has
+      // one honest place for "that did not work", and a second style of failure
+      // message would be a second thing to learn.
+      setState(() => _error = 'That view could not be exported. Please try again.');
+      debugPrint('[assistant] pdf export failed: $err');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  static String _filenameFor(ArtifactDetail detail) {
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final slug = expandedArtifactTitle(detail)
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+    // Dated, because these land in a downloads folder beside last month's.
+    return 'tradeiq-$slug-${now.year}${two(now.month)}${two(now.day)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final detail = _detail;
@@ -132,8 +195,11 @@ class _ArtifactScreenState extends ConsumerState<ArtifactScreen> {
               params: _pending ?? detail.params,
               busy: _pending != null,
               error: _error,
+              exporting: _exporting,
+              captureKey: _captureKey,
               onApply: _apply,
               onUndo: _undo,
+              onExport: _exportPdf,
             ),
     );
   }
@@ -167,16 +233,22 @@ class _Loaded extends StatelessWidget {
     required this.params,
     required this.busy,
     required this.error,
+    required this.exporting,
+    required this.captureKey,
     required this.onApply,
     required this.onUndo,
+    required this.onExport,
   });
 
   final ArtifactDetail detail;
   final Map<String, dynamic> params;
   final bool busy;
   final String? error;
+  final bool exporting;
+  final GlobalKey captureKey;
   final ValueChanged<Map<String, dynamic>> onApply;
   final VoidCallback onUndo;
+  final VoidCallback onExport;
 
   @override
   Widget build(BuildContext context) {
@@ -184,10 +256,19 @@ class _Loaded extends StatelessWidget {
       detail: detail,
       params: params,
       busy: busy,
+      exporting: exporting,
       onApply: onApply,
       onUndo: onUndo,
+      onExport: onExport,
     );
-    final view = expandedArtifactView(context, detail);
+    // RepaintBoundary, not a screenshot of the page: it captures exactly the
+    // view — chart, legend and all — at whatever pixel ratio is asked for, and
+    // nothing of the controls beside it. Print mode is the view with the
+    // controls stripped, and this is what strips them.
+    final view = RepaintBoundary(
+      key: captureKey,
+      child: expandedArtifactView(context, detail),
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {

@@ -27,7 +27,7 @@ comparison-aware card).
 |---|---|---|---|
 | 0 | [Read-only chat spine](../../issues/253) | 🟢 gate met 2026-08-16 — 100% (27/27) on `gemini-3.1-pro-preview`, cache hit live | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
-| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | 🟡 backend done; Expanded mode built; **PDF export is all that remains** | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
+| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | 🟡 every task built; **gate not yet claimed** — the round-trip convergence test and the breakpoint set are still unwritten | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
 | 4 | [Shrink sidebar 21 → 5](../../issues/257) | ⬜ Not started | Every retired destination still deep-linkable |
 | 5 | [Memory + digests](../../issues/258) | ⬜ Not started | Preferences injected late; cache hit still holds |
@@ -134,9 +134,30 @@ comparison-aware card).
 >    control table is therefore per view-spec type and deliberately
 >    conservative.
 >
-> **Next:** PDF export — client-side `pdf` + `printing` in an Isolate, hybrid
-> vector text plus a rasterised chart, bundled Inter, and a golden-file test.
-> The table twin now exists, which was its vector half's prerequisite.
+> **PDF export landed 2026-08-17.** Hybrid: vector header and table, the chart
+> rasterised from a `RepaintBoundary` at ≥2×, bundled Inter, built under
+> `compute`. Three things it taught:
+>
+> 1. **A literal byte golden is impossible here.** `pdf` stamps
+>    `/CreationDate` from `DateTime.now()` and `/ID` from `Random.secure()`,
+>    neither injectable. The golden normalises exactly those two and compares
+>    everything else, with a companion test proving the rest is deterministic.
+>    Naming the untestable part beats quietly asserting less.
+> 2. **The body text is glyph indices, not words.** An embedded font subset
+>    writes text as glyph ids, so grepping the bytes for a heading fails even
+>    though the report is perfectly searchable in a reader. What makes it
+>    searchable is the `/ToUnicode` map — so *that* is what the test asserts.
+> 3. **The seam moved because a test hung.** The screen originally loaded fonts
+>    and rasterised the chart itself, and the widget test timed out on a
+>    compositor a test binding does not have. Fonts, pixels and the share sheet
+>    now live behind `ArtifactExporter`; the screen only describes what to
+>    export. The hang was the design telling us where the boundary was.
+>
+> **Next: the two gate items, neither of which is a feature.** A round-trip
+> convergence test (UI-driven and prompt-driven changes landing on identical
+> state — the machinery exists, the proof does not) and responsive layout tests
+> across phone/tablet/desktop breakpoints. The tampering half of the gate is
+> already covered.
 
 **Started 2026-08-06.** The key-independent half of Phase 0 foundation landed
 first: the provider interface, the roster security boundary and its matrix test,
@@ -606,6 +627,8 @@ information.
 | **Second series** | `LineChart` takes an optional `comparison`; empty by default | The rule is "no chart *cycles or generates* colours", not "one line per chart". Two named series take the two fixed palette slots, always with a legend, and a third is not expressible. Empty-by-default is what makes a shared console widget safe to change |
 | **Series alignment** | Position (nth vs nth), with both bucket labels shown | The windows are different calendar stretches and an empty bucket yields no point, so date-matching is not available. Showing both labels makes the approximation visible instead of implying the rows are the same day |
 | **Expanded controls** | Per view-spec type, from one table, conservative | Zod strips an undeclared key rather than rejecting it, so a control for a param its tool never had would appear to work and silently change nothing — the worst of the three outcomes |
+| **Table twin ⇄ PDF** | One derivation (`artifact_table.dart`), two renderers | A report that disagrees with the screen it came from is the discrepancy nobody notices until a customer quotes the PDF back at you. The delta stays *numeric* through the seam: the screen wants a coloured pill, the page wants text that survives greyscale |
+| **PDF golden** | Normalise `/CreationDate` and `/ID`, compare everything else; write uncompressed | Those two are stamped inside the library from a clock and a CSPRNG, so a literal byte golden fails on every run. Naming the two untestable fields is honest; asserting less would hide what is no longer covered. Uncompressed so a failing diff names the string that moved |
 | Filter changes | `POST /artifacts/:id/refine` re-runs the **same tool closure** — no model call | A slider drag must not cost 3s and a paid request; reusing the closure means scope was never a tamperable parameter |
 | Artifact navigation | Real route `/artifact/:id` | Back button, deep links, sharing come free from go_router instead of bespoke state machinery |
 | Period vocabulary | `today · yesterday · previous_week · mtd · ytd · custom` | Taken verbatim from what they filter by daily — not invented |

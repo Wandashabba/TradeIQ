@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/features/assistant/data/artifact_repository.dart';
+import 'package:tradeiq_app/features/assistant/export/artifact_exporter.dart';
 import 'package:tradeiq_app/features/assistant/presentation/artifact_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
@@ -89,10 +90,29 @@ ArtifactDetail trendArtifact({
   canUndo: canUndo,
 );
 
+/// Records what would have been shared, instead of reaching for the platform's
+/// share sheet — which does not exist in a test binding.
+class RecordingExporter implements ArtifactExporter {
+  ArtifactExportRequest? request;
+  String? filename;
+  Object? throwThis;
+
+  @override
+  Future<void> export(
+    ArtifactExportRequest request, {
+    required String filename,
+  }) async {
+    this.request = request;
+    this.filename = filename;
+    if (throwThis != null) throw throwThis!;
+  }
+}
+
 Future<void> pumpArtifact(
   WidgetTester tester,
   StubArtifactRepository repository, {
   Size size = const Size(1400, 1600),
+  RecordingExporter? exporter,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -104,6 +124,8 @@ Future<void> pumpArtifact(
       theme: AppTheme.dark(),
       overrides: [
         artifactRepositoryProvider.overrideWithValue(repository),
+        if (exporter != null)
+          artifactExporterProvider.overrideWithValue(exporter),
         // The territory control is not what these tests are about, and the real
         // provider would reach for the network.
         territoriesListProvider.overrideWith((ref) async => <Territory>[]),
@@ -278,6 +300,70 @@ void main() {
     final chart = tester.getTopLeft(find.byType(LineChart));
     expect(filters.dy, lessThan(chart.dy));
     expect(tester.takeException(), isNull);
+  });
+
+  group('PDF export', () {
+    testWidgets('exports what is on screen, filters and figures included', (
+      tester,
+    ) async {
+      final exporter = RecordingExporter();
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact(compared: true)),
+        exporter: exporter,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('artifact-export-pdf')));
+      await tester.pumpAndSettle();
+
+      final request = exporter.request!;
+      expect(request.title, 'Execution score');
+      // The applied filters travel with the report. A chart in a shared file
+      // with no visible date range is a support ticket waiting to happen.
+      expect(request.filters, contains('Month to date'));
+      // The table twin's rows are the report's rows — one derivation, two
+      // renderers, so the PDF cannot disagree with the screen it came from.
+      expect(request.table!.rows, hasLength(2));
+      expect(request.table!.compared, isTrue);
+      expect(exporter.filename, startsWith('tradeiq-execution-score-'));
+      expect(exporter.filename, endsWith('.pdf'));
+    });
+
+    testWidgets('exports the params the user is actually looking at', (
+      tester,
+    ) async {
+      // Not the ones the artifact was created with: a report of a filter the
+      // user changed two minutes ago would be a quiet lie.
+      final exporter = RecordingExporter();
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        exporter: exporter,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('artifact-filter-ytd')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('artifact-export-pdf')));
+      await tester.pumpAndSettle();
+
+      expect(exporter.request!.filters, contains('Year to date'));
+    });
+
+    testWidgets('a failed export says so where every other failure is said', (
+      tester,
+    ) async {
+      final exporter = RecordingExporter()..throwThis = Exception('no printer');
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        exporter: exporter,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('artifact-export-pdf')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('could not be exported'), findsOneWidget);
+    });
   });
 }
 

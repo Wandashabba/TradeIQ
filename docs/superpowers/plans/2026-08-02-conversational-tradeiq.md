@@ -908,7 +908,9 @@ tests at phone / tablet / desktop breakpoints.
       `outlet_map` fall back to their inline card inside the same shell — a
       table of pin coordinates is not a table twin, and a map is already the
       whole answer at any size. What they gain is the controls and the route.
-- [ ] **Print**: paginated, controls stripped
+- [x] **Print**: paginated, controls stripped
+      → **Done.** The `RepaintBoundary` wrapping the rendered view is what
+      strips the controls: the capture is the view and nothing beside it.
 - [x] Route `/artifact/:id` so the browser back button and deep links work —
       this is what makes "go back" free rather than bespoke state juggling
       → **Done.** Reached with `push`, so Back returns to the transcript. The
@@ -926,17 +928,33 @@ tests at phone / tablet / desktop breakpoints.
       the server refused disagrees with the figures underneath it.
 
 ### PDF export
-- [ ] `pdf` + `printing` packages; generate **in an Isolate** so the UI thread
+- [x] `pdf` + `printing` packages; generate **in an Isolate** so the UI thread
       never blocks
-- [ ] Embed the already-bundled **Inter** TTFs (`app/assets/fonts/`) so the
+      → **Done via `compute`**, with one honest caveat: **web has no second
+      isolate**, so there it runs inline. That is a platform limit rather than
+      a choice, and it is why the button shows a progress state on every
+      platform instead of assuming the work is off-thread.
+- [x] Embed the already-bundled **Inter** TTFs (`app/assets/fonts/`) so the
       report matches the product and renders identically across platforms
-- [ ] **Hybrid fidelity:** text, headers, and the data table as *vector* (crisp,
-      selectable, searchable); the chart itself rasterised via `RepaintBoundary`
-      at ≥2× device pixel ratio. Vector-only would mean reimplementing every
-      `CustomPainter`; raster-only would give a blurry, unsearchable report
-- [ ] Report header: title, applied filters in words, generated-at, tenant.
-      A chart with no visible date range is a support ticket waiting to happen
-- [ ] Golden-file test on generated PDF bytes
+      → Regular, Medium and Bold, subset by the `pdf` package. Passed *into*
+      the isolate as bytes: `rootBundle` does not exist on the far side.
+- [x] **Hybrid fidelity:** text, headers, and the data table as *vector*; the
+      chart rasterised via `RepaintBoundary` at ≥2× device pixel ratio
+- [x] Report header: title, applied filters in words, generated-at, tenant
+      → The filters sentence is `describeParamsInWords`, the same one the
+      screen shows, and it describes the params **currently on screen** rather
+      than the ones the artifact was created with.
+- [x] Golden-file test on generated PDF bytes
+      → With two fields normalised out, named in the test: `pdf` stamps
+      `/CreationDate` from `DateTime.now()` and derives `/ID` from
+      `Random.secure()`, neither injectable, so a literal byte golden would
+      fail on every run. Everything else — every glyph and coordinate — is
+      compared exactly, and a companion test proves the build is otherwise
+      deterministic. The document is written **uncompressed** for the golden so
+      a diff shows which string moved rather than which deflate byte did.
+- [x] **The table twin and the report are one derivation** (`artifact_table.dart`)
+      → Not in the original list, and it is the thing that keeps a report from
+      quietly disagreeing with the screen it was exported from.
 
 > **Not this phase:** server-side PDF for *scheduled* reports. `/reports`
 > (CSV + JSON) and `/report-schedules` already exist server-side and cannot

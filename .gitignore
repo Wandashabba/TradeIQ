@@ -29,3 +29,8 @@ app/**/*.g.dart
 # Interview/recording transcripts — may contain third-party PII
 *.pdf
 !docs/**/*.pdf
+# …and test goldens, which are generated from fixture data. The rule above
+# exists to keep third-party PII out of the repo; a golden built from three
+# invented numbers and a made-up tenant carries none, and a golden that cannot
+# be committed is not a golden at all.
+!app/test/**/goldens/*.pdf
