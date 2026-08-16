@@ -170,7 +170,14 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
           break;
 
         case 'tool_call':
-          calls.push({ id: event.id, name: event.name, args: event.args });
+          calls.push({
+            id: event.id,
+            name: event.name,
+            args: event.args,
+            // Opaque here. It only has to survive the round trip back into
+            // history — see ToolCallRecord.providerSignature.
+            ...(event.signature ? { providerSignature: event.signature } : {}),
+          });
           break;
 
         case 'usage':
