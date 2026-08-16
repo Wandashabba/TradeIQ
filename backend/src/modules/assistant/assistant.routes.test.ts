@@ -133,6 +133,9 @@ describe('POST /assistant/chat', () => {
   });
 
   afterAll(async () => {
+    // A turn that streams an artifact now persists a row referencing the
+    // tenant, so this has to go before the client does.
+    await prisma.assistantArtifact.deleteMany({ where: { clientId } });
     await prisma.visitStock.deleteMany({ where: { visit: { clientId } } });
     await prisma.scorecard.deleteMany({ where: { visit: { clientId } } });
     await prisma.visit.deleteMany({ where: { clientId } });
@@ -216,8 +219,11 @@ describe('POST /assistant/chat', () => {
         .send({ message: 'hi' });
 
       const frames = parseSse(res.text);
-      expect(frames.map((f) => f.event)).toEqual(['token', 'usage', 'done']);
-      expect(frames[0].data).toEqual({ text: 'Hello.' });
+      // `conversation` leads every turn — the client needs the id it must echo
+      // back, and it is sent before anything can fail.
+      expect(frames.map((f) => f.event)).toEqual(['conversation', 'token', 'usage', 'done']);
+      expect(frames[0].data).toEqual({ id: expect.any(String) });
+      expect(frames[1].data).toEqual({ text: 'Hello.' });
     });
 
     it('every frame is parseable JSON on one data line', async () => {
@@ -231,7 +237,7 @@ describe('POST /assistant/chat', () => {
         .send({ message: 'hi' });
 
       expect(() => parseSse(res.text)).not.toThrow();
-      expect(parseSse(res.text)[0].data).toEqual({ text: 'line one\nline two' });
+      expect(parseSse(res.text)[1].data).toEqual({ text: 'line one\nline two' });
     });
   });
 
@@ -259,6 +265,7 @@ describe('POST /assistant/chat', () => {
 
       const frames = parseSse(res.text);
       expect(frames.map((f) => f.event)).toEqual([
+        'conversation',
         'tool_start',
         'tool_end',
         'artifact',
@@ -266,12 +273,101 @@ describe('POST /assistant/chat', () => {
         'usage',
         'done',
       ]);
-      expect(frames[0].data).toEqual({ name: 'getAgentScorecard', pillar: 'execution' });
-      expect(frames[2].data).toMatchObject({
+      expect(frames[1].data).toEqual({ name: 'getAgentScorecard', pillar: 'execution' });
+      expect(frames[3].data).toMatchObject({
         type: 'agent_scorecard',
         params: { agentId: agent.userId },
         data: { averageScore: 82, scoredVisits: 1 },
       });
+    });
+
+    it('publishes an artifact id that is still refinable after the turn ends', async () => {
+      // The point of persisting at all. A turn-local id like
+      // `getAgentScorecard-0` renders once and then refers to nothing, so every
+      // filter control on the card is dead the moment the stream closes.
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getAgentScorecard',
+            args: { agent: agent.userId, period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Solid month.' }, { type: 'done' }],
+      ];
+
+      const res = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How has the agent been performing this month?' });
+
+      const frames = parseSse(res.text);
+      const conversationId = (frames[0].data as { id: string }).id;
+      const artifactId = (frames.find((f) => f.event === 'artifact')!.data as { id: string }).id;
+
+      // A persisted id, not the turn-local fallback.
+      expect(artifactId).not.toMatch(/^getAgentScorecard-\d+$/);
+
+      // And it resolves — fresh data, through the caller's own roster.
+      const reopened = await request(app)
+        .get(`/assistant/artifacts/${artifactId}`)
+        .set('Authorization', `Bearer ${manager.token}`)
+        .expect(200);
+
+      expect(reopened.body).toMatchObject({
+        id: artifactId,
+        type: 'agent_scorecard',
+        toolName: 'getAgentScorecard',
+      });
+      expect(reopened.body.data).toMatchObject({ averageScore: 82 });
+      expect(conversationId).toEqual(expect.any(String));
+    });
+
+    it('tells the model which views are already open, without touching the cached prefix', async () => {
+      // The manifest exists so a second question refines the open card instead
+      // of stacking a near-duplicate beside it. It rides with the user's turn
+      // rather than in the system prompt: the cached prefix is `[tools][system]`
+      // and caching is a prefix match, so volatile context in there would miss
+      // the cache — and, with explicit caching, bill for a new entry — on most
+      // turns.
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getAgentScorecard',
+            args: { agent: agent.userId, period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Solid.' }, { type: 'done' }],
+      ];
+
+      const first = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How has the agent been performing?' });
+
+      const conversationId = (parseSse(first.text)[0].data as { id: string }).id;
+
+      script.calls.length = 0;
+      script.rounds = [[{ type: 'token', text: 'Sure.' }, { type: 'done' }]];
+
+      await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ conversationId, message: 'And last year?' });
+
+      const turn = script.calls.find((c) => c.model !== 'quarantine')!;
+      const lastMessage = turn.messages[turn.messages.length - 1];
+      expect(lastMessage.content).toContain('Views already open');
+      expect(lastMessage.content).toContain('agent_scorecard');
+      // The user's own words survive intact beneath the note.
+      expect(lastMessage.content).toContain('And last year?');
+      // The frozen prefix is untouched.
+      expect(turn.system).not.toContain('Views already open');
     });
 
     it('streams an outlet map when stockouts have somewhere to point', async () => {
@@ -514,7 +610,11 @@ describe('POST /assistant/chat', () => {
         .expect(200);
 
       const frames = parseSse(res.text);
+      // The conversation id still leads. A turn that fails is exactly when the
+      // client most needs it — the retry belongs in the same conversation, and
+      // any artifacts from earlier turns are found by that id.
       expect(frames).toEqual([
+        { event: 'conversation', data: { id: expect.any(String) } },
         { event: 'error', data: { code: 'rate_limited', message: 'Busy right now.' } },
       ]);
     });
