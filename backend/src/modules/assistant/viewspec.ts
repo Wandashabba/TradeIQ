@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { compareToSchema } from './compare';
 import { periodSchema } from './period';
 
 /**
@@ -21,7 +22,12 @@ import { periodSchema } from './period';
  * testable, which is the point of putting the output contract in a pure file.
  */
 
-export const VIEW_SPEC_TYPES = ['agent_scorecard', 'trend_chart', 'outlet_map'] as const;
+export const VIEW_SPEC_TYPES = [
+  'agent_scorecard',
+  'trend_chart',
+  'outlet_map',
+  'pillar_metrics',
+] as const;
 export type ViewSpecType = (typeof VIEW_SPEC_TYPES)[number];
 
 /**
@@ -55,6 +61,30 @@ const trendChartParams = z.object({
     .describe('Bucket width. Use week for periods longer than about a month.'),
 });
 
+/**
+ * The four pillars' headline figures, with the comparison beside them.
+ *
+ * Added because comparison shipped with nowhere to land: of the five tools that
+ * accept `compareTo`, only `getStockLevels` declared a view, and an outlet map
+ * of stockout pins has no natural place for "on-shelf availability is up 5.1 on
+ * the month before". Four of the five drew nothing at all, so the feature the
+ * practitioner asked for by name arrived invisible.
+ *
+ * `params` carries only what identifies the view — which pillar, over what
+ * window, against what. The figures themselves ride in the artifact's `data`,
+ * exactly as they do for every other spec: params are the contract the model and
+ * the UI both write through, and putting numbers in them would make a filter
+ * change a data edit.
+ */
+const pillarMetricsParams = z.object({
+  pillar: z
+    .enum(['sales', 'stock', 'visibility', 'competition'])
+    .describe('Which pillar these figures belong to.'),
+  period: periodSchema,
+  territoryId: z.string().min(1).optional(),
+  compareTo: compareToSchema.optional(),
+});
+
 const outletMapParams = z.object({
   // Both optional, but not both absent — see the refine below.
   territoryId: z.string().min(1).optional(),
@@ -72,6 +102,7 @@ const outletMapParams = z.object({
 export const VIEW_SPEC_CATALOG = {
   agent_scorecard: agentScorecardParams,
   trend_chart: trendChartParams,
+  pillar_metrics: pillarMetricsParams,
   outlet_map: outletMapParams.refine(
     (value) => value.territoryId !== undefined || (value.outletIds?.length ?? 0) > 0,
     {

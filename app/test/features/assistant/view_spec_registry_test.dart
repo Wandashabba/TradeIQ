@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
+import 'package:tradeiq_app/core/widgets/delta_pill.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
 
@@ -11,10 +12,10 @@ Widget wrap(Widget child) => MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: child)),
     );
 
-ChatArtifact artifact(String type, {Object? data}) => ChatArtifact(
+ChatArtifact artifact(String type, {Object? data, Object? params}) => ChatArtifact(
       id: 'a1',
       type: type,
-      params: const {'agentId': 'agent-1'},
+      params: params ?? const {'agentId': 'agent-1'},
       data: data ?? const {},
     );
 
@@ -92,6 +93,117 @@ void main() {
       )));
 
       expect(find.textContaining('No other agent'), findsOneWidget);
+    });
+  });
+
+
+  group('PillarMetricsCard', () {
+    const stockData = {
+      'onShelfAvailabilityPct': 93.1,
+      'outletsWithStockout': 3,
+      'linesObserved': 360,
+      'comparison': {
+        'label': 'the month to date before this one',
+        'basis': {'kind': 'previous_period'},
+        'deltas': {
+          'onShelfAvailabilityPct': {'absolute': 5.1, 'pct': 5.8},
+          'outletsWithStockout': {'absolute': -2.0, 'pct': -40.0},
+        },
+      },
+    };
+
+    testWidgets('shows each figure with the movement beside it', (tester) async {
+      // A figure with nothing to read it against reproduces the export-and-
+      // overlay workflow this whole feature exists to kill.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('pillar_metrics',
+            params: const {'pillar': 'stock'}, data: stockData),
+      )));
+
+      expect(find.text('Stock'), findsOneWidget);
+      expect(find.text('93.1%'), findsOneWidget);
+      expect(find.text('On-shelf availability'), findsOneWidget);
+      expect(find.text('5.8%'), findsOneWidget);
+      expect(find.byType(DeltaPill), findsNWidgets(2));
+    });
+
+    testWidgets('names what the movement is measured against', (tester) async {
+      // A pill on its own is a number without a baseline.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('pillar_metrics',
+            params: const {'pillar': 'stock'}, data: stockData),
+      )));
+
+      expect(
+        find.text('Change is measured against the month to date before this one.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a fall reads as a fall', (tester) async {
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('pillar_metrics',
+            params: const {'pillar': 'stock'}, data: stockData),
+      )));
+
+      final pills = tester.widgetList<DeltaPill>(find.byType(DeltaPill)).toList();
+      expect(pills.any((p) => p.tone == DeltaTone.bad), isTrue);
+      expect(pills.any((p) => p.tone == DeltaTone.good), isTrue);
+    });
+
+    testWidgets('renders the figures when nothing was compared', (tester) async {
+      // Comparison is optional. Without it the card is still the answer.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('pillar_metrics',
+            params: const {'pillar': 'visibility'},
+            data: const {'visibilityCompliancePct': 76.4}),
+      )));
+
+      expect(find.text('Visibility'), findsOneWidget);
+      expect(find.text('76.4%'), findsOneWidget);
+      expect(find.byType(DeltaPill), findsNothing);
+    });
+
+    testWidgets('says n/a rather than inventing a percentage from zero', (tester) async {
+      // The server sends pct: null when the baseline was zero, because "up from
+      // nothing" has no percentage. The card must not fill that in.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('pillar_metrics',
+            params: const {'pillar': 'stock'},
+            data: const {
+              'outletsWithStockout': 4,
+              'comparison': {
+                'label': 'last year',
+                'deltas': {
+                  'outletsWithStockout': {'absolute': 4.0, 'pct': null},
+                },
+              },
+            }),
+      )));
+
+      expect(find.text('n/a'), findsOneWidget);
+    });
+
+    testWidgets('labels a metric it has never heard of instead of hiding it', (tester) async {
+      // A backend that grows a figure before this build ships must not silently
+      // drop a number the narrative above already mentioned.
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('pillar_metrics',
+            params: const {'pillar': 'sales'},
+            data: const {'newFangledRatio': 12}),
+      )));
+
+      expect(find.text('New fangled ratio'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
+    });
+
+    testWidgets('says so when the period returned no figures', (tester) async {
+      await tester.pumpWidget(wrap(ArtifactView(
+        artifact: artifact('pillar_metrics',
+            params: const {'pillar': 'stock'}, data: const {}),
+      )));
+
+      expect(find.text('No figures were returned for this period.'), findsOneWidget);
     });
   });
 
