@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/assistant/data/artifact_repository.dart';
+import 'package:tradeiq_app/features/assistant/export/artifact_exporter.dart';
 import 'package:tradeiq_app/features/assistant/export/artifact_pdf.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/artifact_table.dart';
 
@@ -145,6 +146,46 @@ void main() {
 
     expect(golden.existsSync(), isTrue, reason: 'golden missing — see the note above');
     expect(bytes, equals(golden.readAsBytesSync()));
+  });
+
+  test('the exporter finds the font files it names', () async {
+    // The three weights are addressed by literal path, so renaming or moving
+    // one breaks every export at runtime and nothing else would notice:
+    // `analyze` cannot see inside a string, and the tests above load the fonts
+    // themselves rather than through the code that ships. This asserts the
+    // shipping path, which is the one that can be wrong.
+    final fonts = await ArtifactExporter.loadFonts();
+
+    expect(fonts.regular.lengthInBytes, greaterThan(1000));
+    expect(fonts.medium.lengthInBytes, greaterThan(1000));
+    expect(fonts.bold.lengthInBytes, greaterThan(1000));
+  });
+
+  test('the compressed document — what actually ships — is a valid PDF', () async {
+    // Every test above sets `compress: false` so the golden is readable, which
+    // leaves the default the app uses in production untested. Compression runs
+    // the whole document through a deflate the golden never exercises.
+    final bytes = await buildArtifactPdf(
+      ArtifactPdfRequest(
+        title: 'On-shelf availability',
+        subtitle: 'By day · vs the month to date before this one',
+        filters: 'Month to date · daily buckets · compared with the period before.',
+        tenant: 'Demo FMCG',
+        generatedAt: DateTime.utc(2026, 8, 17, 9, 30),
+        table: artifactTableFor(_trendArtifact()),
+        fonts: await _fonts(),
+      ),
+    );
+    final raw = String.fromCharCodes(bytes);
+
+    expect(raw.substring(0, 5), '%PDF-');
+    expect(raw.trimRight().endsWith('%%EOF'), isTrue);
+    // Smaller than the uncompressed twin, which is the only proof the deflate
+    // ran at all rather than being silently skipped.
+    expect(
+      bytes.length,
+      lessThan((await buildArtifactPdf(_request(await _fonts()))).length),
+    );
   });
 
   test('the same request twice produces the same document', () async {
