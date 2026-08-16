@@ -358,7 +358,6 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
       // connection with no reason on it, which is the one thing the missing-key
       // test exists to prevent.
       let cachedPrefix: string | null = null;
-      let params: GenerateContentParameters | undefined;
 
       try {
         // The frozen prefix goes server-side when it can. Gemini's *implicit*
@@ -379,7 +378,7 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
         return;
       }
 
-      params = {
+      const params: GenerateContentParameters = {
         model,
         contents: toGeminiContents(input.messages),
         config: {
