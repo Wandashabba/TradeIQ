@@ -118,6 +118,26 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
     };
   };
 
+
+  /**
+   * The view every comparable pillar tool draws.
+   *
+   * Params identify the view — pillar, window, scope, basis — and never the
+   * figures, which ride in the artifact's `data`. That keeps `params` the one
+   * contract the model and the UI's filter controls both write through.
+   */
+  const pillarView =
+    (pillar: 'sales' | 'stock' | 'visibility' | 'competition') =>
+    (args: z.infer<typeof comparableWindowArgs>) => ({
+      type: 'pillar_metrics' as const,
+      params: {
+        pillar,
+        period: args.period,
+        ...(args.territoryId ? { territoryId: args.territoryId } : {}),
+        ...(args.compareTo ? { compareTo: args.compareTo } : {}),
+      },
+    });
+
   const tools = [
     // ── Sales ────────────────────────────────────────────────────────────
     eraseToolTypes({
@@ -128,6 +148,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
         'sale, attainment, or whether a territory is hitting its numbers.',
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getSalesPerformance(w)),
+      view: pillarView('sales'),
     }),
 
     eraseToolTypes({
@@ -174,6 +195,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
         'we hold against competitors.',
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getShareOfShelf(w)),
+      view: pillarView('visibility'),
     }),
 
     eraseToolTypes({
@@ -184,6 +206,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
         'shelf cleanliness, or whether displays are in high-traffic positions.',
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getVisibilityCompliance(w)),
+      view: pillarView('visibility'),
     }),
 
     // ── Competition ──────────────────────────────────────────────────────
@@ -195,6 +218,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
         'facings, their promoters, or which competitor brands are showing up in outlets.',
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getCompetitorActivity(w)),
+      view: pillarView('competition'),
     }),
 
     // ── Execution ────────────────────────────────────────────────────────

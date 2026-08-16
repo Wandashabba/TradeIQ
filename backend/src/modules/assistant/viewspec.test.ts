@@ -229,6 +229,33 @@ describe('validateViewSpec', () => {
     expect(validateViewSpec({ params: {} }).ok).toBe(false);
   });
 
+  it('carries the comparison basis in pillar_metrics params, never the figures', () => {
+    // Params identify the view; the numbers ride in the artifact's data. If a
+    // figure lived here, a filter change would be a data edit — and `refine`
+    // re-runs the tool precisely so it never is.
+    const spec = validateViewSpec({
+      type: 'pillar_metrics',
+      params: {
+        pillar: 'visibility',
+        period: { kind: 'mtd' },
+        compareTo: { kind: 'same_period_last_year' },
+      },
+    });
+
+    expect(spec).toMatchObject({ ok: true });
+    expect(JSON.stringify(spec)).not.toMatch(/\d+\.\d+/);
+  });
+
+  it('rejects a pillar outside the four', () => {
+    // The pillars are the practitioner's own mental model, not a free-text tag.
+    expect(
+      validateViewSpec({
+        type: 'pillar_metrics',
+        params: { pillar: 'logistics', period: { kind: 'mtd' } },
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
   it('covers every catalog entry with at least one valid example', () => {
     // Guards against a spec being added to the catalog and never exercised —
     // which is how an unvalidatable schema ships.
@@ -236,6 +263,7 @@ describe('validateViewSpec', () => {
       agent_scorecard: { agentId: 'a', period: { kind: 'today' } },
       trend_chart: { metric: 'execution_score', period: { kind: 'ytd' } },
       outlet_map: { territoryId: 't1' },
+      pillar_metrics: { pillar: 'stock', period: { kind: 'mtd' } },
     };
     for (const type of VIEW_SPEC_TYPES) {
       expect(validateViewSpec({ type, params: examples[type] })).toMatchObject({ ok: true });
