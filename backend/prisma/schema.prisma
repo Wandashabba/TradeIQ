@@ -61,6 +61,7 @@ model Client {
   incentiveSchemes   IncentiveScheme[]
   reportSchedules    ReportSchedule[]
   assistantArtifacts AssistantArtifact[]
+  assistantActions   AssistantAction[]
 
   @@map("clients")
 }
@@ -739,4 +740,50 @@ model AssistantArtifact {
 
   @@index([clientId, userId, conversationId])
   @@map("assistant_artifacts")
+}
+
+/// Every write the assistant attempted — including the ones it was not allowed
+/// to make.
+///
+/// **A ledger, not a log.** Rows are written before the action runs and updated
+/// with its outcome, so an action that crashed mid-flight leaves a row saying
+/// so rather than leaving no trace. "No row" therefore means "never attempted",
+/// which is the property that makes this answerable in an incident.
+///
+/// Refusals are recorded for the same reason: a tenant asking for something it
+/// cannot have is the signal worth keeping, and a ledger of successes only
+/// cannot distinguish "nobody tried" from "somebody tried repeatedly".
+model AssistantAction {
+  id             String   @id @default(uuid())
+  clientId       String   @map("client_id")
+  client         Client   @relation(fields: [clientId], references: [id])
+  /// Who asked. Not a relation: a user may be deleted and the ledger must
+  /// outlive them, which is the whole point of an audit trail.
+  userId         String   @map("user_id")
+  conversationId String?  @map("conversation_id")
+  toolName       String   @map("tool_name")
+  /// The tier AT THE TIME. Denormalised on purpose — re-deriving it from
+  /// risk.ts when the ledger is read would rewrite history every time the
+  /// policy table changes, and "what did we consider risky then" is exactly
+  /// what an auditor asks.
+  tier           String
+  /// The validated arguments, as the tool's own schema returned them. Never
+  /// the model's raw text — the point of comparison later is what RAN.
+  args           Json
+  /// requested · awaiting_confirmation · executed · refused · rejected · failed
+  outcome        String
+  /// Why, when the outcome was refused, rejected or failed. Null otherwise.
+  detail         String?
+  /// What an undo would need for a `reversible` action — the created row's id,
+  /// the previous value. Null for tiers that cannot be undone this way.
+  undoContext    Json?    @map("undo_context")
+  createdAt      DateTime @default(now()) @map("created_at")
+  resolvedAt     DateTime? @map("resolved_at")
+
+  /// The audit view filters by tenant and orders by time; the second index
+  /// serves "everything this person did", which is the first question asked
+  /// when something looks wrong.
+  @@index([clientId, createdAt])
+  @@index([clientId, userId, createdAt])
+  @@map("assistant_actions")
 }
