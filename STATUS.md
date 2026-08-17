@@ -2,12 +2,14 @@
 
 **Last updated:** 2026-08-17
 **Current initiative:** Conversational TradeIQ (dashboard → chatbot)
-**Active branch:** none — everything through PR [#275](../../pull/275) is on
+**Active branch:** none — everything through PR [#278](../../pull/278) is on
 `main`. Phase 0 landed via [#264](../../pull/264)/[#268](../../pull/268);
 Phase 2 via [#269](../../pull/269) (persistence), [#270](../../pull/270) (turn
 wiring), [#271](../../pull/271) (comparison), [#272](../../pull/272) (the first
 comparison-aware card), [#274](../../pull/274) (the params-change note and
-Expanded mode) and [#275](../../pull/275) (PDF export).
+Expanded mode) and [#275](../../pull/275) (PDF export). Off the initiative:
+[#276](../../pull/276) (bring-your-own-data note), [#277](../../pull/277) (the
+export error message), [#278](../../pull/278) (pipeline gates + codebase audit).
 **Plan:** [docs/superpowers/plans/2026-08-02-conversational-tradeiq.md](docs/superpowers/plans/2026-08-02-conversational-tradeiq.md) — sequencing and tasks
 **Spec:** [docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md](docs/superpowers/specs/2026-08-02-conversational-tradeiq-design.md) — contracts, wire protocol, security model
 
@@ -180,6 +182,63 @@ Expanded mode) and [#275](../../pull/275) (PDF export).
 >    `compress: true` default that ships, which the golden's `compress: false`
 >    had left untested. What still cannot be covered here is `sharePdf` itself:
 >    that needs a platform, which is exactly why the seam is there.
+>
+> **The pipeline could not see whole classes of failure (#278, 2026-08-17).**
+> Two workflows ran lint, typecheck, build, test and `npm audit`. Between them
+> they never compiled a release build, never compared `schema.prisma` against
+> the migrations, never noticed a pruned lockfile, and never looked at this
+> repository's own code or its history for secrets. Five gates added, all green
+> on the PR that added them:
+>
+> | Gate | Catches |
+> |---|---|
+> | `build-web` | dart2js-only failures. `flutter test` runs on the VM in debug and never invokes the web compiler |
+> | Web plugin registration | A plugin resolved for web but never registered — the bug above, made impossible to reach `main` |
+> | Migration drift | A schema edit with no migration: green locally, fails on the first fresh deploy |
+> | Lockfile ratchet | The Windows `npm install` prune that breaks `npm ci` in the first step of every job, so nothing else reports |
+> | Coverage floors 90/80/90/90 | A large untested module landing. Measured 92.95 / 84.19 / 92.89 / 93.61 |
+>
+> Plus `security.yml`: Semgrep, Gitleaks over full history, and pub advisories.
+>
+> **Both gates that could have silently passed were verified in both
+> directions** — plugin registration fails on a registrant with `printing`
+> stripped out, migration drift exits 2 naming the added column. A check nobody
+> has watched fail is a check nobody knows works.
+>
+> **Two things were deliberately NOT added**, and the reason is the same one:
+> a blocking job nobody has seen go green earns a permanent red cross and then
+> gets ignored. **CodeQL cannot run here** — it analysed all 227 files and then
+> 403'd on upload, because code scanning on a *private* repo needs GitHub
+> Advanced Security this user-owned repo does not have; Semgrep replaces it.
+> **`flutter test --platform chrome` is absent** even though 119 of 135 suites
+> could run there, because the dart2js compile for one suite hung past ten
+> minutes locally, twice.
+>
+> **The audit that came with it** —
+> [docs/audits/2026-08-17-codebase-audit.md](docs/audits/2026-08-17-codebase-audit.md)
+> — found the codebase in good shape: zero explicit `any` in 200 backend files,
+> zero swallowed `catch {}`, zero advisories, `requireAuth` on all 38 route
+> modules, and a revocation path that re-checks `active`, `role` *and*
+> `clientId` on every request. Two findings worth carrying:
+>
+> 1. **One tenant-scoping break, and the tests that should have caught it were
+>    named as if they had.** `skus.service.ts` resolved an outlet by bare id —
+>    the only query in the file not naming the tenant — so a foreign outlet's
+>    `code` selected which of the *caller's* promos applied. Not a bulk leak; an
+>    oracle. The two tests either side are called *"foreign/bogus outletId"* and
+>    both pass a **nonexistent** uuid, which returns null from a scoped and an
+>    unscoped lookup alike. "Foreign" and "bogus" are different tests and only
+>    the second was ever written. Fixed, with one that uses a real outlet in
+>    another tenant.
+> 2. **`GET /dashboard` with `range=All` is unbounded and one tap away.**
+>    It loads every visit for a tenant with five nested relations, no `take`,
+>    no required date window — and `allTime` is a filter chip in the UI. At
+>    ~150k visits that is a multi-hundred-MB result set in one process, and it
+>    takes the API down rather than just the dashboard. **Left unfixed on
+>    purpose**: the fix is SQL aggregation plus a product decision about what
+>    "all time" means, and it needs proof the KPI figures are unchanged. A
+>    rushed change there is how a dashboard starts quietly reporting wrong
+>    numbers, which is worse than a slow one. Filed in the backlog below.
 >
 > **Next: the two gate items, neither of which is a feature.** A round-trip
 > convergence test (UI-driven and prompt-driven changes landing on identical
@@ -687,6 +746,9 @@ information.
 | **Trace content** | **Metadata only. Conversation text behind `LANGFUSE_TRACE_CONTENT`, default off** | Transcripts carry outlet and agent PII, and retention (#251 Q3) plus POPIA residency (Q4) are both **open**. Shipping capture to a third-party cloud would answer them without anyone deciding. Tool *results* are never sent at any setting — they are simultaneously the untrusted surface and the richest PII source in the system |
 | **Cost rates** | Placeholder, seeded from the plan's cost table, `costCents` never `0` | Google's pricing is unconfirmed. One set of numbers to correct rather than two that can disagree; a zero would make a cost regression look like a saving |
 | Rollout | Per-client feature flag; additive until Phase 4 | Nothing is removed until the replacement is proven |
+| **SAST tool** | **Semgrep, not CodeQL** | Code scanning on a *private* repo needs GitHub Advanced Security, which this user-owned repo does not have. CodeQL analysed all 227 files and then 403'd uploading the SARIF — red for a configuration reason with nothing wrong in the code. Semgrep needs no GHAS and no account. Gated at `--severity=ERROR` only: the WARNING tier is style-adjacent, and a first SAST run reporting eighty things gets muted rather than read |
+| **Coverage floors** | 90/80/90/90, nothing excluded | A ratchet against a large untested module landing, not a number to chase. Set a few points below the measured figure on purpose. An exclusion list is how a file stops being measured and nobody notices |
+| **A gate nobody has watched fail** | Verify every new check in **both** directions before committing it | Both #278 gates that could silently pass were run against a deliberately broken input first. The plugin-registration check's first draft matched `packages/x/` instead of `package:x/` and would have failed every PR forever; the second would have passed every PR forever. Neither is visible without trying it |
 
 ---
 
@@ -722,6 +784,25 @@ computes, so these are **backend** work items.
       live**, because the tools are the semantic layer *and* the security
       boundary, and both properties come from the tool wrapping a service we
       wrote
+
+**Found by the 2026-08-17 audit, not yet ticketed:**
+- [ ] **`GET /dashboard` is unbounded** — `dashboard.service.ts:174` and `:220`
+      load every visit for a tenant with five nested relations and no `take`,
+      and `from`/`to` are optional at the route while the app offers an
+      `allTime` chip. **High**: this takes the API down, not just the
+      dashboard, and it is the landing screen. Fix is SQL aggregation, with the
+      KPI figures proved identical before and after — plus a decision on what
+      "all time" should mean for a tenant with a million visits
+- [ ] **App accessibility below the WCAG 2.2 AA bar the repo aims at** — three
+      `IconButton`s with no `tooltip`, eight images with no `semanticLabel`
+      (1.1.1 and 4.1.2 failures, both cheap). The assistant's filter chips
+      already set the right example with `Semantics(selected:)`; it has not
+      spread. Half a day, plus per-screen semantics smoke tests so it stays fixed
+- [ ] **Empty states are missing from 34 of 48 screens** — the shared
+      `EmptyState` widget exists and is good; this is adoption. Empty is the
+      state a new tenant sees on day one, which makes it the demo state
+- [ ] **28 raw hex colours outside the theme**, across 10 files. Several are
+      plausibly deliberate; each needs a one-line judgement, not a rewrite
 
 **Roadmap conflict to resolve:**
 - [ ] **#61 "ML route optimisation & next-best-action"** (Phase 4, ticketed) is
