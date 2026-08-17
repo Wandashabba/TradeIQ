@@ -118,12 +118,20 @@ examined the repository's own code, nothing scanned for committed secrets, and
 `app/`'s pub.dev supply chain had no check at all — despite the app shipping
 secure storage, an encrypted offline database and a JWT.
 
-**Fix applied.** New `security.yml`: CodeQL on `javascript-typescript` with the
-`security-extended` pack, Gitleaks over full history (`fetch-depth: 0`, because
-a key "removed" in a later commit is still in the pack file), and
-`flutter pub outdated` for the Dart side. Weekly schedule as well as per-PR,
-since CodeQL's query pack updates continuously and clean code can become
+**Fix applied.** New `security.yml`: Semgrep SAST, Gitleaks over full history
+(`fetch-depth: 0`, because a key "removed" in a later commit is still in the
+pack file), and `flutter pub outdated` for the Dart side. Weekly as well as
+per-PR, since rule packs update continuously and clean code can become
 vulnerable without anyone touching it.
+
+**CodeQL was tried first and does not work here.** It analysed all 227 files
+correctly, then failed to upload results: code scanning on a **private**
+repository requires GitHub Advanced Security, which this user-owned repo does
+not have. Semgrep replaces it — no GHAS, no account, public rule packs, results
+printed in the job rather than posted to a Security tab that does not exist.
+Gated at `--severity=ERROR` only: the WARNING tier is where style-adjacent
+rules live, and a first SAST run reporting eighty things gets muted rather than
+read.
 
 ### Medium
 
