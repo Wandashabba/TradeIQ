@@ -45,6 +45,35 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npx prisma migrate deploy
+      # A schema edit with no migration passes every test on a machine the
+      # developer migrated by hand, then fails on a fresh deploy — the one
+      # environment nobody gets to retry. `migrate diff` replays the migrations
+      # folder into a throwaway database and compares the result against
+      # schema.prisma; `--exit-code` makes a difference non-zero.
+      #
+      # Verified in both directions before being trusted: 0 with the tree as it
+      # stands, and 2 naming the added column when one is added to schema.prisma
+      # without a migration.
+      - name: Migrations match schema.prisma
+        env:
+          # Its own database because `migrate diff` RESETS whatever it is given,
+          # and DATABASE_URL is the one the suite below needs intact.
+          SHADOW_DATABASE_URL: postgresql://tradeiq:tradeiq_dev@localhost:5432/prisma_shadow?schema=public
+        run: |
+          set -euo pipefail
+          # Prisma resets the shadow database but will not create it.
+          npx prisma db execute \
+            --url postgresql://tradeiq:tradeiq_dev@localhost:5432/postgres \
+            --stdin <<< 'CREATE DATABASE prisma_shadow;'
+          if ! npx prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "$SHADOW_DATABASE_URL" \
+            --exit-code; then
+            echo "::error::schema.prisma has changes that no migration applies — the diff above says which."
+            echo "::error::Run 'npx prisma migrate dev' and commit the generated migration."
+            exit 1
+          fi
       - run: npm run lint
       # `build` only typechecks src/. `typecheck` also covers scripts/ via
       # tsconfig.scripts.json, so a broken seed script cannot reach main.
@@ -54,7 +83,10 @@ jobs:
       # machines, but a shared runner still exhausts the Prisma connection
       # pool (#181), which surfaces as a wall of unrelated suite failures.
       # #186's per-worker databases made parallel *correct*, not *safe here*.
-      - run: npx jest --runInBand
+      #
+      # `--coverage` enforces the floors in jest.config.js. They are a ratchet
+      # against a large untested module landing, not a number to chase.
+      - run: npx jest --runInBand --coverage
 
   # A separate job, deliberately.
   #
@@ -83,3 +115,63 @@ jobs:
       - run: npm ci --ignore-scripts
       # Fails on a high/critical advisory in any dependency.
       - run: npm audit --audit-level=high
+
+  # The lockfile ratchet.
+  #
+  # A `npm install` run on Windows prunes `sharp`'s optional `@emnapi` entries
+  # from package-lock.json. `npm ci` on a Linux runner then fails in the FIRST
+  # step of every job, so lint, typecheck, build and the whole suite never
+  # report — three red crosses and no test signal (see STATUS, 2026-08-06; it
+  # has happened more than once).
+  #
+  # `npm ci` does catch it, but only as an inscrutable install error after the
+  # damage is done. This says what went wrong instead. The rule it enforces is
+  # the one already written down for humans: a dependency change should only
+  # ever ADD `node_modules/` keys. Removing one is either a real removal — in
+  # which case the package's own entry goes too, and this passes — or a
+  # platform-specific prune, which is the bug.
+  lockfile:
+    runs-on: ubuntu-latest
+    # A push to main has no base to diff against; the rule is about what a PR
+    # proposes to change.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Optional platform packages were not pruned
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin "${{ github.base_ref }}"
+          removed=$(git diff "origin/${{ github.base_ref }}...HEAD" -- backend/package-lock.json \
+            | grep -E '^-[[:space:]]*"node_modules/' \
+            | sed -E 's/^-[[:space:]]*"([^"]+)".*/\1/' | sort -u || true)
+
+          if [ -z "$removed" ]; then
+            echo "No node_modules entries removed from the lockfile."
+            exit 0
+          fi
+
+          # A genuine uninstall drops the package everywhere, so its top-level
+          # entry disappears too and this stays quiet. A platform prune leaves
+          # the parent behind and removes only its optional platform builds —
+          # that is the case worth failing on.
+          orphaned=0
+          while read -r key; do
+            [ -n "$key" ] || continue
+            pkg=${key#node_modules/}
+            top=${pkg%%/*}
+            if grep -q "\"node_modules/$top\"" backend/package-lock.json; then
+              echo "::error file=backend/package-lock.json::Removed '$key' while '$top' itself remains."
+              orphaned=1
+            fi
+          done <<< "$removed"
+
+          if [ "$orphaned" -eq 1 ]; then
+            echo "::error::A dependency change should only ever ADD node_modules keys."
+            echo "::error::This is what a Windows 'npm install' does to sharp's @emnapi entries,"
+            echo "::error::and it breaks 'npm ci' on this runner before a single check reports."
+            echo "::error::Regenerate on Linux: docker run --rm -v \"\$PWD\":/w -w /w/backend node:24-alpine npm install"
+            exit 1
+          fi
+          echo "Entries were removed, but their packages went with them — a real uninstall."

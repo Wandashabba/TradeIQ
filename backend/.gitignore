@@ -6,3 +6,8 @@ node_modules
 # artifact, which is where it is useful — committing it would turn a
 # non-deterministic model output into a diff on every run.
 evals/report.json
+
+# `jest --coverage` output. Thousands of generated HTML files, regenerated on
+# every run — the number that matters is enforced by coverageThreshold in
+# jest.config.js, which needs no artifact in the tree.
+coverage/

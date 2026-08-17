@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 
-import { userIn } from '../../test-utils/tenants';
+import { foreignTenant, userIn } from '../../test-utils/tenants';
 
 describe('skus routes', () => {
   let clientId: string;
@@ -82,6 +82,64 @@ describe('skus routes', () => {
       // deleting a client that still has one.
       await prisma.user.deleteMany({ where: { clientId: clientB.id } });
       await prisma.client.delete({ where: { id: clientB.id } });
+    }
+  });
+
+  it('does not resolve a REAL outlet belonging to another client', async () => {
+    // The two "foreign/bogus outletId" tests either side of this one both pass
+    // a nonexistent uuid, which returns null from a scoped and an unscoped
+    // lookup alike — so neither could see that the outlet lookup here named no
+    // tenant at all. "Foreign" and "bogus" are different tests and only the
+    // second was ever written.
+    //
+    // A real outlet in another tenant is the case that mattered: it resolved,
+    // and its `code` then decided which of the CALLER's promos matched. The
+    // codes collide on purpose — that is what makes the discount apply, and it
+    // is not far-fetched, since outlet codes are per-tenant free text.
+    const foreign = await foreignTenant();
+    const foreignOutlet = await prisma.outlet.create({
+      data: {
+        name: 'Someone Else Ltd',
+        code: 'SKU-001',
+        channelType: 'hypermarket',
+        lat: -26.2041,
+        lng: 28.0473,
+        territoryId: 't1',
+        clientId: foreign.clientId,
+      },
+    });
+    const promo = await prisma.promoCalendar.create({
+      data: {
+        clientId,
+        promoName: 'Only For Our Own SKU-001',
+        activeFrom: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        activeTo: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        requiredPosm: {},
+        outletScope: { outletCodes: ['SKU-001'] },
+        discountType: 'percent',
+        discountValue: 20,
+        skuScope: Prisma.JsonNull,
+      },
+    });
+
+    try {
+      const res = await request(app)
+        .get('/skus')
+        .query({ outletId: foreignOutlet.id })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeGreaterThan(0);
+      // Before the fix the foreign outlet resolved, matched the promo on its
+      // colliding code, and every price came back discounted — an oracle for
+      // that outlet existing and for what its code is.
+      for (const sku of res.body.data) {
+        expect(sku.effectivePrice).toBe(sku.rrp);
+      }
+    } finally {
+      await prisma.promoCalendar.delete({ where: { id: promo.id } });
+      await prisma.outlet.delete({ where: { id: foreignOutlet.id } });
+      await foreign.cleanup();
     }
   });
 
