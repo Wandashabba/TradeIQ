@@ -941,7 +941,27 @@ class _LegendItem extends StatelessWidget {
       children: [
         Container(width: 9, height: 9, color: color),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 11.5, color: colors.ink2)),
+        // Flexible, because the label is not ours to bound.
+        //
+        // A `Wrap` hands each child the full line width as its maximum, and an
+        // inflexible `Text` then takes its natural width regardless — so one
+        // legend label longer than the line overflowed the Row rather than
+        // wrapping onto the next. That is a yellow-and-black stripe across the
+        // chart, and it was reachable: comparison labels are sentences the
+        // server writes ("the month to date before this one"), and a phone in
+        // portrait is 390 wide. Found by the breakpoint tests at 113px over.
+        //
+        // Ellipsis rather than a second line: the legend sits directly above
+        // the plot and growing it downward would shift the chart under the
+        // reader's eyes at exactly the widths where there is least room.
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, color: colors.ink2),
+          ),
+        ),
       ],
     );
   }

@@ -287,20 +287,170 @@ void main() {
     expect(find.text('Try again'), findsOneWidget);
   });
 
-  testWidgets('stacks the controls above the view on a narrow screen', (
-    tester,
-  ) async {
-    // Side panel on web and tablet; on a phone the same thing full-screen.
-    await pumpArtifact(
-      tester,
-      StubArtifactRepository(trendArtifact()),
-      size: const Size(420, 900),
-    );
+  /// The Phase 2 gate's second item: real breakpoints, at real device sizes.
+  ///
+  /// One narrow case used to stand in for this whole group. It proved the
+  /// stacked branch existed; it could not prove where the switch happens, that
+  /// the other branch works, or that nothing overflows at either extreme —
+  /// which are the three ways a responsive layout actually fails.
+  ///
+  /// The screen's own rule is one line: `constraints.maxWidth >= 880` puts the
+  /// controls in a 300px side panel, below that they stack above the view.
+  /// Everything here is stated against that number rather than against a
+  /// vibe about what "tablet" means.
+  group('across breakpoints', () {
+    /// Side by side: the controls sit to the RIGHT of the view, tops aligned.
+    void expectSidePanel(WidgetTester tester) {
+      final filters = tester.getTopLeft(find.text('Filters'));
+      final chart = tester.getTopLeft(find.byType(LineChart));
+      expect(
+        filters.dx,
+        greaterThan(chart.dx),
+        reason: 'controls should be in the right-hand panel',
+      );
+    }
 
-    final filters = tester.getTopLeft(find.text('Filters'));
-    final chart = tester.getTopLeft(find.byType(LineChart));
-    expect(filters.dy, lessThan(chart.dy));
-    expect(tester.takeException(), isNull);
+    /// Stacked: the controls sit ABOVE the view. This is the phone's
+    /// full-screen sheet in all but name.
+    Future<void> expectStacked(WidgetTester tester) async {
+      final chart = find.byType(LineChart);
+      if (chart.evaluate().isEmpty) {
+        // A short viewport puts the chart below the fold, and a ListView does
+        // not build what it cannot show — so the chart genuinely does not
+        // exist yet. Having to scroll DOWN from the top to reach it is itself
+        // the proof that it sits below the controls, which is the claim.
+        await tester.scrollUntilVisible(chart, 200);
+        expect(chart, findsOneWidget);
+        return;
+      }
+      expect(
+        tester.getTopLeft(find.text('Filters')).dy,
+        lessThan(tester.getTopLeft(chart).dy),
+        reason: 'controls should stack above the view',
+      );
+    }
+
+    /// What the artifact screen actually gets to lay out in.
+    ///
+    /// **Not the screen width.** `ManagerScaffold` puts a 232px nav rail and a
+    /// 1px divider beside the body above 1080, so the `LayoutBuilder` inside
+    /// this screen measures `screenWidth - 233` on desktop. Two breakpoints in
+    /// two files compose, and only the product of them is visible to a user.
+    double bodyWidthFor(double screenWidth) =>
+        screenWidth >= 1080 ? screenWidth - 233 : screenWidth;
+
+    // Real devices, not round numbers. A layout that works at 400 and 1200 and
+    // breaks at 834 is a layout nobody tested on an iPad.
+    const sizes = <String, Size>{
+      'phone portrait (iPhone 14)': Size(390, 844),
+      'phone landscape': Size(844, 390),
+      // An iPad in portrait is 834 wide — below the 880 line, so stacked.
+      'tablet portrait (iPad Air)': Size(834, 1112),
+      // 1112 wide, and still stacked: the rail and divider take 233, leaving
+      // 879. One pixel under. See the regression-window test below.
+      'tablet landscape (iPad Air)': Size(1112, 834),
+      'desktop': Size(1440, 900),
+    };
+
+    sizes.forEach((name, size) {
+      testWidgets('$name lays out and does not overflow', (tester) async {
+        await pumpArtifact(
+          tester,
+          StubArtifactRepository(trendArtifact(compared: true)),
+          size: size,
+        );
+
+        // Derived from the composition rule rather than hand-written per row,
+        // so the expectation cannot quietly drift from what the screen does.
+        if (bodyWidthFor(size.width) >= 880) {
+          expectSidePanel(tester);
+        } else {
+          await expectStacked(tester);
+        }
+
+        // The controls are reachable at every size — a layout that renders but
+        // strands the export button has not worked.
+        expect(find.text('Filters'), findsOneWidget);
+        expect(find.byKey(const ValueKey('artifact-export-pdf')), findsOneWidget);
+
+        // The assertion that catches the real bug. A RenderFlex overflow is an
+        // exception here and a yellow-and-black stripe in front of a customer.
+        // It found one: the chart legend, 113px over at phone portrait.
+        expect(tester.takeException(), isNull);
+      });
+    });
+
+    testWidgets('the nav rail can take the side panel away as the window WIDENS', (
+      tester,
+    ) async {
+      // A known defect, pinned rather than asserted-as-correct, because the
+      // shape of it is not obvious from either file alone.
+      //
+      // The artifact screen switches at 880 of BODY width. `ManagerScaffold`
+      // claims 233px for its rail and divider above 1080 of SCREEN width. So:
+      //
+      //   1000 screen → 1000 body → side panel
+      //   1080 screen →  847 body → STACKED   ← widened, and lost the panel
+      //   1113 screen →  880 body → side panel again
+      //
+      // Widening a window must never remove a panel. Neither breakpoint is
+      // wrong on its own, which is exactly why nothing caught it: the bug is
+      // in the composition. Fixing it means moving one of the two numbers and
+      // that is a design call, not a test fix — filed rather than guessed at.
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        size: const Size(1000, 900),
+      );
+      expectSidePanel(tester);
+
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        size: const Size(1080, 900),
+      );
+      await expectStacked(tester);
+
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        size: const Size(1113, 900),
+      );
+      expectSidePanel(tester);
+    });
+
+    testWidgets('switches layout exactly at 880, not near it', (tester) async {
+      // Off-by-one at a breakpoint is the classic responsive bug, and it is
+      // invisible unless a test sits on the boundary itself. `>= 880` means
+      // 880 is wide and 879 is not.
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        size: const Size(879, 900),
+      );
+      await expectStacked(tester);
+
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact()),
+        size: const Size(880, 900),
+      );
+      expectSidePanel(tester);
+    });
+
+    testWidgets('survives a width narrower than any phone', (tester) async {
+      // 320 is the floor the console's own design rules assume. Nothing has to
+      // look good here; it has to not throw, because an overflow at the
+      // narrowest supported width is the one users photograph.
+      await pumpArtifact(
+        tester,
+        StubArtifactRepository(trendArtifact(compared: true)),
+        size: const Size(320, 700),
+      );
+
+      expect(find.text('Filters'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('PDF export', () {
