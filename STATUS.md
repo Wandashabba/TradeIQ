@@ -28,7 +28,7 @@ export error message), [#278](../../pull/278) (pipeline gates + codebase audit).
 |---|---|---|---|
 | 0 | [Read-only chat spine](../../issues/253) | 🟢 gate met 2026-08-16 — 100% (27/27) on `gemini-3.1-pro-preview`, cache hit live | ≥90% tool-selection accuracy **per provider** · cache hit on turn 2 · both adapters pass the contract test |
 | 1 | [Voice in + voice out](../../issues/254) | ⬜ Not started | Transcript fidelity set · TTS p95 budgeted on independent latency |
-| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | 🟡 every task built; **gate not yet claimed** — the round-trip convergence test and the breakpoint set are still unwritten | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
+| 2 | [**Artifacts** — filterable, responsive, PDF](../../issues/255) | 🟢 gate met 2026-08-17 — convergence proven both ways, tampering rejected, PDF golden green, breakpoints pinned | UI/prompt round-trip converges · params tampering rejected · PDF golden file |
 | 3 | [Write actions + audit](../../issues/256) | ⬜ Not started | **Zero** cross-tenant leaks · every write tool has tier + gate + audit + red-team test |
 | 4 | [Shrink sidebar 21 → 5](../../issues/257) | ⬜ Not started | Every retired destination still deep-linkable |
 | 5 | [Memory + digests](../../issues/258) | ⬜ Not started | Preferences injected late; cache hit still holds |
@@ -240,7 +240,52 @@ export error message), [#278](../../pull/278) (pipeline gates + codebase audit).
 >    rushed change there is how a dashboard starts quietly reporting wrong
 >    numbers, which is worse than a slow one. Filed in the backlog below.
 >
-> **Next: the two gate items, neither of which is a feature.** A round-trip
+> **Phase 2's gate is closed (2026-08-17), and closing it found two bugs.**
+>
+> **1. The round-trip converges, and now something says so.** Three tests in
+> `assistant.routes.test.ts` drive an artifact to the same destination by both
+> paths — the model calling a tool, and `/refine` from a control — and require
+> the stored `type`, `toolName`, `params` and `data` to be indistinguishable.
+> `id` and the timestamps are excluded on purpose: those describe how the
+> artifact *got* here, and the two paths get here differently by design.
+>
+> **The interesting one is the schema-default test.** `interval` is
+> `.default('day')`, so the model can omit it while the UI — which renders a
+> granularity control with a value in it — always sends it. Both paths must
+> store what Zod **returned**, not what they were handed. Verified by changing
+> the orchestrator to persist `call.args` instead of `parsed.data`: that test
+> fails and **the other two still pass**, because their scripted calls happen
+> to state `interval` explicitly. Convergence at a destination and convergence
+> of normalisation are different properties, and only the second has a seam
+> that can quietly come apart.
+>
+> **2. The breakpoint set found a real overflow.** One narrow-screen case used
+> to stand in for the whole thing; it proved the stacked branch existed and
+> nothing else. The new set runs five real device sizes plus the boundary and a
+> 320px floor, and it immediately failed: **a `RenderFlex` overflowed by 113px**
+> at phone portrait. `_LegendItem` in `charts.dart` is a `Row` with an
+> inflexible `Text`, and a `Wrap` hands each child the full line width as its
+> *maximum* — so a legend label longer than the line overflowed rather than
+> wrapping. Reachable in production: comparison labels are sentences the server
+> writes ("the month to date before this one") and a phone is 390 wide. Fixed
+> with `Flexible` + ellipsis.
+>
+> **3. Two breakpoints in two files compose into a bug neither one has.**
+> The artifact screen switches at **880 of body width**; `ManagerScaffold`
+> claims **233px** (232 rail + 1 divider) above **1080 of screen width**. So
+> the side panel appears at 880, **vanishes again at 1080** when the rail takes
+> its width (body 847), and returns at 1113. Widening a window must never
+> remove a panel. Neither number is wrong alone, which is exactly why nothing
+> caught it. Pinned by a test that states the window explicitly rather than
+> asserted as correct — moving either number is a design call, not a test fix.
+> Filed in the backlog.
+>
+> **Also learned:** a `ListView` does not build what it cannot show, so on a
+> short viewport the chart genuinely does not exist and `find.byType` returns
+> nothing. The stacked assertion now treats "had to scroll down to reach it" as
+> the proof it sits below the controls, which is what the claim actually means.
+>
+> **Superseded — the two gate items, now done.** A round-trip
 > convergence test (UI-driven and prompt-driven changes landing on identical
 > state — the machinery exists, the proof does not) and responsive layout tests
 > across phone/tablet/desktop breakpoints. The tampering half of the gate is
@@ -784,6 +829,21 @@ computes, so these are **backend** work items.
       live**, because the tools are the semantic layer *and* the security
       boundary, and both properties come from the tool wrapping a service we
       wrote
+
+**Found closing the Phase 2 gate:**
+- [ ] **The nav rail can take the artifact side panel away as the window
+      *widens*** — 880 of body width vs a 233px rail above 1080 of screen
+      width, so the panel is present at 1000, gone at 1080, back at 1113.
+      Pinned by a test in `artifact_screen_test.dart` that states the window;
+      fixing it means moving one of the two numbers, which is a design call
+- [ ] **[#280](../../issues/280) — agents can only be named by email.** `User`
+      has no name column, so `resolveAgent` matches id, exact email, or an
+      email *substring*. "Sipho Ndlovu" resolves on no tenant — the space alone
+      guarantees it. A bare first name works only when the email is built from
+      the name, which is the customer's mail convention, not ours. **The eval
+      gate cannot see this**: it scores tool *selection*, and selection is
+      right every time. The plan's exit demo passes for the same accidental
+      reason
 
 **Found by the 2026-08-17 audit, not yet ticketed:**
 - [ ] **`GET /dashboard` is unbounded** — `dashboard.service.ts:174` and `:220`

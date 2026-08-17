@@ -761,6 +761,228 @@ describe('POST /assistant/chat', () => {
     });
   });
 
+  /**
+   * The Phase 2 gate's headline item: the two control paths converge.
+   *
+   * An artifact can be steered two ways — by talking to the model, which calls
+   * a tool with new arguments, and by moving a control, which POSTs to
+   * `/refine`. The plan's bet is that these are the *same* operation reached
+   * two ways, because both write through the tool's own Zod schema and both
+   * store what that schema returned.
+   *
+   * Nothing asserted it. The machinery was built and reviewed and believed;
+   * "both paths call safeParse" is a claim about two call sites in two files
+   * that no test compared. These do, by driving each path to the same
+   * destination and requiring the results to be indistinguishable.
+   */
+  describe('the two control paths converge', () => {
+    /** The artifact row as stored, with the volatile fields dropped. */
+    async function stateOf(artifactId: string) {
+      const res = await request(app)
+        .get(`/assistant/artifacts/${artifactId}`)
+        .set('Authorization', `Bearer ${manager.token}`)
+        .expect(200);
+      // `id`, `createdAt`/`updatedAt` and `canUndo` are properties of how the
+      // artifact GOT here, and the two paths get here differently on purpose.
+      // What has to match is what it IS: which tool, rendered as what, against
+      // which parameters, returning which figures.
+      const { type, toolName, params, data } = res.body;
+      return { type, toolName, params, data };
+    }
+
+    it('a prompt-driven change and a UI-driven change land on identical state', async () => {
+      // Path A — the user asks, and asks again differently.
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getMetricTrend',
+            args: { metric: 'execution_score', period: { kind: 'mtd' }, interval: 'day' },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Here it is by day.' }, { type: 'done' }],
+      ];
+      const asked = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How has execution score been trending this month?' });
+      const uiArtifactId = (
+        parseSse(asked.text).find((f) => f.event === 'artifact')!.data as { id: string }
+      ).id;
+
+      // …then steers that same card with the controls, to weekly buckets over
+      // the year.
+      await request(app)
+        .post(`/assistant/artifacts/${uiArtifactId}/refine`)
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({
+          params: { metric: 'execution_score', period: { kind: 'ytd' }, interval: 'week' },
+        })
+        .expect(200);
+
+      // Path B — a different conversation where the model is simply asked for
+      // that destination directly, and never touches a control.
+      script.calls.length = 0;
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getMetricTrend',
+            args: { metric: 'execution_score', period: { kind: 'ytd' }, interval: 'week' },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Weekly, year to date.' }, { type: 'done' }],
+      ];
+      const told = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'Show execution score weekly, year to date.' });
+      const promptArtifactId = (
+        parseSse(told.text).find((f) => f.event === 'artifact')!.data as { id: string }
+      ).id;
+
+      // Two different rows, reached two different ways.
+      expect(promptArtifactId).not.toBe(uiArtifactId);
+
+      // Indistinguishable in everything that describes the view: same spec
+      // type, same tool, same parameter bag, same figures. If these ever
+      // diverge, "ask a follow-up about the card you just filtered" is
+      // answered against a state the user is not looking at.
+      expect(await stateOf(uiArtifactId)).toEqual(await stateOf(promptArtifactId));
+    });
+
+    it('a schema default lands the same whether the model omits it or the UI sends it', async () => {
+      // The seam where the two paths would silently diverge. `interval` is
+      // `.default('day')`, so the model can omit it entirely while the UI —
+      // which renders a granularity control with a value in it — always sends
+      // it. If either path stored what it was HANDED rather than what Zod
+      // RETURNED, the two rows would carry `{}` and `{interval:'day'}`: the
+      // same chart, different stored state.
+      //
+      // That is not cosmetic. The manifest shows the model the stored params,
+      // and `undo` restores them — so a raw-stored bag would have the model
+      // reasoning about an artifact whose interval it cannot see, and an undo
+      // stepping back to a bag that renders differently.
+      //
+      // **This is the only test here that catches it.** Verified by changing
+      // the orchestrator to persist `call.args` instead of `parsed.data`: this
+      // one fails, and the other two in this block still pass, because their
+      // scripted calls happen to state `interval` explicitly so raw and parsed
+      // coincide. Convergence at a destination and convergence of
+      // normalisation are different properties, and only the second one has a
+      // seam that can quietly come apart.
+      script.calls.length = 0;
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getMetricTrend',
+            // No `interval`. Zod fills it.
+            args: { metric: 'availability', period: { kind: 'mtd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Availability, by day.' }, { type: 'done' }],
+      ];
+      const omitted = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'How is availability trending?' });
+      const omittedId = (
+        parseSse(omitted.text).find((f) => f.event === 'artifact')!.data as { id: string }
+      ).id;
+
+      // The default was materialised on the way in, not left implicit.
+      const omittedState = await stateOf(omittedId);
+      expect(omittedState.params).toMatchObject({ interval: 'day' });
+
+      // Now the same destination with the value stated explicitly, via the
+      // control rather than the model.
+      script.calls.length = 0;
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getMetricTrend',
+            args: { metric: 'availability', period: { kind: 'ytd' } },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Year to date.' }, { type: 'done' }],
+      ];
+      const other = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'And year to date?' });
+      const explicitId = (
+        parseSse(other.text).find((f) => f.event === 'artifact')!.data as { id: string }
+      ).id;
+
+      await request(app)
+        .post(`/assistant/artifacts/${explicitId}/refine`)
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({
+          params: { metric: 'availability', period: { kind: 'mtd' }, interval: 'day' },
+        })
+        .expect(200);
+
+      expect(await stateOf(explicitId)).toEqual(omittedState);
+    });
+
+    it('an undo lands where the prompt-driven path would have put it', async () => {
+      // Undo is the third writer of `params`, and the one most easily left out
+      // of step: it restores a bag from history rather than composing a new
+      // one. It re-validates through the same schema for exactly this reason,
+      // and this is what says so.
+      script.calls.length = 0;
+      script.rounds = [
+        [
+          {
+            type: 'tool_call',
+            id: 'c0',
+            name: 'getMetricTrend',
+            args: { metric: 'perfect_store', period: { kind: 'mtd' }, interval: 'day' },
+          },
+          { type: 'done' },
+        ],
+        [{ type: 'token', text: 'Perfect store, by day.' }, { type: 'done' }],
+      ];
+      const asked = await request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'Perfect store this month?' });
+      const artifactId = (
+        parseSse(asked.text).find((f) => f.event === 'artifact')!.data as { id: string }
+      ).id;
+
+      const original = await stateOf(artifactId);
+
+      await request(app)
+        .post(`/assistant/artifacts/${artifactId}/refine`)
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({
+          params: { metric: 'perfect_store', period: { kind: 'ytd' }, interval: 'week' },
+        })
+        .expect(200);
+      expect(await stateOf(artifactId)).not.toEqual(original);
+
+      await request(app)
+        .post(`/assistant/artifacts/${artifactId}/undo`)
+        .set('Authorization', `Bearer ${manager.token}`)
+        .expect(200);
+
+      // Back to exactly where the model's own call had left it — not merely to
+      // something that renders the same.
+      expect(await stateOf(artifactId)).toEqual(original);
+    });
+  });
+
   describe('errors travel as frames once the stream is open', () => {
     it('sends a provider failure as an error event, not a 500', async () => {
       script.rounds = [[{ type: 'error', code: 'rate_limited', message: 'Busy right now.' }]];
