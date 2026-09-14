@@ -649,8 +649,53 @@ model Webhook {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
+  /// Health (#100). Deliveries that gave up since the last success. Reset to 0
+  /// by any successful delivery; the webhook reads as unhealthy while > 0.
+  consecutiveFailures Int                   @default(0) @map("consecutive_failures")
+  /// The outcome and time of the most recent delivery attempt, stored rather
+  /// than derived: the list endpoint would otherwise need the newest delivery
+  /// per webhook, and Prisma paginates nested relations in memory.
+  lastDeliveryStatus  WebhookDeliveryStatus? @map("last_delivery_status")
+  lastDeliveryAt      DateTime?             @map("last_delivery_at")
+  deliveries          WebhookDelivery[]
+
   @@index([clientId, event, active])
   @@map("webhooks")
+}
+
+enum WebhookDeliveryStatus {
+  pending
+  succeeded
+  failed_retrying
+  gave_up
+}
+
+/// One event delivered to one webhook (#100) — the outbox row that makes the
+/// fan-out retryable and auditable. The payload is the exact envelope sent, so
+/// every retry re-sends the same body; only the signature timestamp changes.
+model WebhookDelivery {
+  id             String                @id @default(uuid())
+  webhookId      String                @map("webhook_id")
+  webhook        Webhook               @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  /// Denormalised from the webhook so the deliveries endpoint scopes by tenant
+  /// without a join.
+  clientId       String                @map("client_id")
+  event          String
+  payload        Json
+  status         WebhookDeliveryStatus @default(pending)
+  attempts       Int                   @default(0)
+  lastStatusCode Int?                  @map("last_status_code")
+  lastError      String?               @map("last_error")
+  /// When the row is next due. Also the claim lease: a processor that takes a
+  /// row pushes this forward, so nobody else picks it up mid-attempt.
+  nextAttemptAt  DateTime?             @map("next_attempt_at")
+  lastAttemptAt  DateTime?             @map("last_attempt_at")
+  deliveredAt    DateTime?             @map("delivered_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([webhookId, createdAt])
+  @@map("webhook_deliveries")
 }
 
 /// A saved report definition (Phase 3 #39) — a named, filtered report the
