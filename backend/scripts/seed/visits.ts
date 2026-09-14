@@ -1,5 +1,11 @@
 import { addDays, addHours, HISTORY_WEEKS, weekStarts } from './calendar';
-import { OutletSeed, PROBLEM_OUTLET_CODES, SkuSeed, UserSeed } from './catalog';
+import {
+  OutletSeed,
+  PROBLEM_OUTLET_CODES,
+  SkuSeed,
+  TERRITORY_CODE_BY_ID,
+  UserSeed,
+} from './catalog';
 import { intBetween, jitter, makeRng, pick } from './rng';
 
 /**
@@ -132,7 +138,14 @@ export function buildVisitHistory(input: BuildVisitHistoryInput): GeneratedVisit
     const trend = SCORE_START + ((SCORE_END - SCORE_START) * weekIndex) / (HISTORY_WEEKS - 1);
 
     for (const agent of agents) {
-      const agentOutlets = outlets.filter((o) => o.territoryId === agent.territoryId);
+      // `agent.territoryId` is a territory ID (it becomes a UserTerritory FK);
+      // `outlet.territoryId` is a territory CODE. Comparing them directly
+      // matched nothing and silently produced zero visits — the whole history
+      // vanished with no error, which is what this lookup exists to prevent.
+      const agentTerritoryCode = agent.territoryId
+        ? TERRITORY_CODE_BY_ID[agent.territoryId]
+        : undefined;
+      const agentOutlets = outlets.filter((o) => o.territoryId === agentTerritoryCode);
       if (agentOutlets.length === 0) continue;
 
       for (let n = 0; n < VISITS_PER_AGENT_PER_WEEK; n += 1) {
