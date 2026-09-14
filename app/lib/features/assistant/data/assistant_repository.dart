@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -60,7 +61,20 @@ class AssistantRepository {
         // for a normal download and wrong for this: a model thinking for a
         // while sends nothing, and being cut off mid-thought looks like a
         // crash. The server bounds the turn; the client should not race it.
-        receiveTimeout: Duration.zero,
+        //
+        // `Duration.zero` means "no bound" to the native adapter, but on web it
+        // means the OPPOSITE. `dio_web_adapter` sets
+        //   xhr.timeout = connectTimeout + receiveTimeout
+        // and `XMLHttpRequest.timeout` is a deadline for the WHOLE request, not
+        // a gap between chunks. Zero there does not disable anything — it just
+        // leaves the 30s connectTimeout as a hard cap on the entire turn, and a
+        // multi-tool turn takes minutes. Every web turn died at exactly 30s
+        // with "Could not reach the assistant".
+        //
+        // So web gets a bound that is generous rather than absent: long enough
+        // never to cut off a real turn, short enough that a genuinely dead
+        // socket still surfaces instead of spinning forever.
+        receiveTimeout: kIsWeb ? const Duration(minutes: 10) : Duration.zero,
       ),
     );
 
