@@ -34,6 +34,23 @@ class _FakeGamificationRepository implements GamificationRepository {
   Future<List<LeaderboardEntry>> leaderboard() async => _entries;
 }
 
+class _NamedGamificationRepository implements GamificationRepository {
+  @override
+  Future<List<LeaderboardEntry>> leaderboard() async => [
+        LeaderboardEntry(
+          agentId: _entries[0].agentId,
+          email: _entries[0].email,
+          visitsSubmitted: _entries[0].visitsSubmitted,
+          tasksClosed: _entries[0].tasksClosed,
+          rank: _entries[0].rank,
+          avgScorecard: _entries[0].avgScorecard,
+          points: _entries[0].points,
+          displayName: 'Thandi Mokoena',
+        ),
+        _entries[1],
+      ];
+}
+
 class _FailingGamificationRepository implements GamificationRepository {
   @override
   Future<List<LeaderboardEntry>> leaderboard() async =>
@@ -87,6 +104,25 @@ void main() {
     expect(find.text('alice@example.com'), findsOneWidget);
     expect(find.text('bob@example.com'), findsOneWidget);
   });
+
+  for (final theme in [AppTheme.light(), null]) {
+    final label = theme == null ? 'dark' : 'light';
+    testWidgets('$label: a named agent is ranked by name, others by email',
+        (tester) async {
+      await tester.pumpWidget(
+        _app(_NamedGamificationRepository(), theme: theme),
+      );
+      await tester.pumpAndSettle();
+
+      final row = find.byKey(const ValueKey('leaderboard-a-1'));
+      expect(
+        find.descendant(of: row, matching: find.text('Thandi Mokoena')),
+        findsOneWidget,
+      );
+      expect(find.text('alice@example.com'), findsNothing);
+      expect(find.text('bob@example.com'), findsOneWidget);
+    });
+  }
 
   testWidgets('shows an error message when loading fails', (tester) async {
     await tester.pumpWidget(_app(_FailingGamificationRepository()));

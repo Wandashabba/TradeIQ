@@ -85,6 +85,74 @@ describe('users routes', () => {
     expect(res.body.role).toBe('manager');
     expect(res.body.active).toBe(true);
     expect(res.body.passwordHash).toBeUndefined();
+    // No name given: null, not a guess derived from the email (#280).
+    expect(res.body.displayName).toBeNull();
+  });
+
+  it('stores a trimmed displayName when one is given on create (#280)', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: 'USERS-named@example.com',
+        password: 'supersecret',
+        role: 'field_agent',
+        displayName: '  Sipho Ndlovu  ',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.displayName).toBe('Sipho Ndlovu');
+    const stored = await prisma.user.findUnique({ where: { email: 'USERS-named@example.com' } });
+    expect(stored?.displayName).toBe('Sipho Ndlovu');
+  });
+
+  it('treats a blank displayName on create as no name (#280)', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: 'USERS-blankname@example.com',
+        password: 'supersecret',
+        role: 'field_agent',
+        displayName: '   ',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.displayName).toBeNull();
+  });
+
+  it.each([
+    ['a number', 42],
+    ['an object', { first: 'Sipho' }],
+    ['longer than 120 characters', 'x'.repeat(121)],
+  ])('rejects a displayName that is %s on create with 400', async (_label, displayName) => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: `USERS-badname-${typeof displayName}-${Date.now()}@example.com`,
+        password: 'supersecret',
+        role: 'field_agent',
+        displayName,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/displayName/);
+  });
+
+  it('accepts a displayName of exactly 120 characters', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: 'USERS-longname@example.com',
+        password: 'supersecret',
+        role: 'field_agent',
+        displayName: 'y'.repeat(120),
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.displayName).toHaveLength(120);
   });
 
   it('rejects a duplicate email with 409', async () => {
@@ -133,7 +201,14 @@ describe('users routes', () => {
       expect(typeof user.active).toBe('boolean');
       // Pin the whole allowlist, not just the hash's absence: safeUserSelect is
       // shared with /territories/:id/coverage, so widening it here widens both.
-      expect(Object.keys(user).sort()).toEqual(['active', 'email', 'id', 'lastSeenAt', 'role']);
+      expect(Object.keys(user).sort()).toEqual([
+        'active',
+        'displayName',
+        'email',
+        'id',
+        'lastSeenAt',
+        'role',
+      ]);
     }
     const emails = res.body.data.map((u: { email: string }) => u.email);
     expect(emails).toContain('USERS-admin@example.com');
@@ -171,6 +246,65 @@ describe('users routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.role).toBe('manager');
     expect(res.body.passwordHash).toBeUndefined();
+  });
+
+  it("lets an admin set a user's displayName alone, trimmed (#280)", async () => {
+    const res = await request(app)
+      .patch(`/users/${patchTargetId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ displayName: ' Lerato Mahlangu ' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.displayName).toBe('Lerato Mahlangu');
+    // Setting a name does not disturb the fields that were not sent.
+    expect(res.body.role).toBe('manager');
+    expect(res.body.active).toBe(false);
+  });
+
+  it('leaves displayName untouched when a PATCH does not mention it', async () => {
+    const res = await request(app)
+      .patch(`/users/${patchTargetId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ active: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.displayName).toBe('Lerato Mahlangu');
+  });
+
+  it.each([['null', null], ['a blank string', '  ']])(
+    'clears displayName when PATCHed with %s',
+    async (_label, displayName) => {
+      await prisma.user.update({ where: { id: patchTargetId }, data: { displayName: 'Temp Name' } });
+      const res = await request(app)
+        .patch(`/users/${patchTargetId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ displayName });
+
+      expect(res.status).toBe(200);
+      expect(res.body.displayName).toBeNull();
+    },
+  );
+
+  it.each([
+    ['a number', 7],
+    ['longer than 120 characters', 'z'.repeat(121)],
+  ])('rejects a PATCH whose displayName is %s with 400', async (_label, displayName) => {
+    const res = await request(app)
+      .patch(`/users/${patchTargetId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ displayName });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/displayName/);
+  });
+
+  it('rejects an empty PATCH body with 400', async () => {
+    const res = await request(app)
+      .patch(`/users/${patchTargetId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
   });
 
   it('rejects a PATCH by a manager with 403', async () => {

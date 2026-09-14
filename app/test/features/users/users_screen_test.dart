@@ -22,27 +22,47 @@ const _inactiveUser = AppUser(
   active: false,
 );
 
+const _namedUser = AppUser(
+  id: 'u-named',
+  email: 'agent7@example.com',
+  role: 'field_agent',
+  active: true,
+  displayName: 'Sipho Ndlovu',
+);
+
 class _FakeUsersRepository implements UsersRepository {
+  _FakeUsersRepository({this.users = const [_activeUser, _inactiveUser]});
+
+  final List<AppUser> users;
   String? setActiveId;
   bool? setActiveValue;
   String? createdEmail;
   String? createdPassword;
   String? createdRole;
+  String? createdDisplayName;
 
   @override
   Future<PaginatedResponse<AppUser>> listUsers() async =>
-      const PaginatedResponse(data: [_activeUser, _inactiveUser], nextCursor: null);
+      PaginatedResponse(data: users, nextCursor: null);
 
   @override
   Future<AppUser> createUser({
     required String email,
     required String password,
     required String role,
+    String? displayName,
   }) async {
     createdEmail = email;
     createdPassword = password;
     createdRole = role;
-    return AppUser(id: 'u-new', email: email, role: role, active: true);
+    createdDisplayName = displayName;
+    return AppUser(
+      id: 'u-new',
+      email: email,
+      role: role,
+      active: true,
+      displayName: displayName,
+    );
   }
 
   @override
@@ -67,6 +87,7 @@ class _ThrowingUsersRepository implements UsersRepository {
     required String email,
     required String password,
     required String role,
+    String? displayName,
   }) async =>
       throw UnimplementedError();
 
@@ -82,6 +103,19 @@ Widget _app(UsersRepository repo, {ThemeData? theme}) => routedApp(
         usersRepositoryProvider.overrideWithValue(repo),
       ],
     );
+
+Future<void> _openCreateDialog(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.person_add));
+  await tester.pumpAndSettle();
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('new-email')),
+    'new@example.com',
+  );
+  await tester.enterText(
+    find.byKey(const ValueKey<String>('new-password')),
+    'secret123',
+  );
+}
 
 void main() {
   testWidgets('light: users are glass tiles; inactive still says so', (
@@ -110,6 +144,36 @@ void main() {
     expect(find.text('inactive@example.com'), findsOneWidget);
   });
 
+  for (final theme in [AppTheme.light(), null]) {
+    final label = theme == null ? 'dark' : 'light';
+    testWidgets(
+        '$label: a named user is titled by name, with the email kept as '
+        'the supporting line', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          _FakeUsersRepository(users: const [_namedUser, _activeUser]),
+          theme: theme,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sipho Ndlovu'), findsOneWidget);
+      // Still on the page — it is what they sign in with — but not the title.
+      expect(
+        find.byKey(const ValueKey<String>('email-u-named')),
+        findsOneWidget,
+      );
+      expect(find.text('agent7@example.com'), findsOneWidget);
+      // An unnamed user falls back to the email as the title, and does not
+      // repeat it on the supporting line.
+      expect(find.text('active@example.com'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('email-u-active')),
+        findsNothing,
+      );
+    });
+  }
+
   testWidgets('toggling the active switch records setActive', (tester) async {
     final repo = _FakeUsersRepository();
     await tester.pumpWidget(_app(repo));
@@ -127,23 +191,62 @@ void main() {
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.person_add));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('new-email')),
-      'new@example.com',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('new-password')),
-      'secret123',
-    );
+    await _openCreateDialog(tester);
     await tester.tap(find.byKey(const ValueKey<String>('create-user')));
     await tester.pumpAndSettle();
 
     expect(repo.createdEmail, 'new@example.com');
     expect(repo.createdPassword, 'secret123');
     expect(repo.createdRole, 'field_agent');
+    // Name is optional; left blank, none is sent.
+    expect(repo.createdDisplayName, isNull);
+  });
+
+  testWidgets('the create dialog has an optional Name field', (tester) async {
+    await tester.pumpWidget(_app(_FakeUsersRepository()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('new-name')), findsOneWidget);
+    expect(find.text('Name'), findsOneWidget);
+    expect(find.text('Optional. Shown instead of the email.'), findsOneWidget);
+  });
+
+  testWidgets('creating a user sends the trimmed Name as displayName',
+      (tester) async {
+    final repo = _FakeUsersRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    await _openCreateDialog(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('new-name')),
+      '  Lerato Mahlangu ',
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('create-user')));
+    await tester.pumpAndSettle();
+
+    expect(repo.createdEmail, 'new@example.com');
+    expect(repo.createdDisplayName, 'Lerato Mahlangu');
+  });
+
+  testWidgets('a whitespace-only Name is sent as no name', (tester) async {
+    final repo = _FakeUsersRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    await _openCreateDialog(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('new-name')),
+      '   ',
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('create-user')));
+    await tester.pumpAndSettle();
+
+    expect(repo.createdEmail, 'new@example.com');
+    expect(repo.createdDisplayName, isNull);
   });
 
   testWidgets('shows an error message when loading fails', (tester) async {

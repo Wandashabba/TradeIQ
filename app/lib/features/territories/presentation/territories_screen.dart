@@ -271,7 +271,7 @@ class _AssignAgentDialogState extends ConsumerState<_AssignAgentDialog> {
             decoration: const InputDecoration(labelText: 'Field agent'),
             items: [
               for (final u in fieldAgents)
-                DropdownMenuItem(value: u.id, child: Text(u.email)),
+                DropdownMenuItem(value: u.id, child: Text(u.label)),
             ],
             onChanged: (v) => setState(() => _agentId = v),
           );

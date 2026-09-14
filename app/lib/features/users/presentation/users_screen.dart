@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/format/person_label.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -101,12 +102,29 @@ class _UserRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final name = nonBlankName(user.displayName);
     return WorklistRow(
-      title: user.email,
+      // The name when there is one; accounts without a name still read by email.
+      title: user.label,
       // The role string is what the API stores and what authorisation checks
       // against, so it is shown verbatim in mono — not prettified.
       meta: Row(
-        children: [Flexible(child: CodeToken(user.role))],
+        children: [
+          // A named user's email moves to the supporting line: it is still
+          // what they sign in with, so it stays on the page.
+          if (name != null) ...[
+            Flexible(
+              child: Text(
+                user.email,
+                key: ValueKey<String>('email-${user.id}'),
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(child: CodeToken(user.role)),
+        ],
       ),
       level: user.active ? StatusLevel.good : StatusLevel.neutral,
       statusLabel: user.active ? 'Active' : 'Inactive',
@@ -136,6 +154,7 @@ class _CreateUserDialog extends ConsumerStatefulWidget {
 }
 
 class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
+  final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   String _role = 'field_agent';
@@ -143,6 +162,7 @@ class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
@@ -155,6 +175,8 @@ class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
             email: _emailCtrl.text.trim(),
             password: _passwordCtrl.text,
             role: _role,
+            // Optional: left blank, the console shows the email instead.
+            displayName: nonBlankName(_nameCtrl.text),
           );
       ref.invalidate(usersListProvider);
       if (mounted) Navigator.of(context).pop();
@@ -175,6 +197,18 @@ class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          TextField(
+            key: const ValueKey<String>('new-name'),
+            controller: _nameCtrl,
+            textCapitalization: TextCapitalization.words,
+            maxLength: 120,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              helperText: 'Optional. Shown instead of the email.',
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             key: const ValueKey<String>('new-email'),
             controller: _emailCtrl,

@@ -53,7 +53,15 @@ describe('incentives routes', () => {
     managerToken = issueToken({ userId: manager.id, role: 'manager', clientId });
 
     const agentA = await prisma.user.create({
-      data: { email: 'INC-agent-a@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+      // Named, so the earned rows carry a real displayName for A and null for
+      // B and C (#280).
+      data: {
+        email: 'INC-agent-a@example.com',
+        displayName: 'Ruan Botha',
+        passwordHash: 'x',
+        role: 'field_agent',
+        clientId,
+      },
     });
     agentAId = agentA.id;
     agentAToken = issueToken({ userId: agentA.id, role: 'field_agent', clientId });
@@ -302,7 +310,7 @@ describe('incentives routes', () => {
     });
     const agentOrder = await prisma.user.findMany({
       where: { clientId, role: 'field_agent' },
-      select: { id: true, email: true },
+      select: { id: true, email: true, displayName: true },
     });
     const metricValues: Record<string, Record<string, number>> = {
       scorecard: { [agentAId]: 85, [agentBId]: 50, [agentCId]: 78.33 },
@@ -320,6 +328,7 @@ describe('incentives routes', () => {
             metric: scheme.metric,
             agentId: agent.id,
             email: agent.email,
+            displayName: agent.displayName,
             metricValue: value,
             rewardPoints: scheme.rewardPoints,
           });

@@ -37,7 +37,13 @@ describe('gamification routes', () => {
     managerToken = issueToken({ userId: manager.id, role: 'manager', clientId });
 
     const agentA = await prisma.user.create({
-      data: { email: 'game-agent-a@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+      data: {
+        email: 'game-agent-a@example.com',
+        displayName: 'Aisha Patel',
+        passwordHash: 'x',
+        role: 'field_agent',
+        clientId,
+      },
     });
     agentAId = agentA.id;
     agentAToken = issueToken({ userId: agentA.id, role: 'field_agent', clientId });
@@ -206,9 +212,12 @@ describe('gamification routes', () => {
     expect(res.body).toHaveLength(2);
 
     // Agent A: avg(80, 90) = 85 + 1 closed task * 5 + 2 visits * 2 = 94.
+    // A has a display name (#280); B was never given one, so B's is null and
+    // the app falls back to the email.
     expect(res.body[0]).toEqual({
       agentId: agentAId,
       email: 'game-agent-a@example.com',
+      displayName: 'Aisha Patel',
       visitsSubmitted: 2,
       tasksClosed: 1,
       avgScorecard: 85,
@@ -219,6 +228,7 @@ describe('gamification routes', () => {
     expect(res.body[1]).toEqual({
       agentId: agentBId,
       email: 'game-agent-b@example.com',
+      displayName: null,
       visitsSubmitted: 1,
       tasksClosed: 0,
       avgScorecard: 60,
@@ -265,6 +275,7 @@ describe('gamification routes', () => {
     expect(res.body).toEqual({
       agentId: agentAId,
       email: 'game-agent-a@example.com',
+      displayName: 'Aisha Patel',
       visitsSubmitted: 2,
       tasksClosed: 1,
       avgScorecard: 85,
@@ -283,6 +294,7 @@ describe('gamification routes', () => {
     expect(res.body).toEqual({
       agentId: expect.any(String),
       email: 'game-manager@example.com',
+      displayName: null,
       visitsSubmitted: 0,
       tasksClosed: 0,
       avgScorecard: 0,
@@ -388,6 +400,7 @@ describe('gamification leaderboard — fractional mean', () => {
     expect(res.body[0]).toEqual({
       agentId,
       email: 'game-frac-agent@example.com',
+      displayName: null,
       visitsSubmitted: 3,
       tasksClosed: 0,
       avgScorecard: 78.33,

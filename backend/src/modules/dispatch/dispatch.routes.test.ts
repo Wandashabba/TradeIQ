@@ -51,6 +51,7 @@ describe('dispatch routes', () => {
     const agentNear = await prisma.user.create({
       data: {
         email: 'DISP-agent-near@example.com',
+        displayName: 'Nandi Near',
         passwordHash: 'x',
         role: 'field_agent',
         clientId,
@@ -159,6 +160,27 @@ describe('dispatch routes', () => {
 
     // Recommended is the top candidate.
     expect(res.body.recommended.agentId).toBe(agentNearId);
+  });
+
+  it('returns each candidate\'s display name alongside the email, null when unset (#280)', async () => {
+    const res = await request(app)
+      .post('/dispatch')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ outletId });
+
+    expect(res.status).toBe(200);
+    const candidates = res.body.candidates as Array<{
+      agentId: string;
+      email: string;
+      displayName: string | null;
+    }>;
+    const near = candidates.find((c) => c.agentId === agentNearId);
+    const far = candidates.find((c) => c.agentId === agentFarId);
+    expect(near).toMatchObject({ email: 'DISP-agent-near@example.com', displayName: 'Nandi Near' });
+    // Additive: the email is still there for older clients, and a person with
+    // no name says so explicitly rather than omitting the key.
+    expect(far).toMatchObject({ email: 'DISP-agent-far@example.com', displayName: null });
+    expect(res.body.recommended.displayName).toBe('Nandi Near');
   });
 
   it('returns the same ranking via GET /dispatch/agents', async () => {
