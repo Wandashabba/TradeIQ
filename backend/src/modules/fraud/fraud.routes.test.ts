@@ -43,6 +43,7 @@ const daysAgo = (n: number): Date => new Date(Date.now() - n * DAY_MS);
 
 const CLEAN_CHECKIN = daysAgo(6);
 const SUS_CHECKIN = daysAgo(2);
+const SLOW_CHECKIN = daysAgo(4);
 
 describe('fraud routes', () => {
   let clientId: string;
@@ -53,6 +54,7 @@ describe('fraud routes', () => {
   let agentToken: string;
   let cleanVisitId: string;
   let suspiciousVisitId: string;
+  let slowVisitId: string;
   let clientBVisitId: string;
 
   beforeAll(async () => {
@@ -214,6 +216,27 @@ describe('fraud routes', () => {
       ],
     });
 
+    // ── Slow visit (#247): clean on every other count, but the DEVICE says it
+    // took 90 minutes from check-in to submit — over the default 48-minute band.
+    const slowVisit = await prisma.visit.create({
+      data: {
+        outletId,
+        agentId,
+        clientId,
+        checkinTs: SLOW_CHECKIN,
+        checkinLat: OUTLET_LAT,
+        checkinLng: OUTLET_LNG,
+        geofencePass: true,
+        checkinDistanceM: 5,
+        status: 'submitted',
+        submittedAtClient: new Date(SLOW_CHECKIN.getTime() + 90 * 60 * 1000),
+      },
+    });
+    slowVisitId = slowVisit.id;
+    await prisma.visitStock.create({
+      data: stockData(slowVisitId, new Date(SLOW_CHECKIN.getTime() + 10 * 60 * 1000)),
+    });
+
     // A second tenant whose visit must 404 for client A's manager.
     const clientB = await prisma.client.create({
       data: { name: 'FRAUD-Client-B', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
@@ -298,6 +321,37 @@ describe('fraud routes', () => {
       // 20 + 20 (2 failures) + 25 + 20 = 85.
       expect(res.body.riskScore).toBe(85);
       expect(res.body.riskScore).toBeGreaterThanOrEqual(50);
+    });
+
+    it('reports a slow visit as slow_completion, at a weight that cannot flag it alone', async () => {
+      const res = await request(app)
+        .get(`/fraud/visits/${slowVisitId}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.signals.map((s: { code: string }) => s.code)).toEqual(['slow_completion']);
+      expect(res.body.riskScore).toBe(10);
+    });
+
+    it("applies the tenant's own kpiThresholds dwell band, read from the database", async () => {
+      // Loosen client A's band past the 90-minute visit: the signal must go
+      // quiet, proving the route reads the stored column under the key the
+      // engine actually reads (#97), not just the built-in default.
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { kpiThresholds: { slowCompletionMinutes: 120 } },
+      });
+      try {
+        const res = await request(app)
+          .get(`/fraud/visits/${slowVisitId}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.signals).toEqual([]);
+        expect(res.body.riskScore).toBe(0);
+      } finally {
+        await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: {} } });
+      }
     });
 
     it('returns 404 for a visit belonging to another tenant', async () => {
@@ -442,6 +496,8 @@ describe('fraud routes', () => {
       const ids = res.body.data.map((v: { visitId: string }) => v.visitId);
       expect(ids).toContain(suspiciousVisitId);
       expect(ids).not.toContain(cleanVisitId);
+      // Slow on its own is corroboration, not a finding (#247).
+      expect(ids).not.toContain(slowVisitId);
       const flagged = res.body.data.find((v: { visitId: string }) => v.visitId === suspiciousVisitId);
       expect(flagged.riskScore).toBe(85);
       expect(flagged.outletId).toBe(outletId);

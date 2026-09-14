@@ -14,6 +14,11 @@ computes a `riskScore` (0-100) from weighted signals:
 - `failed_attempts` — prior rejected check-ins for the same agent+outlet in the 6h before check-in
 - `photo_gps_divergence` — a visit photo's EXIF GPS is >150m from the check-in
 - `fast_completion` — sections captured in an implausibly short dwell time
+  (device check-in → device submit, under `kpiThresholds.fastCompletionMinutes`, default 1)
+- `slow_completion` — dwell implausibly long, over
+  `kpiThresholds.slowCompletionMinutes` (default 48, 4x the practitioner's
+  ~12-minute audit). Flat, low weight (10): an app left open also does this, so
+  it corroborates other signals rather than flagging a visit alone (#247)
 - `no_capture` — submitted with zero section data
 
 `GET /fraud/visits/:visitId`, `GET /fraud/attempts`, `GET /fraud/flagged`.

@@ -804,13 +804,15 @@ computes, so these are **backend** work items.
 
 **Fraud signals described in the field but not implemented** (existing:
 `failed_attempts`, `fast_completion`, `geofence_distance`, `no_capture`,
-`photo_gps_divergence`):
+`photo_gps_divergence`, `slow_completion`):
 
 - [ ] #244 — Duplicate photo reuse across outlets / visits
 - [ ] #245 — Flat or repeating stock figures across periods (*"2-1, 2-1"*)
 - [ ] #246 — Gap between stock-entry timestamp and photo timestamp
-- [ ] #247 — Dwell time **above** benchmark; only `fast_completion` exists, and
-      ~12 min is the practitioner's benchmark, so *both* tails are signals
+- [x] #247 — Dwell time **above** benchmark → `slow_completion`. Per-client band
+      via `kpiThresholds.fastCompletionMinutes` / `slowCompletionMinutes`
+      (defaults 1 / 48 min, 4x the ~12-min benchmark); flat weight 10 so an
+      idle app corroborates but never flags alone
 - [ ] #248 — Stock scanned outside its assigned outlet
 
 **Product direction, not yet scoped:**
