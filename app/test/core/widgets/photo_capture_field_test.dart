@@ -6,7 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/guided_capture_screen.dart';
 import 'package:tradeiq_app/core/widgets/photo_capture_field.dart';
 
@@ -58,47 +61,66 @@ Widget _app(
 
 void _noop(String? _) {}
 
-BoxDecoration _tileDeco(WidgetTester tester) =>
-    tester
-            .widget<Container>(find.byKey(const ValueKey('photo-capture-tile')))
-            .decoration!
-        as BoxDecoration;
+/// The filled, rimmed decoration a [GlassPane] paints under [pane].
+BoxDecoration _paneGround(WidgetTester tester, Finder pane) => tester
+    .widgetList<DecoratedBox>(
+      find.descendant(of: pane, matching: find.byType(DecoratedBox)),
+    )
+    .map((b) => b.decoration)
+    .whereType<BoxDecoration>()
+    .firstWhere((d) => d.color != null && d.border != null);
 
 Color _hintColor(WidgetTester tester) =>
     tester.widget<Text>(find.text(_hint)).style!.color!;
 
 void main() {
   group('PhotoCaptureField is theme-aware, not pinned dark', () {
-    testWidgets('empty-state tile + hint resolve the light palette', (
-      tester,
-    ) async {
+    testWidgets('light: the empty tile is a no-blur glass tile, hint in the '
+        'light palette', (tester) async {
       await tester.pumpWidget(_app(ThemeMode.light));
       await tester.pumpAndSettle();
 
-      final deco = _tileDeco(tester);
-      expect(deco.color, TiqColors.light.surface2);
-      expect((deco.border! as Border).top.color, TiqColors.light.line);
+      final pane = tester.widget<GlassPane>(
+        find.byKey(const ValueKey('photo-capture-tile')),
+      );
+      expect(pane.kind, GlassKind.tile);
+      expect(pane.blur, isFalse);
+      expect(pane.radius, LumenGlass.radiusControl);
+      // The ink well sits inside the pane, so its ripple shows over the fill.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('photo-capture-tile')),
+          matching: find.byKey(const ValueKey('photo-add')),
+        ),
+        findsOneWidget,
+      );
       expect(_hintColor(tester), TiqColors.light.ink3);
     });
 
-    testWidgets('empty-state tile + hint resolve the dark palette', (
-      tester,
-    ) async {
+    testWidgets('dark: the empty tile is a no-blur night glass tile, hint in '
+        'the night palette', (tester) async {
       await tester.pumpWidget(_app(ThemeMode.dark));
       await tester.pumpAndSettle();
 
-      final deco = _tileDeco(tester);
-      expect(deco.color, TiqColors.dark.surface2);
-      expect((deco.border! as Border).top.color, TiqColors.dark.line);
-      expect(_hintColor(tester), TiqColors.dark.ink3);
+      final tile = find.byKey(const ValueKey('photo-capture-tile'));
+      final pane = tester.widget<GlassPane>(tile);
+      expect(pane.kind, GlassKind.tile);
+      expect(pane.blur, isFalse);
+      expect(pane.radius, LumenGlass.radiusControl);
+      // The rendered ground: an unblurred tile takes the night solid fill
+      // under the night tile rim.
+      final ground = _paneGround(tester, tile);
+      expect(ground.color, LumenPalette.dark.solidFill);
+      expect((ground.border! as Border).top.color, LumenPalette.dark.tileRim);
+      expect(_hintColor(tester), TiqColors.night.ink3);
     });
 
-    // The whole point: the two modes must actually differ, so a static-dark
-    // regression that passes dark cannot also pass light.
+    // The whole point: the two modes must actually differ, so a static-light
+    // regression that passes light cannot also pass dark.
     test('the asserted tokens differ between the two themes', () {
-      expect(TiqColors.light.surface2, isNot(TiqColors.dark.surface2));
-      expect(TiqColors.light.line, isNot(TiqColors.dark.line));
-      expect(TiqColors.light.ink3, isNot(TiqColors.dark.ink3));
+      expect(LumenPalette.light.solidFill, isNot(LumenPalette.dark.solidFill));
+      expect(LumenPalette.light.tileRim, isNot(LumenPalette.dark.tileRim));
+      expect(TiqColors.light.ink3, isNot(TiqColors.night.ink3));
     });
   });
 
@@ -151,6 +173,35 @@ void main() {
 
       expect(find.byKey(const ValueKey('photo-preview')), findsOneWidget);
       expect(captured, startsWith('data:image/jpeg;base64,'));
+    });
+
+    testWidgets('light: glass frames the preview with a rim, never a wash', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(ThemeMode.light, file: _xfile(Uint8List.fromList([1, 2, 3, 4]))),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('photo-add')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-capture')));
+      await tester.pumpAndSettle();
+
+      final rim = tester.widget<DecoratedBox>(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey('photo-preview')),
+              matching: find.byWidgetPredicate(
+                (w) =>
+                    w is DecoratedBox &&
+                    w.position == DecorationPosition.foreground,
+              ),
+            )
+            .first,
+      );
+      final deco = rim.decoration as BoxDecoration;
+      expect((deco.border! as Border).top.color, LumenPalette.light.tileRim);
+      expect(deco.color, isNull, reason: 'the evidence is never tinted');
     });
 
     testWidgets('Retake re-opens the guided screen', (tester) async {

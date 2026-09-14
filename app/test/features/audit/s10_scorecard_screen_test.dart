@@ -8,9 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_service.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/audit/data/scorecard_service.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s10_scorecard_screen.dart';
 
@@ -244,10 +246,112 @@ void main() {
                 'band label must clear AA text contrast (critText for red, '
                 'not the crit mark).',
           );
+
+          final palette = _colorsFor(name);
+          if (palette.glass) {
+            // Lumen Glass sets the word on its own OPAQUE status wash, in the
+            // swatch's ink — so measure it on that wash too.
+            final sw = switch (band) {
+              'green' => LumenStatus.good,
+              'amber' => LumenStatus.warn,
+              _ => LumenStatus.crit,
+            }.swatchOf(palette);
+            final wash =
+                tester
+                        .widget<Container>(
+                          find
+                              .descendant(
+                                of: find.byKey(const ValueKey('score-band')),
+                                matching: find.byType(Container),
+                              )
+                              .first,
+                        )
+                        .decoration!
+                    as BoxDecoration;
+            expect(
+              wash.color,
+              Color.alphaBlend(sw.tint, palette.surface1),
+              reason: '$band/$name opaque wash',
+            );
+            expect(bandText.style!.color, sw.ink, reason: '$band/$name ink');
+            expect(
+              _contrastRatio(bandText.style!.color!, wash.color!),
+              greaterThanOrEqualTo(4.5),
+              reason: '$band/$name band word AA on its wash',
+            );
+          }
         }
       },
     );
   }
+
+  testWidgets(
+    'Lumen Glass: every dimension is a mono figure over its benchmark bar, and '
+    'the total carries its compliance word',
+    (tester) async {
+      const palette = TiqColors.light;
+      await tester.pumpWidget(_screen(_fake(), theme: AppTheme.light()));
+      await tester.pumpAndSettle();
+
+      // Each row is drawn against the green line it is banded by.
+      for (final key in const [
+        'availability',
+        'visibility',
+        'display',
+        'pricing',
+        'competitive',
+        'salesCapability',
+      ]) {
+        final bar = tester.widget<BenchmarkBar>(
+          find.descendant(
+            of: find.byKey(ValueKey('score-$key')),
+            matching: find.byType(BenchmarkBar),
+          ),
+        );
+        expect(bar.target, 80, reason: '$key tick at the green line');
+      }
+      // Six dimensions plus the total.
+      expect(find.byType(BenchmarkBar), findsNWidgets(7));
+
+      // Figures are mono, in their status ink: 50 is below amber (red), 70 is
+      // amber — the same cut-offs as the band word.
+      final fifty = tester.widget<Text>(find.text('50')).style!;
+      expect(fifty.fontFamily, LumenGlass.mono);
+      expect(fifty.color, LumenStatus.crit.swatchOf(palette).ink);
+      expect(
+        tester.widget<Text>(find.text('70')).style!.color,
+        LumenStatus.warn.swatchOf(palette).ink,
+      );
+      for (final status in [
+        LumenStatus.good,
+        LumenStatus.warn,
+        LumenStatus.crit,
+      ]) {
+        expect(
+          _contrastRatio(status.swatchOf(palette).ink, palette.surface1),
+          greaterThanOrEqualTo(4.5),
+          reason: '$status figure ink AA',
+        );
+      }
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('score-total')))
+            .style!
+            .fontFamily,
+        LumenGlass.mono,
+      );
+
+      // A red total is a BREACH, in words, on an AA-safe wash.
+      final pill = tester.widget<LumenStatusPill>(find.byType(LumenStatusPill));
+      expect(pill.status, LumenStatus.crit);
+      expect(find.text('BREACH'), findsOneWidget);
+      final crit = LumenStatus.crit.swatchOf(palette);
+      expect(
+        _contrastRatio(crit.ink, Color.alphaBlend(crit.tint, palette.surface1)),
+        greaterThanOrEqualTo(4.5),
+      );
+    },
+  );
 
   test('no non-geometry AppColors. remain in the S10 scorecard source', () {
     final src = File(

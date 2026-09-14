@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/audit/data/photos_repository.dart';
 import '../network/human_error.dart';
+import '../theme/lumen_palette.dart';
 import '../theme/tiq_colors.dart';
 
 /// The captured shelf photo, 44×44, in a [WorklistRow]'s `thumb:` slot — the
@@ -41,22 +42,42 @@ class EvidenceThumb extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final glass = colors.glass;
     final bytes = ref.watch(thumbnailBytesProvider(photoId));
+    final radius = BorderRadius.circular(8);
 
     final content = bytes.maybeWhen(
-      data: (value) => Image.memory(
-        value,
-        width: 44,
-        height: 44,
-        fit: BoxFit.cover,
-        // Never flash back to nothing on a rebuild mid-decode.
-        gaplessPlayback: true,
-      ),
+      data: (value) {
+        final image = Image.memory(
+          value,
+          width: 44,
+          height: 44,
+          fit: BoxFit.cover,
+          // Never flash back to nothing on a rebuild mid-decode.
+          gaplessPlayback: true,
+        );
+        if (!glass) return image;
+        // Glass frames the evidence — rounded to the chip radius, a white rim
+        // over its edge — and never tints it.
+        return DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(color: context.lumen.tileRim),
+          ),
+          child: ClipRRect(borderRadius: radius, child: image),
+        );
+      },
       orElse: () => DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surface2,
-          borderRadius: BorderRadius.circular(8),
-        ),
+        decoration: glass
+            // One step deeper than the glass tile it sits in, so the empty
+            // slot still reads as a slot.
+            ? BoxDecoration(
+                color: colors.surface3,
+                borderRadius: radius,
+                border: Border.all(color: context.lumen.tileRim),
+              )
+            : BoxDecoration(color: colors.surface2, borderRadius: radius),
         child: const SizedBox(width: 44, height: 44),
       ),
     );

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/incentives/data/incentives_repository.dart';
 import 'package:tradeiq_app/features/incentives/presentation/incentives_screen.dart';
 
@@ -100,14 +103,45 @@ class _ThrowingIncentivesRepository implements IncentivesRepository {
       throw UnimplementedError();
 }
 
-Widget _app(IncentivesRepository repo) => routedApp(
+Widget _app(IncentivesRepository repo, {ThemeData? theme}) => routedApp(
       const IncentivesScreen(),
+      theme: theme,
       overrides: [
         incentivesRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
+const _ruleLine = '≥ 80 · 100 pts';
+
 void main() {
+  testWidgets('dark: the rule line keeps the row meta style', (tester) async {
+    await tester.pumpWidget(_app(_FakeIncentivesRepository()));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Text>(find.text(_ruleLine)).style, isNull);
+  });
+
+  testWidgets('light: rows are glass tiles; threshold and payout are mono', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_FakeIncentivesRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<Text>(find.text(_ruleLine)).style!.fontFamily,
+      LumenGlass.mono,
+    );
+    final panes = tester.widgetList<GlassPane>(
+      find.ancestor(
+        of: find.text('Top Scorecard'),
+        matching: find.byType(GlassPane),
+      ),
+    );
+    expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+  });
+
   testWidgets('renders scheme names once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeIncentivesRepository()));
     await tester.pumpAndSettle();

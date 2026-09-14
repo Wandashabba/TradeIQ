@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/webhooks/data/webhooks_repository.dart';
 import 'package:tradeiq_app/features/webhooks/presentation/webhooks_screen.dart';
 
@@ -75,14 +77,35 @@ class _ThrowingWebhooksRepository implements WebhooksRepository {
       throw UnimplementedError();
 }
 
-Widget _app(WebhooksRepository repo) => routedApp(
+Widget _app(WebhooksRepository repo, {ThemeData? theme}) => routedApp(
       const WebhooksScreen(),
+      theme: theme,
       overrides: [
         webhooksRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('light: endpoints are no-blur glass tiles in a glass panel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_FakeWebhooksRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    final panes = tester
+        .widgetList<GlassPane>(
+          find.ancestor(
+            of: find.text('visit.submitted'),
+            matching: find.byType(GlassPane),
+          ),
+        )
+        .toList();
+    expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+    expect(panes.any((p) => p.kind == GlassKind.panel), isTrue);
+  });
+
   testWidgets('renders webhook events once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeWebhooksRepository()));
     await tester.pumpAndSettle();

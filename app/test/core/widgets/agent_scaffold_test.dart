@@ -61,15 +61,15 @@ void main() {
       expect(_bg(tester), TiqColors.light.plane);
     });
 
-    testWidgets('dark theme paints the dark plane', (tester) async {
+    testWidgets('dark theme paints the night plane', (tester) async {
       await tester.pumpWidget(_fixed(ThemeMode.dark));
       await tester.pumpAndSettle();
-      expect(_bg(tester), TiqColors.dark.plane);
+      expect(_bg(tester), TiqColors.night.plane);
     });
   });
 
   group('the app-bar theme toggle flips the app theme', () {
-    testWidgets('tapping flips both ways — light↔dark plane and icon', (
+    testWidgets('tapping flips both ways — light↔night plane and icon', (
       tester,
     ) async {
       await tester.pumpWidget(const ProviderScope(child: _Live()));
@@ -84,7 +84,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('agent-theme-toggle')));
       await tester.pumpAndSettle();
 
-      expect(_bg(tester), TiqColors.dark.plane);
+      expect(_bg(tester), TiqColors.night.plane);
       expect(_toggleIcon(tester), Icons.light_mode);
 
       // Dark → light: the toggle reads current state, so a second tap must
@@ -104,7 +104,7 @@ void main() {
     // level whose token happens to clear 4.5:1 in only one theme.
     for (final (name, colors, brightness) in [
       ('light', TiqColors.light, Brightness.light),
-      ('dark', TiqColors.dark, Brightness.dark),
+      ('dark', TiqColors.night, Brightness.dark),
     ]) {
       test('$name: every BannerLevel title clears 4.5:1 on its wash', () {
         for (final level in BannerLevel.values) {

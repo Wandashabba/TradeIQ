@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/audit/data/capability_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s7_capability_screen.dart';
 
@@ -140,6 +141,33 @@ void main() {
       }
     },
   );
+
+  testWidgets('Lumen Glass: each question sits on its own glass tile', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _screen(_SpyCapabilityRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    // Headcount, training and quiz each read as their own answer: three
+    // no-blur tiles (the section scrolls), one per question.
+    final tile = find.byWidgetPredicate(
+      (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
+    );
+    expect(tile, findsNWidgets(3));
+    for (final label in [
+      'Staff headcount confirmed',
+      'Rep training completed',
+      'Quiz score (0-100)',
+    ]) {
+      expect(
+        find.ancestor(of: find.text(label), matching: tile),
+        findsOneWidget,
+        reason: '"$label" on a glass tile',
+      );
+    }
+  });
 
   test('no non-geometry AppColors. remain in the S7 capability source', () {
     final src = File(

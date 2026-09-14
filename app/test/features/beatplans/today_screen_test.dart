@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -126,47 +128,62 @@ void main() {
 
   // ── Premium restyle (sub5a Task 2) ──────────────────────────────────────
 
-  /// The one gradient-washed card on the screen — the glass hero.
-  BoxDecoration heroBox(WidgetTester tester) {
-    final hero = find.byWidgetPredicate(
-      (w) =>
-          w is Container &&
-          w.decoration is BoxDecoration &&
-          (w.decoration! as BoxDecoration).gradient is LinearGradient,
-    );
-    expect(hero, findsOneWidget);
-    return tester.widget<Container>(hero).decoration! as BoxDecoration;
-  }
-
-  testWidgets('the route header is a glass hero — light theme', (tester) async {
+  testWidgets('light: the day sits on the dark glass pane', (tester) async {
     await tester.pumpWidget(_app(_route(), theme: AppTheme.light()));
     await tester.pumpAndSettle();
 
-    final box = heroBox(tester);
-    final gradient = box.gradient! as LinearGradient;
-    expect(gradient.colors, [
-      TiqColors.light.heroWash,
-      TiqColors.light.surface1,
-    ]);
-    expect((box.border! as Border).top.color, TiqColors.light.heroBorder);
+    // Lumen Glass puts the day on the product's one heavy pane.
+    final pane = tester.widget<GlassPane>(
+      find
+          .ancestor(
+            of: find.text('Naledi · Soweto East'),
+            matching: find.byType(GlassPane),
+          )
+          .first,
+    );
+    expect(pane.kind, GlassKind.dark);
   });
 
-  testWidgets('the route header is a glass hero — dark theme', (tester) async {
+  testWidgets('light: the next store is its own card, with the check-in on it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(_route(), theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+
+    final next = find.byKey(const ValueKey('next-stop'));
+    expect(next, findsOneWidget);
+    expect(
+      find.descendant(of: next, matching: find.text('Sunrise Spaza')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: next, matching: find.text('Check in here')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('dark: the day sits on the same dark glass pane', (tester) async {
     await tester.pumpWidget(_app(_route(), theme: AppTheme.dark()));
     await tester.pumpAndSettle();
 
-    final box = heroBox(tester);
-    final gradient = box.gradient! as LinearGradient;
-    expect(gradient.colors, [TiqColors.dark.heroWash, TiqColors.dark.surface1]);
-    expect((box.border! as Border).top.color, TiqColors.dark.heroBorder);
+    // At night the day keeps its heavy pane — no gradient-washed flat hero.
+    final pane = tester.widget<GlassPane>(
+      find
+          .ancestor(
+            of: find.text('Naledi · Soweto East'),
+            matching: find.byType(GlassPane),
+          )
+          .first,
+    );
+    expect(pane.kind, GlassKind.dark);
   });
 
-  testWidgets('the done-count is the 30–32px w700 headline figure, in ink1', (
+  testWidgets('the done-count is the 30–32px w600 white figure on the dark pane', (
     tester,
   ) async {
     for (final (theme, palette) in [
       (AppTheme.light(), TiqColors.light),
-      (AppTheme.dark(), TiqColors.dark),
+      (AppTheme.dark(), TiqColors.night),
     ]) {
       await tester.pumpWidget(_app(_route(), theme: theme));
       await tester.pumpAndSettle();
@@ -174,9 +191,11 @@ void main() {
       // doneCount == 1; the sequence badges render a tick (visited) and '2'
       // (next), so '1' is uniquely the headline count.
       final count = tester.widget<Text>(find.text('1'));
-      expect(count.style?.fontWeight, FontWeight.w700);
+      // Both themes are glass: white and w600 on the dark pane.
+      expect(palette.glass, isTrue);
+      expect(count.style?.fontWeight, FontWeight.w600);
       expect(count.style?.fontSize, inInclusiveRange(30, 32));
-      expect(count.style?.color, palette.ink1);
+      expect(count.style?.color, Colors.white);
     }
   });
 
@@ -199,30 +218,49 @@ void main() {
         (w) =>
             w is Container &&
             w.decoration is BoxDecoration &&
-            (w.decoration! as BoxDecoration).color == const Color(0xFFE7F5E7),
+            // Glass: an opaque green pill on the dark pane (white 5.3:1).
+            (w.decoration! as BoxDecoration).color == const Color(0xFF1F7A4D),
       ),
     );
     expect(pill, findsOneWidget);
   });
 
-  testWidgets('each stop is a card with a state-coloured left edge', (
+  testWidgets('dark: the next store is its own card; a visited stop is a tile '
+      'with its status word', (
     tester,
   ) async {
-    await tester.pumpWidget(_app(_route(), theme: AppTheme.light()));
+    // The flat theme's edge-bar cards are gone at night too: the next store is
+    // its own card with the check-in, and the rest are status-tiled rows.
+    await tester.pumpWidget(_app(_route(), theme: AppTheme.dark()));
     await tester.pumpAndSettle();
 
-    // Channel 1: a 3px left edge — good (visited), brand (next).
-    Finder edge(Color color) => find.byWidgetPredicate(
-      (w) =>
-          w is Container &&
-          w.color == color &&
-          w.constraints == const BoxConstraints.tightFor(width: 3),
+    final next = find.byKey(const ValueKey('next-stop'));
+    expect(next, findsOneWidget);
+    expect(
+      find.descendant(of: next, matching: find.text('Sunrise Spaza')),
+      findsOneWidget,
     );
-    expect(edge(TiqColors.light.good), findsOneWidget);
-    expect(edge(TiqColors.light.brand), findsOneWidget);
+    expect(
+      find.descendant(of: next, matching: find.text('Check in here')),
+      findsOneWidget,
+    );
 
-    // Channels 2+3: the mark/word — never colour alone.
-    expect(find.text('DONE'), findsOneWidget);
+    // The visited store is an unblurred tile — a repeated row never pays for
+    // a blur — and its state is a word in the night good ink.
+    final row = tester.widget<GlassPane>(
+      find
+          .ancestor(
+            of: find.text('Khumalo Superette'),
+            matching: find.byType(GlassPane),
+          )
+          .first,
+    );
+    expect(row.kind, GlassKind.tile);
+    expect(row.blur, isFalse);
+    expect(
+      tester.widget<Text>(find.text('DONE')).style?.color,
+      LumenStatus.good.swatchOf(TiqColors.night).ink,
+    );
     expect(find.text('NEXT'), findsOneWidget);
   });
 

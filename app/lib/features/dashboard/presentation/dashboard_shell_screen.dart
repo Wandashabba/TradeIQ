@@ -9,6 +9,8 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/format/period_label.dart';
 import '../../../core/geo/mercator_fit.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart' show formatAgo;
 import '../../../core/widgets/agent_motion.dart' show Motion, reduceMotion;
@@ -17,6 +19,8 @@ import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/delta_pill.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/pill_segment.dart';
 import '../../../core/widgets/worklist.dart';
@@ -27,6 +31,7 @@ import '../../tasks/data/tasks_admin_repository.dart';
 import '../../territories/data/territories_repository.dart';
 import '../../trends/data/trends_repository.dart';
 import '../data/dashboard_repository.dart';
+import '../../../core/theme/lumen_palette.dart';
 
 /// The manager's morning screen. It answers one question — *what is broken, and
 /// who is fixing it?* — so the execution score and the alerts dragging it down
@@ -65,6 +70,11 @@ class DashboardShellScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshot = ref.watch(dashboardSnapshotProvider);
+    final glass = context.colors.glass;
+    final bands = snapshot.maybeWhen(
+      data: (snap) => snap.current.scoreBands,
+      orElse: () => const <ScoreBand>[],
+    );
 
     return ManagerScaffold(
       title: 'Execution overview',
@@ -97,15 +107,36 @@ class DashboardShellScreen extends ConsumerWidget {
                   right: const _NeedsAttentionPanel(),
                 ),
                 const SizedBox(height: 12),
-                _KpiStrip(snapshot: snapshot),
+                // Lumen Glass reports distance from the published standard
+                // rather than raw numbers — each KPI against its target tick.
+                if (glass)
+                  _BenchmarkPanel(snapshot: snapshot)
+                else
+                  _KpiStrip(snapshot: snapshot),
                 const SizedBox(height: 12),
-                const _TwoColumn(
-                  wide: true,
-                  leftFlex: 1,
-                  rightFlex: 1,
-                  left: _TerritoryPanel(),
-                  right: _AvailabilityPanel(),
-                ),
+                if (glass) ...[
+                  // What a manager acts on is how many doors sit in which
+                  // band, not the average. Hidden until the server sends it.
+                  if (bands.isNotEmpty)
+                    _TwoColumn(
+                      wide: wide,
+                      leftFlex: 1,
+                      rightFlex: 1,
+                      left: _DistributionPanel(bands: bands),
+                      right: const _TerritoryPanel(),
+                    )
+                  else
+                    const _TerritoryPanel(),
+                  const SizedBox(height: 12),
+                  const _AvailabilityPanel(),
+                ] else
+                  const _TwoColumn(
+                    wide: true,
+                    leftFlex: 1,
+                    rightFlex: 1,
+                    left: _TerritoryPanel(),
+                    right: _AvailabilityPanel(),
+                  ),
                 const SizedBox(height: 12),
                 const AgentActivityPanel(),
                 const SizedBox(height: 12),
@@ -197,6 +228,8 @@ class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel>
     final trend = ref.watch(scorecardsTrendProvider);
     final colors = context.colors;
 
+    if (colors.glass) return _glassPanel(snapshot, trend);
+
     return PanelCard(
       title: 'Execution score',
       subtitle: 'Weighted S2–S8, all outlets',
@@ -287,6 +320,138 @@ class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel>
   }
 }
 
+extension on _ExecutionScorePanelState {
+  /// The execution score on Lumen Glass's one dark pane: the kicker, the 56px
+  /// figure with its delta against the previous window, and the trend drawn in
+  /// light over the glass.
+  Widget _glassPanel(
+    AsyncValue<DashboardSnapshot> snapshot,
+    AsyncValue<List<TrendPoint>> trend,
+  ) {
+    return GlassPane(
+      kind: GlassKind.dark,
+      radius: LumenGlass.radiusHero,
+      padding: const EdgeInsets.all(22),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Positioned(
+            top: -110,
+            right: -90,
+            child: GlassBloom(diameter: 250, strength: 0.45),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Kicker(
+                'Execution score · weighted S2–S8',
+                color: LumenGlass.onDarkMuted,
+              ),
+              const SizedBox(height: 10),
+              snapshot.when(
+                loading: () => const _OnDarkPane(child: _InlineLoader(height: 56)),
+                error: (err, _) => _OnDarkPane(
+                  child: _InlineError(
+                    message: 'Could not load KPIs',
+                    onRetry: () => ref.invalidate(dashboardSnapshotProvider),
+                  ),
+                ),
+                data: (snap) {
+                  final animate = !_entered;
+                  _entered = true;
+                  return Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 14,
+                    runSpacing: 6,
+                    children: [
+                      _HeroScore(
+                        key: const ValueKey('kpi-execution-score'),
+                        value: snap.current.executionScore,
+                        animate: animate,
+                      ),
+                      switch (snap.of((k) => k.executionScore)) {
+                        final d when d.hasDelta => OneShotEntrance.pill(
+                          enabled: animate,
+                          child: DeltaPill(
+                            delta: d.change!,
+                            tone: d.change! < 0 ? DeltaTone.bad : DeltaTone.good,
+                          ),
+                        ),
+                        _ => const SizedBox.shrink(),
+                      },
+                      const Text(
+                        'vs. the window before · target 75.0',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: LumenGlass.onDarkMuted,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _OnDarkPane(
+                child: trend.when(
+                  loading: () => const _InlineLoader(height: 208),
+                  error: (err, _) => _InlineError(
+                    message: 'Could not load the score trend',
+                    onRetry: () => ref.invalidate(scorecardsTrendProvider),
+                  ),
+                  data: (points) => LineChart(
+                    points: [
+                      for (final p in points)
+                        (label: formatPeriodLabel(p.period), value: p.value),
+                    ],
+                    target: 75,
+                    seriesName: 'Execution score',
+                    lineWidth: 2.4,
+                    gradientFill: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Re-themes a subtree for the dark glass pane. The console's charts and
+/// inline states read the ambient palette, and in light that palette's inks
+/// would be dark on dark — so beneath the pane they get the instrument
+/// palette, with the chart line in the handoff's #CFC7FF.
+class _OnDarkPane extends StatelessWidget {
+  const _OnDarkPane({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = AppTheme.dark();
+    return Theme(
+      data: base.copyWith(
+        extensions: [
+          TiqColors.dark.copyWith(
+            series1: LumenGlass.chartLine,
+            brand: LumenGlass.accentLight, // lumen-sweep: keep
+            grid: const Color(0x1AFFFFFF), // lumen-sweep: keep
+            axis: const Color(0x33FFFFFF), // lumen-sweep: keep
+            ink3: const Color(0xB3FFFFFF), // lumen-sweep: keep
+            ink4: const Color(0x80FFFFFF), // lumen-sweep: keep
+          ),
+        ],
+      ),
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(color: Colors.white),
+        child: child,
+      ),
+    );
+  }
+}
+
 /// The hero figure. Counts 0 → value over ~600ms ease-out exactly once — on
 /// the panel's first data build — then renders as plain text for the rest of
 /// the session, so refreshes and filter changes swap the number without
@@ -316,13 +481,18 @@ class _HeroScoreState extends State<_HeroScore> {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: 31,
-      height: 1.0,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.6,
-      color: context.colors.ink1,
-    );
+    final style = context.colors.glass
+        // On the dark pane: 56px white with the accent's glow behind it.
+        ? LumenGlass.hero(size: 56, color: Colors.white).copyWith(
+            shadows: const [Shadow(color: Color(0x8CB5ABFC), blurRadius: 38)],
+          )
+        : TextStyle(
+            fontSize: 31,
+            height: 1.0,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.6,
+            color: context.colors.ink1,
+          );
 
     if (_done || !_entrance) {
       return Text(widget.value.toStringAsFixed(1), style: style);
@@ -696,8 +866,12 @@ class _TerritoryPanel extends ConsumerWidget {
           children: [
             // Red below target is a *threshold status*, not a second series —
             // so it is labelled here and never carried by colour alone.
-            BarChart.legend(),
-            const SizedBox(height: 8),
+            // Glass draws each bar in its status word's colour with the
+            // target tick on it, so the legend's job is done in the bars.
+            if (!context.colors.glass) ...[
+              BarChart.legend(),
+              const SizedBox(height: 8),
+            ],
             _TerritoryScoreBars(territories: list),
           ],
         ),
@@ -764,6 +938,7 @@ class _TerritoryScoreBars extends ConsumerWidget {
           return _TerritoryPlaceholder('No territory scores yet');
         }
         points.sort((a, b) => b.value.compareTo(a.value));
+        if (context.colors.glass) return _GlassTerritoryBars(points: points);
         return BarChart(points: points, target: 75);
       },
     );
@@ -1666,14 +1841,7 @@ class _FilterBar extends ConsumerWidget {
       orElse: () => const SizedBox.shrink(),
     );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-      ),
-      child: Wrap(
+    final filters = Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: 10,
         runSpacing: 6,
@@ -1690,7 +1858,24 @@ class _FilterBar extends ConsumerWidget {
             onChanged: (r) => update(filter.copyWith(range: r)),
           ),
         ],
+      );
+
+    // One glass bar scopes everything beneath it — never a filter in a panel.
+    if (colors.glass) {
+      return GlassPane(
+        radius: LumenGlass.radiusControl,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: filters,
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: colors.surface1,
+        border: Border.all(color: colors.line),
+        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
       ),
+      child: filters,
     );
   }
 }
@@ -1787,3 +1972,314 @@ class _InlineError extends StatelessWidget {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Lumen Glass — against the published standard
+// ═══════════════════════════════════════════════════════════════════════
+
+/// One KPI and the standard it is judged by.
+///
+/// On-shelf availability and the perfect-store band are published industry
+/// reference points (the design handoff sources them); the rest are the
+/// handoff's internal standards. They are drawn as a tick on each bar so a
+/// figure is never read without the line it is measured against.
+typedef _Benchmark = ({
+  String label,
+  double Function(DashboardKpis) read,
+  double target,
+  String note,
+});
+
+const _benchmarks = <_Benchmark>[
+  (
+    label: 'On-shelf availability',
+    read: _osa,
+    target: 95,
+    note: 'Floor 95% · target 97–99%',
+  ),
+  (
+    label: 'Perfect-store rate',
+    read: _perfect,
+    target: 80,
+    note: 'Healthy 80–90% · below 70% is an execution gap',
+  ),
+  (
+    label: 'Price compliance',
+    read: _price,
+    target: 95,
+    note: 'Within tolerance of RRP',
+  ),
+  (
+    label: 'Visibility compliance',
+    read: _visibility,
+    target: 80,
+    note: 'Planogram threshold',
+  ),
+  (
+    label: 'Share of shelf',
+    read: _sos,
+    target: 33,
+    note: 'Category fair share',
+  ),
+  (
+    label: 'Weighted distribution',
+    read: _weighted,
+    target: 85,
+    note: 'Volume-weighted',
+  ),
+];
+
+/// On the standard, within ten points of it, or breaching it.
+LumenStatus _againstStandard(double value, double target) => value >= target
+    ? LumenStatus.good
+    : value >= target - 10
+    ? LumenStatus.warn
+    : LumenStatus.crit;
+
+class _BenchmarkPanel extends StatelessWidget {
+  const _BenchmarkPanel({required this.snapshot});
+
+  final AsyncValue<DashboardSnapshot> snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    return PanelCard(
+      title: 'Where we sit against the standard',
+      subtitle: 'Tick marks the target',
+      child: snapshot.when(
+        loading: () => const _InlineLoader(height: 120),
+        error: (err, _) => const _InlineError(message: 'Could not load KPIs'),
+        data: (snap) => LayoutBuilder(
+          builder: (context, box) {
+            final columns = box.maxWidth >= 900
+                ? 3
+                : box.maxWidth >= 560
+                ? 2
+                : 1;
+            const gap = 28.0;
+            final width = (box.maxWidth - gap * (columns - 1)) / columns;
+            return Wrap(
+              spacing: gap,
+              runSpacing: 18,
+              children: [
+                for (final b in _benchmarks)
+                  SizedBox(
+                    width: width,
+                    child: _BenchmarkCell(
+                      benchmark: b,
+                      value: b.read(snap.current),
+                      delta: snap.of(b.read),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _BenchmarkCell extends StatelessWidget {
+  const _BenchmarkCell({
+    required this.benchmark,
+    required this.value,
+    required this.delta,
+  });
+
+  final _Benchmark benchmark;
+  final double value;
+  final KpiDelta delta;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _againstStandard(value, benchmark.target);
+    final ink = status.swatchOf(context.colors).ink;
+    return Column(
+      key: ValueKey('benchmark-${benchmark.label}'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                benchmark.label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: context.lumen.ink,
+                ),
+              ),
+            ),
+            LumenStatusPill(status: status),
+            const SizedBox(width: 9),
+            Text(_fmtPct(value), style: LumenGlass.figure(size: 14, color: ink)),
+            if (delta.hasDelta) ...[
+              const SizedBox(width: 7),
+              DeltaPill(
+                delta: delta.change!,
+                tone: delta.change! < 0 ? DeltaTone.bad : DeltaTone.good,
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        BenchmarkBar(
+          value: value,
+          target: benchmark.target,
+          status: status,
+          height: 8,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          benchmark.note,
+          style: TextStyle(fontSize: 10.5, color: context.lumen.inkMuted),
+        ),
+      ],
+    );
+  }
+}
+
+/// How many outlets sit in each perfect-store band, by their latest scored
+/// visit — five columns, each coloured by the band it counts.
+class _DistributionPanel extends StatelessWidget {
+  const _DistributionPanel({required this.bands});
+
+  final List<ScoreBand> bands;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final most = bands.fold<int>(0, (m, b) => math.max(m, b.outlets));
+    final total = bands.fold<int>(0, (sum, b) => sum + b.outlets);
+
+    return PanelCard(
+      title: 'Perfect-store distribution',
+      subtitle: '$total outlets · healthy band 80–90',
+      child: SizedBox(
+        height: 190,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (final band in bands)
+              Expanded(
+                child: Semantics(
+                  label: '${band.outlets} outlets scoring ${band.label}',
+                  excludeSemantics: true,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${band.outlets}',
+                          style: LumenGlass.figure(
+                            size: 12,
+                            color: _bandStatus(band).swatchOf(colors).ink,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(
+                            begin: 0,
+                            end: most == 0 ? 0 : band.outlets / most,
+                          ),
+                          duration: reduceMotion(context)
+                              ? Duration.zero
+                              : Motion.slow,
+                          curve: Motion.enter,
+                          builder: (context, t, _) => Container(
+                            height: math.max(2, 118 * t),
+                            decoration: BoxDecoration(
+                              color: _bandStatus(band).swatchOf(colors).fill,
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(8),
+                                bottom: Radius.circular(3),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          band.label,
+                          style: LumenGlass.figure(
+                            size: 10,
+                            color: context.lumen.inkMuted,
+                            weight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static LumenStatus _bandStatus(ScoreBand band) => band.minScore >= 80
+      ? LumenStatus.good
+      : band.minScore >= 70
+      ? LumenStatus.warn
+      : LumenStatus.crit;
+}
+
+/// Each territory's execution score against the 75 target.
+class _GlassTerritoryBars extends StatelessWidget {
+  const _GlassTerritoryBars({required this.points});
+
+  final List<ChartPoint> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Column(
+      children: [
+        for (final p in points)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 96,
+                  child: Text(
+                    p.label,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.lumen.inkMuted,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: BenchmarkBar(
+                    value: p.value,
+                    target: 75,
+                    status: _againstStandard(p.value, 75),
+                    height: 15,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 38,
+                  child: Text(
+                    p.value.toStringAsFixed(1),
+                    style: LumenGlass.figure(
+                      size: 12,
+                      color: _againstStandard(p.value, 75).swatchOf(colors).ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+

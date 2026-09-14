@@ -3,6 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/location/location_service.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/glass_page_scaffold.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/outlets_repository.dart';
 
@@ -101,165 +107,297 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Create Store')),
+    final glass = context.colors.glass;
+    final storeFields = <Widget>[
+      TextFormField(
+        controller: _nameCtrl,
+        decoration: const InputDecoration(
+          labelText: 'Store Name',
+          border: OutlineInputBorder(),
+        ),
+        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        controller: _codeCtrl,
+        decoration: const InputDecoration(
+          labelText: 'Store Code',
+          border: OutlineInputBorder(),
+        ),
+        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        controller: _channelCtrl,
+        decoration: const InputDecoration(
+          labelText: 'Channel Type (e.g. supermarket)',
+          border: OutlineInputBorder(),
+        ),
+        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+      ),
+      const SizedBox(height: 12),
+      // Names on screen, codes on the wire. A manager knows the store is
+      // in "Gauteng North"; nobody memorises that its code is
+      // 'gauteng-north' — still less '2773u'.
+      ref
+          .watch(territoriesListProvider)
+          .when(
+            loading: () => const InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Territory',
+                border: OutlineInputBorder(),
+              ),
+              child: Text('Loading territories…'),
+            ),
+            error: (err, _) => InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Territory',
+                border: OutlineInputBorder(),
+                errorText: 'Could not load territories',
+              ),
+              child: TextButton(
+                onPressed: () => ref.invalidate(territoriesListProvider),
+                child: const Text('Retry'),
+              ),
+            ),
+            data: (territories) => territories.isEmpty
+                // Better than an empty dropdown that looks broken: the
+                // outlet genuinely cannot be filed until a territory
+                // exists, and this says who can fix it.
+                ? const InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Territory',
+                      border: OutlineInputBorder(),
+                      errorText:
+                          'No territories yet — create one under Territories first',
+                    ),
+                    child: SizedBox.shrink(),
+                  )
+                : DropdownButtonFormField<String>(
+                    key: const ValueKey<String>('territory-picker'),
+                    initialValue: _territoryCode,
+                    decoration: const InputDecoration(
+                      labelText: 'Territory',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final t in territories)
+                        DropdownMenuItem<String>(
+                          value: t.code,
+                          child: Text(t.name),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _territoryCode = value),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Required' : null,
+                  ),
+          ),
+    ];
+
+    return GlassPageScaffold(
+      title: const Text('Create Store'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Location status
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: _locating
-                      ? const Row(
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            SizedBox(width: 12),
-                            Text('Getting your location...'),
-                          ],
-                        )
-                      : _locationError != null
-                      ? Row(
-                          children: [
-                            const Icon(Icons.location_off, color: Colors.red),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _locationError!,
-                                style: const TextStyle(color: Colors.red),
+          child: glass
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _GlassLocation(
+                      locating: _locating,
+                      error: _locationError,
+                      lat: _lat,
+                      lng: _lng,
+                      onRetry: _fetchLocation,
+                    ),
+                    const SizedBox(height: 14),
+                    GlassPane(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Kicker('Store'),
+                          const SizedBox(height: 12),
+                          ...storeFields,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    GlassPrimaryButton(
+                      label: 'Create Store',
+                      busy: _submitting,
+                      onPressed: _submit,
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Location status
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: _locating
+                            ? const Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text('Getting your location...'),
+                                ],
+                              )
+                            : _locationError != null
+                            ? Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_off,
+                                    color: Colors.red,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _locationError!,
+                                      style: const TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _fetchLocation,
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on,
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
+                                  ),
+                                ],
                               ),
-                            ),
-                            TextButton(
-                              onPressed: _fetchLocation,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        )
-                      : Row(
-                          children: [
-                            const Icon(Icons.location_on, color: Colors.green),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Store Name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Store Code',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _channelCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Channel Type (e.g. supermarket)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              // Names on screen, codes on the wire. A manager knows the store is
-              // in "Gauteng North"; nobody memorises that its code is
-              // 'gauteng-north' — still less '2773u'.
-              ref
-                  .watch(territoriesListProvider)
-                  .when(
-                    loading: () => const InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Territory',
-                        border: OutlineInputBorder(),
-                      ),
-                      child: Text('Loading territories…'),
-                    ),
-                    error: (err, _) => InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Territory',
-                        border: OutlineInputBorder(),
-                        errorText: 'Could not load territories',
-                      ),
-                      child: TextButton(
-                        onPressed: () =>
-                            ref.invalidate(territoriesListProvider),
-                        child: const Text('Retry'),
                       ),
                     ),
-                    data: (territories) => territories.isEmpty
-                        // Better than an empty dropdown that looks broken: the
-                        // outlet genuinely cannot be filed until a territory
-                        // exists, and this says who can fix it.
-                        ? const InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Territory',
-                              border: OutlineInputBorder(),
-                              errorText:
-                                  'No territories yet — create one under Territories first',
-                            ),
-                            child: SizedBox.shrink(),
-                          )
-                        : DropdownButtonFormField<String>(
-                            key: const ValueKey<String>('territory-picker'),
-                            initialValue: _territoryCode,
-                            decoration: const InputDecoration(
-                              labelText: 'Territory',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: [
-                              for (final t in territories)
-                                DropdownMenuItem<String>(
-                                  value: t.code,
-                                  child: Text(t.name),
-                                ),
-                            ],
-                            onChanged: (value) =>
-                                setState(() => _territoryCode = value),
-                            validator: (v) =>
-                                (v == null || v.isEmpty) ? 'Required' : null,
-                          ),
-                  ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _submitting ? null : _submit,
-                child: _submitting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Create Store'),
-              ),
-            ],
-          ),
+                    const SizedBox(height: 16),
+                    ...storeFields,
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: _submitting ? null : _submit,
+                      child: _submitting
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Create Store'),
+                    ),
+                  ],
+                ),
         ),
+      ),
+    );
+  }
+}
+
+/// Where the store will be pinned, in glass. The fix is the store's geofence,
+/// so it leads the form: a figure when it lands, and a failure that carries
+/// its own words on an opaque crit wash (AA on its own) with the retry beside.
+class _GlassLocation extends StatelessWidget {
+  const _GlassLocation({
+    required this.locating,
+    required this.error,
+    required this.lat,
+    required this.lng,
+    required this.onRetry,
+  });
+
+  final bool locating;
+  final String? error;
+  final double? lat;
+  final double? lng;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final lumen = context.lumen;
+    final Widget status;
+    if (locating) {
+      status = Row(
+        children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Getting your location...',
+            style: TextStyle(fontSize: 13, color: lumen.inkMuted),
+          ),
+        ],
+      );
+    } else if (error != null) {
+      final crit = LumenStatus.crit.swatchOf(colors);
+      status = Container(
+        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(crit.tint, colors.surface1),
+          borderRadius: BorderRadius.circular(LumenGlass.radiusIconTile),
+          border: Border.all(color: crit.rim),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.location_off, size: 18, color: crit.ink),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                error!,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: crit.ink,
+                ),
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      );
+    } else {
+      final good = LumenStatus.good.swatchOf(colors);
+      status = Row(
+        children: [
+          Icon(Icons.location_on, size: 18, color: good.ink),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              '${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)}',
+              style: LumenGlass.figure(size: 15, color: lumen.ink),
+            ),
+          ),
+        ],
+      );
+    }
+    return GlassPane(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [const Kicker('Location'), const SizedBox(height: 10), status],
       ),
     );
   }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/gamification/data/gamification_repository.dart';
 import 'package:tradeiq_app/features/gamification/presentation/leaderboard_screen.dart';
 
@@ -37,14 +40,46 @@ class _FailingGamificationRepository implements GamificationRepository {
       throw Exception('boom');
 }
 
-Widget _app(GamificationRepository repo) => routedApp(
+Widget _app(GamificationRepository repo, {ThemeData? theme}) => routedApp(
       const LeaderboardScreen(),
+      theme: theme,
       overrides: [
         gamificationRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
+const _aliceLine = '240 pts · 12 visits · 5 tasks closed';
+
 void main() {
+  testWidgets('dark: the points line keeps the row meta style', (tester) async {
+    await tester.pumpWidget(_app(_FakeGamificationRepository()));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Text>(find.text(_aliceLine)).style, isNull);
+  });
+
+  testWidgets('light: rows are glass tiles; the points line is mono', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_FakeGamificationRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<Text>(find.text(_aliceLine)).style!.fontFamily,
+      LumenGlass.mono,
+    );
+    final panes = tester.widgetList<GlassPane>(
+      find.ancestor(
+        of: find.text('alice@example.com'),
+        matching: find.byType(GlassPane),
+      ),
+    );
+    expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+    expect(find.text('RANK 1'), findsOneWidget);
+  });
+
   testWidgets('renders leaderboard entry emails once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeGamificationRepository()));
     await tester.pumpAndSettle();

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/lumen_glass.dart';
+import '../../../../core/theme/lumen_palette.dart';
 import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
+import '../../../../core/widgets/glass.dart';
 import '../../../../core/widgets/photo_capture_field.dart';
 import '../../data/photos_repository.dart';
 import '../../data/pricing_repository.dart';
@@ -133,7 +136,7 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
         for (final sku in widget.skus)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
-            child: PanelCard(
+            child: _SkuCard(
               title: sku.name,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,6 +181,43 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// One SKU's pricing. Glass: a no-blur tile (it repeats down the list) headed
+/// by the SKU name, like the stock section's cards.
+class _SkuCard extends StatelessWidget {
+  const _SkuCard({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    if (!colors.glass) return PanelCard(title: title, child: child);
+    return GlassPane(
+      kind: GlassKind.tile,
+      blur: false,
+      radius: LumenGlass.radiusCard,
+      // AgentField pads its own bottom, so the tile's bottom is trimmed.
+      padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: context.lumen.ink,
+            ),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
     );
   }
 }

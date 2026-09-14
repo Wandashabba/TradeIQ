@@ -295,11 +295,20 @@ class _TaskRow extends ConsumerWidget {
           ),
           if (task.closureVerified) ...[
             const SizedBox(width: 8),
-            Icon(Icons.verified_outlined, size: 12, color: context.colors.good),
+            // colorOf is the plain `good` in dark and the status INK in glass
+            // — the handoff's ink is the one that reads as words on glass.
+            Icon(
+              Icons.verified_outlined,
+              size: 12,
+              color: StatusLevel.good.colorOf(context.colors),
+            ),
             const SizedBox(width: 3),
             Text(
               'Verified',
-              style: TextStyle(fontSize: 11, color: context.colors.good),
+              style: TextStyle(
+                fontSize: 11,
+                color: StatusLevel.good.colorOf(context.colors),
+              ),
             ),
           ],
         ],

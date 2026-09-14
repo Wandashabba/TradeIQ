@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/territories/presentation/territories_screen.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
@@ -108,9 +109,11 @@ class _RoleSession extends SessionController {
 Widget _app(
   TerritoriesRepository repo, {
   String? role,
+  ThemeData? theme,
 }) =>
     routedApp(
       const TerritoriesScreen(),
+      theme: theme,
       overrides: [
         territoriesRepositoryProvider.overrideWithValue(repo),
         usersRepositoryProvider.overrideWithValue(_FakeUsersRepository()),
@@ -195,5 +198,21 @@ void main() {
     await tester.pump();
 
     expect(find.text('Gauteng North — Map'), findsOneWidget);
+  });
+
+  testWidgets('light: the coverage dialog sets its counts as mono figures',
+      (tester) async {
+    await tester.pumpWidget(
+      _app(_FakeTerritoriesRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('territory-ter-1')));
+    await tester.pumpAndSettle();
+
+    final rate = tester.widget<Text>(find.text('67%'));
+    expect(rate.style?.fontFamily, 'JetBrains Mono');
+    expect(find.text('Outlets'), findsOneWidget);
+    expect(find.text('Agents'), findsOneWidget);
   });
 }

@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/audit/data/competitive_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s6_competitive_screen.dart';
 
@@ -179,7 +183,35 @@ void main() {
         // The competitor row is a console panel; its four inputs are labelled
         // AgentFields; promoter presence is an AgentToggle; add + save are the
         // kit's buttons.
-        expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        final glass = tester
+            .element(find.byType(S6CompetitiveScreen))
+            .colors
+            .glass;
+        if (glass) {
+          // Lumen Glass: the competitor is a no-blur glass tile headed by its
+          // sequence number, set in mono in a status tile.
+          expect(
+            find.byType(PanelCard),
+            findsNothing,
+            reason: '$name no panel',
+          );
+          expect(
+            find.ancestor(
+              of: find.text('Competitor 1'),
+              matching: find.byWidgetPredicate(
+                (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
+              ),
+            ),
+            findsOneWidget,
+            reason: '$name competitor glass tile',
+          );
+          final number = tester.widget<StatusTile>(find.byType(StatusTile));
+          expect(number.glyph, '1', reason: '$name sequence number');
+          expect(number.mono, isTrue, reason: '$name number in mono');
+          expect(number.status, LumenStatus.none, reason: '$name no status');
+        } else {
+          expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        }
         expect(
           find.byType(AgentField),
           findsNWidgets(4),

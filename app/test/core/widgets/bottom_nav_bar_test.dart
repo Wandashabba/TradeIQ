@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/bottom_nav_bar.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 
 import '../theme/tiq_colors_test.dart' show contrastRatio;
 
@@ -93,45 +96,62 @@ void main() {
     return box.decoration as BoxDecoration;
   }
 
-  testWidgets('dark theme: bar surface, hairline, pill and inks', (
-    tester,
-  ) async {
+  testWidgets(
+    'dark theme is night glass: faint white bar, cool rim, uppercase mono slots',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(activeRoute: '/dashboard', theme: AppTheme.dark()),
+      );
+
+      final bar = barDecoration(tester);
+      expect(bar.color, TiqColors.night.navBarBg);
+      expect((bar.border as Border?)?.top.color, TiqColors.night.navBarLine);
+
+      final pill = tester.widget<Container>(
+        find.byKey(const ValueKey('bottom-nav-pill-/dashboard')),
+      );
+      final pillDeco = pill.decoration! as BoxDecoration;
+      expect(pillDeco.color, TiqColors.night.navActivePillBg);
+      expect((pillDeco.border! as Border).top.color, LumenPalette.dark.pillRim);
+
+      final home = tester.widget<Text>(find.text('HOME'));
+      expect(home.style!.fontFamily, 'JetBrains Mono');
+      final activeInk = home.style!.color;
+      final inactiveInk = tester.widget<Text>(find.text('TASKS')).style!.color;
+      expect(activeInk, TiqColors.night.navActiveInk);
+      // Night lifts the inactive slots to ink2 — see the AA test below.
+      expect(inactiveInk, TiqColors.night.ink2);
+      // Icons carry the same ink as their labels — never colour drift.
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.home_outlined)).color,
+        activeInk,
+      );
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.task_alt)).color,
+        inactiveInk,
+      );
+    },
+  );
+
+  testWidgets('dark theme: nav inks clear WCAG AA on the bar over its '
+      'lightest ground', (tester) async {
     await tester.pumpWidget(
       _app(activeRoute: '/dashboard', theme: AppTheme.dark()),
     );
 
-    final bar = barDecoration(tester);
-    expect(bar.color, const Color(0xEB12151C)); // rgba(18,21,28,.92)
-    // Semantic floor, not just a hex pin: a mostly-transparent bar would let
-    // scrolling content wash out the labels — the frost stays ≥90% opaque.
-    expect(bar.color!.a, greaterThanOrEqualTo(0.9));
-    expect((bar.border as Border?)?.top.color, const Color(0xFF262B33));
-
-    final pill = tester.widget<Container>(
-      find.byKey(const ValueKey('bottom-nav-pill-/dashboard')),
+    // A LIGHT ink over a translucent bar: the worst case is the LIGHTEST
+    // ground it can meet, so composite over surface3 before measuring.
+    final barOnGround = Color.alphaBlend(
+      barDecoration(tester).color!,
+      TiqColors.night.surface3,
     );
-    expect((pill.decoration as BoxDecoration?)?.color, const Color(0xFF12305C));
-
-    final activeInk = tester.widget<Text>(find.text('Home')).style!.color;
-    final inactiveInk = tester.widget<Text>(find.text('Tasks')).style!.color;
-    expect(activeInk, const Color(0xFF6DB4FF));
-    expect(inactiveInk, const Color(0xFF8A94A6));
-    // Icons carry the same ink as their labels — never colour drift.
+    final inactive = tester.widget<Text>(find.text('TASKS')).style!.color!;
     expect(
-      tester.widget<Icon>(find.byIcon(Icons.home_outlined)).color,
-      activeInk,
-    );
-    expect(tester.widget<Icon>(find.byIcon(Icons.task_alt)).color, inactiveInk);
-  });
-
-  testWidgets('dark theme: nav inks clear WCAG AA on their grounds', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(activeRoute: '/dashboard', theme: AppTheme.dark()),
+      contrastRatio(inactive, barOnGround),
+      greaterThanOrEqualTo(4.5),
+      reason: 'inactive labels are 10px text on the glass bar',
     );
 
-    final activeInk = tester.widget<Text>(find.text('Home')).style!.color!;
     final pillBg =
         (tester
                     .widget<Container>(
@@ -140,104 +160,113 @@ void main() {
                     .decoration
                 as BoxDecoration)
             .color!;
+    final pillOnBar = Color.alphaBlend(pillBg, barOnGround);
+    final active = tester.widget<Text>(find.text('HOME')).style!.color!;
     expect(
-      contrastRatio(activeInk, pillBg),
+      contrastRatio(active, pillOnBar),
       greaterThanOrEqualTo(4.5),
-      reason: 'active label on the active pill is 10.5px text — AA is 4.5:1',
-    );
-
-    // The bar fill is 92% alpha over whatever scrolls beneath. For a LIGHT
-    // ink the worst case is the LIGHTEST ground it can meet — composite over
-    // surface3 (the palest real dark surface) before measuring.
-    final inactiveInk = tester.widget<Text>(find.text('Tasks')).style!.color!;
-    final barOnSurface3 = Color.alphaBlend(
-      barDecoration(tester).color!,
-      TiqColors.dark.surface3,
-    );
-    expect(
-      contrastRatio(inactiveInk, barOnSurface3),
-      greaterThanOrEqualTo(4.5),
-      reason: 'inactive labels are 10.5px text on the frosted bar',
+      reason: 'active label on the active pill is 10px text — AA is 4.5:1',
     );
   });
 
-  testWidgets('light theme: rendered bar values are the shipped light set', (
-    tester,
-  ) async {
-    // Byte-for-byte the sub-1 treatment — the theme system must be a no-op
-    // for light. Pinned off the rendered tree under AppTheme.light().
+  testWidgets(
+    'light theme is Lumen Glass: half-white bar, lit rim, uppercase mono slots',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(activeRoute: '/dashboard', theme: AppTheme.light()),
+      );
+
+      final bar = barDecoration(tester);
+      expect(bar.color, const Color(0x80FFFFFF));
+      expect((bar.border as Border?)?.top.color, const Color(0xCCFFFFFF));
+      final pill = tester.widget<Container>(
+        find.byKey(const ValueKey('bottom-nav-pill-/dashboard')),
+      );
+      expect(
+        (pill.decoration as BoxDecoration?)?.color,
+        const Color(0xC7FFFFFF),
+      );
+      // Glass sets the slots as the handoff's uppercase mono tab labels.
+      final home = tester.widget<Text>(find.text('HOME'));
+      expect(home.style!.color, const Color(0xFF241F47));
+      expect(home.style!.fontFamily, 'JetBrains Mono');
+      expect(
+        tester.widget<Text>(find.text('TASKS')).style!.color,
+        const Color(0xFF5B5F75),
+      );
+    },
+  );
+
+  testWidgets('light theme: slot inks clear AA on the bar over its darkest '
+      'ground', (tester) async {
     await tester.pumpWidget(
       _app(activeRoute: '/dashboard', theme: AppTheme.light()),
     );
 
-    final bar = barDecoration(tester);
-    expect(bar.color, const Color(0xEBFFFFFF));
-    expect((bar.border as Border?)?.top.color, const Color(0xFFE3E5EA));
-    expect(
-      (tester
-                  .widget<Container>(
-                    find.byKey(const ValueKey('bottom-nav-pill-/dashboard')),
-                  )
-                  .decoration
-              as BoxDecoration?)
-          ?.color,
-      const Color(0xFFEAF2FF),
+    // A DARK ink over a translucent bar: the worst case is the DARKEST ground
+    // it can meet, so composite over surface3 before measuring.
+    final barOnGround = Color.alphaBlend(
+      barDecoration(tester).color!,
+      TiqColors.light.surface3,
     );
+    final inactive = tester.widget<Text>(find.text('TASKS')).style!.color!;
     expect(
-      tester.widget<Text>(find.text('Home')).style!.color,
-      const Color(0xFF0A6CF0),
+      contrastRatio(inactive, barOnGround),
+      greaterThanOrEqualTo(4.5),
+      reason: 'inactive labels are 10px text on the glass bar',
     );
-    expect(
-      tester.widget<Text>(find.text('Tasks')).style!.color,
-      const Color(0xFF5C6470),
+    final pillOnBar = Color.alphaBlend(
+      TiqColors.light.navActivePillBg,
+      barOnGround,
     );
+    final active = tester.widget<Text>(find.text('HOME')).style!.color!;
+    expect(contrastRatio(active, pillOnBar), greaterThanOrEqualTo(4.5));
   });
 
-  testWidgets('dark theme: menu sheet reads the dark surface and inks', (
-    tester,
-  ) async {
+  testWidgets('dark theme: menu sheet is the night glass sheet — surface1 '
+      'ground, night rim, AA kickers, glass tiles', (tester) async {
     await tester.pumpWidget(_app(theme: AppTheme.dark()));
 
-    await tester.tap(find.text('Menu'));
+    await tester.tap(find.text('MENU'));
     await tester.pumpAndSettle();
 
-    // The sheet's panel is the top-rounded Container — it must carry the
-    // dark surface token, not a hardcoded paper value.
+    // The sheet's panel is the top-rounded Container — the opaque night
+    // surface1 under the night panel rim, not a hardcoded paper value.
     final panel = tester.widget<Container>(
       find.byWidgetPredicate(
         (w) =>
             w is Container &&
             w.decoration is BoxDecoration &&
             (w.decoration! as BoxDecoration).borderRadius ==
-                const BorderRadius.vertical(top: Radius.circular(18)),
+                const BorderRadius.vertical(
+                  top: Radius.circular(LumenGlass.radiusScore),
+                ),
       ),
     );
-    expect((panel.decoration! as BoxDecoration).color, TiqColors.dark.surface1);
+    final panelDeco = panel.decoration! as BoxDecoration;
+    expect(panelDeco.color, TiqColors.night.surface1);
+    expect((panelDeco.border! as Border).top.color, LumenPalette.dark.panelRim);
 
-    // Group headers carry the muted ink token, and stay AA-readable on the
-    // sheet surface they actually sit on.
+    // Group headers are the night kicker, and stay AA-readable on the sheet
+    // surface they actually sit on.
     final heading = tester.widget<Text>(find.text('OPERATE')).style!.color!;
-    expect(heading, TiqColors.dark.ink3);
+    expect(heading, LumenPalette.dark.kicker);
     expect(
-      contrastRatio(heading, TiqColors.dark.surface1),
+      contrastRatio(heading, TiqColors.night.surface1),
       greaterThanOrEqualTo(4.5),
-      reason: 'sheet group labels are 10px text on surface1',
+      reason: 'sheet group labels are 9.5px text on surface1',
     );
 
-    // Destination tiles + divider follow the hairline token.
-    final tile = tester.widget<Container>(
-      find
-          .descendant(
-            of: find.byKey(const ValueKey('nav-sheet-/dashboard')),
-            matching: find.byType(Container),
-          )
-          .first,
+    // Destination tiles are no-blur glass tiles; the divider is the hairline.
+    final tile = tester.widget<GlassPane>(
+      find.ancestor(
+        of: find.byKey(const ValueKey('nav-sheet-/dashboard')),
+        matching: find.byType(GlassPane),
+      ),
     );
-    expect(
-      ((tile.decoration! as BoxDecoration).border! as Border).top.color,
-      TiqColors.dark.line,
-    );
+    expect(tile.kind, GlassKind.tile);
+    expect(tile.blur, isFalse);
     final divider = tester.widget<Divider>(find.byType(Divider).first);
-    expect(divider.color, TiqColors.dark.line);
+    expect(divider.color, TiqColors.night.line);
   });
 }

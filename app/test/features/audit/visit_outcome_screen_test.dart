@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/agent_motion.dart' show AnimatedCount;
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/audit/data/scorecards_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/visit_outcome_screen.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
@@ -46,7 +49,7 @@ ServerScorecard _scoreOnBand(String band) => ServerScorecard(
 
 const _bothThemes = <(String, TiqColors)>[
   ('light', TiqColors.light),
-  ('dark', TiqColors.dark),
+  ('dark', TiqColors.night),
 ];
 
 ThemeData _themeFor(String name) =>
@@ -200,7 +203,18 @@ void main() {
   // ── Premium restyle (sub5c Task 2) ──────────────────────────────────────
 
   for (final (name, palette) in _bothThemes) {
-    testWidgets('the score reveal is a glass hero — $name', (tester) async {
+    // The ground the score card's words are measured against. Both themes are
+    // Lumen Glass and set the score on its one dark pane. darkPaneGround is
+    // that pane over the day ground's lightest point; at night the same pane
+    // over the indigo ground composites darker still, so it is the
+    // conservative ground for the pane's light inks in both. A flat palette
+    // would keep the washed hero, whose two gradient stops are both real
+    // grounds.
+    List<Color> scoreGrounds(WidgetTester tester) => palette.glass
+        ? const [LumenGlass.darkPaneGround]
+        : (_heroBox(tester).gradient! as LinearGradient).colors;
+
+    testWidgets('the score reveal is the hero — $name', (tester) async {
       await tester.pumpWidget(
         _app(
           const VisitOutcome(score: _visit, previous: null),
@@ -210,35 +224,46 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final box = _heroBox(tester);
-      final gradient = box.gradient! as LinearGradient;
-      expect(gradient.colors, [
-        palette.heroWash,
-        palette.surface1,
-      ], reason: '$name hero wash → surface1');
-      expect(
-        (box.border! as Border).top.color,
-        palette.heroBorder,
-        reason: '$name hero border',
-      );
-
-      // The score is the 52px w700 headline figure in ink1; "/100" is ink3.
       final score = tester.widget<Text>(find.text('72'));
-      expect(score.style?.fontSize, 52, reason: '$name score 52px');
-      expect(score.style?.fontWeight, FontWeight.w700, reason: '$name w700');
-      expect(score.style?.color, palette.ink1, reason: '$name score ink1');
-
       final outOf = tester.widget<Text>(find.text('/100'));
-      expect(outOf.style?.color, palette.ink3, reason: '$name /100 ink3');
+      if (palette.glass) {
+        // The one dark pane: the score should feel heavier than the rest.
+        final hero = find.byKey(const ValueKey('score-hero'));
+        expect(tester.widget<GlassPane>(hero).kind, GlassKind.dark);
+        expect(
+          find.descendant(of: hero, matching: find.text('72')),
+          findsOneWidget,
+        );
+        // The published perfect-store banding, not an invented scale.
+        expect(find.byType(ScoreBandBar), findsOneWidget);
+        expect(score.style?.fontSize, 74, reason: '$name score 74px');
+        expect(score.style?.color, Colors.white, reason: '$name score white');
+        expect(outOf.style?.color, LumenGlass.onDarkMuted);
+      } else {
+        final box = _heroBox(tester);
+        final gradient = box.gradient! as LinearGradient;
+        expect(gradient.colors, [
+          palette.heroWash,
+          palette.surface1,
+        ], reason: '$name hero wash → surface1');
+        expect(
+          (box.border! as Border).top.color,
+          palette.heroBorder,
+          reason: '$name hero border',
+        );
+        expect(score.style?.fontSize, 52, reason: '$name score 52px');
+        expect(score.style?.fontWeight, FontWeight.w700, reason: '$name w700');
+        expect(score.style?.color, palette.ink1, reason: '$name score ink1');
+        expect(outOf.style?.color, palette.ink3, reason: '$name /100 ink3');
+      }
     });
 
     // The band is a dot AND a spelled word (never colour-alone), and the word's
-    // colour clears AA on BOTH stops of the hero gradient it sits over — red
-    // uses critText, the recurring crit→critText lesson.
+    // colour clears AA on every ground it sits on.
     for (final (band, word, expected) in <(String, String, Color)>[
-      ('green', 'Green', palette.good),
-      ('amber', 'Amber', palette.warn),
-      ('low', 'Red', palette.critText),
+      ('green', 'Green', palette.glass ? LumenGlass.onDarkGood : palette.good),
+      ('amber', 'Amber', palette.glass ? LumenGlass.onDarkWarn : palette.warn),
+      ('low', 'Red', palette.glass ? LumenGlass.onDarkCrit : palette.critText),
     ]) {
       testWidgets('band $word carries an AA-safe word — $name', (tester) async {
         await tester.pumpWidget(
@@ -250,28 +275,21 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        final text = tester.widget<Text>(find.text(word));
-        final fg = text.style!.color!;
+        final fg = tester.widget<Text>(find.text(word)).style!.color!;
         expect(fg, expected, reason: '$name $word word colour');
-
-        final stops = (_heroBox(tester).gradient! as LinearGradient).colors;
-        for (final ground in stops) {
+        for (final ground in scoreGrounds(tester)) {
           expect(
             contrastRatio(fg, ground),
             greaterThanOrEqualTo(4.5),
-            reason:
-                '$name $word is '
-                '${contrastRatio(fg, ground)}:1 on $ground',
+            reason: '$name $word is ${contrastRatio(fg, ground)}:1 on $ground',
           );
         }
       });
     }
 
-    testWidgets('a down delta is a word + arrow in critText, AA-safe — $name', (
+    testWidgets('a down delta is a word + arrow, AA-safe — $name', (
       tester,
     ) async {
-      // Current 66 vs a previous 72 — down 6. The move down is spelled out and
-      // carries an arrow, never colour alone, and its text clears AA.
       const down = ServerScorecard(
         visitId: 'remote-2',
         weightedTotal: 66,
@@ -288,12 +306,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
-      final text = tester.widget<Text>(find.textContaining('Down 6 points'));
-      final fg = text.style!.color!;
-      expect(fg, palette.critText, reason: '$name down uses critText');
-
-      final stops = (_heroBox(tester).gradient! as LinearGradient).colors;
-      for (final ground in stops) {
+      final fg = tester
+          .widget<Text>(find.textContaining('Down 6 points'))
+          .style!
+          .color!;
+      expect(
+        fg,
+        palette.glass ? LumenGlass.onDarkCrit : palette.critText,
+        reason: '$name down colour',
+      );
+      for (final ground in scoreGrounds(tester)) {
         expect(
           contrastRatio(fg, ground),
           greaterThanOrEqualTo(4.5),
@@ -302,7 +324,7 @@ void main() {
       }
     });
 
-    testWidgets('an up delta is a word + arrow in good, AA-safe — $name', (
+    testWidgets('an up delta is a word + arrow, AA-safe — $name', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -315,12 +337,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
-      final text = tester.widget<Text>(find.textContaining('Up 6 points'));
-      final fg = text.style!.color!;
-      expect(fg, palette.good, reason: '$name up uses good');
-
-      final stops = (_heroBox(tester).gradient! as LinearGradient).colors;
-      for (final ground in stops) {
+      final fg = tester
+          .widget<Text>(find.textContaining('Up 6 points'))
+          .style!
+          .color!;
+      expect(
+        fg,
+        palette.glass ? LumenGlass.onDarkGood : palette.good,
+        reason: '$name up colour',
+      );
+      for (final ground in scoreGrounds(tester)) {
         expect(
           contrastRatio(fg, ground),
           greaterThanOrEqualTo(4.5),
@@ -346,8 +372,10 @@ void main() {
       final panel = find.ancestor(
         of: find.text('Team capability'),
         matching: find.byWidgetPredicate(
-          (w) =>
-              w is DecoratedBox &&
+          (w) => palette.glass
+              // Lumen Glass: the dimensions sit on a glass panel.
+              ? w is GlassPane && w.kind == GlassKind.panel
+              : w is DecoratedBox &&
               w.decoration is BoxDecoration &&
               (w.decoration as BoxDecoration).color == palette.surface1 &&
               (w.decoration as BoxDecoration).border != null,

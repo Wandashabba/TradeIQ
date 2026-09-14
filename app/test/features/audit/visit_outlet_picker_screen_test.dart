@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/network/human_error.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
@@ -246,7 +247,7 @@ void main() {
   testWidgets('the scope control is a console pill/segment', (tester) async {
     for (final (name, theme, palette) in [
       ('light', AppTheme.light(), TiqColors.light),
-      ('dark', AppTheme.dark(), TiqColors.dark),
+      ('dark', AppTheme.dark(), TiqColors.night),
     ]) {
       await tester.pumpWidget(
         _app(ScopeAwareOutletsRepository(), theme: theme),
@@ -255,9 +256,11 @@ void main() {
 
       // Defaults narrowed, so "My territories" is the active segment.
       final active = segment(tester, 'scope-mine', 'My territories');
-      expect(active.bg, palette.brand, reason: '$name active bg');
-      expect(active.border, palette.brand, reason: '$name active border');
-      expect(active.text, Colors.white, reason: '$name active text');
+      // The theme's primary action: the #241F47 pill by day, the lavender
+      // pill at night.
+      expect(active.bg, palette.action, reason: '$name active bg');
+      expect(active.border, palette.action, reason: '$name active border');
+      expect(active.text, palette.onAction, reason: '$name active text');
 
       final inactive = segment(tester, 'scope-all', 'All stores');
       expect(inactive.bg, palette.surface1, reason: '$name inactive bg');
@@ -289,11 +292,11 @@ void main() {
   testWidgets('the pill text clears AA in both themes', (tester) async {
     for (final (name, palette) in [
       ('light', TiqColors.light),
-      ('dark', TiqColors.dark),
+      ('dark', TiqColors.night),
     ]) {
       // Active = white on brand; inactive = ink2 on surface1. Both must clear
       // 4.5:1 — the pill is a self-contained pair (no gradient to composite).
-      final white = contrastRatio(Colors.white, palette.brand);
+      final white = contrastRatio(palette.onAction, palette.action);
       final ink2 = contrastRatio(palette.ink2, palette.surface1);
       expect(white, greaterThanOrEqualTo(4.5), reason: '$name white-on-brand');
       expect(ink2, greaterThanOrEqualTo(4.5), reason: '$name ink2-on-surface1');
@@ -324,10 +327,59 @@ void main() {
     expect(find.textContaining('Check your connection'), findsNothing);
   });
 
+  testWidgets('Lumen Glass: the scope control floats on a glass bar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(ScopeAwareOutletsRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    // The scope sits where the handoff's search bar does: one frosted bar
+    // over the list, holding both segments and the honesty line.
+    final bar = find.byWidgetPredicate(
+      (w) => w is GlassPane && w.kind == GlassKind.bar,
+    );
+    for (final inner in [
+      find.byKey(const ValueKey<String>('scope-mine')),
+      find.byKey(const ValueKey<String>('scope-all')),
+      find.textContaining('your territories'),
+    ]) {
+      expect(
+        find.ancestor(of: inner, matching: bar),
+        findsOneWidget,
+        reason: 'inside the glass bar: $inner',
+      );
+    }
+  });
+
+  testWidgets('Lumen Glass: the error surface sits on a glass pane', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        FailingOutletsRepository(Exception('boom')),
+        theme: AppTheme.light(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.ancestor(
+        of: find.text('Could not load your stores'),
+        matching: find.byWidgetPredicate(
+          (w) => w is GlassPane && w.kind == GlassKind.panel,
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('retry-outlets')), findsOneWidget);
+  });
+
   testWidgets('each outlet renders as a console card', (tester) async {
     for (final (name, theme, palette) in [
       ('light', AppTheme.light(), TiqColors.light),
-      ('dark', AppTheme.dark(), TiqColors.dark),
+      ('dark', AppTheme.dark(), TiqColors.night),
     ]) {
       await tester.pumpWidget(_app(FakeOutletsRepository(), theme: theme));
       await tester.pumpAndSettle();
@@ -336,6 +388,10 @@ void main() {
       final card = find.ancestor(
         of: find.text('Test Outlet'),
         matching: find.byWidgetPredicate((w) {
+          // Lumen Glass: a no-blur glass tile at the card radius.
+          if (palette.glass) {
+            return w is GlassPane && w.kind == GlassKind.tile && !w.blur;
+          }
           if (w is! Container) return false;
           final deco = w.decoration;
           if (deco is! BoxDecoration) return false;

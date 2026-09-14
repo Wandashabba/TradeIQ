@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../data/visit_progress.dart';
 import '../data/visit_review.dart';
 
@@ -59,6 +63,7 @@ class SubmitGateScreen extends ConsumerWidget {
               'No signal? Submitting still works — it saves on the phone and '
               'sends itself.',
             ),
+          // In glass the kit's primary button is the GlassPrimaryButton.
           AgentButton(
             key: const ValueKey('confirm-submit'),
             label: 'Submit visit',
@@ -107,15 +112,29 @@ class SubmitGateScreen extends ConsumerWidget {
                 const _Heading('This will raise'),
                 Reveal(
                   index: 1,
-                  child: PanelCard(
-                    padded: false,
-                    child: Column(
-                      children: [
-                        for (final task in review.willRaise)
-                          _TaskRow(task: task),
-                      ],
-                    ),
-                  ),
+                  child: colors.glass
+                      // Glass: a checklist — each task its own tile, so the
+                      // agent reads them one accusation at a time.
+                      ? Column(
+                          children: [
+                            for (final (i, task) in review.willRaise.indexed)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: i == 0 ? 0 : 8,
+                                ),
+                                child: _TaskRow(task: task),
+                              ),
+                          ],
+                        )
+                      : PanelCard(
+                          padded: false,
+                          child: Column(
+                            children: [
+                              for (final task in review.willRaise)
+                                _TaskRow(task: task),
+                            ],
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -172,6 +191,7 @@ class _CapturedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _glass(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
@@ -207,6 +227,45 @@ class _CapturedCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Glass: the first checklist tile — a ✓ in its good status tile.
+  Widget _glass(BuildContext context) {
+    final lumen = context.lumen;
+    return GlassPane(
+      kind: GlassKind.tile,
+      blur: false,
+      radius: LumenGlass.radiusCard,
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      child: Row(
+        children: [
+          const ExcludeSemantics(
+            child: StatusTile(status: LumenStatus.good, glyph: '✓', size: 30),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$sectionsDone of $sectionsTotal sections complete',
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: lumen.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  line,
+                  style: TextStyle(fontSize: 12.5, color: lumen.inkMuted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TaskRow extends StatelessWidget {
@@ -217,6 +276,7 @@ class _TaskRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _glass(context);
     // The box wash follows the token; the glyph on it must clear AA. Urgent
     // needs critText — raw crit fails 4.5:1 in dark — while warn reads on its
     // own wash in both themes.
@@ -270,6 +330,62 @@ class _TaskRow extends StatelessWidget {
       ),
     );
   }
+
+  /// Glass: a checklist tile whose rim takes the task's status — crit when
+  /// urgent, warn when routine — with the glyph in its status tile and the
+  /// priority still spelled out beside it.
+  Widget _glass(BuildContext context) {
+    final colors = context.colors;
+    final status = task.isUrgent ? LumenStatus.crit : LumenStatus.warn;
+    final sw = status.swatchOf(colors);
+    return GlassPane(
+      kind: GlassKind.tile,
+      blur: false,
+      radius: LumenGlass.radiusCard,
+      rimColor: sw.rim,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The word below says it; the glyph is for the eye.
+          ExcludeSemantics(
+            child: StatusTile(
+              status: status,
+              glyph: task.isUrgent ? '!' : '•',
+              size: 28,
+              radius: 9,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: context.lumen.ink,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Task for the manager · ${task.priority}',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: sw.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// A clean store is a real result, and it should not read as an empty screen.
@@ -277,6 +393,38 @@ class _NothingWrong extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      // Glass: an OPAQUE good wash, so the words clear AA on their own.
+      final good = LumenStatus.good.swatchOf(colors);
+      return Container(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(good.tint, colors.surface1),
+          border: Border.all(color: good.rim),
+          borderRadius: BorderRadius.circular(LumenGlass.radiusCard),
+        ),
+        child: Row(
+          children: [
+            const ExcludeSemantics(
+              child: StatusTile(
+                status: LumenStatus.good,
+                glyph: '✓',
+                size: 28,
+                radius: 9,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Nothing to raise. You found no stockouts and flagged no '
+                'risks — this store is in good shape.',
+                style: TextStyle(fontSize: 13, height: 1.45, color: good.ink),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
@@ -308,6 +456,12 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.colors.glass) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Kicker(text, color: context.lumen.kicker),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(

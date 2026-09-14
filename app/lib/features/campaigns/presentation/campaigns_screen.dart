@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -112,6 +114,43 @@ class _CampaignRow extends ConsumerWidget {
               return Text('Failed to load compliance: ${snapshot.error}');
             }
             final c = snapshot.data!;
+            if (context.colors.glass) {
+              // Glass: each measure a label and a mono figure, so the rates
+              // line up down the right edge and read as a table.
+              return Column(
+                key: ValueKey<String>('compliance-${campaign.id}'),
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SectionLabel('Coverage'),
+                  const SizedBox(height: 8),
+                  _FigureLine('Outlets total', c.outletsTotal.toStringAsFixed(0)),
+                  _FigureLine(
+                    'Outlets visited',
+                    c.outletsVisited.toStringAsFixed(0),
+                  ),
+                  _FigureLine(
+                    'Visit coverage',
+                    '${c.visitCoverageRate.toStringAsFixed(1)}%',
+                  ),
+                  const SizedBox(height: 12),
+                  const SectionLabel('Compliance'),
+                  const SizedBox(height: 8),
+                  _FigureLine(
+                    'Avg planogram compliance',
+                    '${c.avgPlanogramCompliancePct.toStringAsFixed(1)}%',
+                  ),
+                  _FigureLine(
+                    'Avg abs price deviation',
+                    '${c.avgAbsPriceDeviationPct.toStringAsFixed(1)}%',
+                  ),
+                  _FigureLine(
+                    'Promo compliance',
+                    '${c.promoComplianceRate.toStringAsFixed(1)}%',
+                  ),
+                ],
+              );
+            }
             return Column(
               key: ValueKey<String>('compliance-${campaign.id}'),
               mainAxisSize: MainAxisSize.min,
@@ -184,6 +223,35 @@ class _CampaignRow extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One measure in the glass compliance rollup: the words left, the figure
+/// right.
+class _FigureLine extends StatelessWidget {
+  const _FigureLine(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final lumen = context.lumen;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: lumen.inkMuted),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(value, style: LumenGlass.figure(color: lumen.ink)),
+        ],
+      ),
     );
   }
 }

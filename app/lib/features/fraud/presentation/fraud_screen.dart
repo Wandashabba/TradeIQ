@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -144,6 +145,14 @@ class _FlaggedVisitRow extends StatelessWidget {
                   'Risk ${visit.riskScore.toStringAsFixed(0)} · $codes',
                   softWrap: false,
                   overflow: TextOverflow.ellipsis,
+                  // A figure and rule codes — machine-facing, so glass sets
+                  // them in the mono. Null keeps the meta style in dark.
+                  style: context.colors.glass
+                      ? const TextStyle(
+                          fontFamily: LumenGlass.mono,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        )
+                      : null,
                 ),
               ),
             ],

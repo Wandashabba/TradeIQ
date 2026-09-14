@@ -7,8 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/guided_capture_screen.dart';
 
 // The guided screen is a launch wrapper: it drives the real PhotoCaptureService
@@ -110,7 +112,7 @@ void main() {
   group('GuidedCaptureScreen renders full-screen, both themes', () {
     for (final (name, mode, palette) in [
       ('light', ThemeMode.light, TiqColors.light),
-      ('dark', ThemeMode.dark, TiqColors.dark),
+      ('dark', ThemeMode.dark, TiqColors.night),
     ]) {
       testWidgets('$name: label, hint, brackets, both buttons', (tester) async {
         await tester.pumpWidget(_host(mode, gateway: _Gateway()));
@@ -134,6 +136,58 @@ void main() {
       });
     }
   });
+
+  // The title is ink on the lit ground: by day a dark ink, measured on the
+  // ground's darker foot; at night a light ink, measured where the ground is
+  // brightest — its top under the violet bloom.
+  for (final (name, mode, ground) in [
+    (
+      'light',
+      ThemeMode.light,
+      LumenPalette.light.groundBottom,
+    ),
+    (
+      'dark: night',
+      ThemeMode.dark,
+      Color.alphaBlend(
+        LumenPalette.dark.bloomViolet,
+        LumenPalette.dark.groundTop,
+      ),
+    ),
+  ]) {
+    testWidgets('$name glass: lit ground, a glass close chip, the guide in a '
+        'glass panel', (tester) async {
+      await tester.pumpWidget(_host(mode, gateway: _Gateway()));
+      await _open(tester);
+
+      expect(
+        find.descendant(
+          of: find.byType(GuidedCaptureScreen),
+          matching: find.byType(LitGround),
+        ),
+        findsOneWidget,
+      );
+
+      final frame = tester.widget<GlassPane>(
+        find.ancestor(
+          of: find.byKey(const ValueKey('framing-brackets')),
+          matching: find.byType(GlassPane),
+        ),
+      );
+      expect(frame.kind, GlassKind.panel);
+
+      // Still the same Cancel control — key, tooltip and tap unchanged.
+      final close = find.byKey(const ValueKey('guided-close'));
+      expect(tester.widget<IconButton>(close).tooltip, 'Cancel');
+      final chip = tester.widget<GlassPane>(
+        find.descendant(of: close, matching: find.byType(GlassPane)),
+      );
+      expect(chip.kind, GlassKind.pill);
+
+      final title = tester.widget<Text>(find.text('Shelf photo'));
+      expect(_contrast(title.style!.color!, ground), greaterThan(4.5));
+    });
+  }
 
   testWidgets('Capture drives capture(camera) and pops with the dataUrl', (
     tester,

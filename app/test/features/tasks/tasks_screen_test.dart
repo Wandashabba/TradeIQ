@@ -6,7 +6,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/evidence_thumb.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/sla_pill.dart';
 import 'package:tradeiq_app/core/widgets/worklist.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
@@ -189,8 +193,10 @@ Widget _app(
   _FakeTasksAdminRepository tasksRepo,
   _RecordingPhotosRepository photosRepo, {
   bool cameraCancels = false,
+  ThemeData? theme,
 }) => routedApp(
   TasksScreen(clock: () => _now),
+  theme: theme,
   overrides: [
     tasksAdminRepositoryProvider.overrideWithValue(tasksRepo),
     photosRepositoryProvider.overrideWithValue(photosRepo),
@@ -215,6 +221,63 @@ Future<void> _pump(
 }
 
 void main() {
+  group('Lumen Glass', () {
+    // Closed and verified: the row that shows the Verified mark.
+    final verified = TaskItem(
+      id: 't-verified',
+      findingType: 'shelf_gap',
+      requiredFix: 'Refill bay 3',
+      priority: 'high',
+      status: 'closed',
+      closurePhotoUrl: 'https://cdn.example.com/fix.png',
+      closureVerified: true,
+      outletId: 'o2',
+      visitId: 'v4',
+      slaDueAt: _now.subtract(const Duration(days: 1)),
+      evidencePhotoId: null,
+    );
+
+    Future<void> pumpAll(WidgetTester tester, {ThemeData? theme}) async {
+      await tester.pumpWidget(
+        _app(
+          _FakeTasksAdminRepository(tasks: [_openTask, verified]),
+          _RecordingPhotosRepository(),
+          theme: theme,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('filter-all')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('dark: Verified keeps the plain good colour', (tester) async {
+      await pumpAll(tester);
+
+      expect(
+        tester.widget<Text>(find.text('Verified')).style!.color,
+        TiqColors.dark.good,
+      );
+    });
+
+    testWidgets('light: rows are glass tiles; Verified is in the status ink', (
+      tester,
+    ) async {
+      await pumpAll(tester, theme: AppTheme.light());
+
+      final panes = tester.widgetList<GlassPane>(
+        find.ancestor(
+          of: find.text('out_of_stock'),
+          matching: find.byType(GlassPane),
+        ),
+      );
+      expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+      expect(
+        tester.widget<Text>(find.text('Verified')).style!.color,
+        LumenStatus.good.swatchOf(TiqColors.light).ink,
+      );
+    });
+  });
+
   group('filter chips', () {
     testWidgets('opens on Open, which includes overdue tasks', (tester) async {
       await _pump(tester);

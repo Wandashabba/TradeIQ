@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_colors.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/core/widgets/agent_motion.dart';
 
-Widget _wrap(Widget child, {bool reduceMotion = false}) => MaterialApp(
+import '../theme/tiq_colors_test.dart' show contrastRatio;
+
+Widget _wrap(
+  Widget child, {
+  bool reduceMotion = false,
+  ThemeData? theme,
+}) => MaterialApp(
+      theme: theme,
       home: MediaQuery(
         data: MediaQueryData(disableAnimations: reduceMotion),
         child: Scaffold(body: Center(child: child)),
@@ -57,6 +67,54 @@ void main() {
       // building a Ticker against a dead element throws.
       await tester.pumpWidget(_wrap(const SizedBox()));
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('TickMark', () {
+    BoxDecoration disc(WidgetTester tester) =>
+        tester
+                .widget<AnimatedContainer>(
+                  find.descendant(
+                    of: find.byType(TickMark),
+                    matching: find.byType(AnimatedContainer),
+                  ),
+                )
+                .decoration!
+            as BoxDecoration;
+
+    testWidgets('dark: the bright good disc under a dark-green tick', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(const TickMark(done: true)));
+
+      expect(disc(tester).color, AppColors.good);
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.check)).color,
+        const Color(0xFF04210B),
+      );
+    });
+
+    testWidgets('glass: the deep good disc under a white tick that stands off '
+        'it', (tester) async {
+      await tester.pumpWidget(
+        _wrap(const TickMark(done: true), theme: AppTheme.light()),
+      );
+
+      final fill = disc(tester).color!;
+      expect(fill, TiqColors.light.good);
+      final tick = tester.widget<Icon>(find.byIcon(Icons.check)).color!;
+      expect(tick, Colors.white);
+      expect(contrastRatio(tick, fill), greaterThanOrEqualTo(4.5));
+    });
+
+    testWidgets('glass: an undone mark is a hollow ink4 ring', (tester) async {
+      await tester.pumpWidget(
+        _wrap(const TickMark(done: false), theme: AppTheme.light()),
+      );
+
+      final deco = disc(tester);
+      expect(deco.color, Colors.transparent);
+      expect((deco.border! as Border).top.color, TiqColors.light.ink4);
     });
   });
 

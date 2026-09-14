@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/orders/presentation/orders_screen.dart';
 
@@ -54,8 +56,9 @@ class _FailingOrdersRepository implements OrdersRepository {
       throw Exception('boom');
 }
 
-Widget _app(OrdersRepository repo) => routedApp(
+Widget _app(OrdersRepository repo, {ThemeData? theme}) => routedApp(
       const OrdersScreen(),
+      theme: theme,
       overrides: [
         ordersRepositoryProvider.overrideWithValue(repo),
       ],
@@ -78,5 +81,25 @@ void main() {
       find.textContaining('Failed to load orders'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('light: rows are glass tiles and the total value is a figure',
+      (tester) async {
+    await tester.pumpWidget(
+      _app(_FakeOrdersRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    final row = find.text('submitted · 3 lines · total 149.50');
+    expect(
+      tester
+          .widget<GlassPane>(
+            find.ancestor(of: row, matching: find.byType(GlassPane)).first,
+          )
+          .kind,
+      GlassKind.tile,
+    );
+    final total = tester.widget<Text>(find.text('191.50'));
+    expect(total.style?.fontFamily, 'JetBrains Mono');
   });
 }

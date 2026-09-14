@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/delta_pill.dart';
 
 import '../theme/tiq_colors_test.dart' show contrastRatio;
 
-Widget _wrap(Widget child) => MaterialApp(
+Widget _wrap(Widget child, {ThemeData? theme}) => MaterialApp(
+  theme: theme,
   home: Scaffold(body: Center(child: child)),
 );
 
@@ -13,9 +17,10 @@ Widget _wrap(Widget child) => MaterialApp(
 /// by a copied constant.
 Future<(Color bg, Color fg)> _pumpAndRead(
   WidgetTester tester,
-  DeltaPill pill,
-) async {
-  await tester.pumpWidget(_wrap(pill));
+  DeltaPill pill, {
+  ThemeData? theme,
+}) async {
+  await tester.pumpWidget(_wrap(pill, theme: theme));
   final box = tester.widget<Container>(
     find.descendant(
       of: find.byType(DeltaPill),
@@ -134,5 +139,63 @@ void main() {
         );
       });
     }
+  });
+
+  group('DeltaPill in Lumen Glass (light)', () {
+    for (final (tone, status) in [
+      (DeltaTone.good, LumenStatus.good),
+      (DeltaTone.warn, LumenStatus.warn),
+      (DeltaTone.bad, LumenStatus.crit),
+    ]) {
+      testWidgets('$tone takes the ${status.name} swatch, opaque, clearing AA', (
+        tester,
+      ) async {
+        final (bg, fg) = await _pumpAndRead(
+          tester,
+          DeltaPill(delta: 1.0, tone: tone),
+          theme: AppTheme.light(),
+        );
+
+        final sw = status.swatchOf(TiqColors.light);
+        // An opaque composite, never the raw translucent tint — contrast is
+        // only honest against a ground that cannot change beneath it.
+        expect(bg, Color.alphaBlend(sw.tint, TiqColors.light.surface1));
+        expect(bg.a, 1.0);
+        expect(fg, sw.ink);
+        final ratio = contrastRatio(fg, bg);
+        expect(ratio, greaterThanOrEqualTo(4.5), reason: '$tone is $ratio:1');
+      });
+    }
+
+    testWidgets('a mono figure on a rimmed chip, the glyph kept', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const DeltaPill(delta: -4.2, tone: DeltaTone.bad),
+          theme: AppTheme.light(),
+        ),
+      );
+
+      // Direction still rides on the glyph, not the colour.
+      expect(find.text('▼ 4.2'), findsOneWidget);
+      final box = tester.widget<Container>(
+        find.descendant(
+          of: find.byType(DeltaPill),
+          matching: find.byType(Container),
+        ),
+      );
+      final deco = box.decoration! as BoxDecoration;
+      expect(
+        (deco.border! as Border).top.color,
+        LumenStatus.crit.swatchOf(TiqColors.light).rim,
+      );
+      expect(deco.borderRadius, BorderRadius.circular(LumenGlass.radiusChip));
+
+      final text = tester.widget<Text>(find.text('▼ 4.2'));
+      expect(text.style?.fontFamily, LumenGlass.mono);
+      expect(text.style?.fontWeight, FontWeight.w700);
+      expect(text.style?.fontSize, inInclusiveRange(10, 11));
+    });
   });
 }

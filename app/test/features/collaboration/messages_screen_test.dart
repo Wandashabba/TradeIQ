@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/collaboration/data/collaboration_repository.dart';
 import 'package:tradeiq_app/features/collaboration/presentation/messages_screen.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 const _first = Message(id: 'm1', body: 'Morning standup at 9');
@@ -71,8 +75,13 @@ class _ThrowingCollaborationRepository implements CollaborationRepository {
       throw Exception('boom');
 }
 
-Widget _app(CollaborationRepository repo, {String role = 'manager'}) => routedApp(
+Widget _app(
+  CollaborationRepository repo, {
+  String role = 'manager',
+  ThemeData? theme,
+}) => routedApp(
       const MessagesScreen(),
+      theme: theme,
       overrides: [
         collaborationRepositoryProvider.overrideWithValue(repo),
         sessionControllerProvider.overrideWith(
@@ -88,6 +97,52 @@ Future<void> _openAnnouncements(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('light: the segment rides a pill and the composer is a glass bar',
+      (tester) async {
+    await tester.pumpWidget(
+      _app(_FakeCollaborationRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    final selected = find.descendant(
+      of: find.byKey(const ValueKey('tab-_Feed.messages')),
+      matching: find.byType(GlassPane),
+    );
+    expect(tester.widget<GlassPane>(selected).kind, GlassKind.pill);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('tab-_Feed.announcements')),
+        matching: find.byType(GlassPane),
+      ),
+      findsNothing,
+    );
+
+    final composer = tester.widgetList<GlassPane>(
+      find.ancestor(
+        of: find.byKey(const ValueKey<String>('message-body')),
+        matching: find.byType(GlassPane),
+      ),
+    );
+    expect(composer.any((p) => p.kind == GlassKind.bar), isTrue);
+
+    // The field stays opaque, so its words and hint measure true on glass.
+    const t = TiqColors.light;
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('message-body')),
+    );
+    expect(field.decoration!.fillColor, t.surface2);
+    expect(contrastRatio(t.ink3, t.surface2), greaterThanOrEqualTo(4.5));
+    expect(contrastRatio(t.ink1, t.surface2), greaterThanOrEqualTo(4.5));
+
+    final row = tester.widgetList<GlassPane>(
+      find.ancestor(
+        of: find.text('Morning standup at 9'),
+        matching: find.byType(GlassPane),
+      ),
+    );
+    expect(row.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+  });
+
   testWidgets('renders message bodies once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeCollaborationRepository()));
     await tester.pumpAndSettle();

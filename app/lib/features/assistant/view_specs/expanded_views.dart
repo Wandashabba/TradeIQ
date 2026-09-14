@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/format/period_label.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
@@ -235,6 +237,7 @@ class _TableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (colors.glass) return _glass(context.lumen);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
       decoration: BoxDecoration(
@@ -263,6 +266,39 @@ class _TableRow extends StatelessWidget {
       ),
     );
   }
+
+  /// Glass: a white-rim divider — the pane's own lit edge, not a grey rule —
+  /// and every figure in JetBrains Mono, so the columns align by glyph.
+  Widget _glass(LumenPalette lumen) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: lumen.white(0xB3))),
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < table.columns.length; i++)
+            Expanded(
+              flex: i == 0 ? 3 : 2,
+              child: i < row.cells.length
+                  ? Text(
+                      row.cells[i],
+                      style: i == 0
+                          ? TextStyle(fontSize: 12.5, color: lumen.ink)
+                          : LumenGlass.figure(
+                              size: i == 1 ? 12.5 : 12,
+                              color: i == 1 ? lumen.ink : lumen.inkMuted,
+                              weight: i == 1
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                    )
+                  : _Change(row: row, colors: colors),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Change extends StatelessWidget {
@@ -275,7 +311,12 @@ class _Change extends StatelessWidget {
   Widget build(BuildContext context) {
     final delta = row.delta;
     if (delta == null) {
-      return Text('—', style: TextStyle(fontSize: 12.5, color: colors.ink3));
+      return Text(
+        '—',
+        style: colors.glass
+            ? LumenGlass.figure(size: 12, color: context.lumen.inkMuted)
+            : TextStyle(fontSize: 12.5, color: colors.ink3),
+      );
     }
     return Row(
       children: [
@@ -290,7 +331,13 @@ class _Change extends StatelessWidget {
             row.deltaPct == null
                 ? 'n/a'
                 : '${row.deltaPct!.toStringAsFixed(1)}%',
-            style: TextStyle(fontSize: 11.5, color: colors.ink3),
+            style: colors.glass
+                ? LumenGlass.figure(
+                    size: 11.5,
+                    weight: FontWeight.w400,
+                    color: context.lumen.inkMuted,
+                  )
+                : TextStyle(fontSize: 11.5, color: colors.ink3),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -358,6 +405,69 @@ class ChartTableToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      // Glass: a recessed track holding a bright raised pill for the view in
+      // force. The pill's lift and the heavier weight mark it, not the hue.
+      final lumen = context.lumen;
+      return Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: lumen.tileFill,
+          border: Border.all(color: lumen.pillRim),
+          borderRadius: BorderRadius.circular(LumenGlass.radiusChip + 2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (label, isTable) in const [
+              ('Chart', false),
+              ('Table', true),
+            ])
+              InkWell(
+                key: ValueKey('artifact-view-${label.toLowerCase()}'),
+                onTap: () => onChanged(isTable),
+                borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isTable == asTable
+                        ? lumen.pillFill
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: isTable == asTable
+                          ? lumen.panelRim
+                          : Colors.transparent,
+                    ),
+                    borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
+                    boxShadow: isTable == asTable
+                        ? [
+                            BoxShadow(
+                              color: lumen.shadow,
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: isTable == asTable
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      color: isTable == asTable ? lumen.ink : lumen.inkMuted,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: colors.lineStrong),

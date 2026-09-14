@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/features/users/presentation/users_screen.dart';
 
@@ -73,14 +75,33 @@ class _ThrowingUsersRepository implements UsersRepository {
       throw UnimplementedError();
 }
 
-Widget _app(UsersRepository repo) => routedApp(
+Widget _app(UsersRepository repo, {ThemeData? theme}) => routedApp(
       const UsersScreen(),
+      theme: theme,
       overrides: [
         usersRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('light: users are glass tiles; inactive still says so', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_FakeUsersRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    for (final email in ['active@example.com', 'inactive@example.com']) {
+      final panes = tester.widgetList<GlassPane>(
+        find.ancestor(of: find.text(email), matching: find.byType(GlassPane)),
+      );
+      expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+    }
+    // One in the triage strip, one on the row — a word, not a fade alone.
+    expect(find.text('INACTIVE'), findsNWidgets(2));
+  });
+
   testWidgets('renders user emails once loaded', (tester) async {
     await tester.pumpWidget(_app(_FakeUsersRepository()));
     await tester.pumpAndSettle();

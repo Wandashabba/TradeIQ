@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/fraud/data/fraud_repository.dart';
 import 'package:tradeiq_app/features/fraud/presentation/fraud_screen.dart';
 
@@ -36,14 +39,47 @@ class _ThrowingFraudRepository implements FraudRepository {
       throw Exception('boom');
 }
 
-Widget _app(FraudRepository repo) => routedApp(
+Widget _app(FraudRepository repo, {ThemeData? theme}) => routedApp(
       const FraudScreen(),
+      theme: theme,
       overrides: [
         fraudRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
+const _riskLine = 'Risk 82 · gps_mismatch, fast_visit';
+
 void main() {
+  testWidgets('dark: the risk line keeps the row meta style', (tester) async {
+    await tester.pumpWidget(_app(_FakeFraudRepository()));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Text>(find.text(_riskLine)).style, isNull);
+  });
+
+  testWidgets('light: rows are glass tiles; the figure and codes are mono', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_FakeFraudRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<Text>(find.text(_riskLine)).style!.fontFamily,
+      LumenGlass.mono,
+    );
+    final panes = tester.widgetList<GlassPane>(
+      find.ancestor(
+        of: find.text('Visit v-high-0'),
+        matching: find.byType(GlassPane),
+      ),
+    );
+    expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+    // Accusation stays a word on glass.
+    expect(find.text('HIGH RISK'), findsWidgets);
+  });
+
   testWidgets('renders risk score and signal codes for flagged visits',
       (tester) async {
     await tester.pumpWidget(_app(_FakeFraudRepository()));

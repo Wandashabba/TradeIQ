@@ -3,12 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../data/scorecards_repository.dart';
+import '../../../core/theme/lumen_palette.dart';
 
 /// How the visit ended.
 ///
@@ -160,6 +164,7 @@ class _Scored extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _GlassScored(outcome: outcome);
     final score = outcome.score!;
     final band = _band(colors, score.ratingBand);
     final delta = outcome.delta;
@@ -450,7 +455,7 @@ class _Bar extends StatelessWidget {
 }
 
 class _HatchPainter extends CustomPainter {
-  _HatchPainter({required this.track, required this.hatch});
+  const _HatchPainter({required this.track, required this.hatch});
 
   final Color track;
   final Color hatch;
@@ -506,3 +511,297 @@ class _Heading extends StatelessWidget {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Lumen Glass — the score on the one dark pane
+// ═══════════════════════════════════════════════════════════════════════
+
+/// The score reveal in glass. The score is the one surface in the product that
+/// should feel heavier than everything around it, so it is the dark pane: the
+/// figure, the band in words, the published perfect-store banding under it,
+/// and every dimension drawn against the 80-point standard.
+class _GlassScored extends StatelessWidget {
+  const _GlassScored({required this.outcome});
+
+  final VisitOutcome outcome;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = outcome.score!;
+    final delta = outcome.delta;
+    final (word, ink) = switch (score.ratingBand) {
+      'green' => ('Green', LumenGlass.onDarkGood),
+      'amber' => ('Amber', LumenGlass.onDarkWarn),
+      _ => ('Red', LumenGlass.onDarkCrit),
+    };
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+      children: [
+        GlassRise(
+          child: GlassPane(
+            key: const ValueKey('score-hero'),
+            kind: GlassKind.dark,
+            radius: LumenGlass.radiusScore,
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Positioned(
+                  top: -94,
+                  right: -74,
+                  child: GlassBloom(diameter: 190),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Kicker(
+                      'Perfect-store score',
+                      color: LumenGlass.onDarkMuted,
+                      size: 9.5,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.end,
+                      spacing: 12,
+                      runSpacing: 6,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            // The one moment in the visit worth landing.
+                            AnimatedCount(
+                              value: score.weightedTotal.round(),
+                              style: LumenGlass.hero(
+                                size: 74,
+                                color: Colors.white,
+                              ).copyWith(
+                                shadows: const [
+                                  Shadow(
+                                    color: Color(0x99B5ABFC),
+                                    blurRadius: 40,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Text(
+                              '/100',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: LumenGlass.onDarkMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: ink,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 7),
+                              // The band is spelled out, never left to colour.
+                              Text(
+                                word,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    ScoreBandBar(score: score.weightedTotal),
+                    if (delta != null) ...[
+                      const SizedBox(height: 14),
+                      _GlassDelta(points: delta, previous: outcome.previous!),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
+        const Kicker('How it was scored'),
+        const SizedBox(height: 10),
+        GlassPane(
+          child: Column(
+            children: [
+              for (final (i, entry) in kDimensionLabels.entries.indexed)
+                Reveal(
+                  index: i,
+                  child: _GlassDimension(
+                    label: entry.value,
+                    // Absent means the server could not measure it: "—", never
+                    // a zero that reads like a failure (#93).
+                    score: score.scoreOf(entry.key),
+                    unmeasurableReason: kUnmeasurableReasons[entry.key],
+                    isLast: i == kDimensionLabels.length - 1,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Up or down since this agent's last visit here, in light inks on the pane.
+class _GlassDelta extends StatelessWidget {
+  const _GlassDelta({required this.points, required this.previous});
+
+  final double points;
+  final ServerScorecard previous;
+
+  @override
+  Widget build(BuildContext context) {
+    final rounded = points.round();
+    final was = previous.weightedTotal.round();
+    if (rounded == 0) {
+      return Text(
+        'Same as your last visit here ($was).',
+        style: const TextStyle(fontSize: 12.5, color: LumenGlass.onDarkMuted),
+      );
+    }
+    final up = rounded > 0;
+    final color = up ? LumenGlass.onDarkGood : LumenGlass.onDarkCrit;
+    return Row(
+      children: [
+        Icon(
+          up ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 13,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '${up ? 'Up' : 'Down'} ${rounded.abs()} '
+          '${rounded.abs() == 1 ? 'point' : 'points'}',
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            ' from your last visit here ($was).',
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: LumenGlass.onDarkMuted,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One dimension against the 80-point standard: its figure in status ink and
+/// a bar with the tick at 80. Unmeasured is hatched and reads "—".
+class _GlassDimension extends StatelessWidget {
+  const _GlassDimension({
+    required this.label,
+    required this.score,
+    required this.unmeasurableReason,
+    required this.isLast,
+  });
+
+  final String label;
+  final double? score;
+  final String? unmeasurableReason;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final value = score;
+    final status = value == null
+        ? LumenStatus.none
+        : value >= 80
+        ? LumenStatus.good
+        : value >= 70
+        ? LumenStatus.warn
+        : LumenStatus.crit;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 13, 18, 13),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(bottom: BorderSide(color: context.lumen.white(0xB3))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    color: context.lumen.ink,
+                  ),
+                ),
+              ),
+              Text(
+                value == null ? '—' : value.round().toString(),
+                style: LumenGlass.figure(
+                  size: 14,
+                  color: value == null
+                      ? context.lumen.inkMuted
+                      : status.swatchOf(colors).ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (value == null)
+            SizedBox(
+              height: 6,
+              child: CustomPaint(
+                painter: _HatchPainter(
+                  track: context.lumen.track,
+                  hatch: Color(0x665B5F75),
+                ),
+                size: Size.infinite,
+              ),
+            )
+          else
+            BenchmarkBar(value: value, target: 80, status: status, height: 6),
+          if (value == null && unmeasurableReason != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              unmeasurableReason!,
+              style: TextStyle(
+                fontSize: 11.5,
+                color: context.lumen.inkMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+

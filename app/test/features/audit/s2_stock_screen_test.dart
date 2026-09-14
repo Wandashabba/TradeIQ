@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/stock_repository.dart';
@@ -77,7 +79,7 @@ class _SpyStockRepository implements StockRepository {
   }
 }
 
-const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.dark)];
+const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
 
 ThemeData _themeFor(String name) =>
     name == 'light' ? AppTheme.light() : AppTheme.dark();
@@ -234,14 +236,25 @@ void main() {
           reason: '$name save is AgentButton',
         );
 
-        // The SKU row is a console card: surface1 under the line hairline.
-        final deco = _cardDecoration(tester, find.text('Test Cola'));
-        expect(deco.color, palette.surface1, reason: '$name row surface');
-        expect(
-          (deco.border! as Border).top.color,
-          palette.line,
-          reason: '$name row hairline',
-        );
+        if (palette.glass) {
+          // Lumen Glass: each SKU is a no-blur glass tile (it repeats).
+          final tile = find.ancestor(
+            of: find.text('Test Cola'),
+            matching: find.byWidgetPredicate(
+              (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
+            ),
+          );
+          expect(tile, findsOneWidget, reason: '$name row is a glass tile');
+        } else {
+          // The SKU row is a console card: surface1 under the line hairline.
+          final deco = _cardDecoration(tester, find.text('Test Cola'));
+          expect(deco.color, palette.surface1, reason: '$name row surface');
+          expect(
+            (deco.border! as Border).top.color,
+            palette.line,
+            reason: '$name row hairline',
+          );
+        }
       }
     },
   );
@@ -269,7 +282,14 @@ void main() {
         // The word is the AA-safe crit-text tint; the icon may stay raw crit
         // (a glyph, paired with the word — not colour-alone).
         final textColor = tester.widget<Text>(find.text(warning)).style!.color;
-        expect(textColor, palette.critText, reason: '$name warning words');
+        expect(
+          textColor,
+          // Glass: the handoff's crit ink on the note's own opaque crit wash.
+          palette.glass
+              ? LumenStatus.crit.swatchOf(palette).ink
+              : palette.critText,
+          reason: '$name warning words',
+        );
         final iconColor = tester
             .widget<Icon>(find.byIcon(Icons.warning_amber_outlined))
             .color;

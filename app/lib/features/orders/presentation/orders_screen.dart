@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -83,12 +85,18 @@ class OrdersScreen extends ConsumerWidget {
                           total.toStringAsFixed(2),
                           softWrap: false,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.4,
-                            color: context.colors.ink1,
-                          ),
+                          // Glass sets money in the mono figure face.
+                          style: context.colors.glass
+                              ? LumenGlass.figure(
+                                  size: 20,
+                                  color: context.lumen.ink,
+                                )
+                              : TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.4,
+                                  color: context.colors.ink1,
+                                ),
                         ),
                       ],
                     ),

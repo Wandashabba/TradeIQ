@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/widgets/basemap.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/agents/presentation/agent_trail_screen.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
@@ -708,6 +710,108 @@ void main() {
 
       expect(find.textContaining('Sandton Spar'), findsOneWidget);
       expect(find.textContaining('Rosebank Pick n Pay'), findsOneWidget);
+    });
+  });
+
+  // Lumen Glass: the chrome around the map becomes glass on the lit ground,
+  // and the trail takes the Lumen accent — but the basemap is still the dark
+  // world, and every honesty rule above (dashes, numerals, a brighter last
+  // stop) holds unchanged.
+  group('Lumen Glass (light)', () {
+    Future<void> pumpLight(
+      WidgetTester tester,
+      List<AgentActivity> agents,
+    ) async {
+      await tester.pumpWidget(routedApp(
+        const AgentTrailScreen(),
+        theme: AppTheme.light(),
+        overrides: [
+          agentsRepositoryProvider
+              .overrideWithValue(_FakeAgentsRepository(agents)),
+        ],
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the legend is a glass pane, not navy chrome', (tester) async {
+      await pumpLight(tester, [_thabo]);
+
+      final legend = find.textContaining('Numbered pins');
+      expect(
+        find.ancestor(of: legend, matching: find.byType(GlassPane)),
+        findsOneWidget,
+      );
+      expect(tester.widget<Text>(legend).style!.color,
+          LumenPalette.light.inkMuted);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Container && w.color == const Color(0xCC050A16),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('keeps the basemap layering; the trail is the accent, dashed',
+        (tester) async {
+      await pumpLight(tester, [_thabo]);
+
+      final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
+      expect(map.children[0], isA<TiqTileLayer>());
+      expect(map.children[1], isA<TiqNavyTint>());
+      final line = tester
+          .widget<PolylineLayer>(find.byType(PolylineLayer))
+          .polylines
+          .first;
+      expect(line.color, const Color(0xE6B5ABFC));
+      expect(line.pattern.segments, isNotNull);
+    });
+
+    testWidgets('pins take the accent; the last is still the brightest',
+        (tester) async {
+      await pumpLight(tester, [_thabo]);
+
+      BoxDecoration pin(String key) => tester
+          .widget<DecoratedBox>(find
+              .descendant(
+                of: find.byKey(ValueKey<String>(key)),
+                matching: find.byType(DecoratedBox),
+              )
+              .first)
+          .decoration as BoxDecoration;
+      final first = pin('agent-stop-a1-0');
+      final last = pin('agent-stop-a1-1');
+
+      expect(first.gradient!.colors.last, const Color(0xFF5D5294));
+      expect(first.gradient!.colors, isNot(equals(last.gradient!.colors)));
+      expect(
+        last.boxShadow!.first.color.a,
+        greaterThan(first.boxShadow!.first.color.a),
+      );
+      // The white numeral clears the graphical-mark bar on both cores.
+      for (final core in [first, last].map((d) => d.gradient!.colors.last)) {
+        expect(contrastRatio(core, Colors.white), greaterThanOrEqualTo(3.0));
+      }
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+    });
+
+    testWidgets('an empty day says so on a glass pane', (tester) async {
+      await pumpLight(tester, [
+        AgentActivity(
+          agentId: 'a2',
+          name: 'sipho@example.com',
+          state: AgentState.idle,
+          stops: const [],
+        ),
+      ]);
+
+      expect(
+        find.ancestor(
+          of: find.text('No check-ins on this day.'),
+          matching: find.byType(GlassPane),
+        ),
+        findsOneWidget,
+      );
     });
   });
 }

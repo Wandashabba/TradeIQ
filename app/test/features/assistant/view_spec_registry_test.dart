@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/core/widgets/delta_pill.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
 
-Widget wrap(Widget child) => MaterialApp(
-      theme: AppTheme.dark(),
+Widget wrap(Widget child, {ThemeData? theme}) => MaterialApp(
+      theme: theme ?? AppTheme.dark(),
       home: Scaffold(body: SingleChildScrollView(child: child)),
     );
 
@@ -416,6 +419,156 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(FlutterMap), findsNothing);
       expect(find.textContaining('could not be read'), findsOneWidget);
+    });
+  });
+
+  group('Lumen Glass (light)', () {
+    const scorecard = {
+      'agentName': 'tumo@example.com',
+      'averageScore': 82.0,
+      'teamAverageScore': 71.0,
+      'deltaVsTeam': 11.0,
+      'visits': 14,
+      'outletsVisited': 9,
+      'scoredVisits': 12,
+    };
+
+    testWidgets('the scorecard is a glass panel: hero headline, mono metrics',
+        (tester) async {
+      await tester.pumpWidget(wrap(
+        ArtifactView(artifact: artifact('agent_scorecard', data: scorecard)),
+        theme: AppTheme.light(),
+      ));
+
+      expect(
+        find.ancestor(of: find.text('82.0'), matching: find.byType(GlassPane)),
+        findsWidgets,
+      );
+      final headline = tester.widget<Text>(find.text('82.0')).style!;
+      expect(headline.fontSize, 34);
+      expect(headline.color, LumenPalette.light.ink);
+      expect(tester.widget<Text>(find.text('14')).style!.fontFamily,
+          LumenGlass.mono);
+      // The metric label is a kicker: uppercase mono.
+      expect(tester.widget<Text>(find.text('VISITS')).style!.fontFamily,
+          LumenGlass.mono);
+      expect(find.text('Team average 71.0'), findsOneWidget);
+    });
+
+    testWidgets('at night the scorecard is the same glass panel, in night ink',
+        (tester) async {
+      await tester.pumpWidget(wrap(
+        ArtifactView(artifact: artifact('agent_scorecard', data: scorecard)),
+      ));
+
+      expect(
+        find.ancestor(of: find.text('82.0'), matching: find.byType(GlassPane)),
+        findsWidgets,
+      );
+      final headline = tester.widget<Text>(find.text('82.0')).style!;
+      expect(headline.fontSize, 34);
+      expect(headline.color, LumenPalette.dark.ink);
+      expect(tester.widget<Text>(find.text('14')).style!.fontFamily,
+          LumenGlass.mono);
+      expect(tester.widget<Text>(find.text('VISITS')).style!.fontFamily,
+          LumenGlass.mono);
+    });
+
+    testWidgets('pillar figures are mono rows divided by the white rim',
+        (tester) async {
+      await tester.pumpWidget(wrap(
+        ArtifactView(
+          artifact: artifact('pillar_metrics',
+              params: const {'pillar': 'stock'},
+              data: const {
+                'onShelfAvailabilityPct': 93.1,
+                'outletsWithStockout': 3,
+                'comparison': {
+                  'label': 'the month to date before this one',
+                  'deltas': {
+                    'onShelfAvailabilityPct': {'absolute': 5.1, 'pct': 5.8},
+                    'outletsWithStockout': {'absolute': -2.0, 'pct': -40.0},
+                  },
+                },
+              }),
+        ),
+        theme: AppTheme.light(),
+      ));
+
+      expect(tester.widget<Text>(find.text('93.1%')).style!.fontFamily,
+          LumenGlass.mono);
+      expect(tester.widget<Text>(find.text('5.8%')).style!.fontFamily,
+          LumenGlass.mono);
+      // Movement is still a glyph in a pill, never the colour of a figure.
+      expect(find.byType(DeltaPill), findsNWidgets(2));
+
+      // The second row is ruled off from the first by the pane's white rim.
+      final rule = tester
+          .widgetList<Container>(find.ancestor(
+            of: find.text('Outlets with a stockout'),
+            matching: find.byType(Container),
+          ))
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .firstWhere((d) => d.border != null);
+      expect((rule.border! as Border).top.color, LumenPalette.light.white(0xB3));
+    });
+
+    testWidgets('an unknown spec explains itself on an unblurred glass tile',
+        (tester) async {
+      await tester.pumpWidget(wrap(
+        ArtifactView(artifact: artifact('pie_of_doom')),
+        theme: AppTheme.light(),
+      ));
+
+      final pane = tester.widget<GlassPane>(find
+          .ancestor(
+            of: find.textContaining('cannot draw yet'),
+            matching: find.byType(GlassPane),
+          )
+          .first);
+      expect(pane.kind, GlassKind.tile);
+      expect(pane.blur, isFalse);
+    });
+
+    testWidgets('the trend card and the outlet map render on glass',
+        (tester) async {
+      await tester.pumpWidget(wrap(
+        ArtifactView(
+          artifact: artifact('trend_chart', data: const {
+            'metric': 'availability',
+            'interval': 'day',
+            'points': [
+              {'period': '2026-08-01', 'value': 62.0},
+              {'period': '2026-08-02', 'value': 71.0},
+            ],
+          }),
+        ),
+        theme: AppTheme.light(),
+      ));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LineChart), findsOneWidget);
+
+      await tester.pumpWidget(wrap(
+        ArtifactView(
+          artifact: artifact('outlet_map', data: const {
+            'worstOutlets': [
+              {
+                'outletId': 'o1',
+                'outletName': 'Kasi Spaza',
+                'outOfStockLines': 3,
+                'lat': -26.2,
+                'lng': 28.04,
+              },
+            ],
+          }),
+        ),
+        theme: AppTheme.light(),
+      ));
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey<String>('stockout-pin-icon-o1')),
+          findsOneWidget);
+      expect(find.text('1 outlet'), findsOneWidget);
     });
   });
 }

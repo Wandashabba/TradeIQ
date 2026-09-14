@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
@@ -7,17 +9,16 @@ import 'app_colors.dart';
 /// toggle at runtime.
 ///
 /// [TiqColors.dark] is seeded from the [AppColors] consts, so it is identical
-/// to today's static palette by construction. [TiqColors.light] is the
-/// "Paper & Ink" scheme from the 2026-07-17 premium-UI spec: `#F7F8FA` page
-/// ground, white panels, `#E3E5EA` hairlines — and the dark theme's ink
-/// `#14161C` carried forward as primary text, so the two modes read as one
-/// product. Its chart series/status colors are darkened variants validated
-/// ≥3:1 against white (see tiq_colors_test.dart).
+/// to the static instrument palette by construction. [TiqColors.light] is
+/// **Lumen Glass** (design handoff, turn 4): a lit lavender ground, `#241F47`
+/// ink, one blurple accent, and R/A/G for status. Its surface slots are the
+/// *composited* colour of a glass pane over the ground — opaque, so contrast
+/// math stays honest and a screen not yet built on `GlassPane` still reads as
+/// part of the same material. The real translucency and blur live in
+/// `core/widgets/glass.dart`, switched on by [glass].
 ///
 /// Slot discipline is unchanged: status colors are never series colors, and
 /// meaning never rides on color alone.
-///
-/// Mirrors `design/tokens.css` (dark `:root` + `[data-theme="light"]`).
 class TiqColors extends ThemeExtension<TiqColors> {
   const TiqColors({
     required this.plane,
@@ -50,6 +51,12 @@ class TiqColors extends ThemeExtension<TiqColors> {
     required this.navInactiveInk,
     required this.navActivePillBg,
     required this.navActiveInk,
+    required this.glass,
+    required this.action,
+    required this.onAction,
+    required this.radiusControl,
+    required this.radiusCard,
+    required this.radiusPanel,
   });
 
   // ── Planes & surfaces ────────────────────────────────────────────────
@@ -92,49 +99,64 @@ class TiqColors extends ThemeExtension<TiqColors> {
   final Color grid;
   final Color axis;
 
-  // ── Elevation & overlay (new slots — used by Plan B) ─────────────────
+  // ── Elevation & overlay ──────────────────────────────────────────────
   /// Panel drop-shadow color. Transparent in dark: its borders already carry
   /// elevation, so dark's appearance cannot change.
   final Color shadow;
 
-  /// Drawer overlay wash. Dark equals Flutter's default black54 so applying
-  /// the slot (Plan B) is a no-op in dark.
+  /// Drawer overlay wash. Dark equals Flutter's default black54.
   final Color scrim;
 
-  // ── Hero glass (premium-ui sub2) ─────────────────────────────────────
-  /// Top stop of the dashboard hero's gradient wash; the bottom stop is
-  /// [surface1]. Light carries the spec's `#F2F7FF`; dark a subtle navy in
-  /// the maps' family. Each mode's [ink1] must clear 4.5:1 on it —
-  /// tiq_colors_test.dart holds both.
+  // ── Hero wash ────────────────────────────────────────────────────────
+  /// Top stop of a hero card's gradient wash; the bottom stop is [surface1].
+  /// Each mode's [ink1] must clear 4.5:1 on it — tiq_colors_test.dart holds
+  /// both.
   final Color heroWash;
 
-  /// Hairline for the washed hero card — sits in [heroWash]'s own family
-  /// rather than the neutral [line].
+  /// Hairline for the washed hero card.
   final Color heroBorder;
 
-  // ── Floating bottom bar (premium-ui sub2) ────────────────────────────
-  /// The bar's frosted fill — 92% alpha over the blur in BOTH modes, so the
-  /// content scrolling beneath still reads through it.
+  // ── Floating bottom bar ──────────────────────────────────────────────
+  /// The bar's fill over its blur. Glass: half-white. Dark: 92% instrument.
   final Color navBarBg;
 
-  /// The bar's own hairline. Slightly apart from [line]/[lineStrong]: it has
-  /// to hold a rounded edge against a blurred, moving ground.
+  /// The bar's own rim.
   final Color navBarLine;
 
   /// Inactive slot icon + label. 10.5px text, so ≥4.5:1 on [navBarBg]
-  /// composited over [surface3] — for a light ink over a translucent bar the
-  /// worst case is the LIGHTEST ground it can meet, and surface3 is dark's
-  /// palest — bottom_nav_bar_test.dart measures the rendered pair.
+  /// composited over the palest ground it can meet — bottom_nav_bar_test.dart
+  /// measures the rendered pair.
   final Color navInactiveInk;
 
   /// The sliding active pill's fill.
   final Color navActivePillBg;
 
-  /// Icon + label on the active pill — ≥4.5:1 on [navActivePillBg] in dark
-  /// (asserted off the rendered tree); light keeps sub-1's shipped pair.
+  /// Icon + label on the active pill.
   final Color navActiveInk;
 
-  /// Today's exact dark palette. Seeded from [AppColors] so the static table
+  // ── Material ─────────────────────────────────────────────────────────
+  /// Whether this theme is Lumen Glass. Both app themes are ([light] and
+  /// [night]); only the themeless fallback ([dark], the old flat instrument
+  /// panel) is not, and glass widgets draw their flat recipe for it.
+  final bool glass;
+
+  /// The primary action's fill — the dark `#241F47` pill in glass, brand in
+  /// dark — and the words set on it.
+  final Color action;
+  final Color onAction;
+
+  // ── Geometry ─────────────────────────────────────────────────────────
+  /// Buttons, inputs, stepper keys.
+  final double radiusControl;
+
+  /// Cards, tiles, list items.
+  final double radiusCard;
+
+  /// Panels and hero panes.
+  final double radiusPanel;
+
+  /// The flat instrument palette — no longer a theme, only the fallback for a
+  /// widget pumped without one. Seeded from [AppColors] so the static table
   /// and the extension can never disagree.
   static const dark = TiqColors(
     plane: AppColors.plane,
@@ -167,53 +189,103 @@ class TiqColors extends ThemeExtension<TiqColors> {
     navInactiveInk: Color(0xFF8A94A6), // 5.9:1 on the bar over surface3
     navActivePillBg: Color(0xFF12305C),
     navActiveInk: Color(0xFF6DB4FF), // 6.0:1 on the pill
+    glass: false,
+    action: AppColors.brand,
+    onAction: Color(0xFFFFFFFF),
+    radiusControl: AppColors.radiusControl,
+    radiusCard: AppColors.radiusPanel,
+    radiusPanel: AppColors.radiusPanel,
   );
 
-  /// Paper & Ink. brand is shared with dark deliberately (4.98:1 on white);
-  /// ink3 no longer is — dark's #838D9E is unreadable on paper (2.80:1 on
-  /// surface3), and even the old shared #6A7280 quietly failed light's
-  /// tinted surfaces (4.06:1 on surface3). Each mode now carries the muted
-  /// ink its own grounds demand; tiq_colors_test.dart holds both above 4.5:1.
+  /// Lumen Glass. Surfaces are glass panes composited over the ground (see
+  /// the class doc); ink and status follow the handoff's token table, with
+  /// every text pair held ≥4.5:1 by tiq_colors_test.dart.
   static const light = TiqColors(
-    plane: Color(0xFFF7F8FA),
-    surface1: Color(0xFFFFFFFF),
-    surface2: Color(0xFFF1F3F6),
-    surface3: Color(0xFFE8EBF0),
-    line: Color(0xFFE3E5EA),
-    lineStrong: Color(0xFFD2D6DE),
-    ink1: Color(0xFF14161C), // the dark theme's ink, carried forward
-    ink2: Color(0xFF4C5560),
-    ink3: Color(0xFF5F6875), // 4.72:1 on surface3, the palest ground it meets
-    ink4: Color(
-      0xFF6A7280,
-    ), // marks only — 4.06:1 on surface3 clears the 3:1 bar
-    brand: Color(0xFF0A6CF0),
-    brandHover: Color(0xFF0857C4), // hover darkens on a light ground
+    plane: Color(0xFFECEAF6), // the ground, mid-gradient
+    surface1: Color(0xFFF7F6FB), // a .50 glass pane over the ground
+    surface2: Color(0xFFEFEDF7), // raised: inputs, table headers
+    surface3: Color(0xFFE4E1F0), // pressed / selected wash
+    line: Color(0xFFDCD8EA),
+    lineStrong: Color(0xFFC9C4DD),
+    ink1: Color(0xFF241F47),
+    ink2: Color(0xFF3E3A5C),
+    ink3: Color(0xFF5B5F75), // 4.8:1 on surface3, the palest ground it meets
+    ink4: Color(0xFF74788E), // marks only — clears 3:1 on surface3
+    brand: Color(0xFF5D5294),
+    brandHover: Color(0xFF4A4180),
     series1: Color(0xFF2069C9),
     series2: Color(0xFF177A57),
     series3: Color(0xFF9A6700),
-    good: Color(0xFF0B7A0B),
-    warn: Color(0xFF935F00),
-    crit: Color(0xFFB32E2E),
-    critText: Color(
-      0xFFA52A2A,
-    ), // crit deepened: 4.94:1 over its wash on surface3
-    grid: Color(0xFFECEEF2),
-    axis: Color(0xFFD2D6DE),
-    shadow: Color(0x14101828), // 8% slate — Plan B layers opacities on top
-    scrim: Color(
-      0x99101828,
-    ), // 60% slate — deeper than black54's wash reads on light
-    heroWash: Color(0xFFF2F7FF), // the 2026-07-24 spec's glass wash
-    heroBorder: Color(0xFFDBE7FA),
-    // Byte-for-byte the values TiqBottomNavBar hardcoded in sub-1 — moving
-    // them here must not change light's appearance at all.
-    navBarBg: Color(0xEBFFFFFF), // rgba(255,255,255,.92)
-    navBarLine: Color(0xFFE3E5EA),
-    navInactiveInk: Color(0xFF5C6470),
-    navActivePillBg: Color(0xFFEAF2FF),
-    navActiveInk: Color(0xFF0A6CF0), // == brand, as shipped
+    // good and warn are used as WORDS as well as marks (band names, section
+    // states), so they are deepened past the handoff's fills until they clear
+    // 4.5:1 as text on every glass surface. The fills live in LumenStatus.
+    good: Color(0xFF17704A),
+    warn: Color(0xFF8A5A00),
+    crit: Color(0xFFB3261E),
+    critText: Color(0xFF8C1D17),
+    grid: Color(0xFFE2DFEE),
+    axis: Color(0xFFC9C4DD),
+    shadow: Color(0x243C3078), // rgba(60,48,120,.14)
+    scrim: Color(0x99241F47),
+    heroWash: Color(0xFFF2F0FA),
+    heroBorder: Color(0xFFFFFFFF),
+    navBarBg: Color(0x80FFFFFF), // rgba(255,255,255,.50) over a 28px blur
+    navBarLine: Color(0xCCFFFFFF),
+    navInactiveInk: Color(0xFF5B5F75),
+    navActivePillBg: Color(0xC7FFFFFF),
+    navActiveInk: Color(0xFF241F47),
+    glass: true,
+    action: Color(0xFF241F47),
+    onAction: Color(0xFFFFFFFF),
+    radiusControl: 14,
+    radiusCard: 16,
+    radiusPanel: 20,
   );
+
+  /// Lumen Glass at night — the indigo ground, faint white panes, pastel
+  /// inks and a bright lavender action. Surfaces are panes composited over the
+  /// ground, as in [light], so contrast math stays honest.
+  static const night = TiqColors(
+    plane: Color(0xFF111026), // the ground, mid-gradient
+    surface1: Color(0xFF1D1B33), // a faint glass pane over the ground
+    surface2: Color(0xFF24223C), // raised: inputs, table headers
+    surface3: Color(0xFF2D2A48), // pressed / selected wash
+    line: Color(0xFF2F2C4A),
+    lineStrong: Color(0xFF3E3A5E),
+    ink1: Color(0xFFEEECFB),
+    ink2: Color(0xFFCFCCE6),
+    ink3: Color(0xFFAEACC8), // 6.2:1 on surface3, the palest ground it meets
+    ink4: Color(0xFF7E7B9C), // marks only
+    brand: Color(0xFFB5ABFC),
+    brandHover: Color(0xFFCFC7FF),
+    series1: Color(0xFF6FA8FF),
+    series2: Color(0xFF4FC79A),
+    series3: Color(0xFFE6B450),
+    good: Color(0xFF7FD8A8),
+    warn: Color(0xFFF2C46D),
+    crit: Color(0xFFFF8A80),
+    critText: Color(0xFFFFB4AB),
+    grid: Color(0xFF2A2745),
+    axis: Color(0xFF3E3A5E),
+    shadow: Color(0x66000000),
+    scrim: Color(0xB3000000),
+    heroWash: Color(0xFF221F3D),
+    heroBorder: Color(0x33FFFFFF),
+    navBarBg: Color(0x1FFFFFFF), // a faint pane over a 28px blur
+    navBarLine: Color(0x33FFFFFF),
+    navInactiveInk: Color(0xFFCFCCE6), // ink2: 5.9:1 on the bar over surface3
+    navActivePillBg: Color(0x2EFFFFFF),
+    navActiveInk: Color(0xFFFFFFFF),
+    glass: true,
+    action: Color(0xFFE9E6FF),
+    onAction: Color(0xFF241F47),
+    radiusControl: 14,
+    radiusCard: 16,
+    radiusPanel: 20,
+  );
+
+  /// Glass on a dark ground — light ink is the tell.
+  bool get isNight => glass && ink1.computeLuminance() > 0.5;
 
   @override
   TiqColors copyWith({
@@ -247,6 +319,12 @@ class TiqColors extends ThemeExtension<TiqColors> {
     Color? navInactiveInk,
     Color? navActivePillBg,
     Color? navActiveInk,
+    bool? glass,
+    Color? action,
+    Color? onAction,
+    double? radiusControl,
+    double? radiusCard,
+    double? radiusPanel,
   }) {
     return TiqColors(
       plane: plane ?? this.plane,
@@ -279,6 +357,12 @@ class TiqColors extends ThemeExtension<TiqColors> {
       navInactiveInk: navInactiveInk ?? this.navInactiveInk,
       navActivePillBg: navActivePillBg ?? this.navActivePillBg,
       navActiveInk: navActiveInk ?? this.navActiveInk,
+      glass: glass ?? this.glass,
+      action: action ?? this.action,
+      onAction: onAction ?? this.onAction,
+      radiusControl: radiusControl ?? this.radiusControl,
+      radiusCard: radiusCard ?? this.radiusCard,
+      radiusPanel: radiusPanel ?? this.radiusPanel,
     );
   }
 
@@ -316,17 +400,23 @@ class TiqColors extends ThemeExtension<TiqColors> {
       navInactiveInk: Color.lerp(navInactiveInk, other.navInactiveInk, t)!,
       navActivePillBg: Color.lerp(navActivePillBg, other.navActivePillBg, t)!,
       navActiveInk: Color.lerp(navActiveInk, other.navActiveInk, t)!,
+      // A material is not interpolable — the switch lands at the midpoint.
+      glass: t < 0.5 ? glass : other.glass,
+      action: Color.lerp(action, other.action, t)!,
+      onAction: Color.lerp(onAction, other.onAction, t)!,
+      radiusControl: lerpDouble(radiusControl, other.radiusControl, t)!,
+      radiusCard: lerpDouble(radiusCard, other.radiusCard, t)!,
+      radiusPanel: lerpDouble(radiusPanel, other.radiusPanel, t)!,
     );
   }
 }
 
 /// `context.colors` — how feature code reads the ambient palette.
 ///
-/// Falls back to [TiqColors.dark] when no theme registers the extension. In
-/// production both AppTheme.light() and AppTheme.dark() register it, so the
-/// fallback only fires in tests that pump a bare MaterialApp — where dark (the
-/// pre-theme-system status quo) is exactly what their assertions expect. This
-/// keeps all pre-existing widget tests green with zero edits.
+/// Falls back to the flat [TiqColors.dark] when no theme registers the
+/// extension. In production both AppTheme.light() and AppTheme.dark() register
+/// a glass palette, so the fallback only fires in tests that pump a bare
+/// MaterialApp.
 extension TiqColorsContext on BuildContext {
   TiqColors get colors =>
       Theme.of(this).extension<TiqColors>() ?? TiqColors.dark;

@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_colors.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_motion.dart' show Motion;
 import 'package:tradeiq_app/core/widgets/console.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/worklist.dart';
 
 import '../theme/tiq_colors_test.dart' show contrastRatio;
@@ -32,6 +33,20 @@ Widget _themed(Widget child, {ThemeData? theme, bool reduceMotion = false}) =>
       ),
     );
 
+/// The dark theme is Lumen Glass at night: the row is a no-blur glass tile
+/// (solid night fill, night tile rim, card radius, 3px edge in the status
+/// token). Light's tile and the flat themeless fallback are covered by
+/// worklist_card_shell_test.dart, so the card pins run in dark.
+Widget _darkThemed(
+  Widget child, {
+  ThemeData? theme,
+  bool reduceMotion = false,
+}) => _themed(
+  child,
+  theme: theme ?? AppTheme.dark(),
+  reduceMotion: reduceMotion,
+);
+
 WorklistRow _row({
   String title = 'Price deviation',
   StatusLevel level = StatusLevel.critical,
@@ -52,16 +67,17 @@ WorklistRow _row({
   thumb: thumb,
 );
 
-/// The row's card ground: the DecoratedBox carrying the panel-radius
-/// BoxDecoration. Fails loudly when the row has no card decoration at all.
+/// The row's card ground: the filled, card-radius DecoratedBox the glass
+/// tile paints. Fails loudly when the row has no card decoration at all.
 Finder _cardBox({int index = 0}) => find.descendant(
   of: find.byType(WorklistRow).at(index),
   matching: find.byWidgetPredicate(
     (w) =>
         w is DecoratedBox &&
         w.decoration is BoxDecoration &&
+        (w.decoration as BoxDecoration).color != null &&
         (w.decoration as BoxDecoration).borderRadius ==
-            BorderRadius.circular(AppColors.radiusPanel),
+            BorderRadius.circular(TiqColors.night.radiusCard),
   ),
 );
 
@@ -269,33 +285,62 @@ void main() {
 
   group('WorklistRow card', () {
     testWidgets(
-      'renders as a card: surface1 ground, line hairline, panel radius — '
-      'and NO shadow of its own',
+      'dark: renders as a night glass card: solid night fill, tile rim, card '
+      'radius — and NO shadow of its own',
       (tester) async {
-        await tester.pumpWidget(_themed(_row()));
+        await tester.pumpWidget(_darkThemed(_row()));
+
+        final pane = tester.widget<GlassPane>(
+          find.descendant(
+            of: find.byType(WorklistRow),
+            matching: find.byType(GlassPane),
+          ),
+        );
+        expect(pane.kind, GlassKind.tile);
+        expect(pane.blur, isFalse);
+        expect(find.byType(BackdropFilter), findsNothing);
 
         final deco = _cardDecoration(tester);
-        expect(deco.color, TiqColors.light.surface1);
-        expect(deco.border, Border.all(color: TiqColors.light.line));
-        expect(deco.borderRadius, BorderRadius.circular(AppColors.radiusPanel));
+        expect(deco.color, LumenPalette.dark.solidFill);
+        expect(deco.border, Border.all(color: LumenPalette.dark.tileRim));
+        expect(
+          deco.borderRadius,
+          BorderRadius.circular(TiqColors.night.radiusCard),
+        );
         // Deliberate deviation from the naive "Stripe shadow on every card":
         // every consumer renders these rows INSIDE a PanelCard, which already
         // carries the one static Stripe shadow. A second shadow per row would
         // stack shadow-in-shadow, so the row card is the flat-in-panel variant.
-        expect(deco.boxShadow, isNull);
+        expect(pane.shadow, isFalse);
+        expect(
+          tester
+              .widgetList<DecoratedBox>(
+                find.descendant(
+                  of: find.byType(WorklistRow),
+                  matching: find.byType(DecoratedBox),
+                ),
+              )
+              .map((b) => b.decoration)
+              .whereType<BoxDecoration>()
+              .where((d) => d.boxShadow != null),
+          isEmpty,
+        );
       },
     );
 
     testWidgets('severity edge bar is clipped inside the card radius', (
       tester,
     ) async {
-      await tester.pumpWidget(_themed(_row(level: StatusLevel.critical)));
+      await tester.pumpWidget(_darkThemed(_row(level: StatusLevel.critical)));
 
-      // The 3px edge bar carries the level colour…
+      // The 3px edge bar carries the level colour — on glass, the night
+      // status swatch's ink rather than the raw crit token…
+      final critInk = StatusLevel.critical.colorOf(TiqColors.night);
+      expect(critInk, isNot(TiqColors.dark.crit));
       final edge = find.descendant(
         of: find.byType(WorklistRow),
         matching: find.byWidgetPredicate(
-          (w) => w is ColoredBox && w.color == TiqColors.light.crit,
+          (w) => w is ColoredBox && w.color == critInk,
         ),
       );
       expect(edge, findsOneWidget);
@@ -318,7 +363,7 @@ void main() {
 
     testWidgets('adjacent cards sit with an 8px gap', (tester) async {
       await tester.pumpWidget(
-        _themed(
+        _darkThemed(
           Column(
             children: [
               _row(),
@@ -335,7 +380,7 @@ void main() {
 
     testWidgets('hover washes surface2, press washes surface3 — inside the '
         'card clip', (tester) async {
-      await tester.pumpWidget(_themed(_row(onTap: () {})));
+      await tester.pumpWidget(_darkThemed(_row(onTap: () {})));
 
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.addPointer(location: Offset.zero);
@@ -344,7 +389,7 @@ void main() {
 
       await gesture.moveTo(tester.getCenter(find.byType(WorklistRow)));
       await tester.pumpAndSettle();
-      final hoverWash = _washedSurface(TiqColors.light.surface2);
+      final hoverWash = _washedSurface(TiqColors.night.surface2);
       expect(hoverWash, findsWidgets);
       // The wash paints inside the rounded clip: feedback cannot leak past
       // the card's corners.
@@ -366,7 +411,7 @@ void main() {
       // Two pumps: the scrollable's tap-deferral, then the 150ms wash.
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
-      expect(_washedSurface(TiqColors.light.surface3), findsWidgets);
+      expect(_washedSurface(TiqColors.night.surface3), findsWidgets);
       await press.up();
       await tester.pumpAndSettle();
     });
@@ -374,18 +419,20 @@ void main() {
     testWidgets('resolved dims the row, greys the edge, hollows the chip', (
       tester,
     ) async {
-      await tester.pumpWidget(_themed(_row(resolved: true)));
+      await tester.pumpWidget(_darkThemed(_row(resolved: true)));
 
       final dim = tester.widget<Opacity>(
         find.ancestor(of: _cardBox(), matching: find.byType(Opacity)).first,
       );
-      expect(dim.opacity, 0.6);
+      // Glass fades a resolved row less than the flat recipe's 0.6.
+      expect(dim.opacity, WorklistRow.resolvedOpacityOf(TiqColors.night));
+      expect(dim.opacity, 0.7);
 
       expect(
         find.descendant(
           of: find.byType(WorklistRow),
           matching: find.byWidgetPredicate(
-            (w) => w is ColoredBox && w.color == TiqColors.light.lineStrong,
+            (w) => w is ColoredBox && w.color == TiqColors.night.lineStrong,
           ),
         ),
         findsOneWidget,
@@ -399,7 +446,7 @@ void main() {
       var tapped = false;
       var acted = false;
       await tester.pumpWidget(
-        _themed(
+        _darkThemed(
           _row(
             onTap: () => tapped = true,
             actions: [
@@ -419,7 +466,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        _themed(_row(thumb: const ColoredBox(color: Colors.teal))),
+        _darkThemed(_row(thumb: const ColoredBox(color: Colors.teal))),
       );
 
       final clipFinder = find.byKey(const ValueKey('worklist-thumb'));
@@ -436,18 +483,20 @@ void main() {
     });
 
     testWidgets('no thumb, no extra chrome', (tester) async {
-      await tester.pumpWidget(_themed(_row()));
+      await tester.pumpWidget(_darkThemed(_row()));
       expect(find.byKey(const ValueKey('worklist-thumb')), findsNothing);
     });
 
-    testWidgets('dark theme: card wears dark tokens, text clears 4.5:1 on the '
+    testWidgets('dark theme: card wears night glass, text clears 4.5:1 on the '
         'card ground', (tester) async {
-      await tester.pumpWidget(_themed(_row(), theme: AppTheme.dark()));
+      await tester.pumpWidget(_darkThemed(_row(), theme: AppTheme.dark()));
 
       final deco = _cardDecoration(tester);
-      expect(deco.color, TiqColors.dark.surface1);
-      expect(deco.border, Border.all(color: TiqColors.dark.line));
-      final ground = deco.color!;
+      expect(deco.color, LumenPalette.dark.solidFill);
+      expect(deco.border, Border.all(color: LumenPalette.dark.tileRim));
+      // The fill is 95% opaque — composite it over the night plane so the
+      // ratio is measured on the colour an agent actually sees.
+      final ground = Color.alphaBlend(deco.color!, TiqColors.night.plane);
 
       final title = tester
           .widget<Text>(find.text('Price deviation'))

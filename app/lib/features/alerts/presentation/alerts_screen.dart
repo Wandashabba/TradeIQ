@@ -5,10 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/brand_media.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_motion.dart' show Motion, reduceMotion;
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/evidence_thumb.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/alerts_repository.dart';
@@ -203,9 +206,49 @@ class _Segmented<T> extends StatelessWidget {
   final T selected;
   final ValueChanged<T> onChanged;
 
+  /// Glass: a bar track with the selected segment lifted onto a bright pill —
+  /// the dashboard filter bar's idiom. Both states share one padding (a
+  /// pane's rim paints over its edge, it adds no size), so a tap never
+  /// shifts the row.
+  Widget _glass() {
+    const pad = EdgeInsets.symmetric(horizontal: 11, vertical: 5);
+    const inner = LumenGlass.radiusControl - 3;
+    return GlassPane(
+      kind: GlassKind.bar,
+      radius: LumenGlass.radiusControl,
+      blur: false,
+      shadow: false,
+      specular: false,
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final s in segments)
+            InkWell(
+              key: ValueKey('tab-${s.value}'),
+              onTap: () => onChanged(s.value),
+              borderRadius: BorderRadius.circular(inner),
+              child: s.value == selected
+                  ? GlassPane(
+                      kind: GlassKind.pill,
+                      radius: inner,
+                      padding: pad,
+                      child: _GlassSegmentLabel(s.label, selected: true),
+                    )
+                  : Padding(
+                      padding: pad,
+                      child: _GlassSegmentLabel(s.label, selected: false),
+                    ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _glass();
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: colors.lineStrong),
@@ -471,21 +514,48 @@ class _AckedPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final glass = colors.glass;
     return Container(
       key: const ValueKey('acked-pill'),
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
+        // Glass keeps the OPAQUE surface2 ground and gains the white rim and
+        // the status-pill cut.
         color: colors.surface2,
-        borderRadius: BorderRadius.circular(AppColors.radiusPill),
+        borderRadius: BorderRadius.circular(glass ? 6 : AppColors.radiusPill),
+        border: glass ? Border.all(color: context.lumen.pillRim) : null,
       ),
       child: Text(
         '✓ ACKED',
         style: TextStyle(
-          fontSize: 10.5,
+          fontFamily: glass ? LumenGlass.mono : null,
+          fontSize: glass ? 9.5 : 10.5,
           fontWeight: FontWeight.w700,
-          color: colors.ink2,
+          letterSpacing: glass ? 0.85 : null,
+          // Glass's ink2 blended through the acked row's 0.7 fade drops under
+          // 4.5:1; ink1 still clears it (alerts_screen_test holds the maths).
+          color: glass ? colors.ink1 : colors.ink2,
         ),
       ),
     );
   }
+}
+
+/// A glass segment's words: ink when selected, the muted ink otherwise — both
+/// clear 4.5:1 on the bar, and the lifted pill carries the state as well.
+class _GlassSegmentLabel extends StatelessWidget {
+  const _GlassSegmentLabel(this.label, {required this.selected});
+
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: selected ? context.lumen.ink : context.lumen.inkMuted,
+    ),
+  );
 }

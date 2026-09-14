@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/evidence_thumb.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
@@ -84,9 +86,14 @@ class _FakePhotosRepository implements PhotosRepository {
   }) async => throw UnimplementedError();
 }
 
-Widget _app(_FakePhotosRepository repo, {Widget? child}) => ProviderScope(
+Widget _app(
+  _FakePhotosRepository repo, {
+  Widget? child,
+  ThemeData? theme,
+}) => ProviderScope(
   overrides: [photosRepositoryProvider.overrideWithValue(repo)],
   child: MaterialApp(
+    theme: theme,
     home: Scaffold(
       body: Center(
         child: child ?? const EvidenceThumb(photoId: 'p-new', visitId: 'v1'),
@@ -151,6 +158,62 @@ void main() {
       ),
     );
     expect((box.decoration as BoxDecoration).color, TiqColors.dark.surface2);
+  });
+
+  group('Lumen Glass (light)', () {
+    testWidgets('the empty slot is a rimmed surface3 box — still no spinner', (
+      tester,
+    ) async {
+      final repo = _FakePhotosRepository()..thumbGate = Completer();
+      await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(
+          of: find.byType(EvidenceThumb),
+          matching: find.byType(DecoratedBox),
+        ),
+      );
+      final decoration = box.decoration as BoxDecoration;
+      expect(decoration.color, TiqColors.light.surface3);
+      expect(decoration.borderRadius, BorderRadius.circular(8));
+      expect(
+        (decoration.border! as Border).top.color,
+        LumenPalette.light.tileRim,
+      );
+    });
+
+    testWidgets('the photo is clipped to the chip radius under a rim, '
+        'untinted', (tester) async {
+      await tester.pumpWidget(
+        _app(_FakePhotosRepository(), theme: AppTheme.light()),
+      );
+      await tester.pumpAndSettle();
+
+      final thumb = find.byType(EvidenceThumb);
+      final clip = tester.widget<ClipRRect>(
+        find.descendant(of: thumb, matching: find.byType(ClipRRect)),
+      );
+      expect(clip.borderRadius, BorderRadius.circular(8));
+
+      final rim = tester.widget<DecoratedBox>(
+        find.descendant(of: thumb, matching: find.byType(DecoratedBox)),
+      );
+      expect(rim.position, DecorationPosition.foreground);
+      final decoration = rim.decoration as BoxDecoration;
+      expect(decoration.color, isNull);
+      expect(
+        (decoration.border! as Border).top.color,
+        LumenPalette.light.tileRim,
+      );
+      // The evidence itself is unchanged: the same 44×44 cover image.
+      final image = tester.widget<Image>(
+        find.descendant(of: thumb, matching: find.byType(Image)),
+      );
+      expect(image.width, 44);
+      expect(image.fit, BoxFit.cover);
+    });
   });
 
   testWidgets('carries the "Shelf photo evidence" image semantics', (

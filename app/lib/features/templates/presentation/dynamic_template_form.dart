@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../domain/template_schema.dart';
 
 /// Renders a parsed TemplateSchema one section at a time (issue #54 step 2),
@@ -26,6 +31,14 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
   int _sectionIndex = 0;
   final Map<String, Object?> _answers = {};
 
+  void _next(bool isLast) {
+    if (isLast) {
+      widget.onSubmit(Map.unmodifiable(_answers));
+    } else {
+      setState(() => _sectionIndex++);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final sections = widget.schema.sections;
@@ -40,6 +53,10 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
     final visibleFields =
         section.fields.where((f) => f.isVisible(_answers)).toList();
     final maxScore = widget.schema.maxScore;
+
+    if (context.colors.glass) {
+      return _glass(context, sections.length, section, isLast, visibleFields);
+    }
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -76,18 +93,111 @@ class _DynamicTemplateFormState extends State<DynamicTemplateForm> {
               const Spacer(),
               ElevatedButton(
                 key: const ValueKey('form-next'),
-                onPressed: () {
-                  if (isLast) {
-                    widget.onSubmit(Map.unmodifiable(_answers));
-                  } else {
-                    setState(() => _sectionIndex++);
-                  }
-                },
+                onPressed: () => _next(isLast),
                 child: Text(isLast ? widget.submitLabel : 'Next'),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Glass: the section's place as a kicker over its title, the running score
+  /// as a figure, the fields on one panel, and Next as the primary action.
+  Widget _glass(
+    BuildContext context,
+    int sectionCount,
+    TemplateSection section,
+    bool isLast,
+    List<TemplateField> visibleFields,
+  ) {
+    final lumen = context.lumen;
+    final maxScore = widget.schema.maxScore;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Kicker('Section ${_sectionIndex + 1} of $sectionCount'),
+          const SizedBox(height: 6),
+          Text(
+            section.title,
+            style: LumenGlass.title(size: 22, color: lumen.ink),
+          ),
+          if (maxScore > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Score preview',
+                    style: TextStyle(fontSize: 12, color: lumen.inkMuted),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_trimmed(widget.schema.scoreFor(_answers))}'
+                    ' / ${_trimmed(maxScore)}',
+                    style: LumenGlass.figure(size: 13, color: lumen.ink),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: GlassPane(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                children: [
+                  for (final field in visibleFields) _glassField(field),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              if (_sectionIndex > 0) ...[
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 52),
+                  ),
+                  onPressed: () => setState(() => _sectionIndex--),
+                  child: const Text('Back'),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: GlassPrimaryButton(
+                  key: const ValueKey('form-next'),
+                  label: isLast ? widget.submitLabel : 'Next',
+                  onPressed: () => _next(isLast),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The list-tile fields (a switch, the photo placeholder) become no-blur
+  /// tiles on the panel, each with its own transparent Material so the ink
+  /// lands on the tile; the inputs keep the theme's own field chrome.
+  Widget _glassField(TemplateField field) {
+    final built = _buildField(field);
+    if (field.type != TemplateFieldType.boolean &&
+        field.type != TemplateFieldType.photo) {
+      return built;
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GlassPane(
+        kind: GlassKind.tile,
+        blur: false,
+        shadow: false,
+        radius: LumenGlass.radiusControl,
+        child: Material(type: MaterialType.transparency, child: built),
       ),
     );
   }

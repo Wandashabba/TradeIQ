@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/dispatch/data/dispatch_repository.dart';
 import 'package:tradeiq_app/features/dispatch/presentation/dispatch_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -38,8 +40,9 @@ class _FakeDispatchRepository implements DispatchRepository {
   Future<DispatchResult> dispatch(String outletId) async => _result;
 }
 
-Widget _app() => routedApp(
+Widget _app({ThemeData? theme}) => routedApp(
       const DispatchScreen(),
+      theme: theme,
       overrides: [
         outletsListProvider.overrideWith((ref) async => _outlets),
         dispatchRepositoryProvider
@@ -48,6 +51,31 @@ Widget _app() => routedApp(
     );
 
 void main() {
+  testWidgets('light: candidates are glass tiles in a glass panel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('outlet-select')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Corner Shop').last);
+    await tester.pumpAndSettle();
+
+    final panes = tester
+        .widgetList<GlassPane>(
+          find.ancestor(
+            of: find.text('near@example.com'),
+            matching: find.byType(GlassPane),
+          ),
+        )
+        .toList();
+    expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+    expect(panes.any((p) => p.kind == GlassKind.panel), isTrue);
+    // The recommendation is a word, not a highlight.
+    expect(find.text('RECOMMENDED'), findsOneWidget);
+  });
+
   testWidgets('renders the outlet dropdown and Dispatch app bar',
       (tester) async {
     await tester.pumpWidget(_app());

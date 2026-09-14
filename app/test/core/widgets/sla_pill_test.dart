@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/sla_pill.dart';
 
@@ -269,6 +272,83 @@ void main() {
         }
       });
     }
+  });
+
+  group('SlaPill in Lumen Glass (light)', () {
+    testWidgets('each verdict takes its Lumen status swatch, composited opaque', (
+      tester,
+    ) async {
+      for (final (name, pill, status) in [
+        (
+          'overdue',
+          SlaPill(
+            _now.subtract(const Duration(days: 2)),
+            done: false,
+            now: _now,
+          ),
+          LumenStatus.crit,
+        ),
+        (
+          'due today',
+          SlaPill(_now.add(const Duration(hours: 5)), done: false, now: _now),
+          LumenStatus.warn,
+        ),
+        ('done', SlaPill(_now, done: true, now: _now), LumenStatus.good),
+      ]) {
+        final (bg, fg) = await _pumpAndRead(
+          tester,
+          pill,
+          theme: AppTheme.light(),
+        );
+        final sw = status.swatchOf(TiqColors.light);
+        expect(
+          bg,
+          Color.alphaBlend(sw.tint, TiqColors.light.surface1),
+          reason: name,
+        );
+        expect(fg, sw.ink, reason: name);
+      }
+    });
+
+    testWidgets('"due later" stays chrome: a white-rimmed chip under muted ink', (
+      tester,
+    ) async {
+      final (bg, fg) = await _pumpAndRead(
+        tester,
+        SlaPill(DateTime(2026, 8, 12, 9), done: false, now: _now),
+        theme: AppTheme.light(),
+      );
+
+      expect(find.text('DUE 12 AUG'), findsOneWidget);
+      expect(bg, TiqColors.light.surface2);
+      expect(fg, LumenPalette.light.inkMuted);
+      final box = tester.widget<Container>(
+        find.descendant(of: find.byType(SlaPill), matching: find.byType(Container)),
+      );
+      final deco = box.decoration! as BoxDecoration;
+      expect((deco.border! as Border).top.color, LumenPalette.light.pillRim);
+      expect(deco.borderRadius, BorderRadius.circular(LumenGlass.radiusChip));
+    });
+
+    testWidgets('the verdict is still spelled out, in mono figures', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          SlaPill(
+            _now.subtract(const Duration(days: 2, hours: 3)),
+            done: false,
+            now: _now,
+          ),
+          theme: AppTheme.light(),
+        ),
+      );
+
+      final text = tester.widget<Text>(find.text('OVERDUE 2d'));
+      expect(text.style?.fontFamily, LumenGlass.mono);
+      expect(text.style?.fontWeight, FontWeight.w700);
+      expect(text.style?.fontSize, inInclusiveRange(10, 11));
+    });
   });
 
   group('SlaPill.calendarDayDiff', () {

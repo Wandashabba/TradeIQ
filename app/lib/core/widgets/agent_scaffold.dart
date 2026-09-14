@@ -4,10 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/session_controller.dart';
 import '../sync/sync_status.dart';
+import '../theme/lumen_glass.dart';
 import '../theme/theme_mode_controller.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_kit.dart';
 import 'agent_motion.dart';
+import 'glass.dart';
+import 'lumen_kit.dart';
+import '../theme/lumen_palette.dart';
 
 /// The field agent's shell.
 ///
@@ -15,6 +19,12 @@ import 'agent_motion.dart';
 /// their actions live top-right. An agent is standing in an aisle with one hand
 /// on a shelf — so the primary action lives at the BOTTOM, where the thumb
 /// already is, and nothing interactive is smaller than 48px.
+///
+/// In Lumen Glass the lit ground runs edge to edge: the app bar floats on it
+/// with a glass back chip, and the primary action sits in a glass pane rather
+/// than an opaque strip. The pane is still solid enough behind its blur that
+/// the note explaining a disabled action stays readable over whatever scrolls
+/// underneath it.
 class AgentScaffold extends ConsumerWidget {
   const AgentScaffold({
     super.key,
@@ -50,19 +60,47 @@ class AgentScaffold extends ConsumerWidget {
     // whether this is the root screen); a screen given its own `onBack` has
     // already answered that question, and must never ask.
     final isRoot = onBack == null && _matchedLocation(context) == '/today';
+    final showBack = !isRoot;
     final colors = context.colors;
+    final glass = colors.glass;
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    void goBack() => (onBack ?? () => context.go('/today'))();
+
+    final content = Column(
+      children: [
+        if (showSyncChip)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: SyncChip(),
+          ),
+        Expanded(child: body),
+      ],
+    );
 
     return Scaffold(
       backgroundColor: colors.plane,
+      // Glass floats the bar and the action pane over the lit ground, so the
+      // ground has to run beneath both of them.
+      extendBodyBehindAppBar: glass,
+      extendBody: glass,
       appBar: AppBar(
         toolbarHeight: subtitle == null ? 56 : 64,
-        leading: isRoot && onBack == null
+        backgroundColor: glass ? Colors.transparent : null,
+        surfaceTintColor: glass ? Colors.transparent : null,
+        shape: glass ? const Border() : null,
+        leadingWidth: glass && showBack ? 60 : null,
+        titleSpacing: glass && showBack ? 4 : null,
+        leading: !showBack
             ? null
+            : glass
+            ? Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: GlassBackChip(onTap: goBack),
+              )
             : IconButton(
                 icon: const Icon(Icons.arrow_back, size: 22),
                 tooltip: 'Back',
-                onPressed: onBack ?? () => context.go('/today'),
+                onPressed: goBack,
               ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,18 +109,23 @@ class AgentScaffold extends ConsumerWidget {
             Text(
               title,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.2,
-                color: colors.ink1,
-              ),
+              style: glass
+                  ? LumenGlass.title(color: context.lumen.ink, size: 17)
+                  : TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                      color: colors.ink1,
+                    ),
             ),
             if (subtitle != null)
               Text(
                 subtitle!,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: colors.ink3),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: glass ? context.lumen.inkMuted : colors.ink3,
+                ),
               ),
           ],
         ),
@@ -104,18 +147,42 @@ class AgentScaffold extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (showSyncChip)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: SyncChip(),
-            ),
-          Expanded(child: body),
-        ],
-      ),
+      body: glass
+          ? LitGround(
+              child: Builder(
+                // With the body extended under both bars, the Scaffold hands
+                // the body their heights as padding. Apply it once, here, and
+                // strip it so no scroll view below applies it a second time.
+                builder: (context) {
+                  final insets = MediaQuery.paddingOf(context);
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      top: insets.top,
+                      bottom: insets.bottom,
+                    ),
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      removeTop: true,
+                      removeBottom: true,
+                      child: content,
+                    ),
+                  );
+                },
+              ),
+            )
+          : content,
       bottomNavigationBar: bottomAction == null
           ? null
+          : glass
+          ? SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              child: GlassPane(
+                kind: GlassKind.bar,
+                padding: const EdgeInsets.all(12),
+                child: bottomAction!,
+              ),
+            )
           : Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               decoration: BoxDecoration(
@@ -153,6 +220,7 @@ class SyncChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(syncStatusProvider);
     final syncing = ref.watch(syncingProvider);
+    final glass = context.colors.glass;
 
     return status.maybeWhen(
       data: (s) {
@@ -166,6 +234,13 @@ class SyncChip extends ConsumerWidget {
             subtitle: sub,
             // Breathing means "sending, right now" — never merely "pending".
             pulsing: syncing,
+            // Glass turns a retry mark slowly beside held work: it is waiting
+            // for signal, and it will try again on its own.
+            trailing: glass && level == BannerLevel.warn
+                ? const AmbientSpin(
+                    child: Icon(Icons.sync, size: 16, color: Color(0xFF7A4D00)),
+                  )
+                : null,
           ),
         );
       },

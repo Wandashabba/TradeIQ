@@ -527,8 +527,12 @@ paths:
             { kpis: { numericDistribution, weightedDistribution, osaPct,
             executionScore, priceCompliancePct, visibilityCompliancePct,
             shareOfShelf, perfectStoreRate }, totals: { visits, outletsVisited,
-            outletsTotal } }. weightedDistribution and shareOfShelf are Phase-1
-            proxies (see module comments).
+            outletsTotal }, scoreBands: [{ label, minScore, outlets }] }.
+            scoreBands is the perfect-store distribution — always five bands,
+            highest first (90–100, 80–89, 70–79, 60–69, <60) — counting each
+            outlet once, at its most recent scored visit in scope.
+            weightedDistribution and shareOfShelf are Phase-1 proxies (see
+            module comments).
         '400':
           description: Unparseable from/to date
         '401':

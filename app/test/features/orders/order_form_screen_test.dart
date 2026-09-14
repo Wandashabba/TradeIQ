@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/orders/presentation/order_form_screen.dart';
@@ -89,13 +92,18 @@ class _FakeSkusRepository implements SkusRepository {
       );
 }
 
-Widget _app(_RecordingOrdersRepository repo) => ProviderScope(
+Widget _app(_RecordingOrdersRepository repo, {ThemeData? theme}) => ProviderScope(
       overrides: [
         ordersRepositoryProvider.overrideWithValue(repo),
         outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
         skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
       ],
-      child: const MaterialApp(home: OrderFormScreen()),
+      child: MaterialApp(theme: theme, home: const OrderFormScreen()),
+    );
+
+/// The nearest glass pane around [finder].
+GlassPane _paneAround(WidgetTester tester, Finder finder) => tester.widget<GlassPane>(
+      find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
     );
 
 void main() {
@@ -229,5 +237,57 @@ void main() {
 
     expect(find.textContaining('Add at least one line item'), findsOneWidget);
     expect(repo.lines, isNull);
+  });
+
+  testWidgets('light: glass panels, tile lines with a pill stepper, glass create',
+      (tester) async {
+    final repo = _RecordingOrdersRepository();
+    await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+
+    // The outlet and the lines are each their own panel under a kicker.
+    expect(_paneAround(tester, find.text('OUTLET')).kind, GlassKind.panel);
+    expect(_paneAround(tester, find.text('LINE ITEMS')).kind, GlassKind.panel);
+
+    await tester.tap(find.byKey(const ValueKey<String>('order-outlet-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shop One').last);
+    await tester.pumpAndSettle();
+
+    // Each SKU line is a no-blur tile; its quantity sits in a glass pill.
+    final row = find.byKey(const ValueKey<String>('sku-row-sku1'));
+    final tile = tester.widget<GlassPane>(
+      find.descendant(of: row, matching: find.byType(GlassPane)).first,
+    );
+    expect(tile.kind, GlassKind.tile);
+    expect(tile.blur, isFalse);
+    final qty = find.byKey(const ValueKey<String>('sku-qty-sku1'));
+    expect(_paneAround(tester, qty).kind, GlassKind.pill);
+    expect(find.text('R 8.00'), findsOneWidget);
+
+    final inc1 = find.byKey(const ValueKey<String>('sku-inc-sku1'));
+    await tester.ensureVisible(inc1);
+    await tester.tap(inc1);
+    await tester.pump();
+    await tester.tap(inc1);
+    await tester.pump();
+
+    expect(tester.widget<Text>(qty).data, '2');
+    // The total is a mono figure, the money alone under its kicker.
+    final total = tester.widget<Text>(
+      find.byKey(const ValueKey<String>('order-total')),
+    );
+    expect(total.data, 'R 16.00');
+    expect(total.style?.fontFamily, 'JetBrains Mono');
+
+    final save = find.byKey(const ValueKey<String>('order-save-button'));
+    expect(tester.widget(save), isA<GlassPrimaryButton>());
+    expect(find.byType(FilledButton), findsNothing);
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    expect(repo.outletId, 'ou1');
+    expect(repo.lines!.single.quantity, 2);
   });
 }

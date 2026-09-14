@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/tiq_colors.dart';
 
 /// Motion for the field agent.
 ///
@@ -129,7 +130,9 @@ class TickMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.good;
+    final colors = context.colors;
+    final glass = colors.glass;
+    final c = color ?? (glass ? colors.good : AppColors.good);
 
     return AnimatedContainer(
       duration: reduceMotion(context) ? Duration.zero : Motion.base,
@@ -139,7 +142,12 @@ class TickMark extends StatelessWidget {
       decoration: BoxDecoration(
         color: done ? c : Colors.transparent,
         shape: BoxShape.circle,
-        border: done ? null : Border.all(color: AppColors.ink3, width: 1.5),
+        border: done
+            ? null
+            : Border.all(
+                color: glass ? colors.ink4 : AppColors.ink3,
+                width: 1.5,
+              ),
       ),
       child: AnimatedScale(
         scale: done ? 1 : 0,
@@ -148,7 +156,13 @@ class TickMark extends StatelessWidget {
         child: Icon(
           Icons.check,
           size: size * 0.6,
-          color: const Color(0xFF04210B),
+          // Glass picks whichever ink stands off the fill — white on a deep
+          // green, where the dark-green tick would vanish into it.
+          color:
+              glass &&
+                  ThemeData.estimateBrightnessForColor(c) == Brightness.dark
+              ? Colors.white
+              : const Color(0xFF04210B),
         ),
       ),
     );

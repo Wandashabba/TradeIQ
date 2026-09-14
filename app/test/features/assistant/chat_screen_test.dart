@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
 import 'package:tradeiq_app/features/assistant/presentation/chat_screen.dart';
@@ -29,7 +31,11 @@ class StubRepository implements AssistantRepository {
   }
 }
 
-Future<void> pumpChat(WidgetTester tester, StubRepository repository) async {
+Future<void> pumpChat(
+  WidgetTester tester,
+  StubRepository repository, {
+  ThemeData? theme,
+}) async {
   // Wide enough for ManagerScaffold's sidebar layout, and tall enough that the
   // composer and the transcript both fit without an overflow.
   tester.view.physicalSize = const Size(1400, 1600);
@@ -38,7 +44,7 @@ Future<void> pumpChat(WidgetTester tester, StubRepository repository) async {
 
   await tester.pumpWidget(routedApp(
     const AssistantChatScreen(),
-    theme: AppTheme.dark(),
+    theme: theme ?? AppTheme.dark(),
     overrides: [assistantRepositoryProvider.overrideWithValue(repository)],
   ));
   await tester.pumpAndSettle();
@@ -190,5 +196,133 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.sent, isEmpty);
+  });
+
+  group('Lumen Glass (light)', () {
+    GlassPane paneAround(WidgetTester tester, Finder finder) =>
+        tester.widget<GlassPane>(
+          find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
+        );
+
+    Future<void> ask(WidgetTester tester, String question) async {
+      await tester.enterText(find.byType(TextField), question);
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the suggestions are glass pills, and still send',
+        (tester) async {
+      final repository = StubRepository([
+        const TokenEvent('Here you go.'),
+        const DoneEvent(),
+      ]);
+      await pumpChat(tester, repository, theme: AppTheme.light());
+
+      final chip = find.textContaining('Which outlets keep running out');
+      expect(paneAround(tester, chip).kind, GlassKind.pill);
+
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+      expect(repository.sent.single, 'Which outlets keep running out of stock?');
+    });
+
+    testWidgets("the manager's turn is action glass; the answer is a tile",
+        (tester) async {
+      await pumpChat(
+        tester,
+        StubRepository([
+          const TokenEvent('Tumo is up 6 points.'),
+          const DoneEvent(),
+        ]),
+        theme: AppTheme.light(),
+      );
+      await ask(tester, 'How is Tumo doing?');
+
+      final question = find.text('How is Tumo doing?');
+      expect(paneAround(tester, question).kind, GlassKind.action);
+      // Words on the action glass wear the action's own ink.
+      expect(tester.widget<Text>(question).style!.color,
+          LumenPalette.light.actionInk);
+
+      final answer = paneAround(tester, find.text('Tumo is up 6 points.'));
+      expect(answer.kind, GlassKind.tile);
+      // A transcript row repeats, so it never pays for a blur.
+      expect(answer.blur, isFalse);
+    });
+
+    testWidgets('the composer is a glass bar holding the send action',
+        (tester) async {
+      await pumpChat(tester, StubRepository([]), theme: AppTheme.light());
+
+      final bar = find
+          .ancestor(of: find.byType(TextField), matching: find.byType(GlassPane))
+          .first;
+      expect(tester.widget<GlassPane>(bar).kind, GlassKind.bar);
+      expect(
+        find.descendant(of: bar, matching: find.byTooltip('Send')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an artifact lands below its bubble, not inside it',
+        (tester) async {
+      await pumpChat(
+        tester,
+        StubRepository([
+          const ArtifactEvent(
+            id: 'getAgentScorecard-0',
+            type: 'agent_scorecard',
+            params: {'agentId': 'a1'},
+            data: {'agentName': 'tumo@example.com', 'averageScore': 82.0},
+          ),
+          const TokenEvent('Tumo is ahead.'),
+          const DoneEvent(),
+        ]),
+        theme: AppTheme.light(),
+      );
+      await ask(tester, 'How is Tumo?');
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('82.0'), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byType(AgentScorecardCard),
+          matching: find.byWidgetPredicate(
+            (w) => w is GlassPane && w.kind == GlassKind.tile,
+          ),
+        ),
+        findsNothing,
+      );
+    });
+  });
+
+  testWidgets('dark: the transcript and composer are the same glass, at night',
+      (tester) async {
+    await pumpChat(
+      tester,
+      StubRepository([
+        const TokenEvent('Tumo is up 6 points.'),
+        const DoneEvent(),
+      ]),
+    );
+    await tester.enterText(find.byType(TextField), 'How is Tumo doing?');
+    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await tester.pumpAndSettle();
+
+    GlassPane paneAround(Finder finder) => tester.widget<GlassPane>(
+          find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
+        );
+
+    final question = find.text('How is Tumo doing?');
+    expect(paneAround(question).kind, GlassKind.action);
+    // The night action is a bright pane, so its words are the dark action ink.
+    expect(tester.widget<Text>(question).style!.color,
+        LumenPalette.dark.actionInk);
+
+    final answer = paneAround(find.text('Tumo is up 6 points.'));
+    expect(answer.kind, GlassKind.tile);
+    expect(answer.blur, isFalse);
+
+    expect(paneAround(find.byType(TextField)).kind, GlassKind.bar);
   });
 }
