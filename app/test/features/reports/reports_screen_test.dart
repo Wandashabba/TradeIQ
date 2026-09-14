@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/glass.dart';
@@ -134,5 +136,37 @@ void main() {
     );
     expect(tile.kind, GlassKind.tile);
     expect(tile.blur, isFalse);
+  });
+
+  testWidgets('Schedules in the top bar opens report schedules',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          reportsRepositoryProvider.overrideWithValue(_FakeReportsRepository()),
+        ],
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            initialLocation: '/reports',
+            routes: [
+              GoRoute(
+                path: '/reports',
+                builder: (context, state) => const ReportsScreen(),
+              ),
+              GoRoute(
+                path: '/reports/schedules',
+                builder: (context, state) => const Text('schedules-page'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('reports-schedules')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('schedules-page'), findsOneWidget);
   });
 }
