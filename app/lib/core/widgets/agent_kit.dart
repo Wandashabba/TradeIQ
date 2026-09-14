@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/status_pill_colors.dart';
 import '../theme/tiq_colors.dart';
+import '../theme/lumen_glass.dart';
 import 'agent_motion.dart';
+import 'glass.dart';
+import 'lumen_kit.dart';
+import '../theme/lumen_palette.dart';
 
 /// The field agent's widget kit.
 ///
@@ -19,46 +22,51 @@ const double kTapTarget = 48;
 enum BannerLevel { good, warn, bad, info }
 
 extension BannerLevelStyle on BannerLevel {
-  /// The level's status colour, drawn from the ambient (theme-aware) palette.
-  /// Status slots are reserved — good/warn/crit — and info borrows series1,
-  /// which is never a status colour elsewhere.
-  Color color(TiqColors colors) => switch (this) {
-    BannerLevel.good => colors.good,
-    BannerLevel.warn => colors.warn,
-    BannerLevel.bad => colors.crit,
-    BannerLevel.info => colors.series1,
+  /// The level as a Lumen Glass status role — how the glass theme draws it.
+  LumenStatus get status => switch (this) {
+    BannerLevel.good => LumenStatus.good,
+    BannerLevel.warn => LumenStatus.warn,
+    BannerLevel.bad => LumenStatus.crit,
+    BannerLevel.info => LumenStatus.current,
   };
 
-  Color wash(TiqColors colors) => color(colors).withValues(alpha: 0.12);
+  /// The level's status colour, drawn from the ambient (theme-aware) palette.
+  /// Status slots are reserved — good/warn/crit — and info borrows series1,
+  /// which is never a status colour elsewhere. Glass takes the handoff's
+  /// status fill.
+  Color color(TiqColors colors) {
+    if (colors.glass) return status.swatchOf(colors).fill;
+    return switch (this) {
+      BannerLevel.good => colors.good,
+      BannerLevel.warn => colors.warn,
+      BannerLevel.bad => colors.crit,
+      BannerLevel.info => colors.series1,
+    };
+  }
+
+  Color wash(TiqColors colors) => colors.glass
+      ? status.swatchOf(colors).tint
+      : color(colors).withValues(alpha: 0.12);
 
   /// What the banner's words are set in — the dot and border keep the raw
   /// status token; only the words shift where the token would fail AA over its
-  /// own 12% wash. Both washes composite over the theme plane.
+  /// own wash.
   ///
-  /// - `bad`: crit is a mark colour — as text over its wash it reads 3.74:1
-  ///   (dark) — so the words take the theme-aware [TiqColors.critText] tint,
-  ///   validated ≥4.5:1 in both themes.
-  /// In **light** the status tokens are mid-dark hues over near-white washes,
-  /// and every one lands just short of AA as 13px text over its own 12% wash
-  /// on the plane (good 4.39:1, warn 4.34:1, info 4.28:1) — the same shortfall
-  /// crit already carries. So in light the words deepen: good/warn to the
-  /// console's status-text tints (the DeltaPill good/warn fg family), and info
-  /// to [TiqColors.light.brandHover] (its darkened blue is the natural twin —
-  /// DeltaPill has no blue tone). Each is validated ≥4.5:1 by the scaffold's
-  /// contrast guard. The dot and border keep the raw token. In **dark** the
-  /// tokens are bright over their dark washes and already clear AA, so the
-  /// words stay on the token — bad excepted, which takes the theme-aware
-  /// [TiqColors.critText] in both themes.
+  /// - **Glass:** the handoff's status ink, which clears 4.5:1 over its own
+  ///   tint on every part of the lit ground (glass_test.dart holds it).
+  /// - **Dark:** the tokens are bright over their dark washes and already clear
+  ///   AA, so the words stay on the token — bad excepted, which takes
+  ///   [TiqColors.critText] (crit is a mark colour, 3.74:1 as text).
+  /// - **Flat light** (a TiqColors that is light but not glass, e.g. a test
+  ///   palette): the status-text tints — see status_pill_colors.dart.
   Color textColor(TiqColors colors, Brightness brightness) {
+    if (colors.glass) return status.swatchOf(colors).ink;
     if (this == BannerLevel.bad) return colors.critText;
     if (brightness == Brightness.light) {
       return switch (this) {
-        // The status-text tints are the shared good/warn fg — see
-        // status_pill_colors.dart. (DeltaPill has no blue tone, so info's
-        // darkened blue rides on the theme's brandHover.)
         BannerLevel.good => statusPillGood.fg,
         BannerLevel.warn => statusPillWarn.fg,
-        BannerLevel.info => TiqColors.light.brandHover, // == 0xFF0857C4
+        BannerLevel.info => TiqColors.light.brandHover,
         BannerLevel.bad => colors.critText, // unreachable — bad handled above
       };
     }
@@ -89,59 +97,102 @@ class StatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final color = level.color(colors);
+    final motion = reduceMotion(context) ? Duration.zero : Motion.base;
+    final titleColor = level.textColor(colors, Theme.of(context).brightness);
+    // In glass a problem carries its ink into the sub-line too; a calm state
+    // keeps the sub-line muted so the title is what reads.
+    final loudSub =
+        colors.glass && (level == BannerLevel.warn || level == BannerLevel.bad);
+
+    final words = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedSwitcher(
+          duration: motion,
+          child: Text(
+            title,
+            key: ValueKey(title),
+            style: TextStyle(
+              fontSize: colors.glass ? 12.5 : 13,
+              fontWeight: FontWeight.w600,
+              color: titleColor,
+            ),
+          ),
+        ),
+        if (subtitle != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: AnimatedSwitcher(
+              duration: motion,
+              child: Text(
+                subtitle!,
+                key: ValueKey(subtitle),
+                style: TextStyle(
+                  fontSize: colors.glass ? 11 : 11.5,
+                  color: loudSub ? titleColor : colors.ink3,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    if (colors.glass) {
+      // A glass strip like every other pane. Held-on-phone breathes — the
+      // handoff's one hard requirement is that unsent work is never quiet — and
+      // a problem that will not fix itself is washed in its tint as well.
+      final sw = level.status.swatchOf(colors);
+      final loud = level == BannerLevel.bad;
+      final Widget dot = pulsing || level == BannerLevel.warn
+          ? GlassPulseDot(color: color)
+          : Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.18),
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+            );
+      return GlassPane(
+        radius: LumenGlass.radiusControl,
+        fillColor: loud ? sw.tint : null,
+        rimColor: loud ? sw.rim : null,
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+        child: Row(
+          children: [
+            dot,
+            const SizedBox(width: 11),
+            Expanded(child: words),
+            ?trailing,
+          ],
+        ),
+      );
+    }
+
     // The banner MORPHS between states — amber "held on this phone" easing into
     // green "everything is sent" is the moment the agent has been waiting for.
     // Cutting between them would throw it away.
     return AnimatedContainer(
-      duration: reduceMotion(context) ? Duration.zero : Motion.base,
+      duration: motion,
       curve: Motion.enter,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: level.wash(colors),
         border: Border.all(color: color.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+        borderRadius: BorderRadius.circular(colors.radiusControl),
       ),
       child: Row(
         children: [
           PulseDot(color: color, active: pulsing),
           const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedSwitcher(
-                  duration: reduceMotion(context) ? Duration.zero : Motion.base,
-                  child: Text(
-                    title,
-                    key: ValueKey(title),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: level.textColor(
-                        colors,
-                        Theme.of(context).brightness,
-                      ),
-                    ),
-                  ),
-                ),
-                if (subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: AnimatedSwitcher(
-                      duration: reduceMotion(context)
-                          ? Duration.zero
-                          : Motion.base,
-                      child: Text(
-                        subtitle!,
-                        key: ValueKey(subtitle),
-                        style: TextStyle(fontSize: 11.5, color: colors.ink3),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          Expanded(child: words),
           ?trailing,
         ],
       ),
@@ -169,6 +220,52 @@ class AgentButton extends StatelessWidget {
     final colors = context.colors;
     final enabled = onPressed != null;
 
+    if (colors.glass) {
+      if (!secondary) {
+        return GlassPrimaryButton(
+          label: label,
+          onPressed: onPressed,
+          icon: icon,
+          height: kTapTarget + 4,
+        );
+      }
+      final ink = enabled ? context.lumen.ink : context.lumen.inkMuted;
+      return Semantics(
+        button: true,
+        enabled: enabled,
+        child: PressFeedback(
+          onTap: onPressed,
+          child: GlassPane(
+            kind: GlassKind.pill,
+            radius: LumenGlass.radiusControl,
+            child: SizedBox(
+              width: double.infinity,
+              height: kTapTarget,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 18, color: ink),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: ink,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     // The moment the last required section lands, this button comes alive — the
     // colour eases in rather than snapping. It is the agent's "you can go now".
     return PressFeedback(
@@ -192,7 +289,7 @@ class AgentButton extends StatelessWidget {
                   ? colors.lineStrong
                   : colors.brand,
             ),
-            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            borderRadius: BorderRadius.circular(colors.radiusControl),
           ),
           child: Center(
             child: Row(
@@ -302,7 +399,76 @@ class CountStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final v = value;
-    final isZero = v == 0;
+    final finding = v == 0 && zeroIsFinding;
+    // From "not counted", - means "there are none": an explicit zero, which is
+    // exactly how an agent records an empty shelf.
+    final decrement = v == null || v > min
+        ? () => _change(v, (v ?? 1) - 1)
+        : null;
+    // From "not counted", the first + means "I counted one" — not zero.
+    // Landing on 0 would silently record an out-of-stock, which is a finding
+    // that raises a task.
+    final increment = v == null || v < max
+        ? () => _change(v, (v ?? 0) + 1)
+        : null;
+
+    if (colors.glass) {
+      final crit = LumenStatus.crit.swatchOf(colors);
+      return Row(
+        children: [
+          _GlassStep(
+            icon: Icons.remove,
+            onTap: decrement,
+            semantic: 'One fewer',
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onEdit,
+                borderRadius: BorderRadius.circular(LumenGlass.radiusControl),
+                child: AnimatedContainer(
+                  duration: reduceMotion(context) ? Duration.zero : Motion.base,
+                  curve: Motion.enter,
+                  height: 54,
+                  alignment: Alignment.center,
+                  // Zero is the finding, not an empty box: the whole field takes
+                  // the crit wash so an out-of-stock reads from arm's length.
+                  decoration: BoxDecoration(
+                    color: finding ? crit.tint : context.lumen.white(0x8C),
+                    borderRadius: BorderRadius.circular(
+                      LumenGlass.radiusControl,
+                    ),
+                    border: Border.all(
+                      color: finding ? crit.rim : context.lumen.white(0x99),
+                    ),
+                  ),
+                  child: AnimatedCount(
+                    value: v,
+                    style: LumenGlass.figure(
+                      size: 24,
+                      color: v == null
+                          ? context.lumen.inkMuted
+                          : finding
+                          ? crit.ink
+                          : context.lumen.ink,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 9),
+          _GlassStep(
+            icon: Icons.add,
+            onTap: increment,
+            semantic: 'One more',
+            accent: true,
+          ),
+        ],
+      );
+    }
 
     return AnimatedContainer(
       duration: reduceMotion(context) ? Duration.zero : Motion.base,
@@ -312,21 +478,15 @@ class CountStepper extends StatelessWidget {
         // The whole control takes on the finding's colour, so an out-of-stock is
         // unmissable from arm's length in a dark aisle.
         border: Border.all(
-          color: isZero && zeroIsFinding
+          color: finding
               ? colors.crit.withValues(alpha: 0.6)
               : colors.lineStrong,
         ),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+        borderRadius: BorderRadius.circular(colors.radiusControl),
       ),
       child: Row(
         children: [
-          _Step(
-            icon: Icons.remove,
-            // From "not counted", - means "there are none": an explicit zero,
-            // which is exactly how an agent records an empty shelf.
-            onTap: v == null || v > min ? () => _change(v, (v ?? 1) - 1) : null,
-            semantic: 'One fewer',
-          ),
+          _Step(icon: Icons.remove, onTap: decrement, semantic: 'One fewer'),
           Expanded(
             child: Material(
               color: Colors.transparent,
@@ -343,7 +503,7 @@ class CountStepper extends StatelessWidget {
                         fontFeatures: const [FontFeature.tabularFigures()],
                         color: v == null
                             ? colors.ink3
-                            : (isZero && zeroIsFinding)
+                            : finding
                             ? colors.crit
                             : colors.ink1,
                       ),
@@ -353,14 +513,7 @@ class CountStepper extends StatelessWidget {
               ),
             ),
           ),
-          _Step(
-            icon: Icons.add,
-            // From "not counted", the first + means "I counted one" — not zero.
-            // Landing on 0 would silently record an out-of-stock, which is a
-            // finding that raises a task.
-            onTap: v == null || v < max ? () => _change(v, (v ?? 0) + 1) : null,
-            semantic: 'One more',
-          ),
+          _Step(icon: Icons.add, onTap: increment, semantic: 'One more'),
         ],
       ),
     );
@@ -398,6 +551,78 @@ class _Step extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A stepper key in glass: the minus a clear glass key, the plus the accent
+/// with its own gloss. 58×54 — counts are entered by thumb.
+class _GlassStep extends StatelessWidget {
+  const _GlassStep({
+    required this.icon,
+    required this.onTap,
+    required this.semantic,
+    this.accent = false,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final String semantic;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final glyph = SizedBox(
+      width: 58,
+      height: 54,
+      child: Icon(
+        icon,
+        size: 24,
+        color: accent ? Colors.white : context.lumen.accentInk,
+      ),
+    );
+    final Widget face = accent
+        ? GlassPane(
+            kind: GlassKind.action,
+            radius: LumenGlass.radiusControl,
+            fillColor: context.lumen.accent,
+            rimColor: context.lumen.white(0x66),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment(-0.7, -1),
+                          end: Alignment(0.3, 0.4),
+                          colors: [
+                            context.lumen.white(0x73),
+                            Color(0x00FFFFFF),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                glyph,
+              ],
+            ),
+          )
+        : GlassPane(
+            kind: GlassKind.pill,
+            radius: LumenGlass.radiusControl,
+            child: glyph,
+          );
+    final enabled = onTap != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: semantic,
+      child: PressFeedback(
+        onTap: onTap,
+        child: enabled ? face : Opacity(opacity: 0.45, child: face),
       ),
     );
   }
@@ -449,6 +674,39 @@ class _Choice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      // Glass: every option is a pill; the chosen one is lit — a bright pane,
+      // an accent rim and accent words — so the choice reads without colour.
+      final lumen = context.lumen;
+      final radius = BorderRadius.circular(LumenGlass.radiusControl);
+      return SizedBox(
+        height: kTapTarget,
+        child: GlassPane(
+          kind: GlassKind.pill,
+          radius: LumenGlass.radiusControl,
+          shadow: selected,
+          fillColor: selected ? null : lumen.tileFill,
+          rimColor: selected ? lumen.accent : lumen.tileRim,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: radius,
+              child: Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    color: selected ? lumen.accentInk : colors.ink2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return SizedBox(
       height: kTapTarget,
       child: DecoratedBox(
@@ -459,13 +717,13 @@ class _Choice extends StatelessWidget {
           border: Border.all(
             color: selected ? colors.brand : colors.lineStrong,
           ),
-          borderRadius: BorderRadius.circular(AppColors.radiusControl),
+          borderRadius: BorderRadius.circular(colors.radiusControl),
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            borderRadius: BorderRadius.circular(colors.radiusControl),
             child: Center(
               child: Text(
                 label,
@@ -516,7 +774,7 @@ class AgentToggle extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () => onChanged(!value),
-            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            borderRadius: BorderRadius.circular(colors.radiusControl),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: kTapTarget),
               child: Padding(
@@ -584,7 +842,9 @@ class _ToggleTrack extends StatelessWidget {
       width: _w,
       height: _h,
       decoration: BoxDecoration(
-        color: value ? colors.brand : colors.surface3,
+        color: value
+            ? colors.brand
+            : (colors.glass ? context.lumen.track : colors.surface3),
         border: Border.all(color: value ? colors.brand : colors.lineStrong),
         borderRadius: BorderRadius.circular(_h / 2),
       ),
@@ -599,9 +859,25 @@ class _ToggleTrack extends StatelessWidget {
             height: _thumb,
             // Off the thumb is a muted knob (ink3) on the surface3 track; on it
             // is white on brand — the knob itself carries the state, not colour.
+            // Glass: a lit white knob by day; at night the on-knob takes the
+            // action's dark ink so it stands off the lavender track.
             decoration: BoxDecoration(
-              color: value ? Colors.white : colors.ink3,
+              color: switch ((colors.glass, colors.isNight, value)) {
+                (true, true, true) => colors.onAction,
+                (true, false, _) => Colors.white,
+                (_, _, true) => Colors.white,
+                _ => colors.ink3,
+              },
               shape: BoxShape.circle,
+              boxShadow: colors.glass && !colors.isNight
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x33241F47),
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ]
+                  : null,
             ),
           ),
         ),
@@ -638,7 +914,7 @@ class AgentCheck extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () => onChanged(!value),
-            borderRadius: BorderRadius.circular(AppColors.radiusControl),
+            borderRadius: BorderRadius.circular(colors.radiusControl),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: kTapTarget),
               child: Padding(
@@ -686,13 +962,23 @@ class _CheckBox extends StatelessWidget {
       width: _size,
       height: _size,
       decoration: BoxDecoration(
-        color: value ? colors.brand : colors.surface2,
+        color: value
+            ? colors.brand
+            : (colors.glass ? context.lumen.pillFill : colors.surface2),
         border: Border.all(color: value ? colors.brand : colors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+        borderRadius: BorderRadius.circular(
+          colors.glass ? 7 : colors.radiusControl,
+        ),
       ),
-      // White on brand clears AA (4.76:1); the tick is what carries "checked".
+      // The tick clears AA on brand in every theme (white by day and in the
+      // flat dark; the action's dark ink on night's lavender) — and the tick,
+      // not the fill, is what carries "checked".
       child: value
-          ? const Icon(Icons.check, size: 16, color: Colors.white)
+          ? Icon(
+              Icons.check,
+              size: 16,
+              color: colors.isNight ? colors.onAction : Colors.white,
+            )
           : null,
     );
   }

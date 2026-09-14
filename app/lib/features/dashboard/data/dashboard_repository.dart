@@ -1,6 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 
+/// One perfect-store score band and how many outlets sit in it. The server
+/// counts each outlet once, at its most recent scored visit in the window —
+/// doors, not visits.
+class ScoreBand {
+  const ScoreBand({
+    required this.label,
+    required this.minScore,
+    required this.outlets,
+  });
+
+  final String label;
+  final double minScore;
+  final int outlets;
+
+  factory ScoreBand.fromJson(Map<String, dynamic> json) => ScoreBand(
+        label: json['label'] as String? ?? '',
+        minScore: (json['minScore'] as num?)?.toDouble() ?? 0,
+        outlets: (json['outlets'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// The manager dashboard KPI set returned by GET /dashboard.
 class DashboardKpis {
   const DashboardKpis({
@@ -12,6 +33,7 @@ class DashboardKpis {
     required this.visibilityCompliancePct,
     required this.shareOfShelf,
     required this.perfectStoreRate,
+    this.scoreBands = const [],
   });
   final double numericDistribution;
   final double weightedDistribution;
@@ -21,6 +43,11 @@ class DashboardKpis {
   final double visibilityCompliancePct;
   final double shareOfShelf;
   final double perfectStoreRate;
+
+  /// The perfect-store distribution, highest band first. Empty when the
+  /// server predates the field — the console then hides the panel rather
+  /// than drawing five zero-height bars as if they were data.
+  final List<ScoreBand> scoreBands;
 
   factory DashboardKpis.fromJson(Map<String, dynamic> json) {
     final kpis = (json['kpis'] as Map<String, dynamic>?) ?? const {};
@@ -34,6 +61,10 @@ class DashboardKpis {
       visibilityCompliancePct: read('visibilityCompliancePct'),
       shareOfShelf: read('shareOfShelf'),
       perfectStoreRate: read('perfectStoreRate'),
+      scoreBands: [
+        for (final band in (json['scoreBands'] as List?) ?? const [])
+          if (band is Map<String, dynamic>) ScoreBand.fromJson(band),
+      ],
     );
   }
 }

@@ -8,8 +8,12 @@ import 'package:video_player/video_player.dart';
 import '../../../core/auth/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_motion.dart' show reduceMotion;
 import '../../../core/widgets/dimmed_aisle_backdrop.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/trade_iq_logo.dart';
+import '../../../core/theme/lumen_palette.dart';
 
 /// The splash: the aisle footage dimmed to texture, the wordmark fading up,
 /// and self-managed navigation at `max(5s, session-restore)` — never before
@@ -110,56 +114,94 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
   @override
   Widget build(BuildContext context) {
     final still = reduceMotion(context);
-    // The auth screens ship dark-only this pass (restyling them is out of 5a
-    // scope), so pin them dark inline now that PinnedDark is gone.
-    return Theme(
-      data: AppTheme.dark(),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          _skipped = true;
-          _maybeAdvance();
-        },
-        child: Scaffold(
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              DimmedAisleBackdrop(controller: _videoController),
-              Center(
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: still ? 1 : 0, end: 1),
-                  duration: Duration(milliseconds: still ? 0 : 900),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, t, child) => Opacity(
-                    opacity: t,
-                    child: Transform.translate(
-                      offset: Offset(0, (1 - t) * 12),
-                      child: child,
-                    ),
-                  ),
-                  child: const Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: 'TRADE'),
-                        TextSpan(
-                          text: 'IQ',
-                          style: TextStyle(color: AppColors.blueLight),
-                        ),
-                      ],
-                    ),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 34,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 4.5,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+    final glass = context.colors.glass;
+
+    final wordmark = TweenAnimationBuilder<double>(
+      tween: Tween(begin: still ? 1 : 0, end: 1),
+      duration: Duration(milliseconds: still ? 0 : 900),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 12),
+          child: child,
         ),
       ),
+      child: glass
+          // Lumen Glass: the monogram on its own pane, the wordmark in ink.
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GlassPane(
+                  kind: GlassKind.panel,
+                  radius: 26,
+                  padding: EdgeInsets.all(18),
+                  child: TradeIqLogo(size: 52),
+                ),
+                SizedBox(height: 22),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: 'TRADE'),
+                      TextSpan(
+                        text: 'IQ',
+                        style: TextStyle(color: context.lumen.accentSolid),
+                      ),
+                    ],
+                  ),
+                  style: TextStyle(
+                    color: context.lumen.ink,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 4.5,
+                  ),
+                ),
+              ],
+            )
+          : const Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: 'TRADE'),
+                  TextSpan(
+                    text: 'IQ',
+                    style: TextStyle(color: AppColors.blueLight),
+                  ),
+                ],
+              ),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 4.5,
+              ),
+            ),
     );
+
+    final splash = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        _skipped = true;
+        _maybeAdvance();
+      },
+      child: Scaffold(
+        backgroundColor: glass ? context.colors.plane : null,
+        body: glass
+            ? LitGround(
+                backdrop: AisleFootage(controller: _videoController),
+                child: Center(child: wordmark),
+              )
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  DimmedAisleBackdrop(controller: _videoController),
+                  Center(child: wordmark),
+                ],
+              ),
+      ),
+    );
+
+    // Light is Lumen Glass on the lit ground; dark keeps the dimmed aisle
+    // footage, pinned to the dark theme as before.
+    return glass ? splash : Theme(data: AppTheme.dark(), child: splash);
   }
 }

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/lumen_glass.dart';
 import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
+import '../../../../core/widgets/glass.dart';
 import '../../data/skus_repository.dart';
 import '../../data/stock_repository.dart';
 
@@ -114,7 +116,8 @@ class _StockFormState extends ConsumerState<_StockForm> {
         for (final sku in widget.skus)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
-            child: PanelCard(
+            child: _SkuCard(
+              zero: _units[sku.id] == 0,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -155,7 +158,9 @@ class _StockFormState extends ConsumerState<_StockForm> {
                   if (_units[sku.id] == 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: Row(
+                      child: colors.glass
+                          ? const _OutOfStockNote()
+                          : Row(
                         children: [
                           // The icon keeps raw crit (a glyph paired with the
                           // word); the WORDS take the AA-safe critText, which
@@ -298,3 +303,82 @@ class _CountInputDialogState extends State<_CountInputDialog> {
     );
   }
 }
+
+/// One SKU's card. Glass: a no-blur tile (it repeats down the list) whose rim
+/// turns crit on an out-of-stock, so the finding reads from arm's length.
+class _SkuCard extends StatelessWidget {
+  const _SkuCard({required this.zero, required this.child});
+
+  final bool zero;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    if (!colors.glass) return PanelCard(child: child);
+    return GlassPane(
+      kind: GlassKind.tile,
+      blur: false,
+      radius: LumenGlass.radiusCard,
+      rimColor: zero ? LumenStatus.crit.swatchOf(colors).rim : null,
+      padding: const EdgeInsets.all(15),
+      child: child,
+    );
+  }
+}
+
+/// Zero is the finding, not an empty box: it raises a task, and the note says
+/// why that matters. An opaque crit wash so the words clear AA on their own.
+class _OutOfStockNote extends StatelessWidget {
+  const _OutOfStockNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final crit = LumenStatus.crit.swatchOf(colors);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(crit.tint, colors.surface1),
+        borderRadius: BorderRadius.circular(LumenGlass.radiusIconTile),
+        border: Border.all(color: crit.rim),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.warning_amber_outlined,
+              size: 15,
+              color: colors.crit,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Out of stock — this raises a task for the manager',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: crit.ink,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '70% of shoppers switch brand when the product is missing.',
+                  style: TextStyle(fontSize: 11, height: 1.45, color: crit.ink),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

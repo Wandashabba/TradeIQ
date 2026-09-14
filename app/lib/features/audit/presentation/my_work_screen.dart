@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
+import '../../../core/widgets/glass.dart';
 
 /// "Your work" — everything the agent has captured, and whether the server has
 /// it yet.
@@ -175,25 +177,31 @@ class _Group extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final rows = Column(
+      children: [
+        for (var i = 0; i < items.length; i++)
+          Reveal(
+            index: i,
+            child: _Row(
+              item: items[i],
+              showError: showError,
+              last: i == items.length - 1,
+            ),
+          ),
+      ],
+    );
+    if (colors.glass) {
+      // A pane of glass per group; no blur, because the list scrolls.
+      return GlassPane(radius: LumenGlass.radiusCard, blur: false, child: rows);
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: context.colors.surface1,
-        border: Border.all(color: context.colors.line),
+        color: colors.surface1,
+        border: Border.all(color: colors.line),
         borderRadius: BorderRadius.circular(AppColors.radiusPanel),
       ),
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++)
-            Reveal(
-              index: i,
-              child: _Row(
-                item: items[i],
-                showError: showError,
-                last: i == items.length - 1,
-              ),
-            ),
-        ],
-      ),
+      child: rows,
     );
   }
 }

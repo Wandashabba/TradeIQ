@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -83,6 +84,14 @@ class _LeaderboardRow extends StatelessWidget {
         '${entry.tasksClosed} tasks closed',
         softWrap: false,
         overflow: TextOverflow.ellipsis,
+        // A line of figures: glass sets it in the mono so ranks compare down
+        // the column. Null keeps the row's own meta style in dark.
+        style: context.colors.glass
+            ? const TextStyle(
+                fontFamily: LumenGlass.mono,
+                fontFeatures: [FontFeature.tabularFigures()],
+              )
+            : null,
       ),
       // One hue for every rank — position is the ranking, colour would only
       // restate it as a judgement.

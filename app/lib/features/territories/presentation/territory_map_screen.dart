@@ -3,7 +3,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/glass_page_scaffold.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/territories_repository.dart';
@@ -37,15 +42,33 @@ class TerritoryMapScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final coverage = ref.watch(_territoryCoverageProvider(territory.id));
-    return Scaffold(
-      appBar: AppBar(title: Text('${territory.name} — Map')),
+    return GlassPageScaffold(
+      title: Text('${territory.name} — Map'),
       body: AsyncSection<TerritoryCoverage>(
         value: coverage,
         label: 'territory coverage',
         onRetry: () => ref.invalidate(_territoryCoverageProvider(territory.id)),
         builder: (data) {
           final outlets = data.outlets;
+          final glass = context.colors.glass;
           if (outlets.isEmpty) {
+            if (glass) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: GlassPane(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      'No outlets in this territory yet.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: context.lumen.inkMuted,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
             return const Center(
               child: Text('No outlets in this territory yet.'),
             );
@@ -93,9 +116,23 @@ class TerritoryMapScreen extends ConsumerWidget {
               // separate from (and in addition to) the TileLayer's
               // userAgentPackageName, which only satisfies the tile-usage
               // policy, not the license itself.
-              const SimpleAttributionWidget(
-                source: Text('OpenStreetMap contributors'),
-              ),
+              // Glass sets it on an opaque pane-coloured chip with the pane's
+              // own ink, so the credit stays legible over busy tiles.
+              if (glass)
+                SimpleAttributionWidget(
+                  backgroundColor: context.colors.surface1,
+                  source: Text(
+                    'OpenStreetMap contributors',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: context.lumen.inkMuted,
+                    ),
+                  ),
+                )
+              else
+                const SimpleAttributionWidget(
+                  source: Text('OpenStreetMap contributors'),
+                ),
             ],
           );
         },
@@ -106,22 +143,63 @@ class TerritoryMapScreen extends ConsumerWidget {
   void _showOutletSheet(BuildContext context, Outlet outlet) {
     showModalBottomSheet<void>(
       context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              outlet.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      builder: (context) => context.colors.glass
+          ? _GlassOutletSheet(outlet: outlet)
+          : Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    outlet.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(outlet.code),
+                  const SizedBox(height: 8),
+                  Text(outlet.visited ? 'Visited' : 'Not visited'),
+                ],
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(outlet.code),
-            const SizedBox(height: 8),
-            Text(outlet.visited ? 'Visited' : 'Not visited'),
-          ],
-        ),
+    );
+  }
+}
+
+/// The outlet sheet in glass: the store as a title over its code, and the
+/// visit state as a word on its status wash — never the colour alone.
+class _GlassOutletSheet extends StatelessWidget {
+  const _GlassOutletSheet({required this.outlet});
+
+  final Outlet outlet;
+
+  @override
+  Widget build(BuildContext context) {
+    final lumen = context.lumen;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 26),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Kicker('Outlet'),
+          const SizedBox(height: 6),
+          Text(outlet.name, style: LumenGlass.title(size: 20, color: lumen.ink)),
+          const SizedBox(height: 4),
+          Text(
+            outlet.code,
+            style: LumenGlass.figure(
+              size: 12.5,
+              color: lumen.inkMuted,
+              weight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 14),
+          LumenStatusPill(
+            status: outlet.visited ? LumenStatus.good : LumenStatus.crit,
+            label: outlet.visited ? 'Visited' : 'Not visited',
+          ),
+        ],
       ),
     );
   }
@@ -149,6 +227,11 @@ class _OutletPin extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final visited = outlet.visited;
+    // Glass keeps the opaque disc (the map beneath is no ground to trust) but
+    // rims it in the state's own family and inks the glyph from the swatch.
+    final swatch = (visited ? LumenStatus.good : LumenStatus.crit).swatchOf(
+      colors,
+    );
 
     return Semantics(
       button: true,
@@ -159,19 +242,34 @@ class _OutletPin extends StatelessWidget {
         // A white disc under the glyph. OSM tiles range from pale fields to
         // dark roads and green parks, so a bare icon has no guaranteed
         // contrast anywhere; the disc gives it one background it can rely on.
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: colors.line, width: 1),
-          boxShadow: const [
-            BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1)),
-          ],
-        ),
+        decoration: colors.glass
+            ? BoxDecoration(
+                color: colors.surface1,
+                shape: BoxShape.circle,
+                border: Border.all(color: swatch.rim, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.lumen.shadow,
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              )
+            : BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: colors.line, width: 1),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1)),
+                ],
+              ),
         child: Center(
           child: Icon(
             visited ? Icons.check_circle : Icons.location_on,
             key: ValueKey<String>('outlet-pin-icon-${outlet.id}'),
-            color: visited ? colors.good : colors.crit,
+            color: colors.glass
+                ? swatch.ink
+                : (visited ? colors.good : colors.crit),
             size: 22,
           ),
         ),

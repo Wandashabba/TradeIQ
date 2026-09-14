@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/period_label.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/charts.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/trends_repository.dart';
@@ -126,6 +129,24 @@ class _ViewToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      return _GlassSegments(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        fontSize: 11.5,
+        segments: [
+          for (final (label, isTable) in const [
+            ('Chart', false),
+            ('Table', true),
+          ])
+            (
+              key: ValueKey('view-${label.toLowerCase()}'),
+              label: label,
+              selected: isTable == asTable,
+              onTap: () => onChanged(isTable),
+            ),
+        ],
+      );
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: colors.lineStrong),
@@ -198,7 +219,12 @@ class _TrendTable extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 7),
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: colors.line)),
+              // Glass rules are the pane's own rim, not a grey hairline.
+              border: Border(
+                top: BorderSide(
+                  color: colors.glass ? context.lumen.panelRim : colors.line,
+                ),
+              ),
             ),
             child: Row(
               children: [
@@ -210,12 +236,14 @@ class _TrendTable extends StatelessWidget {
                 ),
                 Text(
                   '${_trim(p.value)}$suffix',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: colors.ink1,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+                  style: colors.glass
+                      ? LumenGlass.figure(size: 12.5, color: colors.ink1)
+                      : TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: colors.ink1,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                 ),
               ],
             ),
@@ -265,6 +293,27 @@ class _TrendFilters extends ConsumerWidget {
     return FilterRow(
       children: [
         const SectionLabel('Bucket'),
+        if (colors.glass)
+          _GlassSegments(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            fontSize: 12,
+            segments: [
+              for (final interval in TrendInterval.values)
+                (
+                  key: ValueKey('interval-${interval.name}'),
+                  label: interval == TrendInterval.day ? 'Daily' : 'Weekly',
+                  selected: interval == query.interval,
+                  onTap: () => update(
+                    TrendQuery(
+                      interval: interval,
+                      from: query.from,
+                      to: query.to,
+                    ),
+                  ),
+                ),
+            ],
+          )
+        else
         DecoratedBox(
           decoration: BoxDecoration(
             border: Border.all(color: colors.lineStrong),
@@ -332,6 +381,71 @@ class _TrendFilters extends ConsumerWidget {
             child: const Text('Clear'),
           ),
       ],
+    );
+  }
+}
+
+typedef _GlassSegment = ({
+  Key key,
+  String label,
+  bool selected,
+  VoidCallback onTap,
+});
+
+/// The glass segmented control both switches on this screen share: a bar
+/// track with the selected segment lifted onto a bright pill — the dashboard
+/// filter bar's idiom. Both states share one [padding] (a pane's rim paints
+/// over its edge, it adds no size), so a tap never shifts the row.
+class _GlassSegments extends StatelessWidget {
+  const _GlassSegments({
+    required this.segments,
+    required this.padding,
+    required this.fontSize,
+  });
+
+  final List<_GlassSegment> segments;
+  final EdgeInsets padding;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    const inner = LumenGlass.radiusControl - 3;
+    // Ink when selected, the muted ink otherwise — both clear 4.5:1 on the bar.
+    Widget label(_GlassSegment s) => Text(
+      s.label,
+      style: TextStyle(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w600,
+        color: s.selected ? context.lumen.ink : context.lumen.inkMuted,
+      ),
+    );
+
+    return GlassPane(
+      kind: GlassKind.bar,
+      radius: LumenGlass.radiusControl,
+      blur: false,
+      shadow: false,
+      specular: false,
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final s in segments)
+            InkWell(
+              key: s.key,
+              onTap: s.onTap,
+              borderRadius: BorderRadius.circular(inner),
+              child: s.selected
+                  ? GlassPane(
+                      kind: GlassKind.pill,
+                      radius: inner,
+                      padding: padding,
+                      child: label(s),
+                    )
+                  : Padding(padding: padding, child: label(s)),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/lumen_glass.dart';
 import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
+import '../../../../core/widgets/glass.dart';
 import '../../../../core/widgets/photo_capture_field.dart';
 import '../../data/photos_repository.dart';
 import '../../data/visibility_repository.dart';
@@ -85,63 +87,79 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final branding = <Widget>[
+      SectionLabel('Branding elements present'),
+      const SizedBox(height: 4),
+      for (final entry in _brandingOptions.entries)
+        AgentCheck(
+          key: ValueKey('branding-${entry.key}'),
+          label: entry.value,
+          value: _branding[entry.key] ?? false,
+          onChanged: (v) => setState(() => _branding[entry.key] = v),
+        ),
+    ];
+    final measures = <Widget>[
+      AgentField(
+        label: 'Planogram compliance %',
+        child: TextField(
+          key: const ValueKey('planogram'),
+          controller: _planogram,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(hintText: '0–100'),
+        ),
+      ),
+      AgentField(
+        label: 'Facings count',
+        child: TextField(
+          key: const ValueKey('facings'),
+          controller: _facings,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: '0'),
+        ),
+      ),
+      AgentField(
+        label: 'Cleanliness score',
+        child: TextField(
+          key: const ValueKey('cleanliness'),
+          controller: _cleanliness,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: '0'),
+        ),
+      ),
+    ];
+    final traffic = AgentToggle(
+      key: const ValueKey('high-traffic'),
+      label: 'High-traffic location',
+      value: _highTraffic,
+      onChanged: (v) => setState(() => _highTraffic = v),
+    );
+
     // No section header here — the shared section wrapper already titles this
     // "Visibility & display".
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PanelCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SectionLabel('Branding elements present'),
-              const SizedBox(height: 4),
-              for (final entry in _brandingOptions.entries)
-                AgentCheck(
-                  key: ValueKey('branding-${entry.key}'),
-                  label: entry.value,
-                  value: _branding[entry.key] ?? false,
-                  onChanged: (v) => setState(() => _branding[entry.key] = v),
-                ),
-              const SizedBox(height: 12),
-              AgentField(
-                label: 'Planogram compliance %',
-                child: TextField(
-                  key: const ValueKey('planogram'),
-                  controller: _planogram,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(hintText: '0–100'),
-                ),
-              ),
-              AgentField(
-                label: 'Facings count',
-                child: TextField(
-                  key: const ValueKey('facings'),
-                  controller: _facings,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(hintText: '0'),
-                ),
-              ),
-              AgentField(
-                label: 'Cleanliness score',
-                child: TextField(
-                  key: const ValueKey('cleanliness'),
-                  controller: _cleanliness,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(hintText: '0'),
-                ),
-              ),
-              AgentToggle(
-                key: const ValueKey('high-traffic'),
-                label: 'High-traffic location',
-                value: _highTraffic,
-                onChanged: (v) => setState(() => _highTraffic = v),
-              ),
-            ],
+        if (colors.glass) ...[
+          // Glass: one tile per question group, so each reads as its own
+          // answer rather than a long form.
+          _Tile(children: branding),
+          const SizedBox(height: 10),
+          // AgentField pads its own bottom; the tile trims it back.
+          _Tile(bottom: 0, children: measures),
+          const SizedBox(height: 10),
+          _Tile(vertical: 4, children: [traffic]),
+        ] else
+          PanelCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...branding,
+                const SizedBox(height: 12),
+                ...measures,
+                traffic,
+              ],
+            ),
           ),
-        ),
         const SizedBox(height: 16),
         PhotoCaptureField(
           label: 'Shelf photo',
@@ -161,6 +179,29 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// One question group as a no-blur glass tile (the section scrolls).
+class _Tile extends StatelessWidget {
+  const _Tile({required this.children, this.vertical = 14, this.bottom});
+
+  final List<Widget> children;
+  final double vertical;
+  final double? bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      kind: GlassKind.tile,
+      blur: false,
+      radius: LumenGlass.radiusCard,
+      padding: EdgeInsets.fromLTRB(16, vertical, 16, bottom ?? vertical),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
     );
   }
 }

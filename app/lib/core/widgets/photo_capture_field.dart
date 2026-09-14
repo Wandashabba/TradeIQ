@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../camera/photo_capture_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/lumen_glass.dart';
+import '../theme/lumen_palette.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_motion.dart';
 import 'console.dart';
+import 'glass.dart';
 import 'guided_capture_screen.dart';
 
 /// Capture a photo, see what you captured, and be able to retake it.
@@ -74,6 +77,33 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final radius = colors.glass
+        ? LumenGlass.radiusControl
+        : AppColors.radiusControl;
+    final addPhoto = InkWell(
+      key: const ValueKey('photo-add'),
+      borderRadius: BorderRadius.circular(radius),
+      onTap: _openGuidedCapture,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+        child: Row(
+          children: [
+            Icon(Icons.add_a_photo_outlined, size: 18, color: colors.brand),
+            const SizedBox(width: 10),
+            Text(
+              'Add photo',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colors.ink1,
+              ),
+            ),
+            const Spacer(),
+            Icon(Icons.chevron_right, size: 18, color: colors.ink3),
+          ],
+        ),
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -88,7 +118,20 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
         const SizedBox(height: 8),
         if (_dataUrl != null)
           _Preview(dataUrl: _dataUrl!, onRetake: _openGuidedCapture),
-        if (_dataUrl == null)
+        if (_dataUrl == null && colors.glass)
+          // Glass: a no-blur tile (a section can carry several of these),
+          // its ink well inside the pane so the ripple shows over the fill.
+          GlassPane(
+            key: const ValueKey('photo-capture-tile'),
+            kind: GlassKind.tile,
+            blur: false,
+            radius: radius,
+            child: Material(
+              type: MaterialType.transparency,
+              child: addPhoto,
+            ),
+          )
+        else if (_dataUrl == null)
           // A console-tokened tile framing a single "Add photo" affordance:
           // tapping anywhere on it opens the full-screen GuidedCaptureScreen,
           // which shows what to shoot before the OS camera launches.
@@ -102,37 +145,7 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
             child: Material(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(AppColors.radiusControl),
-              child: InkWell(
-                key: const ValueKey('photo-add'),
-                borderRadius: BorderRadius.circular(AppColors.radiusControl),
-                onTap: _openGuidedCapture,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 15,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.add_a_photo_outlined,
-                        size: 18,
-                        color: colors.brand,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Add photo',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: colors.ink1,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(Icons.chevron_right, size: 18, color: colors.ink3),
-                    ],
-                  ),
-                ),
-              ),
+              child: addPhoto,
             ),
           ),
         if (_error != null) ...[
@@ -170,13 +183,13 @@ class _Preview extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final base64Part = dataUrl.split(',').last;
+    final radius = BorderRadius.circular(
+      colors.glass ? LumenGlass.radiusControl : AppColors.radiusControl,
+    );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppColors.radiusControl),
-          child: Image.memory(
+    Widget photo = ClipRRect(
+      borderRadius: radius,
+      child: Image.memory(
             base64Decode(base64Part),
             key: const ValueKey('photo-preview'),
             width: 92,
@@ -195,7 +208,37 @@ class _Preview extends StatelessWidget {
               ),
             ),
           ),
+        );
+    if (colors.glass) {
+      // The evidence itself stays unwashed; glass only frames it — a white
+      // rim painted over the photo's edge and the tile shadow beneath it.
+      final lumen = context.lumen;
+      photo = DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: lumen.shadow,
+              blurRadius: LumenGlass.shadowTile.blurRadius,
+              offset: LumenGlass.shadowTile.offset,
+            ),
+          ],
         ),
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(color: lumen.tileRim),
+          ),
+          child: photo,
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        photo,
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,

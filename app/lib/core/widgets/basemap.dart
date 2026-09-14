@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
+import '../theme/lumen_palette.dart';
+import '../theme/tiq_colors.dart';
+
 /// The one basemap every flutter_map screen in the manager console draws —
 /// CARTO's "Dark Matter" tiles under a navy tint ([TiqNavyTint]), used in
 /// both the light and dark app themes deliberately, not switched by
@@ -72,6 +75,19 @@ class TiqBasemapAttribution extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The tiles stay the dark island in both themes (see TiqTileLayer); only
+    // the credit chip follows the material — a near-opaque white pane under
+    // full ink, so the licence text stays legible over the darkest tile.
+    if (context.colors.glass) {
+      final lumen = context.lumen;
+      return SimpleAttributionWidget(
+        backgroundColor: lumen.solidFill,
+        source: Text(
+          tiqBasemapAttributionText,
+          style: TextStyle(color: lumen.ink),
+        ),
+      );
+    }
     return const SimpleAttributionWidget(
       source: Text(tiqBasemapAttributionText),
     );

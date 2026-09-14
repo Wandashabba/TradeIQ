@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/photo_capture_field.dart';
 import 'package:tradeiq_app/features/audit/data/pricing_repository.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
@@ -169,7 +171,31 @@ void main() {
         // One SKU → one console PanelCard, its two numeric inputs are labelled
         // AgentFields, promo active is an AgentToggle, and the save is the
         // kit's button.
-        expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        final glass = tester
+            .element(find.byType(S5PricingPromotionsScreen))
+            .colors
+            .glass;
+        if (glass) {
+          // Lumen Glass: the SKU is a no-blur glass tile (it repeats down the
+          // list) headed by its name — not a console panel.
+          expect(
+            find.byType(PanelCard),
+            findsNothing,
+            reason: '$name no panel',
+          );
+          expect(
+            find.ancestor(
+              of: find.text('Test Cola'),
+              matching: find.byWidgetPredicate(
+                (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
+              ),
+            ),
+            findsOneWidget,
+            reason: '$name SKU glass tile',
+          );
+        } else {
+          expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        }
         expect(
           find.byType(AgentField),
           findsNWidgets(2),

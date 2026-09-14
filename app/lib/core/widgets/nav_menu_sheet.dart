@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/session_controller.dart';
 import '../brand_media.dart';
+import '../theme/lumen_glass.dart';
+import '../theme/lumen_palette.dart';
 import '../theme/theme_mode_controller.dart';
 import '../theme/tiq_colors.dart';
+import 'glass.dart';
 import 'nav_destinations.dart';
 
 /// The Menu slot's bottom sheet: the FULL destination list (the bar itself
@@ -37,13 +40,35 @@ class NavMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final lumen = context.lumen;
+    final glass = colors.glass;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-      ),
+      decoration: glass
+          // The glass sheet recipe app_theme gives every other sheet: an
+          // opaque surface1 ground (its words must clear AA whatever the scrim
+          // covers), a white rim and the panel shadow.
+          ? BoxDecoration(
+              color: colors.surface1,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(LumenGlass.radiusScore),
+              ),
+              border: Border.all(color: lumen.panelRim),
+              boxShadow: [
+                BoxShadow(
+                  color: lumen.shadow,
+                  blurRadius: LumenGlass.shadowPanel.blurRadius,
+                  offset: LumenGlass.shadowPanel.offset,
+                ),
+              ],
+            )
+          : BoxDecoration(
+              color: colors.surface1,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(18),
+              ),
+            ),
       child: SafeArea(
         top: false,
         child: Column(
@@ -64,7 +89,9 @@ class NavMenuSheet extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(
+                    glass ? LumenGlass.radiusControl : 12,
+                  ),
                   child: Image.asset(
                     headerImage!,
                     width: double.infinity,
@@ -86,12 +113,17 @@ class NavMenuSheet extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(2, 10, 2, 7),
                         child: Text(
                           group.heading,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.9,
-                            color: colors.ink3,
-                          ),
+                          style: glass
+                              ? LumenGlass.kickerStyle(
+                                  color: lumen.kicker,
+                                  size: 9.5,
+                                )
+                              : TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.9,
+                                  color: colors.ink3,
+                                ),
                         ),
                       ),
                       _DestinationGrid(destinations: destinationsIn(group)),
@@ -151,36 +183,67 @@ class _DestinationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final glass = colors.glass;
+    final row = Row(
+      children: [
+        Icon(
+          destination.icon,
+          size: 16,
+          color: glass ? context.lumen.accentInk : colors.ink2,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            destination.label,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: colors.ink1,
+            ),
+          ),
+        ),
+      ],
+    );
+    void go() {
+      context.go(destination.route);
+      Navigator.of(context).pop();
+    }
+
+    if (glass) {
+      // A tile of glass. The ink well sits INSIDE the pane — outside it, the
+      // ripple would paint beneath the fill and never be seen.
+      return GlassPane(
+        kind: GlassKind.tile,
+        // Twelve-plus tiles in one sheet: no blur per tile.
+        blur: false,
+        radius: LumenGlass.radiusControl,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            key: ValueKey('nav-sheet-${destination.route}'),
+            borderRadius: BorderRadius.circular(LumenGlass.radiusControl),
+            onTap: go,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              child: row,
+            ),
+          ),
+        ),
+      );
+    }
+
     return InkWell(
       key: ValueKey('nav-sheet-${destination.route}'),
       borderRadius: BorderRadius.circular(10),
-      onTap: () {
-        context.go(destination.route);
-        Navigator.of(context).pop();
-      },
+      onTap: go,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           border: Border.all(color: colors.line),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Row(
-          children: [
-            Icon(destination.icon, size: 16, color: colors.ink2),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                destination.label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w500,
-                  color: colors.ink1,
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: row,
       ),
     );
   }
@@ -248,6 +311,42 @@ class _HousekeepingButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final row = Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: colors.ink1,
+          ),
+        ),
+      ],
+    );
+
+    if (colors.glass) {
+      // Housekeeping is secondary: a glass pill, never the dark action.
+      return GlassPane(
+        kind: GlassKind.pill,
+        radius: LumenGlass.radiusControl,
+        shadow: false,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(LumenGlass.radiusControl),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+              child: row,
+            ),
+          ),
+        ),
+      );
+    }
+
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: onTap,
@@ -257,21 +356,7 @@ class _HousekeepingButton extends StatelessWidget {
           border: Border.all(color: colors.line),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
-                color: colors.ink1,
-              ),
-            ),
-          ],
-        ),
+        child: row,
       ),
     );
   }

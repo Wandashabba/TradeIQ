@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alert_rules_screen.dart';
 
@@ -114,14 +116,37 @@ class _ThrowingAlertRulesRepository implements AlertRulesRepository {
       throw Exception('boom');
 }
 
-Widget _app(AlertRulesRepository repo) => routedApp(
+Widget _app(AlertRulesRepository repo, {ThemeData? theme}) => routedApp(
       const AlertRulesScreen(),
+      theme: theme,
       overrides: [
         alertRulesRepositoryProvider.overrideWithValue(repo),
       ],
     );
 
 void main() {
+  testWidgets('light: the rules are no-blur glass tiles in a glass panel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_FakeAlertRulesRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    final panes = tester
+        .widgetList<GlassPane>(
+          find.ancestor(
+            of: find.text('Low scorecard'),
+            matching: find.byType(GlassPane),
+          ),
+        )
+        .toList();
+    expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+    expect(panes.any((p) => p.kind == GlassKind.panel), isTrue);
+    // A paused rule still says so in words on glass.
+    expect(find.text('INACTIVE'), findsOneWidget);
+  });
+
   testWidgets('lists every rule, active and paused alike', (tester) async {
     await tester.pumpWidget(_app(_FakeAlertRulesRepository()));
     await tester.pumpAndSettle();

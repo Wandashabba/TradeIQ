@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/geo/mercator_fit.dart';
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/basemap.dart';
 import '../../../core/widgets/console.dart';
@@ -84,7 +85,11 @@ class OutletMapCard extends StatelessWidget {
       child: SizedBox(
         height: _mapHeight,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          // Glass rounds the map to the control radius, so it nests inside
+          // the panel's larger corners rather than fighting them.
+          borderRadius: BorderRadius.circular(
+            context.colors.glass ? LumenGlass.radiusControl : 10,
+          ),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final size = constraints.biggest;

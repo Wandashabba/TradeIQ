@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/templates_repository.dart';
 import '../domain/template_schema.dart';
 import 'dynamic_template_form.dart';
+import '../../../core/widgets/glass_page_scaffold.dart';
 
 /// Manager-side preview of a template's dynamic form (issue #54 step 2):
 /// fetches the schema via GET /templates/:id and walks it section by section
@@ -17,9 +18,8 @@ class TemplateFormScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(templateDetailProvider(templateId));
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(detail.value?.template.name ?? 'Template Preview'),
+    return GlassPageScaffold(
+      title: Text(detail.value?.template.name ?? 'Template Preview',
       ),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),

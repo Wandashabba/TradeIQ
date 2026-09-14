@@ -4,6 +4,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:tradeiq_app/core/location/geolocator_gateway.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/outlets/presentation/create_outlet_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
@@ -99,11 +102,13 @@ void main() {
   Future<_RecordingOutletsRepository> pump(
     WidgetTester tester, {
     List<Territory>? available,
+    ThemeData? theme,
   }) async {
     final outlets = _RecordingOutletsRepository();
     await tester.pumpWidget(
       routedApp(
         const CreateOutletScreen(),
+        theme: theme,
         overrides: [
           outletsRepositoryProvider.overrideWithValue(outlets),
           territoriesRepositoryProvider.overrideWithValue(
@@ -184,5 +189,46 @@ void main() {
 
     // An empty dropdown reads as broken; this names the missing prerequisite.
     expect(find.textContaining('No territories yet'), findsOneWidget);
+  });
+
+  testWidgets('light: location and store are glass panels, create is glass', (
+    tester,
+  ) async {
+    final outlets = await pump(tester, theme: AppTheme.light());
+
+    GlassPane paneAround(Finder f) => tester.widget<GlassPane>(
+          find.ancestor(of: f, matching: find.byType(GlassPane)).first,
+        );
+    expect(paneAround(find.text('LOCATION')).kind, GlassKind.panel);
+    expect(paneAround(find.text('STORE')).kind, GlassKind.panel);
+    // The fix is a mono figure, and there is no Material Card left.
+    final fix = tester.widget<Text>(find.text('-26.08900, 28.02300'));
+    expect(fix.style?.fontFamily, 'JetBrains Mono');
+    expect(find.byType(Card), findsNothing);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Store Name'),
+      'Hurlingham Market',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Store Code'),
+      'HM-001',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Channel Type (e.g. supermarket)'),
+      'supermarket',
+    );
+    await tester.tap(find.byKey(const ValueKey('territory-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hurlingham').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FilledButton), findsNothing);
+    final create = find.widgetWithText(GlassPrimaryButton, 'Create Store');
+    await tester.ensureVisible(create);
+    await tester.tap(create);
+    await tester.pumpAndSettle();
+
+    expect(outlets.sentTerritoryId, '2773u');
   });
 }

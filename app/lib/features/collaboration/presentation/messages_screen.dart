@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/collaboration_repository.dart';
@@ -355,41 +358,51 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final field = Expanded(
+      child: TextField(
+        key: const ValueKey<String>('message-body'),
+        controller: controller,
+        style: TextStyle(fontSize: 13, color: colors.ink1),
+        onSubmitted: (_) => onSend(),
+        decoration: InputDecoration(
+          hintText: 'Message the team',
+          isDense: true,
+          filled: true,
+          // Opaque in both themes: the words and hint measure true however
+          // the thread scrolls beneath a glass bar.
+          fillColor: colors.surface2,
+          hintStyle: TextStyle(fontSize: 13, color: colors.ink3),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        ),
+      ),
+    );
+    final send = IconButton(
+      key: const ValueKey<String>('send-message'),
+      icon: const Icon(Icons.send, size: 18),
+      color: colors.glass ? context.lumen.accentInk : colors.ink1,
+      tooltip: 'Send',
+      onPressed: onSend,
+    );
+
+    // Glass: the composer floats as a bar over the thread, not a ruled footer.
+    if (colors.glass) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+        child: GlassPane(
+          kind: GlassKind.bar,
+          padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+          child: Row(children: [field, const SizedBox(width: 8), send]),
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(
         color: colors.surface1,
         border: Border(top: BorderSide(color: colors.line)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              key: const ValueKey<String>('message-body'),
-              controller: controller,
-              style: TextStyle(fontSize: 13, color: colors.ink1),
-              onSubmitted: (_) => onSend(),
-              decoration: InputDecoration(
-                hintText: 'Message the team',
-                isDense: true,
-                filled: true,
-                fillColor: colors.surface2,
-                hintStyle: TextStyle(fontSize: 13, color: colors.ink3),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            key: const ValueKey<String>('send-message'),
-            icon: const Icon(Icons.send, size: 18),
-            color: colors.ink1,
-            tooltip: 'Send',
-            onPressed: onSend,
-          ),
-        ],
-      ),
+      child: Row(children: [field, const SizedBox(width: 8), send]),
     );
   }
 }
@@ -406,9 +419,49 @@ class _Segmented<T> extends StatelessWidget {
   final T selected;
   final ValueChanged<T> onChanged;
 
+  /// Glass: a bar track with the selected segment lifted onto a bright pill —
+  /// the dashboard filter bar's idiom. Both states share one padding (a
+  /// pane's rim paints over its edge, it adds no size), so a tap never
+  /// shifts the row.
+  Widget _glass() {
+    const pad = EdgeInsets.symmetric(horizontal: 11, vertical: 5);
+    const inner = LumenGlass.radiusControl - 3;
+    return GlassPane(
+      kind: GlassKind.bar,
+      radius: LumenGlass.radiusControl,
+      blur: false,
+      shadow: false,
+      specular: false,
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final s in segments)
+            InkWell(
+              key: ValueKey('tab-${s.value}'),
+              onTap: () => onChanged(s.value),
+              borderRadius: BorderRadius.circular(inner),
+              child: s.value == selected
+                  ? GlassPane(
+                      kind: GlassKind.pill,
+                      radius: inner,
+                      padding: pad,
+                      child: _GlassSegmentLabel(s.label, selected: true),
+                    )
+                  : Padding(
+                      padding: pad,
+                      child: _GlassSegmentLabel(s.label, selected: false),
+                    ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _glass();
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: colors.lineStrong),
@@ -451,4 +504,23 @@ class _Segmented<T> extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A glass segment's words: ink when selected, the muted ink otherwise — both
+/// clear 4.5:1 on the bar, and the lifted pill carries the state as well.
+class _GlassSegmentLabel extends StatelessWidget {
+  const _GlassSegmentLabel(this.label, {required this.selected});
+
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: selected ? context.lumen.ink : context.lumen.inkMuted,
+    ),
+  );
 }

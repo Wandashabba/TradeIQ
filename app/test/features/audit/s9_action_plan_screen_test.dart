@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/audit/data/tasks_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s9_action_plan_screen.dart';
 
@@ -116,7 +118,30 @@ void main() {
           reason: '$name no ElevatedButton',
         );
 
-        expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        final glass = tester
+            .element(find.byType(S9ActionPlanScreen))
+            .colors
+            .glass;
+        if (glass) {
+          // Lumen Glass: the task being written is one no-blur glass tile.
+          expect(
+            find.byType(PanelCard),
+            findsNothing,
+            reason: '$name no panel',
+          );
+          expect(
+            find.ancestor(
+              of: find.text('Finding type'),
+              matching: find.byWidgetPredicate(
+                (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
+              ),
+            ),
+            findsOneWidget,
+            reason: '$name task glass tile',
+          );
+        } else {
+          expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        }
         expect(
           find.byType(AgentField),
           findsNWidgets(2),

@@ -107,6 +107,21 @@ flutter:
         - asset: assets/fonts/Inter-Bold.ttf
           weight: 700
 
+    # JetBrains Mono — the Lumen Glass figure and micro-label face: every
+    # numeral in a data role and every uppercase kicker. Bundled for the same
+    # offline reason as Inter. SIL OFL 1.1 — licence at
+    # assets/fonts/OFL-JetBrainsMono.txt.
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/JetBrainsMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

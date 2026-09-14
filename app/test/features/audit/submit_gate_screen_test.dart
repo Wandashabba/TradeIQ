@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/audit/data/visit_review.dart';
 import 'package:tradeiq_app/features/audit/presentation/submit_gate_screen.dart';
@@ -101,10 +104,15 @@ Widget _gate({
   theme: theme,
 );
 
-const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.dark)];
+const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
 
 ThemeData _themeFor(String name) =>
     name == 'light' ? AppTheme.light() : AppTheme.dark();
+
+/// A no-blur Lumen Glass tile — the pane every checklist item sits on.
+final _glassTile = find.byWidgetPredicate(
+  (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
+);
 
 /// The decoration of the nearest ancestor Container of [inner] that carries a
 /// BoxDecoration colour — the console card / wash the element sits on.
@@ -143,8 +151,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // The captured summary reads as a console card: surface1 under the line
-      // hairline, panel radius — not a bare block of text.
       final count = find.text('4 of 7 sections complete');
       expect(count, findsOneWidget, reason: '$name count');
       // The one-line capture summary is verbatim from the review.
@@ -154,13 +160,26 @@ void main() {
         reason: '$name captured line',
       );
 
-      final deco = _cardDecoration(tester, count);
-      expect(deco.color, palette.surface1, reason: '$name card surface');
-      expect(
-        (deco.border! as Border).top.color,
-        palette.line,
-        reason: '$name card hairline',
-      );
+      if (palette.glass) {
+        // Lumen Glass: the first checklist tile, its ✓ in a good status tile.
+        final tile = find.ancestor(of: count, matching: _glassTile);
+        expect(tile, findsOneWidget, reason: '$name captured tile');
+        final tick = tester.widget<StatusTile>(
+          find.descendant(of: tile, matching: find.byType(StatusTile)),
+        );
+        expect(tick.status, LumenStatus.good, reason: '$name tick status');
+        expect(tick.glyph, '✓', reason: '$name tick glyph');
+      } else {
+        // The captured summary reads as a console card: surface1 under the
+        // line hairline, panel radius — not a bare block of text.
+        final deco = _cardDecoration(tester, count);
+        expect(deco.color, palette.surface1, reason: '$name card surface');
+        expect(
+          (deco.border! as Border).top.color,
+          palette.line,
+          reason: '$name card hairline',
+        );
+      }
     }
   });
 
@@ -187,6 +206,59 @@ void main() {
           findsOneWidget,
           reason: '$name routine word',
         );
+
+        if (palette.glass) {
+          // Lumen Glass: each task is its own checklist tile, rimmed in its
+          // status, with its glyph in a status tile.
+          for (final (title, word, status, glyph) in [
+            (
+              'Fanta Orange 2L is out of stock',
+              'Task for the manager · high',
+              LumenStatus.crit,
+              '!',
+            ),
+            (
+              'Aisle blocked by delivery',
+              'Task for the manager · normal',
+              LumenStatus.warn,
+              '•',
+            ),
+          ]) {
+            final sw = status.swatchOf(palette);
+            final tile = find.ancestor(
+              of: find.text(title),
+              matching: _glassTile,
+            );
+            expect(
+              tester.widget<GlassPane>(tile).rimColor,
+              sw.rim,
+              reason: '$name $status rim',
+            );
+            final mark = tester.widget<StatusTile>(
+              find.descendant(of: tile, matching: find.byType(StatusTile)),
+            );
+            expect(mark.status, status, reason: '$name $status mark');
+            expect(mark.glyph, glyph, reason: '$name $status glyph');
+            // The glyph's ink on its own tint, composited opaque over the pane.
+            expect(
+              contrastRatio(
+                sw.ink,
+                Color.alphaBlend(sw.tint, palette.surface1),
+              ),
+              greaterThanOrEqualTo(4.5),
+              reason: '$name $status glyph AA',
+            );
+            // The priority word takes the status ink and clears AA on the pane.
+            final fg = tester.widget<Text>(find.text(word)).style!.color!;
+            expect(fg, sw.ink, reason: '$name $status word ink');
+            expect(
+              contrastRatio(fg, palette.surface1),
+              greaterThanOrEqualTo(4.5),
+              reason: '$name $status word AA',
+            );
+          }
+          continue;
+        }
 
         // The urgent indicator carries critText on a crit wash; the routine one
         // warn on a warn wash. Both are glyphs, so both clear 4.5:1 measured on
@@ -246,12 +318,51 @@ void main() {
       // A clean store is a real result: it wears a good wash, so it does not
       // read as a blank screen.
       final deco = _cardDecoration(tester, copy);
-      expect(
-        deco.color,
-        palette.good.withValues(alpha: 0.10),
-        reason: '$name good wash',
-      );
+      if (palette.glass) {
+        // Lumen Glass: an OPAQUE good wash, its words in the good ink.
+        final good = LumenStatus.good.swatchOf(palette);
+        expect(
+          deco.color,
+          Color.alphaBlend(good.tint, palette.surface1),
+          reason: '$name opaque good wash',
+        );
+        final fg = tester.widget<Text>(copy).style!.color!;
+        expect(fg, good.ink, reason: '$name good ink');
+        expect(
+          contrastRatio(fg, deco.color!),
+          greaterThanOrEqualTo(4.5),
+          reason: '$name clean copy AA (rendered pair)',
+        );
+      } else {
+        expect(
+          deco.color,
+          palette.good.withValues(alpha: 0.10),
+          reason: '$name good wash',
+        );
+      }
     }
+  });
+
+  testWidgets('Lumen Glass: the submit is the glass primary action', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _gate(review: _reviewWithTasks, theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('confirm-submit')),
+        matching: find.byType(GlassPrimaryButton),
+      ),
+      findsOneWidget,
+    );
+    // The heading is the mono kicker.
+    expect(
+      tester.widget<Text>(find.text('THIS WILL RAISE')).style?.fontFamily,
+      LumenGlass.mono,
+    );
   });
 
   testWidgets('the confirm-submit button invokes onConfirm on tap', (

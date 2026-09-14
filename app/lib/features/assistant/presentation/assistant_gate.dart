@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../clients/data/clients_repository.dart';
 import 'chat_screen.dart';
@@ -54,38 +57,61 @@ class _NotEnabled extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final glass = colors.glass;
+    final lumen = context.lumen;
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.auto_awesome_outlined,
+          size: 28,
+          color: glass ? lumen.accentInk : colors.ink4,
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Not switched on for your organisation yet',
+          textAlign: TextAlign.center,
+          style: glass
+              ? LumenGlass.title(size: 18, color: lumen.ink)
+              : TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: colors.ink1,
+                ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          // Names who can act, because "contact your administrator" sends
+          // people to the wrong place — a client admin cannot turn this
+          // on, by design.
+          'Ask TradeIQ answers questions about your sales, stock, shelf '
+          'and competitors. It is being rolled out gradually — speak to '
+          'your TradeIQ contact to be included.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12.5,
+            height: 1.5,
+            color: glass ? lumen.inkMuted : colors.ink3,
+          ),
+        ),
+      ],
+    );
+
     return ManagerScaffold(
       title: 'Ask TradeIQ',
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.auto_awesome_outlined, size: 28, color: colors.ink4),
-              const SizedBox(height: 14),
-              Text(
-                'Not switched on for your organisation yet',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: colors.ink1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                // Names who can act, because "contact your administrator" sends
-                // people to the wrong place — a client admin cannot turn this
-                // on, by design.
-                'Ask TradeIQ answers questions about your sales, stock, shelf '
-                'and competitors. It is being rolled out gradually — speak to '
-                'your TradeIQ contact to be included.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, height: 1.5, color: colors.ink3),
-              ),
-            ],
-          ),
+          // Glass: the explanation is one panel on the ground, not loose text.
+          child: glass
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: GlassPane(
+                    padding: const EdgeInsets.all(28),
+                    child: content,
+                  ),
+                )
+              : content,
         ),
       ),
     );

@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/glass_page_scaffold.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../../territories/data/territories_repository.dart';
 import '../../users/data/users_repository.dart';
@@ -103,98 +109,160 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
     final territories = ref.watch(territoriesListProvider);
     final outlets = ref.watch(outletsListProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('New Beat Plan')),
+    final planFields = <Widget>[
+      TextFormField(
+        key: const ValueKey<String>('beatplan-name-field'),
+        controller: _nameCtrl,
+        decoration: const InputDecoration(
+            labelText: 'Name', border: OutlineInputBorder()),
+        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+      ),
+      const SizedBox(height: 12),
+      _DateRow(
+        value: _scheduledDate == null ? null : _fmt(_scheduledDate!),
+        onPressed: _pickDate,
+      ),
+      const SizedBox(height: 12),
+      agents.when(
+        loading: () => const LinearProgressIndicator(),
+        error: (err, _) => Text('Failed to load agents: $err'),
+        data: (list) {
+          final fieldAgents =
+              list.where((u) => u.role == 'field_agent').toList();
+          return DropdownButtonFormField<String>(
+            key: const ValueKey<String>('beatplan-agent-field'),
+            initialValue: _agentId,
+            decoration: const InputDecoration(
+                labelText: 'Field agent', border: OutlineInputBorder()),
+            items: [
+              for (final u in fieldAgents)
+                DropdownMenuItem(value: u.id, child: Text(u.email)),
+            ],
+            onChanged: (v) => setState(() => _agentId = v),
+          );
+        },
+      ),
+      const SizedBox(height: 12),
+      territories.when(
+        loading: () => const LinearProgressIndicator(),
+        error: (err, _) => Text('Failed to load territories: $err'),
+        data: (list) => DropdownButtonFormField<String>(
+          key: const ValueKey<String>('beatplan-territory-field'),
+          initialValue: _territoryId,
+          decoration: const InputDecoration(
+              labelText: 'Territory (optional)', border: OutlineInputBorder()),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('None')),
+            for (final t in list)
+              DropdownMenuItem(value: t.id, child: Text(t.name)),
+          ],
+          onChanged: (v) => setState(() => _territoryId = v),
+        ),
+      ),
+    ];
+    final lumen = context.lumen;
+    final stops = outlets.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(12),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, _) => Text('Failed to load outlets: $err'),
+      data: (list) => _StopBuilder(
+        outlets: list,
+        selectedIds: _selectedOutletIds,
+        onAdd: _addOutlet,
+        onRemove: _removeOutlet,
+        onMove: _move,
+      ),
+    );
+
+    return GlassPageScaffold(
+      title: const Text('New Beat Plan'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                key: const ValueKey<String>('beatplan-name-field'),
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Name', border: OutlineInputBorder()),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              _DateRow(
-                value: _scheduledDate == null ? null : _fmt(_scheduledDate!),
-                onPressed: _pickDate,
-              ),
-              const SizedBox(height: 12),
-              agents.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (err, _) => Text('Failed to load agents: $err'),
-                data: (list) {
-                  final fieldAgents =
-                      list.where((u) => u.role == 'field_agent').toList();
-                  return DropdownButtonFormField<String>(
-                    key: const ValueKey<String>('beatplan-agent-field'),
-                    initialValue: _agentId,
-                    decoration: const InputDecoration(
-                        labelText: 'Field agent', border: OutlineInputBorder()),
-                    items: [
-                      for (final u in fieldAgents)
-                        DropdownMenuItem(value: u.id, child: Text(u.email)),
-                    ],
-                    onChanged: (v) => setState(() => _agentId = v),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              territories.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (err, _) => Text('Failed to load territories: $err'),
-                data: (list) => DropdownButtonFormField<String>(
-                  key: const ValueKey<String>('beatplan-territory-field'),
-                  initialValue: _territoryId,
-                  decoration: const InputDecoration(
-                      labelText: 'Territory (optional)',
-                      border: OutlineInputBorder()),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('None')),
-                    for (final t in list)
-                      DropdownMenuItem(value: t.id, child: Text(t.name)),
+          child: context.colors.glass
+              // Glass: who works the day and when, then the stops in order.
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _GlassSection(label: 'Plan', children: planFields),
+                    const SizedBox(height: 14),
+                    _GlassSection(
+                      label: 'Stops (in order)',
+                      trailing: Text(
+                        '${_selectedOutletIds.length} '
+                        '${_selectedOutletIds.length == 1 ? 'stop' : 'stops'}',
+                        style: LumenGlass.figure(
+                          size: 11.5,
+                          color: lumen.inkMuted,
+                          weight: FontWeight.w500,
+                        ),
+                      ),
+                      children: [stops],
+                    ),
+                    const SizedBox(height: 18),
+                    GlassPrimaryButton(
+                      key: const ValueKey<String>('beatplan-save-button'),
+                      label: 'Create Beat Plan',
+                      busy: _submitting,
+                      onPressed: _submit,
+                    ),
                   ],
-                  onChanged: (v) => setState(() => _territoryId = v),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ...planFields,
+                    const SizedBox(height: 20),
+                    const Text('Stops (in order)',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    stops,
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      key: const ValueKey<String>('beatplan-save-button'),
+                      onPressed: _submitting ? null : _submit,
+                      child: _submitting
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Text('Create Beat Plan'),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text('Stops (in order)',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              outlets.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (err, _) => Text('Failed to load outlets: $err'),
-                data: (list) => _StopBuilder(
-                  outlets: list,
-                  selectedIds: _selectedOutletIds,
-                  onAdd: _addOutlet,
-                  onRemove: _removeOutlet,
-                  onMove: _move,
-                ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                key: const ValueKey<String>('beatplan-save-button'),
-                onPressed: _submitting ? null : _submit,
-                child: _submitting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('Create Beat Plan'),
-              ),
-            ],
-          ),
         ),
+      ),
+    );
+  }
+}
+
+/// A glass panel with its kicker — one group of the form.
+class _GlassSection extends StatelessWidget {
+  const _GlassSection({
+    required this.label,
+    required this.children,
+    this.trailing,
+  });
+
+  final String label;
+  final List<Widget> children;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPane(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(children: [Kicker(label), const Spacer(), ?trailing]),
+          const SizedBox(height: 12),
+          ...children,
+        ],
       ),
     );
   }
@@ -208,16 +276,44 @@ class _DateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lumen = context.lumen;
+    final pick = OutlinedButton(
+      key: const ValueKey<String>('beatplan-date-pick'),
+      onPressed: onPressed,
+      child: const Text('Pick'),
+    );
+    if (context.colors.glass) {
+      return Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Kicker('Scheduled date', size: 9.5),
+                const SizedBox(height: 4),
+                value == null
+                    ? Text(
+                        'Not set',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: lumen.inkMuted,
+                        ),
+                      )
+                    : Text(value!, style: LumenGlass.figure(color: lumen.ink)),
+              ],
+            ),
+          ),
+          pick,
+        ],
+      );
+    }
     return Row(
       children: [
         Expanded(
           child: Text(value == null ? 'Scheduled date: not set' : 'Scheduled date: $value'),
         ),
-        OutlinedButton(
-          key: const ValueKey<String>('beatplan-date-pick'),
-          onPressed: onPressed,
-          child: const Text('Pick'),
-        ),
+        pick,
       ],
     );
   }
@@ -252,6 +348,8 @@ class _StopBuilder extends StatelessWidget {
     final available =
         outlets.where((o) => !selectedIds.contains(o.id)).toList();
 
+    if (context.colors.glass) return _glass(context, byId, available);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -267,27 +365,7 @@ class _StopBuilder extends StatelessWidget {
               dense: true,
               leading: CircleAvatar(radius: 12, child: Text('${i + 1}')),
               title: Text(byId(selectedIds[i])?.name ?? selectedIds[i]),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_upward),
-                    tooltip: 'Move up',
-                    onPressed: i == 0 ? null : () => onMove(i, -1),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_downward),
-                    tooltip: 'Move down',
-                    onPressed:
-                        i == selectedIds.length - 1 ? null : () => onMove(i, 1),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline),
-                    tooltip: 'Remove',
-                    onPressed: () => onRemove(selectedIds[i]),
-                  ),
-                ],
-              ),
+              trailing: _reorderControls(i),
             ),
         const Divider(),
         const Text('Available outlets'),
@@ -299,6 +377,110 @@ class _StopBuilder extends StatelessWidget {
             subtitle: Text(o.code),
             trailing: const Icon(Icons.add_circle_outline),
             onTap: () => onAdd(o.id),
+          ),
+      ],
+    );
+  }
+
+  Widget _reorderControls(int i) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_upward),
+            tooltip: 'Move up',
+            onPressed: i == 0 ? null : () => onMove(i, -1),
+          ),
+          IconButton(
+            icon: const Icon(Icons.arrow_downward),
+            tooltip: 'Move down',
+            onPressed: i == selectedIds.length - 1 ? null : () => onMove(i, 1),
+          ),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline),
+            tooltip: 'Remove',
+            onPressed: () => onRemove(selectedIds[i]),
+          ),
+        ],
+      );
+
+  /// Glass: each stop is a no-blur tile led by its sequence in a status tile
+  /// (a count, so mono), and the pool below is a second run of tiles. Each
+  /// tile carries its own transparent Material so the ink lands on the pane.
+  Widget _glass(
+    BuildContext context,
+    Outlet? Function(String id) byId,
+    List<Outlet> available,
+  ) {
+    final lumen = context.lumen;
+    Widget tile(Widget child) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: GlassPane(
+            kind: GlassKind.tile,
+            blur: false,
+            shadow: false,
+            radius: LumenGlass.radiusControl,
+            child: Material(type: MaterialType.transparency, child: child),
+          ),
+        );
+    final titleStyle = TextStyle(
+      fontSize: 13.5,
+      fontWeight: FontWeight.w600,
+      color: lumen.ink,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (selectedIds.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'No stops yet — add outlets below.',
+              style: TextStyle(fontSize: 13, color: lumen.inkMuted),
+            ),
+          )
+        else
+          for (var i = 0; i < selectedIds.length; i++)
+            tile(
+              ListTile(
+                key: ValueKey<String>('stop-selected-${selectedIds[i]}'),
+                dense: true,
+                leading: StatusTile(
+                  status: LumenStatus.none,
+                  glyph: '${i + 1}',
+                  size: 28,
+                  mono: true,
+                ),
+                title: Text(
+                  byId(selectedIds[i])?.name ?? selectedIds[i],
+                  style: titleStyle,
+                ),
+                trailing: _reorderControls(i),
+              ),
+            ),
+        const SizedBox(height: 8),
+        const Kicker('Available outlets', size: 9.5),
+        const SizedBox(height: 10),
+        for (final o in available)
+          tile(
+            ListTile(
+              key: ValueKey<String>('stop-available-${o.id}'),
+              dense: true,
+              title: Text(o.name, style: titleStyle),
+              subtitle: Text(
+                o.code,
+                style: LumenGlass.figure(
+                  size: 11,
+                  color: lumen.inkMuted,
+                  weight: FontWeight.w500,
+                ),
+              ),
+              trailing: Icon(
+                Icons.add_circle_outline,
+                color: lumen.accentInk,
+              ),
+              onTap: () => onAdd(o.id),
+            ),
           ),
       ],
     );

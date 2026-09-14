@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/glass_page_scaffold.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/beatplans_repository.dart';
@@ -129,9 +134,17 @@ class BeatPlanDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(beatPlanDetailProvider(planId));
-    return Scaffold(
+
+    Future<void> mark(BeatPlanStop stop, bool? v) async {
+      await ref
+          .read(beatPlansRepositoryProvider)
+          .markStopVisited(planId, stop.id, v ?? false);
+      ref.invalidate(beatPlanDetailProvider(planId));
+    }
+
+    return GlassPageScaffold(
       backgroundColor: context.colors.plane,
-      appBar: AppBar(title: const Text('Beat Plan')),
+      title: const Text('Beat Plan'),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -147,50 +160,132 @@ class BeatPlanDetailScreen extends ConsumerWidget {
                 level: _levelFor(data.plan.status),
               ),
               padded: false,
-              // The tiles paint their ink on the nearest Material ancestor —
-              // give them a transparent one *inside* the panel, or their
-              // splashes land behind the panel's own background.
-              child: Material(
-                type: MaterialType.transparency,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      key: const ValueKey<String>('adherence'),
-                      title: Text(
-                        '${data.stopsVisited} / ${data.stopsTotal} stops',
-                      ),
-                      subtitle: Text(
-                        '${(data.adherenceRate * 100).toStringAsFixed(0)}% adherence',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: context.colors.ink3,
-                        ),
+              child: context.colors.glass
+                  ? _GlassPlanStops(data: data, onMark: mark)
+                  // The tiles paint their ink on the nearest Material ancestor —
+                  // give them a transparent one *inside* the panel, or their
+                  // splashes land behind the panel's own background.
+                  : Material(
+                      type: MaterialType.transparency,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            key: const ValueKey<String>('adherence'),
+                            title: Text(
+                              '${data.stopsVisited} / ${data.stopsTotal} stops',
+                            ),
+                            subtitle: Text(
+                              '${(data.adherenceRate * 100).toStringAsFixed(0)}% adherence',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: context.colors.ink3,
+                              ),
+                            ),
+                          ),
+                          Divider(height: 1, color: context.colors.line),
+                          for (final stop in data.stops)
+                            CheckboxListTile(
+                              key: ValueKey<String>('stop-${stop.id}'),
+                              title: Text('Stop ${stop.sequence}'),
+                              subtitle: Align(
+                                alignment: Alignment.centerLeft,
+                                child: CodeToken(stop.outletId),
+                              ),
+                              value: stop.visited,
+                              onChanged: (v) => mark(stop, v),
+                            ),
+                        ],
                       ),
                     ),
-                    Divider(height: 1, color: context.colors.line),
-                    for (final stop in data.stops)
-                      CheckboxListTile(
-                        key: ValueKey<String>('stop-${stop.id}'),
-                        title: Text('Stop ${stop.sequence}'),
-                        subtitle: Align(
-                          alignment: Alignment.centerLeft,
-                          child: CodeToken(stop.outletId),
-                        ),
-                        value: stop.visited,
-                        onChanged: (v) async {
-                          await ref
-                              .read(beatPlansRepositoryProvider)
-                              .markStopVisited(planId, stop.id, v ?? false);
-                          ref.invalidate(beatPlanDetailProvider(planId));
-                        },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The plan's body in glass: adherence as a figure, then each stop as a
+/// no-blur tile. Each tile carries its own transparent Material so the
+/// checkbox's ink lands on the pane rather than behind it.
+class _GlassPlanStops extends StatelessWidget {
+  const _GlassPlanStops({required this.data, required this.onMark});
+
+  final BeatPlanDetail data;
+  final Future<void> Function(BeatPlanStop stop, bool? visited) onMark;
+
+  @override
+  Widget build(BuildContext context) {
+    final lumen = context.lumen;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            key: const ValueKey<String>('adherence'),
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Kicker('Adherence'),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${data.stopsVisited} / ${data.stopsTotal} stops',
+                        style: LumenGlass.figure(size: 20, color: lumen.ink),
                       ),
-                  ],
+                    ],
+                  ),
+                ),
+                Text(
+                  '${(data.adherenceRate * 100).toStringAsFixed(0)}% adherence',
+                  style: LumenGlass.figure(
+                    size: 12,
+                    color: lumen.inkMuted,
+                    weight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (final stop in data.stops)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: GlassPane(
+                kind: GlassKind.tile,
+                blur: false,
+                shadow: false,
+                radius: LumenGlass.radiusControl,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: CheckboxListTile(
+                    key: ValueKey<String>('stop-${stop.id}'),
+                    title: Text(
+                      'Stop ${stop.sequence}',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: lumen.ink,
+                      ),
+                    ),
+                    subtitle: Align(
+                      alignment: Alignment.centerLeft,
+                      child: CodeToken(stop.outletId),
+                    ),
+                    value: stop.visited,
+                    onChanged: (v) => onMark(stop, v),
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

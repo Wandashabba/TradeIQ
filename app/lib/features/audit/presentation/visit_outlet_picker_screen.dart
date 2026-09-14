@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/human_error.dart';
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/console.dart' show StatusLevel;
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/pill_segment.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../outlets/data/outlets_repository.dart';
@@ -105,7 +107,7 @@ class _ScopeControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Column(
+    final control = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -140,6 +142,15 @@ class _ScopeControl extends StatelessWidget {
         ),
       ],
     );
+    if (!colors.glass) return control;
+    // Glass: the scope is the list's search bar — one frosted bar above the
+    // tiles, the way the handoff floats a search field over its list.
+    return GlassPane(
+      kind: GlassKind.bar,
+      radius: LumenGlass.radiusHero,
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
+      child: control,
+    );
   }
 }
 
@@ -156,37 +167,44 @@ class _LoadError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.storefront_outlined, size: 34, color: colors.ink3),
+        const SizedBox(height: 14),
+        Text(
+          'Could not load your stores',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: colors.ink1,
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          humanErrorMessage(error),
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, height: 1.5, color: colors.ink2),
+        ),
+        const SizedBox(height: 20),
+        AgentButton(
+          key: const ValueKey('retry-outlets'),
+          label: 'Try again',
+          onPressed: onRetry,
+        ),
+      ],
+    );
     return Center(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.storefront_outlined, size: 34, color: colors.ink3),
-            const SizedBox(height: 14),
-            Text(
-              'Could not load your stores',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: colors.ink1,
-              ),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              humanErrorMessage(error),
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, height: 1.5, color: colors.ink2),
-            ),
-            const SizedBox(height: 20),
-            AgentButton(
-              key: const ValueKey('retry-outlets'),
-              label: 'Try again',
-              onPressed: onRetry,
-            ),
-          ],
-        ),
+        child: colors.glass
+            // Glass: the failure sits on a pane, not loose on the ground.
+            ? GlassPane(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                child: content,
+              )
+            : content,
       ),
     );
   }

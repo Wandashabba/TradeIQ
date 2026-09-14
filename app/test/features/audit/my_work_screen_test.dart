@@ -10,6 +10,7 @@ import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/audit/presentation/my_work_screen.dart';
 
 import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
@@ -100,7 +101,7 @@ Widget _errorApp(Object error) => routedApp(
 );
 
 /// Both themes, each with the palette its assertions read against.
-const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.dark)];
+const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
 
 /// The console card wrapping a sync row — a surface1 DecoratedBox behind a line
 /// hairline. The state words paint over this ground. Scoped to the ancestor of a
@@ -129,18 +130,31 @@ void main() {
       await tester.pumpWidget(_app(_fullQueue(), name: name));
       await tester.pumpAndSettle();
 
-      final deco = _groupCard(tester).decoration as BoxDecoration;
-      expect(deco.color, palette.surface1, reason: '$name group surface');
-      expect(
-        (deco.border! as Border).top.color,
-        palette.line,
-        reason: '$name group hairline',
-      );
-      expect(
-        deco.borderRadius,
-        BorderRadius.circular(12),
-        reason: '$name group radius (radiusPanel)',
-      );
+      if (palette.glass) {
+        // Lumen Glass: each group is a pane of glass — no blur, it scrolls.
+        final pane = tester.widget<GlassPane>(
+          find
+              .ancestor(
+                of: find.byKey(const ValueKey('sync-item-1')),
+                matching: find.byType(GlassPane),
+              )
+              .first,
+        );
+        expect(pane.blur, isFalse, reason: '$name group never blurs');
+      } else {
+        final deco = _groupCard(tester).decoration as BoxDecoration;
+        expect(deco.color, palette.surface1, reason: '$name group surface');
+        expect(
+          (deco.border! as Border).top.color,
+          palette.line,
+          reason: '$name group hairline',
+        );
+        expect(
+          deco.borderRadius,
+          BorderRadius.circular(12),
+          reason: '$name group radius (radiusPanel)',
+        );
+      }
 
       // No raw Material scaffolding leaked in.
       expect(find.byType(Card), findsNothing, reason: '$name no raw Card');
@@ -198,7 +212,13 @@ void main() {
         // The rows paint over the surface1 group card. Each coloured state word
         // must clear 4.5:1 there — sent→good, waiting→warn, failed→critText
         // (raw crit fails AA in dark, the recurring lesson).
-        final bg = (_groupCard(tester).decoration as BoxDecoration).color!;
+        // Glass: by day a no-blur pane composites LIGHTER than surface1 under
+        // dark ink; at night it composites DARKER than surface1 under light
+        // ink. Either way surface1 is the conservative ground to measure
+        // against.
+        final bg = palette.glass
+            ? palette.surface1
+            : (_groupCard(tester).decoration as BoxDecoration).color!;
 
         final sentFg = tester.widget<Text>(sent).style!.color!;
         expect(sentFg, palette.good, reason: '$name sent text token');

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +6,10 @@ import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/core/widgets/delta_pill.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/dashboard_shell_screen.dart';
@@ -527,81 +530,92 @@ void main() {
     },
   );
 
-  testWidgets('the hero card wears the glass gradient wash', (tester) async {
-    await _pump(tester, _app(theme: AppTheme.light()));
-
-    final glass = find.byWidgetPredicate(
-      (w) =>
-          w is Container &&
-          w.decoration is BoxDecoration &&
-          listEquals(
-            ((w.decoration! as BoxDecoration).gradient as LinearGradient?)
-                ?.colors,
-            const [Color(0xFFF2F7FF), Color(0xFFFFFFFF)],
-          ),
-    );
-    expect(glass, findsOneWidget);
-    // The washed card is the score's card, not some other panel's.
-    expect(
-      find.descendant(
-        of: glass,
-        matching: find.byKey(const ValueKey('kpi-execution-score')),
-      ),
-      findsOneWidget,
-    );
-    final border =
-        (tester.widget<Container>(glass).decoration! as BoxDecoration).border!;
-    expect((border as Border).top.color, const Color(0xFFDBE7FA));
-
-    // The score itself is the 30–32px w700 headline figure of the spec.
-    final score = tester.widget<Text>(find.text('67.8'));
-    expect(score.style?.fontWeight, FontWeight.w700);
-    expect(score.style?.fontSize, inInclusiveRange(30, 32));
-
-    // And it must clear AA on every stop of its own wash.
-    for (final ground in const [Color(0xFFF2F7FF), Color(0xFFFFFFFF)]) {
-      expect(
-        contrastRatio(score.style!.color!, ground),
-        greaterThanOrEqualTo(4.5),
-        reason: 'light score on $ground',
-      );
-    }
-  });
-
-  testWidgets('dark theme: the hero score stays readable on its wash', (
+  testWidgets('light: the execution score is the dark glass pane', (
     tester,
   ) async {
-    // The regression this guards: the glass wash shipped as hard-coded light
-    // hexes while the score used theme-aware ink1 — in dark that composed
-    // near-white on white (~1.1:1), one theme-toggle click away.
-    await _pump(tester, _app(theme: AppTheme.dark()));
+    await _pump(tester, _app(theme: AppTheme.light()));
 
-    final glass = find.byWidgetPredicate(
-      (w) =>
-          w is Container &&
-          w.decoration is BoxDecoration &&
-          (w.decoration! as BoxDecoration).gradient != null,
+    // Lumen Glass puts the headline number on the one heavy pane.
+    final hero = find.ancestor(
+      of: find.byKey(const ValueKey('kpi-execution-score')),
+      matching: find.byWidgetPredicate(
+        (w) => w is GlassPane && w.kind == GlassKind.dark,
+      ),
     );
-    expect(glass, findsOneWidget);
+    expect(hero, findsOneWidget);
+
+    final score = tester.widget<Text>(find.text('67.8'));
+    expect(score.style?.fontSize, 56);
+    expect(score.style?.color, Colors.white);
+    expect(
+      contrastRatio(score.style!.color!, LumenGlass.darkPaneGround),
+      greaterThanOrEqualTo(4.5),
+      reason: 'the score on the dark pane',
+    );
+  });
+
+  testWidgets('light: every KPI is drawn against its standard', (tester) async {
+    await _pump(tester, _app(theme: AppTheme.light()));
+
+    // The benchmark grid replaces the KPI strip: a word, a figure and a bar
+    // with its target tick for each.
+    for (final label in [
+      'On-shelf availability',
+      'Perfect-store rate',
+      'Price compliance',
+      'Visibility compliance',
+      'Share of shelf',
+      'Weighted distribution',
+    ]) {
+      expect(
+        find.byKey(ValueKey('benchmark-$label')),
+        findsOneWidget,
+        reason: label,
+      );
+    }
+    // 55.6% perfect-store rate is > 10 points under 80: a breach, in words.
     expect(
       find.descendant(
-        of: glass,
-        matching: find.byKey(const ValueKey('kpi-execution-score')),
+        of: find.byKey(const ValueKey('benchmark-Perfect-store rate')),
+        matching: find.text('BREACH'),
       ),
       findsOneWidget,
     );
+  });
 
-    final gradient =
-        (tester.widget<Container>(glass).decoration! as BoxDecoration).gradient!
-            as LinearGradient;
+  testWidgets('dark theme: the score is the same dark glass pane, readable at night', (
+    tester,
+  ) async {
+    // The regression this guards: a pane ground that does not follow the theme
+    // under a score that does — near-white on white (~1.1:1), one theme-toggle
+    // click away.
+    await _pump(tester, _app(theme: AppTheme.dark()));
+
+    final hero = find.ancestor(
+      of: find.byKey(const ValueKey('kpi-execution-score')),
+      matching: find.byWidgetPredicate(
+        (w) => w is GlassPane && w.kind == GlassKind.dark,
+      ),
+    );
+    expect(hero, findsOneWidget);
+
     final score = tester.widget<Text>(find.text('67.8'));
-    for (final ground in gradient.colors) {
-      expect(
-        contrastRatio(score.style!.color!, ground),
-        greaterThanOrEqualTo(4.5),
-        reason: 'dark score on $ground',
-      );
-    }
+    expect(score.style?.fontSize, 56);
+    expect(score.style?.color, Colors.white);
+    // The night dark pane over the brightest the night ground gets: its top
+    // stop, lit by the violet bloom.
+    final ground = Color.alphaBlend(
+      LumenPalette.dark.darkFill,
+      Color.alphaBlend(
+        LumenPalette.dark.bloomViolet,
+        LumenPalette.dark.groundTop,
+      ),
+    );
+    expect(
+      contrastRatio(score.style!.color!, ground),
+      greaterThanOrEqualTo(4.5),
+      reason: 'the score on the night dark pane ($ground)',
+    );
   });
 
   testWidgets(
@@ -831,17 +845,17 @@ void main() {
       await _pump(tester, _app(theme: AppTheme.light()));
 
       final box = _territoryPillBox(tester);
-      expect(box.color, const Color(0xFFFFFFFF)); // surface1
+      expect(box.color, const Color(0xFFF7F6FB)); // Lumen surface1
       expect(box.borderRadius, BorderRadius.circular(999)); // radiusPill
       expect(
         (box.border! as Border).top.color,
-        const Color(0xFFE3E5EA),
-      ); // line
+        const Color(0xFFDCD8EA),
+      ); // Lumen line
 
       // Nothing selected → the hint label, in the same muted ink the inactive
       // range pills carry.
       final label = _territoryPillLabel(tester, 'All territories');
-      expect(label.style?.color, const Color(0xFF4C5560)); // ink2
+      expect(label.style?.color, const Color(0xFF3E3A5C)); // Lumen ink2
       expect(label.style?.fontSize, 12.5);
 
       // A chevron makes it read as a menu trigger, not a static chip.
@@ -868,16 +882,16 @@ void main() {
     await _pump(tester, _app(theme: AppTheme.dark()));
 
     final box = _territoryPillBox(tester);
-    expect(box.color, const Color(0xFF14161C)); // dark surface1
+    expect(box.color, TiqColors.night.surface1);
     expect(box.borderRadius, BorderRadius.circular(999));
-    expect((box.border! as Border).top.color, const Color(0xFF23262F)); // line
+    expect((box.border! as Border).top.color, TiqColors.night.line);
 
     final label = _territoryPillLabel(tester, 'All territories');
-    expect(label.style?.color, const Color(0xFF99A1AD)); // dark ink2
+    expect(label.style?.color, TiqColors.night.ink2);
     expect(
       contrastRatio(label.style!.color!, box.color!),
       greaterThanOrEqualTo(4.5),
-      reason: 'trigger label on the dark surface1 pill',
+      reason: 'trigger label on the night surface1 pill',
     );
   });
 
@@ -947,14 +961,14 @@ void main() {
     },
   );
 
-  testWidgets('range chips are white pills; the active chip is solid brand', (
+  testWidgets('range chips (light): the active chip is the dark primary pill', (
     tester,
   ) async {
     await _pump(tester, _app(theme: AppTheme.light()));
 
     // The default range is 30d, so its chip is the active pill.
     final active = _chipBox(tester, 'last30');
-    expect(active.color, const Color(0xFF0A6CF0));
+    expect(active.color, const Color(0xFF241F47)); // Lumen primary action
     expect(active.borderRadius, BorderRadius.circular(999));
 
     final activeLabel = _chipLabel(tester, 'last30', '30d');
@@ -964,12 +978,12 @@ void main() {
 
     // Inactive: white ground, hairline (light `line` token) border, muted ink.
     final inactive = _chipBox(tester, 'last7');
-    expect(inactive.color, const Color(0xFFFFFFFF));
+    expect(inactive.color, const Color(0xFFF7F6FB)); // Lumen surface1
     expect(inactive.borderRadius, BorderRadius.circular(999));
-    expect((inactive.border! as Border).top.color, const Color(0xFFE3E5EA));
+    expect((inactive.border! as Border).top.color, const Color(0xFFDCD8EA));
 
     final inactiveLabel = _chipLabel(tester, 'last7', '7d');
-    expect(inactiveLabel.style?.color, const Color(0xFF4C5560));
+    expect(inactiveLabel.style?.color, const Color(0xFF3E3A5C));
     expect(inactiveLabel.style?.fontSize, 11);
     expect(inactiveLabel.style?.fontWeight, FontWeight.w600);
 
@@ -1028,12 +1042,22 @@ void main() {
         reason: '$label on its own pill ground',
       );
     }
-    // And the active chip is the solid-brand pill in dark too.
-    expect(_chipBox(tester, 'last30').color, const Color(0xFF0A6CF0));
+    // And the active chip is the night primary action: a bright lavender pill
+    // with dark words; the inactive one is the night surface1 pill.
+    expect(_chipBox(tester, 'last30').color, TiqColors.night.action);
+    expect(
+      _chipLabel(tester, 'last30', '30d').style?.color,
+      TiqColors.night.onAction,
+    );
+    expect(_chipBox(tester, 'last7').color, TiqColors.night.surface1);
+    expect(
+      _chipLabel(tester, 'last7', '7d').style?.color,
+      TiqColors.night.ink2,
+    );
   });
 
   testWidgets(
-    'attention rows: 14px colour-coded numeral, bold title, muted subtitle',
+    'attention rows (light): the count in its status tile, bold title, muted subtitle',
     (tester) async {
       await _pump(
         tester,
@@ -1054,9 +1078,11 @@ void main() {
       final numeral = tester.widget<Text>(
         find.descendant(of: row, matching: find.text('2')),
       );
-      expect(numeral.style?.fontSize, 14);
-      expect(numeral.style?.fontWeight, FontWeight.w700);
-      expect(numeral.style?.color, const Color(0xFFB32E2E)); // light crit
+      // Glass sets the count in its status tile: mono, in the crit ink.
+      expect(numeral.style?.fontSize, 15);
+      expect(numeral.style?.fontWeight, FontWeight.w600);
+      expect(numeral.style?.fontFamily, 'JetBrains Mono');
+      expect(numeral.style?.color, const Color(0xFF8C1D17)); // crit ink
 
       // Title in the mockup's bold weight. (Spec says w650; Inter ships static
       // 400/500/600/700 faces, so w600 is the nearest weight that exists.)
@@ -1069,7 +1095,7 @@ void main() {
       final subtitle = tester.widget<Text>(
         find.descendant(of: row, matching: find.textContaining('out of stock')),
       );
-      expect(subtitle.style?.color, const Color(0xFF5F6875)); // light ink3
+      expect(subtitle.style?.color, const Color(0xFF5B5F75)); // Lumen ink3
       expect(subtitle.style?.fontSize, 11);
 
       // The panel's escape hatch keeps its accent (theme primary) treatment.

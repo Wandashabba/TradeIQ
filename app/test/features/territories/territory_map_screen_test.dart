@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
@@ -63,8 +65,9 @@ class _FakeTerritoriesRepository implements TerritoriesRepository {
       throw UnimplementedError();
 }
 
-Widget _app(TerritoryCoverage coverage) => routedApp(
+Widget _app(TerritoryCoverage coverage, {ThemeData? theme}) => routedApp(
       const TerritoryMapScreen(territory: _territory),
+      theme: theme,
       overrides: [
         territoriesRepositoryProvider.overrideWithValue(
           _FakeTerritoriesRepository(coverage: coverage),
@@ -201,5 +204,39 @@ void main() {
       find.textContaining('Failed to load territory coverage'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('light: pins ink from the glass swatches, the sheet says the word',
+      (tester) async {
+    const coverage = TerritoryCoverage(
+      outletCount: 2,
+      agentCount: 0,
+      outlets: [_visited, _unvisited],
+      outletsVisited: 1,
+      outletsTotal: 2,
+      coverageRate: 50,
+    );
+    await tester.pumpWidget(_app(coverage, theme: AppTheme.light()));
+    await tester.pump();
+    await tester.pump();
+
+    final visitedPin = tester.widget<Icon>(
+      find.byKey(const ValueKey<String>('outlet-pin-icon-o1')),
+    );
+    final unvisitedPin = tester.widget<Icon>(
+      find.byKey(const ValueKey<String>('outlet-pin-icon-o2')),
+    );
+    // Silhouette still carries the state; colour comes from the swatch inks.
+    expect(visitedPin.icon, Icons.check_circle);
+    expect(unvisitedPin.icon, Icons.location_on);
+    expect(visitedPin.color, LumenStatus.good.swatchOf(TiqColors.light).ink);
+    expect(unvisitedPin.color, LumenStatus.crit.swatchOf(TiqColors.light).ink);
+
+    await tester.tap(find.byKey(const ValueKey<String>('outlet-pin-icon-o1')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Sandton Spar'), findsOneWidget);
+    // The state is a word on its wash, not the colour alone.
+    expect(find.text('VISITED'), findsOneWidget);
   });
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 import 'package:tradeiq_app/features/templates/presentation/template_form_screen.dart';
 
@@ -44,12 +46,13 @@ class _FailingTemplatesRepository implements TemplatesRepository {
       throw Exception('boom');
 }
 
-Widget _app(TemplatesRepository repo) => ProviderScope(
+Widget _app(TemplatesRepository repo, {ThemeData? theme}) => ProviderScope(
       overrides: [
         templatesRepositoryProvider.overrideWithValue(repo),
       ],
-      child: const MaterialApp(
-        home: TemplateFormScreen(templateId: 'tpl-1'),
+      child: MaterialApp(
+        theme: theme,
+        home: const TemplateFormScreen(templateId: 'tpl-1'),
       ),
     );
 
@@ -85,5 +88,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Failed to load template'), findsOneWidget);
+  });
+
+  testWidgets('light: the preview walks the glass form to its dialog', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(_FakeTemplatesRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('SECTION 1 OF 1'), findsOneWidget);
+    expect(
+      find.widgetWithText(GlassPrimaryButton, 'Finish preview'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('field-onShelf')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Finish preview'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Preview complete'), findsOneWidget);
   });
 }

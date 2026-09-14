@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 // Imported directly: console.dart uses DeltaPill but does not re-export it.
 import '../../../core/widgets/delta_pill.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../data/chat_controller.dart';
 
 /// The `agent_scorecard` spec, rendered inline in the chat stream.
@@ -71,13 +74,17 @@ class AgentScorecardCard extends StatelessWidget {
             children: [
               Text(
                 average == null ? '—' : average.toStringAsFixed(1),
-                style: TextStyle(
-                  fontSize: 30,
-                  height: 1,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.6,
-                  color: colors.ink1,
-                ),
+                // The headline is a standalone number, so glass sets it in the
+                // proportional hero face; the small metrics below are mono.
+                style: colors.glass
+                    ? LumenGlass.hero(size: 34, color: context.lumen.ink)
+                    : TextStyle(
+                        fontSize: 30,
+                        height: 1,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.6,
+                        color: colors.ink1,
+                      ),
               ),
               const SizedBox(width: 10),
               // The comparison sits beside the figure, not below it. The
@@ -127,6 +134,20 @@ class _Metric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Kicker(label, size: 9.5),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: LumenGlass.figure(size: 15, color: context.lumen.ink),
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

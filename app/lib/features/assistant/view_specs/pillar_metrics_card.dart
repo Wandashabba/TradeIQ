@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 // Imported directly: console.dart uses DeltaPill but does not re-export it.
@@ -150,15 +152,18 @@ class PillarMetricsCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (final figure in figures)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _FigureRow(
-                      label: _label(figure.key),
-                      value: _format(figure.key, figure.value),
-                      delta: _deltaFor(figure.key),
+                if (colors.glass)
+                  ..._glassRows(context.lumen, figures)
+                else
+                  for (final figure in figures)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _FigureRow(
+                        label: _label(figure.key),
+                        value: _format(figure.key, figure.value),
+                        delta: _deltaFor(figure.key),
+                      ),
                     ),
-                  ),
                 if (label is String && label.isNotEmpty)
                   Text(
                     // Says what the movement is against, in words. A pill on its
@@ -170,6 +175,29 @@ class PillarMetricsCard extends StatelessWidget {
             ),
     );
   }
+
+  /// Glass: the figures as table rows, divided by the pane's white rim rather
+  /// than spaced apart, so a column of numbers reads as one ledger.
+  List<Widget> _glassRows(
+    LumenPalette lumen,
+    List<MapEntry<String, num>> figures,
+  ) => [
+    for (var i = 0; i < figures.length; i++)
+      Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          border: i == 0
+              ? null
+              : Border(top: BorderSide(color: lumen.white(0xB3))),
+        ),
+        child: _FigureRow(
+          label: _label(figures[i].key),
+          value: _format(figures[i].key, figures[i].value),
+          delta: _deltaFor(figures[i].key),
+        ),
+      ),
+    const SizedBox(height: 6),
+  ];
 
   _Delta? _deltaFor(String key) {
     final raw = _deltas[key];
@@ -203,6 +231,8 @@ class _FigureRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final glass = colors.glass;
+    final lumen = context.lumen;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -210,17 +240,24 @@ class _FigureRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: TextStyle(fontSize: 12.5, color: colors.ink2),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: glass ? lumen.ink : colors.ink2,
+            ),
           ),
         ),
         const SizedBox(width: 12),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: colors.ink1,
-          ),
+          // Glass sets every figure in JetBrains Mono, so a column of them
+          // aligns by glyph.
+          style: glass
+              ? LumenGlass.figure(size: 15, color: lumen.ink)
+              : TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: colors.ink1,
+                ),
         ),
         if (delta != null) ...[
           const SizedBox(width: 8),
@@ -232,7 +269,13 @@ class _FigureRow extends StatelessWidget {
           Text(
             // "n/a" rather than a percentage the server refused to invent.
             delta!.pct == null ? 'n/a' : '${delta!.pct!.toStringAsFixed(1)}%',
-            style: TextStyle(fontSize: 11.5, color: colors.ink3),
+            style: glass
+                ? LumenGlass.figure(
+                    size: 11.5,
+                    weight: FontWeight.w400,
+                    color: lumen.inkMuted,
+                  )
+                : TextStyle(fontSize: 11.5, color: colors.ink3),
           ),
         ],
       ],

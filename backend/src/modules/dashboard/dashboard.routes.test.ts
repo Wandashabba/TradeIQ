@@ -294,6 +294,51 @@ describe('dashboard routes', () => {
       perfectStoreRate: 50, // 1 of 2 scorecards green
     });
     expect(res.body.totals).toEqual({ visits: 2, outletsVisited: 2, outletsTotal: 2 });
+    // One door per outlet: the 73 (amber) and the 90 (green). Client B's 20
+    // must not leak into the <60 band.
+    expect(res.body.scoreBands).toEqual([
+      { label: '90–100', minScore: 90, outlets: 1 },
+      { label: '80–89', minScore: 80, outlets: 0 },
+      { label: '70–79', minScore: 70, outlets: 1 },
+      { label: '60–69', minScore: 60, outlets: 0 },
+      { label: '<60', minScore: 0, outlets: 0 },
+    ]);
+  });
+
+  it('counts each outlet once in scoreBands, at its most recent scored visit', async () => {
+    // A third, LATER visit to outlet 1 that scores 55. Outlet 1 must move from
+    // 70–79 into <60 — not appear in both — because the distribution counts
+    // doors, and a door is in whatever state its latest visit found it.
+    const outlet1 = await prisma.outlet.findFirstOrThrow({ where: { clientId, code: 'DASH-001' } });
+    const agent = await prisma.user.findFirstOrThrow({ where: { email: 'dash-agent@example.com' } });
+    const later = await prisma.visit.create({
+      data: {
+        outletId: outlet1.id,
+        agentId: agent.id,
+        clientId,
+        checkinTs: new Date('2026-07-03T09:00:00.000Z'),
+        checkinLat: -26.2041,
+        checkinLng: 28.0473,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+    try {
+      await prisma.scorecard.create({
+        data: { visitId: later.id, dimensionScores: {}, weightedTotal: 55, ratingBand: 'red' },
+      });
+
+      const res = await request(app).get('/dashboard').set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      const outlets = res.body.scoreBands.map((band: { outlets: number }) => band.outlets);
+      expect(outlets).toEqual([1, 0, 0, 0, 1]); // outlet 2 at 90, outlet 1 at 55
+      // Two doors in total, even though three visits were scored.
+      expect(outlets.reduce((a: number, b: number) => a + b, 0)).toBe(2);
+    } finally {
+      await prisma.scorecard.deleteMany({ where: { visitId: later.id } });
+      await prisma.visit.delete({ where: { id: later.id } });
+    }
   });
 
   it('filters by territoryId (visits and outlet denominator)', async () => {
@@ -331,6 +376,13 @@ describe('dashboard routes', () => {
     expect(res.body.totals.visits).toBe(1);
     expect(res.body.kpis.executionScore).toBe(90);
     expect(res.body.kpis.perfectStoreRate).toBe(100);
+    expect(res.body.scoreBands).toEqual([
+      { label: '90–100', minScore: 90, outlets: 1 },
+      { label: '80–89', minScore: 80, outlets: 0 },
+      { label: '70–79', minScore: 70, outlets: 0 },
+      { label: '60–69', minScore: 60, outlets: 0 },
+      { label: '<60', minScore: 0, outlets: 0 },
+    ]);
   });
 
   it('rejects an unparseable date with 400', async () => {
@@ -358,6 +410,14 @@ describe('dashboard routes', () => {
       perfectStoreRate: 0,
     });
     expect(res.body.totals).toEqual({ visits: 0, outletsVisited: 0, outletsTotal: 0 });
+    // Every band is always present — an empty tenant gets five zeros, not [].
+    expect(res.body.scoreBands).toEqual([
+      { label: '90–100', minScore: 90, outlets: 0 },
+      { label: '80–89', minScore: 80, outlets: 0 },
+      { label: '70–79', minScore: 70, outlets: 0 },
+      { label: '60–69', minScore: 60, outlets: 0 },
+      { label: '<60', minScore: 0, outlets: 0 },
+    ]);
   });
 
   it('forbids a field agent with 403', async () => {
