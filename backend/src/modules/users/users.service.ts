@@ -12,6 +12,7 @@ export type Role = 'field_agent' | 'manager' | 'admin';
 export const safeUserSelect = {
   id: true,
   email: true,
+  displayName: true,
   role: true,
   active: true,
   lastSeenAt: true,
@@ -25,6 +26,8 @@ export interface CreateUserInput {
   email: string;
   password: string;
   role: Role;
+  /** Already trimmed and validated by the route; `null` when not given. */
+  displayName?: string | null;
 }
 
 // Provisions a new user in the caller's client. May throw a Prisma P2002 on a
@@ -34,6 +37,7 @@ export async function createUser(input: CreateUserInput) {
     data: {
       clientId: input.clientId,
       email: input.email,
+      displayName: input.displayName ?? null,
       passwordHash: await hashPassword(input.password),
       role: input.role,
       active: true,
@@ -72,6 +76,8 @@ export interface UpdateUserInput {
   clientId: string;
   active?: boolean;
   role?: Role;
+  /** `undefined` leaves it alone; `null` clears it. */
+  displayName?: string | null;
 }
 
 // Updates a user scoped to the caller's client, throwing NotFoundError when the
@@ -91,6 +97,7 @@ export async function updateUser(input: UpdateUserInput) {
     data: {
       active: input.active,
       role: input.role,
+      displayName: input.displayName,
     },
     select: safeUserSelect,
   });

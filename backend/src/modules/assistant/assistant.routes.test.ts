@@ -631,6 +631,41 @@ describe('POST /assistant/chat', () => {
       });
     });
 
+    it('resolves a FULL name with a space, which no email can contain (#280)', async () => {
+      // "Sipho Ndlovu" is never a substring of any address, so before display
+      // names this resolved nobody on any tenant.
+      const named = await userIn(clientId, 'field_agent', { displayName: 'Sipho Ndlovu' });
+      try {
+        script.rounds = [
+          [
+            {
+              type: 'tool_call',
+              id: 'c0',
+              name: 'getAgentScorecard',
+              args: { agent: 'Sipho Ndlovu', period: { kind: 'mtd' } },
+            },
+            { type: 'done' },
+          ],
+          [{ type: 'token', text: 'No visits yet this month.' }, { type: 'done' }],
+        ];
+
+        const res = await request(app)
+          .post('/assistant/chat')
+          .set('Authorization', `Bearer ${manager.token}`)
+          .send({ message: 'How has Sipho Ndlovu been performing this month?' });
+
+        const artifact = parseSse(res.text).find((f) => f.event === 'artifact');
+        expect(artifact?.data).toMatchObject({
+          type: 'agent_scorecard',
+          params: { agentId: named.userId },
+          // The card and the model both see the name, not the address.
+          data: { agentName: 'Sipho Ndlovu', agentEmail: named.email },
+        });
+      } finally {
+        await prisma.user.delete({ where: { id: named.userId } });
+      }
+    });
+
     it('asks which one when a name matches several people', async () => {
       // Picking the first would report one person's numbers under another's
       // name — the kind of wrong that gets taken into a meeting.

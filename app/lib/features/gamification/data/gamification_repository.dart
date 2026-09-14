@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/format/person_label.dart';
 import '../../../core/network/api_client.dart';
 
 /// One agent's standing in the S-gamification leaderboard returned by
@@ -12,6 +13,7 @@ class LeaderboardEntry {
     required this.rank,
     required this.avgScorecard,
     required this.points,
+    this.displayName,
   });
   final String agentId;
   final String email;
@@ -21,10 +23,17 @@ class LeaderboardEntry {
   final double avgScorecard;
   final double points;
 
+  /// What people call this agent. Null for agents never given a name.
+  final String? displayName;
+
+  /// The name when there is one, otherwise the email.
+  String get label => personLabel(displayName, email);
+
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
       LeaderboardEntry(
         agentId: json['agentId'] as String,
         email: json['email'] as String,
+        displayName: json['displayName'] as String?,
         visitsSubmitted: json['visitsSubmitted'] as int? ?? 0,
         tasksClosed: json['tasksClosed'] as int? ?? 0,
         rank: json['rank'] as int? ?? 0,

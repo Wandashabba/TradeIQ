@@ -78,6 +78,20 @@ void main() {
     expect(earned.schemeName, 'Top Scorecard');
     expect(earned.email, 'agent@example.com');
     expect(earned.rewardPoints, 100);
+    expect(earned.displayName, isNull);
+    expect(earned.label, 'agent@example.com');
+  });
+
+  test('EarnedIncentive.fromJson parses displayName, and label prefers it', () {
+    final earned = EarnedIncentive.fromJson(const {
+      'schemeName': 'Top Scorecard',
+      'email': 'agent@example.com',
+      'displayName': 'Bongani Zulu',
+      'rewardPoints': 100,
+    });
+
+    expect(earned.displayName, 'Bongani Zulu');
+    expect(earned.label, 'Bongani Zulu');
   });
 
   group('DioIncentivesRepository.listSchemes', () {

@@ -59,6 +59,21 @@ export const TERRITORIES: TerritorySeed[] = [
   { id: 'demo-territory-kzn', name: 'KwaZulu-Natal', code: 'KZN', region: 'Coastal' },
 ];
 
+/**
+ * Territory id → code.
+ *
+ * Needed because two fields named `territoryId` in this schema hold different
+ * kinds of value: `UserTerritory.territoryId` and `BeatPlan.territoryId` are
+ * real foreign keys to `Territory.id`, while `Outlet.territoryId` is free text
+ * mirroring `Territory.code`. Anything comparing an agent's territory to an
+ * outlet's has to cross that gap deliberately, rather than assume two fields of
+ * the same name are comparable — which is the assumption that put territory ids
+ * on the outlets in the first place.
+ */
+export const TERRITORY_CODE_BY_ID: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(TERRITORIES.map((t) => [t.id, t.code])),
+);
+
 export const USERS: UserSeed[] = [
   { id: 'demo-user-admin', email: 'admin@demo-fmcg.tradeiq.com', role: 'admin', name: 'Thandi Mokoena' },
   { id: 'demo-user-mgr-1', email: 'manager@demo-fmcg.tradeiq.com', role: 'manager', name: 'Pieter van Wyk' },
@@ -156,12 +171,16 @@ export function buildOutlets(home: CoordinateSource): OutletSeed[] {
 
   outlets.push({
     id: HOME_OUTLET_ID,
-    name: 'Kalahari Flagship Store',
+    // Named for what it is rather than for the fiction: this is the store you
+    // seed at your own coordinates to demo a live geofenced check-in, and it
+    // needs to be findable at a glance in a list of 31.
+    name: 'Home',
     code: 'GP-000',
     channelType: 'supermarket',
     lat: home.lat,
     lng: home.lng,
-    territoryId: 'demo-territory-gp',
+    // The territory CODE, not its id — see the note on the loop below.
+    territoryId: 'GP',
     acvWeight: 1.4,
   });
 
@@ -177,7 +196,17 @@ export function buildOutlets(home: CoordinateSource): OutletSeed[] {
         // ~+/-0.15 degrees keeps outlets inside a plausible metro spread.
         lat: centre.lat + (rng() - 0.5) * 0.3,
         lng: centre.lng + (rng() - 0.5) * 0.3,
-        territoryId: territory.id,
+        // `Outlet.territoryId` is free text mirroring `Territory.code`, NOT a
+        // foreign key to `Territory.id` — see the note on the Territory model.
+        // Seeding the id here made every territory-scoped query silently return
+        // nothing: `GET /outlets?mine=true` matches on codes, so the agent's
+        // "My territories" picker (its default scope) came back empty and the
+        // 31 seeded stores looked like they were missing from the system.
+        //
+        // Same class of bug as #97, which shipped once already and degraded a
+        // territory filter to all-zero KPIs rather than erroring. It is silent
+        // in both directions, which is why the test below asserts against codes.
+        territoryId: territory.code,
         acvWeight: intBetween(rng, 5, 20) / 10,
       });
     }

@@ -43,6 +43,8 @@ const daysAgo = (n: number): Date => new Date(Date.now() - n * DAY_MS);
 
 const CLEAN_CHECKIN = daysAgo(6);
 const SUS_CHECKIN = daysAgo(2);
+const SLOW_CHECKIN = daysAgo(4);
+const TIMELINE_CHECKIN = daysAgo(3);
 
 describe('fraud routes', () => {
   let clientId: string;
@@ -53,6 +55,8 @@ describe('fraud routes', () => {
   let agentToken: string;
   let cleanVisitId: string;
   let suspiciousVisitId: string;
+  let slowVisitId: string;
+  let timelineVisitId: string;
   let clientBVisitId: string;
 
   beforeAll(async () => {
@@ -214,6 +218,77 @@ describe('fraud routes', () => {
       ],
     });
 
+    // ── Slow visit (#247): clean on every other count, but the DEVICE says it
+    // took 90 minutes from check-in to submit — over the default 48-minute band.
+    const slowVisit = await prisma.visit.create({
+      data: {
+        outletId,
+        agentId,
+        clientId,
+        checkinTs: SLOW_CHECKIN,
+        checkinLat: OUTLET_LAT,
+        checkinLng: OUTLET_LNG,
+        geofencePass: true,
+        checkinDistanceM: 5,
+        status: 'submitted',
+        submittedAtClient: new Date(SLOW_CHECKIN.getTime() + 90 * 60 * 1000),
+      },
+    });
+    slowVisitId = slowVisit.id;
+    await prisma.visitStock.create({
+      data: stockData(slowVisitId, new Date(SLOW_CHECKIN.getTime() + 10 * 60 * 1000)),
+    });
+
+    // ── Capture-timeline visit (#246): a 20-minute visit on the device clock,
+    // one shelf photo taken during it, one taken 270 minutes after submit, and a
+    // task-closure photo attached a day later (which must not count).
+    const timelineAt = (minutes: number): Date =>
+      new Date(TIMELINE_CHECKIN.getTime() + minutes * 60 * 1000);
+    const timelineVisit = await prisma.visit.create({
+      data: {
+        outletId,
+        agentId,
+        clientId,
+        checkinTs: TIMELINE_CHECKIN,
+        checkinLat: OUTLET_LAT,
+        checkinLng: OUTLET_LNG,
+        geofencePass: true,
+        checkinDistanceM: 5,
+        status: 'submitted',
+        submittedAtClient: timelineAt(20),
+      },
+    });
+    timelineVisitId = timelineVisit.id;
+    await prisma.visitStock.create({
+      // The server row landed hours later (an offline sync) — irrelevant here.
+      data: stockData(timelineVisitId, timelineAt(6 * 60)),
+    });
+    await prisma.photo.createMany({
+      data: [
+        {
+          visitId: timelineVisitId,
+          section: 'stock',
+          url: 'https://example.test/timeline-in.jpg',
+          gpsTag: { lat: OUTLET_LAT, lng: OUTLET_LNG },
+          timestamp: timelineAt(10),
+        },
+        {
+          visitId: timelineVisitId,
+          section: 'visibility',
+          url: 'https://example.test/timeline-late.jpg',
+          gpsTag: { lat: OUTLET_LAT, lng: OUTLET_LNG },
+          timestamp: timelineAt(20 + 270),
+        },
+        {
+          visitId: timelineVisitId,
+          section: 'task_closure',
+          url: 'https://example.test/timeline-closure.jpg',
+          gpsTag: {},
+          timestamp: timelineAt(24 * 60),
+        },
+      ],
+    });
+
     // A second tenant whose visit must 404 for client A's manager.
     const clientB = await prisma.client.create({
       data: { name: 'FRAUD-Client-B', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
@@ -298,6 +373,75 @@ describe('fraud routes', () => {
       // 20 + 20 (2 failures) + 25 + 20 = 85.
       expect(res.body.riskScore).toBe(85);
       expect(res.body.riskScore).toBeGreaterThanOrEqual(50);
+    });
+
+    it('reports a slow visit as slow_completion, at a weight that cannot flag it alone', async () => {
+      const res = await request(app)
+        .get(`/fraud/visits/${slowVisitId}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.signals.map((s: { code: string }) => s.code)).toEqual(['slow_completion']);
+      expect(res.body.riskScore).toBe(10);
+    });
+
+    it("applies the tenant's own kpiThresholds dwell band, read from the database", async () => {
+      // Loosen client A's band past the 90-minute visit: the signal must go
+      // quiet, proving the route reads the stored column under the key the
+      // engine actually reads (#97), not just the built-in default.
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { kpiThresholds: { slowCompletionMinutes: 120 } },
+      });
+      try {
+        const res = await request(app)
+          .get(`/fraud/visits/${slowVisitId}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.signals).toEqual([]);
+        expect(res.body.riskScore).toBe(0);
+      } finally {
+        await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: {} } });
+      }
+    });
+
+    it('reports a photo taken outside the device visit window as capture_timeline_gap', async () => {
+      const res = await request(app)
+        .get(`/fraud/visits/${timelineVisitId}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      // The route must load each photo's device timestamp and section; the
+      // task-closure photo a day later is excluded, so the worst gap is 270 min.
+      expect(res.body.signals).toEqual([
+        {
+          code: 'capture_timeline_gap',
+          detail:
+            '1 photo(s) taken outside the visit; the furthest was 270 min after submit ' +
+            '(device clock), beyond the 15 min tolerance',
+          weight: 15,
+        },
+      ]);
+      expect(res.body.riskScore).toBe(15);
+    });
+
+    it("applies the tenant's own capture-timeline tolerance, read from the database", async () => {
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { kpiThresholds: { captureTimelineToleranceMinutes: 300 } },
+      });
+      try {
+        const res = await request(app)
+          .get(`/fraud/visits/${timelineVisitId}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.signals).toEqual([]);
+        expect(res.body.riskScore).toBe(0);
+      } finally {
+        await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: {} } });
+      }
     });
 
     it('returns 404 for a visit belonging to another tenant', async () => {
@@ -442,6 +586,10 @@ describe('fraud routes', () => {
       const ids = res.body.data.map((v: { visitId: string }) => v.visitId);
       expect(ids).toContain(suspiciousVisitId);
       expect(ids).not.toContain(cleanVisitId);
+      // Slow on its own is corroboration, not a finding (#247).
+      expect(ids).not.toContain(slowVisitId);
+      // So is one photo out of the visit's window (#246).
+      expect(ids).not.toContain(timelineVisitId);
       const flagged = res.body.data.find((v: { visitId: string }) => v.visitId === suspiciousVisitId);
       expect(flagged.riskScore).toBe(85);
       expect(flagged.outletId).toBe(outletId);

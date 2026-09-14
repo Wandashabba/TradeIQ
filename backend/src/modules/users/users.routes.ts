@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { parsePagination } from '../../lib/pagination';
+import { DISPLAY_NAME_MAX_LENGTH, parseDisplayName } from '../../lib/personName';
 import { createUser, listUsersForClient, Role, updateUser } from './users.service';
 
 const ROLES = ['field_agent', 'manager', 'admin'] as const;
@@ -15,10 +16,11 @@ export const usersRouter = Router();
 usersRouter.use(requireAuth);
 
 usersRouter.post('/', requireRole('admin'), async (req: AuthedRequest, res) => {
-  const { email, password, role } = req.body as {
+  const { email, password, role, displayName } = req.body as {
     email?: unknown;
     password?: unknown;
     role?: unknown;
+    displayName?: unknown;
   };
 
   if (
@@ -33,8 +35,22 @@ usersRouter.post('/', requireRole('admin'), async (req: AuthedRequest, res) => {
     return;
   }
 
+  const name = parseDisplayName(displayName);
+  if (!name.ok) {
+    res
+      .status(400)
+      .json({ error: `displayName must be a string of at most ${DISPLAY_NAME_MAX_LENGTH} characters` });
+    return;
+  }
+
   try {
-    const user = await createUser({ clientId: req.user!.clientId, email, password, role });
+    const user = await createUser({
+      clientId: req.user!.clientId,
+      email,
+      password,
+      role,
+      displayName: name.value ?? null,
+    });
     res.status(201).json(user);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -52,12 +68,22 @@ usersRouter.get('/', requireRole('manager', 'admin'), async (req: AuthedRequest,
 });
 
 usersRouter.patch('/:id', requireRole('admin'), async (req: AuthedRequest, res) => {
-  const { active, role } = req.body as { active?: unknown; role?: unknown };
+  const { active, role, displayName } = req.body as {
+    active?: unknown;
+    role?: unknown;
+    displayName?: unknown;
+  };
 
   const activeValid = active === undefined || typeof active === 'boolean';
   const roleValid = role === undefined || isRole(role);
-  if ((active === undefined && role === undefined) || !activeValid || !roleValid) {
-    res.status(400).json({ error: 'Provide active (boolean) and/or role (valid role) to update' });
+  const name = parseDisplayName(displayName);
+  const nothingToUpdate = active === undefined && role === undefined && displayName === undefined;
+  if (nothingToUpdate || !activeValid || !roleValid || !name.ok) {
+    res.status(400).json({
+      error:
+        'Provide active (boolean), role (valid role) and/or displayName ' +
+        `(string of at most ${DISPLAY_NAME_MAX_LENGTH} characters, or null to clear) to update`,
+    });
     return;
   }
 
@@ -68,6 +94,7 @@ usersRouter.patch('/:id', requireRole('admin'), async (req: AuthedRequest, res) 
     clientId: req.user!.clientId,
     active: active as boolean | undefined,
     role: role as Role | undefined,
+    displayName: name.value,
   });
   res.status(200).json(user);
 });

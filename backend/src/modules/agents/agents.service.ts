@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { personLabel } from '../../lib/personName';
 
 /// One confirmed store presence: an agent stood inside this outlet's geofence
 /// at this moment. The whole T0 feature is a list of these per agent.
@@ -55,11 +56,13 @@ export function deriveAgentState(stops: VisitStop[]): AgentStateResult {
 
 export interface AgentActivity {
   agentId: string;
-  /// Currently the agent's email. `User` has no display-name column, so
-  /// email is the best available value for what the UI shows for this
-  /// agent — the field is named for its role (display label), not its
-  /// current source. Adding a real display-name column is out of scope here.
+  /// What the UI shows for this agent: their display name, or their email
+  /// when none was set (#280). Named for its role (display label), not its
+  /// source.
   name: string;
+  /// The display name as stored; `null` when none was ever set.
+  displayName: string | null;
+  email: string;
   state: AgentState;
   currentOutlet: { id: string; name: string } | null;
   lastSeenAt: Date | null;
@@ -137,7 +140,7 @@ export async function listAgentActivity(
       active: true,
       ...(agentIdFilter ? { id: { in: agentIdFilter } } : {}),
     },
-    select: { id: true, email: true },
+    select: { id: true, email: true, displayName: true },
     orderBy: { id: 'asc' },
     take: limit + 1,
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
@@ -197,7 +200,9 @@ export async function listAgentActivity(
       const { state, currentOutlet } = deriveAgentState(stops);
       return {
         agentId: a.id,
-        name: a.email,
+        name: personLabel(a.displayName, a.email),
+        displayName: a.displayName,
+        email: a.email,
         state,
         currentOutlet,
         // Scoped to the requested range on purpose. `User.lastSeenAt` is

@@ -136,7 +136,7 @@ class _BeatPlanFormScreenState extends ConsumerState<BeatPlanFormScreen> {
                 labelText: 'Field agent', border: OutlineInputBorder()),
             items: [
               for (final u in fieldAgents)
-                DropdownMenuItem(value: u.id, child: Text(u.email)),
+                DropdownMenuItem(value: u.id, child: Text(u.label)),
             ],
             onChanged: (v) => setState(() => _agentId = v),
           );

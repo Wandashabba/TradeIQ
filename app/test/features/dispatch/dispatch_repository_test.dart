@@ -39,6 +39,37 @@ void main() {
       expect(far.email, 'far@example.com');
       expect(far.distanceM, isNull);
       expect(far.inTerritory, isFalse);
+      // No displayName in the payload: null, and the label is the email.
+      expect(far.displayName, isNull);
+      expect(far.label, 'far@example.com');
+    });
+
+    test('parses displayName, and label prefers it over the email', () {
+      final result = DispatchResult.fromJson(const {
+        'outletId': 'o1',
+        'recommended': null,
+        'candidates': [
+          {
+            'agentId': 'a1',
+            'email': 'near@example.com',
+            'displayName': 'Sipho Ndlovu',
+            'distanceM': 50,
+            'inTerritory': true,
+          },
+          {
+            'agentId': 'a2',
+            'email': 'far@example.com',
+            'displayName': null,
+            'distanceM': null,
+            'inTerritory': false,
+          },
+        ],
+      });
+
+      expect(result.candidates[0].displayName, 'Sipho Ndlovu');
+      expect(result.candidates[0].label, 'Sipho Ndlovu');
+      expect(result.candidates[1].displayName, isNull);
+      expect(result.candidates[1].label, 'far@example.com');
     });
 
     test('handles a null recommended', () {

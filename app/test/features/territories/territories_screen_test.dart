@@ -79,7 +79,14 @@ class _FakeUsersRepository implements UsersRepository {
   @override
   Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
         data: [
-          AppUser(id: 'a1', email: 'agent@x.com', role: 'field_agent', active: true),
+          AppUser(
+            id: 'a1',
+            email: 'agent@x.com',
+            role: 'field_agent',
+            active: true,
+            displayName: 'Ruan Botha',
+          ),
+          AppUser(id: 'a2', email: 'unnamed@x.com', role: 'field_agent', active: true),
         ],
         nextCursor: null,
       );
@@ -89,6 +96,7 @@ class _FakeUsersRepository implements UsersRepository {
     required String email,
     required String password,
     required String role,
+    String? displayName,
   }) async =>
       throw UnimplementedError();
 
@@ -161,7 +169,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey<String>('assign-agent-field')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('agent@x.com').last);
+    // Agents are picked by name; one without a name is still offered by email.
+    expect(find.text('agent@x.com'), findsNothing);
+    expect(find.text('unnamed@x.com'), findsWidgets);
+    await tester.tap(find.text('Ruan Botha').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey<String>('assign-agent-confirm')));

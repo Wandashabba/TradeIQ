@@ -21,6 +21,8 @@ export interface LeaderboardOptions {
 export interface LeaderboardEntry {
   agentId: string;
   email: string;
+  /** `null` when the agent was never given a name — show `email` instead. */
+  displayName: string | null;
   visitsSubmitted: number;
   tasksClosed: number;
   avgScorecard: number;
@@ -46,7 +48,7 @@ export async function computeLeaderboard(
 
   const agents = await prisma.user.findMany({
     where: { clientId, role: 'field_agent' },
-    select: { id: true, email: true },
+    select: { id: true, email: true, displayName: true },
   });
 
   const agentIds = agents.map((a) => a.id);
@@ -103,6 +105,7 @@ export async function computeLeaderboard(
     return {
       agentId: agent.id,
       email: agent.email,
+      displayName: agent.displayName,
       visitsSubmitted,
       tasksClosed,
       avgScorecard,
@@ -134,12 +137,13 @@ export async function getAgentLeaderboardEntry(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    select: { email: true, displayName: true },
   });
 
   return {
     agentId: userId,
     email: user?.email ?? '',
+    displayName: user?.displayName ?? null,
     visitsSubmitted: 0,
     tasksClosed: 0,
     avgScorecard: 0,

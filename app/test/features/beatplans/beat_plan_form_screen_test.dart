@@ -49,7 +49,14 @@ class _FakeUsersRepository implements UsersRepository {
   @override
   Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
         data: [
-          AppUser(id: 'a1', email: 'agent-one@x.com', role: 'field_agent', active: true),
+          AppUser(
+            id: 'a1',
+            email: 'agent-one@x.com',
+            role: 'field_agent',
+            active: true,
+            displayName: 'Aisha Patel',
+          ),
+          AppUser(id: 'a2', email: 'agent-two@x.com', role: 'field_agent', active: true),
           AppUser(id: 'm1', email: 'manager@x.com', role: 'manager', active: true),
         ],
         nextCursor: null,
@@ -60,6 +67,7 @@ class _FakeUsersRepository implements UsersRepository {
     required String email,
     required String password,
     required String role,
+    String? displayName,
   }) async =>
       throw UnimplementedError();
 
@@ -144,7 +152,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
     await tester.pumpAndSettle();
 
-    expect(find.text('agent-one@x.com'), findsWidgets);
+    // A named agent is offered by name; an unnamed one falls back to email.
+    expect(find.text('Aisha Patel'), findsWidgets);
+    expect(find.text('agent-one@x.com'), findsNothing);
+    expect(find.text('agent-two@x.com'), findsWidgets);
     // The manager must not be offered as a beat-plan assignee.
     expect(find.text('manager@x.com'), findsNothing);
   });
@@ -164,7 +175,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('agent-one@x.com').last);
+    await tester.tap(find.text('Aisha Patel').last);
     await tester.pumpAndSettle();
 
     // Add both outlets: o2 first, then o1, to prove order is preserved.
@@ -227,7 +238,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('agent-one@x.com').last);
+    await tester.tap(find.text('Aisha Patel').last);
     await tester.pumpAndSettle();
 
     for (final id in ['o2', 'o1']) {

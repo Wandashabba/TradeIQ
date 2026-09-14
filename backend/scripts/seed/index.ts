@@ -74,6 +74,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     data: USERS.map((user) => ({
       id: user.id,
       email: user.email,
+      displayName: user.name,
       passwordHash,
       role: user.role,
       clientId: DEMO_CLIENT_ID,
@@ -285,7 +286,12 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   // Today's beat plan for the demo agent, opening with the home-base outlet so
   // the live geofence check-in is the natural next action.
   const demoAgent = agents[0]!;
-  const gautengOutlets = outlets.filter((o) => o.territoryId === 'demo-territory-gp');
+  // Outlets carry the territory CODE; the BeatPlan below carries the territory
+  // ID, because `BeatPlan.territoryId` is a real foreign key while
+  // `Outlet.territoryId` is free text mirroring the code. Same field name, two
+  // different meanings, one line apart — which is exactly how the id ended up
+  // on the outlets in the first place.
+  const gautengOutlets = outlets.filter((o) => o.territoryId === 'GP');
   const stopOutlets = [
     outlets.find((o) => o.id === HOME_OUTLET_ID)!,
     ...gautengOutlets.filter((o) => o.id !== HOME_OUTLET_ID).slice(0, 4),
