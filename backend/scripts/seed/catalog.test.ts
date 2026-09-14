@@ -54,9 +54,21 @@ describe('buildOutlets', () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it('assigns every outlet to a real territory', () => {
+  it('assigns every outlet to a real territory, by CODE not id', () => {
+    // `Outlet.territoryId` mirrors `Territory.code`. Asserting against ids —
+    // which this test used to do — passes while every territory-scoped query
+    // returns nothing, because both sides of the comparison are then wrong in
+    // the same way. The codes are what `GET /outlets?mine=true` matches on.
+    const territoryCodes = new Set(TERRITORIES.map((t) => t.code));
+    for (const outlet of outlets) expect(territoryCodes.has(outlet.territoryId)).toBe(true);
+  });
+
+  it('never assigns an outlet a territory id by mistake', () => {
+    // The specific regression: an id looks like a plausible territoryId and
+    // fails silently. Nothing downstream errors — the lists just come back
+    // empty, which reads as "no data" rather than "wrong join".
     const territoryIds = new Set(TERRITORIES.map((t) => t.id));
-    for (const outlet of outlets) expect(territoryIds.has(outlet.territoryId)).toBe(true);
+    for (const outlet of outlets) expect(territoryIds.has(outlet.territoryId)).toBe(false);
   });
 
   it('includes the home-base outlet at the supplied coordinates', () => {
