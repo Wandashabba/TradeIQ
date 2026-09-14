@@ -69,6 +69,11 @@ model Client {
 model User {
   id               String           @id @default(uuid())
   email            String           @unique
+  // What people call this person ("Sipho Ndlovu"). Nullable on purpose: rows
+  // that predate it have nothing to backfill from but the email local-part, and
+  // guessing a name from that is wrong often enough to be worse than blank
+  // (#280). Display falls back to `email` when it is null.
+  displayName      String?          @map("display_name")
   passwordHash     String           @map("password_hash")
   role             UserRole
   clientId         String           @map("client_id")

@@ -77,7 +77,7 @@ class _LeaderboardRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return WorklistRow(
       key: ValueKey('leaderboard-${entry.agentId}'),
-      title: entry.email,
+      title: entry.label,
       meta: Text(
         '${entry.points.toStringAsFixed(0)} pts · '
         '${entry.visitsSubmitted} visits · '

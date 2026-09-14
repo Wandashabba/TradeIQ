@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/format/person_label.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
 
@@ -35,15 +36,23 @@ class EarnedIncentive {
     required this.schemeName,
     required this.email,
     required this.rewardPoints,
+    this.displayName,
   });
   final String schemeName;
   final String email;
   final int rewardPoints;
 
+  /// What people call this agent. Null for agents never given a name.
+  final String? displayName;
+
+  /// The name when there is one, otherwise the email.
+  String get label => personLabel(displayName, email);
+
   factory EarnedIncentive.fromJson(Map<String, dynamic> json) => EarnedIncentive(
         schemeName: json['schemeName'] as String,
         email: json['email'] as String,
         rewardPoints: (json['rewardPoints'] as num).toInt(),
+        displayName: json['displayName'] as String?,
       );
 }
 

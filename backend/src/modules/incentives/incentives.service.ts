@@ -95,6 +95,8 @@ export interface EarnedIncentive {
   metric: IncentiveMetric;
   agentId: string;
   email: string;
+  /** `null` when the agent was never given a name — show `email` instead. */
+  displayName: string | null;
   metricValue: number;
   rewardPoints: number;
 }
@@ -119,7 +121,7 @@ export async function computeEarnedIncentives(clientId: string): Promise<EarnedI
     }),
     prisma.user.findMany({
       where: { clientId, role: 'field_agent' },
-      select: { id: true, email: true },
+      select: { id: true, email: true, displayName: true },
     }),
   ]);
 
@@ -187,6 +189,7 @@ export async function computeEarnedIncentives(clientId: string): Promise<EarnedI
           metric,
           agentId: agent.id,
           email: agent.email,
+          displayName: agent.displayName,
           metricValue: value,
           rewardPoints: scheme.rewardPoints,
         });

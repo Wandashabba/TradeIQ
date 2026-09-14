@@ -74,6 +74,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     data: USERS.map((user) => ({
       id: user.id,
       email: user.email,
+      displayName: user.name,
       passwordHash,
       role: user.role,
       clientId: DEMO_CLIENT_ID,

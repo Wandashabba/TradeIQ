@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/format/person_label.dart';
 import '../../../core/network/api_client.dart';
 
 /// One candidate agent returned by POST /dispatch, ranked for an outlet.
@@ -8,11 +9,18 @@ class DispatchCandidate {
     required this.email,
     required this.inTerritory,
     this.distanceM,
+    this.displayName,
   });
   final String agentId;
   final String email;
   final double? distanceM;
   final bool inTerritory;
+
+  /// What people call this agent. Null for agents never given a name.
+  final String? displayName;
+
+  /// The name when there is one, otherwise the email.
+  String get label => personLabel(displayName, email);
 
   factory DispatchCandidate.fromJson(Map<String, dynamic> json) =>
       DispatchCandidate(
@@ -20,6 +28,7 @@ class DispatchCandidate {
         email: json['email'] as String,
         distanceM: (json['distanceM'] as num?)?.toDouble(),
         inTerritory: json['inTerritory'] as bool? ?? false,
+        displayName: json['displayName'] as String?,
       );
 }
 

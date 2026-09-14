@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { mean, pct, round2 } from '../../lib/kpiMath';
+import { personLabel } from '../../lib/personName';
 
 /**
  * The assistant's semantic layer — one read-only aggregate per pillar.
@@ -372,6 +373,8 @@ export interface VisitSummary {
   recent: {
     visitId: string;
     outletName: string;
+    /** What to call the agent: their display name, or their email when they have none. */
+    agentName: string;
     agentEmail: string;
     checkinTs: string;
     status: string;
@@ -397,7 +400,7 @@ export async function getVisitSummary(
       checkinTs: true,
       geofencePass: true,
       outlet: { select: { name: true } },
-      agent: { select: { email: true } },
+      agent: { select: { email: true, displayName: true } },
     },
     orderBy: [{ checkinTs: 'desc' }, { id: 'desc' }],
     take: MAX_SCAN + 1,
@@ -414,6 +417,7 @@ export async function getVisitSummary(
     recent: scanned.slice(0, 20).map((r) => ({
       visitId: r.id,
       outletName: r.outlet.name,
+      agentName: personLabel(r.agent.displayName, r.agent.email),
       agentEmail: r.agent.email,
       checkinTs: r.checkinTs.toISOString(),
       status: r.status,

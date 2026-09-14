@@ -8,6 +8,8 @@ import { NotFoundError } from '../../middleware/errorHandler';
 export interface DispatchCandidate {
   agentId: string;
   email: string;
+  /** `null` when the agent was never given a name — show `email` instead. */
+  displayName: string | null;
   distanceM: number | null;
   inTerritory: boolean;
   lastSeenAt: Date | null;
@@ -32,7 +34,14 @@ export async function rankAgentsForOutlet(
   // selects in dashboard/gamification rather than fetching every User column.
   const agents = await prisma.user.findMany({
     where: { clientId, role: 'field_agent' },
-    select: { id: true, email: true, lastLat: true, lastLng: true, lastSeenAt: true },
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+      lastLat: true,
+      lastLng: true,
+      lastSeenAt: true,
+    },
   });
 
   // The outlet links to a Territory by free-text code equalling Outlet.territoryId
@@ -67,6 +76,7 @@ export async function rankAgentsForOutlet(
     return {
       agentId: agent.id,
       email: agent.email,
+      displayName: agent.displayName,
       distanceM,
       inTerritory: inTerritoryAgentIds.has(agent.id),
       lastSeenAt: agent.lastSeenAt,
