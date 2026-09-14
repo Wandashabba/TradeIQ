@@ -20,6 +20,16 @@ computes a `riskScore` (0-100) from weighted signals:
   ~12-minute audit). Flat, low weight (10): an app left open also does this, so
   it corroborates other signals rather than flagging a visit alone (#247)
 - `no_capture` — submitted with zero section data
+- `capture_timeline_gap` — a shelf photo's device timestamp falls outside the
+  visit's device window (check-in → `submittedAtClient`) by more than
+  `kpiThresholds.captureTimelineToleranceMinutes` (default 15): the counts and
+  the photos were not captured in one sitting (#246). Stock rows carry only a
+  server `createdAt`, so they are never compared with a device photo time
+  directly; the device window, which brackets every count keyed in, stands in
+  for them. Silent on drafts, without `submittedAtClient`, without photo
+  timestamps, and for `task_closure` photos. Flat weight 15; only 5 when the
+  out-of-window photos are the same ones `photo_gps_divergence` already scored,
+  so one stale photo is not counted twice
 
 `GET /fraud/visits/:visitId`, `GET /fraud/attempts`, `GET /fraud/flagged`.
 Fed by the new `CheckInAttempt` table (every attempt, incl. rejected ones — #44)

@@ -31,6 +31,34 @@ export const DEFAULT_FAST_COMPLETION_MINUTES = 1;
 // tightens it through kpiThresholds.slowCompletionMinutes.
 export const DEFAULT_SLOW_COMPLETION_MINUTES = 48;
 
+// ── The capture timeline (#246) ────────────────────────────────────────────
+// Were the stock counts and the shelf photos captured in the same sitting?
+//
+// The literal comparison — "stock entered at 10:02, photo taken at 14:30" — is
+// NOT computable honestly. A stock row carries only its SERVER `createdAt`
+// (whenever the outbox flushed); the device never sends when a count was keyed
+// in. A photo's `timestamp` is the DEVICE clock at capture. Subtracting one from
+// the other is exactly the two-clock mistake #101 removed from dwell: an agent
+// who synced from a dead zone four hours later would read as a four-hour gap.
+//
+// What IS on one clock: the device's `checkinTs`, its `submittedAtClient`, and
+// every photo's `timestamp`. Stock can only be keyed in while the visit draft is
+// open — after check-in, before submit — so that device window brackets every
+// count. A photo stamped well outside it was not taken in the sitting where the
+// counts were entered: it was taken before the agent checked in, or after they
+// submitted, which is the "assembled rather than observed" pattern the issue
+// describes, measured without trusting the server clock for anything.
+//
+// The tolerance covers the edges of the window: a shelf photographed while
+// walking up to the door, and ordinary clock jitter (an NTP correction
+// mid-visit). Minutes between counting a section and photographing it fall
+// inside the window and never need a tolerance. Per client, like the dwell band.
+export const CAPTURE_TIMELINE_TOLERANCE_MINUTES_KEY = 'captureTimelineToleranceMinutes';
+export const DEFAULT_CAPTURE_TIMELINE_TOLERANCE_MINUTES = 15;
+// Closing a task uploads its evidence photo against the ORIGINATING visit, days
+// later and by design (tasks_screen.dart). It is not part of the audit sitting.
+const TASK_CLOSURE_PHOTO_SECTION = 'task_closure';
+
 const WEIGHT_GEOFENCE = 20;
 const WEIGHT_FAILED_ATTEMPTS = 25;
 const WEIGHT_FAILED_ATTEMPT_PER = 10;
@@ -44,6 +72,20 @@ const WEIGHT_FAST_COMPLETION = 20;
 // default review threshold (50) on its own. It corroborates other evidence; it
 // does not accuse anyone by itself.
 const WEIGHT_SLOW_COMPLETION = 10;
+// Flat, and below the review threshold alone. Stronger than slow_completion: an
+// app left open does not move a photo's capture time outside the visit. Weaker
+// than photo_gps_divergence: a device clock that was changed mid-visit does, and
+// the size of the gap is not evidence of anything more (a clock reset by a day
+// is not 100x more fraudulent than one off by fifteen minutes), so it does not
+// scale.
+const WEIGHT_CAPTURE_TIMELINE_GAP = 15;
+// When every out-of-window photo is ALSO a photo whose GPS diverged, the two
+// signals are describing one stale photo from two angles — where it was taken
+// and when. photo_gps_divergence has already scored that photo, so the timeline
+// signal is still reported (a reviewer should see the "when") but only tops it
+// up: 25 + 5 = 30 for one photo, not 25 + 15 = 40. A second, independent photo
+// out of the window is new evidence and scores the full weight.
+const WEIGHT_CAPTURE_TIMELINE_GAP_SAME_PHOTO = 5;
 const WEIGHT_NO_CAPTURE = 30;
 
 const MS_PER_MINUTE = 60_000;
@@ -77,15 +119,26 @@ export interface FraudVisitInput {
    * The device's completion timestamp — the same clock that produced
    * `checkinTs`. Null for visits recorded before this existed, in which case no
    * dwell is measurable and neither dwell signal (fast_completion,
-   * slow_completion) is emitted (#101, #247).
+   * slow_completion) is emitted (#101, #247), and there is no device window to
+   * place photos in, so capture_timeline_gap is not emitted either (#246).
    */
   submittedAtClient?: Date | null;
 }
 
+/** One visit photo, as the heuristics see it. */
+export interface FraudPhotoInput {
+  gpsTag: Prisma.JsonValue;
+  /** The DEVICE clock at capture. Absent → the photo has no place on the timeline. */
+  timestamp?: Date | null;
+  /** The audit section it evidences; `task_closure` photos are not audit captures. */
+  section?: string;
+}
+
 /** Related rows the heuristics reason over, pre-loaded by the caller. */
 export interface FraudRelatedInput {
-  // Photos captured on the visit; only the gpsTag is inspected.
-  photos: Array<{ gpsTag: Prisma.JsonValue }>;
+  // Photos captured on the visit: gpsTag (divergence), timestamp + section
+  // (capture timeline, #246).
+  photos: FraudPhotoInput[];
   // createdAt of every captured row across the five audit sections (stock,
   // visibility, pricing, competitive, capability).
   sectionCreatedAts: Date[];
@@ -133,6 +186,18 @@ export function dwellBand(kpiThresholds: unknown): { fastMs: number; slowMs: num
   };
 }
 
+/** The capture-timeline tolerance, in ms, for one client. See #246 above. */
+export function captureTimelineToleranceMs(kpiThresholds: unknown): number {
+  const minutes = kpiThreshold(
+    kpiThresholds,
+    CAPTURE_TIMELINE_TOLERANCE_MINUTES_KEY,
+    DEFAULT_CAPTURE_TIMELINE_TOLERANCE_MINUTES,
+  );
+  // Zero or negative would flag ordinary clock jitter on every visit with a
+  // photo: a typo, not a policy. Same fallback rule as the dwell band's upper edge.
+  return (minutes > 0 ? minutes : DEFAULT_CAPTURE_TIMELINE_TOLERANCE_MINUTES) * MS_PER_MINUTE;
+}
+
 /**
  * Score a single visit against the fraud/ghost-visit heuristics. Pure: every
  * input it needs is passed in, so it is trivially unit-testable and reused by
@@ -140,7 +205,8 @@ export function dwellBand(kpiThresholds: unknown): { fastMs: number; slowMs: num
  * signal weights, clamped to [0, 100].
  *
  * `kpiThresholds` is the visit's client's raw `Client.kpiThresholds` column;
- * only the dwell band reads it. Absent, every edge takes its default.
+ * the dwell band and the capture-timeline tolerance read it. Absent, every
+ * edge takes its default.
  */
 export function computeFraudSignals(
   visit: FraudVisitInput,
@@ -177,12 +243,18 @@ export function computeFraudSignals(
   // 3. A photo's GPS tag diverges far from the recorded check-in location.
   const checkin = { lat: visit.checkinLat, lng: visit.checkinLng };
   let maxDivergenceM = 0;
+  // Remembered so the capture-timeline signal (6) can tell a second piece of
+  // evidence from the same photo seen again.
+  const divergentPhotos = new Set<FraudPhotoInput>();
   for (const photo of related.photos) {
     const coords = readCoords(photo.gpsTag);
     if (!coords) {
       continue;
     }
     const distance = haversineDistanceMeters(checkin, coords);
+    if (distance > PHOTO_DIVERGENCE_M) {
+      divergentPhotos.add(photo);
+    }
     if (distance > maxDivergenceM) {
       maxDivergenceM = distance;
     }
@@ -255,6 +327,55 @@ export function computeFraudSignals(
     });
   }
 
+  // 6. Capture timeline (#246) — a shelf photo taken outside the device window
+  //    in which the stock counts were keyed in. See the CAPTURE_TIMELINE notes at
+  //    the top for why the window stands in for the stock rows' own times.
+  //
+  //    Silent unless every input is on the device clock and present: a
+  //    submitted visit (a draft's window has no end yet), with captured sections
+  //    (no counts → no_capture already says the stronger thing), a device submit
+  //    time, and at least one device-stamped audit photo.
+  if (visit.status === 'submitted' && hasSections && visit.submittedAtClient) {
+    const submitMs = visit.submittedAtClient.getTime();
+    // Submit before check-in means the device clock moved. The window is then
+    // meaningless, and nothing measured against it is evidence — same rule as dwell.
+    if (submitMs >= checkinMs) {
+      const toleranceMs = captureTimelineToleranceMs(kpiThresholds);
+      const outside: Array<{ photo: FraudPhotoInput; gapMs: number; after: boolean }> = [];
+      for (const photo of related.photos) {
+        if (photo.section === TASK_CLOSURE_PHOTO_SECTION || !photo.timestamp) {
+          continue;
+        }
+        const takenMs = photo.timestamp.getTime();
+        if (!Number.isFinite(takenMs)) {
+          continue;
+        }
+        const beforeMs = checkinMs - takenMs;
+        const afterMs = takenMs - submitMs;
+        const gapMs = Math.max(beforeMs, afterMs);
+        if (gapMs > toleranceMs) {
+          outside.push({ photo, gapMs, after: afterMs > beforeMs });
+        }
+      }
+
+      if (outside.length > 0) {
+        const worst = outside.reduce((a, b) => (b.gapMs > a.gapMs ? b : a));
+        const gapMinutes = Math.round(worst.gapMs / MS_PER_MINUTE);
+        const toleranceMinutes = Math.round((toleranceMs / MS_PER_MINUTE) * 10) / 10;
+        const sameAsGps = outside.every((o) => divergentPhotos.has(o.photo));
+        signals.push({
+          code: 'capture_timeline_gap',
+          detail:
+            `${outside.length} photo(s) taken outside the visit; the furthest was ` +
+            `${gapMinutes} min ${worst.after ? 'after submit' : 'before check-in'} ` +
+            `(device clock), beyond the ${toleranceMinutes} min tolerance` +
+            (sameAsGps ? '; the same photo(s) as the GPS divergence' : ''),
+          weight: sameAsGps ? WEIGHT_CAPTURE_TIMELINE_GAP_SAME_PHOTO : WEIGHT_CAPTURE_TIMELINE_GAP,
+        });
+      }
+    }
+  }
+
   const rawScore = signals.reduce((sum, signal) => sum + signal.weight, 0);
   const riskScore = Math.max(RISK_MIN, Math.min(RISK_MAX, rawScore));
 
@@ -268,10 +389,11 @@ export const fraudVisitInclude = {
   pricing: true,
   competitive: true,
   capability: true,
-  // Fraud only inspects each photo's gpsTag (see FraudRelatedInput). Selecting
-  // the base64 `url` too meant listFlagged detoasted every stored image — MBs
-  // per row — only to discard them. Select the one field we read.
-  photos: { select: { gpsTag: true } },
+  // Fraud inspects each photo's gpsTag, device timestamp and section (see
+  // FraudRelatedInput). Selecting the base64 `url` too meant listFlagged
+  // detoasted every stored image — MBs per row — only to discard them. Select
+  // only the fields we read.
+  photos: { select: { gpsTag: true, timestamp: true, section: true } },
 } as const satisfies Prisma.VisitInclude;
 
 type FraudVisitPayload = Prisma.VisitGetPayload<{ include: typeof fraudVisitInclude }>;
@@ -445,7 +567,7 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
       where: { clientId, passed: false, createdAt: { gte: from, lte: to } },
     }),
     // One read for the whole scan: every visit here belongs to this client, so
-    // they all share its dwell band.
+    // they all share its dwell band and capture-timeline tolerance.
     prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
   ]);
 

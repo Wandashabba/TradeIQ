@@ -803,12 +803,17 @@ Independent of the assistant. The chatbot can only report signals the backend
 computes, so these are **backend** work items.
 
 **Fraud signals described in the field but not implemented** (existing:
-`failed_attempts`, `fast_completion`, `geofence_distance`, `no_capture`,
-`photo_gps_divergence`, `slow_completion`):
+`capture_timeline_gap`, `failed_attempts`, `fast_completion`,
+`geofence_distance`, `no_capture`, `photo_gps_divergence`, `slow_completion`):
 
 - [ ] #244 — Duplicate photo reuse across outlets / visits
 - [ ] #245 — Flat or repeating stock figures across periods (*"2-1, 2-1"*)
-- [ ] #246 — Gap between stock-entry timestamp and photo timestamp
+- [x] #246 — Gap between stock-entry timestamp and photo timestamp →
+      `capture_timeline_gap`. Stock rows only have a server `createdAt`, so each
+      photo's device time is placed against the visit's device window (check-in
+      → `submittedAtClient`) instead; per-client tolerance
+      `kpiThresholds.captureTimelineToleranceMinutes` (default 15); flat weight
+      15, or 5 when it is the same photo `photo_gps_divergence` already scored
 - [x] #247 — Dwell time **above** benchmark → `slow_completion`. Per-client band
       via `kpiThresholds.fastCompletionMinutes` / `slowCompletionMinutes`
       (defaults 1 / 48 min, 4x the ~12-min benchmark); flat weight 10 so an
