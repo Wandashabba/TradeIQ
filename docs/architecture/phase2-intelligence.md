@@ -30,6 +30,24 @@ computes a `riskScore` (0-100) from weighted signals:
   timestamps, and for `task_closure` photos. Flat weight 15; only 5 when the
   out-of-window photos are the same ones `photo_gps_divergence` already scored,
   so one stale photo is not counted twice
+- `repeating_stock_counts` — the practitioner's *"2-1, 2-1"*: identical
+  `unitsAvailable` for the same (outlet, SKU) across at least
+  `kpiThresholds.repeatingStockRunLength` consecutive submitted stock visits
+  (default 3; lower settings fall back to 3, higher ones clamp at 12). "Previous"
+  is ordered by each visit's device `checkinTs` (ties by id), never a stock row's
+  server `createdAt`. A visit that did not record the SKU ends its run. A SKU only
+  counts when it is non-zero and the `velocityAvg` stored (#112) on the **first**
+  row of its run, times the run's span in days, predicts at least 3 units sold.
+  The first row is used because a copied count reads as zero consumption, so
+  later rows' velocity is diluted by the copies themselves. Slow movers and
+  out-of-stock shelves therefore stay silent (#245). Flat weight 15 when every
+  comparable SKU in the basket repeats (at least 2 SKUs, at least one of them a
+  mover); 5 when at least half of it does, or for a one-SKU basket; silent below
+  half. Silent on drafts, visits without stock, and with too little history.
+  History is loaded in one windowed query per call, `lookback` = run length − 1 +
+  10 visits per outlet. `GET /fraud/flagged` uses the scanned visits themselves
+  as each outlet's recent history, and loads only what precedes each outlet's
+  oldest scanned visit
 
 `GET /fraud/visits/:visitId`, `GET /fraud/attempts`, `GET /fraud/flagged`.
 Fed by the new `CheckInAttempt` table (every attempt, incl. rejected ones — #44)
