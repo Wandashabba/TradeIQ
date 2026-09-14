@@ -59,6 +59,57 @@ export const DEFAULT_CAPTURE_TIMELINE_TOLERANCE_MINUTES = 15;
 // later and by design (tasks_screen.dart). It is not part of the audit sitting.
 const TASK_CLOSURE_PHOTO_SECTION = 'task_closure';
 
+// ── Repeating stock counts (#245) ──────────────────────────────────────────
+// "2-1, 2-1": the same counts submitted visit after visit. Real shelf stock
+// moves, so a run of identical `unitsAvailable` for one (outlet, SKU) across
+// consecutive submitted visits suggests the agent copied the last visit instead
+// of counting.
+//
+// The calibration warning on the issue is the whole design: a slow SKU in a
+// small outlet legitimately reads the same twice, and a screen that fires on
+// every long-tail SKU trains managers to ignore it. So:
+//
+//   * a run must be at least `repeatingStockRunLength` visits long (default 3,
+//     never less: 2 is exactly the benign slow-mover case the issue warns
+//     about). Per client, like every other band.
+//   * a SKU only counts if its OWN server-derived velocity (#112) says it should
+//     have moved over the run — see MIN_EXPECTED_MOVEMENT_UNITS.
+//   * a SKU at 0 units never counts: an out-of-stock shelf reads 0 until it is
+//     restocked, and nothing about that is copied.
+//   * the weight is low and never flags a visit alone.
+//
+// "Consecutive" and "previous" are ordered by each visit's device `checkinTs`
+// (ties by id), never a stock row's server `createdAt`: that is when the outbox
+// flushed, and an agent who synced a week of visits at once would otherwise have
+// them in upload order, not the order they were counted in (#101).
+export const REPEATING_STOCK_RUN_LENGTH_KEY = 'repeatingStockRunLength';
+export const DEFAULT_REPEATING_STOCK_RUN_LENGTH = 3;
+// The ceiling bounds how much history one scoring call loads. A client asking
+// for 50 identical visits before anything is said has switched the signal off in
+// all but name; 12 (a quarter of weekly visits) is as long a run as we look for.
+export const MAX_REPEATING_STOCK_RUN_LENGTH = 12;
+// How far past the minimum run we keep walking back to find where a run
+// STARTED. The start matters because that row's stored velocity is the honest
+// one — see repeatingStockCounts(). A run longer than this is scored with the
+// oldest row we can see, whose velocity may already be diluted by earlier copies
+// and so reads low: the signal errs silent, but only after the ten visits before
+// it have each been scored while the start was still in view.
+export const REPEATING_STOCK_START_LOOKBACK_VISITS = 10;
+// A SKU is only evidence when its pre-run velocity (units/day) times the run's
+// span (days) predicts at least this many units sold. At an expected 3 units, a
+// genuinely unsold span is a ~5% event (Poisson P(0 | 3)); a SKU selling a unit
+// a fortnight across a two-week run expects ~1 and is exactly the long tail the
+// issue says must stay silent.
+export const MIN_EXPECTED_MOVEMENT_UNITS = 3;
+// A partial repeat only contributes when at least this share of the comparable
+// basket is unchanged. One mover out of ten identical is one number an agent may
+// have re-read correctly, or a shelf refilled to the same par level; half the
+// basket is a pattern.
+export const MIN_REPEATING_BASKET_SHARE = 0.5;
+// "The whole basket unchanged" needs a basket: a one-SKU visit repeating is no
+// stronger than one SKU repeating.
+const MIN_BASKET_SKUS = 2;
+
 const WEIGHT_GEOFENCE = 20;
 const WEIGHT_FAILED_ATTEMPTS = 25;
 const WEIGHT_FAILED_ATTEMPT_PER = 10;
@@ -87,8 +138,20 @@ const WEIGHT_CAPTURE_TIMELINE_GAP = 15;
 // out of the window is new evidence and scores the full weight.
 const WEIGHT_CAPTURE_TIMELINE_GAP_SAME_PHOTO = 5;
 const WEIGHT_NO_CAPTURE = 30;
+// Flat and low, in two steps. Every count in the basket identical across the run
+// — including SKUs whose velocity says they sold — is the "2-1, 2-1" pattern
+// itself: copying one visit into the next reproduces the whole basket, while an
+// honest count rarely freezes every line at once. It still tops out at 15, level
+// with capture_timeline_gap, because a shelf refilled to a fixed par level before
+// counting reads the same way. A partial repeat is weaker again (5): it is
+// reported so a reviewer sees it, and adds a little to other evidence. Neither
+// scales with run length or basket size, and neither reaches the default review
+// threshold (50) alone.
+const WEIGHT_REPEATING_STOCK_COUNTS_BASKET = 15;
+const WEIGHT_REPEATING_STOCK_COUNTS_PARTIAL = 5;
 
 const MS_PER_MINUTE = 60_000;
+const MS_PER_DAY = 24 * 60 * MS_PER_MINUTE;
 
 const RISK_MIN = 0;
 const RISK_MAX = 100;
@@ -145,6 +208,27 @@ export interface FraudRelatedInput {
   // Failed CheckInAttempt rows for this visit's (agentId, outletId). The 6h
   // window is applied inside computeFraudSignals so it owns the whole heuristic.
   failedAttempts: Array<{ createdAt: Date }>;
+  // This visit's own stock counts (#245). Absent → no repeating_stock_counts.
+  stockCounts?: FraudStockCount[];
+  // Earlier SUBMITTED visits to the same outlet that recorded stock, newest
+  // first by device checkinTs (ties by id) — see loadPriorStockVisits(). Only
+  // the first repeatingStockLookbackVisits() are read. Absent or empty → silent.
+  priorStockVisits?: FraudStockVisit[];
+}
+
+/** One VisitStock row, as repeating_stock_counts sees it. */
+export interface FraudStockCount {
+  skuId: string;
+  unitsAvailable: number;
+  /** Server-derived at capture from the outlet's earlier history (#112). */
+  velocityAvg: number;
+}
+
+/** One earlier visit's stock basket, placed on the device timeline. */
+export interface FraudStockVisit {
+  visitId: string;
+  checkinTs: Date;
+  stock: FraudStockCount[];
 }
 
 /** Safely read a {lat,lng} pair out of a photo's gpsTag Json column. */
@@ -196,6 +280,166 @@ export function captureTimelineToleranceMs(kpiThresholds: unknown): number {
   // Zero or negative would flag ordinary clock jitter on every visit with a
   // photo: a typo, not a policy. Same fallback rule as the dwell band's upper edge.
   return (minutes > 0 ? minutes : DEFAULT_CAPTURE_TIMELINE_TOLERANCE_MINUTES) * MS_PER_MINUTE;
+}
+
+/** The minimum run of identical counts, in visits, for one client. See #245 above. */
+export function repeatingStockRunLength(kpiThresholds: unknown): number {
+  const raw = Math.floor(
+    kpiThreshold(kpiThresholds, REPEATING_STOCK_RUN_LENGTH_KEY, DEFAULT_REPEATING_STOCK_RUN_LENGTH),
+  );
+  // Below 3 is not a stricter policy, it is the false positive the issue
+  // warns about (a slow SKU reading the same twice), so it falls back rather
+  // than being honoured. Above the ceiling clamps: the client asked for long
+  // runs only, and gets the longest this engine looks for.
+  if (raw < DEFAULT_REPEATING_STOCK_RUN_LENGTH) {
+    return DEFAULT_REPEATING_STOCK_RUN_LENGTH;
+  }
+  return Math.min(raw, MAX_REPEATING_STOCK_RUN_LENGTH);
+}
+
+/** How many earlier stock visits per outlet scoring needs to see, for one client. */
+export function repeatingStockLookbackVisits(kpiThresholds: unknown): number {
+  return repeatingStockRunLength(kpiThresholds) - 1 + REPEATING_STOCK_START_LOOKBACK_VISITS;
+}
+
+interface BasketEntry {
+  unitsAvailable: number;
+  velocityAvg: number;
+}
+
+/**
+ * One visit's counts keyed by SKU. A SKU recorded twice on one visit (a
+ * re-submitted section) with two DIFFERENT counts is ambiguous — which one did
+ * the agent see? — and is left out (null) rather than guessed. Identical
+ * duplicates keep the lower velocity, the reading less likely to fire.
+ */
+function basketOf(stock: FraudStockCount[]): Map<string, BasketEntry | null> {
+  const basket = new Map<string, BasketEntry | null>();
+  for (const row of stock) {
+    if (!basket.has(row.skuId)) {
+      basket.set(row.skuId, { unitsAvailable: row.unitsAvailable, velocityAvg: row.velocityAvg });
+      continue;
+    }
+    const seen = basket.get(row.skuId);
+    if (!seen || seen.unitsAvailable !== row.unitsAvailable) {
+      basket.set(row.skuId, null);
+    } else {
+      seen.velocityAvg = Math.min(seen.velocityAvg, row.velocityAvg);
+    }
+  }
+  return basket;
+}
+
+/**
+ * repeating_stock_counts (#245), or null. Pure; see the REPEATING_STOCK notes at
+ * the top for the calibration.
+ *
+ * For each SKU on this visit, the run is this visit plus every immediately
+ * preceding stock visit to the outlet that recorded the SAME count. A preceding
+ * visit that did not record the SKU ends its run — absence is not agreement.
+ *
+ * A SKU is:
+ *   - comparable when it was recorded on each of the (runLength - 1) preceding
+ *     stock visits, i.e. a run of the minimum length was even possible;
+ *   - repeating when its run reaches runLength;
+ *   - a mover when it repeats at a non-zero count AND the velocity stored on the
+ *     FIRST row of its run, times the run's span in days, predicts at least
+ *     MIN_EXPECTED_MOVEMENT_UNITS sold.
+ *
+ * Why the first row's velocity: velocityAvg is the mean consumption over the
+ * outlet's last few visits, and a copied count reads as zero consumption. By the
+ * third copy the newest row's velocity has been pulled toward zero by the copies
+ * themselves, so reading it would let a long enough run exonerate itself. The
+ * first row of the run was derived from the history BEFORE the run began.
+ *
+ * No mover → silent, whatever repeats: slow and out-of-stock SKUs legitimately
+ * read the same.
+ */
+function repeatingStockCounts(
+  visit: FraudVisitInput,
+  related: FraudRelatedInput,
+  kpiThresholds: unknown,
+): FraudSignal | null {
+  const own = basketOf(related.stockCounts ?? []);
+  if (own.size === 0) {
+    return null;
+  }
+  const runLength = repeatingStockRunLength(kpiThresholds);
+  const checkinMs = visit.checkinTs.getTime();
+  // Defensive: newest first by device checkinTs. Array.prototype.sort is stable,
+  // so equal timestamps keep the loader's (database) id order. Anything not
+  // strictly earlier than this visit on the device clock is not "previous".
+  const prior = (related.priorStockVisits ?? [])
+    .filter((p) => p.visitId !== visit.id && p.checkinTs.getTime() <= checkinMs && p.stock.length > 0)
+    .sort((a, b) => b.checkinTs.getTime() - a.checkinTs.getTime())
+    .slice(0, repeatingStockLookbackVisits(kpiThresholds))
+    .map((p) => ({ checkinMs: p.checkinTs.getTime(), basket: basketOf(p.stock) }));
+  if (prior.length < runLength - 1) {
+    return null; // too little history to see a run of the minimum length
+  }
+
+  let comparable = 0;
+  let repeating = 0;
+  let movers = 0;
+  let longestRun = 0;
+  for (const [skuId, entry] of own) {
+    if (!entry) {
+      continue;
+    }
+    let run = 1;
+    let start = { checkinMs, entry };
+    for (const earlier of prior) {
+      const seen = earlier.basket.get(skuId);
+      if (!seen || seen.unitsAvailable !== entry.unitsAvailable) {
+        break;
+      }
+      run += 1;
+      start = { checkinMs: earlier.checkinMs, entry: seen };
+    }
+    const minRunPossible = prior
+      .slice(0, runLength - 1)
+      .every((earlier) => Boolean(earlier.basket.get(skuId)));
+    if (!minRunPossible) {
+      continue;
+    }
+    comparable += 1;
+    if (run < runLength) {
+      continue;
+    }
+    repeating += 1;
+    longestRun = Math.max(longestRun, run);
+    const spanDays = (checkinMs - start.checkinMs) / MS_PER_DAY;
+    const expectedSold = Math.max(0, start.entry.velocityAvg) * Math.max(0, spanDays);
+    if (entry.unitsAvailable > 0 && expectedSold >= MIN_EXPECTED_MOVEMENT_UNITS) {
+      movers += 1;
+    }
+  }
+
+  if (movers === 0) {
+    return null;
+  }
+  const wholeBasket = comparable >= MIN_BASKET_SKUS && repeating === comparable;
+  if (!wholeBasket && repeating / comparable < MIN_REPEATING_BASKET_SHARE) {
+    return null;
+  }
+  const movedClause =
+    `${movers} of them selling fast enough by their own velocity that the count should have moved` +
+    ` (longest run ${longestRun} visits, by device check-in)`;
+  return wholeBasket
+    ? {
+        code: 'repeating_stock_counts',
+        detail:
+          `Whole basket unchanged: all ${comparable} SKU counts identical across the last ` +
+          `${runLength} submitted visits to this outlet, ${movedClause}`,
+        weight: WEIGHT_REPEATING_STOCK_COUNTS_BASKET,
+      }
+    : {
+        code: 'repeating_stock_counts',
+        detail:
+          `${repeating} of ${comparable} SKU counts identical across the last ${runLength} ` +
+          `submitted visits to this outlet, ${movedClause}`,
+        weight: WEIGHT_REPEATING_STOCK_COUNTS_PARTIAL,
+      };
 }
 
 /**
@@ -376,6 +620,16 @@ export function computeFraudSignals(
     }
   }
 
+  // 7. Repeating stock counts (#245) — the "2-1, 2-1" pattern. Submitted visits
+  //    only: a draft's counts are not final, and the loader only ever supplies
+  //    submitted visits as history. No counts → no_capture or nothing.
+  if (visit.status === 'submitted') {
+    const repeating = repeatingStockCounts(visit, related, kpiThresholds);
+    if (repeating) {
+      signals.push(repeating);
+    }
+  }
+
   const rawScore = signals.reduce((sum, signal) => sum + signal.weight, 0);
   const riskScore = Math.max(RISK_MIN, Math.min(RISK_MAX, rawScore));
 
@@ -433,6 +687,101 @@ function sectionCreatedAts(visit: FraudVisitPayload): Date[] {
   return dates;
 }
 
+function toStockCounts(visit: FraudVisitPayload): FraudStockCount[] {
+  return visit.stock.map((row) => ({
+    skuId: row.skuId,
+    unitsAvailable: row.unitsAvailable,
+    velocityAvg: row.velocityAvg,
+  }));
+}
+
+/** Where one outlet's history ends: strictly before this visit, on (checkinTs, id). */
+export interface PriorStockAnchor {
+  outletId: string;
+  checkinTs: Date;
+  visitId: string;
+}
+
+interface PriorStockRow {
+  outlet_id: string;
+  visit_id: string;
+  checkin_ts: Date;
+  sku_id: string;
+  units_available: number;
+  velocity_avg: number;
+}
+
+/**
+ * Earlier submitted stock visits for many outlets, in ONE round trip (#245).
+ *
+ * For each anchor, the `lookback` most recent SUBMITTED visits to that outlet
+ * that recorded stock and sit strictly before the anchor visit on
+ * (checkinTs, id), with their stock rows. Returned per outlet, newest first.
+ *
+ * `listFlagged` scores up to MAX_FRAUD_SCAN visits across as many outlets; a
+ * history query per visit (or per outlet) would be the N+1 #120 removed from
+ * stock capture. Postgres caps each outlet's history with a window function, as
+ * fetchStockHistoryForOutlet does, so the cost is one query bounded by
+ * outlets x lookback however much history an outlet has accumulated.
+ */
+export async function loadPriorStockVisits(
+  clientId: string,
+  anchors: PriorStockAnchor[],
+  lookback: number,
+): Promise<Map<string, FraudStockVisit[]>> {
+  const byOutlet = new Map<string, FraudStockVisit[]>();
+  if (anchors.length === 0 || lookback <= 0) {
+    return byOutlet;
+  }
+  const rows = await prisma.$queryRaw<PriorStockRow[]>(
+    Prisma.sql`
+      SELECT r.outlet_id, r.id AS visit_id, r.checkin_ts,
+        vs.sku_id, vs.units_available, vs.velocity_avg
+      FROM (
+        SELECT v.id, v.outlet_id, v.checkin_ts,
+          ROW_NUMBER() OVER (
+            PARTITION BY v.outlet_id
+            ORDER BY v.checkin_ts DESC, v.id DESC
+          ) AS rn
+        FROM visits v
+        JOIN unnest(
+          ${anchors.map((a) => a.outletId)}::text[],
+          ${anchors.map((a) => a.checkinTs.toISOString())}::timestamp[],
+          ${anchors.map((a) => a.visitId)}::text[]
+        ) AS anchor(outlet_id, checkin_ts, visit_id)
+          ON anchor.outlet_id = v.outlet_id
+        WHERE v.client_id = ${clientId}
+          AND v.status = 'submitted'
+          AND (v.checkin_ts, v.id) < (anchor.checkin_ts, anchor.visit_id)
+          AND EXISTS (SELECT 1 FROM visit_stock s WHERE s.visit_id = v.id)
+      ) r
+      JOIN visit_stock vs ON vs.visit_id = r.id
+      WHERE r.rn <= ${lookback}
+      ORDER BY r.outlet_id, r.rn, vs.sku_id
+    `,
+  );
+
+  // Rows arrive grouped by outlet and ordered newest visit first (rn), so
+  // appending preserves the database's (checkinTs, id) order exactly.
+  const byVisit = new Map<string, FraudStockVisit>();
+  for (const row of rows) {
+    let entry = byVisit.get(row.visit_id);
+    if (!entry) {
+      entry = { visitId: row.visit_id, checkinTs: row.checkin_ts, stock: [] };
+      byVisit.set(row.visit_id, entry);
+      const list = byOutlet.get(row.outlet_id) ?? [];
+      list.push(entry);
+      byOutlet.set(row.outlet_id, list);
+    }
+    entry.stock.push({
+      skuId: row.sku_id,
+      unitsAvailable: row.units_available,
+      velocityAvg: row.velocity_avg,
+    });
+  }
+  return byOutlet;
+}
+
 /** GET /fraud/visits/:visitId — score one tenant-scoped visit. */
 export async function getVisitFraud(visitId: string, clientId: string): Promise<FraudResult> {
   const visit = await prisma.visit.findFirst({
@@ -450,12 +799,27 @@ export async function getVisitFraud(visitId: string, clientId: string): Promise<
     prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
   ]);
 
+  // Only a submitted visit with counts can repeat anything; skip the history
+  // read for everything else.
+  const priorStockVisits =
+    visit.status === 'submitted' && visit.stock.length > 0
+      ? ((
+          await loadPriorStockVisits(
+            clientId,
+            [{ outletId: visit.outletId, checkinTs: visit.checkinTs, visitId: visit.id }],
+            repeatingStockLookbackVisits(client?.kpiThresholds),
+          )
+        ).get(visit.outletId) ?? [])
+      : [];
+
   return computeFraudSignals(
     toFraudVisitInput(visit),
     {
       photos: visit.photos,
       sectionCreatedAts: sectionCreatedAts(visit),
       failedAttempts,
+      stockCounts: toStockCounts(visit),
+      priorStockVisits,
     },
     client?.kpiThresholds,
   );
@@ -576,17 +940,59 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
     visits.length = MAX_FRAUD_SCAN;
   }
 
+  // Stock history for repeating_stock_counts (#245), per outlet, in one query.
+  //
+  // `visits` is newest first, and every submitted visit in the window newer
+  // than the scan's cutoff is in it. So for each outlet, the scanned visits
+  // themselves ARE its recent history, and the only history missing is what
+  // sits before the outlet's OLDEST scanned visit — outside the window, or cut
+  // off by truncation. That is what gets loaded, anchored on that visit. Each
+  // scored visit's history is then the outlet's later entries in one list: the
+  // same visits, in the same order, that GET /fraud/visits/:id would load.
+  const lookback = repeatingStockLookbackVisits(client?.kpiThresholds);
+  const oldestByOutlet = new Map<string, PriorStockAnchor>();
+  for (const visit of visits) {
+    // Newest first, so the last visit seen per outlet is its oldest.
+    oldestByOutlet.set(visit.outletId, {
+      outletId: visit.outletId,
+      checkinTs: visit.checkinTs,
+      visitId: visit.id,
+    });
+  }
+  const earlier = await loadPriorStockVisits(clientId, [...oldestByOutlet.values()], lookback);
+  const timelineByOutlet = new Map<string, FraudStockVisit[]>();
+  const positionInTimeline = new Map<string, number>();
+  for (const visit of visits) {
+    if (visit.stock.length === 0) {
+      continue;
+    }
+    const timeline = timelineByOutlet.get(visit.outletId) ?? [];
+    positionInTimeline.set(visit.id, timeline.length);
+    timeline.push({ visitId: visit.id, checkinTs: visit.checkinTs, stock: toStockCounts(visit) });
+    timelineByOutlet.set(visit.outletId, timeline);
+  }
+  for (const [outletId, timeline] of timelineByOutlet) {
+    timeline.push(...(earlier.get(outletId) ?? []));
+  }
+
   const flagged: FlaggedVisit[] = [];
   for (const visit of visits) {
     const attemptsForVisit = failedAttempts.filter(
       (attempt) => attempt.agentId === visit.agentId && attempt.outletId === visit.outletId,
     );
+    const position = positionInTimeline.get(visit.id);
+    const priorStockVisits =
+      position === undefined
+        ? []
+        : (timelineByOutlet.get(visit.outletId) ?? []).slice(position + 1, position + 1 + lookback);
     const result = computeFraudSignals(
       toFraudVisitInput(visit),
       {
         photos: visit.photos,
         sectionCreatedAts: sectionCreatedAts(visit),
         failedAttempts: attemptsForVisit,
+        stockCounts: toStockCounts(visit),
+        priorStockVisits,
       },
       client?.kpiThresholds,
     );
