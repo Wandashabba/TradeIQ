@@ -67,9 +67,118 @@ class CampaignCompliance {
       );
 }
 
+/// Why a campaign's return has no percentage. Mirrors the backend's
+/// `unmeasurable` reason on GET /campaigns/:id/roi.
+enum RoiUnmeasurable {
+  /// No budget recorded — there is no spend to return on.
+  noBudget,
+
+  /// A budget of exactly zero — a division by zero, not a measurement.
+  zeroBudget,
+
+  /// A reason this client does not recognise yet. Still unmeasurable.
+  unknown;
+
+  static RoiUnmeasurable? fromJson(Object? raw) => switch (raw) {
+    null => null,
+    'no_budget' => RoiUnmeasurable.noBudget,
+    'zero_budget' => RoiUnmeasurable.zeroBudget,
+    _ => RoiUnmeasurable.unknown,
+  };
+}
+
+/// A `{from, to}` date window on the ROI response.
+class RoiWindow {
+  const RoiWindow({required this.from, required this.to});
+  final DateTime from;
+  final DateTime to;
+
+  /// Whole days covered, rounded — the length the baseline is matched to.
+  int get days => (to.difference(from).inHours / 24).round();
+
+  factory RoiWindow.fromJson(Map<String, dynamic> json) => RoiWindow(
+    from: DateTime.parse(json['from'] as String),
+    to: DateTime.parse(json['to'] as String),
+  );
+}
+
+/// The return returned by GET /campaigns/:id/roi: incremental SELL-IN against
+/// spend.
+///
+/// [attributedRevenue] is what outlets ordered from the client during the
+/// campaign — sell-in, not sell-through. It is not consumer sales and must not
+/// be labelled as such. An order carries one campaign, so when campaigns
+/// overlap each order counts toward one of them only.
+class CampaignRoi {
+  const CampaignRoi({
+    required this.campaignId,
+    required this.outletsTotal,
+    required this.window,
+    required this.baselineWindow,
+    required this.attributedOrders,
+    required this.baselineOrders,
+    required this.attributedRevenue,
+    required this.baselineRevenue,
+    required this.incrementalRevenue,
+    required this.spend,
+    required this.roiPct,
+    required this.unmeasurable,
+  });
+
+  final String campaignId;
+  final int outletsTotal;
+  final RoiWindow window;
+
+  /// The equal-length window immediately before the campaign.
+  final RoiWindow baselineWindow;
+  final int attributedOrders;
+  final int baselineOrders;
+  final double attributedRevenue;
+  final double baselineRevenue;
+
+  /// attributed − baseline; negative when the campaign period sold in less.
+  final double incrementalRevenue;
+
+  /// The campaign budget. Null when none is recorded.
+  final double? spend;
+
+  /// Null — never zero — when the return cannot be measured; see
+  /// [unmeasurable].
+  final double? roiPct;
+  final RoiUnmeasurable? unmeasurable;
+
+  factory CampaignRoi.fromJson(Map<String, dynamic> json) {
+    final orders = json['orderCount'] as Map<String, dynamic>? ?? const {};
+    return CampaignRoi(
+      campaignId: json['campaignId'] as String,
+      outletsTotal: (json['outletsTotal'] as num?)?.toInt() ?? 0,
+      window: RoiWindow.fromJson(json['window'] as Map<String, dynamic>),
+      baselineWindow: RoiWindow.fromJson(
+        json['baselineWindow'] as Map<String, dynamic>,
+      ),
+      attributedOrders: (orders['attributed'] as num?)?.toInt() ?? 0,
+      baselineOrders: (orders['baseline'] as num?)?.toInt() ?? 0,
+      attributedRevenue: (json['attributedRevenue'] as num?)?.toDouble() ?? 0,
+      baselineRevenue: (json['baselineRevenue'] as num?)?.toDouble() ?? 0,
+      incrementalRevenue:
+          (json['incrementalRevenue'] as num?)?.toDouble() ?? 0,
+      spend: (json['spend'] as num?)?.toDouble(),
+      roiPct: (json['roiPct'] as num?)?.toDouble(),
+      // A null percentage with no reason is still unmeasurable: never let it
+      // fall through to a figure.
+      unmeasurable:
+          RoiUnmeasurable.fromJson(json['unmeasurable']) ??
+          (json['roiPct'] == null ? RoiUnmeasurable.unknown : null),
+    );
+  }
+}
+
 abstract class CampaignsRepository {
   Future<PaginatedResponse<Campaign>> listCampaigns();
   Future<CampaignCompliance> getCompliance(String id);
+
+  /// GET /campaigns/:id/roi — manager/admin.
+  Future<CampaignRoi> getRoi(String id);
 
   /// POST /campaigns. Dates are ISO strings; [outletIds] seeds the initial
   /// outlet assignment. Requires a manager/admin session.
@@ -107,6 +216,12 @@ class DioCampaignsRepository implements CampaignsRepository {
   Future<CampaignCompliance> getCompliance(String id) async {
     final response = await dio.get('/campaigns/$id/compliance');
     return CampaignCompliance.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<CampaignRoi> getRoi(String id) async {
+    final response = await dio.get('/campaigns/$id/roi');
+    return CampaignRoi.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
