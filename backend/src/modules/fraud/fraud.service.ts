@@ -2,6 +2,7 @@ import { Prisma, VisitStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
 import { haversineDistanceMeters } from '../../lib/geofence';
+import { kpiThreshold } from '../../lib/kpiThresholds';
 import { NotFoundError } from '../../middleware/errorHandler';
 
 // ── Heuristic thresholds & weights ────────────────────────────────────────
@@ -11,15 +12,41 @@ const GEOFENCE_EDGE_M = 40;
 const PHOTO_DIVERGENCE_M = 150;
 // Failed check-in attempts are only relevant if they precede the visit by <6h.
 const FAILED_ATTEMPT_WINDOW_MS = 6 * 60 * 60 * 1000;
+// ── The dwell band (#247) ──────────────────────────────────────────────────
+// Dwell is device check-in → device submit. Both edges are per-client, read
+// from `Client.kpiThresholds` via kpiThreshold() — the same reader the stock
+// and pricing engines use — under these keys. The key names ARE the contract:
+// the #97-era seed wrote keys nothing read, and the bands silently fell back to
+// defaults. Change a key here and every stored override stops applying.
+export const FAST_COMPLETION_MINUTES_KEY = 'fastCompletionMinutes';
+export const SLOW_COMPLETION_MINUTES_KEY = 'slowCompletionMinutes';
+
 // A submitted visit whose capture finished within a minute of check-in.
-const FAST_COMPLETION_MS = 60_000;
+export const DEFAULT_FAST_COMPLETION_MINUTES = 1;
+// The practitioner's benchmark is ~12 minutes for a full audit — for ONE
+// client's audit shape. The default upper edge is 4x that (48 min): wide
+// enough that an honest, thorough audit of a big-format store does not trip it
+// on a tenant that has never configured its band, while a visit that sat open
+// for most of an hour still surfaces. A client whose audits are genuinely short
+// tightens it through kpiThresholds.slowCompletionMinutes.
+export const DEFAULT_SLOW_COMPLETION_MINUTES = 48;
 
 const WEIGHT_GEOFENCE = 20;
 const WEIGHT_FAILED_ATTEMPTS = 25;
 const WEIGHT_FAILED_ATTEMPT_PER = 10;
 const WEIGHT_PHOTO_DIVERGENCE = 25;
 const WEIGHT_FAST_COMPLETION = 20;
+// Deliberately low, and flat. The slow tail has a benign explanation the fast
+// tail does not: an app left open in a pocket, or an agent pulled away mid-visit,
+// inflates dwell without anything being faked. So the weight does not scale
+// with how far over the band a visit ran (a phone left open overnight would
+// otherwise out-score a spoofed GPS fix), and at 10 it can never reach the
+// default review threshold (50) on its own. It corroborates other evidence; it
+// does not accuse anyone by itself.
+const WEIGHT_SLOW_COMPLETION = 10;
 const WEIGHT_NO_CAPTURE = 30;
+
+const MS_PER_MINUTE = 60_000;
 
 const RISK_MIN = 0;
 const RISK_MAX = 100;
@@ -49,7 +76,8 @@ export interface FraudVisitInput {
   /**
    * The device's completion timestamp — the same clock that produced
    * `checkinTs`. Null for visits recorded before this existed, in which case no
-   * dwell is measurable and no fast-completion signal is emitted (#101).
+   * dwell is measurable and neither dwell signal (fast_completion,
+   * slow_completion) is emitted (#101, #247).
    */
   submittedAtClient?: Date | null;
 }
@@ -84,15 +112,40 @@ function readCoords(value: Prisma.JsonValue): { lat: number; lng: number } | nul
   return null;
 }
 
+/** The dwell band, in ms, for one client. See the DEFAULT_*_MINUTES notes. */
+export function dwellBand(kpiThresholds: unknown): { fastMs: number; slowMs: number } {
+  const fastMinutes = kpiThreshold(
+    kpiThresholds,
+    FAST_COMPLETION_MINUTES_KEY,
+    DEFAULT_FAST_COMPLETION_MINUTES,
+  );
+  const slowMinutes = kpiThreshold(
+    kpiThresholds,
+    SLOW_COMPLETION_MINUTES_KEY,
+    DEFAULT_SLOW_COMPLETION_MINUTES,
+  );
+  return {
+    // 0 is a meaningful setting here — it switches the fast tail off.
+    fastMs: Math.max(0, fastMinutes) * MS_PER_MINUTE,
+    // A non-positive upper edge would flag every visit the tenant has, which is
+    // a typo, not a policy. Fall back rather than accuse the whole workforce.
+    slowMs: (slowMinutes > 0 ? slowMinutes : DEFAULT_SLOW_COMPLETION_MINUTES) * MS_PER_MINUTE,
+  };
+}
+
 /**
  * Score a single visit against the fraud/ghost-visit heuristics. Pure: every
  * input it needs is passed in, so it is trivially unit-testable and reused by
  * both the per-visit and the flagged-list endpoints. riskScore is the summed
  * signal weights, clamped to [0, 100].
+ *
+ * `kpiThresholds` is the visit's client's raw `Client.kpiThresholds` column;
+ * only the dwell band reads it. Absent, every edge takes its default.
  */
 export function computeFraudSignals(
   visit: FraudVisitInput,
   related: FraudRelatedInput,
+  kpiThresholds: unknown = {},
 ): FraudResult {
   const signals: FraudSignal[] = [];
 
@@ -144,8 +197,10 @@ export function computeFraudSignals(
 
   const hasSections = related.sectionCreatedAts.length > 0;
 
-  // 4. Implausibly fast completion — dwell = submit - check-in, measured on ONE
-  //    clock (#101).
+  // 4. Dwell outside the client's band — implausibly fast (fast_completion) or
+  //    implausibly slow (slow_completion, #247). A one-sided threshold is easy
+  //    to game once agents learn where it sits: pad the visit and it goes
+  //    quiet. dwell = submit - check-in, measured on ONE clock (#101).
   //
   //    This used to subtract the client's `checkinTs` from a section row's
   //    SERVER `createdAt`. Those are two different clocks, and on an
@@ -162,16 +217,31 @@ export function computeFraudSignals(
   //    gets someone investigated is worse than a missing one.
   if (visit.status === 'submitted' && hasSections && visit.submittedAtClient) {
     const dwellMs = visit.submittedAtClient.getTime() - checkinMs;
+    const band = dwellBand(kpiThresholds);
 
     // A negative dwell means the device clock moved between check-in and submit
     // (or was changed). It is not evidence of a fast visit, so it is not
     // evidence of fraud — say nothing rather than guess.
-    if (dwellMs >= 0 && dwellMs < FAST_COMPLETION_MS) {
+    if (dwellMs >= 0 && dwellMs < band.fastMs) {
       const dwellSeconds = Math.round(dwellMs / 1000);
       signals.push({
         code: 'fast_completion',
         detail: `Visit completed ${dwellSeconds}s after check-in (device clock)`,
         weight: WEIGHT_FAST_COMPLETION,
+      });
+    } else if (dwellMs > band.slowMs) {
+      // The same one-clock rule applies to the slow tail: a delayed sync lands
+      // in the server's createdAt, never here, so an offline agent is not
+      // mistaken for a slow one. The weight is capped — see
+      // WEIGHT_SLOW_COMPLETION for why an idle app must not read as fraud.
+      const dwellMinutes = Math.round(dwellMs / MS_PER_MINUTE);
+      const bandMinutes = Math.round((band.slowMs / MS_PER_MINUTE) * 10) / 10;
+      signals.push({
+        code: 'slow_completion',
+        detail:
+          `Visit took ${dwellMinutes} min from check-in to submit (device clock), ` +
+          `over the ${bandMinutes} min benchmark; an app left open also does this`,
+        weight: WEIGHT_SLOW_COMPLETION,
       });
     }
   }
@@ -251,15 +321,22 @@ export async function getVisitFraud(visitId: string, clientId: string): Promise<
     throw new NotFoundError('Visit not found');
   }
 
-  const failedAttempts = await prisma.checkInAttempt.findMany({
-    where: { clientId, agentId: visit.agentId, outletId: visit.outletId, passed: false },
-  });
+  const [failedAttempts, client] = await Promise.all([
+    prisma.checkInAttempt.findMany({
+      where: { clientId, agentId: visit.agentId, outletId: visit.outletId, passed: false },
+    }),
+    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
+  ]);
 
-  return computeFraudSignals(toFraudVisitInput(visit), {
-    photos: visit.photos,
-    sectionCreatedAts: sectionCreatedAts(visit),
-    failedAttempts,
-  });
+  return computeFraudSignals(
+    toFraudVisitInput(visit),
+    {
+      photos: visit.photos,
+      sectionCreatedAts: sectionCreatedAts(visit),
+      failedAttempts,
+    },
+    client?.kpiThresholds,
+  );
 }
 
 export interface AttemptFilters {
@@ -352,7 +429,7 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
   const from =
     input.from ?? new Date(to.getTime() - DEFAULT_FRAUD_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-  const [visits, failedAttempts] = await Promise.all([
+  const [visits, failedAttempts, client] = await Promise.all([
     prisma.visit.findMany({
       where: { clientId, status: 'submitted', checkinTs: { gte: from, lte: to } },
       include: fraudVisitInclude,
@@ -367,6 +444,9 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
     prisma.checkInAttempt.findMany({
       where: { clientId, passed: false, createdAt: { gte: from, lte: to } },
     }),
+    // One read for the whole scan: every visit here belongs to this client, so
+    // they all share its dwell band.
+    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
   ]);
 
   const truncated = visits.length > MAX_FRAUD_SCAN;
@@ -379,11 +459,15 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
     const attemptsForVisit = failedAttempts.filter(
       (attempt) => attempt.agentId === visit.agentId && attempt.outletId === visit.outletId,
     );
-    const result = computeFraudSignals(toFraudVisitInput(visit), {
-      photos: visit.photos,
-      sectionCreatedAts: sectionCreatedAts(visit),
-      failedAttempts: attemptsForVisit,
-    });
+    const result = computeFraudSignals(
+      toFraudVisitInput(visit),
+      {
+        photos: visit.photos,
+        sectionCreatedAts: sectionCreatedAts(visit),
+        failedAttempts: attemptsForVisit,
+      },
+      client?.kpiThresholds,
+    );
     if (result.riskScore >= minScore) {
       flagged.push({
         visitId: visit.id,
