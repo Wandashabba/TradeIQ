@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { addCalendarDays, localCalendarDate, startOfLocalDay } from '../../lib/clientTime';
 import { getClientTimeZone } from '../clients/clients.service';
-import { RAW_PING_RETENTION_DAYS } from './locationPolicy';
+import { RAW_PING_RETENTION_DAYS, confirmsStore } from './locationPolicy';
 import { FenceOutlet, containingOutlet, outletsNear } from './outletFence';
 
 /**
@@ -63,6 +63,7 @@ export interface StopSummary {
 interface PingForFold {
   lat: number;
   lng: number;
+  accuracyM: number | null;
   recordedAt: Date;
 }
 
@@ -71,12 +72,22 @@ interface PingForFold {
  * `recordedAt` order. A ping outside every fence ends the current stop, so
  * leaving a store and coming back is two stops — which is what happened.
  * `leftAt` is the last ping seen inside, not an exit time we never observed.
+ *
+ * **Only pings accurate enough to confirm a store count** (`confirmsStore`, the
+ * same rule that separates `at_store` from `near_store` on the live map). A
+ * ping with poor or unknown accuracy is skipped entirely: it neither opens,
+ * extends nor ends a stop. It cannot confirm the agent was in a store, and it
+ * cannot confirm they left one either — poor fixes are mostly indoor fixes, so
+ * letting them end a stop would split one long visit into several. They still
+ * count towards the day's `pingCount`, `firstPingAt` and `lastPingAt`, because
+ * those describe sharing, not stores.
  */
 export function foldStops(pings: PingForFold[], outlets: FenceOutlet[]): StopSummary[] {
   const sorted = [...pings].sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
   const stops: StopSummary[] = [];
   let open: StopSummary | null = null;
   for (const ping of sorted) {
+    if (!confirmsStore(ping.accuracyM)) continue;
     const outlet = containingOutlet(ping, outlets);
     if (!outlet) {
       open = null;
@@ -119,7 +130,7 @@ export async function summariseAgentDay(agentId: string, day: Date, timeZone: st
       const pings = await tx.agentLocationPing.findMany({
         where: { agentId, recordedAt: { gte: from, lt: to } },
         orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
-        select: { id: true, clientId: true, lat: true, lng: true, recordedAt: true },
+        select: { id: true, clientId: true, lat: true, lng: true, accuracyM: true, recordedAt: true },
       });
       if (pings.length === 0) return 0;
 

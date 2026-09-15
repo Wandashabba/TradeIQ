@@ -81,7 +81,8 @@ agentsRouter.get('/activity', requireRole('manager', 'admin'), async (req: Authe
 
 /**
  * Each field agent's latest foreground location (#153 T1), with its age and a
- * derived state: at_store, in_transit, stale or offline. See
+ * derived state: at_store, near_store, in_transit, stale, offline or
+ * not_sharing. See
  * `agentLocations.service.ts` and `locations/locationPolicy.ts` for the rules.
  *
  * Paged by agent with the shared `limit`/`cursor` contract (#141). Carries

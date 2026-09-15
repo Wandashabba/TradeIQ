@@ -67,7 +67,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>TradeIQ needs your location to confirm you're at the outlet you're checking into.</string>
+	<string>While TradeIQ is open, it uses your location to confirm you're at the outlet you're checking into and to share which store you're at with your manager. Nothing is sent in the background.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>TradeIQ needs your camera to photograph shelves and to prove a task was completed in store.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
