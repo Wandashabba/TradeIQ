@@ -34,6 +34,7 @@ import '../../features/templates/presentation/template_form_screen.dart';
 import '../../features/templates/presentation/templates_screen.dart';
 import '../../features/dispatch/presentation/dispatch_screen.dart';
 import '../../features/trends/presentation/trends_screen.dart';
+import '../../features/sales_targets/presentation/sales_targets_screen.dart';
 import '../../features/visits/presentation/visit_detail_screen.dart';
 import '../../features/assistant/presentation/artifact_screen.dart';
 import '../../features/assistant/presentation/assistant_gate.dart';
@@ -91,6 +92,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/audit-templates',
         '/dispatch',
         '/trends',
+        '/sales-targets',
       };
       final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
       // The agent's route for the day. Their home, and theirs alone — a manager
@@ -290,6 +292,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trends',
         pageBuilder: (context, state) => managerPage(const TrendsScreen()),
+      ),
+      // Monthly sell-in targets per SKU (#119). Manager/admin only: its API
+      // refuses field agents outright.
+      GoRoute(
+        path: '/sales-targets',
+        pageBuilder: (context, state) =>
+            managerPage(const SalesTargetsScreen()),
       ),
       // One visit, for review (#208). Pushed from alerts, the fraud review and
       // the agent trail, so the back chip returns to the list it came from.

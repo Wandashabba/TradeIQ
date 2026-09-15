@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
@@ -342,6 +343,34 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
   await tester.pumpAndSettle();
 }
 
+class _FakeSalesTargetsRepository implements SalesTargetsRepository {
+  @override
+  Future<SalesAttainmentReport> attainment(String month) async =>
+      const SalesAttainmentReport(
+        month: '2026-09',
+        timeZone: 'Africa/Johannesburg',
+        skus: [],
+      );
+
+  @override
+  Future<void> upsert({
+    required String skuId,
+    required String month,
+    required int targetUnits,
+    String? territoryId,
+    String? outletId,
+  }) async {}
+
+  @override
+  Future<void> delete(String id) async {}
+
+  @override
+  Future<SalesTargetImportResult> importCsv(
+    String csv, {
+    required bool dryRun,
+  }) async => throw UnimplementedError();
+}
+
 Widget _app({
   DashboardRepository? dashboard,
   List<Territory> territories = const [],
@@ -367,6 +396,9 @@ Widget _app({
         scorecardPoints: scorecards,
         perfectStorePoints: perfectStore,
       ),
+    ),
+    salesTargetsRepositoryProvider.overrideWithValue(
+      _FakeSalesTargetsRepository(),
     ),
   ],
 );
@@ -589,40 +621,41 @@ void main() {
     );
   });
 
-  testWidgets('dark theme: the score is the same dark glass pane, readable at night', (
-    tester,
-  ) async {
-    // The regression this guards: a pane ground that does not follow the theme
-    // under a score that does — near-white on white (~1.1:1), one theme-toggle
-    // click away.
-    await _pump(tester, _app(theme: AppTheme.dark()));
+  testWidgets(
+    'dark theme: the score is the same dark glass pane, readable at night',
+    (tester) async {
+      // The regression this guards: a pane ground that does not follow the theme
+      // under a score that does — near-white on white (~1.1:1), one theme-toggle
+      // click away.
+      await _pump(tester, _app(theme: AppTheme.dark()));
 
-    final hero = find.ancestor(
-      of: find.byKey(const ValueKey('kpi-execution-score')),
-      matching: find.byWidgetPredicate(
-        (w) => w is GlassPane && w.kind == GlassKind.dark,
-      ),
-    );
-    expect(hero, findsOneWidget);
+      final hero = find.ancestor(
+        of: find.byKey(const ValueKey('kpi-execution-score')),
+        matching: find.byWidgetPredicate(
+          (w) => w is GlassPane && w.kind == GlassKind.dark,
+        ),
+      );
+      expect(hero, findsOneWidget);
 
-    final score = tester.widget<Text>(find.text('67.8'));
-    expect(score.style?.fontSize, 56);
-    expect(score.style?.color, Colors.white);
-    // The night dark pane over the brightest the night ground gets: its top
-    // stop, lit by the violet bloom.
-    final ground = Color.alphaBlend(
-      LumenPalette.dark.darkFill,
-      Color.alphaBlend(
-        LumenPalette.dark.bloomViolet,
-        LumenPalette.dark.groundTop,
-      ),
-    );
-    expect(
-      contrastRatio(score.style!.color!, ground),
-      greaterThanOrEqualTo(4.5),
-      reason: 'the score on the night dark pane ($ground)',
-    );
-  });
+      final score = tester.widget<Text>(find.text('67.8'));
+      expect(score.style?.fontSize, 56);
+      expect(score.style?.color, Colors.white);
+      // The night dark pane over the brightest the night ground gets: its top
+      // stop, lit by the violet bloom.
+      final ground = Color.alphaBlend(
+        LumenPalette.dark.darkFill,
+        Color.alphaBlend(
+          LumenPalette.dark.bloomViolet,
+          LumenPalette.dark.groundTop,
+        ),
+      );
+      expect(
+        contrastRatio(score.style!.color!, ground),
+        greaterThanOrEqualTo(4.5),
+        reason: 'the score on the night dark pane ($ground)',
+      );
+    },
+  );
 
   testWidgets(
     'KPI tiles carry a pill and a gradient micro-trend — never an icon',

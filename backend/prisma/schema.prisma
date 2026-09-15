@@ -72,6 +72,7 @@ model Client {
   locationPings      AgentLocationPing[]
   agentDaySummaries  AgentDaySummary[]
   locationConsents   LocationConsent[]
+  salesTargets       SalesTarget[]
 
   /// The audit template whose questions field agents answer on every visit, as
   /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
@@ -116,6 +117,7 @@ model User {
   locationPings    AgentLocationPing[]
   daySummaries     AgentDaySummary[]
   locationConsents LocationConsent[]
+  salesTargetsSet  SalesTarget[]
 
   @@index([clientId, role])
   @@map("users")
@@ -143,6 +145,7 @@ model Outlet {
   beatPlanStops   BeatPlanStop[]
   checkInAttempts CheckInAttempt[]
   orders          Order[]
+  salesTargets    SalesTarget[]
 
   // Per-tenant, not global. A globally-unique code meant one tenant creating
   // 'SAN-001' made that code permanently unavailable to every other tenant —
@@ -165,6 +168,7 @@ model Sku {
   visitStock         VisitStock[]
   visitPricing       VisitPricing[]
   orderLines         OrderLine[]
+  salesTargets       SalesTarget[]
 
   @@index([clientId])
   @@map("skus")
@@ -456,15 +460,16 @@ model Scorecard {
 /// A sales/coverage territory. `code` mirrors the free-text `Outlet.territoryId`
 /// so existing outlets link by code without a schema migration on Outlet.
 model Territory {
-  id          String          @id @default(uuid())
-  clientId    String          @map("client_id")
-  client      Client          @relation(fields: [clientId], references: [id])
-  name        String
-  code        String
-  region      String?
-  createdAt   DateTime        @default(now()) @map("created_at")
-  assignments UserTerritory[]
-  beatPlans   BeatPlan[]
+  id           String          @id @default(uuid())
+  clientId     String          @map("client_id")
+  client       Client          @relation(fields: [clientId], references: [id])
+  name         String
+  code         String
+  region       String?
+  createdAt    DateTime        @default(now()) @map("created_at")
+  assignments  UserTerritory[]
+  beatPlans    BeatPlan[]
+  salesTargets SalesTarget[]
 
   @@unique([clientId, code])
   @@map("territories")
@@ -1137,4 +1142,43 @@ model LocationConsent {
 
   @@index([clientId, agentId, createdAt])
   @@map("location_consents")
+}
+
+/// A manager's monthly sell-in target for one SKU (#119).
+///
+/// **Sell-in, not sell-out.** The actual this is measured against is units
+/// ordered through TradeIQ (`OrderLine.quantity` on non-cancelled orders), not
+/// what shoppers bought. There is no POS feed; label it "Sell-in (orders)".
+/// `VisitStock.salesActual` / `salesTarget` are NOT this and stay unused.
+///
+/// `month` is a calendar date — the first of the month at UTC midnight, the
+/// `clientTime.ts` convention — and is read as the whole month of local days
+/// in `Client.timezone` when actuals are computed.
+///
+/// Scope is the whole client (both null), one territory, or one outlet — never
+/// both (a CHECK constraint in the migration). Uniqueness over the scope is an
+/// expression index on COALESCE(territory_id, '') / COALESCE(outlet_id, '')
+/// that Prisma cannot express, so it lives only in the migration: a plain
+/// @@unique would let two client-wide rows coexist, because Postgres treats
+/// NULLs as distinct.
+model SalesTarget {
+  id          String     @id @default(uuid())
+  clientId    String     @map("client_id")
+  client      Client     @relation(fields: [clientId], references: [id])
+  skuId       String     @map("sku_id")
+  sku         Sku        @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  month       DateTime   @db.Date
+  territoryId String?    @map("territory_id")
+  territory   Territory? @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  outletId    String?    @map("outlet_id")
+  outlet      Outlet?    @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  targetUnits Int        @map("target_units")
+  createdById String     @map("created_by_id")
+  createdBy   User       @relation(fields: [createdById], references: [id])
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@index([clientId, month])
+  @@index([skuId])
+  @@map("sales_targets")
 }
