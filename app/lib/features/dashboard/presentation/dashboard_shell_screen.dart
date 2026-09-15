@@ -24,7 +24,9 @@ import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/pill_segment.dart';
 import '../../../core/widgets/worklist.dart';
+import '../../agents/data/agent_locations_repository.dart';
 import '../../agents/data/agents_repository.dart';
+import '../../agents/presentation/live_location_layer.dart';
 import '../../alerts/data/alerts_repository.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../../tasks/data/tasks_admin_repository.dart';
@@ -61,6 +63,7 @@ class DashboardShellScreen extends ConsumerWidget {
     ref.invalidate(tasksListProvider);
     ref.invalidate(territoriesListProvider);
     ref.invalidate(agentActivityTodayProvider);
+    ref.invalidate(liveAgentLocationsProvider);
     // Awaited last so the progress indicator tracks the headline number; the
     // rest refetch in parallel behind it.
     ref.invalidate(dashboardSnapshotProvider);
@@ -1091,6 +1094,15 @@ class AgentActivityPanel extends ConsumerWidget {
     final outlets = ref
         .watch(outletsListProvider)
         .maybeWhen(data: (list) => list, orElse: () => const <Outlet>[]);
+    // The live layer (#153 T1) — a layer, like the outlets: it never blanks the
+    // panel or blocks the check-in map. `.value` keeps the last positions on
+    // screen while a poll is in flight, so pins do not blink every 30 seconds.
+    final livePositions = [
+      for (final a
+          in ref.watch(liveAgentLocationsProvider).value?.agents ??
+              const <AgentLocation>[])
+        if (a.hasPosition) a,
+    ];
 
     return PanelCard(
       title: 'Where are my agents',
@@ -1134,7 +1146,10 @@ class AgentActivityPanel extends ConsumerWidget {
             // OR an outlet to place — a base layer of stores is still a map
             // worth showing on a quiet morning. Only a brand-new tenant with
             // neither has genuinely nothing to plot.
-            final hasMapContent = withStops.isNotEmpty || outlets.isNotEmpty;
+            final hasMapContent =
+                withStops.isNotEmpty ||
+                outlets.isNotEmpty ||
+                livePositions.isNotEmpty;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1163,6 +1178,7 @@ class AgentActivityPanel extends ConsumerWidget {
                         child: _AgentMap(
                           agentsWithStops: withStops,
                           outlets: outlets,
+                          live: livePositions,
                         ),
                       );
                       if (!wide) {
@@ -1209,6 +1225,8 @@ class AgentActivityPanel extends ConsumerWidget {
                       ),
                     ),
                   ),
+                const SizedBox(height: 14),
+                const LiveLocationsSection(),
               ],
             );
           },
@@ -1248,10 +1266,17 @@ class _AgentList extends StatelessWidget {
 /// non-empty point list, and there is nothing this widget could sensibly draw
 /// with neither.
 class _AgentMap extends StatelessWidget {
-  const _AgentMap({required this.agentsWithStops, required this.outlets});
+  const _AgentMap({
+    required this.agentsWithStops,
+    required this.outlets,
+    this.live = const [],
+  });
 
   /// Must all have `stops.isNotEmpty` — callers filter before constructing.
   final List<AgentActivity> agentsWithStops;
+
+  /// Live positions (#153 T1). Must all have `hasPosition`.
+  final List<AgentLocation> live;
 
   /// The tenant's outlets, unfiltered by territory — see
   /// [AgentActivityPanel]'s doc comment on why that is acceptable for a base
@@ -1268,7 +1293,12 @@ class _AgentMap extends StatelessWidget {
     // Agents are the priority signal, but a fit that includes nearby stores
     // too is harmless — and when nobody has checked in yet, the outlets are
     // the ONLY points there are to fit against.
-    final points = [...agentPoints, ...outletPoints];
+    // Live positions move every poll. Fitting the camera to them would drag
+    // the map out from under a manager every 30 seconds, so they decide the
+    // fit only when there is nothing else to fit to.
+    final points = agentPoints.isEmpty && outletPoints.isEmpty
+        ? [for (final a in live) LatLng(a.lat!, a.lng!)]
+        : [...agentPoints, ...outletPoints];
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppColors.radiusPanel),
@@ -1381,6 +1411,8 @@ class _AgentMap extends StatelessWidget {
                         agent: a,
                       ),
                     ),
+                  // Live squares last, on top of check-in discs and outlets.
+                  ...liveAgentMarkers(live),
                 ],
               ),
               const TiqBasemapAttribution(),

@@ -1274,4 +1274,56 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get visitTemplateNoQuestions =>
       'Hierdie kliënt se sjabloon het nog geen vrae nie';
+
+  @override
+  String get locationNoticeTitle =>
+      'Jou ligging word met jou bestuurder gedeel';
+
+  @override
+  String locationNoticeBody(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: 'elke $minutes minute',
+      one: 'elke minuut',
+    );
+    return 'Terwyl TradeIQ oop is en jy ingeteken is, stuur dit $_temp0 jou foon se ligging na jou bestuurder, sodat hulle kan sien by watter winkel jy is. Dit stop wanneer jy TradeIQ toemaak of uitteken, en niks word in die agtergrond gestuur nie.';
+  }
+
+  @override
+  String get locationNoticeAcknowledge => 'Ek verstaan, deel my ligging';
+
+  @override
+  String get locationNoticeDecline => 'Moenie deel nie';
+
+  @override
+  String get locationSharingActiveTitle =>
+      'Jou ligging word met jou bestuurder gedeel';
+
+  @override
+  String get locationSharingActiveSubtitle =>
+      'Net terwyl TradeIQ oop is · tik om te stop';
+
+  @override
+  String get locationSharingNoFixSubtitle =>
+      'Deel is aan, maar hierdie foon gee nie ’n ligging aan TradeIQ nie';
+
+  @override
+  String get locationSharingOffTitle => 'Jou ligging word nie gedeel nie';
+
+  @override
+  String get locationSharingOffSubtitle => 'Tik om dit te verander';
+
+  @override
+  String get locationStopTitle => 'Hou op om jou ligging te deel?';
+
+  @override
+  String get locationStopBody =>
+      'Jou bestuurder sal nie meer kan sien waar jy is nie. Jy kan dit later weer aanskakel.';
+
+  @override
+  String get locationStopConfirm => 'Hou op om te deel';
+
+  @override
+  String get locationStopCancel => 'Hou aan om te deel';
 }

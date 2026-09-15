@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { app } from './app';
 import { assertJwtSecretUsable } from './modules/auth/auth.service';
+import { locationPruneEnabled, startLocationPruneWorker } from './modules/locations/locationPrune.worker';
 import { startReportScheduleWorker } from './modules/reportschedules/reportschedules.worker';
 import { startWebhookDeliveryWorker } from './modules/webhooks/webhooks.worker';
 
@@ -19,6 +20,8 @@ const server = app.listen(port, () => {
 // would run in all of them.
 const webhookWorker = startWebhookDeliveryWorker();
 const reportScheduleWorker = startReportScheduleWorker();
+// Daily location-ping retention (#178). LOCATION_PRUNE_ENABLED=false opts out.
+const locationPruneWorker = locationPruneEnabled() ? startLocationPruneWorker() : null;
 
 let shuttingDown = false;
 function shutdown(signal: string): void {
@@ -28,11 +31,15 @@ function shutdown(signal: string): void {
   // Schedules first: a run in progress queues webhook deliveries, which the
   // webhook worker then lets finish. Anything cut off is not lost — a schedule
   // claim and a delivery lease both run out, and the next instance retries.
+  // A prune cut off mid-run loses nothing either: each agent-day is one
+  // transaction, and the next run carries on.
   void reportScheduleWorker
     .stop()
     .catch((err) => console.error('Report schedule worker did not stop cleanly:', err))
     .then(() => webhookWorker.stop())
     .catch((err) => console.error('Webhook worker did not stop cleanly:', err))
+    .then(() => locationPruneWorker?.stop())
+    .catch((err) => console.error('Location prune worker did not stop cleanly:', err))
     .finally(() => server.close(() => process.exit(0)));
 }
 

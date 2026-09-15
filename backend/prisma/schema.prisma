@@ -69,6 +69,9 @@ model Client {
   assistantActions   AssistantAction[]
   photos             Photo[]
   pointsLedger       PointsLedgerEntry[]
+  locationPings      AgentLocationPing[]
+  agentDaySummaries  AgentDaySummary[]
+  locationConsents   LocationConsent[]
 
   /// The audit template whose questions field agents answer on every visit, as
   /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
@@ -110,6 +113,9 @@ model User {
   announcements    Announcement[]
   photosUploaded   Photo[]             @relation("PhotoUploader")
   pointsLedger     PointsLedgerEntry[]
+  locationPings    AgentLocationPing[]
+  daySummaries     AgentDaySummary[]
+  locationConsents LocationConsent[]
 
   @@index([clientId, role])
   @@map("users")
@@ -1043,4 +1049,92 @@ model AssistantAction {
   @@index([clientId, createdAt])
   @@index([clientId, userId, createdAt])
   @@map("assistant_actions")
+}
+
+/// One foreground location heartbeat from a field agent (#153 T1).
+///
+/// Sent only while the app is open, the agent is signed in, and they have
+/// acknowledged the location notice (LocationConsent). Pings queue in the
+/// app's offline outbox, so they arrive LATE and OUT OF ORDER: everything that
+/// reads them orders by `recordedAt` (the device's fix time), never by
+/// `createdAt` (arrival).
+///
+/// Retention (#178): raw rows are kept 90 days, then folded into an
+/// AgentDaySummary and deleted; a deactivated agent's rows are folded and
+/// deleted at once. See src/modules/locations/locationRetention.ts.
+model AgentLocationPing {
+  id         String   @id @default(uuid())
+  clientId   String   @map("client_id")
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agentId    String   @map("agent_id")
+  agent      User     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  lat        Float
+  lng        Float
+  /// The platform's horizontal accuracy estimate in metres, when it gave one.
+  accuracyM  Float?   @map("accuracy_m")
+  /// When the device took the fix. The ordering key for everything.
+  recordedAt DateTime @map("recorded_at")
+  /// What produced the ping. Only `foreground` exists (T1); T2 background
+  /// tracking is a separate, POPIA-gated decision and would add its own value.
+  source     String
+  /// Arrival on the server. Diagnostic only — never an ordering key.
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  /// One agent cannot be in two places at the same instant, so this is the
+  /// idempotency key: an outbox batch re-sent after a lost response inserts
+  /// nothing new.
+  @@unique([agentId, recordedAt])
+  @@index([clientId, agentId, recordedAt])
+  /// The retention job walks the oldest pings first.
+  @@index([recordedAt])
+  @@map("agent_location_pings")
+}
+
+/// What survives of an agent's day once its raw pings are pruned (#178).
+///
+/// `day` is a calendar date in the client's own timezone (Client.timezone,
+/// #309), stored as UTC midnight of that date — the clientTime.ts convention.
+model AgentDaySummary {
+  id          String   @id @default(uuid())
+  clientId    String   @map("client_id")
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agentId     String   @map("agent_id")
+  agent       User     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  day         DateTime @db.Date
+  firstPingAt DateTime @map("first_ping_at")
+  lastPingAt  DateTime @map("last_ping_at")
+  pingCount   Int      @map("ping_count")
+  /// Ordered by arrival: [{ outletId, outletName, arrivedAt, leftAt, pingCount }].
+  /// Consecutive pings inside the same outlet geofence form one stop.
+  stops       Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([agentId, day])
+  @@index([clientId, day])
+  @@map("agent_day_summaries")
+}
+
+/// An agent's answer to the in-app location notice (#153, POPIA risk 1).
+///
+/// Append-only: every acknowledgement and every decline is a row, so the
+/// history of what an agent agreed to, and when, is never overwritten. The
+/// latest row for the current notice version is the agent's position.
+model LocationConsent {
+  id            String   @id @default(uuid())
+  clientId      String   @map("client_id")
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agentId       String   @map("agent_id")
+  agent         User     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  /// Which wording of the notice they saw. A changed notice needs a new answer.
+  noticeVersion String   @map("notice_version")
+  /// acknowledged · declined
+  decision      String
+  /// When the agent tapped, on the device clock (an answer may queue offline).
+  decidedAt     DateTime @map("decided_at")
+  /// When the server recorded it.
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([clientId, agentId, createdAt])
+  @@map("location_consents")
 }

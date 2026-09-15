@@ -1260,4 +1260,55 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get visitTemplateNoQuestions =>
       'This client’s template has no questions yet';
+
+  @override
+  String get locationNoticeTitle => 'Your location is shared with your manager';
+
+  @override
+  String locationNoticeBody(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: 'every $minutes minutes',
+      one: 'every minute',
+    );
+    return 'While TradeIQ is open and you are signed in, it sends your phone’s location to your manager $_temp0, so they can see which store you are at. It stops when you close TradeIQ or log out, and nothing is sent in the background.';
+  }
+
+  @override
+  String get locationNoticeAcknowledge => 'I understand, share my location';
+
+  @override
+  String get locationNoticeDecline => 'Don’t share';
+
+  @override
+  String get locationSharingActiveTitle =>
+      'Sharing your location with your manager';
+
+  @override
+  String get locationSharingActiveSubtitle =>
+      'Only while TradeIQ is open · tap to stop';
+
+  @override
+  String get locationSharingNoFixSubtitle =>
+      'Sharing is on, but this phone isn’t giving TradeIQ a location';
+
+  @override
+  String get locationSharingOffTitle => 'Your location is not shared';
+
+  @override
+  String get locationSharingOffSubtitle => 'Tap to change this';
+
+  @override
+  String get locationStopTitle => 'Stop sharing your location?';
+
+  @override
+  String get locationStopBody =>
+      'Your manager will no longer see where you are. You can turn it back on later.';
+
+  @override
+  String get locationStopConfirm => 'Stop sharing';
+
+  @override
+  String get locationStopCancel => 'Keep sharing';
 }
