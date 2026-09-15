@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma, TaskPriority, TaskStatus } from '@prisma/client';
 import { hashPassword } from '../../src/modules/auth/auth.service';
+import { backfillPointsLedger } from '../../src/modules/gamification/pointsLedgerBackfill';
 import { addDays, HISTORY_WEEKS, startOfUtcDay } from './calendar';
 import {
   DEMO_CLIENT_ID,
@@ -385,6 +386,11 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       },
     });
   }
+
+  // The seed writes history directly, past the live ledger hooks, so the
+  // leaderboard's points ledger (#124) is built from it the way production
+  // history is.
+  await backfillPointsLedger({ clientId: DEMO_CLIENT_ID }, prisma);
 
   const openTasks = ops.tasks.filter((t) => t.status === 'open').length;
   const openAlerts = ops.alerts.filter((a) => !a.acknowledged).length;

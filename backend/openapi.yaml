@@ -1221,14 +1221,42 @@ paths:
         '400': { description: Invalid dates }
   /gamification/me:
     get:
-      summary: The caller's own leaderboard entry + rank
+      summary: The caller's own leaderboard entry + rank, and how the points were earned
+      description: >
+        The leaderboard entry fields are unchanged. `recentEntries` lists the
+        caller's latest points-ledger entries in the window (newest first, at
+        most 20); it is empty for callers who are not field agents.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
       responses:
         '200':
           description: Entry
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/LeaderboardEntry' }
+              schema: { $ref: '#/components/schemas/GamificationMe' }
+        '400': { description: Invalid dates }
+  /gamification/agents/{agentId}/points:
+    get:
+      summary: One field agent's points-ledger entries — manager/admin
+      description: Newest first, keyset-paginated. Drill-down from a leaderboard row.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: agentId, in: path, required: true, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, default: 20, maximum: 200 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: The agent and a page of entries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentPointsHistory' }
+        '400': { description: Invalid dates or pagination }
+        '403': { description: Forbidden }
+        '404': { description: Not a field agent of the caller's client }
   /reports:
     get:
       summary: List saved report definitions — manager/admin
@@ -1479,6 +1507,40 @@ components:
         avgScorecard: { type: number }
         points: { type: number }
         rank: { type: integer }
+    PointsLedgerEntry:
+      type: object
+      description: >
+        One points-earning event (#124). The leaderboard's points are
+        mean(score of `scorecard` entries) + the sum of `points`, over entries
+        whose occurredAt is in the window.
+      properties:
+        id: { type: string }
+        points:
+          type: integer
+          description: May be negative (adjustments). 0 for `scorecard`, which contributes `score` to the mean instead.
+        reason: { type: string, enum: [visit_submitted, task_closed, scorecard] }
+        sourceType: { type: string, enum: [visit, task, scorecard] }
+        sourceId: { type: string }
+        score: { type: number, nullable: true, description: The scorecard weightedTotal; null for other reasons. }
+        occurredAt: { type: string, format: date-time }
+        outletName: { type: string, nullable: true }
+    GamificationMe:
+      allOf:
+        - { $ref: '#/components/schemas/LeaderboardEntry' }
+        - type: object
+          properties:
+            recentEntries: { type: array, items: { $ref: '#/components/schemas/PointsLedgerEntry' } }
+    AgentPointsHistory:
+      type: object
+      properties:
+        agent:
+          type: object
+          properties:
+            agentId: { type: string }
+            email: { type: string }
+            displayName: { $ref: '#/components/schemas/DisplayName' }
+        data: { type: array, items: { $ref: '#/components/schemas/PointsLedgerEntry' } }
+        nextCursor: { type: string, nullable: true }
     Webhook:
       type: object
       properties:

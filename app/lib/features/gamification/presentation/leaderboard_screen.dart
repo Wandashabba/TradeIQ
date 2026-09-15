@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
@@ -24,7 +25,8 @@ class LeaderboardScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Points accrue from submitted visits and closed tasks.',
+            'Points accrue from scorecards, submitted visits and closed '
+            'tasks. Tap an agent to see how they earned theirs.',
             style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
@@ -97,6 +99,8 @@ class _LeaderboardRow extends StatelessWidget {
       // restate it as a judgement.
       level: StatusLevel.neutral,
       statusLabel: 'Rank ${entry.rank}',
+      // The ledger behind the number (#124): how this agent earned it.
+      onTap: () => context.push('/leaderboard/${entry.agentId}'),
     );
   }
 }

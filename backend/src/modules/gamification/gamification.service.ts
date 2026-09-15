@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { mean, round2 } from '../../lib/kpiMath';
+import { NotFoundError } from '../../middleware/errorHandler';
+import { PointsLedgerEntryView, listLedgerEntries } from './pointsLedger';
 
 /** Build a date-range filter, or undefined when no bounds are given. */
 function dateRange(from?: Date, to?: Date): { gte?: Date; lte?: Date } | undefined {
@@ -31,20 +33,29 @@ export interface LeaderboardEntry {
 }
 
 /**
- * Tenant-scoped field-agent leaderboard, computed from existing visit,
- * scorecard and task data (no dedicated gamification tables).
+ * Tenant-scoped field-agent leaderboard, read from the points ledger (#124).
  *
- * The optional [from, to] window filters submitted visits by `checkinTs` and
- * scorecards by `createdAt`. Task closures are lifetime counts (Tasks carry no
- * comparable in-window activity timestamp in the contract) and are unaffected
- * by the window.
+ * The formula is the one the board always had —
+ * `mean(scorecard) + 5 x tasks closed + 2 x visits submitted` — now summed
+ * from ledger entries whose `occurredAt` falls in the optional [from, to]
+ * window (both bounds inclusive):
+ *
+ * - visits: `visit_submitted` entries, dated by the visit's checkinTs (as before);
+ * - scorecards: `scorecard` entries, dated by the scorecard's createdAt (as
+ *   before); their `score`s are averaged, their 0 points add nothing;
+ * - tasks: `task_closed` entries, dated by the closure. **Changed:** closures
+ *   used to be lifetime counts that ignored the window, because Task has no
+ *   closure timestamp. The ledger has one, so a windowed board now counts only
+ *   closures in the window. Unwindowed boards are unchanged.
+ *
+ * Any other entry (a future manual adjustment) adds its points to the total.
+ * One aggregate query regardless of agent or event count.
  */
 export async function computeLeaderboard(
   clientId: string,
   opts: LeaderboardOptions = {},
 ): Promise<LeaderboardEntry[]> {
-  const checkinRange = dateRange(opts.from, opts.to);
-  const createdRange = dateRange(opts.from, opts.to);
+  const occurredRange = dateRange(opts.from, opts.to);
 
   const agents = await prisma.user.findMany({
     where: { clientId, role: 'field_agent' },
@@ -56,51 +67,60 @@ export async function computeLeaderboard(
     return [];
   }
 
-  const visitWhere: Prisma.VisitWhereInput = {
+  const where: Prisma.PointsLedgerEntryWhereInput = {
     clientId,
     agentId: { in: agentIds },
-    status: 'submitted',
-    ...(checkinRange ? { checkinTs: checkinRange } : {}),
+    ...(occurredRange ? { occurredAt: occurredRange } : {}),
   };
 
-  // Constant query count regardless of agent count: two groupBy aggregates
-  // plus one scoped scorecard fetch, joined in JS below. Scorecard has no
-  // agentId scalar (it links via visit.agentId), so it cannot be grouped by
-  // Prisma groupBy — fetch narrowly and reduce.
-  const [visitGroups, taskGroups, scorecardRows] = await Promise.all([
-    prisma.visit.groupBy({ by: ['agentId'], where: visitWhere, _count: { _all: true } }),
-    prisma.task.groupBy({
-      by: ['ownerId'],
-      where: { ownerId: { in: agentIds }, status: 'closed', outlet: { clientId } },
+  // Counts and integer point sums aggregate exactly in Postgres. The scorecard
+  // mean does not: a float SUM read back through Prisma can land on a different
+  // double than a JS sum, which flips round2 at a boundary (75.165 -> 75.17 vs
+  // 75.16). So the scores are fetched and averaged with the same mean() the
+  // computed board used — one row per in-window scorecard, as it fetched.
+  const [groups, scoreRows] = await Promise.all([
+    prisma.pointsLedgerEntry.groupBy({
+      by: ['agentId', 'reason'],
+      where,
       _count: { _all: true },
+      _sum: { points: true },
     }),
-    prisma.scorecard.findMany({
-      where: {
-        visit: { clientId, agentId: { in: agentIds } },
-        ...(createdRange ? { createdAt: createdRange } : {}),
-      },
-      select: { weightedTotal: true, visit: { select: { agentId: true } } },
+    prisma.pointsLedgerEntry.findMany({
+      where: { ...where, reason: 'scorecard' },
+      select: { agentId: true, score: true },
     }),
   ]);
 
-  const visitCount = new Map(visitGroups.map((g) => [g.agentId, g._count._all]));
-  const taskCount = new Map(taskGroups.map((g) => [g.ownerId, g._count._all]));
+  interface Totals {
+    visitsSubmitted: number;
+    tasksClosed: number;
+    points: number;
+  }
+  const totals = new Map<string, Totals>();
+  for (const g of groups) {
+    const t = totals.get(g.agentId) ?? { visitsSubmitted: 0, tasksClosed: 0, points: 0 };
+    t.points += g._sum.points ?? 0;
+    if (g.reason === 'visit_submitted') {
+      t.visitsSubmitted += g._count._all;
+    } else if (g.reason === 'task_closed') {
+      t.tasksClosed += g._count._all;
+    }
+    totals.set(g.agentId, t);
+  }
   const scoreLists = new Map<string, number[]>();
-  for (const s of scorecardRows) {
-    const id = s.visit.agentId;
-    const list = scoreLists.get(id) ?? [];
-    list.push(s.weightedTotal);
-    scoreLists.set(id, list);
+  for (const s of scoreRows) {
+    const list = scoreLists.get(s.agentId) ?? [];
+    list.push(s.score ?? 0);
+    scoreLists.set(s.agentId, list);
   }
 
   const rows = agents.map((agent) => {
-    const visitsSubmitted = visitCount.get(agent.id) ?? 0;
-    const tasksClosed = taskCount.get(agent.id) ?? 0;
-    // avgScorecard via mean() (sum/n in JS) replaces the old per-agent Postgres
-    // AVG; weightedTotal is a Float, so these match to round2 for real data.
-    // mean([]) === 0 preserves the old `?? 0` empty-window behavior.
+    const t = totals.get(agent.id);
+    const visitsSubmitted = t?.visitsSubmitted ?? 0;
+    const tasksClosed = t?.tasksClosed ?? 0;
+    // mean([]) === 0 keeps an agent with no in-window scorecards at 0.
     const avgScorecard = mean(scoreLists.get(agent.id) ?? []);
-    const points = round2(avgScorecard + tasksClosed * 5 + visitsSubmitted * 2);
+    const points = round2(avgScorecard + (t?.points ?? 0));
 
     return {
       agentId: agent.id,
@@ -149,5 +169,41 @@ export async function getAgentLeaderboardEntry(
     avgScorecard: 0,
     points: 0,
     rank: leaderboard.length + 1,
+  };
+}
+
+/** How many entries `/gamification/me` returns as "how I earned these". */
+export const RECENT_ENTRIES_LIMIT = 20;
+
+export interface AgentPointsHistory {
+  agent: { agentId: string; email: string; displayName: string | null };
+  data: PointsLedgerEntryView[];
+  nextCursor: string | null;
+}
+
+/**
+ * One field agent's ledger entries for a manager, newest first. 404 when the
+ * id is not a field agent of the caller's client — another tenant's agent is
+ * indistinguishable from one that does not exist.
+ */
+export async function getAgentPointsHistory(input: {
+  clientId: string;
+  agentId: string;
+  from?: Date;
+  to?: Date;
+  limit: number;
+  cursor?: string;
+}): Promise<AgentPointsHistory> {
+  const agent = await prisma.user.findFirst({
+    where: { id: input.agentId, clientId: input.clientId, role: 'field_agent' },
+    select: { id: true, email: true, displayName: true },
+  });
+  if (!agent) {
+    throw new NotFoundError('Agent not found');
+  }
+  const page = await listLedgerEntries(input);
+  return {
+    agent: { agentId: agent.id, email: agent.email, displayName: agent.displayName },
+    ...page,
   };
 }

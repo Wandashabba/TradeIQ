@@ -20,6 +20,7 @@ import '../../features/alerts/presentation/alerts_screen.dart';
 import '../../features/territories/presentation/territories_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 import '../../features/beatplans/presentation/beatplans_screen.dart';
+import '../../features/gamification/presentation/agent_points_screen.dart';
 import '../../features/gamification/presentation/leaderboard_screen.dart';
 import '../../features/fraud/presentation/fraud_screen.dart';
 import '../../features/reports/presentation/report_schedules_screen.dart';
@@ -198,6 +199,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/leaderboard',
         pageBuilder: (context, state) => managerPage(const LeaderboardScreen()),
+      ),
+      // Drill-down from a leaderboard row (#124). A sibling route, not a menu
+      // destination: the rail keeps Leaderboard selected under /leaderboard/.
+      GoRoute(
+        path: '/leaderboard/:agentId',
+        pageBuilder: (context, state) => managerPage(
+          AgentPointsScreen(agentId: state.pathParameters['agentId']!),
+        ),
       ),
       GoRoute(
         path: '/fraud',

@@ -4,6 +4,7 @@ import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { facingsTotal, mean, round2 } from '../../lib/kpiMath';
 import { personLabel } from '../../lib/personName';
+import { recordPointsBestEffort, recordScorecard } from '../gamification/pointsLedger';
 
 export const SCORECARD_DIMENSIONS = [
   'availability',
@@ -162,11 +163,19 @@ export async function generateScorecard(input: GenerateScorecardInput) {
 
   // One Scorecard per visit (unique visitId) — upsert so re-submitting is
   // idempotent, mirroring the section-capture services.
-  return prisma.scorecard.upsert({
+  const scorecard = await prisma.scorecard.upsert({
     where: { visitId: input.visitId },
     create: { visitId: input.visitId, ...fields },
     update: fields,
   });
+
+  // Issue #124: the scorecard feeds the leaderboard's average — record it (or
+  // refresh its score on a regenerate). Best-effort: never fails the scorecard.
+  await recordPointsBestEffort(`scorecard ${scorecard.id}`, () =>
+    recordScorecard(scorecard, { clientId: visit.clientId, agentId: visit.agentId }),
+  );
+
+  return scorecard;
 }
 
 export async function listScorecardsForClient(input: {

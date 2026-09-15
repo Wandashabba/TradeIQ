@@ -15,6 +15,7 @@ import {
 import { coverageStatus } from '../../services/forecast.service';
 import { kpiThreshold } from '../../lib/kpiThresholds';
 import { markRouteStopsVisited } from '../beatplans/beatplans.service';
+import { recordPointsBestEffort, recordVisitSubmitted } from '../gamification/pointsLedger';
 
 export interface CheckInInput {
   outletId: string;
@@ -138,6 +139,12 @@ export async function submitVisit(input: SubmitVisitInput) {
   } catch (err) {
     console.error(`Marking beat-plan stops visited failed for visit ${submitted.id}:`, err);
   }
+
+  // Issue #124: the submission earns points — record it on the ledger so the
+  // leaderboard can say where they came from. Best-effort and idempotent: a
+  // re-submit adds nothing, and a failed write never fails the submission (the
+  // backfill script fills anything missed).
+  await recordPointsBestEffort(`visit ${submitted.id}`, () => recordVisitSubmitted(submitted));
 
   // Issue #38: fire best-effort to any webhooks the client has subscribed to
   // this event. dispatchWebhookEvent never throws (swallows delivery errors),
