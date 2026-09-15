@@ -11,7 +11,7 @@ import { comparisonWindow, describeComparison, periodCompareToSchema } from '../
 import { periodSchema, resolvePeriod } from '../period';
 import { eraseToolTypes, type AnyAssistantTool } from '../types';
 import { TREND_INTERVALS, TREND_METRICS, type TrendMetric } from '../viewspec';
-import type { ToolContext } from './execution';
+import { clientTimeZoneOf, type ToolContext } from './execution';
 
 /**
  * The trend tool — how a number has been moving, not what it is.
@@ -53,6 +53,7 @@ const trendArgs = z.object({
 
 export function buildTrendTools(ctx: ToolContext): AnyAssistantTool[] {
   const { user, now } = ctx;
+  const timeZone = clientTimeZoneOf(ctx);
 
   return [
     eraseToolTypes({
@@ -74,7 +75,7 @@ export function buildTrendTools(ctx: ToolContext): AnyAssistantTool[] {
             ...window,
           });
 
-        const series = await fetch(resolvePeriod(args.period, now));
+        const series = await fetch(resolvePeriod(args.period, now, await timeZone()));
         // The metric rides with the series so the widget can label the chart
         // without re-deriving it from the spec params.
         const current = { metric: args.metric, interval: series.interval, points: series.points };
@@ -83,7 +84,9 @@ export function buildTrendTools(ctx: ToolContext): AnyAssistantTool[] {
         // Sequential, like the pillar tools: the same indexed queries over the
         // same tables, and a turn that fans out doubles the peak load on a
         // database also serving the console.
-        const earlier = await fetch(comparisonWindow(args.period, args.compareTo, now));
+        const earlier = await fetch(
+          comparisonWindow(args.period, args.compareTo, now, await timeZone()),
+        );
 
         // Shaped like the pillar tools' `Comparison` — same `label`, same
         // `basis` — but carrying `points` instead of `values`, and no `deltas`.

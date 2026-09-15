@@ -384,6 +384,24 @@ void main() {
     expect(repo.createdEvent, 'stock.captured');
   });
 
+  testWidgets('the create form lists the events, report.generated included',
+      (tester) async {
+    await tester.pumpWidget(_app(_FakeWebhooksRepository()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    expect(webhookEvents, contains('report.generated'));
+    expect(
+      find.text(
+        'One of: visit.submitted, alert.raised, order.created, '
+        'report.generated',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('toggling active calls setActive', (tester) async {
     final repo = _FakeWebhooksRepository();
     await tester.pumpWidget(_app(repo));

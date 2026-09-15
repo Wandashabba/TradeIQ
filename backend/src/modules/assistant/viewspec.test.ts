@@ -9,18 +9,21 @@ import {
 import { validateViewSpec, VIEW_SPEC_TYPES } from './viewspec';
 
 const NOW = new Date('2026-08-06T14:30:00.000Z'); // a Thursday
+// The pre-#309 calendar, which these cases were written against. Client-zone
+// behaviour has its own block below.
+const UTC = 'UTC';
 
 describe('resolvePeriod', () => {
   it('gives today a half-open range covering exactly one day', () => {
     // Half-open, so a row written at 23:59:59.999 is still "today". An
     // inclusive end of 23:59:59 silently drops the final second's rows.
-    const { from, to } = resolvePeriod({ kind: 'today' }, NOW);
+    const { from, to } = resolvePeriod({ kind: 'today' }, NOW, UTC);
     expect(from.toISOString()).toBe('2026-08-06T00:00:00.000Z');
     expect(to.toISOString()).toBe('2026-08-07T00:00:00.000Z');
   });
 
   it('gives yesterday the day before, not the last 24 hours', () => {
-    const { from, to } = resolvePeriod({ kind: 'yesterday' }, NOW);
+    const { from, to } = resolvePeriod({ kind: 'yesterday' }, NOW, UTC);
     expect(from.toISOString()).toBe('2026-08-05T00:00:00.000Z');
     expect(to.toISOString()).toBe('2026-08-06T00:00:00.000Z');
   });
@@ -28,7 +31,7 @@ describe('resolvePeriod', () => {
   it('gives previous_week the previous calendar week, Monday to Monday', () => {
     // Not "the last 7 days". A manager asking about last week means the week
     // that finished; a rolling window folds today's partial data into it.
-    const { from, to } = resolvePeriod({ kind: 'previous_week' }, NOW);
+    const { from, to } = resolvePeriod({ kind: 'previous_week' }, NOW, UTC);
     expect(from.toISOString()).toBe('2026-07-27T00:00:00.000Z');
     expect(to.toISOString()).toBe('2026-08-03T00:00:00.000Z');
     expect(from.getUTCDay()).toBe(1);
@@ -38,25 +41,25 @@ describe('resolvePeriod', () => {
     // The boundary case: on a Monday, "this Monday" is today, so the previous
     // week must not collapse to zero days.
     const monday = new Date('2026-08-03T09:00:00.000Z');
-    const { from, to } = resolvePeriod({ kind: 'previous_week' }, monday);
+    const { from, to } = resolvePeriod({ kind: 'previous_week' }, monday, UTC);
     expect(from.toISOString()).toBe('2026-07-27T00:00:00.000Z');
     expect(to.toISOString()).toBe('2026-08-03T00:00:00.000Z');
   });
 
   it('handles previous_week when today is a Sunday', () => {
     const sunday = new Date('2026-08-09T09:00:00.000Z');
-    const { from } = resolvePeriod({ kind: 'previous_week' }, sunday);
+    const { from } = resolvePeriod({ kind: 'previous_week' }, sunday, UTC);
     expect(from.toISOString()).toBe('2026-07-27T00:00:00.000Z');
   });
 
   it('runs mtd from the first of the month through the end of today', () => {
-    const { from, to } = resolvePeriod({ kind: 'mtd' }, NOW);
+    const { from, to } = resolvePeriod({ kind: 'mtd' }, NOW, UTC);
     expect(from.toISOString()).toBe('2026-08-01T00:00:00.000Z');
     expect(to.toISOString()).toBe('2026-08-07T00:00:00.000Z');
   });
 
   it('runs ytd from 1 January', () => {
-    const { from, to } = resolvePeriod({ kind: 'ytd' }, NOW);
+    const { from, to } = resolvePeriod({ kind: 'ytd' }, NOW, UTC);
     expect(from.toISOString()).toBe('2026-01-01T00:00:00.000Z');
     expect(to.toISOString()).toBe('2026-08-07T00:00:00.000Z');
   });
@@ -67,6 +70,7 @@ describe('resolvePeriod', () => {
     const { from, to } = resolvePeriod(
       { kind: 'custom', from: '2026-07-01', to: '2026-07-31' },
       NOW,
+      UTC,
     );
     expect(from.toISOString()).toBe('2026-07-01T00:00:00.000Z');
     expect(to.toISOString()).toBe('2026-08-01T00:00:00.000Z');
@@ -76,22 +80,23 @@ describe('resolvePeriod', () => {
     const { from, to } = resolvePeriod(
       { kind: 'custom', from: '2026-07-15', to: '2026-07-15' },
       NOW,
+      UTC,
     );
     expect(to.getTime() - from.getTime()).toBe(86_400_000);
   });
 
   it('rejects a custom range that runs backwards', () => {
     expect(() =>
-      resolvePeriod({ kind: 'custom', from: '2026-07-31', to: '2026-07-01' }, NOW),
+      resolvePeriod({ kind: 'custom', from: '2026-07-31', to: '2026-07-01' }, NOW, UTC),
     ).toThrow(InvalidPeriodError);
   });
 
   it('is stable across a year boundary', () => {
     const newYear = new Date('2027-01-01T02:00:00.000Z');
-    expect(resolvePeriod({ kind: 'ytd' }, newYear).from.toISOString()).toBe(
+    expect(resolvePeriod({ kind: 'ytd' }, newYear, UTC).from.toISOString()).toBe(
       '2027-01-01T00:00:00.000Z',
     );
-    expect(resolvePeriod({ kind: 'previous_week' }, newYear).from.toISOString()).toBe(
+    expect(resolvePeriod({ kind: 'previous_week' }, newYear, UTC).from.toISOString()).toBe(
       '2026-12-21T00:00:00.000Z',
     );
   });
@@ -99,8 +104,52 @@ describe('resolvePeriod', () => {
   it('takes now as a parameter rather than reading the clock', () => {
     // A service that reads its own clock is a test that fails on a date nobody
     // chose — the trap that bit the fraud suite in #262.
-    const a = resolvePeriod({ kind: 'mtd' }, new Date('2026-03-15T00:00:00Z'));
+    const a = resolvePeriod({ kind: 'mtd' }, new Date('2026-03-15T00:00:00Z'), UTC);
     expect(a.from.toISOString()).toBe('2026-03-01T00:00:00.000Z');
+  });
+});
+
+describe('resolvePeriod in the client timezone (#309)', () => {
+  const SAST = 'Africa/Johannesburg';
+
+  it("counts today on the client's calendar, as local-midnight instants", () => {
+    // 00:30 SAST on 7 Aug is still 6 Aug in UTC. Today is the 7th.
+    const justAfterMidnight = new Date('2026-08-06T22:30:00.000Z');
+    const { from, to } = resolvePeriod({ kind: 'today' }, justAfterMidnight, SAST);
+    expect(from.toISOString()).toBe('2026-08-06T22:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-08-07T22:00:00.000Z');
+  });
+
+  it('resolves previous_week, mtd, ytd and custom to SAST midnights', () => {
+    expect(resolvePeriod({ kind: 'previous_week' }, NOW, SAST)).toEqual({
+      from: new Date('2026-07-26T22:00:00.000Z'),
+      to: new Date('2026-08-02T22:00:00.000Z'),
+    });
+    expect(resolvePeriod({ kind: 'mtd' }, NOW, SAST).from.toISOString()).toBe(
+      '2026-07-31T22:00:00.000Z',
+    );
+    expect(resolvePeriod({ kind: 'ytd' }, NOW, SAST).from.toISOString()).toBe(
+      '2025-12-31T22:00:00.000Z',
+    );
+    expect(
+      resolvePeriod({ kind: 'custom', from: '2026-07-01', to: '2026-07-31' }, NOW, SAST),
+    ).toEqual({
+      from: new Date('2026-06-30T22:00:00.000Z'),
+      to: new Date('2026-07-31T22:00:00.000Z'),
+    });
+  });
+
+  it('gives a day that spans a DST change its real, shorter length', () => {
+    // America/New_York springs forward on Sunday 8 March 2026: that local day
+    // is 23 hours long. Stepping instants by 24h would end it at 01:00 on the 9th.
+    const { from, to } = resolvePeriod(
+      { kind: 'today' },
+      new Date('2026-03-08T15:00:00.000Z'),
+      'America/New_York',
+    );
+    expect(from.toISOString()).toBe('2026-03-08T05:00:00.000Z');
+    expect(to.toISOString()).toBe('2026-03-09T04:00:00.000Z');
+    expect(to.getTime() - from.getTime()).toBe(23 * 3_600_000);
   });
 });
 

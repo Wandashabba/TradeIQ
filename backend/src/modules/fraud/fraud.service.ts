@@ -1358,12 +1358,17 @@ export async function loadDuplicatePhotoMatches(
         FROM unnest(${probeIds}::text[], ${probeKeys}::int[]) AS k(photo_id, band_key)
         GROUP BY k.photo_id
       ),
+      -- Each branch carries the matched photo's columns out of the index probe,
+      -- so nothing joins back to photos by id: that re-join was planned as a
+      -- sequential scan of the whole table once a batch had a few photos (#311).
       candidate AS (
-        SELECT s.photo_id, p.id AS match_id
+        SELECT s.photo_id, p.id AS match_id, p.visit_id, p.section,
+          p.content_hash, p.perceptual_hash, p.perceptual_hash_bands
         FROM src s
         JOIN photos p ON p.content_hash = s.content_hash
         UNION
-        SELECT pr.photo_id, p.id AS match_id
+        SELECT pr.photo_id, p.id AS match_id, p.visit_id, p.section,
+          p.content_hash, p.perceptual_hash, p.perceptual_hash_bands
         FROM probe pr
         JOIN photos p ON p.perceptual_hash_bands && pr.band_keys
       ),
@@ -1378,9 +1383,8 @@ export async function loadDuplicatePhotoMatches(
               (('x' || p.perceptual_hash)::bit(64) # ('x' || s.perceptual_hash)::bit(64))::text, '0', ''
             ))
           END AS distance
-        FROM candidate c
-        JOIN src s ON s.photo_id = c.photo_id
-        JOIN photos p ON p.id = c.match_id
+        FROM candidate p
+        JOIN src s ON s.photo_id = p.photo_id
         JOIN visits v ON v.id = p.visit_id
         WHERE v.client_id = ${clientId}
           AND p.visit_id <> s.visit_id

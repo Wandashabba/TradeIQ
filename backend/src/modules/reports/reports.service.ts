@@ -107,8 +107,9 @@ function readFilters(raw: Prisma.JsonValue): ReportFilters {
 }
 
 // Build a Prisma date-range filter from optional { from, to }; invalid dates are
-// dropped. Returns undefined when neither bound is usable.
-function dateRange(filters: ReportFilters): { gte?: Date; lte?: Date } | undefined {
+// dropped. `asOf`, when given, caps the upper bound (the tighter of it and
+// `to` wins). Returns undefined when no bound is usable.
+function dateRange(filters: ReportFilters, asOf?: Date): { gte?: Date; lte?: Date } | undefined {
   const range: { gte?: Date; lte?: Date } = {};
   if (filters.from) {
     const from = new Date(filters.from);
@@ -122,13 +123,29 @@ function dateRange(filters: ReportFilters): { gte?: Date; lte?: Date } | undefin
       range.lte = to;
     }
   }
+  if (asOf && (!range.lte || asOf < range.lte)) {
+    range.lte = asOf;
+  }
   return range.gte || range.lte ? range : undefined;
 }
 
-export async function generateReport(id: string, clientId: string): Promise<GeneratedReport> {
+export interface GenerateReportOptions {
+  /**
+   * Only rows whose report date (checkinTs for visits, createdAt otherwise) is
+   * at or before this instant. A scheduled run's CSV is regenerated with its
+   * `generatedAt` here (#66), so records added after the run stay out of it.
+   */
+  asOf?: Date;
+}
+
+export async function generateReport(
+  id: string,
+  clientId: string,
+  options: GenerateReportOptions = {},
+): Promise<GeneratedReport> {
   const definition = await findReportForClient(id, clientId);
   const filters = readFilters(definition.filters);
-  const range = dateRange(filters);
+  const range = dateRange(filters, options.asOf);
 
   let rows: ReportRow[];
   switch (definition.type) {

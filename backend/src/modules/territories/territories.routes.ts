@@ -96,11 +96,10 @@ territoriesRouter.get(
 
     // Both optional — coverage works over all-time when neither is given.
     // When supplied, each must be a full ISO-8601 instant (see
-    // parseIsoInstant): there is no `Client.timezone` and no timezone
-    // handling anywhere in this backend, so a naive date/datetime would be
-    // resolved as UTC or against the server process's `TZ` — either way,
-    // invisibly to the client and wrong for a South African field team on
-    // SAST.
+    // parseIsoInstant): a naive date/datetime would be resolved as UTC or
+    // against the server process's `TZ` — either way invisibly to the caller.
+    // This is an arbitrary window, not a calendar-day rule, so it stays in
+    // instants and does not read `Client.timezone` (#309).
     let fromDate: Date | undefined;
     let toDate: Date | undefined;
     if (from !== undefined) {

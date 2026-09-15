@@ -2,7 +2,8 @@ import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
-import { getClientConfig, updateClientConfig } from './clients.service';
+import { isValidTimeZone } from '../../lib/clientTime';
+import { getClientConfig, updateClientConfig, type UpdateClientConfigInput } from './clients.service';
 
 export const clientsRouter = Router();
 clientsRouter.use(requireAuth);
@@ -18,14 +19,38 @@ clientsRouter.get('/me', async (req: AuthedRequest, res) => {
   res.status(200).json(client);
 });
 
-clientsRouter.patch('/me', requireRole('admin'), async (req: AuthedRequest, res) => {
-  const { scorecardWeights, kpiThresholds } = req.body as {
+// Managers reach this route for `timezone` only; the scoring config stays
+// admin-only (checked per field below). A timezone is a fact about where the
+// team works — the manager who runs the team is the one who knows it — while
+// weights and thresholds are scoring policy.
+clientsRouter.patch('/me', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
+  const { scorecardWeights, kpiThresholds, timezone } = req.body as {
     scorecardWeights?: unknown;
     kpiThresholds?: unknown;
+    timezone?: unknown;
   };
 
-  if (scorecardWeights === undefined && kpiThresholds === undefined) {
-    res.status(400).json({ error: 'At least one of scorecardWeights or kpiThresholds is required' });
+  if (scorecardWeights === undefined && kpiThresholds === undefined && timezone === undefined) {
+    res
+      .status(400)
+      .json({ error: 'At least one of scorecardWeights, kpiThresholds or timezone is required' });
+    return;
+  }
+
+  // Before any validation, so a manager learns "not yours" rather than being
+  // coached through a payload they could never save.
+  if ((scorecardWeights !== undefined || kpiThresholds !== undefined) && req.user!.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  // Exact canonical IANA names only (see isValidTimeZone): an offset like
+  // "+02:00" has no DST rules, and a lower-cased or aliased name would be
+  // stored as something no other system reads back as the same zone.
+  if (timezone !== undefined && !isValidTimeZone(timezone)) {
+    res.status(400).json({
+      error: 'timezone must be an IANA timezone name, e.g. Africa/Johannesburg',
+    });
     return;
   }
 
@@ -60,15 +85,15 @@ clientsRouter.patch('/me', requireRole('admin'), async (req: AuthedRequest, res)
     }
   }
 
-  const data: {
-    scorecardWeights?: Prisma.InputJsonValue;
-    kpiThresholds?: Prisma.InputJsonValue;
-  } = {};
+  const data: UpdateClientConfigInput = {};
   if (scorecardWeights !== undefined) {
     data.scorecardWeights = scorecardWeights as Prisma.InputJsonValue;
   }
   if (kpiThresholds !== undefined) {
     data.kpiThresholds = kpiThresholds as Prisma.InputJsonValue;
+  }
+  if (timezone !== undefined) {
+    data.timezone = timezone;
   }
 
   const client = await updateClientConfig(req.user!.clientId, data);

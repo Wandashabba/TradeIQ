@@ -15,8 +15,9 @@ export interface Recurrence {
   /** Every N days, or every N weeks. */
   interval: number;
   /**
-   * Weekly only: which days to land on, 0 = Sunday through 6 = Saturday, in the
-   * UTC calendar. Empty/absent means "the same weekday as the start date".
+   * Weekly only: which days to land on, 0 = Sunday through 6 = Saturday, of the
+   * plan's calendar dates (see expandOccurrences — timezone-neutral). Empty/absent
+   * means "the same weekday as the start date".
    */
   daysOfWeek?: number[];
   /** Inclusive last date an occurrence may fall on. */
@@ -49,6 +50,14 @@ function startOfUtcDay(d: Date): Date {
  * milliseconds across a DST boundary in a local zone silently shifts a plan a
  * day either way. `scheduledDate` is stored as the UTC midnight of the intended
  * day for the same reason.
+ *
+ * **Timezone-neutral, so it does not read `Client.timezone` (#309).** UTC here
+ * is only the encoding of a calendar date: `2026-09-15T00:00Z` means "15
+ * September" for a Johannesburg client and a New York one alike, and the
+ * weekday of that date is the same everywhere. The client's zone matters only
+ * when an INSTANT (a check-in) is mapped onto a date — `markRouteStopsVisited`.
+ * The plan form sends `YYYY-MM-DD`; a caller sending a full instant for
+ * `scheduledDate` gets that instant's UTC date, as it always has.
  *
  * Throws rather than returning a truncated list when the rule would exceed
  * [MAX_OCCURRENCES]: silently generating 120 of an intended 400 would leave a

@@ -7,6 +7,7 @@ import {
   isCadence,
   isRecipients,
   listSchedules,
+  runCsvForClient,
   runSchedule,
   updateSchedule,
   type Cadence,
@@ -95,4 +96,15 @@ reportSchedulesRouter.post('/:id/run', async (req: AuthedRequest, res) => {
   const { id } = req.params as { id: string };
   const result = await runSchedule(id, req.user!.clientId);
   res.status(200).json(result);
+});
+
+// A run's CSV (#66) — what a `report.generated` webhook's `csvPath` points at.
+// Manager/admin like the rest of this router; another client's run is a 404.
+reportSchedulesRouter.get('/:id/runs/:runId/csv', async (req: AuthedRequest, res) => {
+  const { id, runId } = req.params as { id: string; runId: string };
+  const { run, csv } = await runCsvForClient(id, runId, req.user!.clientId);
+  // Force download rather than inline render (defense-in-depth for CWE-1236).
+  // The filename uses the stored id, never the raw path segment.
+  res.setHeader('Content-Disposition', `attachment; filename="report-${run.id}.csv"`);
+  res.status(200).type('text/csv').send(csv);
 });

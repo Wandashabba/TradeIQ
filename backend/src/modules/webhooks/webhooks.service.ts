@@ -186,18 +186,97 @@ export function retryDelayAfter(attempt: number): number {
 }
 
 /**
+ * The events TradeIQ emits, i.e. what a webhook can usefully subscribe to.
+ *
+ * The create route still accepts any non-empty event string (an unknown one
+ * simply never fires), so this list is documentation and the source for the
+ * console's hint — keep it in step with every `dispatchWebhookEvent` call and
+ * with `webhookEvents` in the app's webhooks repository.
+ */
+export const WEBHOOK_EVENTS = [
+  'visit.submitted',
+  'alert.raised',
+  'order.created',
+  // A report schedule ran (#66). See reportschedules.delivery.ts.
+  'report.generated',
+] as const;
+
+/** One delivery row created by `enqueueWebhookEvent`. */
+export interface QueuedWebhookDelivery {
+  deliveryId: string;
+  webhookId: string;
+  url: string;
+}
+
+/**
  * Records a domain event for every ACTIVE webhook the client has registered
- * for `event`, then starts the first attempt of each in the background.
+ * for `event`, then starts the first attempt of each in the background, and
+ * returns the delivery rows it created (empty when nobody is subscribed).
  *
  * What the caller awaits is only the insert of the delivery rows — durable, and
  * quick — never the HTTP call to a subscriber. A slow or failing subscriber
- * therefore cannot hold up a visit submit, and a failed attempt is retried on
- * the backoff schedule by the delivery worker rather than being lost.
+ * therefore cannot hold up the caller, and a failed attempt is retried on the
+ * backoff schedule by the delivery worker rather than being lost.
  *
- * Still never throws: a database hiccup here must not fail a visit that has
- * already been persisted. The cost of that choice is that an event can be lost
- * if the insert itself fails — a transactional outbox written in the same
- * transaction as the domain row is the durable-streaming work of #62.
+ * Throws if the rows cannot be written. Callers that must never fail on a
+ * webhook use `dispatchWebhookEvent`; a report run uses this directly so it can
+ * record what was actually queued (#66).
+ */
+export async function enqueueWebhookEvent(
+  clientId: string,
+  event: string,
+  payload: unknown,
+): Promise<QueuedWebhookDelivery[]> {
+  const webhooks = await prisma.webhook.findMany({
+    where: { clientId, event, active: true },
+    select: { id: true, url: true },
+  });
+  if (webhooks.length === 0) return [];
+
+  // The body envelope is stored once and re-sent byte-for-byte on every
+  // attempt. Its `timestamp` is when the event happened; the signed
+  // X-TradeIQ-Timestamp header is when each attempt was made, so a retry
+  // hours later still passes a subscriber's replay window.
+  const envelope = {
+    event,
+    payload,
+    timestamp: new Date().toISOString(),
+  } as Prisma.InputJsonValue;
+  // Created already leased: this process attempts them right now, and the
+  // worker only picks one up if that attempt never finishes.
+  const leaseUntil = new Date(Date.now() + CLAIM_LEASE_MS);
+
+  const deliveries = await prisma.webhookDelivery.createManyAndReturn({
+    data: webhooks.map((webhook) => ({
+      webhookId: webhook.id,
+      clientId,
+      event,
+      payload: envelope,
+      status: 'pending' as const,
+      nextAttemptAt: leaseUntil,
+    })),
+    select: { id: true, webhookId: true },
+  });
+
+  for (const delivery of deliveries) {
+    track(attemptDelivery(delivery.id));
+  }
+
+  const urlById = new Map(webhooks.map((webhook) => [webhook.id, webhook.url]));
+  return deliveries.map((delivery) => ({
+    deliveryId: delivery.id,
+    webhookId: delivery.webhookId,
+    url: urlById.get(delivery.webhookId) ?? '',
+  }));
+}
+
+/**
+ * `enqueueWebhookEvent` for domain writes that are already persisted.
+ *
+ * Never throws: a database hiccup here must not fail a visit that has already
+ * been persisted. The cost of that choice is that an event can be lost if the
+ * insert itself fails — a transactional outbox written in the same transaction
+ * as the domain row is the durable-streaming work of #62.
  */
 export async function dispatchWebhookEvent(
   clientId: string,
@@ -205,40 +284,7 @@ export async function dispatchWebhookEvent(
   payload: unknown,
 ): Promise<void> {
   try {
-    const webhooks = await prisma.webhook.findMany({
-      where: { clientId, event, active: true },
-      select: { id: true },
-    });
-    if (webhooks.length === 0) return;
-
-    // The body envelope is stored once and re-sent byte-for-byte on every
-    // attempt. Its `timestamp` is when the event happened; the signed
-    // X-TradeIQ-Timestamp header is when each attempt was made, so a retry
-    // hours later still passes a subscriber's replay window.
-    const envelope = {
-      event,
-      payload,
-      timestamp: new Date().toISOString(),
-    } as Prisma.InputJsonValue;
-    // Created already leased: this process attempts them right now, and the
-    // worker only picks one up if that attempt never finishes.
-    const leaseUntil = new Date(Date.now() + CLAIM_LEASE_MS);
-
-    const deliveries = await prisma.webhookDelivery.createManyAndReturn({
-      data: webhooks.map((webhook) => ({
-        webhookId: webhook.id,
-        clientId,
-        event,
-        payload: envelope,
-        status: 'pending' as const,
-        nextAttemptAt: leaseUntil,
-      })),
-      select: { id: true },
-    });
-
-    for (const delivery of deliveries) {
-      track(attemptDelivery(delivery.id));
-    }
+    await enqueueWebhookEvent(clientId, event, payload);
   } catch (err) {
     console.error(`Webhook dispatch for ${event} failed:`, err);
   }

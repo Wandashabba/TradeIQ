@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 
+/// The zone every client starts in, and the one assumed when a server that
+/// predates `Client.timezone` (#309) sends none.
+const defaultClientTimeZone = 'Africa/Johannesburg';
+
 /// The scoring configuration for the current client returned by GET /clients/me.
 class ClientConfig {
   const ClientConfig({
@@ -8,6 +12,7 @@ class ClientConfig {
     required this.scorecardWeights,
     required this.kpiThresholds,
     this.assistantEnabled = false,
+    this.timezone = defaultClientTimeZone,
   });
   final String name;
   final Map<String, double> scorecardWeights;
@@ -26,6 +31,13 @@ class ClientConfig {
   /// server-side regardless — this only decides whether we offer it.
   final bool assistantEnabled;
 
+  /// The IANA zone this client's calendar days are counted in (#309): which
+  /// day's route a check-in ticks, and where trend days and weeks begin.
+  ///
+  /// Unlike the scoring config, managers may change it as well as admins — it
+  /// is a fact about where the team works, not a scoring policy.
+  final String timezone;
+
   factory ClientConfig.fromJson(Map<String, dynamic> json) => ClientConfig(
         name: json['name'] as String,
         scorecardWeights:
@@ -34,6 +46,7 @@ class ClientConfig {
         kpiThresholds: (json['kpiThresholds'] as Map<String, dynamic>? ?? {})
             .map((k, v) => MapEntry(k, (v as num).toDouble())),
         assistantEnabled: json['assistantEnabled'] as bool? ?? false,
+        timezone: json['timezone'] as String? ?? defaultClientTimeZone,
       );
 }
 
@@ -95,6 +108,10 @@ abstract class ClientsRepository {
   Future<ClientConfig> getConfig();
   Future<ClientConfig> updateWeights(Map<String, double> weights);
   Future<ClientConfig> updateThresholds(Map<String, double> thresholds);
+
+  /// Sets the client's IANA timezone. Manager or admin; the server rejects a
+  /// name it does not recognise with a 400.
+  Future<ClientConfig> updateTimezone(String timezone);
 }
 
 class DioClientsRepository implements ClientsRepository {
@@ -116,6 +133,14 @@ class DioClientsRepository implements ClientsRepository {
   Future<ClientConfig> updateThresholds(Map<String, double> thresholds) async {
     final response = await dio.patch('/clients/me', data: {
       'kpiThresholds': thresholds,
+    });
+    return ClientConfig.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ClientConfig> updateTimezone(String timezone) async {
+    final response = await dio.patch('/clients/me', data: {
+      'timezone': timezone,
     });
     return ClientConfig.fromJson(response.data as Map<String, dynamic>);
   }
