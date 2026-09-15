@@ -106,6 +106,16 @@ abstract class ReportSchedulesRepository {
   /// PATCH /report-schedules/:id — pause or resume without deleting.
   Future<ReportSchedule> setActive(String id, bool active);
 
+  /// PATCH /report-schedules/:id — change how often and to whom. Only the
+  /// fields given are sent; at least one is required, as the backend demands.
+  /// The linked report is not updatable (the route accepts only `active`,
+  /// `cadence` and `recipients`).
+  Future<ReportSchedule> updateSchedule(
+    String id, {
+    String? cadence,
+    List<String>? recipients,
+  });
+
   /// DELETE /report-schedules/:id.
   Future<void> deleteSchedule(String id);
 
@@ -142,6 +152,23 @@ class DioReportSchedulesRepository implements ReportSchedulesRepository {
   Future<ReportSchedule> setActive(String id, bool active) async {
     final response =
         await dio.patch('/report-schedules/$id', data: {'active': active});
+    return ReportSchedule.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ReportSchedule> updateSchedule(
+    String id, {
+    String? cadence,
+    List<String>? recipients,
+  }) async {
+    assert(
+      cadence != null || recipients != null,
+      'updateSchedule needs a cadence or recipients',
+    );
+    final response = await dio.patch('/report-schedules/$id', data: {
+      'cadence': ?cadence,
+      'recipients': ?recipients,
+    });
     return ReportSchedule.fromJson(response.data as Map<String, dynamic>);
   }
 
