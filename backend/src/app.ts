@@ -31,7 +31,10 @@ import {
   announcementsRouter,
   messagesRouter,
 } from './modules/collaboration/collaboration.routes';
-import { webhooksRouter } from './modules/webhooks/webhooks.routes';
+import {
+  webhookDeliveriesRouter,
+  webhooksRouter,
+} from './modules/webhooks/webhooks.routes';
 import { gamificationRouter } from './modules/gamification/gamification.routes';
 import { reportsRouter } from './modules/reports/reports.routes';
 import { clientsRouter } from './modules/clients/clients.routes';
@@ -126,6 +129,7 @@ app.use('/orders', ordersRouter);
 app.use('/messages', messagesRouter);
 app.use('/announcements', announcementsRouter);
 app.use('/webhooks', webhooksRouter);
+app.use('/webhook-deliveries', webhookDeliveriesRouter);
 app.use('/gamification', gamificationRouter);
 app.use('/reports', reportsRouter);
 app.use('/clients', clientsRouter);

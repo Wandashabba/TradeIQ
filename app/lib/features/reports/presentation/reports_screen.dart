@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -17,6 +18,16 @@ class ReportsScreen extends ConsumerWidget {
     final reports = ref.watch(reportsListProvider);
     return ManagerScaffold(
       title: 'Reports',
+      // Schedules hang off their reports rather than taking a menu slot of
+      // their own; the rail keeps Reports lit on /reports/schedules.
+      actions: [
+        TextButton.icon(
+          key: const ValueKey<String>('reports-schedules'),
+          icon: const Icon(Icons.schedule_outlined, size: 16),
+          label: const Text('Schedules'),
+          onPressed: () => context.go('/reports/schedules'),
+        ),
+      ],
       // The whole /reports surface is manager/admin only (route-guarded), so the
       // build action does not need a further role check here.
       floatingActionButton: FloatingActionButton(

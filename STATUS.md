@@ -804,10 +804,18 @@ computes, so these are **backend** work items.
 
 **Fraud signals described in the field but not implemented** (existing:
 `capture_timeline_gap`, `failed_attempts`, `fast_completion`,
-`geofence_distance`, `no_capture`, `photo_gps_divergence`, `slow_completion`):
+`geofence_distance`, `no_capture`, `photo_gps_divergence`,
+`repeating_stock_counts`, `slow_completion`):
 
 - [ ] #244 — Duplicate photo reuse across outlets / visits
-- [ ] #245 — Flat or repeating stock figures across periods (*"2-1, 2-1"*)
+- [x] #245 — Flat or repeating stock figures across periods (*"2-1, 2-1"*) →
+      `repeating_stock_counts`. Identical counts for an (outlet, SKU) across
+      `kpiThresholds.repeatingStockRunLength` consecutive submitted visits
+      (default 3, floor 3, ceiling 12), ordered by device `checkinTs`. A SKU
+      counts only if non-zero and its pre-run `velocityAvg` (#112) says it should
+      have moved ≥3 units over the run. Flat weight 15 for the whole basket, 5 for
+      half or more of it or a one-SKU basket; never flags alone. History is one
+      windowed query per call, not per visit
 - [x] #246 — Gap between stock-entry timestamp and photo timestamp →
       `capture_timeline_gap`. Stock rows only have a server `createdAt`, so each
       photo's device time is placed against the visit's device window (check-in

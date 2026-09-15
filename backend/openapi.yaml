@@ -912,8 +912,25 @@ paths:
   /webhooks:
     get:
       summary: List webhook subscriptions — manager/admin
+      description: >
+        Each webhook carries its delivery health: `consecutiveFailures`
+        (deliveries that gave up since the last success), `lastDeliveryStatus`
+        and `lastDeliveryAt`, and a derived `health` of healthy | failing |
+        unhealthy.
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Webhooks } }
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Webhook' } }
+                  nextCursor: { type: string, nullable: true }
     post:
       summary: Create a webhook subscription — manager/admin
       security: [{ bearerAuth: [] }]
@@ -929,6 +946,52 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '204': { description: Deleted }, '404': { description: Not found } }
+  /webhooks/{id}/deliveries:
+    get:
+      summary: Recent deliveries to a webhook, newest first — manager/admin
+      description: >
+        Every event fanned out to a webhook is a delivery. The first attempt is
+        made immediately; failures (non-2xx, network error or timeout) retry
+        after 1m, 5m, 25m, 2h and 6h, then give up. Each attempt carries
+        `X-TradeIQ-Delivery` (stable across retries — de-duplicate on it) and
+        `X-TradeIQ-Delivery-Attempt`, and is re-signed with a fresh
+        `X-TradeIQ-Timestamp`; the body is identical on every attempt.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/WebhookDelivery' } }
+                  nextCursor: { type: string, nullable: true }
+        '400': { description: Invalid limit }
+        '403': { description: Forbidden }
+        '404': { description: Not found (or another client's webhook) }
+  /webhook-deliveries/{id}/redeliver:
+    post:
+      summary: Re-queue a failed delivery and attempt it now — manager/admin
+      description: >
+        Allowed for `gave_up` and `failed_retrying` deliveries. The attempt
+        count is kept, so a redelivered give-up that fails again gives up again
+        rather than starting a fresh retry schedule.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '202':
+          description: Re-queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebhookDelivery' }
+        '403': { description: Forbidden }
+        '404': { description: Not found (or another client's delivery) }
+        '409': { description: Delivery already succeeded or is already queued }
   /gamification/leaderboard:
     get:
       summary: Field-agent leaderboard (points from scorecards/tasks/visits)
@@ -1182,6 +1245,47 @@ components:
         avgScorecard: { type: number }
         points: { type: number }
         rank: { type: integer }
+    Webhook:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        url: { type: string }
+        event: { type: string }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        consecutiveFailures:
+          type: integer
+          description: Deliveries that gave up since the last successful one.
+        lastDeliveryStatus:
+          type: string
+          nullable: true
+          enum: [pending, succeeded, failed_retrying, gave_up]
+        lastDeliveryAt: { type: string, format: date-time, nullable: true }
+        health:
+          type: string
+          enum: [healthy, failing, unhealthy]
+          description: >
+            unhealthy while consecutiveFailures > 0; failing when the latest
+            delivery is waiting on a retry; healthy otherwise.
+    WebhookDelivery:
+      type: object
+      properties:
+        id: { type: string }
+        webhookId: { type: string }
+        clientId: { type: string }
+        event: { type: string }
+        payload:
+          type: object
+          description: The exact `{ event, payload, timestamp }` body sent on every attempt.
+        status: { type: string, enum: [pending, succeeded, failed_retrying, gave_up] }
+        attempts: { type: integer }
+        lastStatusCode: { type: integer, nullable: true }
+        lastError: { type: string, nullable: true }
+        nextAttemptAt: { type: string, format: date-time, nullable: true }
+        lastAttemptAt: { type: string, format: date-time, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
     TrendPoint:
       type: object
       required: [period, value, count]

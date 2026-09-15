@@ -11,6 +11,7 @@ import 'package:tradeiq_app/features/campaigns/data/campaigns_repository.dart';
 class _RecordingAdapter implements HttpClientAdapter {
   _RecordingAdapter(this.body);
   final String body;
+  String? lastPath;
 
   @override
   void close({bool force = false}) {}
@@ -21,6 +22,7 @@ class _RecordingAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    lastPath = options.path;
     return ResponseBody.fromString(
       body,
       200,
@@ -98,6 +100,116 @@ void main() {
       expect(compliance.avgPlanogramCompliancePct, 0.0);
       expect(compliance.avgAbsPriceDeviationPct, 0.0);
       expect(compliance.promoComplianceRate, 0.0);
+    });
+  });
+
+  group('CampaignRoi.fromJson', () {
+    Map<String, dynamic> body({
+      Object? spend = 10000,
+      Object? roiPct = 25.5,
+      Object? unmeasurable,
+    }) => {
+      'campaignId': 'c1',
+      'outletsTotal': 12,
+      'window': {
+        'from': '2026-06-01T00:00:00.000Z',
+        'to': '2026-07-01T00:00:00.000Z',
+      },
+      'baselineWindow': {
+        'from': '2026-05-02T00:00:00.000Z',
+        'to': '2026-06-01T00:00:00.000Z',
+      },
+      'orderCount': {'attributed': 40, 'baseline': 31},
+      'attributedRevenue': 42550.5,
+      'baselineRevenue': 30000,
+      'incrementalRevenue': 12550.5,
+      'spend': spend,
+      'roiPct': roiPct,
+      'unmeasurable': unmeasurable,
+    };
+
+    test('parses every field of a measured return', () {
+      final roi = CampaignRoi.fromJson(body());
+
+      expect(roi.campaignId, 'c1');
+      expect(roi.outletsTotal, 12);
+      expect(roi.window.from, DateTime.utc(2026, 6, 1));
+      expect(roi.window.to, DateTime.utc(2026, 7, 1));
+      expect(roi.baselineWindow.from, DateTime.utc(2026, 5, 2));
+      expect(roi.baselineWindow.to, DateTime.utc(2026, 6, 1));
+      expect(roi.baselineWindow.days, 30);
+      expect(roi.attributedOrders, 40);
+      expect(roi.baselineOrders, 31);
+      expect(roi.attributedRevenue, 42550.5);
+      expect(roi.baselineRevenue, 30000.0);
+      expect(roi.incrementalRevenue, 12550.5);
+      expect(roi.spend, 10000.0);
+      expect(roi.roiPct, 25.5);
+      expect(roi.unmeasurable, isNull);
+    });
+
+    test('no budget: roiPct stays null — not zero — with its reason', () {
+      final roi = CampaignRoi.fromJson(
+        body(spend: null, roiPct: null, unmeasurable: 'no_budget'),
+      );
+
+      expect(roi.spend, isNull);
+      expect(roi.roiPct, isNull);
+      expect(roi.unmeasurable, RoiUnmeasurable.noBudget);
+    });
+
+    test('zero budget parses its own reason', () {
+      final roi = CampaignRoi.fromJson(
+        body(spend: 0, roiPct: null, unmeasurable: 'zero_budget'),
+      );
+
+      expect(roi.spend, 0.0);
+      expect(roi.roiPct, isNull);
+      expect(roi.unmeasurable, RoiUnmeasurable.zeroBudget);
+    });
+
+    test('a null roiPct with an unknown or missing reason is still '
+        'unmeasurable', () {
+      expect(
+        CampaignRoi.fromJson(body(roiPct: null, unmeasurable: 'new_reason'))
+            .unmeasurable,
+        RoiUnmeasurable.unknown,
+      );
+      expect(
+        CampaignRoi.fromJson(body(roiPct: null)).unmeasurable,
+        RoiUnmeasurable.unknown,
+      );
+    });
+  });
+
+  group('DioCampaignsRepository.getRoi', () {
+    late HttpClientAdapter originalAdapter;
+
+    setUp(() => originalAdapter = dio.httpClientAdapter);
+    tearDown(() => dio.httpClientAdapter = originalAdapter);
+
+    test('GETs /campaigns/:id/roi and parses a negative return', () async {
+      final adapter = _RecordingAdapter(
+        '{"campaignId": "c9", "outletsTotal": 3, '
+        '"window": {"from": "2026-06-01T00:00:00.000Z", '
+        '"to": "2026-06-08T00:00:00.000Z"}, '
+        '"baselineWindow": {"from": "2026-05-25T00:00:00.000Z", '
+        '"to": "2026-06-01T00:00:00.000Z"}, '
+        '"orderCount": {"attributed": 2, "baseline": 5}, '
+        '"attributedRevenue": 1000, "baselineRevenue": 2500, '
+        '"incrementalRevenue": -1500, "spend": 500, "roiPct": -400, '
+        '"unmeasurable": null}',
+      );
+      dio.httpClientAdapter = adapter;
+
+      final roi = await DioCampaignsRepository().getRoi('c9');
+
+      expect(adapter.lastPath, '/campaigns/c9/roi');
+      expect(roi.campaignId, 'c9');
+      expect(roi.baselineWindow.days, 7);
+      expect(roi.incrementalRevenue, -1500.0);
+      expect(roi.roiPct, -400.0);
+      expect(roi.unmeasurable, isNull);
     });
   });
 

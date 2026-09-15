@@ -33,6 +33,9 @@ class _RecordingCampaignsRepository implements CampaignsRepository {
       throw UnimplementedError();
 
   @override
+  Future<CampaignRoi> getRoi(String id) async => throw UnimplementedError();
+
+  @override
   Future<Campaign> createCampaign({
     required String name,
     required String startDate,
