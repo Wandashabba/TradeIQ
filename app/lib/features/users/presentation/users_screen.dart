@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/person_label.dart';
+import '../../../core/network/human_error.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -130,6 +131,15 @@ class _UserRow extends ConsumerWidget {
       statusLabel: user.active ? 'Active' : 'Inactive',
       resolved: !user.active,
       actions: [
+        IconButton(
+          key: ValueKey<String>('edit-name-${user.id}'),
+          tooltip: 'Edit name',
+          icon: Icon(Icons.edit_outlined, color: context.colors.ink2),
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => _EditNameDialog(user: user),
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.only(left: 8),
           child: Switch(
@@ -140,6 +150,126 @@ class _UserRow extends ConsumerWidget {
               ref.invalidate(usersListProvider);
             },
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Sets, changes or clears one user's display name. Styled by the app's dialog
+/// theme, which is glass by day and by night.
+class _EditNameDialog extends ConsumerStatefulWidget {
+  const _EditNameDialog({required this.user});
+
+  final AppUser user;
+
+  @override
+  ConsumerState<_EditNameDialog> createState() => _EditNameDialogState();
+}
+
+class _EditNameDialogState extends ConsumerState<_EditNameDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final _nameCtrl =
+      TextEditingController(text: widget.user.displayName ?? '');
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  String? _validate(String? value) {
+    // The server trims before it measures, so surrounding spaces don't count.
+    if ((value ?? '').trim().length > displayNameMaxLength) {
+      return 'Use $displayNameMaxLength characters or fewer.';
+    }
+    return null;
+  }
+
+  Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final next = nonBlankName(_nameCtrl.text);
+    // Nothing changed: close without a request.
+    if (next == nonBlankName(widget.user.displayName)) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(usersRepositoryProvider)
+          .updateDisplayName(widget.user.id, next);
+      ref.invalidate(usersListProvider);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      // Stay open so the typed name is not lost; say why in plain words.
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not save the name. ${humanErrorMessage(e)}';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return AlertDialog(
+      title: const Text('Edit name'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.user.email,
+              style: TextStyle(fontSize: 12, color: colors.ink3),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: const ValueKey<String>('edit-name-field'),
+              controller: _nameCtrl,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              validator: _validate,
+              onFieldSubmitted: (_) => _saving ? null : _save(),
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                helperText: 'Leave blank to clear the name; the email is '
+                    'shown instead.',
+                helperMaxLines: 2,
+                errorMaxLines: 2,
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                key: const ValueKey<String>('edit-name-error'),
+                style: TextStyle(fontSize: 13, color: colors.critText),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey<String>('edit-name-cancel'),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey<String>('edit-name-save'),
+          onPressed: _saving ? null : _save,
+          child: const Text('Save'),
         ),
       ],
     );

@@ -74,6 +74,10 @@ class _FakeUsersRepository implements UsersRepository {
   @override
   Future<AppUser> setActive(String id, bool active) async =>
       throw UnimplementedError();
+
+  @override
+  Future<AppUser> updateDisplayName(String id, String? displayName) async =>
+      throw UnimplementedError();
 }
 
 class _FakeTerritoriesRepository implements TerritoriesRepository {

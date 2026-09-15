@@ -140,6 +140,54 @@ void main() {
     });
   });
 
+  group('DioUsersRepository.updateDisplayName', () {
+    late HttpClientAdapter originalAdapter;
+
+    setUp(() {
+      originalAdapter = dio.httpClientAdapter;
+    });
+
+    tearDown(() {
+      dio.httpClientAdapter = originalAdapter;
+    });
+
+    const updated = '{"id": "u9", "email": "new@example.com", '
+        '"role": "field_agent", "active": true, "displayName": "Lerato Mahlangu"}';
+
+    test('PATCHes /users/:id with only the trimmed displayName', () async {
+      final adapter = _RecordingAdapter(updated);
+      dio.httpClientAdapter = adapter;
+
+      final user = await DioUsersRepository()
+          .updateDisplayName('u9', '  Lerato Mahlangu ');
+
+      final request = adapter.lastRequest!;
+      expect(request.method, 'PATCH');
+      expect(request.path, '/users/u9');
+      expect(request.data, {'displayName': 'Lerato Mahlangu'});
+      expect(user.label, 'Lerato Mahlangu');
+    });
+
+    test('sends an explicit null to clear when the name is null or blank',
+        () async {
+      for (final name in [null, '', '   ']) {
+        final adapter = _RecordingAdapter(
+          '{"id": "u9", "email": "new@example.com", '
+          '"role": "field_agent", "active": true, "displayName": null}',
+        );
+        dio.httpClientAdapter = adapter;
+
+        final user = await DioUsersRepository().updateDisplayName('u9', name);
+
+        final sent = adapter.lastRequest!.data as Map<String, dynamic>;
+        // The key must be present: absent would mean "leave it unchanged".
+        expect(sent.containsKey('displayName'), isTrue, reason: 'name: "$name"');
+        expect(sent['displayName'], isNull, reason: 'name: "$name"');
+        expect(user.label, 'new@example.com');
+      }
+    });
+  });
+
   group('DioUsersRepository.listUsers', () {
     late HttpClientAdapter originalAdapter;
 
