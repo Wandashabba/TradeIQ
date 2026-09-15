@@ -14,11 +14,10 @@ const MAX_RANGE_MS = 48 * 60 * 60 * 1000;
  * Where each field agent has been confirmed present in a time window.
  *
  * Takes `from`/`to` as ISO-8601 INSTANTS rather than a `date`, deliberately.
- * There is no `Client.timezone` and no timezone handling anywhere in this
- * backend, so resolving a calendar date server-side would mean UTC — which
- * cuts the day at 02:00 SAST and splits a South African field team's morning
- * across two "days". The client knows the manager's locale; it sends explicit
- * instants and the server does no timezone reasoning at all.
+ * The window is whatever the console asks for (up to 48h, not necessarily a
+ * whole day), so the caller sends explicit instants and this endpoint does no
+ * calendar reasoning. Calendar-day rules elsewhere read `Client.timezone`
+ * (#309); an arbitrary instant window has no day to resolve.
  */
 agentsRouter.get('/activity', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
   const { from, to, territoryId, limit, cursor } = req.query as {

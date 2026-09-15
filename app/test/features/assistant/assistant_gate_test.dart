@@ -35,6 +35,10 @@ class StubClients implements ClientsRepository {
   @override
   Future<ClientConfig> updateThresholds(Map<String, double> thresholds) async =>
       throw UnimplementedError();
+
+  @override
+  Future<ClientConfig> updateTimezone(String timezone) async =>
+      throw UnimplementedError();
 }
 
 Future<void> pumpGate(

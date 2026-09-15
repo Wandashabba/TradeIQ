@@ -87,6 +87,14 @@ final todayRouteProvider = FutureProvider<TodayRoute?>((ref) async {
 
   // GET /beatplans already scopes a field agent to their own plans, so "today's
   // plan" is just today's date among them.
+  //
+  // "Today" is the DEVICE's local date, deliberately not `Client.timezone`
+  // (#309): an agent's phone is in the zone their client works in, which is the
+  // same calendar the server uses to tick a stop when a visit is submitted. If
+  // devices ever roam outside the client's zone, this is the comparison to move
+  // onto the client's timezone. Note too that `scheduledDate` is a calendar date
+  // stored as UTC midnight, and `.toLocal()` keeps that date only in zones at or
+  // east of UTC — a zone west of UTC would need the date read in UTC instead.
   BeatPlan? todays;
   for (final plan in plans) {
     final scheduled = DateTime.tryParse(plan.scheduledDate)?.toLocal();

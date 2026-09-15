@@ -190,7 +190,8 @@ describe('POST /visits/:id/submit marks the beat-plan stop visited (#52)', () =>
     expect(await visited(foreign.stops[0].id)).toBe(false);
   });
 
-  it("matches on the check-in's UTC calendar day, not a neighbouring day's plan", async () => {
+  it("matches on the check-in's calendar date in the client timezone, not a neighbouring day's plan", async () => {
+    // The client was created without a timezone: Africa/Johannesburg (UTC+2).
     const dayBefore = await createPlan({
       clientId,
       agentId: agent.userId,
@@ -210,20 +211,114 @@ describe('POST /visits/:id/submit marks the beat-plan stop visited (#52)', () =>
       outletIds: [outletId],
     });
 
-    // The last instant of 10 July UTC (01:59:59 SAST on the 11th).
-    const lateVisit = await checkIn(agent, outletId, '2026-07-10T23:59:59.999Z');
+    // 23:59:59.999 SAST on 10 July — the last local instant of the 10th.
+    const lateVisit = await checkIn(agent, outletId, '2026-07-10T21:59:59.999Z');
     expect((await submit(agent, lateVisit)).status).toBe(200);
 
     expect(await visited(dayBefore.stops[0].id)).toBe(false);
     expect(await visited(sameDay.stops[0].id)).toBe(true);
     expect(await visited(dayAfter.stops[0].id)).toBe(false);
 
-    // Midnight UTC belongs to the new day — the range is half-open.
-    const midnightVisit = await checkIn(agent, outletId, '2026-07-11T00:00:00.000Z');
+    // Local midnight belongs to the new day — the range is half-open.
+    const midnightVisit = await checkIn(agent, outletId, '2026-07-10T22:00:00.000Z');
     expect((await submit(agent, midnightVisit)).status).toBe(200);
 
     expect(await visited(dayBefore.stops[0].id)).toBe(false);
     expect(await visited(dayAfter.stops[0].id)).toBe(true);
+  });
+
+  it("#309: a 00:30 SAST check-in marks TODAY's plan, not yesterday's", async () => {
+    // The exact bug: 00:30 SAST on 15 Sep is 22:30Z on the 14th. Matched on the
+    // UTC day, this ticked the 14th's plan and left today's route untouched.
+    const yesterday = await createPlan({
+      clientId,
+      agentId: agent.userId,
+      scheduledDate: '2026-09-14',
+      outletIds: [outletId],
+    });
+    const today = await createPlan({
+      clientId,
+      agentId: agent.userId,
+      scheduledDate: '2026-09-15',
+      outletIds: [outletId],
+    });
+
+    const visitId = await checkIn(agent, outletId, '2026-09-14T22:30:00.000Z');
+    expect((await submit(agent, visitId)).status).toBe(200);
+
+    expect(await visited(today.stops[0].id)).toBe(true);
+    expect(await visited(yesterday.stops[0].id)).toBe(false);
+  });
+
+  it('matches a New York client on its local date across the spring-forward DST change', async () => {
+    // A tenant of its own, so the zone is the only thing that differs.
+    const nyClient = await prisma.client.create({
+      data: {
+        name: 'ROUTE-Client-NY',
+        industry: 'FMCG',
+        scorecardWeights: {},
+        kpiThresholds: {},
+        timezone: 'America/New_York',
+      },
+    });
+    const nyAgent = await userIn(nyClient.id, 'field_agent');
+    const nyOutlet = await prisma.outlet.create({
+      data: {
+        name: 'ROUTE-Outlet-NY',
+        code: 'ROUTE-OUT-NY',
+        channelType: 'hypermarket',
+        lat: LAT,
+        lng: LNG,
+        territoryId: 'ROUTE-territory',
+        clientId: nyClient.id,
+      },
+    });
+
+    try {
+      const plans = await Promise.all(
+        ['2026-03-07', '2026-03-08', '2026-03-09'].map((scheduledDate) =>
+          createPlan({
+            clientId: nyClient.id,
+            agentId: nyAgent.userId,
+            scheduledDate,
+            outletIds: [nyOutlet.id],
+          }),
+        ),
+      );
+      const [sat, sun, mon] = plans.map((plan) => plan.stops[0].id);
+
+      // 23:30 EST (-5) on Saturday 7 March — 04:30Z on the 8th.
+      const saturdayNight = await checkIn(nyAgent, nyOutlet.id, '2026-03-08T04:30:00.000Z');
+      expect((await submit(nyAgent, saturdayNight)).status).toBe(200);
+      expect([await visited(sat), await visited(sun), await visited(mon)]).toEqual([
+        true,
+        false,
+        false,
+      ]);
+
+      // 23:30 EDT (-4, after the change) on Sunday 8 March — 03:30Z on the 9th.
+      // A UTC-day rule would tick Monday's plan.
+      const sundayNight = await checkIn(nyAgent, nyOutlet.id, '2026-03-09T03:30:00.000Z');
+      expect((await submit(nyAgent, sundayNight)).status).toBe(200);
+      expect(await visited(sun)).toBe(true);
+      expect(await visited(mon)).toBe(false);
+
+      // 00:30 EDT on Monday 9 March (04:30Z) is Monday's. A fixed EST (-5)
+      // offset — the rule in force before the change — would still call this
+      // Sunday 23:30, so this is the case only the zone's DST rules get right.
+      const mondayMorning = await checkIn(nyAgent, nyOutlet.id, '2026-03-09T04:30:00.000Z');
+      expect((await submit(nyAgent, mondayMorning)).status).toBe(200);
+      expect(await visited(mon)).toBe(true);
+    } finally {
+      await prisma.beatPlanStop.deleteMany({ where: { beatPlan: { clientId: nyClient.id } } });
+      await prisma.beatPlan.deleteMany({ where: { clientId: nyClient.id } });
+      await prisma.alert.deleteMany({ where: { clientId: nyClient.id } });
+      await prisma.checkInAttempt.deleteMany({ where: { clientId: nyClient.id } });
+      await prisma.visit.deleteMany({ where: { clientId: nyClient.id } });
+      await prisma.outlet.deleteMany({ where: { clientId: nyClient.id } });
+      await prisma.user.deleteMany({ where: { clientId: nyClient.id } });
+      await prisma.client.delete({ where: { id: nyClient.id } });
+    }
   });
 
   it('matches a plan whose scheduledDate is a full instant within that day', async () => {

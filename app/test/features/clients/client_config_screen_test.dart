@@ -7,6 +7,7 @@ import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/clients/data/clients_repository.dart';
+import 'package:tradeiq_app/features/clients/data/iana_time_zones.dart';
 import 'package:tradeiq_app/features/clients/presentation/client_config_screen.dart';
 
 import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
@@ -24,11 +25,29 @@ const _config = ClientConfig(
 );
 
 class _FakeClientsRepository implements ClientsRepository {
+  _FakeClientsRepository({this.timezone = defaultClientTimeZone});
+
   Map<String, double>? savedWeights;
   Map<String, double>? savedThresholds;
+  String? savedTimezone;
+
+  /// What the server currently holds; a save moves it, so a re-read shows it.
+  String timezone;
 
   @override
-  Future<ClientConfig> getConfig() async => _config;
+  Future<ClientConfig> getConfig() async => ClientConfig(
+        name: _config.name,
+        scorecardWeights: _config.scorecardWeights,
+        kpiThresholds: _config.kpiThresholds,
+        timezone: timezone,
+      );
+
+  @override
+  Future<ClientConfig> updateTimezone(String timezone) async {
+    savedTimezone = timezone;
+    this.timezone = timezone;
+    return getConfig();
+  }
 
   @override
   Future<ClientConfig> updateWeights(Map<String, double> weights) async {
@@ -70,6 +89,20 @@ class _RejectingClientsRepository implements ClientsRepository {
   @override
   Future<ClientConfig> updateThresholds(Map<String, double> thresholds) async =>
       throw Exception('boom');
+
+  @override
+  Future<ClientConfig> updateTimezone(String timezone) async =>
+      throw Exception('boom');
+}
+
+/// Loads fine; every timezone save fails with [error].
+class _TimezoneFailureRepository extends _FakeClientsRepository {
+  _TimezoneFailureRepository(this.error);
+
+  final Object error;
+
+  @override
+  Future<ClientConfig> updateTimezone(String timezone) async => throw error;
 }
 
 class _ThrowingClientsRepository implements ClientsRepository {
@@ -82,6 +115,10 @@ class _ThrowingClientsRepository implements ClientsRepository {
 
   @override
   Future<ClientConfig> updateThresholds(Map<String, double> thresholds) async =>
+      throw Exception('boom');
+
+  @override
+  Future<ClientConfig> updateTimezone(String timezone) async =>
       throw Exception('boom');
 }
 
@@ -266,5 +303,219 @@ void main() {
       find.text('Only an administrator can change scoring config.'),
       findsOneWidget,
     );
+  });
+
+  group('timezone (#309)', () {
+    Finder option(String zone) =>
+        find.byKey(ValueKey<String>('timezone-option-$zone'));
+    String shownZone(WidgetTester tester) => tester
+        .widget<Text>(find.byKey(const ValueKey<String>('timezone-value')))
+        .data!;
+
+    Future<void> openPicker(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey<String>('change-timezone')));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> pickBySearch(
+      WidgetTester tester,
+      String query,
+      String zone,
+    ) async {
+      await openPicker(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('timezone-search')),
+        query,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(option(zone));
+      await tester.pumpAndSettle();
+    }
+
+    group('timezoneOptions', () {
+      test('offers Johannesburg first, then everything else exactly once', () {
+        final options = timezoneOptions('', current: 'Africa/Johannesburg');
+        expect(options.suggested, ['Africa/Johannesburg']);
+        expect(options.all, isNot(contains('Africa/Johannesburg')));
+        expect(options.all.length, ianaTimeZones.length - 1);
+      });
+
+      test('keeps the current zone beside the suggestion', () {
+        final options = timezoneOptions('', current: 'Europe/London');
+        expect(options.suggested, ['Africa/Johannesburg', 'Europe/London']);
+        expect(options.all, isNot(contains('Europe/London')));
+      });
+
+      test('matches case-insensitively, reading a space as an underscore', () {
+        expect(
+          timezoneOptions('new york', current: 'UTC').all,
+          ['America/New_York'],
+        );
+        final johann = timezoneOptions('JOHANN', current: 'UTC');
+        expect(johann.suggested, isEmpty);
+        expect(johann.all.first, 'Africa/Johannesburg');
+        expect(timezoneOptions('Atlantis', current: 'UTC').all, isEmpty);
+      });
+
+      test('offers only names the server accepts', () {
+        // Canonical IANA names plus UTC — never an offset or an abbreviation.
+        expect(ianaTimeZones, contains('Africa/Johannesburg'));
+        expect(ianaTimeZones, contains('UTC'));
+        expect(ianaTimeZones.where((z) => z.startsWith('+')), isEmpty);
+        expect(ianaTimeZones, isNot(contains('SAST')));
+      });
+    });
+
+    for (final (name, theme, ink, rim) in [
+      ('light', AppTheme.light(), TiqColors.light, LumenPalette.light.panelRim),
+      ('night', AppTheme.dark(), TiqColors.night, LumenPalette.dark.panelRim),
+    ]) {
+      testWidgets('$name: loads the zone on an opaque, rimmed ground', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          _app(
+            _FakeClientsRepository(timezone: 'America/New_York'),
+            role: 'manager',
+            theme: theme,
+          ),
+        );
+
+        expect(shownZone(tester), 'America/New_York');
+        final ground = tester.widget<Container>(
+          find.byKey(const ValueKey<String>('timezone-current')),
+        );
+        final deco = ground.decoration! as BoxDecoration;
+        expect(deco.color, ink.surface2);
+        expect(deco.color!.a, 1.0);
+        expect((deco.border! as Border).top.color, rim);
+        expect(contrastRatio(ink.ink1, ink.surface2), greaterThanOrEqualTo(4.5));
+
+        // The picker opens in the same theme, with the current zone ticked.
+        await openPicker(tester);
+        expect(
+          find.byKey(const ValueKey<String>('timezone-search')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: option('America/New_York'),
+            matching: find.byKey(const ValueKey<String>('timezone-selected')),
+          ),
+          findsOneWidget,
+        );
+      });
+    }
+
+    testWidgets('a manager finds a zone by searching, and it is saved', (
+      tester,
+    ) async {
+      final repo = _FakeClientsRepository();
+      await _pump(tester, _app(repo, role: 'manager'));
+      expect(shownZone(tester), 'Africa/Johannesburg');
+
+      await pickBySearch(tester, 'new york', 'America/New_York');
+
+      expect(repo.savedTimezone, 'America/New_York');
+      expect(find.text('Timezone set to America/New_York'), findsOneWidget);
+      expect(shownZone(tester), 'America/New_York');
+    });
+
+    testWidgets('lists Johannesburg first, ahead of the current zone and the rest',
+        (tester) async {
+      await _pump(
+        tester,
+        _app(_FakeClientsRepository(timezone: 'Europe/London')),
+      );
+      await openPicker(tester);
+
+      final johannesburg = tester.getTopLeft(option('Africa/Johannesburg')).dy;
+      final london = tester.getTopLeft(option('Europe/London')).dy;
+      final firstOfAll = tester.getTopLeft(option('Africa/Abidjan')).dy;
+      expect(johannesburg, lessThan(london));
+      expect(london, lessThan(firstOfAll));
+    });
+
+    testWidgets('says so when nothing matches, and cancelling saves nothing', (
+      tester,
+    ) async {
+      final repo = _FakeClientsRepository();
+      await _pump(tester, _app(repo));
+      await openPicker(tester);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('timezone-search')),
+        'Atlantis',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('timezone-no-match')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(repo.savedTimezone, isNull);
+      expect(shownZone(tester), 'Africa/Johannesburg');
+    });
+
+    testWidgets("a rejected zone is reported in the server's words", (
+      tester,
+    ) async {
+      const message =
+          'timezone must be an IANA timezone name, e.g. Africa/Johannesburg';
+      await _pump(
+        tester,
+        _app(
+          _TimezoneFailureRepository(
+            DioException(
+              requestOptions: RequestOptions(path: '/clients/me'),
+              response: Response<dynamic>(
+                requestOptions: RequestOptions(path: '/clients/me'),
+                statusCode: 400,
+                data: {'error': message},
+              ),
+            ),
+          ),
+          role: 'manager',
+        ),
+      );
+
+      await pickBySearch(tester, 'tokyo', 'Asia/Tokyo');
+
+      expect(tester.takeException(), isNull);
+      expect(find.text(message), findsOneWidget);
+      expect(shownZone(tester), 'Africa/Johannesburg');
+      // Usable again, not stuck on "Saving…".
+      final change = tester.widget<TextButton>(
+        find.byKey(const ValueKey<String>('change-timezone')),
+      );
+      expect(change.onPressed, isNotNull);
+    });
+
+    testWidgets('an unexpected failure is reported, not thrown', (tester) async {
+      await _pump(
+        tester,
+        _app(_TimezoneFailureRepository(Exception('network down'))),
+      );
+
+      await pickBySearch(tester, 'tokyo', 'Asia/Tokyo');
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Could not save: Exception: network down'), findsOneWidget);
+    });
+
+    testWidgets('a field agent sees the zone but cannot change it', (
+      tester,
+    ) async {
+      await _pump(tester, _app(_FakeClientsRepository(), role: 'field_agent'));
+
+      expect(shownZone(tester), 'Africa/Johannesburg');
+      expect(
+        find.byKey(const ValueKey<String>('change-timezone')),
+        findsNothing,
+      );
+    });
   });
 }

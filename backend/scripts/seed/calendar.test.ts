@@ -28,12 +28,17 @@ describe('mondayOfWeek', () => {
 
   // The guard that matters: if /trends ever changes its week boundary, this
   // fails rather than the seed silently generating a history the dashboard
-  // buckets differently.
+  // buckets differently. Trends bucket in the client's timezone (#309); the
+  // seed's calendar is UTC, and its daytime check-ins fall on the same date in
+  // both, so parity is asserted in UTC and at a SAST mid-morning.
   it('agrees with the trends service bucketing rule', () => {
     for (let day = 0; day < 30; day += 1) {
       const date = addDays(new Date('2026-06-01T09:30:00.000Z'), day);
       expect(mondayOfWeek(date).toISOString()).toBe(
-        bucketStart(date, 'week').toISOString(),
+        bucketStart(date, 'week', 'UTC').toISOString(),
+      );
+      expect(mondayOfWeek(date).toISOString()).toBe(
+        bucketStart(date, 'week', 'Africa/Johannesburg').toISOString(),
       );
     }
   });

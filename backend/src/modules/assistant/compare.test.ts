@@ -17,7 +17,7 @@ describe('comparison basis', () => {
     // The same definition the dashboard's KPI tiles use. If chat and the
     // console disagreed about what "previous" means, the same metric would
     // carry two different deltas in one product.
-    const window = comparisonWindow(MTD, { kind: 'previous_period' }, NOW);
+    const window = comparisonWindow(MTD, { kind: 'previous_period' }, NOW, 'UTC');
 
     // MTD on the 16th resolves to 1 Aug 00:00 → 17 Aug 00:00 — end-exclusive,
     // so the whole of the 16th is inside it. That is 16 days, and the window
@@ -30,7 +30,7 @@ describe('comparison basis', () => {
     // "March vs March" has to stay March across a leap year. Subtracting a
     // fixed number of days drifts the month, and the practitioner's vocabulary
     // is months.
-    const window = comparisonWindow(MTD, { kind: 'same_period_last_year' }, NOW);
+    const window = comparisonWindow(MTD, { kind: 'same_period_last_year' }, NOW, 'UTC');
 
     expect(window.from.toISOString()).toBe('2025-08-01T00:00:00.000Z');
     expect(window.to.toISOString()).toBe('2025-08-17T00:00:00.000Z');
@@ -39,10 +39,30 @@ describe('comparison basis', () => {
   it('keeps the window when comparing territories', () => {
     // Moving both place and time would produce a difference nobody can read:
     // the user cannot tell which half moved.
-    const current = comparisonWindow(MTD, { kind: 'territory', id: 't1' }, NOW);
+    const current = comparisonWindow(MTD, { kind: 'territory', id: 't1' }, NOW, 'UTC');
 
     expect(current.from.toISOString()).toBe('2026-08-01T00:00:00.000Z');
     expect(current.to.toISOString()).toBe('2026-08-17T00:00:00.000Z');
+  });
+
+  it('shifts last year on the client calendar, keeping local midnights (#309)', () => {
+    // Johannesburg MTD on 16 Aug starts at 1 Aug 00:00 SAST = 31 Jul 22:00Z.
+    // Shifting that UTC instant by a year is the same here, but the rule must
+    // be the calendar one so a DST zone lands on ITS midnight a year earlier.
+    const sast = comparisonWindow(MTD, { kind: 'same_period_last_year' }, NOW, 'Africa/Johannesburg');
+    expect(sast.from.toISOString()).toBe('2025-07-31T22:00:00.000Z');
+    expect(sast.to.toISOString()).toBe('2025-08-16T22:00:00.000Z');
+
+    // New York: 1 Mar 2027 is EST (-5); 1 Mar 2026 is EST too, but 16 Mar 2026
+    // is EDT (-4). The shifted end must be local midnight in EDT, not EST.
+    const ny = comparisonWindow(
+      MTD,
+      { kind: 'same_period_last_year' },
+      new Date('2027-03-15T12:00:00Z'),
+      'America/New_York',
+    );
+    expect(ny.from.toISOString()).toBe('2026-03-01T05:00:00.000Z');
+    expect(ny.to.toISOString()).toBe('2026-03-16T04:00:00.000Z');
   });
 
   it('labels each basis in the vocabulary the user already uses', () => {
