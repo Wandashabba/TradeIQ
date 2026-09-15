@@ -14,8 +14,10 @@ import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/lumen_kit.dart';
 import '../../../l10n/l10n.dart';
 import '../../outlets/data/outlets_repository.dart';
+import '../data/template_section_repository.dart';
 import '../data/visit_progress.dart';
 import '../data/visits_repository.dart';
+import 'sections/client_questions_screen.dart';
 import 'submit_gate_screen.dart';
 import 'sections/s1_outlet_info_screen.dart';
 import 'sections/s2_stock_screen.dart';
@@ -72,6 +74,18 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       result = CheckInFailed(HumanError.of(error));
     }
     if (!mounted) return;
+    if (result case CheckInSucceeded(:final visitId)) {
+      // Pin the client's audit template to this visit (#122), once, so its
+      // questions cannot change mid-visit and reopen without signal. Best
+      // effort and not awaited: a client without a template — or a pin that
+      // fails — leaves the hub exactly as it has always been.
+      ref
+          .read(templateSectionRepositoryProvider)
+          .pinForVisit(visitId)
+          .catchError((Object e) {
+            debugPrint('Template pin failed for $visitId: $e');
+          });
+    }
     setState(() {
       _checkInResult = result;
       if (result is CheckInSucceeded) {
@@ -129,6 +143,28 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       ),
     );
   }
+
+  /// The client-questions section (#122), full screen like every other one.
+  void _openTemplateSection(ClientTemplate template, String visitDraftId) {
+    Navigator.of(context).push(
+      agentSectionRoute<void>(
+        _SectionScreen(
+          title: template.name,
+          child: ClientQuestionsScreen(
+            visitDraftId: visitDraftId,
+            template: template,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Everything still blocking the submit, by name: the fixed sections, then
+  /// the client's questions when required ones are left.
+  List<String> _blockingNames(AppLocalizations l10n, VisitProgress progress) => [
+    for (final s in progress.blocking) sectionLabel(l10n, s),
+    if (progress.templateBlocking) progress.template!.template.name,
+  ];
 
   /// Submitting is irreversible and it raises tasks against a real shop. It does
   /// not happen on one tap of a hub button — the agent gets to see what they are
@@ -230,7 +266,45 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
 
   /// The hub in Lumen Glass: the progress block, then the whole audit as a
   /// two-column grid of tiles — so every section is visible without scrolling.
+  /// The hub's entries in order: S1–S9, then the client's questions when the
+  /// visit has a template (#122), then the score — the RESULT of the captures,
+  /// so it stays last. With no template the list is exactly the fixed audit.
+  List<_HubEntry> _entries(VisitProgress progress, String visitDraftId) {
+    final l10n = context.l10n;
+    _HubEntry fixed(AuditSection section) => _HubEntry(
+      tileKey: 'section-${section.name}',
+      label: sectionLabel(l10n, section),
+      state: progress.stateOf(section),
+      detail: progress.detailIn(section, l10n),
+      required: section.required,
+      isScore: section == AuditSection.score,
+      // The score is the RESULT of the other eight, so it cannot be opened
+      // and filled in.
+      onTap: section == AuditSection.score
+          ? null
+          : () => _openSection(section, visitDraftId),
+    );
+
+    final template = progress.template;
+    return [
+      for (final section in AuditSection.values)
+        if (section != AuditSection.score) fixed(section),
+      if (template != null)
+        _HubEntry(
+          tileKey: 'section-clientQuestions',
+          label: template.template.name,
+          state: template.state,
+          detail: template.detailIn(l10n),
+          required: template.isRequired,
+          isScore: false,
+          onTap: () => _openTemplateSection(template.template, visitDraftId),
+        ),
+      fixed(AuditSection.score),
+    ];
+  }
+
   Widget _glassHubBody(VisitProgress progress, String visitDraftId) {
+    final entries = _entries(progress, visitDraftId);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       children: [
@@ -245,20 +319,12 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
               spacing: 10,
               runSpacing: 10,
               children: [
-                for (final (i, section) in AuditSection.values.indexed)
+                for (final (i, entry) in entries.indexed)
                   SizedBox(
                     width: width,
                     child: Reveal(
                       index: i,
-                      child: _SectionTile(
-                        section: section,
-                        state: progress.stateOf(section),
-                        detail: progress.detailIn(section, context.l10n),
-                        // The score is the RESULT of the other eight.
-                        onTap: section == AuditSection.score
-                            ? null
-                            : () => _openSection(section, visitDraftId),
-                      ),
+                      child: _SectionTile(entry: entry),
                     ),
                   ),
               ],
@@ -299,7 +365,8 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       ),
       data: (progress) {
         final colors = context.colors;
-        final blocking = progress.blocking;
+        final blocking = _blockingNames(l10n, progress);
+        final entries = _entries(progress, visitDraftId);
 
         return AgentScaffold(
           title: outlet.name,
@@ -312,9 +379,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
               if (blocking.isNotEmpty)
                 BarNote(
                   l10n.visitFinishToSubmit(
-                    blocking
-                        .map((s) => sectionLabel(l10n, s))
-                        .reduce((a, b) => l10n.visitSectionsAnd(a, b)),
+                    blocking.reduce((a, b) => l10n.visitSectionsAnd(a, b)),
                   ),
                 ),
               AgentButton(
@@ -342,19 +407,12 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
                 ),
                 child: Column(
                   children: [
-                    for (final (i, section) in AuditSection.values.indexed)
+                    for (final (i, entry) in entries.indexed)
                       Reveal(
                         index: i,
                         child: _SectionRow(
-                          section: section,
-                          state: progress.stateOf(section),
-                          detail: progress.detailIn(section, context.l10n),
-                          last: section == AuditSection.values.last,
-                          // The score is the RESULT of the other eight, so it
-                          // cannot be opened and filled in.
-                          onTap: section == AuditSection.score
-                              ? null
-                              : () => _openSection(section, visitDraftId),
+                          entry: entry,
+                          last: i == entries.length - 1,
                         ),
                       ),
                   ],
@@ -413,7 +471,7 @@ class _Progress extends StatelessWidget {
     final colors = context.colors;
     final done = progress.doneCount;
     final total = progress.captureCount;
-    final blocking = progress.blocking.length;
+    final blocking = progress.blockingCount;
     final ready = blocking == 0;
 
     // The arrival moment reads as the console's washed "glass" hero — a
@@ -566,30 +624,49 @@ class _Heading extends StatelessWidget {
   }
 }
 
-class _SectionRow extends StatelessWidget {
-  const _SectionRow({
-    required this.section,
+/// One entry on the hub — a fixed section, or the client's questions (#122) —
+/// with everything its row or tile needs to draw it.
+class _HubEntry {
+  const _HubEntry({
+    required this.tileKey,
+    required this.label,
     required this.state,
     required this.detail,
-    required this.last,
+    required this.required,
+    required this.isScore,
     required this.onTap,
   });
 
-  final AuditSection section;
+  final String tileKey;
+  final String label;
   final SectionState state;
   final String? detail;
-  final bool last;
+
+  /// Whether the submit waits on it.
+  final bool required;
+  final bool isScore;
   final VoidCallback? onTap;
+}
+
+class _SectionRow extends StatelessWidget {
+  const _SectionRow({required this.entry, required this.last});
+
+  final _HubEntry entry;
+  final bool last;
+
+  SectionState get state => entry.state;
+  String? get detail => entry.detail;
+  VoidCallback? get onTap => entry.onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final isScore = section == AuditSection.score;
+    final isScore = entry.isScore;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        key: ValueKey('section-${section.name}'),
+        key: ValueKey(entry.tileKey),
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 56),
@@ -611,7 +688,7 @@ class _SectionRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        sectionLabel(context.l10n, section),
+                        entry.label,
                         style: TextStyle(fontSize: 15, color: colors.ink1),
                       ),
                       const SizedBox(height: 1),
@@ -619,12 +696,12 @@ class _SectionRow extends StatelessWidget {
                         isScore
                             ? context.l10n.visitScoreCalculatedOnSubmit
                             : detail ??
-                                  (section.required
+                                  (entry.required
                                       ? context.l10n.visitSectionNotStarted
                                       : context.l10n.visitSectionOptional),
                         style: TextStyle(fontSize: 12, color: colors.ink3),
                       ),
-                      if (section.required && state != SectionState.done)
+                      if (entry.required && state != SectionState.done)
                         Padding(
                           padding: const EdgeInsets.only(top: 5),
                           // critText on an opaque crit wash: raw crit-on-crit
@@ -1110,7 +1187,7 @@ class _GlassProgress extends StatelessWidget {
     final colors = context.colors;
     final done = progress.doneCount;
     final total = progress.captureCount;
-    final blocking = progress.blocking.length;
+    final blocking = progress.blockingCount;
     final ready = blocking == 0;
 
     return GlassPane(
@@ -1187,21 +1264,17 @@ class _GlassProgress extends StatelessWidget {
 /// One audit section as a glass tile: its state as a glyph in a status tile,
 /// REQ while it still blocks the submit, then its name and what it holds.
 class _SectionTile extends StatelessWidget {
-  const _SectionTile({
-    required this.section,
-    required this.state,
-    required this.detail,
-    required this.onTap,
-  });
+  const _SectionTile({required this.entry});
 
-  final AuditSection section;
-  final SectionState state;
-  final String? detail;
-  final VoidCallback? onTap;
+  final _HubEntry entry;
+
+  SectionState get state => entry.state;
+  String? get detail => entry.detail;
+  VoidCallback? get onTap => entry.onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isScore = section == AuditSection.score;
+    final isScore = entry.isScore;
     final (status, glyph) = isScore
         ? (LumenStatus.none, '—')
         : switch (state) {
@@ -1209,12 +1282,12 @@ class _SectionTile extends StatelessWidget {
             SectionState.partial => (LumenStatus.warn, '◐'),
             _ => (LumenStatus.none, '○'),
           };
-    final required = section.required && state != SectionState.done;
+    final required = entry.required && state != SectionState.done;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        key: ValueKey('section-${section.name}'),
+        key: ValueKey(entry.tileKey),
         onTap: onTap,
         borderRadius: BorderRadius.circular(LumenGlass.radiusCard),
         child: Opacity(
@@ -1245,7 +1318,7 @@ class _SectionTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    sectionLabel(context.l10n, section),
+                    entry.label,
                     style: TextStyle(
                       fontSize: 13.5,
                       height: 1.25,
@@ -1258,7 +1331,7 @@ class _SectionTile extends StatelessWidget {
                     isScore
                         ? context.l10n.visitScoreCalculatedOnSubmit
                         : detail ??
-                              (section.required
+                              (entry.required
                                   ? context.l10n.visitSectionNotStarted
                                   : context.l10n.visitSectionOptional),
                     style: TextStyle(

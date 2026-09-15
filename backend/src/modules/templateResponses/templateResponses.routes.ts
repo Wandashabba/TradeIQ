@@ -21,10 +21,11 @@ templateResponsesRouter.post(
   '/',
   requireRole('field_agent'),
   async (req: AuthedRequest, res) => {
-    const { visitId, templateId, answers } = req.body as {
+    const { visitId, templateId, answers, templateVersion } = req.body as {
       visitId?: unknown;
       templateId?: unknown;
       answers?: unknown;
+      templateVersion?: unknown;
     };
 
     if (
@@ -39,6 +40,16 @@ templateResponsesRouter.post(
       });
       return;
     }
+    // The version the agent's form was rendered from. Optional: an offline
+    // answer can sync after a schema edit, and without it the row would claim
+    // the newer version the agent never saw.
+    if (
+      templateVersion !== undefined &&
+      !(typeof templateVersion === 'number' && Number.isInteger(templateVersion) && templateVersion >= 1)
+    ) {
+      res.status(400).json({ error: 'templateVersion must be a positive integer when provided' });
+      return;
+    }
 
     const response = await recordTemplateResponse({
       visitId,
@@ -46,6 +57,7 @@ templateResponsesRouter.post(
       clientId: req.user!.clientId,
       agentId: req.user!.userId,
       answers,
+      ...(typeof templateVersion === 'number' ? { templateVersion } : {}),
     });
     res.status(201).json(response);
   }

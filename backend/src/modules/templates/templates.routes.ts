@@ -5,8 +5,10 @@ import { requireRole } from '../../middleware/roleGuard';
 import { parsePagination } from '../../lib/pagination';
 import {
   createTemplate,
+  getAuditTemplateForClient,
   getTemplate,
   listTemplatesForClient,
+  setAuditTemplateForClient,
   updateTemplate,
 } from './templates.service';
 
@@ -54,6 +56,25 @@ templatesRouter.get('/', async (req: AuthedRequest, res) => {
     cursor,
   });
   res.status(200).json(page);
+});
+
+// The client's audit template (#122): the questions field agents answer as an
+// extra section after S1–S10. Any role in the client may read it — the agent
+// app needs it to render the section. Registered before `/:id` so `selected`
+// is never read as a template id.
+templatesRouter.get('/selected', async (req: AuthedRequest, res) => {
+  const template = await getAuditTemplateForClient(req.user!.clientId);
+  res.status(200).json({ template });
+});
+
+templatesRouter.put('/selected', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
+  const { templateId } = req.body as { templateId?: unknown };
+  if (!(templateId === null || (typeof templateId === 'string' && templateId.length > 0))) {
+    res.status(400).json({ error: 'templateId (string, or null to clear) is required' });
+    return;
+  }
+  const template = await setAuditTemplateForClient(req.user!.clientId, templateId);
+  res.status(200).json({ template });
 });
 
 templatesRouter.get('/:id', async (req: AuthedRequest, res) => {

@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { NotFoundError } from '../../middleware/errorHandler';
+import { NotFoundError, ValidationError } from '../../middleware/errorHandler';
 import { buildPage } from '../../lib/pagination';
 
 export interface CreateTemplateInput {
@@ -90,5 +90,63 @@ export async function updateTemplate(input: UpdateTemplateInput) {
     data.version = { increment: 1 };
   }
 
+  if (input.active === false) {
+    // A paused template is not in use, so it stops being the client's audit
+    // template in the same write — agents must not keep answering it, and the
+    // console must not show a paused template as the one in audits.
+    const [, updated] = await prisma.$transaction([
+      prisma.client.updateMany({
+        where: { id: input.clientId, auditTemplateId: input.id },
+        data: { auditTemplateId: null },
+      }),
+      prisma.auditTemplate.update({ where: { id: input.id }, data }),
+    ]);
+    return updated;
+  }
+
   return prisma.auditTemplate.update({ where: { id: input.id }, data });
+}
+
+// ── The client's audit template (#122) ────────────────────────────────────
+//
+// A client picks at most one template whose questions its field agents answer
+// on every visit, as an extra "client questions" section after the fixed
+// S1–S10. It supplements those sections; it never replaces them and never
+// feeds the perfect-store score.
+
+/** The template this client uses in audits, or null when it uses none. */
+export async function getAuditTemplateForClient(clientId: string) {
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { auditTemplate: true },
+  });
+  const template = client?.auditTemplate ?? null;
+  // Selection is validated on write; this is the read-side guarantee that a
+  // paused or foreign template can never reach an agent, however it got there.
+  if (!template || !template.active || template.clientId !== clientId) {
+    return null;
+  }
+  return template;
+}
+
+/**
+ * Sets (or, with null, clears) the template this client uses in audits.
+ * Only one of the client's own, active templates can be chosen: another
+ * tenant's template is a 404, exactly as reading it would be.
+ */
+export async function setAuditTemplateForClient(clientId: string, templateId: string | null) {
+  if (templateId !== null) {
+    const template = await prisma.auditTemplate.findFirst({ where: { id: templateId, clientId } });
+    if (!template) {
+      throw new NotFoundError('Template not found');
+    }
+    if (!template.active) {
+      throw new ValidationError('A paused template cannot be used in audits');
+    }
+  }
+  await prisma.client.update({
+    where: { id: clientId },
+    data: { auditTemplateId: templateId },
+  });
+  return getAuditTemplateForClient(clientId);
 }

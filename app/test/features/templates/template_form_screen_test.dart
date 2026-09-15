@@ -34,6 +34,13 @@ class _FakeTemplatesRepository implements TemplatesRepository {
 
   @override
   Future<AuditTemplateDetail> fetchTemplate(String id) async => _detail;
+
+  @override
+  Future<AuditTemplateDetail?> fetchSelected() async => null;
+
+  @override
+  Future<AuditTemplateDetail?> selectForAudits(String? templateId) async =>
+      null;
 }
 
 class _FailingTemplatesRepository implements TemplatesRepository {
@@ -44,6 +51,13 @@ class _FailingTemplatesRepository implements TemplatesRepository {
   @override
   Future<AuditTemplateDetail> fetchTemplate(String id) async =>
       throw Exception('boom');
+
+  @override
+  Future<AuditTemplateDetail?> fetchSelected() async => null;
+
+  @override
+  Future<AuditTemplateDetail?> selectForAudits(String? templateId) async =>
+      null;
 }
 
 Widget _app(TemplatesRepository repo, {ThemeData? theme}) => ProviderScope(

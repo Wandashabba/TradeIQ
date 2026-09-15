@@ -56,7 +56,7 @@ model Client {
   beatPlans          BeatPlan[]
   alertRules         AlertRule[]
   alerts             Alert[]
-  auditTemplates     AuditTemplate[]
+  auditTemplates     AuditTemplate[]     @relation("ClientAuditTemplates")
   checkInAttempts    CheckInAttempt[]
   orders             Order[]
   messages           Message[]
@@ -69,6 +69,14 @@ model Client {
   assistantActions   AssistantAction[]
   photos             Photo[]
   pointsLedger       PointsLedgerEntry[]
+
+  /// The audit template whose questions field agents answer on every visit, as
+  /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
+  /// sections and never feeds the perfect-store score. Null = no client
+  /// questions. Must be one of this client's own templates (enforced in
+  /// templates.service); pausing the template clears it, deleting it nulls it.
+  auditTemplateId    String?             @unique @map("audit_template_id")
+  auditTemplate      AuditTemplate?      @relation("ClientSelectedAuditTemplate", fields: [auditTemplateId], references: [id], onDelete: SetNull)
 
   @@map("clients")
 }
@@ -590,7 +598,7 @@ model Alert {
 model AuditTemplate {
   id        String   @id @default(uuid())
   clientId  String   @map("client_id")
-  client    Client   @relation(fields: [clientId], references: [id])
+  client    Client   @relation("ClientAuditTemplates", fields: [clientId], references: [id])
   name      String
   industry  String?
   schema    Json
@@ -599,6 +607,8 @@ model AuditTemplate {
   createdAt DateTime @default(now()) @map("created_at")
 
   responses VisitTemplateResponse[]
+  /// The client that uses this template in its field audits, if any (#122).
+  selectedByClient Client? @relation("ClientSelectedAuditTemplate")
 
   @@map("audit_templates")
 }

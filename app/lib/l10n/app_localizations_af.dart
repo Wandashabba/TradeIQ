@@ -1222,4 +1222,56 @@ class AppLocalizationsAf extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get visitTemplateSectionKicker => 'Kliëntvrae';
+
+  @override
+  String visitTemplateTileDetail(String detail) {
+    return 'Kliëntvrae · $detail';
+  }
+
+  @override
+  String get visitTemplateSectionIntro =>
+      'Ekstra vrae wat hierdie kliënt by elke besoek vra. Beantwoord die verpligte vrae voor jy indien.';
+
+  @override
+  String visitTemplateProgressAnswered(int answered, int total) {
+    return '$answered van $total beantwoord';
+  }
+
+  @override
+  String visitTemplateRequiredLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Nog $count verpligte vrae',
+      one: 'Nog 1 verpligte vraag',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get visitTemplateAllRequiredAnswered =>
+      'Alle verpligte vrae beantwoord';
+
+  @override
+  String get visitTemplateFieldRequired => 'Verpligtend';
+
+  @override
+  String get visitTemplateFieldRequiredError => 'Beantwoord dit voor jy indien';
+
+  @override
+  String get visitTemplateSave => 'Stoor antwoorde';
+
+  @override
+  String get visitTemplateSaved => 'Antwoorde gestoor — wag om gestuur te word';
+
+  @override
+  String get visitTemplatePhotoUnsupported =>
+      'Fotovrae kan nog nie in die app beantwoord word nie';
+
+  @override
+  String get visitTemplateNoQuestions =>
+      'Hierdie kliënt se sjabloon het nog geen vrae nie';
 }
