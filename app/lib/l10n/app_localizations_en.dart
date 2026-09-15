@@ -373,6 +373,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get myWorkStateWaiting => 'Waiting';
 
   @override
+  String get syncErrorWaitingForVisit => 'Waiting for the visit to send first';
+
+  @override
+  String get syncErrorNoConnection => 'No connection';
+
+  @override
+  String get syncErrorSignedOut => 'Signed out — sign in again';
+
+  @override
+  String get syncErrorTooLarge => 'Too large to send';
+
+  @override
+  String get syncErrorServerProblem => 'Server problem — will retry';
+
+  @override
+  String syncErrorRejected(int status) {
+    return 'Rejected by the server ($status)';
+  }
+
+  @override
+  String get syncErrorCouldNotSend => 'Could not send';
+
+  @override
+  String get syncItemCheckIn => 'Check-in';
+
+  @override
+  String get syncItemSubmittedVisit => 'Submitted visit';
+
+  @override
+  String get syncItemStockCount => 'Stock count';
+
+  @override
+  String get syncItemVisibility => 'Visibility & display';
+
+  @override
+  String get syncItemPricing => 'Pricing';
+
+  @override
+  String get syncItemCompetitive => 'Competitive';
+
+  @override
+  String get syncItemCapability => 'Team capability';
+
+  @override
+  String get syncItemRisks => 'Risks';
+
+  @override
+  String get syncItemActionPlan => 'Action plan';
+
+  @override
+  String get syncItemScore => 'Score';
+
+  @override
+  String get syncItemPhoto => 'Photo';
+
+  @override
   String get visitStartingTitle => 'Starting visit';
 
   @override
