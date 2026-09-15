@@ -12,7 +12,13 @@ A real heuristic engine (replaces the throwing `fraud.stub.ts`). Per visit it
 computes a `riskScore` (0-100) from weighted signals:
 - `geofence_distance` — checked in near the fence edge (>40m of 50m)
 - `failed_attempts` — prior rejected check-ins for the same agent+outlet in the 6h before check-in
-- `photo_gps_divergence` — a visit photo's EXIF GPS is >150m from the check-in
+- `photo_gps_divergence` — a visit photo's EXIF GPS is >150m from the check-in.
+  Skips `task_closure` photos (#317): closing a task attaches its evidence photo
+  to the originating visit, often days later and from wherever the task was
+  closed, so its position says nothing about where the audit happened. The rule
+  is the same one `capture_timeline_gap` and `stock_outside_outlet` use (one
+  helper, `isTaskClosurePhoto`). This must hold before closure photos are
+  geotagged
 - `fast_completion` — sections captured in an implausibly short dwell time
   (device check-in → device submit, under `kpiThresholds.fastCompletionMinutes`, default 1)
 - `slow_completion` — dwell implausibly long, over
