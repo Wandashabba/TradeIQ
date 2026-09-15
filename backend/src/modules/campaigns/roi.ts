@@ -82,18 +82,3 @@ export function computeRoi(input: RoiInput): Roi {
     unmeasurable,
   };
 }
-
-/**
- * The window immediately before `[startDate, endDate]`, of the same length.
- *
- * Equal length matters: comparing a 30-day campaign against a 7-day baseline
- * would show a 4x "lift" created entirely by arithmetic. Contiguous matters too
- * — a gap would let a seasonal dip sit unmeasured between the two.
- */
-export function baselineWindow(startDate: Date, endDate: Date): { from: Date; to: Date } {
-  const lengthMs = endDate.getTime() - startDate.getTime();
-  return {
-    from: new Date(startDate.getTime() - lengthMs),
-    to: startDate,
-  };
-}

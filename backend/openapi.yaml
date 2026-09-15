@@ -821,6 +821,11 @@ paths:
       responses: { '200': { description: Campaigns } }
     post:
       summary: Create a campaign + assign outlets — manager/admin
+      description: >-
+        startDate and endDate are calendar dates (YYYY-MM-DD; a full ISO instant is
+        read as its UTC date). The campaign window is inclusive of both dates in the
+        client's timezone: from the start of startDate to the end of endDate, local.
+        Compliance, order attribution and the ROI baseline all use that window.
       security: [{ bearerAuth: [] }]
       responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden }, '404': { description: Outlet not found } }
   /campaigns/{id}:
