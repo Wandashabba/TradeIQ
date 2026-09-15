@@ -102,8 +102,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       // A visit under review (/visits/:id) is supervisory: its API is
       // manager/admin-only, so an agent would only ever land on a 403.
       final isVisitReview = loc.startsWith('/visits/');
+      // An agent's points history (/leaderboard/:agentId) is supervisory too:
+      // its API is manager/admin-only. /leaderboard itself stays shared — the
+      // standings endpoint is open to every signed-in user.
+      final isAgentPointsHistory = loc.startsWith('/leaderboard/');
       if (role == 'field_agent' &&
-          (managerOnly.contains(loc) || isTemplatesSubroute || isVisitReview)) {
+          (managerOnly.contains(loc) ||
+              isTemplatesSubroute ||
+              isVisitReview ||
+              isAgentPointsHistory)) {
         return '/today';
       }
       if (role != 'field_agent' && (isAuditRoute || isAgentOnly)) {
@@ -127,7 +134,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/dashboard',
-        pageBuilder: (context, state) => managerPage(const DashboardShellScreen()),
+        pageBuilder: (context, state) =>
+            managerPage(const DashboardShellScreen()),
       ),
       // The field agent's home: their route for the day.
       GoRoute(path: '/today', builder: (context, state) => const TodayScreen()),
@@ -162,7 +170,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/outlets/create',
-        pageBuilder: (context, state) => managerPage(const CreateOutletScreen()),
+        pageBuilder: (context, state) =>
+            managerPage(const CreateOutletScreen()),
       ),
       GoRoute(
         path: '/tasks',
@@ -261,7 +270,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/client-config',
-        pageBuilder: (context, state) => managerPage(const ClientConfigScreen()),
+        pageBuilder: (context, state) =>
+            managerPage(const ClientConfigScreen()),
       ),
       GoRoute(
         path: '/audit-templates',
@@ -270,9 +280,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/audit-templates/:templateId/preview',
         pageBuilder: (context, state) => managerPage(
-          TemplateFormScreen(
-            templateId: state.pathParameters['templateId']!,
-          ),
+          TemplateFormScreen(templateId: state.pathParameters['templateId']!),
         ),
       ),
       GoRoute(
