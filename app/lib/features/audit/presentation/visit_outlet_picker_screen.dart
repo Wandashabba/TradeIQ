@@ -186,7 +186,7 @@ class _LoadError extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          humanErrorMessage(error),
+          humanErrorMessage(error, context.l10n),
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, height: 1.5, color: colors.ink2),
         ),

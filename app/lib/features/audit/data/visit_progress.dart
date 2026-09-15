@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/local_db.dart';
+import '../../../l10n/l10n.dart';
 import 'skus_repository.dart' show skusListProvider;
 
 /// One section of the audit, as the agent sees it.
@@ -54,14 +55,118 @@ enum AuditSection {
 
 enum SectionState { notStarted, partial, done }
 
+enum _SectionDetailKind {
+  confirmedAtCheckIn,
+  skusOfTotal,
+  stockCounted,
+  stockOutOfStock,
+  skusPriced,
+  noCompetitors,
+  competitors,
+  captured,
+  noRisks,
+  risksRaised,
+}
+
+/// What a section's one-line summary says, as a code plus its numbers — worded
+/// by [text] in the language of the screen that shows it.
+final class SectionDetail {
+  const SectionDetail._(this._kind, {this.items = 0, this.other = 0});
+
+  /// Outlet info: done by the act of checking in.
+  const SectionDetail.confirmedAtCheckIn()
+    : this._(_SectionDetailKind.confirmedAtCheckIn);
+
+  /// A per-SKU section part-way through: [items] of [total].
+  const SectionDetail.skusOfTotal(int items, int total)
+    : this._(_SectionDetailKind.skusOfTotal, items: items, other: total);
+
+  /// Stock counted, with [outOfStock] of the [items] at zero.
+  const SectionDetail.stock(int items, int outOfStock)
+    : this._(
+        outOfStock == 0
+            ? _SectionDetailKind.stockCounted
+            : _SectionDetailKind.stockOutOfStock,
+        items: items,
+        other: outOfStock,
+      );
+
+  const SectionDetail.skusPriced(int items)
+    : this._(_SectionDetailKind.skusPriced, items: items);
+
+  const SectionDetail.competitors(int items)
+    : this._(
+        items == 0
+            ? _SectionDetailKind.noCompetitors
+            : _SectionDetailKind.competitors,
+        items: items,
+      );
+
+  const SectionDetail.captured() : this._(_SectionDetailKind.captured);
+
+  const SectionDetail.risks(int items)
+    : this._(
+        items == 0 ? _SectionDetailKind.noRisks : _SectionDetailKind.risksRaised,
+        items: items,
+      );
+
+  final _SectionDetailKind _kind;
+  final int items;
+
+  /// The second number, where there is one: the SKU total, or how many are out
+  /// of stock.
+  final int other;
+
+  String text(AppLocalizations l10n) => switch (_kind) {
+    _SectionDetailKind.confirmedAtCheckIn => l10n.progressConfirmedAtCheckIn,
+    _SectionDetailKind.skusOfTotal => l10n.progressSkusOfTotal(items, other),
+    _SectionDetailKind.stockCounted => l10n.progressStockCounted(items),
+    _SectionDetailKind.stockOutOfStock => l10n.progressStockOutOfStock(
+      items,
+      other,
+    ),
+    _SectionDetailKind.skusPriced => l10n.progressSkusPriced(items),
+    _SectionDetailKind.noCompetitors => l10n.progressNoCompetitors,
+    _SectionDetailKind.competitors => l10n.progressCompetitors(items),
+    _SectionDetailKind.captured => l10n.progressCaptured,
+    _SectionDetailKind.noRisks => l10n.progressNoRisks,
+    _SectionDetailKind.risksRaised => l10n.progressRisksRaised(items),
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is SectionDetail &&
+      other._kind == _kind &&
+      other.items == items &&
+      other.other == this.other;
+
+  @override
+  int get hashCode => Object.hash(_kind, items, other);
+
+  @override
+  String toString() => text(englishLocalizations);
+}
+
 class VisitProgress {
-  const VisitProgress({required this.states, required this.details});
+  const VisitProgress({
+    required this.states,
+    required this.details,
+    this.detailCodes = const {},
+  });
 
   final Map<AuditSection, SectionState> states;
 
   /// A short line per section — "12 SKUs · 2 out of stock" — so the hub says
-  /// what was captured, not just that something was.
+  /// what was captured, not just that something was. English; screens use
+  /// [detailIn].
   final Map<AuditSection, String> details;
+
+  /// The same lines as codes, for wording in the agent's language.
+  final Map<AuditSection, SectionDetail> detailCodes;
+
+  /// A section's line in [l10n]'s language, or null when it has none.
+  String? detailIn(AuditSection s, AppLocalizations l10n) =>
+      detailCodes[s]?.text(l10n) ?? details[s];
 
   SectionState stateOf(AuditSection s) => states[s] ?? SectionState.notStarted;
 
@@ -113,12 +218,13 @@ final visitProgressProvider =
         }
 
         final states = <AuditSection, SectionState>{};
-        final details = <AuditSection, String>{};
+        final details = <AuditSection, SectionDetail>{};
 
         // Outlet info is confirmed by the act of checking in — there is nothing to
         // capture, so it is done the moment the agent is inside the fence.
         states[AuditSection.outletInfo] = SectionState.done;
-        details[AuditSection.outletInfo] = 'Confirmed at check-in';
+        details[AuditSection.outletInfo] =
+            const SectionDetail.confirmedAtCheckIn();
 
         for (final section in AuditSection.values) {
           final type = section.entityType;
@@ -141,18 +247,26 @@ final visitProgressProvider =
               section == AuditSection.stock || section == AuditSection.pricing;
           if (perSku && skuCount > 0 && items < skuCount) {
             states[section] = SectionState.partial;
-            details[section] = '$items of $skuCount SKUs';
+            details[section] = SectionDetail.skusOfTotal(items, skuCount);
           } else {
             states[section] = SectionState.done;
-            details[section] = _describe(section, captured, items);
+            final detail = _describe(section, captured, items);
+            if (detail != null) details[section] = detail;
           }
         }
 
-        return VisitProgress(states: states, details: details);
+        return VisitProgress(
+          states: states,
+          details: {
+            for (final MapEntry(:key, :value) in details.entries)
+              key: value.text(englishLocalizations),
+          },
+          detailCodes: details,
+        );
       });
     });
 
-String _describe(
+SectionDetail? _describe(
   AuditSection section,
   List<Map<String, dynamic>> captured,
   int items,
@@ -164,23 +278,20 @@ String _describe(
           .whereType<Map<String, dynamic>>()
           .where((i) => (i['unitsAvailable'] as num?) == 0)
           .length;
-      return outOfStock == 0
-          ? '$items SKUs counted'
-          : '$items SKUs · $outOfStock out of stock';
+      return SectionDetail.stock(items, outOfStock);
     case AuditSection.pricing:
-      return '$items SKUs priced';
+      return SectionDetail.skusPriced(items);
     case AuditSection.competitive:
-      return items == 0 ? 'None on shelf' : '$items competitor(s)';
+      return SectionDetail.competitors(items);
     case AuditSection.visibility:
-      return 'Captured';
     case AuditSection.capability:
-      return 'Captured';
-    case AuditSection.risks:
-      return items == 0 ? 'None raised' : '$items raised';
     case AuditSection.actionPlan:
-      return 'Captured';
+      return const SectionDetail.captured();
+    case AuditSection.risks:
+      return SectionDetail.risks(items);
     case AuditSection.outletInfo:
     case AuditSection.score:
-      return '';
+      // Never reached: neither is a capture (no entityType).
+      return null;
   }
 }

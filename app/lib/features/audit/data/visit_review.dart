@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/local_db.dart';
+import '../../../l10n/l10n.dart';
 import 'skus_repository.dart' show skusListProvider;
 
 /// A task this visit will raise for the manager.
@@ -11,20 +12,111 @@ import 'skus_repository.dart' show skusListProvider;
 /// invented on this screen, and nothing is added afterwards — which is exactly
 /// what the submit gate promises the agent.
 class RaisedTask {
+  /// A task already worded — [title] and [reason] are shown as they are.
   const RaisedTask({
     required this.title,
     required this.reason,
     required this.priority,
-  });
+  }) : _kind = null,
+       _subject = null,
+       _flagType = null;
 
+  /// A `high` restock task for a SKU counted at zero — [skuName] when the SKU
+  /// list has it.
+  RaisedTask.stockout({String? skuName})
+    : this._coded(RaisedTaskKind.stockout, 'high', subject: skuName);
+
+  /// One task per risk, at the risk's own severity: the agent's [note] is the
+  /// title when they wrote one.
+  RaisedTask.risk({String? note, String? flagType, required String priority})
+    : this._coded(
+        RaisedTaskKind.risk,
+        priority,
+        subject: note?.trim().isNotEmpty == true ? note : null,
+        flagType: flagType,
+      );
+
+  /// An action-plan task the agent wrote, titled with its [requiredFix].
+  RaisedTask.actionPlan({String? requiredFix, required String priority})
+    : this._coded(RaisedTaskKind.actionPlan, priority, subject: requiredFix);
+
+  RaisedTask._coded(
+    RaisedTaskKind kind,
+    this.priority, {
+    String? subject,
+    String? flagType,
+  }) : _kind = kind,
+       _subject = subject,
+       _flagType = flagType,
+       title = _titleOf(kind, subject, flagType, englishLocalizations),
+       reason = _reasonOf(kind, flagType, englishLocalizations);
+
+  /// The English title; screens use [titleIn].
   final String title;
+
+  /// The English reason; screens use [reasonIn].
   final String reason;
 
   /// 'critical' | 'high' | 'normal' | 'low' — the server's own priorities.
   final String priority;
 
+  /// Which server rule raises this task; null for an already-worded task.
+  RaisedTaskKind? get kind => _kind;
+
+  final RaisedTaskKind? _kind;
+
+  /// The agent's own words or the SKU's name — never translated.
+  final String? _subject;
+  final String? _flagType;
+
   bool get isUrgent => priority == 'critical' || priority == 'high';
+
+  /// The title in [l10n]'s language.
+  String titleIn(AppLocalizations l10n) {
+    final kind = _kind;
+    return kind == null ? title : _titleOf(kind, _subject, _flagType, l10n);
+  }
+
+  /// The reason in [l10n]'s language.
+  String reasonIn(AppLocalizations l10n) {
+    final kind = _kind;
+    return kind == null ? reason : _reasonOf(kind, _flagType, l10n);
+  }
+
+  static String _titleOf(
+    RaisedTaskKind kind,
+    String? subject,
+    String? flagType,
+    AppLocalizations l10n,
+  ) => switch (kind) {
+    RaisedTaskKind.stockout =>
+      subject == null
+          ? l10n.taskStockoutTitleUnnamed
+          : l10n.taskStockoutTitle(subject),
+    RaisedTaskKind.risk =>
+      subject ??
+          (flagType == null
+              ? l10n.taskRiskTitleUntyped
+              : l10n.taskRiskTitle(flagType)),
+    RaisedTaskKind.actionPlan => subject ?? l10n.taskActionPlanTitleUntitled,
+  };
+
+  static String _reasonOf(
+    RaisedTaskKind kind,
+    String? flagType,
+    AppLocalizations l10n,
+  ) => switch (kind) {
+    RaisedTaskKind.stockout => l10n.taskStockoutReason,
+    RaisedTaskKind.risk =>
+      flagType == null
+          ? l10n.taskRiskReasonUntyped
+          : l10n.taskRiskReason(flagType),
+    RaisedTaskKind.actionPlan => l10n.taskActionPlanReason,
+  };
 }
+
+/// The server rule a [RaisedTask] mirrors.
+enum RaisedTaskKind { stockout, risk, actionPlan }
 
 /// What the agent captured, and what it will do.
 class VisitReview {
@@ -46,13 +138,17 @@ class VisitReview {
   /// The tasks the manager will see, in the order they will matter.
   final List<RaisedTask> willRaise;
 
-  /// "12 SKUs counted · 2 competitors · 1 photo" — the visit in one line.
-  String get capturedLine {
+  /// "12 SKUs counted · 2 competitors · 1 photo" — the visit in one line, in
+  /// English; screens use [capturedLineIn].
+  String get capturedLine => capturedLineIn(englishLocalizations);
+
+  /// The captured line in [l10n]'s language. Each part is a whole message;
+  /// the " · " between them is a list separator, not grammar.
+  String capturedLineIn(AppLocalizations l10n) {
     final parts = <String>[
-      '$skusCounted ${skusCounted == 1 ? 'SKU' : 'SKUs'} counted',
-      if (competitors > 0)
-        '$competitors ${competitors == 1 ? 'competitor' : 'competitors'}',
-      if (photos > 0) '$photos ${photos == 1 ? 'photo' : 'photos'}',
+      l10n.reviewSkusCounted(skusCounted),
+      if (competitors > 0) l10n.reviewCompetitors(competitors),
+      if (photos > 0) l10n.reviewPhotos(photos),
     ];
     return parts.join(' · ');
   }
@@ -119,23 +215,16 @@ final visitReviewProvider =
 
         final willRaise = <RaisedTask>[
           for (final item in stockouts)
-            RaisedTask(
-              title: '${skuNames[item['skuId']] ?? 'This SKU'} is out of stock',
-              reason: 'You counted zero on shelf',
-              priority: 'high',
-            ),
+            RaisedTask.stockout(skuName: skuNames[item['skuId']]),
           for (final risk in risks)
-            RaisedTask(
-              title: (risk['note'] as String?)?.trim().isNotEmpty == true
-                  ? risk['note'] as String
-                  : '${risk['flagType'] ?? 'Risk'} flagged',
-              reason: 'Risk you raised · ${risk['flagType'] ?? 'flagged'}',
+            RaisedTask.risk(
+              note: risk['note'] as String?,
+              flagType: risk['flagType']?.toString(),
               priority: (risk['severity'] as String?) ?? 'normal',
             ),
           for (final task in actionPlan)
-            RaisedTask(
-              title: (task['requiredFix'] as String?) ?? 'Action you asked for',
-              reason: 'Action plan you wrote',
+            RaisedTask.actionPlan(
+              requiredFix: task['requiredFix'] as String?,
               priority: (task['priority'] as String?) ?? 'normal',
             ),
         ]..sort((a, b) => _rank(b.priority).compareTo(_rank(a.priority)));

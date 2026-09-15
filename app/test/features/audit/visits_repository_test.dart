@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
+import 'package:tradeiq_app/core/network/human_error.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_service.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 class _FakeLocationService extends LocationService {
   _FakeLocationService(this._result);
@@ -15,6 +18,12 @@ class _FakeLocationService extends LocationService {
 
   @override
   Future<LocationResult> getCurrentPosition() async => _result;
+}
+
+class _ThrowingLocationService extends LocationService {
+  @override
+  Future<LocationResult> getCurrentPosition() async =>
+      throw StateError('local database unavailable');
 }
 
 class _NoopFlusher implements QueueFlusher {
@@ -145,6 +154,82 @@ void main() {
       expect(await db.select(db.visitDrafts).get(), isEmpty);
     },
   );
+
+  group('check-in failure codes', () {
+    final af = lookupAppLocalizations(const Locale('af'));
+
+    Future<CheckInResult> checkInWith(LocationService service) =>
+        DriftVisitsRepository(
+          db: db,
+          locationService: service,
+          syncService: SyncService(db: db, flusher: _NoopFlusher()),
+        ).checkIn(outletId: 'outlet-1', outletLat: -26.2041, outletLng: 28.0473);
+
+    test('each location failure maps to its code and copy', () async {
+      final cases =
+          <(LocationResult, CheckInLocationProblem, String, String)>[
+            (
+              LocationDenied(),
+              CheckInLocationProblem.permissionDenied,
+              'Location permission denied',
+              'Toestemming vir ligging is geweier',
+            ),
+            (
+              LocationError(
+                'Location services are disabled',
+                kind: LocationErrorKind.servicesDisabled,
+              ),
+              CheckInLocationProblem.servicesDisabled,
+              'Location services are disabled',
+              'Liggingdienste is afgeskakel',
+            ),
+            (
+              LocationError('late', kind: LocationErrorKind.timedOut),
+              CheckInLocationProblem.timedOut,
+              'Timed out waiting for your location. Check that location is '
+                  'switched on for TradeIQ, then try again.',
+              'Dit het te lank geneem om jou ligging te kry. Maak seker dat '
+                  'ligging vir TradeIQ aangeskakel is, en probeer dan weer.',
+            ),
+            (
+              LocationError(
+                'Failed to get current location: boom',
+                kind: LocationErrorKind.failed,
+                detail: 'boom',
+              ),
+              CheckInLocationProblem.failed,
+              'Failed to get current location: boom',
+              'Kon nie jou huidige ligging kry nie: boom',
+            ),
+          ];
+      for (final (location, problem, english, afrikaans) in cases) {
+        final result =
+            await checkInWith(_FakeLocationService(location))
+                as CheckInLocationUnavailable;
+        expect(result.problem, problem);
+        expect(result.message, english);
+        expect(result.messageIn(englishLocalizations), english);
+        expect(result.messageIn(af), afrikaans);
+      }
+    });
+
+    test('an uncoded location message is shown as it is', () {
+      final result = CheckInLocationUnavailable('gps timeout');
+      expect(result.problem, isNull);
+      expect(result.messageIn(af), 'gps timeout');
+    });
+
+    test('a thrown check-in returns a coded failure, not a sentence', () async {
+      final result =
+          await checkInWith(_ThrowingLocationService()) as CheckInFailed;
+      expect(result.reason, HumanError.generic);
+      expect(result.message, 'Something went wrong. Please try again.');
+      expect(
+        result.reason.message(af),
+        'Iets het fout gegaan. Probeer asseblief weer.',
+      );
+    });
+  });
 
   test('a failing sync flush does not fail the check-in', () async {
     final repository = DriftVisitsRepository(

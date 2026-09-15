@@ -396,4 +396,57 @@ void main() {
     ).allMatches(src).map((m) => m.group(0)).toSet().toList();
     expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
   });
+
+  testWidgets('a raised-task title renders in Afrikaans', (tester) async {
+    final review = VisitReview(
+      skusCounted: 12,
+      outOfStock: 1,
+      skusPriced: 12,
+      competitors: 2,
+      photos: 1,
+      willRaise: [
+        RaisedTask.stockout(skuName: 'Fanta Orange 2L'),
+        RaisedTask.actionPlan(priority: 'normal'),
+      ],
+    );
+    await tester.pumpWidget(
+      routedApp(
+        const SubmitGateScreen(
+          visitDraftId: 'visit-1',
+          outletId: 'o1',
+          outletName: 'Test Outlet',
+          checkinTs: null,
+          onConfirm: _noop,
+        ),
+        overrides: _overrides(review: review),
+        locale: const Locale('af'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fanta Orange 2L is uit voorraad'), findsOneWidget);
+    expect(find.text('Aksie waarvoor jy gevra het'), findsOneWidget);
+    expect(find.text('12 SKU’s getel · 2 mededingers · 1 foto'), findsOneWidget);
+    expect(find.text('Fanta Orange 2L is out of stock'), findsNothing);
+  });
+
+  testWidgets('a coded raised task still reads in English by default', (
+    tester,
+  ) async {
+    final review = VisitReview(
+      skusCounted: 1,
+      outOfStock: 1,
+      skusPriced: 1,
+      competitors: 0,
+      photos: 0,
+      willRaise: [RaisedTask.stockout(skuName: 'Fanta Orange 2L')],
+    );
+    await tester.pumpWidget(_gate(review: review));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fanta Orange 2L is out of stock'), findsOneWidget);
+    expect(find.text('1 SKU counted'), findsOneWidget);
+  });
 }
+
+void _noop() {}
