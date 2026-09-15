@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/location/location_service.dart';
+import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/lumen_glass.dart';
@@ -137,6 +139,8 @@ class _RecordingPhotosRepository implements PhotosRepository {
   String? uploadedSection;
   String? uploadedVisitId;
   String? uploadedDataUrl;
+  Map<String, dynamic>? uploadedGpsTag;
+  String? uploadedTimestamp;
   int thumbnailCalls = 0;
 
   @override
@@ -151,6 +155,8 @@ class _RecordingPhotosRepository implements PhotosRepository {
     uploadedSection = section;
     uploadedVisitId = visitId;
     uploadedDataUrl = dataUrl;
+    uploadedGpsTag = gpsTag;
+    uploadedTimestamp = timestamp;
     return const PhotoUploadResult(
       id: 'photo-1',
       url: 'https://cdn.example.com/photo-1.png',
@@ -197,11 +203,31 @@ class _FakeGateway implements ImagePickerGateway {
   }
 }
 
+/// The device clock at the shutter, in the tests that pin the capture time.
+/// Deliberately a LOCAL time, so the upload has to convert it to UTC.
+final _shutter = DateTime(2026, 7, 22, 12, 30, 15);
+
+/// Where the device is, as `getPositionIfPermitted` reports it — never
+/// prompting, like the real no-prompt path.
+class _FakeLocation extends LocationService {
+  _FakeLocation(this.result);
+
+  final LocationResult result;
+  int calls = 0;
+
+  @override
+  Future<LocationResult> getPositionIfPermitted() async {
+    calls++;
+    return result;
+  }
+}
+
 Widget _app(
   _FakeTasksAdminRepository tasksRepo,
   _RecordingPhotosRepository photosRepo, {
   bool cameraCancels = false,
   ThemeData? theme,
+  LocationService? location,
 }) => routedApp(
   TasksScreen(clock: () => _now),
   theme: theme,
@@ -209,7 +235,11 @@ Widget _app(
     tasksAdminRepositoryProvider.overrideWithValue(tasksRepo),
     photosRepositoryProvider.overrideWithValue(photosRepo),
     photoCaptureServiceProvider.overrideWithValue(
-      PhotoCaptureService(gateway: _FakeGateway(cancels: cameraCancels)),
+      PhotoCaptureService(
+        gateway: _FakeGateway(cancels: cameraCancels),
+        geotagger: location == null ? null : PhotoGeotagger(location: location),
+        clock: () => _shutter,
+      ),
     ),
   ],
 );
@@ -519,6 +549,84 @@ void main() {
       );
       expect(photosRepo.uploadCount, 0);
       expect(tasksRepo.closedId, isNull);
+    });
+
+    group('the closure photo is geotagged at the shutter (#317)', () {
+      Future<void> closeWithPhoto(
+        WidgetTester tester,
+        _FakeTasksAdminRepository tasksRepo,
+        _RecordingPhotosRepository photosRepo,
+        LocationService location,
+      ) async {
+        await tester.pumpWidget(
+          _app(tasksRepo, photosRepo, location: location),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('close-t-open')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('photo-add')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('guided-capture')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('confirm-closure')));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('with location granted, the upload carries the gpsTag and '
+          'the capture time in UTC', (tester) async {
+        final tasksRepo = _FakeTasksAdminRepository();
+        final photosRepo = _RecordingPhotosRepository();
+        final location = _FakeLocation(
+          LocationGranted(
+            -26.2041,
+            28.0473,
+            accuracy: 12.5,
+            fixedAt: DateTime.utc(2026, 7, 22, 10, 30, 11),
+          ),
+        );
+
+        await closeWithPhoto(tester, tasksRepo, photosRepo, location);
+
+        expect(location.calls, 1);
+        expect(photosRepo.uploadedSection, 'task_closure');
+        expect(photosRepo.uploadedGpsTag, {
+          'lat': -26.2041,
+          'lng': 28.0473,
+          'accuracy': 12.5,
+          'fixedAt': '2026-07-22T10:30:11.000Z',
+        });
+        // The shutter, not the moment Close was tapped — and with its `Z`.
+        expect(
+          photosRepo.uploadedTimestamp,
+          _shutter.toUtc().toIso8601String(),
+        );
+        expect(photosRepo.uploadedTimestamp, endsWith('Z'));
+        expect(tasksRepo.closedId, 't-open');
+      });
+
+      testWidgets('with location refused, the closure still goes ahead, with '
+          'an empty gpsTag', (tester) async {
+        final tasksRepo = _FakeTasksAdminRepository();
+        final photosRepo = _RecordingPhotosRepository();
+
+        await closeWithPhoto(
+          tester,
+          tasksRepo,
+          photosRepo,
+          _FakeLocation(LocationDenied()),
+        );
+
+        // A tag is evidence, never a gate: the photo is kept and uploaded.
+        expect(photosRepo.uploadCount, 1);
+        expect(photosRepo.uploadedDataUrl, 'data:image/jpeg;base64,AQIDBA==');
+        expect(photosRepo.uploadedGpsTag, isEmpty);
+        expect(
+          photosRepo.uploadedTimestamp,
+          _shutter.toUtc().toIso8601String(),
+        );
+        expect(tasksRepo.closedId, 't-open');
+        expect(tasksRepo.closedPhotoUrl, 'https://cdn.example.com/photo-1.png');
+      });
     });
 
     testWidgets('verifying a closed task calls verifyTask', (tester) async {

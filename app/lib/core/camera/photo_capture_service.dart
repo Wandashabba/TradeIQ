@@ -107,10 +107,10 @@ class PhotoCaptureService {
   /// normal outcome, not an error.
   ///
   /// [geotag] records where the device is as the photo comes back (#310). It
-  /// is opt-in because only audit evidence is placed by the fraud engine: a
-  /// message attachment has no business asking for the sender's location. The
-  /// wait is bounded by the geotagger's timeout, and no fix still yields the
-  /// photo, with an empty tag.
+  /// is opt-in because only visit evidence (audit sections, and task closures
+  /// since #317) needs a place: a message attachment has no business asking
+  /// for the sender's location. The wait is bounded by the geotagger's
+  /// timeout, and no fix still yields the photo, with an empty tag.
   Future<CapturedPhoto?> capture(
     PhotoSource source, {
     bool geotag = false,
