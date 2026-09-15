@@ -549,33 +549,55 @@ paths:
           description: Caller is not a manager/admin
   /photos:
     post:
-      summary: Upload a photo for a visit (base64 data URL) — field_agent only
+      summary: Upload a photo (base64 data URL) — visit evidence or a message attachment
       description: >
         Phase-1 lean-infra storage (ADR 0007): the image is sent as a base64
         data URL and stored directly; real object storage is a later phase.
+
+
+        Two shapes share this route. **Visit evidence** (no `purpose`) is
+        field_agent only and requires visitId, section, dataUrl, gpsTag and
+        timestamp. **A message attachment** (`purpose: message_attachment`,
+        #125) is open to any role, takes no visitId, and must be an image that
+        actually decodes — attachments are images only, there is no general
+        file upload. It answers with metadata and links, not the bytes; pass its
+        `id` in `POST /messages` `attachmentPhotoIds`.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [visitId, section, dataUrl, gpsTag, timestamp]
-              properties:
-                visitId: { type: string }
-                section: { type: string, description: 'e.g. s3_visibility, s5_pricing, task_closure' }
-                dataUrl: { type: string, description: 'base64 data URL, capped ~8MB' }
-                gpsTag: { type: object }
-                timestamp: { type: string, format: date-time }
+              oneOf:
+                - type: object
+                  title: VisitEvidence
+                  required: [visitId, section, dataUrl, gpsTag, timestamp]
+                  properties:
+                    visitId: { type: string }
+                    section: { type: string, description: 'e.g. s3_visibility, s5_pricing, task_closure' }
+                    dataUrl: { type: string, description: 'base64 data URL, capped ~8MB' }
+                    gpsTag: { type: object }
+                    timestamp: { type: string, format: date-time }
+                - type: object
+                  title: MessageAttachment
+                  required: [purpose, dataUrl]
+                  properties:
+                    purpose: { type: string, enum: [message_attachment] }
+                    dataUrl: { type: string, description: 'base64 image data URL (data:image/*), capped ~8MB' }
+                    gpsTag: { type: object, description: 'optional' }
+                    timestamp: { type: string, format: date-time, description: 'optional; defaults to now' }
       responses:
         '201':
-          description: Photo stored
+          description: >
+            Photo stored. Visit evidence returns the stored row. A message
+            attachment returns { id, clientId, uploadedById, section,
+            timestamp, createdAt, thumbnailUrl, imageUrl } — no image bytes.
         '400':
-          description: Missing/invalid fields or oversized dataUrl
+          description: Missing/invalid fields, oversized dataUrl, unknown purpose, or a message attachment that is not a decodable image
         '401':
           description: Missing or invalid token
         '403':
-          description: Caller is not a field_agent
+          description: Visit evidence from a caller who is not a field_agent
         '404':
           description: Visit not found for this client
     get:
@@ -595,6 +617,37 @@ paths:
           description: Missing or invalid token
         '404':
           description: Visit not found for this client
+  /photos/{id}/thumbnail:
+    get:
+      summary: A photo's JPEG thumbnail (≤256px wide)
+      description: >
+        Visit evidence: any authenticated role in the visit's client. A message
+        attachment (#125): the message's sender, its recipient (every user in
+        the client, for a broadcast), the uploader, and the client's
+        managers/admins. Anyone else gets 404, never 403, so an id is not an
+        existence oracle.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: JPEG bytes (Cache-Control private, immutable)
+          content: { image/jpeg: { schema: { type: string, format: binary } } }
+        '401': { description: Missing or invalid token }
+        '404': { description: Not found, or not readable by the caller }
+        '422': { description: The stored photo is not a decodable image }
+  /photos/{id}/image:
+    get:
+      summary: A photo's full-size image as raw bytes
+      description: Same access rules as /photos/{id}/thumbnail.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: Image bytes in their stored type, e.g. image/jpeg or image/png
+          content: { image/*: { schema: { type: string, format: binary } } }
+        '401': { description: Missing or invalid token }
+        '404': { description: Not found, or not readable by the caller }
+        '422': { description: The stored photo is not a base64 image data URL }
   # ── Phase 3 (Activation) ──────────────────────────────────────────────────
   # Full detail in docs/architecture/phase3-activation.md. All tenant-scoped
   # and role-guarded; responses summarised here.
@@ -896,18 +949,59 @@ paths:
   /messages:
     get:
       summary: List messages visible to the caller
+      description: >
+        Each message carries `attachments` — metadata and links only, never
+        image bytes. Fetch an image from its thumbnailUrl or imageUrl.
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Messages } }
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Message' } }
+                  nextCursor: { type: string, nullable: true }
     post:
-      summary: Send a direct or broadcast message
+      summary: Send a direct or broadcast message, optionally with images
+      description: >
+        Image attachments only (#125), reusing the photo pipeline: upload each
+        with `POST /photos` `purpose: message_attachment`, then pass the ids.
+        Up to 4 per message. Each photo must belong to the caller's client, be
+        uploaded by the caller, be a message-attachment upload (not visit
+        evidence), and not already be attached to a message. `body` may be
+        blank when at least one image is attached. Announcements do not take
+        attachments.
       security: [{ bearerAuth: [] }]
-      responses: { '201': { description: Sent }, '400': { description: Empty body }, '404': { description: Recipient not found } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+                recipientId: { type: string, description: 'omit for a broadcast to the whole client' }
+                attachmentPhotoIds: { type: array, maxItems: 4, uniqueItems: true, items: { type: string } }
+      responses:
+        '201':
+          description: Sent
+          content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } }
+        '400': { description: Empty body with no images, malformed or repeated attachmentPhotoIds, more than 4 images, or visit evidence attached }
+        '404': { description: Recipient not found, or an attachment photo not found / not in the client / not uploaded by the caller }
+        '409': { description: An attachment photo is already attached to a message }
   /messages/{id}/read:
     patch:
       summary: Mark a message read (recipient only)
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: Marked read }, '404': { description: Not found } }
+      responses:
+        '200':
+          description: Marked read
+          content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } }
+        '404': { description: Not found }
   /announcements:
     get:
       summary: List the client's announcements
@@ -1215,6 +1309,27 @@ components:
         empty series.
       schema: { type: string }
   schemas:
+    MessageAttachment:
+      type: object
+      description: >
+        An image attached to a message (#125). Images only, via the photo
+        pipeline. Metadata and links — the image bytes are never inlined.
+      properties:
+        photoId: { type: string }
+        position: { type: integer, description: '0-based, in the order the sender attached them' }
+        thumbnailUrl: { type: string, example: '/photos/{photoId}/thumbnail' }
+        imageUrl: { type: string, example: '/photos/{photoId}/image' }
+    Message:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        senderId: { type: string }
+        recipientId: { type: string, nullable: true, description: 'null for a broadcast' }
+        body: { type: string }
+        readAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        attachments: { type: array, maxItems: 4, items: { $ref: '#/components/schemas/MessageAttachment' } }
     DisplayName:
       type: string
       nullable: true

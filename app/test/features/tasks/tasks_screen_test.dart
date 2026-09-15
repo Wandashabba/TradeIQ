@@ -165,6 +165,14 @@ class _RecordingPhotosRepository implements PhotosRepository {
 
   @override
   Future<List<VisitPhoto>> listPhotos(String visitId) async => const [];
+
+  @override
+  Future<String> uploadMessageAttachment(String dataUrl) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Uint8List> imageBytes(String photoId) async =>
+      throw UnimplementedError();
 }
 
 /// A camera that always returns the same 4-byte "photo". Closure now goes

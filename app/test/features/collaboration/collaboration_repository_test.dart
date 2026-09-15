@@ -63,6 +63,77 @@ void main() {
     expect(message.recipientId, isNull);
   });
 
+  test('Message.fromJson parses image attachments in order, metadata only', () {
+    final message = Message.fromJson(const {
+      'id': 'm3',
+      'senderId': 's1',
+      'recipientId': null,
+      'body': '',
+      'createdAt': '2026-09-15T10:00:00.000Z',
+      'attachments': [
+        {
+          'photoId': 'p1',
+          'position': 0,
+          'thumbnailUrl': '/photos/p1/thumbnail',
+          'imageUrl': '/photos/p1/image',
+        },
+        {
+          'photoId': 'p2',
+          'position': 1,
+          'thumbnailUrl': '/photos/p2/thumbnail',
+          'imageUrl': '/photos/p2/image',
+        },
+      ],
+    });
+
+    expect(message.attachments.map((a) => a.photoId), ['p1', 'p2']);
+    expect(message.attachments.map((a) => a.position), [0, 1]);
+  });
+
+  test('Message.fromJson treats a missing attachments array as none', () {
+    final message = Message.fromJson(const {'id': 'm4', 'body': 'Text only'});
+    expect(message.attachments, isEmpty);
+  });
+
+  test('sendMessage POSTs attachmentPhotoIds alongside the body', () async {
+    final adapter = _CapturingAdapter(
+      '{"id":"m9","body":"Shelf after restock","recipientId":null,'
+      '"attachments":[{"photoId":"p1","position":0},'
+      '{"photoId":"p2","position":1}]}',
+      statusCode: 201,
+    );
+    final previous = dio.httpClientAdapter;
+    dio.httpClientAdapter = adapter;
+    addTearDown(() => dio.httpClientAdapter = previous);
+
+    final message = await DioCollaborationRepository().sendMessage(
+      'Shelf after restock',
+      attachmentPhotoIds: const ['p1', 'p2'],
+    );
+
+    expect(adapter.captured!.method, 'POST');
+    expect(adapter.captured!.path, '/messages');
+    expect(adapter.captured!.data, {
+      'body': 'Shelf after restock',
+      'attachmentPhotoIds': ['p1', 'p2'],
+    });
+    expect(message.attachments.map((a) => a.photoId), ['p1', 'p2']);
+  });
+
+  test('a text-only sendMessage omits attachmentPhotoIds from the wire', () async {
+    final adapter = _CapturingAdapter(
+      '{"id":"m10","body":"hi","recipientId":"u2","attachments":[]}',
+      statusCode: 201,
+    );
+    final previous = dio.httpClientAdapter;
+    dio.httpClientAdapter = adapter;
+    addTearDown(() => dio.httpClientAdapter = previous);
+
+    await DioCollaborationRepository().sendMessage('hi', recipientId: 'u2');
+
+    expect(adapter.captured!.data, {'body': 'hi', 'recipientId': 'u2'});
+  });
+
   test('Announcement.fromJson parses all fields', () {
     final announcement = Announcement.fromJson(const {
       'id': 'a1',

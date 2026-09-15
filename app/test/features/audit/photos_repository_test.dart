@@ -49,6 +49,46 @@ void main() {
       },
     );
 
+    test(
+      'uploadMessageAttachment POSTs purpose + dataUrl with no visit and '
+      'returns the photo id',
+      () async {
+        final adapter = _ThumbAdapter();
+        final repo = DioPhotosRepository(client: client(adapter));
+
+        final id = await repo.uploadMessageAttachment(
+          'data:image/png;base64,AQID',
+        );
+
+        final request = adapter.requests.single;
+        expect(request.method, 'POST');
+        expect(request.path, '/photos');
+        final data = request.data as Map<String, dynamic>;
+        expect(data['purpose'], 'message_attachment');
+        expect(data['dataUrl'], 'data:image/png;base64,AQID');
+        // The attachment shape: no visit, no section — the server rejects a
+        // message attachment that names a visit.
+        expect(data.containsKey('visitId'), isFalse);
+        expect(data.containsKey('section'), isFalse);
+        expect(DateTime.tryParse(data['timestamp'] as String), isNotNull);
+        expect(id, 'att-1');
+      },
+    );
+
+    test('imageBytes GETs /photos/:id/image as raw bytes, uncached', () async {
+      final adapter = _ThumbAdapter();
+      final repo = DioPhotosRepository(client: client(adapter));
+
+      final first = await repo.imageBytes('p1');
+      await repo.imageBytes('p1');
+
+      expect(adapter.requests.first.path, '/photos/p1/image');
+      expect(adapter.requests.first.responseType, ResponseType.bytes);
+      expect(first, Uint8List.fromList([1, 2, 3, 4]));
+      // Originals are not held in the thumbnail LRU.
+      expect(adapter.requests, hasLength(2));
+    });
+
     test('thumbnailBytes GETs /photos/:id/thumbnail as raw bytes', () async {
       final adapter = _ThumbAdapter();
       final repo = DioPhotosRepository(client: client(adapter));
@@ -224,6 +264,14 @@ class _CountingPhotosRepository implements PhotosRepository {
     required Map<String, dynamic> gpsTag,
     required String timestamp,
   }) async => throw UnimplementedError();
+
+  @override
+  Future<String> uploadMessageAttachment(String dataUrl) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Uint8List> imageBytes(String photoId) async =>
+      throw UnimplementedError();
 }
 
 /// Serves GET /photos (a two-row visit, newest first, as the backend orders
@@ -249,6 +297,21 @@ class _ThumbAdapter implements HttpClientAdapter {
       return ResponseBody.fromString(
         '{"error":"boom"}',
         500,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+    if (options.path == '/photos' && options.method == 'POST') {
+      // A message-attachment upload answers with metadata and links only.
+      return ResponseBody.fromString(
+        jsonEncode({
+          'id': 'att-1',
+          'section': 'message_attachment',
+          'thumbnailUrl': '/photos/att-1/thumbnail',
+          'imageUrl': '/photos/att-1/image',
+        }),
+        201,
         headers: {
           Headers.contentTypeHeader: [Headers.jsonContentType],
         },
