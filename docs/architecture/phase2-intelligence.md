@@ -44,10 +44,8 @@ computes a `riskScore` (0-100) from weighted signals:
   comparable SKU in the basket repeats (at least 2 SKUs, at least one of them a
   mover); 5 when at least half of it does, or for a one-SKU basket; silent below
   half. Silent on drafts, visits without stock, and with too little history.
-  History is loaded in one windowed query per call, `lookback` = run length − 1 +
-  10 visits per outlet. `GET /fraud/flagged` uses the scanned visits themselves
-  as each outlet's recent history, and loads only what precedes each outlet's
-  oldest scanned visit
+  History is loaded in one query per scoring batch, `lookback` = run length − 1 +
+  10 visits before each scored visit at its outlet
 - `duplicate_photo` — the same shelf photo submitted again (#244). `POST /photos`
   stores two small hashes per photo, computed once with `sharp`: `contentHash`
   (SHA-256 of the decoded bytes) and `perceptualHash` (a 64-bit dHash), plus the
@@ -64,7 +62,7 @@ computes a `riskScore` (0-100) from weighted signals:
   without hashes. The hashes are omitted from every photo response
   (`lib/prisma.ts`). Lookups are one query per call: an exact branch on the
   btree `content_hash` index and a near branch probing the band index, keeping
-  only the strongest match per photo, so `GET /fraud/flagged` does not N+1.
+  only the strongest match per photo, so a scoring batch does not N+1.
   Photos uploaded before #244 are hashed by `npm run backfill-photo-hashes`
   (batched, idempotent, resumable; `--batch`, `--limit`, `--client`), never by
   the migration
@@ -90,11 +88,53 @@ computes a `riskScore` (0-100) from weighted signals:
   attempts are `failed_attempts`. The mobile app does not yet send a `gpsTag` on
   audit photos, so in practice the signal waits on that. Outlets come from one
   raw query per call: the visit's own outlet plus same-client outlets in a
-  bounding box around each position, then exact haversine in JS, so
-  `GET /fraud/flagged` does not N+1. A spatial index (#63, PostGIS) replaces the
-  box if the outlet count grows
+  bounding box around each position, then exact haversine in JS, so a scoring
+  batch does not N+1. A spatial index (#63, PostGIS) replaces the box if the
+  outlet count grows
 
 `GET /fraud/visits/:visitId`, `GET /fraud/attempts`, `GET /fraud/flagged`.
+
+**Stored score (#236).** Every visit is scored through one batched path,
+`scoreFraudBatch` (a fixed number of queries per batch: attempts, thresholds,
+stock history, photo hashes, nearby outlets). `GET /fraud/visits/:id` is a batch
+of one. `submitVisit` scores the visit best-effort after persisting it (next to
+the webhook and alert hooks) and stores `Visit.riskScore`, `Visit.fraudSignals`
+and `Visit.fraudScoredAt`; a scoring failure is logged and never fails the
+submit. `GET /fraud/flagged` then reads only those columns: `status = submitted
+AND risk_score >= minScore`, ordered `risk_score DESC, id DESC` on the
+`(client_id, status, risk_score DESC, id DESC)` index, with the standard
+`limit`/`cursor` keyset page. The response is `{data, nextCursor, unscored,
+from, to}`; each row carries `scoredAt`. `?from=&to=` stay as an optional
+check-in window (default the last 30 days).
+
+**Staleness.** A stored score is a snapshot. Several signals read things that
+change after submit — earlier visits' stock (`repeating_stock_counts`), earlier
+visits' photos (`duplicate_photo`), rejected check-in attempts, and the client's
+`kpiThresholds` — and the flagged list does not see those changes until the visit
+is rescored. So:
+- `fraudScoredAt` records when the snapshot's inputs were read, and the list
+  returns it as `scoredAt`.
+- `GET /fraud/visits/:id` always recomputes live; only the flagged **list**
+  reads the stored column. The visit a reviewer opens is scored against today's
+  data and thresholds.
+- A client that changes a fraud threshold rescores:
+  `npm run rescore-fraud -- --client <id> --all`.
+- Visits without a stored score (submitted before #236 and not yet backfilled)
+  are excluded from the list and counted in `unscored`, so a gap reads as "not
+  looked at", never as "nothing suspicious".
+
+**Backfill / rescore.** `npm run rescore-fraud` (`backend/scripts/rescore-fraud.ts`,
+loop in `src/modules/fraud/fraudRescore.ts`) scores submitted visits in batches
+through `scoreFraudBatch`. By default it scores only visits whose `riskScore` is
+null, so it is idempotent and a stopped run resumes by running it again.
+Options: `--client <id>`, `--since <date>` (check-in at or after), `--all`
+(rescore already-scored visits too), `--batch N` (default 100), and
+`--scored-before <iso>` to resume a stopped `--all` run from the cutoff it
+logged. Every write is guarded on `fraudScoredAt` being null or before the run's
+cutoff (its start by default), so a visit submitted or rescored after the run
+began keeps that newer score. The demo seed writes visits directly rather than
+through `submitVisit`, so it runs the same routine for the demo client once its
+data is in place.
 Fed by the new `CheckInAttempt` table (every attempt, incl. rejected ones — #44)
 and the `Photo` GPS captured in Phase 1.
 

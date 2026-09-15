@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/paginated_response.dart';
 
 /// A single risk signal contributing to a flagged visit's score.
 class FraudSignal {
@@ -43,25 +44,54 @@ class FlaggedVisit {
       );
 }
 
+/// One page of GET /fraud/flagged: the standard `{data, nextCursor}` envelope,
+/// highest risk first, plus [unscored].
+///
+/// The list reads the score stored on each visit at submit (#236). A submitted
+/// visit with no stored score yet can be neither listed nor ruled out, so the
+/// backend counts those instead of hiding them.
+class FlaggedPage extends PaginatedResponse<FlaggedVisit> {
+  const FlaggedPage({
+    required super.data,
+    required super.nextCursor,
+    this.unscored = 0,
+  });
+
+  /// Submitted visits in the review window that have not been scored yet.
+  final int unscored;
+
+  factory FlaggedPage.fromJson(Map<String, dynamic> json) {
+    final page = PaginatedResponse<FlaggedVisit>.fromJson(
+      json,
+      (e) => FlaggedVisit.fromJson(e as Map<String, dynamic>),
+    );
+    return FlaggedPage(
+      data: page.data,
+      nextCursor: page.nextCursor,
+      unscored: (json['unscored'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 abstract class FraudRepository {
-  Future<List<FlaggedVisit>> flagged({int? minScore});
+  Future<FlaggedPage> flagged({int? minScore});
 }
 
 class DioFraudRepository implements FraudRepository {
   @override
-  Future<List<FlaggedVisit>> flagged({int? minScore}) async {
+  Future<FlaggedPage> flagged({int? minScore}) async {
     final query = <String, dynamic>{};
     if (minScore != null) query['minScore'] = minScore;
     final response = await dio.get('/fraud/flagged', queryParameters: query);
-    return (response.data as List)
-        .map((json) => FlaggedVisit.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return FlaggedPage.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
 final fraudRepositoryProvider =
     Provider<FraudRepository>((ref) => DioFraudRepository());
 
-final flaggedVisitsProvider = FutureProvider<List<FlaggedVisit>>((ref) {
+// The FIRST PAGE, riskiest first. "Load more" is out of scope, as for every
+// list (see the pagination spec); the screen says when there is more.
+final flaggedVisitsProvider = FutureProvider<FlaggedPage>((ref) {
   return ref.read(fraudRepositoryProvider).flagged();
 });

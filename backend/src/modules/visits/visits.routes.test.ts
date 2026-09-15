@@ -2,6 +2,8 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { issueToken } from '../auth/auth.service';
+import * as fraudService from '../fraud/fraud.service';
+import { getVisitFraud } from '../fraud/fraud.service';
 import { userIn } from '../../test-utils/tenants';
 
 describe('visits routes', () => {
@@ -262,6 +264,67 @@ describe('visits routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('submitted');
+  });
+
+  // #236: GET /fraud/flagged reads the score stored on the visit, and submit is
+  // what stores it — through the same path as the live GET /fraud/visits/:id.
+  it('stores the fraud score on submit, equal to the live per-visit score (#236)', async () => {
+    const createRes = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473 });
+    const visitId = createRes.body.id;
+    const beforeSubmit = Date.now();
+
+    const res = await request(app)
+      .post(`/visits/${visitId}/submit`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    const stored = await prisma.visit.findUniqueOrThrow({
+      where: { id: visitId },
+      select: { riskScore: true, fraudSignals: true, fraudScoredAt: true },
+    });
+    const live = await getVisitFraud(visitId, clientId);
+    // Nothing was captured, so the score is not trivially zero.
+    expect(live.signals.map((s) => s.code)).toContain('no_capture');
+    expect(stored.riskScore).toBe(live.riskScore);
+    expect(stored.fraudSignals).toEqual(live.signals);
+    expect(stored.fraudScoredAt!.getTime()).toBeGreaterThanOrEqual(beforeSubmit);
+  });
+
+  it('still submits when fraud scoring fails, leaving the visit unscored (#236)', async () => {
+    const createRes = await request(app)
+      .post('/visits')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outletId, lat: -26.20400, lng: 28.0473 });
+    const visitId = createRes.body.id;
+    const scoring = jest
+      .spyOn(fraudService, 'scoreAndStoreVisitFraud')
+      .mockRejectedValueOnce(new Error('scoring down'));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      const res = await request(app)
+        .post(`/visits/${visitId}/submit`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('submitted');
+      expect(scoring).toHaveBeenCalledWith(visitId, clientId);
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.stringContaining(`Fraud scoring failed for visit ${visitId}`),
+        expect.any(Error),
+      );
+      const stored = await prisma.visit.findUniqueOrThrow({ where: { id: visitId } });
+      expect(stored.status).toBe('submitted');
+      // Left for the flagged list's `unscored` count and `npm run rescore-fraud`.
+      expect(stored.riskScore).toBeNull();
+      expect(stored.fraudScoredAt).toBeNull();
+    } finally {
+      scoring.mockRestore();
+      consoleError.mockRestore();
+    }
   });
 
   it('auto-evaluates alert rules on submit and raises matching alerts (#53)', async () => {

@@ -1,9 +1,12 @@
 import { PrismaClient } from '@prisma/client';
+import { prisma as appPrisma } from '../../src/lib/prisma';
+import { getVisitFraud, listFlagged } from '../../src/modules/fraud/fraud.service';
 import { getThumbnailForPhoto } from '../../src/modules/photos/thumbnails';
 import {
   getAvailabilityTrend,
   getScorecardsTrend,
 } from '../../src/modules/trends/trends.service';
+import { addDays, HISTORY_WEEKS } from './calendar';
 import { DEMO_CLIENT_ID } from './catalog';
 import { seedDemoData } from './index';
 import { resetDemoData } from './reset';
@@ -22,6 +25,7 @@ describe('seedDemoData (end to end)', () => {
     await resetDemoData(prisma, DEMO_CLIENT_ID);
     await prisma.client.deleteMany({ where: { id: DEMO_CLIENT_ID } });
     await prisma.$disconnect();
+    await appPrisma.$disconnect();
   });
 
   it('writes the expected shape of dataset', async () => {
@@ -91,6 +95,28 @@ describe('seedDemoData (end to end)', () => {
     expect(await prisma.incentiveScheme.count({ where: { clientId: DEMO_CLIENT_ID } })).toBeGreaterThan(0);
     expect(await prisma.checkInAttempt.count({ where: { clientId: DEMO_CLIENT_ID, passed: false } })).toBeGreaterThan(0);
     expect(await prisma.visitTemplateResponse.count({ where: { visit: { clientId: DEMO_CLIENT_ID } } })).toBeGreaterThan(0);
+  });
+
+  // #236: the seed writes visits directly, never through submitVisit, so it must
+  // store their fraud scores itself — or the flagged list, which reads only the
+  // stored column, would have nothing to show and the fraud screen would go empty.
+  it('stores a fraud score on every seeded visit, equal to the live score', async () => {
+    expect(await prisma.visit.count({ where: { clientId: DEMO_CLIENT_ID, riskScore: null } })).toBe(0);
+
+    const page = await listFlagged({
+      clientId: DEMO_CLIENT_ID,
+      minScore: 0,
+      from: addDays(new Date(), -7 * (HISTORY_WEEKS + 1)),
+      limit: 200,
+    });
+    expect(page.unscored).toBe(0);
+    expect(page.data.length).toBeGreaterThan(0);
+
+    for (const row of page.data.slice(0, 5)) {
+      const live = await getVisitFraud(row.visitId, DEMO_CLIENT_ID);
+      expect(row.riskScore).toBe(live.riskScore);
+      expect(row.signals).toEqual(live.signals);
+    }
   });
 
   it('is safe to run twice — the second run replaces rather than duplicates', async () => {

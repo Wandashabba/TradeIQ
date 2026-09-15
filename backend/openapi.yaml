@@ -764,10 +764,57 @@ paths:
       responses: { '200': { description: Attempts } }
   /fraud/flagged:
     get:
-      summary: Submitted visits above a fraud-risk threshold — manager/admin
+      summary: Submitted visits whose stored fraud score is at or above a threshold, highest first — manager/admin
+      description: >
+        Reads the score stored on each visit at submit (and by `npm run rescore-fraud`),
+        never computing it on read (#236). A stored score is a snapshot taken at
+        `scoredAt`; signals that read history or the client's kpiThresholds do not
+        change it until the visit is rescored. GET /fraud/visits/{visitId} is always
+        live. Visits in the window without a stored score are excluded and counted
+        in `unscored`. Ordered riskScore descending, then id descending; page with
+        `nextCursor`.
       security: [{ bearerAuth: [] }]
-      parameters: [{ name: minScore, in: query, schema: { type: number } }]
-      responses: { '200': { description: Flagged visits } }
+      parameters:
+        - { name: minScore, in: query, schema: { type: number, default: 50 }, description: 'Scores are whole numbers 0-100; a fraction rounds up' }
+        - { name: from, in: query, schema: { type: string, format: date-time }, description: 'Check-in at or after. Default: 30 days before `to`' }
+        - { name: to, in: query, schema: { type: string, format: date-time }, description: 'Check-in at or before. Default: now' }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string }, description: '`nextCursor` from the previous page' }
+      responses:
+        '200':
+          description: One page of flagged visits
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor, unscored, from, to]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [visitId, outletId, agentId, riskScore, signals, scoredAt]
+                      properties:
+                        visitId: { type: string }
+                        outletId: { type: string }
+                        agentId: { type: string }
+                        riskScore: { type: integer, minimum: 0, maximum: 100 }
+                        signals:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              code: { type: string }
+                              detail: { type: string }
+                              weight: { type: integer }
+                        scoredAt: { type: string, format: date-time, nullable: true, description: When the stored score's inputs were read }
+                  nextCursor: { type: string, nullable: true }
+                  unscored: { type: integer, description: Submitted visits in the window with no stored score yet }
+                  from: { type: string, format: date-time }
+                  to: { type: string, format: date-time }
+        '400': { description: 'Malformed minScore, from, to, limit or cursor' }
+        '401': { description: Missing or invalid token }
+        '403': { description: Not a manager or admin }
   /dispatch:
     post:
       summary: Rank agents for an outlet (nearest + in-territory) — manager/admin

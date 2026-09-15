@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma, TaskPriority, TaskStatus } from '@prisma/client';
 import { hashPassword } from '../../src/modules/auth/auth.service';
+import { rescoreFraudScores } from '../../src/modules/fraud/fraudRescore';
 import { addDays, HISTORY_WEEKS, startOfUtcDay } from './calendar';
 import {
   DEMO_CLIENT_ID,
@@ -237,6 +238,14 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       createdAt: addDays(v.checkinTs, -1),
     })),
   });
+
+  // #236: GET /fraud/flagged reads the score stored on each visit, and submit is
+  // what stores it. The seed writes visits straight to the table, so without
+  // this every demo visit would be unscored and the fraud screen empty. Run once
+  // every input the engine reads is in place (sections, photos, check-in
+  // attempts, the client's thresholds), through the same batched routine as
+  // `npm run rescore-fraud`.
+  await rescoreFraudScores({ clientId: DEMO_CLIENT_ID });
 
   await prisma.task.createMany({
     data: ops.tasks.map((task) => ({
