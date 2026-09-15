@@ -10,10 +10,12 @@ import '../data/report_schedules_repository.dart';
 import '../data/reports_repository.dart';
 
 /// The cadence field's hint (#66): the backend fires schedules on their
-/// cadence and sends them to webhooks; email is not built yet.
+/// cadence, sends them to webhooks, and emails the recipients when the server
+/// has email (SMTP) set up.
 const scheduleCadenceHelp =
-    'Runs automatically on this cadence (UTC) and is sent to webhooks '
-    'subscribed to $reportGeneratedEvent. Email is not set up yet.';
+    'Runs automatically on this cadence (UTC), is sent to webhooks '
+    'subscribed to $reportGeneratedEvent, and is emailed to the recipients '
+    'when email is set up on the server.';
 
 /// Splits the recipients box into entries: one per line, or separated by
 /// commas or semicolons. Blank entries are dropped, so "a, , b" is two.
@@ -21,6 +23,24 @@ List<String> parseRecipients(String raw) => [
       for (final part in raw.split(RegExp(r'[,;\n]')))
         if (part.trim().isNotEmpty) part.trim(),
     ];
+
+/// The most recipients the API accepts on a schedule.
+const maxScheduleRecipients = 50;
+
+final _emailAddress = RegExp(r'^[^\s@<>()\[\],;:"\\]+@[^\s@<>()\[\],;:"\\]+\.[^\s@<>()\[\],;:"\\]+$');
+
+/// Why the recipients box cannot be saved, or null when it can. Mirrors the
+/// backend: 1–50 email addresses.
+String? recipientsError(String raw) {
+  final recipients = parseRecipients(raw);
+  if (recipients.isEmpty) return 'Add at least one recipient';
+  final invalid = recipients.where((r) => !_emailAddress.hasMatch(r)).toList();
+  if (invalid.isNotEmpty) return 'Not an email address: ${invalid.first}';
+  if (recipients.length > maxScheduleRecipients) {
+    return 'At most $maxScheduleRecipients recipients';
+  }
+  return null;
+}
 
 /// Why the report cannot be picked when editing: `PATCH /report-schedules/:id`
 /// accepts only `active`, `cadence` and `recipients`.
@@ -219,12 +239,10 @@ class _ReportScheduleFormScreenState
       keyboardType: TextInputType.multiline,
       decoration: const InputDecoration(
         labelText: 'Recipients',
-        helperText: 'One per line, or separated by commas',
+        helperText: 'Email addresses, one per line or separated by commas',
         border: OutlineInputBorder(),
       ),
-      validator: (v) => parseRecipients(v ?? '').isEmpty
-          ? 'Add at least one recipient'
-          : null,
+      validator: (v) => recipientsError(v ?? ''),
     );
 
     final error = _error;

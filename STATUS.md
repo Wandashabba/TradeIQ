@@ -600,8 +600,10 @@ its cheap slice on every assistant PR.
          the orchestrator guards the tracer as well as the tracer guarding
          itself. **Metadata only — conversation content is behind
          `LANGFUSE_TRACE_CONTENT`, default off**, because the retention policy
-         for transcripts is still open (#251 Q3) and shipping capture would
-         quietly decide it. Tool *results* are never sent at any setting
+         for transcripts was still open (#251 Q3) and shipping capture would
+         quietly decide it. Tool *results* are never sent at any setting.
+         Q3 is now answered (90 days, 2026-09-15): set Langfuse retention to
+         match before turning content on
    - [x] `.github/workflows/assistant-evals.yml` — cheap slice on PR, full sweep
          nightly ✅ 2026-08-06. Matrix is **per provider and `fail-fast: false`**,
          because the ≥90% gate is per adapter and a mean is exactly what hides a
@@ -788,7 +790,9 @@ information.
 | Observability | **Langfuse Cloud** (MIT, self-host escape hatch) | Self-hosting is a 6-service stack — real operational weight for a small team. Braintrust is nicer but $249/mo with no self-host |
 | Memory | Postgres preferences now; defer mem0/Zep | Temporal truth already lives in Postgres — don't build a graph over it |
 | Testing | Five layers, every phase gated | ~~API key available day one, so nothing defers to a hardening pass~~ — **the premise was wrong** (2026-08-07). No key ever arrived. Four of the five layers turned out not to need one and are green; the *live eval* layer is the exception, and it is the phase gate. The conclusion survives by accident rather than by design: nothing was deferred, but nothing was proven either |
-| **Trace content** | **Metadata only. Conversation text behind `LANGFUSE_TRACE_CONTENT`, default off** | Transcripts carry outlet and agent PII, and retention (#251 Q3) plus POPIA residency (Q4) are both **open**. Shipping capture to a third-party cloud would answer them without anyone deciding. Tool *results* are never sent at any setting — they are simultaneously the untrusted surface and the richest PII source in the system |
+| **Trace content** | **Metadata only. Conversation text behind `LANGFUSE_TRACE_CONTENT`, default off** | Transcripts carry outlet and agent PII, and when this was decided retention (#251 Q3) and POPIA residency (Q4) were both open. Shipping capture to a third-party cloud would have answered them without anyone deciding. Tool *results* are never sent at any setting — they are simultaneously the untrusted surface and the richest PII source in the system. **Update 2026-09-15:** both are now answered (see *Transcript retention* and *Data residency* below). Residency no longer blocks capture, but switching it on makes Langfuse a transcript store, so its project retention must be set to 90 days before the flag is turned on |
+| **Transcript retention** (#251 Q3) | **90 days, then deleted.** The cutoff is the start of the client's local day 90 days ago (`Client.timezone`, `clientTime.ts`), the same convention as #178's raw location pings | Transcripts contain agent names, outlet names and performance commentary. That is personal information under POPIA, and in effect a log of employee performance discussions, so "keep forever" is not defensible. The answer matches #178 (raw pings kept 90 days) because it is the same question about a different data type. **Not enforced yet, because `main` stores no transcript.** Chat history is held by the client and replayed on every turn (`POST /assistant/chat`, capped at 40 messages). `AssistantArtifact` stores a tool name and params, never text. `AssistantAction` is the write ledger, not the conversation. **Requirement on whichever change first persists conversations** (the plan's "persist conversation state in Postgres", or Phase 5's "Conversation persistence + server-side compaction"): the deletion job ships in the same PR. Follow `locationPrune.worker.ts` and `locationRetention.ts`: a daily worker started from `server.ts` behind `ASSISTANT_TRANSCRIPT_PRUNE_ENABLED` (default on), idempotent and logged, an npm script with `--dry-run`, and tests that old transcripts are deleted, recent ones kept, tenants isolated, and a re-run is safe. Compaction summaries are derived from transcripts and carry the same names, so they fall under the same 90 days |
+| **Data residency** (#251 Q4) | **No requirement known.** Any hosting region and any AI provider feature is acceptable, managed features included | No client contract and no POPIA obligation requires processing inside South Africa. That keeps Phase 5's scheduled digests on Managed Agents open: the known trap was that Anthropic's *managed* features are unavailable via Bedrock, which only matters if a contract forces an in-region route. **Reopen if** a client contract adds a residency clause |
 | **Cost rates** | Placeholder, seeded from the plan's cost table, `costCents` never `0` | Google's pricing is unconfirmed. One set of numbers to correct rather than two that can disagree; a zero would make a cost regression look like a saving |
 | Rollout | Per-client feature flag; additive until Phase 4 | Nothing is removed until the replacement is proven |
 | **SAST tool** | **Semgrep, not CodeQL** | Code scanning on a *private* repo needs GitHub Advanced Security, which this user-owned repo does not have. CodeQL analysed all 227 files and then 403'd uploading the SARIF — red for a configuration reason with nothing wrong in the code. Semgrep needs no GHAS and no account. Gated at `--severity=ERROR` only: the WARNING tier is style-adjacent, and a first SAST run reporting eighty things gets muted rather than read |
@@ -910,20 +914,18 @@ Filed as **#251** so they are assignable.
 | # | Question | Blocks | Owner |
 |---|---|---|---|
 | 2 | Risk-tier assignment for write actions — which are truly irreversible in *your* customers' eyes? Too loose is dangerous, too tight is confirmation fatigue | Phase 3 | — |
-| 3 | Retention policy for conversation transcripts — they will contain outlet and agent PII | Phase 5 | — |
-| 4 | Any POPIA / client-contract data-residency requirement? Anthropic's *managed* features are unavailable via Bedrock, so Phase 5 digests would be affected. The `tool_runner` choice stays portable either way | Phase 5 | — |
 
 **Answered:** bot speaks back ✅ · bot can take actions ✅ · API key provided ✅ ·
 period vocabulary ✅ (from the interview) · **audience — manager console only for
-Phase 0 ✅** (2026-08-03; see Decisions → Architecture → Audience)
+Phase 0 ✅** (2026-08-03; see Decisions → Architecture → Audience) ·
+**transcript retention — 90 days, then deleted ✅** (Q3, 2026-09-15) ·
+**data residency — no requirement known ✅** (Q4, 2026-09-15; both in Decisions →
+Safety & operations)
 
-> **Q3 and Q4 are worth answering now, not at Phase 5.** Both are
-> retention/residency questions, and Q3 is the same question as #178 about a
-> different data type. Answering them late risks Phase 5 designing around a
-> capability the contract may not permit — the specific trap is already known:
-> Anthropic's *managed* features are unavailable via Bedrock, which is exactly
-> what the scheduled-digest task depends on. Q2 can wait; it needs a customer in
-> the room and Phase 3 is three phases out.
+> **Only Q2 remains, and it can wait.** It needs a customer in the room, and
+> Phase 3 is three phases out. Q3 was answered ahead of Phase 5 on purpose, but
+> `main` stores no transcripts yet, so the 90-day deletion job is a requirement
+> on whichever change first persists conversations, not something to backfill.
 
 ---
 

@@ -22,13 +22,21 @@ import '../data/agent_locations_repository.dart';
 ///   pins they sit beside are round discs.
 
 /// Colour for a state — an extra, never the carrier.
-Color liveStateColor(LiveAgentState state, TiqColors colors) =>
-    switch (state) {
-      LiveAgentState.atStore => colors.good,
-      LiveAgentState.inTransit => colors.warn,
-      LiveAgentState.stale => colors.ink3,
-      LiveAgentState.offline => colors.ink4,
-    };
+///
+/// Near store has its own look rather than borrowing in transit's amber: amber
+/// would say "on the road", which a ping inside a store fence is not, and
+/// green would claim the store. It takes `ink2`, the strong neutral that
+/// clears text contrast in both themes, so it reads as a fresh reading that
+/// makes a weaker claim. Not sharing takes `ink3` — muted like stale, told
+/// apart from it by the padlock and the words.
+Color liveStateColor(LiveAgentState state, TiqColors colors) => switch (state) {
+  LiveAgentState.atStore => colors.good,
+  LiveAgentState.nearStore => colors.ink2,
+  LiveAgentState.inTransit => colors.warn,
+  LiveAgentState.stale => colors.ink3,
+  LiveAgentState.offline => colors.ink4,
+  LiveAgentState.notSharing => colors.ink3,
+};
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
@@ -47,17 +55,40 @@ String liveOutletPhrase(AgentLocation agent) {
   }
   final last = agent.lastOutletName;
   if (last == null) return '';
+  if (agent.state == LiveAgentState.nearStore && agent.lastOutletFromPing) {
+    return 'near $last';
+  }
   return agent.lastOutletFromPing ? 'last near $last' : 'last check-in $last';
 }
 
+/// The state as a pin shows it: "Near Sandton Spar" when the store is known,
+/// otherwise the state's own label.
+String livePinStateText(AgentLocation agent) {
+  final near = agent.lastOutletName;
+  if (agent.state == LiveAgentState.nearStore &&
+      agent.lastOutletFromPing &&
+      near != null) {
+    return 'Near $near';
+  }
+  return liveStateLabel(agent.state);
+}
+
+/// The age column: how old the position is, or a dash when the agent declined
+/// and there is deliberately no position to age.
+String liveAgeText(AgentLocation agent) =>
+    agent.state == LiveAgentState.notSharing
+    ? '—'
+    : formatAgeSeconds(agent.ageSeconds);
+
 /// Age · state · name · place — the order a screen reader hears it in, too.
+/// Not sharing has no age to lead with, so it leads with the state.
 String liveAgentDescription(AgentLocation agent) {
-  final age = agent.ageSeconds == null
-      ? 'never shared'
-      : '${formatAgeSeconds(agent.ageSeconds)} old';
   final place = liveOutletPhrase(agent);
   return [
-    age,
+    if (agent.state != LiveAgentState.notSharing)
+      agent.ageSeconds == null
+          ? 'never shared'
+          : '${formatAgeSeconds(agent.ageSeconds)} old',
     liveStateLabel(agent.state),
     agent.name,
     if (place.isNotEmpty) place,
@@ -89,7 +120,10 @@ List<Marker> liveAgentMarkers(List<AgentLocation> agents) => [
         width: _markerWidth,
         height: _markerHeight,
         alignment: _markerAlignment,
-        child: LiveAgentPin(key: ValueKey('live-agent-pin-${a.agentId}'), agent: a),
+        child: LiveAgentPin(
+          key: ValueKey('live-agent-pin-${a.agentId}'),
+          agent: a,
+        ),
       ),
 ];
 
@@ -138,7 +172,7 @@ class LiveAgentPin extends StatelessWidget {
                 borderRadius: BorderRadius.circular(5),
               ),
               child: Text(
-                '${formatAgeSeconds(agent.ageSeconds)} · ${liveStateLabel(agent.state)}',
+                '${formatAgeSeconds(agent.ageSeconds)} · ${livePinStateText(agent)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -155,7 +189,7 @@ class LiveAgentPin extends StatelessWidget {
   }
 }
 
-/// The four states, each as glyph + word.
+/// The six states, each as glyph + word.
 class LiveStateLegend extends StatelessWidget {
   const LiveStateLegend({super.key, this.onDark = false});
 
@@ -295,7 +329,7 @@ class LiveAgentRow extends StatelessWidget {
             SizedBox(
               width: 76,
               child: Text(
-                formatAgeSeconds(agent.ageSeconds),
+                liveAgeText(agent),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -310,9 +344,12 @@ class LiveAgentRow extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             SizedBox(
-              width: 72,
+              // Wide enough for the longest label, "Not sharing", on one line.
+              width: 84,
               child: Text(
                 liveStateLabel(agent.state),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: colors.ink2),
               ),
             ),

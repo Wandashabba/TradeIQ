@@ -265,7 +265,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('the cadence field says it runs automatically, email not yet',
+  testWidgets('the cadence field says it runs automatically, and is emailed once set up',
       (tester) async {
     await tester.pumpWidget(_app(_RecordingSchedulesRepository()));
     await tester.pumpAndSettle();
@@ -273,8 +273,44 @@ void main() {
     expect(find.text(scheduleCadenceHelp), findsOneWidget);
     expect(scheduleCadenceHelp, contains('Runs automatically'));
     expect(scheduleCadenceHelp, contains('report.generated'));
-    expect(scheduleCadenceHelp, contains('Email is not set up yet'));
+    expect(scheduleCadenceHelp, contains('emailed to the recipients when email is set up'));
     expect(find.textContaining('Nothing sends'), findsNothing);
+  });
+
+  testWidgets('blocks submit when a recipient is not an email address',
+      (tester) async {
+    final repo = _RecordingSchedulesRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    await _fillValid(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('schedule-recipients-field')),
+      'ops@acme.test, https://hooks.acme.test/x',
+    );
+    await _tapSave(tester);
+
+    expect(find.text('Not an email address: https://hooks.acme.test/x'), findsOneWidget);
+    expect(repo.createdArgs, isNull);
+  });
+
+  group('recipientsError', () {
+    test('accepts 1 to 50 email addresses', () {
+      expect(recipientsError('ops@acme.test\nlead@acme.test'), isNull);
+      expect(
+        recipientsError(List.generate(maxScheduleRecipients, (i) => 'r$i@acme.test').join(',')),
+        isNull,
+      );
+    });
+
+    test('says what is wrong otherwise', () {
+      expect(recipientsError(' , '), 'Add at least one recipient');
+      expect(recipientsError('ops@acme.test; not-an-email'), 'Not an email address: not-an-email');
+      expect(
+        recipientsError(List.generate(maxScheduleRecipients + 1, (i) => 'r$i@acme.test').join(',')),
+        'At most $maxScheduleRecipients recipients',
+      );
+    });
   });
 
   group('edit mode', () {
@@ -301,7 +337,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text(scheduleReportLockedNote), findsOneWidget);
-      // Still honest about delivery: runs automatically, email not set up.
+      // Still honest about delivery: runs automatically, email once set up.
       expect(find.text(scheduleCadenceHelp), findsOneWidget);
     });
 

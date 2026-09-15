@@ -1801,8 +1801,9 @@ paths:
         (per-client timezones are #309). A schedule missed while no backend
         instance was running fires once on catch-up, not once per missed
         period. Each run is generated and delivered as a `report.generated`
-        webhook event to the client's active webhooks subscribed to it; email
-        delivery is not configured, so `recipients` are stored but not emailed.
+        webhook event to the client's active webhooks subscribed to it, and
+        emailed to `recipients` when SMTP is configured on the deployment
+        (otherwise the run records email as `not_configured`).
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -1826,15 +1827,33 @@ paths:
                   nextCursor: { type: string, nullable: true }
     post:
       summary: Schedule a saved report — manager/admin
-      description: The first run is one cadence period after creation.
+      description: >
+        The first run is one cadence period after creation. `recipients` must be
+        1–50 email addresses; they are trimmed and de-duplicated
+        case-insensitively.
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reportDefinitionId, cadence, recipients]
+              properties:
+                reportDefinitionId: { type: string }
+                cadence: { type: string, enum: [daily, weekly] }
+                recipients:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string, format: email }
       responses:
         '201':
           description: Created
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ReportSchedule' }
-        '400': { description: Invalid }
+        '400': { description: Invalid (including a recipient that is not an email address) }
         '404': { description: Report definition not found }
   /report-schedules/{id}:
     patch:
@@ -1843,16 +1862,32 @@ paths:
         Pausing (`active: false`) clears `nextRunAt`. Resuming schedules the
         next run one period from now; it does not fire for the time spent
         paused. Changing the cadence of an active schedule counts the new
-        period from the previous due time.
+        period from the previous due time. `recipients`, when given, follows
+        the same rules as on create.
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                active: { type: boolean }
+                cadence: { type: string, enum: [daily, weekly] }
+                recipients:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string, format: email }
       responses:
         '200':
           description: Updated
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ReportSchedule' }
-        '400': { description: Invalid }
+        '400': { description: Invalid (including a recipient that is not an email address) }
         '404': { description: Not found }
     delete:
       summary: Delete a report schedule — manager/admin
@@ -1866,7 +1901,8 @@ paths:
       description: >
         The same code path as a scheduled run: generates the report, records a
         run, and delivers it through every channel (a `report.generated`
-        webhook event; email is not configured). Does not move `nextRunAt`.
+        webhook event, and one email per recipient when SMTP is configured).
+        Does not move `nextRunAt`.
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses:
@@ -1881,8 +1917,10 @@ paths:
     get:
       summary: Download a run's report as CSV — manager/admin
       description: >
-        What a `report.generated` webhook's `csvPath` points at. Subscribers
-        fetch it with a manager/admin bearer token. The rows are regenerated
+        What a `report.generated` webhook's `csvPath` points at, fetched with a
+        manager/admin bearer token. Machine subscribers that hold no token use
+        the signed `csvDownloadUrl` instead (`GET /report-downloads/{token}`).
+        The rows are regenerated
         from the schedule's report definition, bounded to records whose report
         date (checkinTs for visits, createdAt otherwise) is at or before the
         run's `generatedAt`: records added after the run are excluded, while
@@ -1901,6 +1939,63 @@ paths:
         '401': { description: Unauthenticated }
         '403': { description: Forbidden (not manager/admin) }
         '404': { description: Not found (or another client's schedule or run) }
+  /report-schedules/{id}/runs/{runId}/email-deliveries:
+    get:
+      summary: A run's email delivery log — manager/admin
+      description: >
+        One row per recipient the run was emailed to, newest first: status,
+        attempts, the last error, and whether the CSV was attached. Failed
+        sends are retried on the webhook schedule (1m, 5m, 25m, 2h, 6h) and give
+        up after 6 attempts. Empty when email was not configured for the run
+        (see the run's `deliveries`). Another client's run is a 404.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: runId, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Email deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ReportEmailDelivery' } }
+                  nextCursor: { type: string, nullable: true }
+        '401': { description: Unauthenticated }
+        '403': { description: Forbidden (not manager/admin) }
+        '404': { description: Not found (or another client's schedule or run) }
+  /report-downloads/{token}:
+    get:
+      summary: Download a run's CSV through a signed link — no bearer token (#66)
+      description: >
+        The `csvDownloadUrl` of a `report.generated` webhook payload, and the
+        link in report emails. The token is an HMAC (REPORT_LINK_SECRET) over
+        one client, one schedule and one run, with an expiry 7 days after the
+        run was generated: it opens that run's CSV and nothing else, and needs
+        no login. Anyone holding the link can download the file until it
+        expires, so treat it as a credential. Rotating REPORT_LINK_SECRET
+        revokes every link. Same CSV as `GET /report-schedules/{id}/runs/{runId}/csv`.
+        Rate-limited per IP. Responses are `Cache-Control: private, no-store`.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+          description: Opaque signed token, as issued in `csvDownloadUrl`.
+      responses:
+        '200':
+          description: The run's report (attachment)
+          content:
+            text/csv:
+              schema: { type: string }
+        '401': { description: Invalid link (malformed, tampered, signed with another key, or links not configured) }
+        '404': { description: The link is valid but its run no longer exists (the schedule was deleted) }
+        '410': { description: The link has expired }
+        '429': { description: Too many downloads from this address }
   /locations/settings:
     get:
       summary: Foreground location sharing settings for the signed-in agent — field agent (#153 T1)
@@ -2018,11 +2113,17 @@ paths:
     get:
       summary: Each field agent's latest foreground location, age and live state — manager/admin (#153 T1)
       description: >
-        Paged by agent (limit default 50, max 200). States: at_store (fresh ping
-        inside an outlet's 50m check-in geofence), in_transit (fresh ping outside
-        every fence), stale (older than staleAfterSeconds = max(300, 3 ×
-        intervalSeconds)), offline (older than offlineAfterSeconds = 1800, or never
-        shared). Age decides before place. ageSeconds is measured against serverTime.
+        Paged by agent (limit default 50, max 200). States, first match wins:
+        not_sharing (the agent's latest answer to the current location notice is
+        declined — takes precedence over any stored ping, and lastPing/ageSeconds
+        are then null); offline (older than offlineAfterSeconds = 1800, or never
+        shared, including an agent who never answered the notice); stale (older
+        than staleAfterSeconds = max(300, 3 × intervalSeconds)); in_transit (fresh
+        ping outside every fence); at_store (fresh ping inside an outlet's 50m
+        check-in geofence with accuracyM not null and ≤ maxAtStoreAccuracyM = 100);
+        near_store (fresh ping inside a fence whose accuracyM is null or above
+        maxAtStoreAccuracyM — lastOutlet names the fence). Age decides before
+        place. ageSeconds is measured against serverTime.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: territoryId, in: query, schema: { type: string }, description: A Territory.id; restricts to agents assigned to it }
@@ -2040,6 +2141,7 @@ paths:
                   intervalSeconds: { type: integer }
                   staleAfterSeconds: { type: integer }
                   offlineAfterSeconds: { type: integer }
+                  maxAtStoreAccuracyM: { type: integer, description: 'The worst GPS accuracy, in metres, at which a ping inside a fence reads at_store' }
                   nextCursor: { type: string, nullable: true }
                   data:
                     type: array
@@ -2050,10 +2152,11 @@ paths:
                         name: { type: string, description: 'displayName, else email' }
                         displayName: { $ref: '#/components/schemas/DisplayName' }
                         email: { type: string }
-                        state: { type: string, enum: [at_store, in_transit, stale, offline] }
+                        state: { type: string, enum: [at_store, near_store, in_transit, stale, offline, not_sharing] }
                         lastPing:
                           type: object
                           nullable: true
+                          description: Null when the agent has never shared, and always null for not_sharing.
                           properties:
                             lat: { type: number }
                             lng: { type: number }
@@ -2073,6 +2176,7 @@ paths:
                           description: >
                             The latest ping's fence (source ping) when it was inside
                             one, otherwise the latest confirmed check-in (source check_in).
+                            For not_sharing, only a check-in is ever given.
                           properties:
                             id: { type: string }
                             name: { type: string }
@@ -2257,7 +2361,11 @@ components:
         recipients:
           type: array
           items: { type: string }
-          description: Stored for email delivery, which is not configured yet.
+          description: >
+            Email addresses each run is emailed to, when SMTP is configured.
+            Schedules created before addresses were validated may hold other
+            strings; the email channel skips those and names them in its
+            outcome's `detail`.
         active: { type: boolean }
         lastRunAt: { type: string, format: date-time, nullable: true, description: The latest run, scheduled or manual. }
         nextRunAt: { type: string, format: date-time, nullable: true, description: When the worker next fires it; null while paused. }
@@ -2273,17 +2381,27 @@ components:
           type: string
           enum: [queued, no_subscribers, not_configured, failed]
           description: >
-            queued — webhook deliveries were created (see each webhook's
-            delivery log for the outcome); no_subscribers — no active webhook
-            is subscribed to report.generated; not_configured — email delivery
-            is not set up on this deployment; failed — the channel errored
-            before queuing anything.
+            queued — delivery rows were created and retry on failure (see the
+            webhook's delivery log, or the run's email-deliveries);
+            no_subscribers — no active webhook is subscribed to
+            report.generated, or the schedule has no valid email address;
+            not_configured — email (SMTP) is not set up on this deployment,
+            with the reason in `detail`; failed — the channel errored before
+            queuing anything.
         targets:
           type: array
           items: { type: string }
-          description: Webhook URLs queued to; for email, the stored recipients.
+          description: >
+            Webhook URLs queued to; for email, the addresses queued to (or, when
+            not_configured, the stored recipients).
         webhookDeliveryIds: { type: array, items: { type: string } }
-        detail: { type: string }
+        emailDeliveryIds:
+          type: array
+          items: { type: string }
+          description: The email delivery rows created, one per recipient (email channel only).
+        detail:
+          type: string
+          description: Why, for any status but queued; for queued email, which stored entries were skipped as not email addresses.
     ScheduleRunResult:
       type: object
       properties:
@@ -2296,8 +2414,10 @@ components:
           type: array
           items: { type: string }
           description: >
-            The webhook URLs a report.generated delivery was queued for. Empty
-            when nothing was sent. No longer an echo of `recipients`.
+            Every target something was queued to: the webhook URLs a
+            report.generated delivery was created for, then the email addresses
+            an email was queued to. Empty when nothing was sent. Not an echo of
+            `recipients`.
         deliveries: { type: array, items: { $ref: '#/components/schemas/ReportDeliveryOutcome' } }
     ReportGeneratedPayload:
       type: object
@@ -2306,7 +2426,8 @@ components:
         `{ event, payload, timestamp }` envelope). A pointer to the report, not
         its rows: reports have no row cap and the body is stored and re-sent on
         every retry, so it stays a few hundred bytes. Fetch the rows from
-        `csvPath` with a manager/admin bearer token. De-duplicate on `runId`.
+        `csvDownloadUrl` (signed, no token needed) or from `csvPath` with a
+        manager/admin bearer token. De-duplicate on `runId`.
       properties:
         scheduleId: { type: string }
         reportId: { type: string, description: The report definition id. }
@@ -2321,6 +2442,40 @@ components:
           type: string
           nullable: true
           description: csvPath on the PUBLIC_API_URL origin when that is configured; otherwise null.
+        csvDownloadUrl:
+          type: string
+          nullable: true
+          example: 'https://tradeiq-backend.fly.dev/report-downloads/{token}'
+          description: >
+            Added in #66 (additive). A signed, time-limited link to this run's
+            CSV that needs no bearer token (`GET /report-downloads/{token}`).
+            Scoped to this run of this client; the same link is issued on every
+            retry. Null unless PUBLIC_API_URL and REPORT_LINK_SECRET are
+            configured.
+        csvDownloadExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When `csvDownloadUrl` stops working (7 days after `generatedAt`); null with it.
+    ReportEmailDelivery:
+      type: object
+      description: One report run emailed to one recipient (#66), with the webhook delivery retry semantics.
+      properties:
+        id: { type: string }
+        runId: { type: string }
+        clientId: { type: string }
+        recipient: { type: string, format: email }
+        status: { type: string, enum: [pending, succeeded, failed_retrying, gave_up] }
+        attempts: { type: integer }
+        lastError: { type: string, nullable: true, description: 'The last SMTP error, or why email gave up (e.g. SMTP no longer configured).' }
+        nextAttemptAt: { type: string, format: date-time, nullable: true }
+        lastAttemptAt: { type: string, format: date-time, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        csvAttached:
+          type: boolean
+          nullable: true
+          description: Whether the delivered email carried the CSV (false means link only, over the 5 MB cap). Null until delivered.
+        createdAt: { type: string, format: date-time }
     TrendPoint:
       type: object
       required: [period, value, count]
