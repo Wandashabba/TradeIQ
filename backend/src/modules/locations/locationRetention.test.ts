@@ -8,8 +8,12 @@ import {
   parsePruneArgs,
   pruneLocationPings,
   purgeAgentLocationPings,
-  utcDayStart,
+  retentionCutoff,
 } from './locationRetention';
+
+/** Midnight UTC at the start of `at`'s UTC day. */
+const utcDayStart = (at: Date) =>
+  new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
 
 /**
  * #178 — raw pings kept 90 days, then folded into day summaries and deleted;
@@ -34,8 +38,14 @@ describe('location ping retention (#178)', () => {
   let outletB: string;
   let admin: TestUser;
 
-  const newClient = async (name: string) =>
-    (await prisma.client.create({ data: { name, industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} } })).id;
+  // UTC clients here, so a local day is a UTC day and the arithmetic below
+  // stays readable; the Johannesburg calendar has its own describe block.
+  const newClient = async (name: string, timezone = 'UTC') =>
+    (
+      await prisma.client.create({
+        data: { name, industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {}, timezone },
+      })
+    ).id;
 
   const addPing = (agent: TestUser, at: Date, where: { lat: number; lng: number }) =>
     prisma.agentLocationPing.create({
@@ -140,9 +150,14 @@ describe('location ping retention (#178)', () => {
     });
   });
 
-  it('utcDayStart is midnight UTC', () => {
-    expect(utcDayStart(new Date('2026-09-15T23:59:59.999Z')).toISOString()).toBe('2026-09-15T00:00:00.000Z');
-    expect(utcDayStart(new Date('2026-09-15T00:00:00.000Z')).toISOString()).toBe('2026-09-15T00:00:00.000Z');
+  it('retentionCutoff is the start of the client’s local day 90 days ago', () => {
+    expect(retentionCutoff(now, 'UTC').toISOString()).toBe('2026-06-17T00:00:00.000Z');
+    // Johannesburg is UTC+2 all year: its 2026-06-17 begins at 22:00Z the evening before.
+    expect(retentionCutoff(now, 'Africa/Johannesburg').toISOString()).toBe('2026-06-16T22:00:00.000Z');
+    // At 23:00Z it is already the 16th in Johannesburg, so the cutoff moves a day on.
+    expect(retentionCutoff(new Date('2026-09-15T23:00:00.000Z'), 'Africa/Johannesburg').toISOString()).toBe(
+      '2026-06-17T22:00:00.000Z',
+    );
   });
 
   describe('pruneLocationPings', () => {
@@ -163,8 +178,16 @@ describe('location ping retention (#178)', () => {
 
       const result = await pruneLocationPings({ now });
 
-      expect(result.cutoff.toISOString()).toBe(utcDayStart(new Date(now.getTime() - 90 * DAY)).toISOString());
-      expect(result).toMatchObject({ agentDaysSummarised: 2, pingsDeleted: 7, dryRun: false, stoppedEarly: false });
+      expect(retentionCutoff(now, 'UTC').toISOString()).toBe(
+        utcDayStart(new Date(now.getTime() - 90 * DAY)).toISOString(),
+      );
+      expect(result).toMatchObject({
+        retentionDays: 90,
+        agentDaysSummarised: 2,
+        pingsDeleted: 7,
+        dryRun: false,
+        stoppedEarly: false,
+      });
       expect(await rawCount(agent)).toBe(1);
 
       const day100 = await summary(agent, oldDay);
@@ -184,7 +207,7 @@ describe('location ping retention (#178)', () => {
 
     it('holds the cutoff exactly: the last instant before it goes, the cutoff itself stays', async () => {
       const agent = await userIn(clientId, 'field_agent');
-      const cutoff = utcDayStart(new Date(now.getTime() - 90 * DAY));
+      const cutoff = retentionCutoff(now, 'UTC');
       await addPing(agent, new Date(cutoff.getTime() - 1), storeA);
       const kept = await addPing(agent, cutoff, storeA);
 
@@ -279,6 +302,67 @@ describe('location ping retention (#178)', () => {
       await pruneLocationPings({ now, clientId });
       expect(await rawCount(ours)).toBe(0);
       expect(await rawCount(theirs)).toBe(1);
+    });
+  });
+
+  describe('client timezone (#309)', () => {
+    let jhbClientId: string;
+
+    beforeAll(async () => {
+      jhbClientId = await newClient('RET-JHB', 'Africa/Johannesburg');
+    });
+
+    afterEach(async () => {
+      await prisma.agentLocationPing.deleteMany({ where: { clientId: jhbClientId } });
+      await prisma.agentDaySummary.deleteMany({ where: { clientId: jhbClientId } });
+    });
+
+    afterAll(async () => {
+      await prisma.user.deleteMany({ where: { clientId: jhbClientId } });
+      await prisma.client.delete({ where: { id: jhbClientId } });
+    });
+
+    it('files a 23:30Z ping under the next Johannesburg day', async () => {
+      const agent = await userIn(jhbClientId, 'field_agent');
+      // 2026-06-01 23:30Z is 01:30 on 2026-06-02 in Johannesburg.
+      await addPing(agent, new Date('2026-06-01T23:30:00.000Z'), street);
+      await addPing(agent, new Date('2026-06-01T21:30:00.000Z'), street);
+
+      const result = await pruneLocationPings({ now, clientId: jhbClientId });
+
+      expect(result).toMatchObject({ agentDaysSummarised: 2, pingsDeleted: 2 });
+      const june1 = await summary(agent, new Date('2026-06-01T00:00:00.000Z'));
+      const june2 = await summary(agent, new Date('2026-06-02T00:00:00.000Z'));
+      expect(june1).toMatchObject({ pingCount: 1, firstPingAt: new Date('2026-06-01T21:30:00.000Z') });
+      expect(june2).toMatchObject({ pingCount: 1, firstPingAt: new Date('2026-06-01T23:30:00.000Z') });
+    });
+
+    it('holds the cutoff at the start of the local day, not UTC midnight', async () => {
+      const agent = await userIn(jhbClientId, 'field_agent');
+      const cutoff = retentionCutoff(now, 'Africa/Johannesburg');
+      expect(cutoff.toISOString()).toBe('2026-06-16T22:00:00.000Z');
+      await addPing(agent, new Date(cutoff.getTime() - 1), street);
+      const kept = await addPing(agent, cutoff, street);
+      // After local midnight but before UTC midnight: inside retention here,
+      // though a UTC calendar would have pruned it.
+      const keptLate = await addPing(agent, new Date('2026-06-16T23:00:00.000Z'), street);
+
+      await pruneLocationPings({ now, clientId: jhbClientId });
+
+      const left = await prisma.agentLocationPing.findMany({
+        where: { agentId: agent.userId },
+        orderBy: { recordedAt: 'asc' },
+      });
+      expect(left.map((p) => p.id)).toEqual([kept.id, keptLate.id]);
+      expect(await summary(agent, new Date('2026-06-16T00:00:00.000Z'))).toMatchObject({ pingCount: 1 });
+    });
+
+    it('a deactivation purge files days by the client’s calendar too', async () => {
+      const agent = await userIn(jhbClientId, 'field_agent');
+      await addPing(agent, new Date('2026-09-14T23:30:00.000Z'), street);
+      await purgeAgentLocationPings({ clientId: jhbClientId, agentId: agent.userId });
+      expect(await summary(agent, new Date('2026-09-15T00:00:00.000Z'))).toMatchObject({ pingCount: 1 });
+      expect(await summary(agent, new Date('2026-09-14T00:00:00.000Z'))).toBeNull();
     });
   });
 

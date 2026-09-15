@@ -1,5 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { addCalendarDays, localCalendarDate, startOfLocalDay } from '../../lib/clientTime';
+import { getClientTimeZone } from '../clients/clients.service';
 import { RAW_PING_RETENTION_DAYS } from './locationPolicy';
 import { FenceOutlet, containingOutlet, outletsNear } from './outletFence';
 
@@ -10,19 +12,21 @@ import { FenceOutlet, containingOutlet, outletsNear } from './outletFence';
  * stop summary (AgentDaySummary) is kept; a deactivated agent's raw pings are
  * deleted straight away, summaries kept the same way.
  *
- * NOTHING SCHEDULES THIS YET. The report scheduler (#66) is not on main; until
- * it is, run `npm run prune-location-pings` by hand or from cron. When the
- * scheduler exists it should call pruneLocationPings() directly — the loop
- * lives here, not in the script, for exactly that reason.
+ * Runs daily on the in-process location prune worker
+ * (locationPrune.worker.ts, started from server.ts), by hand with
+ * `npm run prune-location-pings`, and for one agent on deactivation.
  *
- * **Day boundaries are UTC.** TODO(#309): use Client.timezone once it exists.
- * A UTC day cuts at 02:00 SAST, so an agent's 00:00–02:00 pings land in the
- * previous day's summary. The summary still records exact first/last instants,
- * so nothing is lost — only which row a late-night stop is filed under.
+ * **Days are the client's local calendar days** (`Client.timezone`, #309), in
+ * the `clientTime.ts` conventions: `AgentDaySummary.day` is a calendar date
+ * stored as UTC midnight of that date, and the pings that belong to it are the
+ * instants from the start of that local day to the start of the next. A
+ * Johannesburg agent's 23:30Z ping is 01:30 the next morning, so it is filed
+ * under the next day. The 90-day cutoff is likewise the start of the client's
+ * local day 90 days ago.
  *
- * Unit of work: one agent's one UTC day. Inside a single transaction it reads
- * that day's pings, folds them into the day's summary (merging with any summary
- * already there), and deletes exactly the pings it read. So:
+ * Unit of work: one agent's one local day. Inside a single transaction it
+ * reads that day's pings, folds them into the day's summary (merging with any
+ * summary already there), and deletes exactly the pings it read. So:
  * - summaries are always written BEFORE, and atomically with, the delete — a
  *   crash leaves either both or neither;
  * - idempotent: a finished agent-day has no raw pings left, so a re-run finds
@@ -30,14 +34,22 @@ import { FenceOutlet, containingOutlet, outletsNear } from './outletFence';
  * - resumable: nothing is remembered between runs; each loop picks the oldest
  *   remaining eligible ping, so a killed run continues where it stopped;
  * - race-safe: a ping inserted mid-transaction is not among the ids deleted,
- *   and is folded on a later run instead of vanishing unsummarised.
+ *   and is folded on a later run instead of vanishing unsummarised;
+ * - safe to run concurrently (several API instances, the worker and the
+ *   script, a deactivation): each fold takes a transaction-scoped advisory lock
+ *   on the agent, so two folds of one agent queue rather than both reading the
+ *   same pings and both merging them into the summary.
  */
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Midnight UTC at the start of `at`'s UTC day. TODO(#309): tenant timezone. */
-export function utcDayStart(at: Date): Date {
-  return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+/**
+ * The instant before which a client's pings are past retention: the start of
+ * the client's local calendar day {@link RAW_PING_RETENTION_DAYS} days ago.
+ * Whole local days only, so no day is summarised while part of it is still
+ * inside the window (and so could still gain raw pings from ingest).
+ */
+export function retentionCutoff(now: Date, timeZone: string): Date {
+  const today = localCalendarDate(now, timeZone);
+  return startOfLocalDay(addCalendarDays(today, -RAW_PING_RETENTION_DAYS), timeZone);
 }
 
 export interface StopSummary {
@@ -92,15 +104,20 @@ function asStops(value: Prisma.JsonValue): StopSummary[] {
 }
 
 /**
- * Folds one agent's one UTC day, atomically. Returns how many raw pings it
- * deleted (0 when there were none left).
+ * Folds one agent's one local calendar day (`day`, a calendar date in the
+ * clientTime.ts convention, of `timeZone`), atomically. Returns how many raw
+ * pings it deleted (0 when there were none left).
  */
-export async function summariseAgentDay(agentId: string, dayStart: Date): Promise<number> {
-  const dayEnd = new Date(dayStart.getTime() + DAY_MS);
+export async function summariseAgentDay(agentId: string, day: Date, timeZone: string): Promise<number> {
+  const from = startOfLocalDay(day, timeZone);
+  const to = startOfLocalDay(addCalendarDays(day, 1), timeZone);
   return prisma.$transaction(
     async (tx) => {
+      // Released at commit or rollback. See the concurrency note above.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${agentId}))::text AS locked`;
+
       const pings = await tx.agentLocationPing.findMany({
-        where: { agentId, recordedAt: { gte: dayStart, lt: dayEnd } },
+        where: { agentId, recordedAt: { gte: from, lt: to } },
         orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
         select: { id: true, clientId: true, lat: true, lng: true, recordedAt: true },
       });
@@ -110,7 +127,7 @@ export async function summariseAgentDay(agentId: string, dayStart: Date): Promis
       const outlets = await outletsNear(clientId, pings, tx);
       const folded = foldStops(pings, outlets);
       const existing = await tx.agentDaySummary.findUnique({
-        where: { agentId_day: { agentId, day: dayStart } },
+        where: { agentId_day: { agentId, day } },
       });
 
       const first = pings[0].recordedAt;
@@ -125,8 +142,8 @@ export async function summariseAgentDay(agentId: string, dayStart: Date): Promis
         stops: stops as unknown as Prisma.InputJsonValue,
       };
       await tx.agentDaySummary.upsert({
-        where: { agentId_day: { agentId, day: dayStart } },
-        create: { clientId, agentId, day: dayStart, ...data },
+        where: { agentId_day: { agentId, day } },
+        create: { clientId, agentId, day, ...data },
         update: data,
       });
 
@@ -140,6 +157,11 @@ export async function summariseAgentDay(agentId: string, dayStart: Date): Promis
   );
 }
 
+/** Folds the local day `recordedAt` falls on, in `timeZone`. */
+function summariseDayOf(agentId: string, recordedAt: Date, timeZone: string): Promise<number> {
+  return summariseAgentDay(agentId, localCalendarDate(recordedAt, timeZone), timeZone);
+}
+
 export interface PurgeResult {
   agentDays: number;
   pingsDeleted: number;
@@ -147,13 +169,14 @@ export interface PurgeResult {
 
 /**
  * Folds and deletes EVERY raw ping of one agent — the deactivation path (#178).
- * Walks the agent's days oldest first, one transaction per day.
+ * Walks the agent's local days oldest first, one transaction per day.
  */
 export async function purgeAgentLocationPings(input: {
   clientId: string;
   agentId: string;
   log?: (line: string) => void;
 }): Promise<PurgeResult> {
+  const timeZone = await getClientTimeZone(input.clientId);
   const result: PurgeResult = { agentDays: 0, pingsDeleted: 0 };
   for (;;) {
     const oldest = await prisma.agentLocationPing.findFirst({
@@ -162,7 +185,7 @@ export async function purgeAgentLocationPings(input: {
       select: { recordedAt: true },
     });
     if (!oldest) break;
-    const deleted = await summariseAgentDay(input.agentId, utcDayStart(oldest.recordedAt));
+    const deleted = await summariseDayOf(input.agentId, oldest.recordedAt, timeZone);
     result.agentDays += 1;
     result.pingsDeleted += deleted;
     input.log?.(`agent ${input.agentId}: folded ${result.agentDays} day(s), deleted ${result.pingsDeleted} ping(s)`);
@@ -183,8 +206,8 @@ export interface PruneOptions {
 }
 
 export interface PruneResult {
-  /** Pings recorded before this are past retention. Start of a UTC day. */
-  cutoff: Date;
+  /** Local days of raw pings kept, before a client's cutoff. */
+  retentionDays: number;
   dryRun: boolean;
   /** Dry run: pings past retention. Otherwise 0. */
   expiredPings: number;
@@ -201,18 +224,15 @@ export interface PruneResult {
  * The retention job. Two passes:
  * 1. Deactivated agents — catches any the PATCH /users/:id hook missed (it is
  *    best-effort so that a failure cannot block a deactivation).
- * 2. Pings past 90 days, whole UTC days only: the cutoff is the START of the
- *    day 90 days ago, so no day is ever summarised while part of it is still
- *    inside the window (and so could still gain raw pings from ingest).
+ * 2. Pings before each client's cutoff ({@link retentionCutoff}), client by
+ *    client, since every client has its own calendar.
  */
 export async function pruneLocationPings(options: PruneOptions = {}): Promise<PruneResult> {
   const now = options.now ?? new Date();
-  const cutoff = utcDayStart(new Date(now.getTime() - RAW_PING_RETENTION_DAYS * DAY_MS));
   const tenant = options.clientId ? { clientId: options.clientId } : {};
   const deactivatedWhere: Prisma.AgentLocationPingWhereInput = { ...tenant, agent: { active: false } };
-  const expiredWhere: Prisma.AgentLocationPingWhereInput = { ...tenant, recordedAt: { lt: cutoff } };
   const result: PruneResult = {
-    cutoff,
+    retentionDays: RAW_PING_RETENTION_DAYS,
     dryRun: options.dryRun ?? false,
     expiredPings: 0,
     deactivatedAgentPings: 0,
@@ -222,11 +242,30 @@ export async function pruneLocationPings(options: PruneOptions = {}): Promise<Pr
     stoppedEarly: false,
   };
 
+  const zones = new Map<string, string>();
+  const zoneOf = async (clientId: string) => {
+    let zone = zones.get(clientId);
+    if (!zone) {
+      zone = await getClientTimeZone(clientId);
+      zones.set(clientId, zone);
+    }
+    return zone;
+  };
+
+  // Only clients that hold any pings — a GROUP BY, not every tenant.
+  const clientIds = (
+    await prisma.agentLocationPing.groupBy({ by: ['clientId'], where: tenant, orderBy: { clientId: 'asc' } })
+  ).map((row) => row.clientId);
+  const expiredWhere = async (clientId: string): Promise<Prisma.AgentLocationPingWhereInput> => ({
+    clientId,
+    recordedAt: { lt: retentionCutoff(now, await zoneOf(clientId)) },
+  });
+
   if (result.dryRun) {
-    [result.expiredPings, result.deactivatedAgentPings] = await Promise.all([
-      prisma.agentLocationPing.count({ where: expiredWhere }),
-      prisma.agentLocationPing.count({ where: deactivatedWhere }),
-    ]);
+    result.deactivatedAgentPings = await prisma.agentLocationPing.count({ where: deactivatedWhere });
+    for (const clientId of clientIds) {
+      result.expiredPings += await prisma.agentLocationPing.count({ where: await expiredWhere(clientId) });
+    }
     return result;
   }
 
@@ -238,32 +277,40 @@ export async function pruneLocationPings(options: PruneOptions = {}): Promise<Pr
     const ping = await prisma.agentLocationPing.findFirst({
       where: deactivatedWhere,
       orderBy: { recordedAt: 'asc' },
-      select: { agentId: true, recordedAt: true },
+      select: { agentId: true, clientId: true, recordedAt: true },
     });
     if (!ping) break;
-    result.pingsDeleted += await summariseAgentDay(ping.agentId, utcDayStart(ping.recordedAt));
+    result.pingsDeleted += await summariseDayOf(ping.agentId, ping.recordedAt, await zoneOf(ping.clientId));
     result.agentDaysSummarised += 1;
     const remaining = await prisma.agentLocationPing.count({ where: { agentId: ping.agentId } });
     if (remaining === 0) result.deactivatedAgentsPurged += 1;
     options.log?.(`deactivated: ${result.agentDaysSummarised} agent-day(s), ${result.pingsDeleted} ping(s) deleted`);
   }
 
-  // Pass 2: whole days past retention.
-  while (budgetLeft()) {
-    const ping = await prisma.agentLocationPing.findFirst({
-      where: expiredWhere,
-      orderBy: { recordedAt: 'asc' },
-      select: { agentId: true, recordedAt: true },
-    });
-    if (!ping) break;
-    result.pingsDeleted += await summariseAgentDay(ping.agentId, utcDayStart(ping.recordedAt));
-    result.agentDaysSummarised += 1;
-    options.log?.(`expired: ${result.agentDaysSummarised} agent-day(s), ${result.pingsDeleted} ping(s) deleted`);
+  // Pass 2: whole local days past retention, per client.
+  for (const clientId of clientIds) {
+    const where = await expiredWhere(clientId);
+    const timeZone = await zoneOf(clientId);
+    while (budgetLeft()) {
+      const ping = await prisma.agentLocationPing.findFirst({
+        where,
+        orderBy: { recordedAt: 'asc' },
+        select: { agentId: true, recordedAt: true },
+      });
+      if (!ping) break;
+      result.pingsDeleted += await summariseDayOf(ping.agentId, ping.recordedAt, timeZone);
+      result.agentDaysSummarised += 1;
+      options.log?.(`expired: ${result.agentDaysSummarised} agent-day(s), ${result.pingsDeleted} ping(s) deleted`);
+    }
   }
 
   if (!budgetLeft()) {
-    result.stoppedEarly =
-      (await prisma.agentLocationPing.count({ where: { OR: [expiredWhere, deactivatedWhere] } })) > 0;
+    let remaining = await prisma.agentLocationPing.count({ where: deactivatedWhere });
+    for (const clientId of clientIds) {
+      if (remaining > 0) break;
+      remaining += await prisma.agentLocationPing.count({ where: await expiredWhere(clientId) });
+    }
+    result.stoppedEarly = remaining > 0;
   }
   return result;
 }

@@ -1092,8 +1092,8 @@ model AgentLocationPing {
 
 /// What survives of an agent's day once its raw pings are pruned (#178).
 ///
-/// `day` is a UTC calendar day. TODO(#309): use Client.timezone once it
-/// exists — a UTC day splits a South African morning at 02:00 SAST.
+/// `day` is a calendar date in the client's own timezone (Client.timezone,
+/// #309), stored as UTC midnight of that date — the clientTime.ts convention.
 model AgentDaySummary {
   id          String   @id @default(uuid())
   clientId    String   @map("client_id")
