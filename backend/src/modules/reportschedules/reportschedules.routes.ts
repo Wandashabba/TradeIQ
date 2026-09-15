@@ -12,6 +12,7 @@ import {
   type Cadence,
 } from './reportschedules.service';
 import { listEmailDeliveriesForRun, validateRecipients } from './reportschedules.email';
+import { listRunsForSchedule } from './reportschedules.runs';
 import { parsePagination } from '../../lib/pagination';
 
 export const reportSchedulesRouter = Router();
@@ -97,6 +98,16 @@ reportSchedulesRouter.post('/:id/run', async (req: AuthedRequest, res) => {
   const { id } = req.params as { id: string };
   const result = await runSchedule(id, req.user!.clientId);
   res.status(200).json(result);
+});
+
+// A schedule's run history (#66), newest first: each run's status, delivery
+// summary, webhook results and signed CSV link. Another client's schedule is
+// a 404.
+reportSchedulesRouter.get('/:id/runs', async (req: AuthedRequest, res) => {
+  const { id } = req.params as { id: string };
+  const { limit, cursor } = parsePagination(req);
+  const page = await listRunsForSchedule({ scheduleId: id, clientId: req.user!.clientId, limit, cursor });
+  res.status(200).json(page);
 });
 
 // A run's CSV (#66) — what a `report.generated` webhook's `csvPath` points at.

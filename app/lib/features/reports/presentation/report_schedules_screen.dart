@@ -7,6 +7,7 @@ import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/report_schedules_repository.dart';
+import 'report_run_history_screen.dart';
 import 'report_schedule_form_screen.dart';
 
 /// The standing note on this screen, worded from what the backend does (#66):
@@ -57,7 +58,9 @@ String runNowMessage(ScheduleRunResult result) {
   return parts.join(' ');
 }
 
-String _stamp(DateTime at) {
+/// "2026-09-14 10:05" in local time — how every report schedule and run time
+/// is shown in the console.
+String reportStamp(DateTime at) {
   final l = at.toLocal();
   String two(int n) => n.toString().padLeft(2, '0');
   return '${l.year}-${two(l.month)}-${two(l.day)} '
@@ -66,14 +69,14 @@ String _stamp(DateTime at) {
 
 /// "Last run 2026-09-14 10:05" in local time, or "Never run".
 String lastRunLabel(DateTime? at) =>
-    at == null ? 'Never run' : 'Last run ${_stamp(at)}';
+    at == null ? 'Never run' : 'Last run ${reportStamp(at)}';
 
 /// "Next run 2026-09-15 09:00" in local time. A paused schedule has no next
 /// run and says so rather than showing a stale time.
 String nextRunLabel(ReportSchedule schedule) {
   if (!schedule.active) return 'Paused, no next run';
   final at = schedule.nextRunAt;
-  return at == null ? 'Next run not scheduled' : 'Next run ${_stamp(at)}';
+  return at == null ? 'Next run not scheduled' : 'Next run ${reportStamp(at)}';
 }
 
 /// Report schedules, as a worklist: which saved report, how often, when it
@@ -233,6 +236,16 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
     );
   }
 
+  /// Opens the schedule's run history.
+  void _history() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            ReportRunHistoryScreen(schedule: widget.schedule),
+      ),
+    );
+  }
+
   Future<void> _delete() async {
     if (_busy) return;
     final confirmed = await showDialog<bool>(
@@ -310,6 +323,11 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
           key: ValueKey<String>('run-${s.id}'),
           label: 'Run now',
           onPressed: _runNow,
+        ),
+        RowAction(
+          key: ValueKey<String>('history-${s.id}'),
+          label: 'History',
+          onPressed: _history,
         ),
         RowAction(
           key: ValueKey<String>('edit-${s.id}'),

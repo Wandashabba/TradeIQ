@@ -73,6 +73,21 @@ class _RecordingSchedulesRepository implements ReportSchedulesRepository {
   Future<void> deleteSchedule(String id) async => throw UnimplementedError();
 
   @override
+  Future<PaginatedResponse<ReportRun>> listRuns(
+    String scheduleId, {
+    String? cursor,
+    int limit = reportRunsPageSize,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<ReportEmailDelivery>> listEmailDeliveries(
+    String scheduleId,
+    String runId,
+  ) async =>
+      throw UnimplementedError();
+
+  @override
   Future<ScheduleRunResult> runNow(String id) async =>
       throw UnimplementedError();
 }
