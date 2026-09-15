@@ -32,12 +32,20 @@ primary_region = "lhr"
 [http_service]
   internal_port = 4000
   force_https = true
+  # One machine always stays up (#160). An agent standing in a store should not
+  # wait on a cold start, which is what `min_machines_running = 0` cost on the
+  # first request after every quiet spell.
+  #
+  # Auto-stop and auto-start stay on, so any machine ABOVE the minimum still
+  # idles down and comes back on demand — the floor is one, not "all of them".
+  # The trade is cost: one shared-cpu-1x/512mb machine running 24/7 instead of
+  # only while busy. See docs/operations/deploy-hardening.md.
+  #
+  # fly.toml only takes effect on the next `fly deploy`; editing this file
+  # changes nothing on the live app by itself.
   auto_stop_machines = "stop"
   auto_start_machines = true
-  # Zero is deliberate for a test backend: it costs nothing while idle and
-  # cold-starts on the first request. Raise to 1 before real field testing —
-  # an agent standing in a store should not wait on a cold start.
-  min_machines_running = 0
+  min_machines_running = 1
 
   [[http_service.checks]]
     grace_period = "10s"

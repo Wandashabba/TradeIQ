@@ -95,6 +95,43 @@ describe('CORS policy by environment', () => {
     expect(refused.headers['access-control-allow-origin']).toBeUndefined();
   });
 
+  it('warns at startup when production has no allowlist (#160)', async () => {
+    // Fail-closed is quiet by nature, so the warning is the only thing that
+    // tells whoever deploys a web console why its requests are refused.
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      await appWith({ NODE_ENV: 'production', CORS_ORIGINS: undefined });
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('CORS_ORIGINS is not set in production'),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('does not warn, and still serves no-Origin clients, when production has an allowlist', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const prodApp = await appWith({
+        NODE_ENV: 'production',
+        CORS_ORIGINS: 'https://console.tradeiq.example, https://other.tradeiq.example',
+      });
+      expect(warn).not.toHaveBeenCalled();
+
+      const native = await request(prodApp).get('/health');
+      expect(native.status).toBe(200);
+      expect(native.headers['access-control-allow-origin']).toBeUndefined();
+
+      // Entries are trimmed, so a space after the comma still matches.
+      const second = await request(prodApp)
+        .get('/health')
+        .set('Origin', 'https://other.tradeiq.example');
+      expect(second.headers['access-control-allow-origin']).toBe('https://other.tradeiq.example');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('keeps the open policy outside production', async () => {
     // `flutter run -d chrome` picks a port dynamically, so there is no fixed
     // dev origin to allowlist. That convenience is the whole reason the
