@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { parsePagination } from '../../lib/pagination';
-import { checkIn, listVisits, submitVisit } from './visits.service';
+import { checkIn, getVisitDetail, listVisits, submitVisit } from './visits.service';
 
 const VISIT_STATUSES = ['in_progress', 'submitted'] as const;
 type VisitStatusFilter = (typeof VISIT_STATUSES)[number];
@@ -52,6 +52,16 @@ visitsRouter.post('/:id/submit', requireRole('field_agent'), async (req: AuthedR
       typeof submittedAtClient === 'string' ? submittedAtClient : undefined,
   });
   res.status(200).json(visit);
+});
+
+// The manager's review of one visit (#208): outlet, agent, score, section
+// summaries, photo metadata (never bytes) and fraud signals. A supervisory
+// read, so managers/admins only; tenant-scoped, 404 for another client's visit.
+// Registered as GET only, so it cannot shadow POST /:id/submit.
+visitsRouter.get('/:id', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
+  const { id } = req.params as { id: string };
+  const detail = await getVisitDetail(id, req.user!.clientId);
+  res.status(200).json(detail);
 });
 
 // Any authenticated role may list visits. A field_agent is scoped to their own

@@ -114,6 +114,47 @@ void main() {
     expect(find.byKey(const ValueKey<String>('agent-stop-a1-1')), findsOneWidget);
   });
 
+  testWidgets('tapping a stop opens that visit for review (#208)', (tester) async {
+    // Wide enough for the rail layout: at the 800x600 default the compact
+    // scaffold's floating bottom bar sits over the map, and over this pin.
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        agentsRepositoryProvider.overrideWithValue(_FakeAgentsRepository([_thabo])),
+      ],
+      child: MaterialApp.router(
+        routerConfig: GoRouter(
+          initialLocation: '/agents/activity',
+          routes: [
+            GoRoute(
+              path: '/agents/activity',
+              builder: (context, state) => const AgentTrailScreen(),
+            ),
+            GoRoute(
+              path: '/visits/:id',
+              builder: (context, state) =>
+                  Text('visit detail ${state.pathParameters['id']}'),
+            ),
+          ],
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // Aim at the numbered disc itself: the box centre can sit under the map's
+    // attribution strip, which is not the pin.
+    await tester.tap(find.descendant(
+      of: find.byKey(const ValueKey<String>('agent-stop-a1-1')),
+      matching: find.text('2'),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('visit detail v2'), findsOneWidget);
+  });
+
   testWidgets('shows an empty state for a day with no stops', (tester) async {
     final idle = AgentActivity(
       agentId: 'a2',

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/widgets/glass.dart';
@@ -101,5 +103,42 @@ void main() {
       find.textContaining('Failed to load flagged visits'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('View visit on a flagged row opens that visit (#208)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          fraudRepositoryProvider.overrideWithValue(_FakeFraudRepository()),
+        ],
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            initialLocation: '/fraud',
+            routes: [
+              GoRoute(
+                path: '/fraud',
+                builder: (context, state) => const FraudScreen(),
+              ),
+              GoRoute(
+                path: '/visits/:id',
+                builder: (context, state) =>
+                    Text('visit detail ${state.pathParameters['id']}'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('View visit'), findsNWidgets(2));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('view-visit-v-high-001')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('visit detail v-high-001'), findsOneWidget);
   });
 }

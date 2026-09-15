@@ -15,7 +15,9 @@ export function isAlertMetric(value: unknown): value is AlertMetric {
 }
 
 // Fallbacks used when a rule leaves `threshold` unset.
-const DEFAULT_PRICE_DEVIATION_THRESHOLD = 10;
+// Exported so the manager visit detail (GET /visits/:id) calls a price "off"
+// on the same line the default rule fires on, rather than inventing its own.
+export const DEFAULT_PRICE_DEVIATION_THRESHOLD = 10;
 const DEFAULT_SCORECARD_THRESHOLD = 60;
 
 export interface CreateAlertRuleInput {
