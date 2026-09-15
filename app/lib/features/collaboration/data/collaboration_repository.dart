@@ -2,21 +2,48 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
 
+/// An image attached to a message (#125). Metadata only — the list never
+/// carries bytes. Fetch the thumbnail or the full image by [photoId] through
+/// the photos repository, which sends the bearer token.
+///
+/// Images only: attachments ride the existing photo pipeline, not a general
+/// file store, so there is no PDF or document variant.
+class MessageAttachment {
+  const MessageAttachment({required this.photoId, this.position = 0});
+
+  final String photoId;
+  final int position;
+
+  factory MessageAttachment.fromJson(Map<String, dynamic> json) =>
+      MessageAttachment(
+        photoId: json['photoId'] as String,
+        position: (json['position'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// A single team message returned by GET /messages.
 class Message {
   const Message({
     required this.id,
     required this.body,
     this.recipientId,
+    this.attachments = const [],
   });
   final String id;
   final String body;
   final String? recipientId;
 
+  /// In the order the sender attached them. Empty for a text-only message.
+  final List<MessageAttachment> attachments;
+
   factory Message.fromJson(Map<String, dynamic> json) => Message(
         id: json['id'] as String,
         body: json['body'] as String,
         recipientId: json['recipientId'] as String?,
+        attachments: [
+          for (final a in (json['attachments'] as List<dynamic>? ?? const []))
+            MessageAttachment.fromJson(a as Map<String, dynamic>),
+        ],
       );
 }
 
@@ -40,7 +67,16 @@ class Announcement {
 
 abstract class CollaborationRepository {
   Future<PaginatedResponse<Message>> listMessages();
-  Future<Message> sendMessage(String body, {String? recipientId});
+
+  /// POST /messages. [attachmentPhotoIds] are ids returned by
+  /// `PhotosRepository.uploadMessageAttachment` — at most
+  /// [maxMessageAttachments], each uploaded by the caller. [body] may be blank
+  /// only when at least one image is attached.
+  Future<Message> sendMessage(
+    String body, {
+    String? recipientId,
+    List<String> attachmentPhotoIds = const [],
+  });
   Future<PaginatedResponse<Announcement>> listAnnouncements();
 
   /// POST /announcements. The backend gates this on `requireRole('manager',
@@ -51,6 +87,9 @@ abstract class CollaborationRepository {
     required String body,
   });
 }
+
+/// The server's cap on images per message (MAX_MESSAGE_ATTACHMENTS).
+const maxMessageAttachments = 4;
 
 class DioCollaborationRepository implements CollaborationRepository {
   @override
@@ -63,9 +102,18 @@ class DioCollaborationRepository implements CollaborationRepository {
   }
 
   @override
-  Future<Message> sendMessage(String body, {String? recipientId}) async {
+  Future<Message> sendMessage(
+    String body, {
+    String? recipientId,
+    List<String> attachmentPhotoIds = const [],
+  }) async {
     final data = <String, dynamic>{'body': body};
     if (recipientId != null) data['recipientId'] = recipientId;
+    // Omitted rather than sent empty, so a text message's wire shape is
+    // exactly what it was before attachments existed.
+    if (attachmentPhotoIds.isNotEmpty) {
+      data['attachmentPhotoIds'] = attachmentPhotoIds;
+    }
     final response = await dio.post('/messages', data: data);
     return Message.fromJson(response.data as Map<String, dynamic>);
   }

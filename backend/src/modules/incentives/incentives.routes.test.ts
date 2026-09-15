@@ -306,11 +306,12 @@ describe('incentives routes', () => {
     // hard-known from the seed, so this pins values AND ordering, not just a set.
     const schemesDesc = await prisma.incentiveScheme.findMany({
       where: { clientId, active: true, id: { in: myIds } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
     const agentOrder = await prisma.user.findMany({
       where: { clientId, role: 'field_agent' },
       select: { id: true, email: true, displayName: true },
+      orderBy: [{ email: 'asc' }, { id: 'asc' }],
     });
     const metricValues: Record<string, Record<string, number>> = {
       scorecard: { [agentAId]: 85, [agentBId]: 50, [agentCId]: 78.33 },

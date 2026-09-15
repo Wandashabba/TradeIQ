@@ -115,13 +115,19 @@ export interface EarnedIncentive {
  */
 export async function computeEarnedIncentives(clientId: string): Promise<EarnedIncentive[]> {
   const [schemes, agents] = await Promise.all([
+    // Both orders are part of the response contract (scheme-outer, agent-inner),
+    // so both need a total order: schemes created in the same millisecond tie
+    // on createdAt, and an unordered findMany returns agents in whatever order
+    // the planner picks. The id tiebreak and the explicit agent order make the
+    // same data always come back in the same sequence.
     prisma.incentiveScheme.findMany({
       where: { clientId, active: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     }),
     prisma.user.findMany({
       where: { clientId, role: 'field_agent' },
       select: { id: true, email: true, displayName: true },
+      orderBy: [{ email: 'asc' }, { id: 'asc' }],
     }),
   ]);
 

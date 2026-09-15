@@ -42,7 +42,10 @@ export async function resetDemoData(prisma: PrismaClient, clientId: string): Pro
   await prisma.beatPlan.deleteMany({ where: { clientId } });
   await prisma.campaignOutlet.deleteMany({ where: { campaign: { clientId } } });
   await prisma.campaign.deleteMany({ where: { clientId } });
+  // Message attachments cascade with their message; the photos behind them
+  // (#125) have no visit, so the visit-scoped photo delete above missed them.
   await prisma.message.deleteMany({ where: { clientId } });
+  await prisma.photo.deleteMany({ where: { clientId } });
   await prisma.announcement.deleteMany({ where: { clientId } });
 
   // Configuration.

@@ -793,7 +793,11 @@ describe('fraud routes', () => {
           .map((v: { visitId: string }) => v.visitId);
         expect(repeating).toEqual(expect.arrayContaining([repeatOutlet.repeatId, repeatOutlet2.repeatId]));
         // Three outlets and a dozen visits scanned: still exactly one history read.
-        expect(queryRaw).toHaveBeenCalledTimes(1);
+        // (#248's outlet lookup also runs, once, for the geotagged photos.)
+        const sqlOf = (call: unknown[]) => (call[0] as { sql: string }).sql;
+        expect(queryRaw.mock.calls.filter((call) => sqlOf(call).includes('visit_stock'))).toHaveLength(1);
+        expect(queryRaw.mock.calls.filter((call) => sqlOf(call).includes('lat_min'))).toHaveLength(1);
+        expect(queryRaw).toHaveBeenCalledTimes(2);
       } finally {
         queryRaw.mockRestore();
       }

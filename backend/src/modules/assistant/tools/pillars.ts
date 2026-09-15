@@ -250,14 +250,17 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       name: 'getFraudFlags',
       pillar: 'execution' as const,
       // The scope note is in the description on purpose. The assistant must not
-      // imply detection we do not have: five signals are implemented, and the
-      // ones the practitioner described but nobody built are backend work
+      // imply detection we do not have: exactly these ten signals are
+      // implemented (fraud.service.ts). Anything beyond them is backend work
       // tracked in STATUS.md, not something to hint at here.
       description:
         'Call this when the user asks about suspicious visits, fraud, or whether an agent ' +
-        'may be gaming their numbers. Covers five signals only: failed check-in attempts, ' +
-        'suspiciously fast completion, geofence distance, missing captures, and photo/GPS ' +
-        'divergence. It does not detect duplicate photos or flat stock figures.',
+        'may be gaming their numbers. Covers ten signals only: failed check-in attempts, ' +
+        'suspiciously fast completion, suspiciously slow completion, geofence distance, ' +
+        'missing captures, photo/GPS divergence, photos taken outside the visit\'s time ' +
+        'window, the same stock counts repeated visit after visit, a photo reused from ' +
+        'another visit, and stock counted while standing in a different store. It does ' +
+        'not detect anything beyond these.',
       args: windowArgs.extend({
         minScore: z
           .number()

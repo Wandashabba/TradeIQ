@@ -25,6 +25,38 @@ export const MAX_INPUT_PIXELS = 32 * 1024 * 1024;
 // non-image data URL) is rejected before we hand bytes to sharp.
 export const IMAGE_DATA_URL_RE = /^data:image\/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=]+)$/i;
 
+const IMAGE_DATA_URL_WITH_TYPE_RE = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i;
+
+/**
+ * The mime type and raw bytes of a stored image data URL, or a
+ * [ThumbnailSourceError] when the row does not hold one. Shared by the
+ * thumbnail builder and the full-image route so both agree on what counts as
+ * an image.
+ */
+export function decodeImageDataUrl(dataUrl: string): { contentType: string; bytes: Buffer } {
+  const match = IMAGE_DATA_URL_WITH_TYPE_RE.exec(dataUrl);
+  if (!match) {
+    throw new ThumbnailSourceError('Stored photo is not a base64 image data URL');
+  }
+  return { contentType: match[1].toLowerCase(), bytes: Buffer.from(match[2], 'base64') };
+}
+
+/**
+ * True when `dataUrl` is a base64 image data URL whose bytes sharp recognises
+ * as an image. Reads the header only (`metadata()` does not decode pixels), so
+ * it is cheap enough to run on upload — which is where message attachments
+ * (#125) enforce "images only".
+ */
+export async function isDecodableImageDataUrl(dataUrl: string): Promise<boolean> {
+  try {
+    const { bytes } = decodeImageDataUrl(dataUrl);
+    const meta = await sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
+    return typeof meta.format === 'string' && typeof meta.width === 'number';
+  } catch {
+    return false;
+  }
+}
+
 // Phase-1 in-memory LRU: a Map iterates in insertion order, so the first key
 // is the least recently used entry — a hit re-inserts its key to refresh
 // recency, and eviction is a delete of the first key. ~50 jpeg thumbnails at
@@ -60,15 +92,11 @@ export async function getThumbnailForPhoto(
     return hit;
   }
 
-  const dataUrl = await loadDataUrl();
-  const match = IMAGE_DATA_URL_RE.exec(dataUrl);
-  if (!match) {
-    throw new ThumbnailSourceError('Stored photo is not a base64 image data URL');
-  }
+  const { bytes } = decodeImageDataUrl(await loadDataUrl());
 
   let thumbnail: Buffer;
   try {
-    thumbnail = await sharp(Buffer.from(match[1], 'base64'), {
+    thumbnail = await sharp(bytes, {
       limitInputPixels: MAX_INPUT_PIXELS,
     })
       // Bake the EXIF orientation in — the thumbnail is served without

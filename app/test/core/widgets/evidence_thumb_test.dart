@@ -84,6 +84,14 @@ class _FakePhotosRepository implements PhotosRepository {
     required Map<String, dynamic> gpsTag,
     required String timestamp,
   }) async => throw UnimplementedError();
+
+  @override
+  Future<String> uploadMessageAttachment(String dataUrl) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Uint8List> imageBytes(String photoId) async =>
+      throw UnimplementedError();
 }
 
 Widget _app(
