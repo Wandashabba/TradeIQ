@@ -600,8 +600,9 @@ void main() {
     Future<void> goAs(
       WidgetTester tester,
       String role,
-      String location,
-    ) async {
+      String location, {
+      List<CurrentContest> current = const [],
+    }) async {
       await tester.pumpWidget(
         _appWithOverrides([
           sessionControllerProvider.overrideWith(
@@ -611,6 +612,7 @@ void main() {
           todayRouteProvider.overrideWith((ref) async => null),
           contestsRepositoryProvider.overrideWithValue(
             FakeContestsRepository(
+              current: current,
               standingsById: const {
                 'c-active': ContestStandings(
                   contest: activeContest,
@@ -650,6 +652,48 @@ void main() {
         expect(find.text('Points history'), findsNothing);
       });
     }
+
+    testWidgets('a field_agent reaches Contests from the Today app bar, and '
+        'back returns to Today', (tester) async {
+      await goAs(
+        tester,
+        'field_agent',
+        '/today',
+        current: const [
+          CurrentContest(
+            contest: activeContest,
+            participantCount: 1,
+            standings: [aisha],
+          ),
+        ],
+      );
+
+      final action = find.byKey(const ValueKey('today-contests'));
+      expect(action, findsOneWidget);
+      expect(
+        find.descendant(of: action, matching: find.text('1')),
+        findsOneWidget,
+      );
+
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(find.text('October Sprint'), findsOneWidget);
+      expect(find.text('1 contest running'), findsNothing);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('October Sprint'), findsNothing);
+    });
+
+    testWidgets('a manager has no Contests action: /today is not theirs', (
+      tester,
+    ) async {
+      await goAs(tester, 'manager', '/today');
+
+      expect(find.text('Execution overview'), findsOneWidget);
+      expect(find.byKey(const ValueKey('today-contests')), findsNothing);
+    });
 
     testWidgets('a manager can open a contest\'s standings', (tester) async {
       await goAs(tester, 'manager', '/contests/c-active');

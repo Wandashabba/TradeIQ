@@ -2287,6 +2287,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try again'**
   String get contestsRetry;
+
+  /// Tooltip and screen-reader label on the Today app bar trophy when contests are running; the badge shows the number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 contest running} other{{count} contests running}}'**
+  String contestsRunningHint(int count);
 }
 
 class _AppLocalizationsDelegate

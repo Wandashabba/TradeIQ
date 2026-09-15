@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/session_controller.dart';
 import '../../../core/format/person_label.dart';
 import '../../../core/network/api_client.dart';
 
@@ -276,4 +277,21 @@ final contestStandingsProvider =
 
 final currentContestsProvider = FutureProvider<List<CurrentContest>>((ref) {
   return ref.read(contestsRepositoryProvider).currentContests();
+});
+
+/// How many contests are running now, for the hint on the agent's Contests
+/// entry point. Reuses [currentContestsProvider], so opening the Contests view
+/// and the hint share one request, and refreshing either refreshes both.
+///
+/// Only field agents are asked: nobody else sees the entry point. A failure is
+/// 0 — a missing hint must never break Today.
+final runningContestsCountProvider = FutureProvider<int>((ref) async {
+  final role = ref.watch(sessionControllerProvider).value?.role;
+  if (role != 'field_agent') return 0;
+  try {
+    final contests = await ref.watch(currentContestsProvider.future);
+    return contests.where((c) => c.contest.isActive).length;
+  } on Object {
+    return 0;
+  }
 });

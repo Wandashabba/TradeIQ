@@ -1392,4 +1392,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contestsRetry => 'Try again';
+
+  @override
+  String contestsRunningHint(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count contests running',
+      one: '1 contest running',
+    );
+    return '$_temp0';
+  }
 }

@@ -13,6 +13,7 @@ import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../../l10n/l10n.dart';
+import '../../contests/presentation/contests_entry_action.dart';
 import '../data/today_route.dart';
 import '../../../core/theme/lumen_palette.dart';
 
@@ -33,6 +34,8 @@ class TodayScreen extends ConsumerWidget {
     return AgentScaffold(
       title: l10n.todayTitle,
       subtitle: formatDayHeading(context, DateTime.now()),
+      // Contests (#124): the agent's way in, with a running-count badge.
+      actions: const [ContestsEntryAction()],
       body: routeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => _NoRoute(

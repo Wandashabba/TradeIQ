@@ -1736,5 +1736,14 @@
   "contestsRetry": "Try again",
   "@contestsRetry": {
     "description": "Button that reloads the contests after a failure."
+  },
+  "contestsRunningHint": "{count, plural, =1{1 contest running} other{{count} contests running}}",
+  "@contestsRunningHint": {
+    "description": "Tooltip and screen-reader label on the Today app bar trophy when contests are running; the badge shows the number.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

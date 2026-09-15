@@ -364,5 +364,6 @@
   "contestsEmptyTitle": "Tans geen kompetisies nie",
   "contestsEmptyBody": "Wanneer jou bestuurder ’n kompetisie begin, verskyn dit hier.",
   "contestsLoadError": "Kon nie kompetisies laai nie",
-  "contestsRetry": "Probeer weer"
+  "contestsRetry": "Probeer weer",
+  "contestsRunningHint": "{count, plural, =1{1 kompetisie loop nou} other{{count} kompetisies loop nou}}"
 }
