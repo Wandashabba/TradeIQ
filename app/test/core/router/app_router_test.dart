@@ -11,6 +11,7 @@ import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
+import 'package:tradeiq_app/features/contests/data/contests_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -18,6 +19,8 @@ import 'package:tradeiq_app/features/reports/data/report_schedules_repository.da
 import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
 import 'package:tradeiq_app/features/sales_targets/presentation/sales_targets_screen.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
+
+import '../../features/contests/contests_fakes.dart';
 
 class _FixedSessionController extends SessionController {
   _FixedSessionController(this._initial);
@@ -677,6 +680,113 @@ void main() {
       expect(find.text('Execution overview'), findsOneWidget);
     },
   );
+
+  group('contests (#124)', () {
+    Future<void> goAs(
+      WidgetTester tester,
+      String role,
+      String location, {
+      List<CurrentContest> current = const [],
+    }) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(SessionState(role: role)),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
+          contestsRepositoryProvider.overrideWithValue(
+            FakeContestsRepository(
+              current: current,
+              standingsById: const {
+                'c-active': ContestStandings(
+                  contest: activeContest,
+                  participantCount: 1,
+                  standings: [aisha],
+                ),
+              },
+            ),
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go(location);
+      await tester.pumpAndSettle();
+    }
+
+    for (final location in ['/contests', '/contests/c-active']) {
+      testWidgets('a field_agent navigating to $location is bounced to their '
+          'route', (tester) async {
+        await goAs(tester, 'field_agent', location);
+
+        // Running contests and their full standings are manager/admin APIs.
+        expect(find.text('Today'), findsOneWidget);
+        expect(find.text('Contest standings'), findsNothing);
+      });
+    }
+
+    for (final role in ['field_agent', 'manager']) {
+      testWidgets('a $role can open /leaderboard/contests — the one shared '
+          '/leaderboard/ subroute', (tester) async {
+        await goAs(tester, role, '/leaderboard/contests');
+
+        expect(find.text('No contests right now'), findsOneWidget);
+        expect(find.text('Points history'), findsNothing);
+      });
+    }
+
+    testWidgets('a field_agent reaches Contests from the Today app bar, and '
+        'back returns to Today', (tester) async {
+      await goAs(
+        tester,
+        'field_agent',
+        '/today',
+        current: const [
+          CurrentContest(
+            contest: activeContest,
+            participantCount: 1,
+            standings: [aisha],
+          ),
+        ],
+      );
+
+      final action = find.byKey(const ValueKey('today-contests'));
+      expect(action, findsOneWidget);
+      expect(
+        find.descendant(of: action, matching: find.text('1')),
+        findsOneWidget,
+      );
+
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(find.text('October Sprint'), findsOneWidget);
+      expect(find.text('1 contest running'), findsNothing);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('October Sprint'), findsNothing);
+    });
+
+    testWidgets('a manager has no Contests action: /today is not theirs', (
+      tester,
+    ) async {
+      await goAs(tester, 'manager', '/today');
+
+      expect(find.text('Execution overview'), findsOneWidget);
+      expect(find.byKey(const ValueKey('today-contests')), findsNothing);
+    });
+
+    testWidgets('a manager can open a contest\'s standings', (tester) async {
+      await goAs(tester, 'manager', '/contests/c-active');
+
+      expect(find.text('Contest standings'), findsOneWidget);
+      expect(find.text('Aisha Patel'), findsOneWidget);
+    });
+  });
 
   // Push notification settings (#67) are shared: neither role is bounced.
   for (final (role, title) in [

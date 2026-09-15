@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/session_controller.dart';
 import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
@@ -21,6 +22,24 @@ class LeaderboardScreen extends ConsumerWidget {
 
     return ManagerScaffold(
       title: 'Leaderboard',
+      actions: [
+        // Contests (#124). An agent opens their own view; a manager goes to
+        // the console where contests are run. The role is read on tap, not
+        // watched: the board itself does not depend on who is looking.
+        TextButton.icon(
+          key: const ValueKey('leaderboard-contests'),
+          icon: const Icon(Icons.emoji_events_outlined, size: 18),
+          label: const Text('Contests'),
+          onPressed: () {
+            final role = ref.read(sessionControllerProvider).value?.role;
+            if (role == 'field_agent') {
+              context.push('/leaderboard/contests');
+            } else {
+              context.go('/contests');
+            }
+          },
+        ),
+      ],
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

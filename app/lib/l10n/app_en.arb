@@ -1623,6 +1623,129 @@
   "@locationStopCancel": {
     "description": "Confirmation dialog: keep sharing location."
   },
+  "contestsTitle": "Contests",
+  "@contestsTitle": {
+    "description": "Agent Contests screen title (#124). A contest ranks agents by the points they earn between two dates, for a prize."
+  },
+  "contestsSubtitle": "Earn points, climb the standings",
+  "@contestsSubtitle": {
+    "description": "Under the Contests title."
+  },
+  "contestsActiveHeading": "Running now",
+  "@contestsActiveHeading": {
+    "description": "Section heading above contests that are currently active."
+  },
+  "contestsEndedHeading": "Recently ended",
+  "@contestsEndedHeading": {
+    "description": "Section heading above contests that ended in the last 30 days."
+  },
+  "contestDaysLeft": "{count, plural, =1{1 day left} other{{count} days left}}",
+  "@contestDaysLeft": {
+    "description": "Pill on an active contest: days remaining, counting today (1 on the last day).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "contestEnded": "Ended",
+  "@contestEnded": {
+    "description": "Pill on a contest that has ended."
+  },
+  "contestDateRange": "{start} – {end}",
+  "@contestDateRange": {
+    "description": "A contest's first and last day, both inclusive. The dates are already formatted for the locale (e.g. '1 Oct').",
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "contestPrizeLabel": "Prize",
+  "@contestPrizeLabel": {
+    "description": "Label above the contest's prize, which the manager wrote as free text."
+  },
+  "contestCountsLabel": "What counts",
+  "@contestCountsLabel": {
+    "description": "Label above the kinds of points a contest counts."
+  },
+  "contestEventAll": "All points",
+  "@contestEventAll": {
+    "description": "The contest counts every kind of points."
+  },
+  "contestEventVisitSubmitted": "Submitted visits",
+  "@contestEventVisitSubmitted": {
+    "description": "A kind of points a contest counts: visits the agent submitted."
+  },
+  "contestEventTaskClosed": "Closed tasks",
+  "@contestEventTaskClosed": {
+    "description": "A kind of points a contest counts: tasks the agent closed."
+  },
+  "contestEventScorecard": "Scorecards",
+  "@contestEventScorecard": {
+    "description": "A kind of points a contest counts: visit scorecards (the average score is added)."
+  },
+  "contestYourRank": "Your rank: {rank} of {total}",
+  "@contestYourRank": {
+    "description": "The agent's own position in a contest. Agents on equal points share a rank.",
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "contestPoints": "{points} pts",
+  "@contestPoints": {
+    "description": "A points figure in a contest. 'points' is already formatted (e.g. '12' or '78.5').",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "contestNotRanked": "You’re not on this contest’s standings",
+  "@contestNotRanked": {
+    "description": "Shown instead of the agent's rank when they are not part of the contest."
+  },
+  "contestStandingsHeading": "Standings",
+  "@contestStandingsHeading": {
+    "description": "Heading above the top of a contest's ranking."
+  },
+  "contestYouTag": "You",
+  "@contestYouTag": {
+    "description": "Tag on the agent's own row in the standings."
+  },
+  "contestsEmptyTitle": "No contests right now",
+  "@contestsEmptyTitle": {
+    "description": "Contests screen when there is nothing active or recently ended."
+  },
+  "contestsEmptyBody": "When your manager starts a contest, it shows up here.",
+  "@contestsEmptyBody": {
+    "description": "Under 'No contests right now'."
+  },
+  "contestsLoadError": "Couldn’t load contests",
+  "@contestsLoadError": {
+    "description": "Contests screen when the request failed. The reason follows underneath."
+  },
+  "contestsRetry": "Try again",
+  "@contestsRetry": {
+    "description": "Button that reloads the contests after a failure."
+  },
+  "contestsRunningHint": "{count, plural, =1{1 contest running} other{{count} contests running}}",
+  "@contestsRunningHint": {
+    "description": "Tooltip and screen-reader label on the Today app bar trophy when contests are running; the badge shows the number.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "agentNotificationsTooltip": "Notifications",
   "@agentNotificationsTooltip": {
     "description": "Tooltip on the agent app bar's bell button, which opens the notification settings (#67)."

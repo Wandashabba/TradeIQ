@@ -36,6 +36,7 @@ import {
   webhooksRouter,
 } from './modules/webhooks/webhooks.routes';
 import { gamificationRouter } from './modules/gamification/gamification.routes';
+import { contestsRouter } from './modules/contests/contests.routes';
 import { reportsRouter } from './modules/reports/reports.routes';
 import { clientsRouter } from './modules/clients/clients.routes';
 import { usersRouter } from './modules/users/users.routes';
@@ -135,6 +136,7 @@ app.use('/announcements', announcementsRouter);
 app.use('/webhooks', webhooksRouter);
 app.use('/webhook-deliveries', webhookDeliveriesRouter);
 app.use('/gamification', gamificationRouter);
+app.use('/contests', contestsRouter);
 app.use('/reports', reportsRouter);
 app.use('/clients', clientsRouter);
 app.use('/users', usersRouter);

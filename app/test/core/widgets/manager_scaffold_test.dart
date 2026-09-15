@@ -92,6 +92,14 @@ void main() {
       '/users',
       '/client-config',
     ]) {
+      // The rail is a lazily built list that scrolls once the destinations
+      // outgrow the window (Contests, #124, pushed the last one past 900px),
+      // so bring each into view rather than assuming they all fit.
+      await tester.scrollUntilVisible(
+        find.byKey(ValueKey('nav-$route')),
+        80,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(
         find.byKey(ValueKey('nav-$route')),
         findsOneWidget,

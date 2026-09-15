@@ -2156,6 +2156,144 @@ abstract class AppLocalizations {
   /// **'Keep sharing'**
   String get locationStopCancel;
 
+  /// Agent Contests screen title (#124). A contest ranks agents by the points they earn between two dates, for a prize.
+  ///
+  /// In en, this message translates to:
+  /// **'Contests'**
+  String get contestsTitle;
+
+  /// Under the Contests title.
+  ///
+  /// In en, this message translates to:
+  /// **'Earn points, climb the standings'**
+  String get contestsSubtitle;
+
+  /// Section heading above contests that are currently active.
+  ///
+  /// In en, this message translates to:
+  /// **'Running now'**
+  String get contestsActiveHeading;
+
+  /// Section heading above contests that ended in the last 30 days.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently ended'**
+  String get contestsEndedHeading;
+
+  /// Pill on an active contest: days remaining, counting today (1 on the last day).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day left} other{{count} days left}}'**
+  String contestDaysLeft(int count);
+
+  /// Pill on a contest that has ended.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended'**
+  String get contestEnded;
+
+  /// A contest's first and last day, both inclusive. The dates are already formatted for the locale (e.g. '1 Oct').
+  ///
+  /// In en, this message translates to:
+  /// **'{start} – {end}'**
+  String contestDateRange(String start, String end);
+
+  /// Label above the contest's prize, which the manager wrote as free text.
+  ///
+  /// In en, this message translates to:
+  /// **'Prize'**
+  String get contestPrizeLabel;
+
+  /// Label above the kinds of points a contest counts.
+  ///
+  /// In en, this message translates to:
+  /// **'What counts'**
+  String get contestCountsLabel;
+
+  /// The contest counts every kind of points.
+  ///
+  /// In en, this message translates to:
+  /// **'All points'**
+  String get contestEventAll;
+
+  /// A kind of points a contest counts: visits the agent submitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted visits'**
+  String get contestEventVisitSubmitted;
+
+  /// A kind of points a contest counts: tasks the agent closed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed tasks'**
+  String get contestEventTaskClosed;
+
+  /// A kind of points a contest counts: visit scorecards (the average score is added).
+  ///
+  /// In en, this message translates to:
+  /// **'Scorecards'**
+  String get contestEventScorecard;
+
+  /// The agent's own position in a contest. Agents on equal points share a rank.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rank: {rank} of {total}'**
+  String contestYourRank(int rank, int total);
+
+  /// A points figure in a contest. 'points' is already formatted (e.g. '12' or '78.5').
+  ///
+  /// In en, this message translates to:
+  /// **'{points} pts'**
+  String contestPoints(String points);
+
+  /// Shown instead of the agent's rank when they are not part of the contest.
+  ///
+  /// In en, this message translates to:
+  /// **'You’re not on this contest’s standings'**
+  String get contestNotRanked;
+
+  /// Heading above the top of a contest's ranking.
+  ///
+  /// In en, this message translates to:
+  /// **'Standings'**
+  String get contestStandingsHeading;
+
+  /// Tag on the agent's own row in the standings.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get contestYouTag;
+
+  /// Contests screen when there is nothing active or recently ended.
+  ///
+  /// In en, this message translates to:
+  /// **'No contests right now'**
+  String get contestsEmptyTitle;
+
+  /// Under 'No contests right now'.
+  ///
+  /// In en, this message translates to:
+  /// **'When your manager starts a contest, it shows up here.'**
+  String get contestsEmptyBody;
+
+  /// Contests screen when the request failed. The reason follows underneath.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t load contests'**
+  String get contestsLoadError;
+
+  /// Button that reloads the contests after a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get contestsRetry;
+
+  /// Tooltip and screen-reader label on the Today app bar trophy when contests are running; the badge shows the number.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 contest running} other{{count} contests running}}'**
+  String contestsRunningHint(int count);
+
   /// Tooltip on the agent app bar's bell button, which opens the notification settings (#67).
   ///
   /// In en, this message translates to:
