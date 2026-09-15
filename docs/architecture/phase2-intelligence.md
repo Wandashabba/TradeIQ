@@ -68,6 +68,31 @@ computes a `riskScore` (0-100) from weighted signals:
   Photos uploaded before #244 are hashed by `npm run backfill-photo-hashes`
   (batched, idempotent, resumable; `--batch`, `--limit`, `--client`), never by
   the migration
+- `stock_outside_outlet` — stock recorded against outlet A while the capture
+  happened inside **another outlet of the same client** (#248). A stock row has
+  no position, but counts can only be keyed in inside the visit's device window
+  (check-in → `submittedAtClient`, widened by
+  `kpiThresholds.captureTimelineToleranceMinutes`), so an audit photo whose
+  device timestamp falls in that window places the sitting. It fires when such a
+  photo's `gpsTag` is within `GEOFENCE_RADIUS_M` (50m, `lib/geofence`) of another
+  of the client's outlets and more than 50m +
+  `kpiThresholds.stockOutsideOutletToleranceMeters` (default 25; 0 honoured,
+  negative falls back) from its own, so overlapping fences stay silent. Flat 30,
+  never flags alone; 20 when every placing photo is one `photo_gps_divergence`
+  already scored (one position seen twice), restored to 30 when a rejected
+  `CheckInAttempt` for this (agent, outlet) in the 6h window came from inside
+  that same outlet. An attempt alone never fires (the wrong-outlet tap). Silent on
+  drafts, visits without stock, without `submittedAtClient`, photos without
+  coordinates or timestamp, `task_closure` photos, and single-outlet tenants.
+  The **weak** reading — merely outside its own fence — is deliberately not
+  scored: the check-in is inside by construction (its edge is
+  `geofence_distance`), a photo far away is `photo_gps_divergence`, and rejected
+  attempts are `failed_attempts`. The mobile app does not yet send a `gpsTag` on
+  audit photos, so in practice the signal waits on that. Outlets come from one
+  raw query per call: the visit's own outlet plus same-client outlets in a
+  bounding box around each position, then exact haversine in JS, so
+  `GET /fraud/flagged` does not N+1. A spatial index (#63, PostGIS) replaces the
+  box if the outlet count grows
 
 `GET /fraud/visits/:visitId`, `GET /fraud/attempts`, `GET /fraud/flagged`.
 Fed by the new `CheckInAttempt` table (every attempt, incl. rejected ones — #44)
