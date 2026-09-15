@@ -296,8 +296,9 @@ void main() {
       expect(photo!.capturedAt, shutter);
     });
 
-    testWidgets('by default the field does not geotag (task closures stay '
-        'untagged)', (tester) async {
+    testWidgets('by default the field does not geotag (evidence opts in)', (
+      tester,
+    ) async {
       CapturedPhoto? photo;
       await tester.pumpWidget(geoApp(geotag: false, onPhoto: (p) => photo = p));
       await tester.pumpAndSettle();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/brand_media.dart';
+import '../../../core/camera/photo_capture_service.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/evidence_thumb.dart';
@@ -238,21 +239,28 @@ class _TaskRow extends ConsumerWidget {
   /// the evidence, so the capture is the gate: no photo, no closure. (Until #41
   /// this uploaded a 1×1 transparent placeholder, which meant "photo-verified
   /// closure" verified nothing.)
+  ///
+  /// The photo is geotagged at the shutter (#317), so the closure evidence
+  /// also says where the fix was photographed. Its `timestamp` is the capture
+  /// time, in UTC — the same contract as the audit sections (#310). The fraud
+  /// engine does not place a closure photo against its visit's outlet
+  /// (`isTaskClosurePhoto`), so a closure taken away from the outlet, days
+  /// later, flags nobody. No fix means an empty tag and the closure goes ahead.
   Future<void> _close(BuildContext context, WidgetRef ref) async {
-    final dataUrl = await showDialog<String>(
+    final photo = await showDialog<CapturedPhoto>(
       context: context,
       builder: (_) => _ClosurePhotoDialog(task: task),
     );
-    if (dataUrl == null) return;
+    if (photo == null) return;
 
     final result = await ref
         .read(photosRepositoryProvider)
         .uploadPhoto(
           visitId: task.visitId!,
           section: 'task_closure',
-          dataUrl: dataUrl,
-          gpsTag: const <String, double>{},
-          timestamp: DateTime.now().toIso8601String(),
+          dataUrl: photo.dataUrl,
+          gpsTag: photo.gpsTag,
+          timestamp: photo.capturedAt.toUtc().toIso8601String(),
         );
     await ref
         .read(tasksAdminRepositoryProvider)
@@ -336,8 +344,9 @@ class _TaskRow extends ConsumerWidget {
   }
 }
 
-/// The closure gate. Returns the captured data URL, or null if the manager backs
-/// out — in which case the task stays open, which is the correct outcome.
+/// The closure gate. Returns the geotagged [CapturedPhoto], or null if the
+/// manager backs out — in which case the task stays open, which is the correct
+/// outcome.
 class _ClosurePhotoDialog extends StatefulWidget {
   const _ClosurePhotoDialog({required this.task});
 
@@ -348,7 +357,7 @@ class _ClosurePhotoDialog extends StatefulWidget {
 }
 
 class _ClosurePhotoDialogState extends State<_ClosurePhotoDialog> {
-  String? _dataUrl;
+  CapturedPhoto? _photo;
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +381,8 @@ class _ClosurePhotoDialogState extends State<_ClosurePhotoDialog> {
               helperText:
                   'The photo is what makes the closure verifiable — a manager '
                   'has to be able to see the fix, not take your word for it.',
-              onCaptured: (dataUrl) => setState(() => _dataUrl = dataUrl),
+              geotag: true,
+              onPhotoCaptured: (photo) => setState(() => _photo = photo),
             ),
           ],
         ),
@@ -386,9 +396,9 @@ class _ClosurePhotoDialogState extends State<_ClosurePhotoDialog> {
           key: const ValueKey('confirm-closure'),
           // No photo, no closure. Disabled rather than hidden, so the reason the
           // button will not fire is visible.
-          onPressed: _dataUrl == null
+          onPressed: _photo == null
               ? null
-              : () => Navigator.of(context).pop(_dataUrl),
+              : () => Navigator.of(context).pop(_photo),
           child: const Text('Close task'),
         ),
       ],

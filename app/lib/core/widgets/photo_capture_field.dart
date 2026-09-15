@@ -42,9 +42,9 @@ class PhotoCaptureField extends ConsumerStatefulWidget {
   final ValueChanged<CapturedPhoto>? onPhotoCaptured;
   final String? helperText;
 
-  /// Geotag the capture (#310). Audit evidence only: the fraud engine places
-  /// visit photos by this tag, and a photo that is not audit evidence (a task
-  /// closure days later) must not be placed as if it were.
+  /// Geotag the capture (#310). For visit evidence — audit sections and task
+  /// closures (#317) — and off by default, so a photo that is not evidence
+  /// never asks for the device's location. See [PhotoCaptureService.capture].
   final bool geotag;
 
   @override
