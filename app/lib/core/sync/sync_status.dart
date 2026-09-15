@@ -123,7 +123,13 @@ final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
   // and no agent can act on work that is not theirs anyway.
   final owner = currentLocalUserId;
   final query = db.select(db.syncQueueItems)
-    ..where((t) => owner == null ? const Constant(false) : t.userId.equals(owner))
+    ..where(
+      (t) => owner == null
+          ? const Constant(false)
+          // Location pings and notice answers are not the agent's work — see
+          // `locationEntityTypes`.
+          : t.userId.equals(owner) & t.entityType.isNotIn(locationEntityTypes),
+    )
     ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)]);
 
   return query.watch().map((rows) {

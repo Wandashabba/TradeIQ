@@ -1499,5 +1499,62 @@
         "type": "int"
       }
     }
+  },
+  "locationNoticeTitle": "Your location is shared with your manager",
+  "@locationNoticeTitle": {
+    "description": "Title of the one-time location notice (#153, POPIA). Shown before the app sends any location."
+  },
+  "locationNoticeBody": "While TradeIQ is open and you are signed in, it sends your phone’s location to your manager {minutes, plural, =1{every minute} other{every {minutes} minutes}}, so they can see which store you are at. It stops when you close TradeIQ or log out, and nothing is sent in the background.",
+  "@locationNoticeBody": {
+    "description": "Body of the one-time location notice: what is shared, with whom, how often, and when it stops.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "locationNoticeAcknowledge": "I understand, share my location",
+  "@locationNoticeAcknowledge": {
+    "description": "Location notice: the agent agrees to share their location while the app is open."
+  },
+  "locationNoticeDecline": "Don’t share",
+  "@locationNoticeDecline": {
+    "description": "Location notice: the agent declines. Nothing is sent."
+  },
+  "locationSharingActiveTitle": "Sharing your location with your manager",
+  "@locationSharingActiveTitle": {
+    "description": "Always-visible indicator on agent screens while location pings are being sent."
+  },
+  "locationSharingActiveSubtitle": "Only while TradeIQ is open · tap to stop",
+  "@locationSharingActiveSubtitle": {
+    "description": "Under the sharing indicator."
+  },
+  "locationSharingNoFixSubtitle": "Sharing is on, but this phone isn’t giving TradeIQ a location",
+  "@locationSharingNoFixSubtitle": {
+    "description": "Under the sharing indicator when the phone gave no location (permission or GPS off). Not an error."
+  },
+  "locationSharingOffTitle": "Your location is not shared",
+  "@locationSharingOffTitle": {
+    "description": "Shown after the agent declined the location notice."
+  },
+  "locationSharingOffSubtitle": "Tap to change this",
+  "@locationSharingOffSubtitle": {
+    "description": "Under 'Your location is not shared'; tapping shows the notice again."
+  },
+  "locationStopTitle": "Stop sharing your location?",
+  "@locationStopTitle": {
+    "description": "Confirmation dialog title after tapping the sharing indicator."
+  },
+  "locationStopBody": "Your manager will no longer see where you are. You can turn it back on later.",
+  "@locationStopBody": {
+    "description": "Confirmation dialog body for stopping location sharing."
+  },
+  "locationStopConfirm": "Stop sharing",
+  "@locationStopConfirm": {
+    "description": "Confirmation dialog: stop sharing location."
+  },
+  "locationStopCancel": "Keep sharing",
+  "@locationStopCancel": {
+    "description": "Confirmation dialog: keep sharing location."
   }
 }

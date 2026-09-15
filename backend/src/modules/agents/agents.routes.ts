@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { parseIsoInstant } from '../../lib/parseIsoInstant';
+import { parsePagination } from '../../lib/pagination';
 import { listAgentActivity } from './agents.service';
+import { listAgentLocations } from './agentLocations.service';
 
 export const agentsRouter = Router();
 agentsRouter.use(requireAuth);
@@ -76,4 +78,26 @@ agentsRouter.get('/activity', requireRole('manager', 'admin'), async (req: Authe
   });
 
   res.status(200).json(result);
+});
+
+/**
+ * Each field agent's latest foreground location (#153 T1), with its age and a
+ * derived state: at_store, in_transit, stale or offline. See
+ * `agentLocations.service.ts` and `locations/locationPolicy.ts` for the rules.
+ *
+ * Paged by agent with the shared `limit`/`cursor` contract (#141). Carries
+ * `serverTime` so a client measures age against the clock that measured it,
+ * not a phone or laptop clock that may be minutes out.
+ */
+agentsRouter.get('/locations', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
+  const { limit, cursor } = parsePagination(req);
+  const { territoryId } = req.query as { territoryId?: unknown };
+  const page = await listAgentLocations({
+    // Never from a parameter. The tenant comes from the token.
+    clientId: req.user!.clientId,
+    territoryId: typeof territoryId === 'string' ? territoryId : undefined,
+    limit,
+    cursor,
+  });
+  res.status(200).json(page);
 });

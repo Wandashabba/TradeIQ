@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { buildPage } from '../../lib/pagination';
 import { hashPassword } from '../auth/auth.service';
+import { purgeAgentLocationPings } from '../locations/locationRetention';
 
 export type Role = 'field_agent' | 'manager' | 'admin';
 
@@ -92,7 +93,7 @@ export async function updateUser(input: UpdateUserInput) {
     throw new NotFoundError('User not found');
   }
 
-  return prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: input.id },
     data: {
       active: input.active,
@@ -101,4 +102,21 @@ export async function updateUser(input: UpdateUserInput) {
     },
     select: safeUserSelect,
   });
+
+  if (input.active === false) {
+    // Retention policy (#178): a deactivated agent's raw location pings are
+    // folded into day summaries and deleted now, not in 90 days.
+    //
+    // After the update, and best-effort: deactivation is how someone's access
+    // is revoked, and it must not fail because pruning did. Anything missed
+    // here is caught by `npm run prune-location-pings`, which sweeps pings of
+    // every inactive agent.
+    try {
+      await purgeAgentLocationPings({ clientId: input.clientId, agentId: input.id });
+    } catch (err) {
+      console.error('[users] location ping purge on deactivation failed; the prune job will retry', err);
+    }
+  }
+
+  return user;
 }

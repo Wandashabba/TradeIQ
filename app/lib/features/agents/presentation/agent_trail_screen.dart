@@ -19,7 +19,9 @@ import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
+import '../data/agent_locations_repository.dart';
 import '../data/agents_repository.dart';
+import 'live_location_layer.dart';
 
 /// The selected day, defaulting to today. Local dates only — the day boundary
 /// is a client-side decision, see [dayBoundsLocal].
@@ -57,6 +59,15 @@ class AgentTrailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final day = ref.watch(agentTrailDayProvider);
     final activity = ref.watch(agentActivityForDayProvider(day));
+    final now = DateTime.now();
+    final isToday = day == DateTime(now.year, now.month, now.day);
+    // Live positions belong on TODAY's map only: this minute's positions drawn
+    // over a past day's trail would put two different moments on one screen.
+    final live = isToday ? ref.watch(liveAgentLocationsProvider).value : null;
+    final livePositions = [
+      for (final a in live?.agents ?? const <AgentLocation>[])
+        if (a.hasPosition) a,
+    ];
 
     return ManagerScaffold(
       title: 'Agent trail',
@@ -86,7 +97,8 @@ class AgentTrailScreen extends ConsumerWidget {
         builder: (page) {
           final withStops = page.agents.where((a) => a.stops.isNotEmpty).toList();
           final glass = context.colors.glass;
-          if (withStops.isEmpty && glass) {
+          final nothingToDraw = withStops.isEmpty && livePositions.isEmpty;
+          if (nothingToDraw && glass) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -103,7 +115,7 @@ class AgentTrailScreen extends ConsumerWidget {
               ),
             );
           }
-          if (withStops.isEmpty) {
+          if (nothingToDraw) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
@@ -122,7 +134,7 @@ class AgentTrailScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: Column(
                 children: [
-                  _TrailLegend(truncated: page.truncated),
+                  _TrailLegend(truncated: page.truncated, live: live),
                   const SizedBox(height: 12),
                   Expanded(
                     child: Container(
@@ -142,7 +154,11 @@ class AgentTrailScreen extends ConsumerWidget {
                       ),
                       child: ClipRRect(
                         borderRadius: radius,
-                        child: _TrailMap(day: day, withStops: withStops),
+                        child: _TrailMap(
+                          day: day,
+                          withStops: withStops,
+                          live: livePositions,
+                        ),
                       ),
                     ),
                   ),
@@ -153,8 +169,12 @@ class AgentTrailScreen extends ConsumerWidget {
 
           return Column(
             children: [
-              _TrailLegend(truncated: page.truncated),
-              Expanded(child: _TrailMap(day: day, withStops: withStops)),
+              _TrailLegend(truncated: page.truncated, live: live),
+              Expanded(child: _TrailMap(
+                          day: day,
+                          withStops: withStops,
+                          live: livePositions,
+                        )),
             ],
           );
         },
@@ -236,13 +256,20 @@ final _labelRect = Rect.fromLTWH(
 /// (#197) — see `_TrailMapState._camera`. Nothing observed there flows back
 /// into the centre/zoom above.
 class _TrailMap extends StatefulWidget {
-  const _TrailMap({required this.day, required this.withStops});
+  const _TrailMap({
+    required this.day,
+    required this.withStops,
+    this.live = const [],
+  });
 
   final DateTime day;
 
   /// Must all have `stops.isNotEmpty` — the caller filters before
-  /// constructing.
+  /// constructing. May be empty when [live] is not.
   final List<AgentActivity> withStops;
+
+  /// Today's live positions (#153 T1); all have `hasPosition`.
+  final List<AgentLocation> live;
 
   @override
   State<_TrailMap> createState() => _TrailMapState();
@@ -279,8 +306,12 @@ class _TrailMapState extends State<_TrailMap> {
             size.height <= 0;
         if (degenerate) return const SizedBox.shrink();
 
+        // Fit to the trail. Live positions move every poll, so they only
+        // decide the fit on a day with no check-ins to fit to.
         final (center, zoom) = fitFor(
-          points,
+          points.isNotEmpty
+              ? points
+              : [for (final a in widget.live) LatLng(a.lat!, a.lng!)],
           size: size,
           padding: 40,
           singleZoom: _trailZoom,
@@ -411,6 +442,8 @@ class _TrailMapState extends State<_TrailMap> {
                         showLabel: labelVisible[flatIndex++],
                       ),
                     ),
+                // Live squares last, on top of the trail.
+                ...liveAgentMarkers(widget.live),
               ],
             ),
             // Required by CARTO's terms (and, through them, OSM's ODbL
@@ -427,9 +460,12 @@ class _TrailMapState extends State<_TrailMap> {
 /// Says in words what the dashes mean. Without this the map still overstates
 /// its own certainty to anyone who does not read stroke styles as semantics.
 class _TrailLegend extends StatelessWidget {
-  const _TrailLegend({required this.truncated});
+  const _TrailLegend({required this.truncated, this.live});
 
   final bool truncated;
+
+  /// Today's live page, or null on a past day (no live layer then).
+  final AgentLocationsPage? live;
 
   @override
   Widget build(BuildContext context) {
@@ -440,11 +476,19 @@ class _TrailLegend extends StatelessWidget {
         // server had more agents than we asked for, say so here rather than
         // let the manager read empty space as "nobody else worked".
         '${truncated ? ' Showing the first 200 agents only.' : ''}';
+    final live = this.live;
+    // The live layer says what the squares are, how old their labels are, and
+    // when they were true — "last updated" is the server's own clock.
+    final liveMessage = live == null
+        ? null
+        : 'Squares are live positions from the agent app, labelled with their '
+              'age first. Last updated ${formatUpdatedAt(live.serverTime)}.';
 
     if (context.colors.glass) {
       // Glass: the legend leaves the map's navy world and becomes a pane on
       // the console's own ground, above the framed map it explains.
       final lumen = context.lumen;
+      final style = TextStyle(fontSize: 12, height: 1.4, color: lumen.inkMuted);
       return GlassPane(
         radius: LumenGlass.radiusControl,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -453,13 +497,22 @@ class _TrailLegend extends StatelessWidget {
             Kicker('How to read it', color: lumen.kicker),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                message,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: lumen.inkMuted,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(message, style: style),
+                  if (liveMessage != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      liveMessage,
+                      key: const ValueKey('trail-live-legend'),
+                      style: style,
+                    ),
+                    const SizedBox(height: 4),
+                    const LiveStateLegend(),
+                  ],
+                ],
               ),
             ),
           ],
@@ -467,6 +520,7 @@ class _TrailLegend extends StatelessWidget {
       );
     }
 
+    const style = TextStyle(fontSize: 12, color: Color(0xFF8FA5C6));
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -474,9 +528,22 @@ class _TrailLegend extends StatelessWidget {
       // to the map's Tide Guide world (deep navy in BOTH app themes), so it
       // matches the tiles it sits against rather than the console around it.
       color: const Color(0xCC050A16),
-      child: Text(
-        message,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF8FA5C6)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, style: style),
+          if (liveMessage != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              liveMessage,
+              key: const ValueKey('trail-live-legend'),
+              style: style,
+            ),
+            const SizedBox(height: 4),
+            const LiveStateLegend(onDark: true),
+          ],
+        ],
       ),
     );
   }

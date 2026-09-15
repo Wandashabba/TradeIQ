@@ -2005,6 +2005,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 photo} other{{count} photos}}'**
   String reviewPhotos(int count);
+
+  /// Title of the one-time location notice (#153, POPIA). Shown before the app sends any location.
+  ///
+  /// In en, this message translates to:
+  /// **'Your location is shared with your manager'**
+  String get locationNoticeTitle;
+
+  /// Body of the one-time location notice: what is shared, with whom, how often, and when it stops.
+  ///
+  /// In en, this message translates to:
+  /// **'While TradeIQ is open and you are signed in, it sends your phone’s location to your manager {minutes, plural, =1{every minute} other{every {minutes} minutes}}, so they can see which store you are at. It stops when you close TradeIQ or log out, and nothing is sent in the background.'**
+  String locationNoticeBody(int minutes);
+
+  /// Location notice: the agent agrees to share their location while the app is open.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand, share my location'**
+  String get locationNoticeAcknowledge;
+
+  /// Location notice: the agent declines. Nothing is sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Don’t share'**
+  String get locationNoticeDecline;
+
+  /// Always-visible indicator on agent screens while location pings are being sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing your location with your manager'**
+  String get locationSharingActiveTitle;
+
+  /// Under the sharing indicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Only while TradeIQ is open · tap to stop'**
+  String get locationSharingActiveSubtitle;
+
+  /// Under the sharing indicator when the phone gave no location (permission or GPS off). Not an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing is on, but this phone isn’t giving TradeIQ a location'**
+  String get locationSharingNoFixSubtitle;
+
+  /// Shown after the agent declined the location notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Your location is not shared'**
+  String get locationSharingOffTitle;
+
+  /// Under 'Your location is not shared'; tapping shows the notice again.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to change this'**
+  String get locationSharingOffSubtitle;
+
+  /// Confirmation dialog title after tapping the sharing indicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop sharing your location?'**
+  String get locationStopTitle;
+
+  /// Confirmation dialog body for stopping location sharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Your manager will no longer see where you are. You can turn it back on later.'**
+  String get locationStopBody;
+
+  /// Confirmation dialog: stop sharing location.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop sharing'**
+  String get locationStopConfirm;
+
+  /// Confirmation dialog: keep sharing location.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep sharing'**
+  String get locationStopCancel;
 }
 
 class _AppLocalizationsDelegate

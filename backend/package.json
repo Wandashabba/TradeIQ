@@ -20,6 +20,7 @@
     "backfill-photo-hashes": "ts-node scripts/backfill-photo-hashes.ts",
     "backfill-points-ledger": "ts-node scripts/backfill-points-ledger.ts",
     "rescore-fraud": "ts-node scripts/rescore-fraud.ts",
+    "prune-location-pings": "ts-node scripts/prune-location-pings.ts",
     "cleanup-orphan-attachment-photos": "ts-node scripts/cleanup-orphan-attachment-photos.ts"
   },
   "keywords": [],

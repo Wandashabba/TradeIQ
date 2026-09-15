@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../features/agents/data/agent_locations_repository.dart';
 import '../../features/agents/data/agents_repository.dart';
 import 'agent_motion.dart' show reduceMotion;
 
@@ -293,3 +294,110 @@ class _DashedRingPainter extends _GlyphPainter {
 /// library. Returns the same `Type` [_painterFor] would build a painter of,
 /// for a given [state].
 Type glyphPainterTypeFor(AgentState state) => _painterFor(state, const Color(0xFF000000)).runtimeType;
+
+/// The glyph for a LIVE location state (#153 T1): four states, four
+/// silhouettes, so the live layer survives greyscale and colour-blindness
+/// exactly as the check-in states do (#144).
+///
+/// At store and in transit reuse the check-in glyphs on purpose — they mean
+/// the same thing, now observed by a heartbeat rather than a check-in. The two
+/// new states get shapes nothing else uses:
+///
+///  * **stale** — an hourglass: the position is there, but time has run on it.
+///  * **offline** — a ring struck through: nothing is coming in.
+///
+/// Neither reuses the hollow dashed ring of the check-in `idle` state, which
+/// means something different ("no check-in today").
+class LiveAgentStateGlyph extends StatelessWidget {
+  const LiveAgentStateGlyph({
+    super.key,
+    required this.state,
+    required this.color,
+    this.size = 16,
+  });
+
+  final LiveAgentState state;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: size,
+    height: size,
+    child: CustomPaint(painter: _livePainterFor(state, color)),
+  );
+}
+
+CustomPainter _livePainterFor(LiveAgentState state, Color color) =>
+    switch (state) {
+      LiveAgentState.atStore => _StorefrontPainter(color),
+      LiveAgentState.inTransit => _ChevronTrailPainter(color),
+      LiveAgentState.stale => _HourglassPainter(color),
+      LiveAgentState.offline => _StruckRingPainter(color),
+    };
+
+/// Stale: an hourglass — two stroked triangles meeting at the waist, capped
+/// top and bottom.
+class _HourglassPainter extends _GlyphPainter {
+  const _HourglassPainter(super.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.2, w * 0.11)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final left = w * 0.24;
+    final right = w * 0.76;
+    final top = h * 0.14;
+    final bottom = h * 0.86;
+    canvas.drawLine(Offset(w * 0.16, top), Offset(w * 0.84, top), stroke);
+    canvas.drawLine(Offset(w * 0.16, bottom), Offset(w * 0.84, bottom), stroke);
+    final glass = Path()
+      ..moveTo(left, top)
+      ..lineTo(right, top)
+      ..lineTo(w * 0.5, h * 0.5)
+      ..lineTo(right, bottom)
+      ..lineTo(left, bottom)
+      ..lineTo(w * 0.5, h * 0.5)
+      ..close();
+    canvas.drawPath(glass, stroke);
+    // The sand that has run through: a small filled mound at the bottom.
+    final sand = Path()
+      ..moveTo(w * 0.36, bottom)
+      ..lineTo(w * 0.5, h * 0.68)
+      ..lineTo(w * 0.64, bottom)
+      ..close();
+    canvas.drawPath(sand, Paint()..color = color);
+  }
+}
+
+/// Offline: a solid ring with a diagonal strike through it.
+class _StruckRingPainter extends _GlyphPainter {
+  const _StruckRingPainter(super.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.2, w * 0.12)
+      ..strokeCap = StrokeCap.round;
+    final radius = math.min(w, h) / 2 * 0.72;
+    final center = Offset(w / 2, h / 2);
+    canvas.drawCircle(center, radius, stroke);
+    final d = radius * 0.72;
+    canvas.drawLine(center.translate(-d, -d), center.translate(d, d), stroke);
+  }
+}
+
+/// The painter type [LiveAgentStateGlyph] draws for [state], so a test can
+/// prove the four states differ by SHAPE rather than colour.
+Type livePainterTypeFor(LiveAgentState state) =>
+    _livePainterFor(state, const Color(0xFF000000)).runtimeType;

@@ -12,6 +12,7 @@ import '../theme/tiq_colors.dart';
 import 'agent_kit.dart';
 import 'agent_motion.dart';
 import 'glass.dart';
+import 'location_sharing_banner.dart';
 import 'lumen_kit.dart';
 import '../theme/lumen_palette.dart';
 
@@ -77,6 +78,10 @@ class AgentScaffold extends ConsumerWidget {
             padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: SyncChip(),
           ),
+        // On every agent screen, with or without the sync chip: whether the
+        // agent's location is being shared must always have a visible answer
+        // (#153 T1, POPIA risk 1). Renders nothing for anyone else.
+        const LocationSharingBanner(),
         Expanded(child: body),
       ],
     );

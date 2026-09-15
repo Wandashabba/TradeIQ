@@ -317,5 +317,18 @@
   "taskActionPlanReason": "Aksieplan wat jy geskryf het",
   "reviewSkusCounted": "{count, plural, =1{1 SKU getel} other{{count} SKU’s getel}}",
   "reviewCompetitors": "{count, plural, =1{1 mededinger} other{{count} mededingers}}",
-  "reviewPhotos": "{count, plural, =1{1 foto} other{{count} foto’s}}"
+  "reviewPhotos": "{count, plural, =1{1 foto} other{{count} foto’s}}",
+  "locationNoticeTitle": "Jou ligging word met jou bestuurder gedeel",
+  "locationNoticeBody": "Terwyl TradeIQ oop is en jy ingeteken is, stuur dit {minutes, plural, =1{elke minuut} other{elke {minutes} minute}} jou foon se ligging na jou bestuurder, sodat hulle kan sien by watter winkel jy is. Dit stop wanneer jy TradeIQ toemaak of uitteken, en niks word in die agtergrond gestuur nie.",
+  "locationNoticeAcknowledge": "Ek verstaan, deel my ligging",
+  "locationNoticeDecline": "Moenie deel nie",
+  "locationSharingActiveTitle": "Jou ligging word met jou bestuurder gedeel",
+  "locationSharingActiveSubtitle": "Net terwyl TradeIQ oop is · tik om te stop",
+  "locationSharingNoFixSubtitle": "Deel is aan, maar hierdie foon gee nie ’n ligging aan TradeIQ nie",
+  "locationSharingOffTitle": "Jou ligging word nie gedeel nie",
+  "locationSharingOffSubtitle": "Tik om dit te verander",
+  "locationStopTitle": "Hou op om jou ligging te deel?",
+  "locationStopBody": "Jou bestuurder sal nie meer kan sien waar jy is nie. Jy kan dit later weer aanskakel.",
+  "locationStopConfirm": "Hou op om te deel",
+  "locationStopCancel": "Hou aan om te deel"
 }
