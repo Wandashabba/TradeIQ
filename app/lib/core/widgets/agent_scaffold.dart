@@ -37,6 +37,7 @@ class AgentScaffold extends ConsumerWidget {
     this.bottomAction,
     this.onBack,
     this.showSyncChip = true,
+    this.showNotificationsAction = true,
     this.actions,
   });
 
@@ -52,6 +53,10 @@ class AgentScaffold extends ConsumerWidget {
 
   /// The agent's most-asked question, answered on every screen.
   final bool showSyncChip;
+
+  /// The bell that opens the notification settings (#67). Off on that screen,
+  /// where it would only be a link to itself.
+  final bool showNotificationsAction;
 
   final List<Widget>? actions;
 
@@ -140,6 +145,13 @@ class AgentScaffold extends ConsumerWidget {
         ),
         actions: [
           ...?actions,
+          if (showNotificationsAction)
+            IconButton(
+              key: const ValueKey('agent-notifications'),
+              icon: const Icon(Icons.notifications_outlined, size: 20),
+              tooltip: l10n.agentNotificationsTooltip,
+              onPressed: () => context.push('/notifications'),
+            ),
           // Language override (#40): System follows the device; English and
           // Afrikaans pin the UI. Persisted like the theme choice beside it.
           PopupMenuButton<AppLanguage>(

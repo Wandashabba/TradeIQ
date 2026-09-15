@@ -3,6 +3,7 @@ import { NotFoundError } from '../../middleware/errorHandler';
 import { computeSlaDueAt, TaskPriority } from '../../lib/slaClock';
 import { buildPage } from '../../lib/pagination';
 import { attachEvidencePhotoIds } from '../photos/photos.service';
+import { pushTaskAssigned } from '../push/push.triggers';
 import {
   recordPointsBestEffort,
   recordTaskClosed,
@@ -55,7 +56,7 @@ export async function createTask(input: CreateTaskInput) {
     ownerId = input.ownerId;
   }
 
-  return prisma.task.create({
+  const task = await prisma.task.create({
     data: {
       visitId: input.visitId,
       findingType: input.findingType,
@@ -66,6 +67,9 @@ export async function createTask(input: CreateTaskInput) {
       ownerId,
     },
   });
+  // #67: tell the owner when someone else assigned it. Fire-and-forget.
+  pushTaskAssigned({ clientId: input.clientId, assignedById: input.callerUserId, task });
+  return task;
 }
 
 export interface ListTasksInput {

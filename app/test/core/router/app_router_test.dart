@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/push/push_config.dart';
+import 'package:tradeiq_app/core/push/push_repository.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
@@ -675,4 +677,58 @@ void main() {
       expect(find.text('Execution overview'), findsOneWidget);
     },
   );
+
+  // Push notification settings (#67) are shared: neither role is bounced.
+  for (final (role, title) in [
+    ('field_agent', 'Notifications'),
+    ('manager', 'Notifications'),
+  ]) {
+    testWidgets('a $role can open /notifications', (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(SessionState(role: role)),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
+          pushRepositoryProvider.overrideWithValue(_FakePushRepository()),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/notifications');
+      await tester.pumpAndSettle();
+
+      expect(find.text(title), findsOneWidget);
+      expect(find.text('Overdue tasks'), findsOneWidget);
+      expect(find.text('Today'), findsNothing);
+      expect(find.text('Execution overview'), findsNothing);
+    });
+  }
+}
+
+class _FakePushRepository implements PushRepository {
+  @override
+  Future<NotificationPreferences> fetchPreferences() async =>
+      const NotificationPreferences();
+
+  @override
+  Future<NotificationPreferences> updatePreferences(
+    Map<NotificationCategory, bool> changes,
+  ) async => const NotificationPreferences();
+
+  @override
+  Future<void> registerDevice({
+    required String token,
+    required PushPlatform platform,
+  }) async {}
+
+  @override
+  Future<void> unregisterDevice(
+    String token, {
+    required String authToken,
+  }) async {}
 }

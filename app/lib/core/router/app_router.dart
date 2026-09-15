@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart' show FadeTransition;
+import 'package:flutter/material.dart' show FadeTransition, MaterialPage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,6 +38,7 @@ import '../../features/sales_targets/presentation/sales_targets_screen.dart';
 import '../../features/visits/presentation/visit_detail_screen.dart';
 import '../../features/assistant/presentation/artifact_screen.dart';
 import '../../features/assistant/presentation/assistant_gate.dart';
+import '../../features/notifications/presentation/notification_preferences_screen.dart';
 import '../auth/session_controller.dart';
 import 'manager_page.dart';
 import 'session_refresh_listenable.dart';
@@ -308,6 +309,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           VisitDetailScreen(visitId: state.pathParameters['id']!),
           key: state.pageKey,
         ),
+      ),
+      // Push notification settings (#67). Shared by every role, so it sits in
+      // neither guard set: an agent's page is pushed over their day like their
+      // other screens, a manager's is a console page.
+      GoRoute(
+        path: '/notifications',
+        pageBuilder: (context, state) =>
+            ref.read(sessionControllerProvider).value?.role == 'field_agent'
+            ? MaterialPage<void>(
+                key: state.pageKey,
+                child: const NotificationPreferencesScreen(),
+              )
+            : managerPage(
+                const NotificationPreferencesScreen(),
+                key: state.pageKey,
+              ),
       ),
     ],
   );

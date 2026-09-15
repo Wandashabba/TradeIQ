@@ -1326,4 +1326,57 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get locationStopCancel => 'Hou aan om te deel';
+
+  @override
+  String get agentNotificationsTooltip => 'Kennisgewings';
+
+  @override
+  String get notificationsTitle => 'Kennisgewings';
+
+  @override
+  String get notificationsSubtitle => 'Kies wat na hierdie foon kom';
+
+  @override
+  String get notificationsTasksLabel => 'Take wat aan jou toegewys is';
+
+  @override
+  String get notificationsTasksHelp =>
+      'Wanneer jou bestuurder vir jou ’n taak gee';
+
+  @override
+  String get notificationsMessagesLabel => 'Boodskappe en aankondigings';
+
+  @override
+  String get notificationsMessagesHelp =>
+      'Boodskappe aan jou of die span, en aankondigings';
+
+  @override
+  String get notificationsSlaLabel => 'Agterstallige take';
+
+  @override
+  String get notificationsSlaHelp =>
+      'Wanneer een van jou take sy sperdatum oorskry';
+
+  @override
+  String get notificationsNotSetUpTitle =>
+      'Kennisgewings is nog nie aangeskakel nie';
+
+  @override
+  String get notificationsNotSetUpBody =>
+      'Jou keuses word gestoor en geld sodra dit aangeskakel is.';
+
+  @override
+  String get notificationsLoadErrorTitle =>
+      'Kon nie jou kennisgewing-instellings laai nie';
+
+  @override
+  String get notificationsRetry => 'Probeer weer';
+
+  @override
+  String get notificationsSaveFailed =>
+      'Kon dit nie stoor nie. Kyk of jy verbinding het en probeer weer.';
+
+  @override
+  String get notificationsFooter =>
+      'Jy kan ook kennisgewings vir TradeIQ in jou foon se instellings afskakel.';
 }

@@ -1311,4 +1311,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get locationStopCancel => 'Keep sharing';
+
+  @override
+  String get agentNotificationsTooltip => 'Notifications';
+
+  @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsSubtitle => 'Choose what reaches this phone';
+
+  @override
+  String get notificationsTasksLabel => 'Tasks assigned to you';
+
+  @override
+  String get notificationsTasksHelp => 'When your manager gives you a task';
+
+  @override
+  String get notificationsMessagesLabel => 'Messages and announcements';
+
+  @override
+  String get notificationsMessagesHelp =>
+      'Messages to you or the team, and announcements';
+
+  @override
+  String get notificationsSlaLabel => 'Overdue tasks';
+
+  @override
+  String get notificationsSlaHelp =>
+      'When one of your tasks passes its deadline';
+
+  @override
+  String get notificationsNotSetUpTitle =>
+      'Notifications aren’t switched on yet';
+
+  @override
+  String get notificationsNotSetUpBody =>
+      'Your choices are saved and apply as soon as they are.';
+
+  @override
+  String get notificationsLoadErrorTitle =>
+      'Couldn’t load your notification settings';
+
+  @override
+  String get notificationsRetry => 'Try again';
+
+  @override
+  String get notificationsSaveFailed =>
+      'Couldn’t save that. Check your connection and try again.';
+
+  @override
+  String get notificationsFooter =>
+      'You can also turn off notifications for TradeIQ in your phone’s settings.';
 }

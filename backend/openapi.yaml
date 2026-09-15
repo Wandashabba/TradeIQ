@@ -2184,6 +2184,97 @@ paths:
                             source: { type: string, enum: [ping, check_in] }
         '400': { description: Malformed limit or cursor }
         '403': { description: Forbidden }
+  /push/devices:
+    post:
+      summary: Register or refresh this device's push token — any role (#67)
+      description: >
+        Called by the app after sign-in and whenever FCM rotates the token. The
+        user and tenant come from the bearer token, never the body. Idempotent:
+        the same token again only moves lastSeenAt. A token is one app install,
+        so a token already registered to another user (the phone changed hands,
+        in this tenant or another) is re-pointed to the caller instead of
+        duplicated. Tokens FCM later reports as unregistered or invalid are
+        deleted by the server. Push is sent only once the server has
+        FIREBASE_SERVICE_ACCOUNT configured; registering works either way.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: { type: string, minLength: 1, maxLength: 4096, description: FCM registration token (no whitespace) }
+                platform: { type: string, enum: [android, ios, web] }
+      responses:
+        '200':
+          description: Registered or refreshed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushDevice' }
+        '400': { description: Missing or invalid token or platform }
+        '401': { description: Missing or invalid bearer token }
+  /push/devices/{token}:
+    delete:
+      summary: Unregister a push token (sign-out) — any role (#67)
+      description: >
+        Removes the token only when it is registered to the caller in the
+        caller's tenant. 204 either way: a token that is gone, or now belongs to
+        someone else, is left untouched and is not an error.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: The FCM registration token, URL-encoded
+          schema: { type: string }
+      responses:
+        '204': { description: Removed, or nothing of the caller's to remove }
+        '400': { description: Invalid token }
+        '401': { description: Missing or invalid bearer token }
+  /push/preferences:
+    get:
+      summary: The caller's push notification preferences — any role (#67)
+      description: Every category defaults to on until the user switches it off.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPreferences' }
+        '401': { description: Missing or invalid bearer token }
+    patch:
+      summary: Update the caller's push notification preferences — any role (#67)
+      description: >
+        Send only the categories to change; the response is the full set.
+        alerts = alert.raised (managers and admins); tasks = a task assigned to
+        you by someone else; messages = direct messages, team broadcasts and
+        announcements; sla = a task past its SLA (the owner, and managers and
+        admins), announced once, by a server sweep, within a day of the breach.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                alerts: { type: boolean }
+                tasks: { type: boolean }
+                messages: { type: boolean }
+                sla: { type: boolean }
+      responses:
+        '200':
+          description: Updated preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPreferences' }
+        '400': { description: Empty body, unknown category, or a non-boolean value }
+        '401': { description: Missing or invalid bearer token }
 components:
   securitySchemes:
     bearerAuth:
@@ -2530,6 +2621,40 @@ components:
           properties:
             count: { type: integer }
         territories: { type: array, items: { $ref: '#/components/schemas/TerritoryBenchmark' } }
+    PushDevice:
+      type: object
+      required: [platform, lastSeenAt]
+      properties:
+        platform: { type: string, enum: [android, ios, web] }
+        lastSeenAt: { type: string, format: date-time }
+    NotificationPreferences:
+      type: object
+      required: [alerts, tasks, messages, sla]
+      properties:
+        alerts: { type: boolean }
+        tasks: { type: boolean }
+        messages: { type: boolean }
+        sla: { type: boolean }
+    PushPayload:
+      type: object
+      description: >
+        Not an endpoint: the shape of a push the server sends through FCM (#67).
+        notification carries a one-line title and a body of at most 140
+        characters, holding only what the recipient can already see in the app.
+        data.route is the in-app route to open on tap (/alerts, /tasks, /today
+        or /messages).
+      properties:
+        notification:
+          type: object
+          properties:
+            title: { type: string }
+            body: { type: string }
+        data:
+          type: object
+          required: [route, category]
+          properties:
+            route: { type: string }
+            category: { type: string, enum: [alerts, tasks, messages, sla] }
     SkuForecast:
       type: object
       required: [skuId, method, historySource, historyDays, historyPoints, forecastNextPeriod, forecastCoverageDays]

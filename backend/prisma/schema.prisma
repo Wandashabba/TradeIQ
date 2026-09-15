@@ -31,21 +31,21 @@ enum TaskStatus {
 }
 
 model Client {
-  id                 String              @id @default(uuid())
+  id                 String                   @id @default(uuid())
   name               String
   industry           String
-  scorecardWeights   Json                @map("scorecard_weights")
-  kpiThresholds      Json                @map("kpi_thresholds")
+  scorecardWeights   Json                     @map("scorecard_weights")
+  kpiThresholds      Json                     @map("kpi_thresholds")
   /// Conversational assistant rollout flag. Defaults false: the assistant ships
   /// alongside the existing console, never in place of it, and no client gets it
   /// without a deliberate opt-in. Off is a true kill switch — Phases 0-2 mutate
   /// nothing, so degrading to today's dashboard loses no data.
-  assistantEnabled   Boolean             @default(false) @map("assistant_enabled")
+  assistantEnabled   Boolean                  @default(false) @map("assistant_enabled")
   /// IANA zone the client's field team works in (#309). Every calendar-day
   /// rule reads it: which beat plan a check-in belongs to, trend day/week
   /// buckets, and the assistant's "today"/"last week". Validated against the
   /// runtime's IANA list on write; editable by managers and admins.
-  timezone           String              @default("Africa/Johannesburg")
+  timezone           String                   @default("Africa/Johannesburg")
   users              User[]
   outlets            Outlet[]
   skus               Sku[]
@@ -56,7 +56,7 @@ model Client {
   beatPlans          BeatPlan[]
   alertRules         AlertRule[]
   alerts             Alert[]
-  auditTemplates     AuditTemplate[]     @relation("ClientAuditTemplates")
+  auditTemplates     AuditTemplate[]          @relation("ClientAuditTemplates")
   checkInAttempts    CheckInAttempt[]
   orders             Order[]
   messages           Message[]
@@ -72,6 +72,8 @@ model Client {
   locationPings      AgentLocationPing[]
   agentDaySummaries  AgentDaySummary[]
   locationConsents   LocationConsent[]
+  deviceTokens       DeviceToken[]
+  notificationPrefs  NotificationPreference[]
   salesTargets       SalesTarget[]
 
   /// The audit template whose questions field agents answer on every visit, as
@@ -79,45 +81,47 @@ model Client {
   /// sections and never feeds the perfect-store score. Null = no client
   /// questions. Must be one of this client's own templates (enforced in
   /// templates.service); pausing the template clears it, deleting it nulls it.
-  auditTemplateId    String?             @unique @map("audit_template_id")
-  auditTemplate      AuditTemplate?      @relation("ClientSelectedAuditTemplate", fields: [auditTemplateId], references: [id], onDelete: SetNull)
+  auditTemplateId String?        @unique @map("audit_template_id")
+  auditTemplate   AuditTemplate? @relation("ClientSelectedAuditTemplate", fields: [auditTemplateId], references: [id], onDelete: SetNull)
 
   @@map("clients")
 }
 
 model User {
-  id               String              @id @default(uuid())
-  email            String              @unique
+  id                String                   @id @default(uuid())
+  email             String                   @unique
   // What people call this person ("Sipho Ndlovu"). Nullable on purpose: rows
   // that predate it have nothing to backfill from but the email local-part, and
   // guessing a name from that is wrong often enough to be worse than blank
   // (#280). Display falls back to `email` when it is null.
-  displayName      String?             @map("display_name")
-  passwordHash     String              @map("password_hash")
-  role             UserRole
-  clientId         String              @map("client_id")
-  client           Client              @relation(fields: [clientId], references: [id])
+  displayName       String?                  @map("display_name")
+  passwordHash      String                   @map("password_hash")
+  role              UserRole
+  clientId          String                   @map("client_id")
+  client            Client                   @relation(fields: [clientId], references: [id])
   // Deactivated users keep their history but cannot log in (admin provisioning).
-  active           Boolean             @default(true)
+  active            Boolean                  @default(true)
   // Last-known agent location (updated on check-in) — feeds predictive dispatch.
-  lastLat          Float?              @map("last_lat")
-  lastLng          Float?              @map("last_lng")
-  lastSeenAt       DateTime?           @map("last_seen_at")
-  visits           Visit[]
-  tasksOwned       Task[]
-  territories      UserTerritory[]
-  beatPlans        BeatPlan[]
-  checkInAttempts  CheckInAttempt[]
-  ordersTaken      Order[]
-  messagesSent     Message[]           @relation("MessageSender")
-  messagesReceived Message[]           @relation("MessageRecipient")
-  announcements    Announcement[]
-  photosUploaded   Photo[]             @relation("PhotoUploader")
-  pointsLedger     PointsLedgerEntry[]
-  locationPings    AgentLocationPing[]
-  daySummaries     AgentDaySummary[]
-  locationConsents LocationConsent[]
-  salesTargetsSet  SalesTarget[]
+  lastLat           Float?                   @map("last_lat")
+  lastLng           Float?                   @map("last_lng")
+  lastSeenAt        DateTime?                @map("last_seen_at")
+  visits            Visit[]
+  tasksOwned        Task[]
+  territories       UserTerritory[]
+  beatPlans         BeatPlan[]
+  checkInAttempts   CheckInAttempt[]
+  ordersTaken       Order[]
+  messagesSent      Message[]                @relation("MessageSender")
+  messagesReceived  Message[]                @relation("MessageRecipient")
+  announcements     Announcement[]
+  photosUploaded    Photo[]                  @relation("PhotoUploader")
+  pointsLedger      PointsLedgerEntry[]
+  locationPings     AgentLocationPing[]
+  daySummaries      AgentDaySummary[]
+  locationConsents  LocationConsent[]
+  deviceTokens      DeviceToken[]
+  notificationPrefs NotificationPreference[]
+  salesTargetsSet   SalesTarget[]
 
   @@index([clientId, role])
   @@map("users")
@@ -363,23 +367,29 @@ model VisitRisk {
 }
 
 model Task {
-  id              String       @id @default(uuid())
-  visitId         String?      @map("visit_id")
-  visit           Visit?       @relation(fields: [visitId], references: [id])
-  findingType     String       @map("finding_type")
-  outletId        String       @map("outlet_id")
-  outlet          Outlet       @relation(fields: [outletId], references: [id])
-  requiredFix     String       @map("required_fix")
-  priority        TaskPriority
-  slaDueAt        DateTime     @map("sla_due_at")
-  ownerId         String       @map("owner_id")
-  owner           User         @relation(fields: [ownerId], references: [id])
-  status          TaskStatus   @default(open)
-  closurePhotoUrl String?      @map("closure_photo_url")
-  closureVerified Boolean      @default(false) @map("closure_verified")
-  createdAt       DateTime     @default(now()) @map("created_at")
+  id                  String       @id @default(uuid())
+  visitId             String?      @map("visit_id")
+  visit               Visit?       @relation(fields: [visitId], references: [id])
+  findingType         String       @map("finding_type")
+  outletId            String       @map("outlet_id")
+  outlet              Outlet       @relation(fields: [outletId], references: [id])
+  requiredFix         String       @map("required_fix")
+  priority            TaskPriority
+  slaDueAt            DateTime     @map("sla_due_at")
+  ownerId             String       @map("owner_id")
+  owner               User         @relation(fields: [ownerId], references: [id])
+  status              TaskStatus   @default(open)
+  closurePhotoUrl     String?      @map("closure_photo_url")
+  closureVerified     Boolean      @default(false) @map("closure_verified")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  /// When the SLA-breach push (#67) was sent for this task. Set once, by the
+  /// breach sweep, so a breach is announced exactly once however many
+  /// instances run the sweep. Null = not announced (not breached yet, closed
+  /// in time, or breached before push existed).
+  slaBreachNotifiedAt DateTime?    @map("sla_breach_notified_at")
 
   @@index([ownerId, status])
+  @@index([slaDueAt])
   @@index([outletId])
   @@index([visitId])
   @@map("tasks")
@@ -617,9 +627,9 @@ model AuditTemplate {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
-  responses VisitTemplateResponse[]
+  responses        VisitTemplateResponse[]
   /// The client that uses this template in its field audits, if any (#122).
-  selectedByClient Client? @relation("ClientSelectedAuditTemplate")
+  selectedByClient Client?                 @relation("ClientSelectedAuditTemplate")
 
   @@map("audit_templates")
 }
@@ -1176,6 +1186,64 @@ model LocationConsent {
 
   @@index([clientId, agentId, createdAt])
   @@map("location_consents")
+}
+
+enum PushPlatform {
+  android
+  ios
+  web
+}
+
+/// The kinds of push a user can switch off (#67).
+enum NotificationCategory {
+  alerts
+  tasks
+  messages
+  sla
+}
+
+/// A device's push token (FCM registration token), registered by the app after
+/// sign-in and removed on sign-out (#67).
+///
+/// The token is globally unique: it names one app install, not one person. When
+/// a shared phone signs in as someone else, registering the same token again
+/// re-points this row to the new user and tenant, so the previous user stops
+/// receiving pushes on a phone they have handed back.
+model DeviceToken {
+  id         String       @id @default(uuid())
+  userId     String       @map("user_id")
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId   String       @map("client_id")
+  client     Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platform   PushPlatform
+  token      String       @unique
+  /// Last registration or refresh. A token FCM rejects is deleted outright.
+  lastSeenAt DateTime     @map("last_seen_at")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([clientId])
+  @@map("device_tokens")
+}
+
+/// One user's choice for one push category (#67). No row means ON: every
+/// category defaults to enabled, so a row is only written when a user changes
+/// something.
+model NotificationPreference {
+  id        String               @id @default(uuid())
+  userId    String               @map("user_id")
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String               @map("client_id")
+  client    Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category  NotificationCategory
+  enabled   Boolean              @default(true)
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+
+  @@unique([userId, category])
+  @@index([clientId])
+  @@map("notification_preferences")
 }
 
 /// A manager's monthly sell-in target for one SKU (#119).
