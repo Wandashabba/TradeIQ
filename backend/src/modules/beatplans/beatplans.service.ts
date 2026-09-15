@@ -212,6 +212,67 @@ export async function updateStop(input: UpdateStopInput) {
   });
 }
 
+export interface MarkRouteStopsVisitedInput {
+  clientId: string;
+  agentId: string;
+  outletId: string;
+  /** The visit's DEVICE check-in time — the one clock a visit is measured on (#101). */
+  checkinTs: Date;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Issue #52: a submitted visit IS the stop being visited. Before this, only the
+ * manager's checkbox (`updateStop`) ever set `visited`, so an agent could work
+ * their whole route and the Today screen still showed every store as to do.
+ *
+ * **Which stops.** Stops for this outlet, on plans of the same client AND the
+ * same agent. Both guards are applied independently — a plan is never matched
+ * on agent alone.
+ *
+ * **Which day.** Plans whose `scheduledDate` falls on the UTC calendar day of
+ * the check-in, as a half-open range `[00:00Z, next 00:00Z)`. This is the
+ * convention plans are already written in: the plan form sends `YYYY-MM-DD`,
+ * which is stored as midnight UTC, and recurrence expands in the UTC calendar
+ * (`recurrence.ts`). There is no `Client.timezone` and the server does no other
+ * timezone reasoning, so a local-day rule would be a guess. The range (rather
+ * than equality with midnight) also matches a plan created with a full instant.
+ * Known edge: on SAST (UTC+2) a check-in between 00:00 and 02:00 local lands on
+ * the previous UTC day. Nobody audits a shop at that hour; if it ever matters
+ * the fix is a `Client.timezone`, not a wider window — a wider window would
+ * start ticking yesterday's and tomorrow's occurrences of a daily series.
+ *
+ * **Which plans.** Not `completed` ones: a manager who closed a plan has closed
+ * it. (`planned | in_progress | completed` is the whole status set — there is
+ * no cancelled state to exclude.) Plan status itself is left alone: it is a
+ * manager-set field with no transition rules, and the manual stop checkbox does
+ * not move it either.
+ *
+ * **Idempotent.** `updateMany` over `visited: false`, so a re-submit or a
+ * duplicate offline sync marks nothing twice. Returns how many stops changed.
+ */
+export async function markRouteStopsVisited(input: MarkRouteStopsVisitedInput): Promise<number> {
+  const ts = input.checkinTs;
+  const dayStart = new Date(Date.UTC(ts.getUTCFullYear(), ts.getUTCMonth(), ts.getUTCDate()));
+  const dayEnd = new Date(dayStart.getTime() + MS_PER_DAY);
+
+  const { count } = await prisma.beatPlanStop.updateMany({
+    where: {
+      outletId: input.outletId,
+      visited: false,
+      beatPlan: {
+        clientId: input.clientId,
+        agentId: input.agentId,
+        status: { not: 'completed' },
+        scheduledDate: { gte: dayStart, lt: dayEnd },
+      },
+    },
+    data: { visited: true },
+  });
+  return count;
+}
+
 export interface UpdateBeatPlanStatusInput {
   id: string;
   clientId: string;

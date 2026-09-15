@@ -164,6 +164,14 @@ paths:
   /visits/{id}/submit:
     post:
       summary: Mark a visit submitted — field_agent, owner only
+      description: >-
+        After the visit is persisted, submit also (best-effort — none of these
+        can fail a submission that has already been saved): marks the agent's
+        beat-plan stops for this outlet visited (#52), on plans of the same
+        client and agent that are not completed and whose scheduledDate falls on
+        the UTC calendar day of the visit's device check-in time (checkinTs) —
+        idempotent, so a re-submit or duplicate sync changes nothing; fires the
+        visit.submitted webhook; and evaluates the client's active alert rules.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: id

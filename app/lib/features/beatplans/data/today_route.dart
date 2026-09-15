@@ -64,6 +64,18 @@ class TodayRoute {
   bool get isComplete => total > 0 && remaining == 0;
 }
 
+/// Drops every cached read the Today route is built from, so the next read
+/// fetches the plan and its stops again.
+///
+/// Called when a submitted visit reaches the server: the server marks the
+/// matching stop visited (#52), and Today must show that when the agent comes
+/// back to it rather than the route as it was this morning.
+void invalidateRouteProgress(Ref ref) {
+  ref.invalidate(beatPlansListProvider);
+  ref.invalidate(beatPlanDetailProvider);
+  ref.invalidate(todayRouteProvider);
+}
+
 /// Today's route, or null if nobody planned one.
 ///
 /// Null is a real answer, not a loading state. A manager who has not built a
