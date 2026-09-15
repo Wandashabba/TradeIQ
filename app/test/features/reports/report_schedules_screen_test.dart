@@ -149,6 +149,25 @@ class _FakeSchedulesRepository implements ReportSchedulesRepository {
     if (failRun) throw Exception('boom');
     return runResult;
   }
+
+  String? historyId;
+
+  @override
+  Future<PaginatedResponse<ReportRun>> listRuns(
+    String scheduleId, {
+    String? cursor,
+    int limit = reportRunsPageSize,
+  }) async {
+    historyId = scheduleId;
+    return const PaginatedResponse(data: [], nextCursor: null);
+  }
+
+  @override
+  Future<List<ReportEmailDelivery>> listEmailDeliveries(
+    String scheduleId,
+    String runId,
+  ) async =>
+      const [];
 }
 
 class _FakeReportsRepository implements ReportsRepository {
@@ -460,6 +479,24 @@ void main() {
 
     expect(find.textContaining('Failed to load report schedules'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('History opens that schedule\'s run history', (tester) async {
+    final repo = _FakeSchedulesRepository();
+    await tester.pumpWidget(_app(repo));
+    await tester.pumpAndSettle();
+
+    final history = find.byKey(const ValueKey<String>('history-s-paused'));
+    expect(
+      find.descendant(of: history, matching: find.text('History')),
+      findsOneWidget,
+    );
+    await tester.tap(history);
+    await tester.pumpAndSettle();
+
+    expect(repo.historyId, 's-paused');
+    expect(find.text('Run history'), findsOneWidget);
+    expect(find.text('No runs yet'), findsOneWidget);
   });
 
   testWidgets('the add button opens the create form', (tester) async {

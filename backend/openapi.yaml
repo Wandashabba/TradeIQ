@@ -1913,6 +1913,39 @@ paths:
               schema: { $ref: '#/components/schemas/ScheduleRunResult' }
         '403': { description: Forbidden }
         '404': { description: Not found }
+  /report-schedules/{id}/runs:
+    get:
+      summary: A schedule's run history — manager/admin
+      description: >
+        The schedule's runs, scheduled and manual, newest first. Each run
+        carries a derived `status` across every channel, a delivery `summary`
+        (webhook deliveries delivered/failed/pending; emails
+        sent/failed/pending/not configured), the `reason` when something was
+        not sent or failed, the run's webhook delivery results, and the signed
+        `csvDownloadUrl` while it works (null when PUBLIC_API_URL or
+        REPORT_LINK_SECRET is not configured, and after the link's 7 days).
+        Per-recipient email deliveries are at
+        `GET /report-schedules/{id}/runs/{runId}/email-deliveries`. Another
+        client's schedule is a 404.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ReportRunHistoryItem' } }
+                  nextCursor: { type: string, nullable: true }
+        '400': { description: Invalid limit or cursor }
+        '401': { description: Unauthenticated }
+        '403': { description: Forbidden (not manager/admin) }
+        '404': { description: Not found (or another client's schedule) }
   /report-schedules/{id}/runs/{runId}/csv:
     get:
       summary: Download a run's report as CSV — manager/admin
@@ -2548,6 +2581,70 @@ components:
           format: date-time
           nullable: true
           description: When `csvDownloadUrl` stops working (7 days after `generatedAt`); null with it.
+    ReportRunHistoryItem:
+      type: object
+      description: One run of a report schedule, with where its delivery stands (#66).
+      properties:
+        id: { type: string }
+        scheduleId: { type: string }
+        trigger: { type: string, enum: [manual, scheduled] }
+        status:
+          type: string
+          enum: [delivering, delivered, partial, failed, not_sent]
+          description: >
+            delivering — a webhook or email delivery is still queued or
+            retrying; delivered — something was delivered and nothing failed;
+            partial — some deliveries succeeded and some failed; failed —
+            deliveries or a channel failed and nothing succeeded; not_sent —
+            nothing was queued (see `reason`).
+        dueAt: { type: string, format: date-time, nullable: true, description: The due time a scheduled run fired for; null for a manual run. }
+        generatedAt: { type: string, format: date-time }
+        rowCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        reason:
+          type: string
+          nullable: true
+          description: Why something was not sent or failed (each channel's detail, and counts of deliveries that gave up); null when there is nothing to explain.
+        summary:
+          type: object
+          properties:
+            webhook:
+              type: object
+              properties:
+                status: { type: string, nullable: true, enum: [queued, no_subscribers, not_configured, failed] }
+                delivered: { type: integer }
+                failed: { type: integer, description: Deliveries that gave up after every retry. }
+                pending: { type: integer, description: Queued or retrying. }
+            email:
+              type: object
+              properties:
+                status: { type: string, nullable: true, enum: [queued, no_subscribers, not_configured, failed] }
+                sent: { type: integer }
+                failed: { type: integer, description: Emails that gave up. }
+                pending: { type: integer, description: Queued or retrying. }
+                notConfigured: { type: integer, description: Recipients not emailed because SMTP was not configured for the run. }
+        deliveries: { type: array, items: { $ref: '#/components/schemas/ReportDeliveryOutcome' } }
+        webhookDeliveries:
+          type: array
+          description: The run's webhook deliveries as they stand now. A webhook deleted since the run is no longer listed.
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              webhookId: { type: string }
+              url: { type: string }
+              status: { type: string, enum: [pending, succeeded, failed_retrying, gave_up] }
+              attempts: { type: integer }
+              lastStatusCode: { type: integer, nullable: true }
+              lastError: { type: string, nullable: true }
+              lastAttemptAt: { type: string, format: date-time, nullable: true }
+              nextAttemptAt: { type: string, format: date-time, nullable: true }
+              deliveredAt: { type: string, format: date-time, nullable: true }
+        csvDownloadUrl:
+          type: string
+          nullable: true
+          description: The run's signed CSV link (`GET /report-downloads/{token}`); null when links are not configured or the link has expired.
+        csvDownloadExpiresAt: { type: string, format: date-time, nullable: true }
     ReportEmailDelivery:
       type: object
       description: One report run emailed to one recipient (#66), with the webhook delivery retry semantics.
