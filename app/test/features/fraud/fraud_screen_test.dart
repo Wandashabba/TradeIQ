@@ -30,7 +30,14 @@ const _lowRiskVisit = FlaggedVisit(
 );
 
 class _FakeFraudRepository implements FraudRepository {
-  _FakeFraudRepository(this.page);
+  // Defaults to the two fixture visits every glass and navigation test reads,
+  // so those tests stay one-liners; the paging tests pass their own page.
+  _FakeFraudRepository([
+    this.page = const FlaggedPage(
+      data: [_highRiskVisit, _lowRiskVisit],
+      nextCursor: null,
+    ),
+  ]);
   final FlaggedPage page;
 
   @override
@@ -39,17 +46,14 @@ class _FakeFraudRepository implements FraudRepository {
 
 class _ThrowingFraudRepository implements FraudRepository {
   @override
-  Future<FlaggedPage> flagged({int? minScore}) async =>
-      throw Exception('boom');
+  Future<FlaggedPage> flagged({int? minScore}) async => throw Exception('boom');
 }
 
 Widget _app(FraudRepository repo, {ThemeData? theme}) => routedApp(
-      const FraudScreen(),
-      theme: theme,
-      overrides: [
-        fraudRepositoryProvider.overrideWithValue(repo),
-      ],
-    );
+  const FraudScreen(),
+  theme: theme,
+  overrides: [fraudRepositoryProvider.overrideWithValue(repo)],
+);
 
 const _riskLine = 'Risk 82 · gps_mismatch, fast_visit';
 
@@ -84,48 +88,67 @@ void main() {
     expect(find.text('HIGH RISK'), findsWidgets);
   });
 
-  testWidgets('renders risk score and signal codes for flagged visits',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeFraudRepository(const FlaggedPage(
-      data: [_highRiskVisit, _lowRiskVisit],
-      nextCursor: null,
-    ))));
+  testWidgets('renders risk score and signal codes for flagged visits', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        _FakeFraudRepository(
+          const FlaggedPage(
+            data: [_highRiskVisit, _lowRiskVisit],
+            nextCursor: null,
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Visit v-high-0'), findsOneWidget);
-    expect(
-      find.text('Risk 82 · gps_mismatch, fast_visit'),
-      findsOneWidget,
-    );
+    expect(find.text('Risk 82 · gps_mismatch, fast_visit'), findsOneWidget);
     expect(find.text('Risk 55 · '), findsOneWidget);
     expect(find.text('2 flagged visits'), findsOneWidget);
     // Everything was scored: no unscored note.
     expect(find.byKey(const ValueKey('fraud-unscored')), findsNothing);
   });
 
-  testWidgets('says how many visits are not scored yet, rather than hiding them',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeFraudRepository(const FlaggedPage(
-      data: [_highRiskVisit],
-      nextCursor: null,
-      unscored: 3,
-    ))));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'says how many visits are not scored yet, rather than hiding them',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          _FakeFraudRepository(
+            const FlaggedPage(
+              data: [_highRiskVisit],
+              nextCursor: null,
+              unscored: 3,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(
-      find.text(
-        '3 submitted visits have not been scored yet and are not listed here.',
+      expect(
+        find.text(
+          '3 submitted visits have not been scored yet and are not listed here.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('titles a partial first page as the top of the list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        _FakeFraudRepository(
+          const FlaggedPage(
+            data: [_highRiskVisit, _lowRiskVisit],
+            nextCursor: 'v-low-002',
+          ),
+        ),
       ),
-      findsOneWidget,
     );
-  });
-
-  testWidgets('titles a partial first page as the top of the list',
-      (tester) async {
-    await tester.pumpWidget(_app(_FakeFraudRepository(const FlaggedPage(
-      data: [_highRiskVisit, _lowRiskVisit],
-      nextCursor: 'v-low-002',
-    ))));
     await tester.pumpAndSettle();
 
     expect(find.text('Top 2 flagged visits'), findsOneWidget);
