@@ -2,6 +2,8 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { issueToken } from '../auth/auth.service';
+import { localCalendarDate } from '../../lib/clientTime';
+import { attributeToCampaign } from './orders.service';
 
 describe('orders routes', () => {
   let clientId: string;
@@ -439,6 +441,85 @@ describe('orders routes', () => {
         await prisma.campaignOutlet.deleteMany({ where: { campaignId: c.id } });
         await prisma.order.updateMany({ where: { campaignId: c.id }, data: { campaignId: null } });
         await prisma.campaign.delete({ where: { id: c.id } });
+      }
+    });
+  });
+
+  describe('attribution window in local calendar days (#324)', () => {
+    /** An active campaign over the order outlet, stored as the form sends it. */
+    async function plainDateCampaign(name: string, startDate: string, endDate: string) {
+      return prisma.campaign.create({
+        data: {
+          clientId,
+          name,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          status: 'active',
+          outlets: { create: [{ outletId }] },
+        },
+      });
+    }
+
+    async function removeCampaign(id: string) {
+      await prisma.order.updateMany({ where: { campaignId: id }, data: { campaignId: null } });
+      await prisma.campaignOutlet.deleteMany({ where: { campaignId: id } });
+      await prisma.campaign.delete({ where: { id } });
+    }
+
+    const attributeAt = (iso: string, timeZone: string) =>
+      prisma.$transaction((tx) => attributeToCampaign(tx, clientId, outletId, new Date(iso), timeZone));
+
+    it('stamps an order placed today on a campaign whose end date is today', async () => {
+      // Before #324 an endDate of today was today 00:00Z, so this order fell
+      // outside the window at almost any hour. The client uses the default zone.
+      const today = localCalendarDate(new Date(), 'Africa/Johannesburg').toISOString().slice(0, 10);
+      const campaign = await plainDateCampaign('ATTR- Ends today', today, today);
+      try {
+        const res = await request(app)
+          .post('/orders')
+          .set('Authorization', `Bearer ${agent1Token}`)
+          .send({ outletId, lines: [{ skuId: skuAId, quantity: 1, unitPrice: 10 }] });
+
+        expect(res.status).toBe(201);
+        const order = await prisma.order.findUniqueOrThrow({ where: { id: res.body.id } });
+        expect(order.campaignId).toBe(campaign.id);
+      } finally {
+        await removeCampaign(campaign.id);
+      }
+    });
+
+    it('includes the whole end date and nothing either side, in SAST', async () => {
+      // Dates well away from "now", so no other test's order can match.
+      const campaign = await plainDateCampaign('ATTR- Sep 2024', '2024-09-01', '2024-09-30');
+      const SAST = 'Africa/Johannesburg';
+      try {
+        // 15:00 local on the end date.
+        expect(await attributeAt('2024-09-30T13:00:00.000Z', SAST)).toBe(campaign.id);
+        // 00:30 local on the start date.
+        expect(await attributeAt('2024-08-31T22:30:00.000Z', SAST)).toBe(campaign.id);
+        // 00:30 local on the day after the end date.
+        expect(await attributeAt('2024-09-30T22:30:00.000Z', SAST)).toBeNull();
+        // 23:30 local on the day before the start date.
+        expect(await attributeAt('2024-08-31T21:30:00.000Z', SAST)).toBeNull();
+      } finally {
+        await removeCampaign(campaign.id);
+      }
+    });
+
+    it('follows the client zone across a DST change (America/New_York, 2 Nov 2025)', async () => {
+      const campaign = await plainDateCampaign('ATTR- NY fall back', '2025-10-27', '2025-11-02');
+      const NY = 'America/New_York';
+      try {
+        // 15:00 EST on the end date.
+        expect(await attributeAt('2025-11-02T20:00:00.000Z', NY)).toBe(campaign.id);
+        // 23:30 EST on the end date — already 3 Nov in UTC.
+        expect(await attributeAt('2025-11-03T04:30:00.000Z', NY)).toBe(campaign.id);
+        // 00:30 EST on 3 Nov.
+        expect(await attributeAt('2025-11-03T05:30:00.000Z', NY)).toBeNull();
+        // 23:30 EDT on 26 Oct, the day before the start.
+        expect(await attributeAt('2025-10-27T03:30:00.000Z', NY)).toBeNull();
+      } finally {
+        await removeCampaign(campaign.id);
       }
     });
   });
