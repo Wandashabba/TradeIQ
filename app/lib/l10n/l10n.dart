@@ -51,5 +51,14 @@ extension AppLocalizationsContext on BuildContext {
 
 /// "Monday, 14 September" in the active locale ("Maandag, 14 September" in
 /// Afrikaans).
-String formatDayHeading(BuildContext context, DateTime date) =>
-    DateFormat('EEEE, d MMMM', context.l10n.localeName).format(date);
+String formatDayHeading(BuildContext context, DateTime date) {
+  try {
+    return DateFormat('EEEE, d MMMM', context.l10n.localeName).format(date);
+  } on Exception {
+    // intl throws when a locale's date symbols were never loaded — the app
+    // loads them through GlobalMaterialLocalizations, but a screen pumped
+    // without those delegates has none. en_US is built into intl, so the
+    // heading still reads exactly as it did in English.
+    return DateFormat('EEEE, d MMMM', 'en_US').format(date);
+  }
+}
