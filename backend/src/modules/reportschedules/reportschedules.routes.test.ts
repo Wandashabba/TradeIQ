@@ -1,8 +1,24 @@
 import request from 'supertest';
+import { fetch } from 'undici';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { issueToken } from '../auth/auth.service';
+import { settleInFlightDeliveries } from '../webhooks/webhooks.service';
+import { DAY_MS } from './reportschedules.cadence';
+
+// "Run now" now delivers through webhooks (#66): no real network, and the DNS
+// pre-check is stubbed, as in webhooks.delivery.test.ts.
+jest.mock('undici', () => ({
+  ...jest.requireActual('undici'),
+  fetch: jest.fn().mockResolvedValue({ status: 204, body: null }),
+}));
+jest.mock('../../lib/urlGuard', () => ({
+  ...jest.requireActual('../../lib/urlGuard'),
+  assertPublicHostname: jest.fn().mockResolvedValue(undefined),
+}));
+
+const fetchMock = fetch as unknown as jest.Mock;
 
 describe('report-schedules routes', () => {
   let clientId: string;
@@ -11,10 +27,12 @@ describe('report-schedules routes', () => {
   let agentToken: string;
   let otherToken: string;
   let outletId: string;
+  let agentId: string;
   let reportDefinitionId: string;
   let otherReportDefinitionId: string;
   let scheduleId: string;
   let otherScheduleId: string;
+  let runId: string;
 
   beforeAll(async () => {
     const client = await prisma.client.create({
@@ -29,6 +47,7 @@ describe('report-schedules routes', () => {
     const agent = await prisma.user.create({
       data: { email: 'SCHED-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
     });
+    agentId = agent.id;
     agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
 
     const outlet = await prisma.outlet.create({
@@ -51,7 +70,7 @@ describe('report-schedules routes', () => {
           outletId,
           agentId: agent.id,
           clientId,
-          checkinTs: new Date(),
+          checkinTs: new Date(Date.now() - 60_000),
           checkinLat: -26.2041,
           checkinLng: 28.0473,
           geofencePass: true,
@@ -61,7 +80,7 @@ describe('report-schedules routes', () => {
           outletId,
           agentId: agent.id,
           clientId,
-          checkinTs: new Date(),
+          checkinTs: new Date(Date.now() - 60_000),
           checkinLat: -26.2041,
           checkinLng: 28.0473,
           geofencePass: true,
@@ -105,12 +124,15 @@ describe('report-schedules routes', () => {
   });
 
   afterAll(async () => {
-    await prisma.reportSchedule.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
-    await prisma.reportDefinition.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
-    await prisma.visit.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
-    await prisma.outlet.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
-    await prisma.user.deleteMany({ where: { clientId: { in: [clientId, otherClientId] } } });
-    await prisma.client.deleteMany({ where: { id: { in: [clientId, otherClientId] } } });
+    await settleInFlightDeliveries();
+    const clients = { in: [clientId, otherClientId] };
+    await prisma.webhook.deleteMany({ where: { clientId: clients } });
+    await prisma.reportSchedule.deleteMany({ where: { clientId: clients } });
+    await prisma.reportDefinition.deleteMany({ where: { clientId: clients } });
+    await prisma.visit.deleteMany({ where: { clientId: clients } });
+    await prisma.outlet.deleteMany({ where: { clientId: clients } });
+    await prisma.user.deleteMany({ where: { clientId: clients } });
+    await prisma.client.deleteMany({ where: { id: clients } });
     await prisma.$disconnect();
   });
 
@@ -120,7 +142,12 @@ describe('report-schedules routes', () => {
     recipients: ['ops@example.com', 'lead@example.com'],
   });
 
-  it('creates a schedule (201)', async () => {
+  const approx = (iso: string | null, expected: number) => {
+    expect(iso).not.toBeNull();
+    expect(Math.abs(new Date(iso!).getTime() - expected)).toBeLessThan(10_000);
+  };
+
+  it('creates a schedule whose first run is one period away (201)', async () => {
     const res = await request(app)
       .post('/report-schedules')
       .set('Authorization', `Bearer ${managerToken}`)
@@ -132,6 +159,7 @@ describe('report-schedules routes', () => {
     expect(res.body.recipients).toEqual(['ops@example.com', 'lead@example.com']);
     expect(res.body.active).toBe(true);
     expect(res.body.lastRunAt).toBeNull();
+    approx(res.body.nextRunAt, Date.now() + DAY_MS);
     scheduleId = res.body.id;
   });
 
@@ -159,7 +187,7 @@ describe('report-schedules routes', () => {
     expect(res.status).toBe(404);
   });
 
-  it("lists only the caller's schedules with the definition name (200)", async () => {
+  it("lists only the caller's schedules with the definition name and run times (200)", async () => {
     const res = await request(app)
       .get('/report-schedules')
       .set('Authorization', `Bearer ${managerToken}`);
@@ -170,9 +198,11 @@ describe('report-schedules routes', () => {
     expect(ids).not.toContain(otherScheduleId);
     const mine = res.body.data.find((s: { id: string }) => s.id === scheduleId);
     expect(mine.reportDefinition.name).toBe('SCHED-Visits Report');
+    expect(mine).toHaveProperty('nextRunAt');
+    expect(mine).toHaveProperty('lastRunAt');
   });
 
-  it('patches active and cadence (200)', async () => {
+  it('pausing clears the next run (200)', async () => {
     const res = await request(app)
       .patch(`/report-schedules/${scheduleId}`)
       .set('Authorization', `Bearer ${managerToken}`)
@@ -180,6 +210,17 @@ describe('report-schedules routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.active).toBe(false);
     expect(res.body.cadence).toBe('weekly');
+    expect(res.body.nextRunAt).toBeNull();
+  });
+
+  it('resuming schedules the next run one period from now (200)', async () => {
+    const res = await request(app)
+      .patch(`/report-schedules/${scheduleId}`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ active: true });
+    expect(res.status).toBe(200);
+    expect(res.body.active).toBe(true);
+    approx(res.body.nextRunAt, Date.now() + 7 * DAY_MS);
   });
 
   it('rejects an empty patch body with 400', async () => {
@@ -198,7 +239,8 @@ describe('report-schedules routes', () => {
     expect(res.status).toBe(400);
   });
 
-  it('runs a schedule: sets lastRunAt and returns rowCount + deliveredTo (200)', async () => {
+  it('run now with no subscribed webhook: generated, recorded, delivered nowhere (200)', async () => {
+    const before = await prisma.reportSchedule.findUniqueOrThrow({ where: { id: scheduleId } });
     const res = await request(app)
       .post(`/report-schedules/${scheduleId}/run`)
       .set('Authorization', `Bearer ${managerToken}`)
@@ -206,12 +248,106 @@ describe('report-schedules routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.schedule.lastRunAt).not.toBeNull();
-    expect(typeof res.body.rowCount).toBe('number');
-    expect(res.body.rowCount).toBeGreaterThanOrEqual(2);
-    expect(res.body.deliveredTo).toEqual(['ops@example.com', 'lead@example.com']);
+    expect(res.body.rowCount).toBe(2);
+    expect(res.body.trigger).toBe('manual');
+    // No longer an echo of the recipients: nothing was queued anywhere.
+    expect(res.body.deliveredTo).toEqual([]);
+    expect(res.body.deliveries).toEqual([
+      expect.objectContaining({ channel: 'webhook', status: 'no_subscribers' }),
+      {
+        channel: 'email',
+        status: 'not_configured',
+        targets: ['ops@example.com', 'lead@example.com'],
+        detail: 'Email delivery not configured',
+      },
+    ]);
+    // A manual run is extra: the cadence's next run does not move.
+    expect(res.body.schedule.nextRunAt).toBe(before.nextRunAt!.toISOString());
+  });
 
-    const row = await prisma.reportSchedule.findUnique({ where: { id: scheduleId } });
-    expect(row?.lastRunAt).not.toBeNull();
+  it('run now delivers to webhooks subscribed to report.generated (200)', async () => {
+    const webhook = await prisma.webhook.create({
+      data: { clientId, url: 'https://hooks.example.com/sched', event: 'report.generated' },
+    });
+    const res = await request(app)
+      .post(`/report-schedules/${scheduleId}/run`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send();
+    await settleInFlightDeliveries();
+
+    expect(res.status).toBe(200);
+    expect(res.body.deliveredTo).toEqual(['https://hooks.example.com/sched']);
+    runId = res.body.runId;
+
+    const deliveries = await prisma.webhookDelivery.findMany({ where: { webhookId: webhook.id } });
+    expect(deliveries).toHaveLength(1);
+    expect(res.body.deliveries[0]).toEqual({
+      channel: 'webhook',
+      status: 'queued',
+      targets: ['https://hooks.example.com/sched'],
+      webhookDeliveryIds: [deliveries[0].id],
+    });
+    expect((deliveries[0].payload as { payload: { runId: string; trigger: string } }).payload).toMatchObject({
+      runId,
+      trigger: 'manual',
+      csvPath: `/report-schedules/${scheduleId}/runs/${runId}/csv`,
+    });
+    expect(fetchMock).toHaveBeenCalled();
+
+    const run = await prisma.reportScheduleRun.findUniqueOrThrow({ where: { id: runId } });
+    expect(run).toMatchObject({ clientId, scheduleId, trigger: 'manual', dueAt: null, rowCount: 2 });
+  });
+
+  it("serves a run's CSV, bounded to when the run was generated (200)", async () => {
+    // A visit checked in after the run is not part of that run's report.
+    await prisma.visit.create({
+      data: {
+        outletId,
+        agentId,
+        clientId,
+        checkinTs: new Date(Date.now() + 60_000),
+        checkinLat: -26.2041,
+        checkinLng: 28.0473,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+
+    const res = await request(app)
+      .get(`/report-schedules/${scheduleId}/runs/${runId}/csv`)
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/^text\/csv/);
+    expect(res.headers['content-disposition']).toBe(`attachment; filename="report-${runId}.csv"`);
+    const lines = res.text.split('\n');
+    expect(lines[0]).toContain('checkinTs');
+    // Header + the two visits that existed at the run.
+    expect(lines).toHaveLength(3);
+  });
+
+  it("the run CSV is tenant- and role-guarded (404/403/401)", async () => {
+    const path = `/report-schedules/${scheduleId}/runs/${runId}/csv`;
+
+    const foreign = await request(app).get(path).set('Authorization', `Bearer ${otherToken}`);
+    expect(foreign.status).toBe(404);
+
+    // The right run under another schedule's id is not found either.
+    const mismatched = await request(app)
+      .get(`/report-schedules/${otherScheduleId}/runs/${runId}/csv`)
+      .set('Authorization', `Bearer ${otherToken}`);
+    expect(mismatched.status).toBe(404);
+
+    const unknown = await request(app)
+      .get(`/report-schedules/${scheduleId}/runs/no-such-run/csv`)
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(unknown.status).toBe(404);
+
+    const agent = await request(app).get(path).set('Authorization', `Bearer ${agentToken}`);
+    expect(agent.status).toBe(403);
+
+    const anonymous = await request(app).get(path);
+    expect(anonymous.status).toBe(401);
   });
 
   it("returns 404 when running another client's schedule", async () => {
@@ -230,7 +366,7 @@ describe('report-schedules routes', () => {
     expect(res.status).toBe(404);
   });
 
-  it('deletes a schedule (204) then it is gone', async () => {
+  it('deletes a schedule (204) then it and its runs are gone', async () => {
     const res = await request(app)
       .delete(`/report-schedules/${scheduleId}`)
       .set('Authorization', `Bearer ${managerToken}`);
@@ -238,6 +374,7 @@ describe('report-schedules routes', () => {
 
     const row = await prisma.reportSchedule.findUnique({ where: { id: scheduleId } });
     expect(row).toBeNull();
+    expect(await prisma.reportScheduleRun.count({ where: { scheduleId } })).toBe(0);
   });
 
   it('forbids a field agent from create/run/delete (403)', async () => {

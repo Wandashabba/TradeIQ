@@ -13,10 +13,19 @@ String cadenceLabel(String cadence) => switch (cadence) {
       _ => cadence,
     };
 
+/// The webhook event a schedule's runs are announced as (#66).
+const reportGeneratedEvent = 'report.generated';
+
+DateTime? _date(Object? raw) => raw is String ? DateTime.parse(raw) : null;
+
+List<String> _strings(Object? raw) =>
+    raw is List ? [for (final r in raw) if (r is String) r] : const [];
+
 /// A saved report on a recurring cadence, as returned by the
 /// `/report-schedules` routes.
 ///
-/// Nothing fires a schedule yet (#66): [cadence] is stored, not acted on.
+/// The backend fires active schedules on their cadence (#66): [nextRunAt] is
+/// when it next will, null while paused.
 class ReportSchedule {
   const ReportSchedule({
     required this.id,
@@ -26,6 +35,7 @@ class ReportSchedule {
     required this.active,
     this.reportName,
     this.lastRunAt,
+    this.nextRunAt,
   });
 
   final String id;
@@ -37,12 +47,15 @@ class ReportSchedule {
   final String cadence;
   final List<String> recipients;
   final bool active;
+
+  /// The latest run, scheduled or manual.
   final DateTime? lastRunAt;
+
+  /// When the backend next fires this schedule. Null while paused.
+  final DateTime? nextRunAt;
 
   factory ReportSchedule.fromJson(Map<String, dynamic> json) {
     final definition = json['reportDefinition'];
-    final rawRecipients = json['recipients'];
-    final lastRunAt = json['lastRunAt'] as String?;
     return ReportSchedule(
       id: json['id'] as String,
       reportDefinitionId: json['reportDefinitionId'] as String,
@@ -51,41 +64,85 @@ class ReportSchedule {
           : null,
       cadence: json['cadence'] as String,
       // `recipients` is a JSON column: trust only its string entries.
-      recipients: rawRecipients is List
-          ? [for (final r in rawRecipients) if (r is String) r]
-          : const [],
+      recipients: _strings(json['recipients']),
       active: json['active'] as bool? ?? true,
-      lastRunAt: lastRunAt == null ? null : DateTime.parse(lastRunAt),
+      lastRunAt: _date(json['lastRunAt']),
+      nextRunAt: _date(json['nextRunAt']),
     );
   }
 }
 
-/// What `POST /report-schedules/:id/run` returns: the report was generated
-/// and the run recorded. [deliveredTo] echoes the configured recipients — the
-/// backend does NOT send anything yet (delivery is #66), so the UI must not
-/// read it as proof of delivery.
+/// What one delivery channel did with a run (#66): `webhook` queued to the
+/// subscribed endpoints, `email` not configured, and so on.
+class ReportDeliveryOutcome {
+  const ReportDeliveryOutcome({
+    required this.channel,
+    required this.status,
+    this.targets = const [],
+    this.detail,
+  });
+
+  final String channel;
+
+  /// `queued`, `no_subscribers`, `not_configured` or `failed`.
+  final String status;
+  final List<String> targets;
+  final String? detail;
+
+  factory ReportDeliveryOutcome.fromJson(Map<String, dynamic> json) =>
+      ReportDeliveryOutcome(
+        channel: json['channel'] as String? ?? '',
+        status: json['status'] as String? ?? '',
+        targets: _strings(json['targets']),
+        detail: json['detail'] as String?,
+      );
+}
+
+/// What `POST /report-schedules/:id/run` returns: the report was generated,
+/// the run recorded, and it was handed to every delivery channel.
+///
+/// [deliveredTo] lists the webhook URLs a delivery was queued for — empty when
+/// nothing was sent. Queued is not yet received; the Webhooks screen shows each
+/// delivery's outcome.
 class ScheduleRunResult {
   const ScheduleRunResult({
     required this.schedule,
     required this.generatedAt,
     required this.rowCount,
     required this.deliveredTo,
+    this.runId,
+    this.deliveries = const [],
   });
 
   final ReportSchedule schedule;
+  final String? runId;
   final String generatedAt;
   final int rowCount;
   final List<String> deliveredTo;
+  final List<ReportDeliveryOutcome> deliveries;
+
+  /// The outcome for [channel], if the backend reported one.
+  ReportDeliveryOutcome? outcomeFor(String channel) {
+    for (final d in deliveries) {
+      if (d.channel == channel) return d;
+    }
+    return null;
+  }
 
   factory ScheduleRunResult.fromJson(Map<String, dynamic> json) {
-    final raw = json['deliveredTo'];
+    final rawDeliveries = json['deliveries'];
     return ScheduleRunResult(
       schedule:
           ReportSchedule.fromJson(json['schedule'] as Map<String, dynamic>),
+      runId: json['runId'] as String?,
       generatedAt: json['generatedAt'] as String,
       rowCount: json['rowCount'] as int? ?? 0,
-      deliveredTo: raw is List
-          ? [for (final r in raw) if (r is String) r]
+      deliveredTo: _strings(json['deliveredTo']),
+      deliveries: rawDeliveries is List
+          ? [
+              for (final d in rawDeliveries)
+                if (d is Map<String, dynamic>) ReportDeliveryOutcome.fromJson(d),
+            ]
           : const [],
     );
   }
@@ -119,8 +176,8 @@ abstract class ReportSchedulesRepository {
   /// DELETE /report-schedules/:id.
   Future<void> deleteSchedule(String id);
 
-  /// POST /report-schedules/:id/run — generate the report now and record the
-  /// run.
+  /// POST /report-schedules/:id/run — generate the report now, record the run
+  /// and deliver it. Does not move the next scheduled run.
   Future<ScheduleRunResult> runNow(String id);
 }
 

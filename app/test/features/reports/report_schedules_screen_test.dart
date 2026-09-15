@@ -14,15 +14,19 @@ import 'package:tradeiq_app/features/reports/presentation/report_schedules_scree
 import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
-const _active = ReportSchedule(
+final _nextRun = DateTime(2026, 9, 21, 9, 0);
+
+final _active = ReportSchedule(
   id: 's-active',
   reportDefinitionId: 'r-a',
   reportName: 'Coverage by outlet',
   cadence: 'weekly',
-  recipients: ['ops@acme.test', 'lead@acme.test'],
+  recipients: const ['ops@acme.test', 'lead@acme.test'],
   active: true,
+  nextRunAt: _nextRun,
 );
 
+// Paused: the backend clears nextRunAt.
 const _paused = ReportSchedule(
   id: 's-paused',
   reportDefinitionId: 'r-b',
@@ -32,14 +36,45 @@ const _paused = ReportSchedule(
   active: false,
 );
 
+const _emailNotConfigured = ReportDeliveryOutcome(
+  channel: 'email',
+  status: 'not_configured',
+  targets: ['ops@acme.test', 'lead@acme.test'],
+  detail: 'Email delivery not configured',
+);
+
+ScheduleRunResult _runResult({
+  int rowCount = 42,
+  List<String> deliveredTo = const ['https://hooks.acme.test/reports'],
+  ReportDeliveryOutcome? webhook,
+}) =>
+    ScheduleRunResult(
+      schedule: _active,
+      runId: 'run-1',
+      generatedAt: '2026-09-14T10:05:00.000Z',
+      rowCount: rowCount,
+      deliveredTo: deliveredTo,
+      deliveries: [
+        webhook ??
+            ReportDeliveryOutcome(
+              channel: 'webhook',
+              status: deliveredTo.isEmpty ? 'no_subscribers' : 'queued',
+              targets: deliveredTo,
+            ),
+        _emailNotConfigured,
+      ],
+    );
+
 class _FakeSchedulesRepository implements ReportSchedulesRepository {
   _FakeSchedulesRepository({
-    List<ReportSchedule> schedules = const [_active, _paused],
+    List<ReportSchedule>? schedules,
     this.failList = false,
     this.failRun = false,
     this.failUpdate = false,
     this.pendingList,
-  }) : schedules = [...schedules];
+    ScheduleRunResult? runResult,
+  })  : schedules = [...(schedules ?? [_active, _paused])],
+        runResult = runResult ?? _runResult();
 
   /// Mutable, so an update is visible on the next list — like the server.
   final List<ReportSchedule> schedules;
@@ -47,6 +82,7 @@ class _FakeSchedulesRepository implements ReportSchedulesRepository {
   final bool failRun;
   final bool failUpdate;
   final Completer<PaginatedResponse<ReportSchedule>>? pendingList;
+  final ScheduleRunResult runResult;
 
   String? toggledId;
   bool? toggledValue;
@@ -81,6 +117,7 @@ class _FakeSchedulesRepository implements ReportSchedulesRepository {
       recipients: recipients ?? old.recipients,
       active: old.active,
       lastRunAt: old.lastRunAt,
+      nextRunAt: old.nextRunAt,
     );
     schedules[i] = updated;
     return updated;
@@ -110,12 +147,7 @@ class _FakeSchedulesRepository implements ReportSchedulesRepository {
   Future<ScheduleRunResult> runNow(String id) async {
     runId = id;
     if (failRun) throw Exception('boom');
-    return const ScheduleRunResult(
-      schedule: _active,
-      generatedAt: '2026-09-14T10:05:00.000Z',
-      rowCount: 42,
-      deliveredTo: ['ops@acme.test', 'lead@acme.test'],
-    );
+    return runResult;
   }
 }
 
@@ -152,15 +184,17 @@ Widget _app(ReportSchedulesRepository repo, {ThemeData? theme}) => routedApp(
     );
 
 void main() {
-  testWidgets('each row shows report, cadence, recipients and status word',
+  testWidgets('each row shows report, cadence, next and last run, recipients and status word',
       (tester) async {
     await tester.pumpWidget(_app(_FakeSchedulesRepository()));
     await tester.pumpAndSettle();
 
     expect(find.text('Coverage by outlet'), findsOneWidget);
     expect(find.text('Sales by SKU'), findsOneWidget);
-    expect(find.text('Weekly · Never run'), findsOneWidget);
-    expect(find.text('Daily · Never run'), findsOneWidget);
+    expect(find.text('Weekly · Next run 2026-09-21 09:00'), findsOneWidget);
+    // A paused schedule has no next run, and says so.
+    expect(find.text('Daily · Paused, no next run'), findsOneWidget);
+    expect(find.text('Never run'), findsNWidgets(2));
     expect(find.text('To ops@acme.test, lead@acme.test'), findsOneWidget);
     expect(find.text('To sales@acme.test'), findsOneWidget);
     // Status is a word, never colour alone.
@@ -170,7 +204,7 @@ void main() {
     expect(find.text('1 active'), findsOneWidget);
   });
 
-  testWidgets('a run stamp is shown as the last run', (tester) async {
+  testWidgets('next and last run sit on the row they belong to', (tester) async {
     await tester.pumpWidget(
       _app(
         _FakeSchedulesRepository(
@@ -183,6 +217,7 @@ void main() {
               recipients: const ['ops@acme.test'],
               active: true,
               lastRunAt: DateTime(2026, 9, 14, 10, 5),
+              nextRunAt: DateTime(2026, 9, 21, 10, 5),
             ),
           ],
         ),
@@ -190,16 +225,48 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Weekly · Last run 2026-09-14 10:05'), findsOneWidget);
+    final row = find.byKey(const ValueKey<String>('schedule-s-run'));
+    expect(
+      find.descendant(of: row, matching: find.text('Last run 2026-09-14 10:05')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: row,
+        matching: find.text('Weekly · Next run 2026-09-21 10:05'),
+      ),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('says plainly that nothing is sent automatically',
+  test('nextRunLabel covers active, paused and unscheduled', () {
+    expect(nextRunLabel(_active), 'Next run 2026-09-21 09:00');
+    expect(nextRunLabel(_paused), 'Paused, no next run');
+    expect(
+      nextRunLabel(
+        const ReportSchedule(
+          id: 'x',
+          reportDefinitionId: 'r',
+          cadence: 'daily',
+          recipients: [],
+          active: true,
+        ),
+      ),
+      'Next run not scheduled',
+    );
+    expect(lastRunLabel(null), 'Never run');
+  });
+
+  testWidgets('says schedules run automatically to webhooks, and email is not set up',
       (tester) async {
     await tester.pumpWidget(_app(_FakeSchedulesRepository()));
     await tester.pumpAndSettle();
 
     expect(find.text(scheduleDeliveryNote), findsOneWidget);
-    expect(scheduleDeliveryNote, contains('not sent automatically'));
+    expect(scheduleDeliveryNote, contains('run automatically'));
+    expect(scheduleDeliveryNote, contains('webhooks subscribed to report.generated'));
+    expect(scheduleDeliveryNote, contains('Email is not set up yet'));
+    expect(scheduleDeliveryNote, isNot(contains('not sent automatically')));
   });
 
   testWidgets('pause and resume follow each row\'s state', (tester) async {
@@ -223,7 +290,7 @@ void main() {
     expect(repo.toggledValue, isTrue);
   });
 
-  testWidgets('run now reports what the API did — generated, not sent',
+  testWidgets('run now reports what the API did — rows, webhooks queued, no email',
       (tester) async {
     final repo = _FakeSchedulesRepository();
     await tester.pumpWidget(_app(repo));
@@ -234,30 +301,51 @@ void main() {
 
     expect(repo.runId, 's-active');
     expect(
-      find.text('Generated 42 rows. Not sent to recipients: delivery is not '
-          'built yet.'),
+      find.text('Generated 42 rows. Queued for 1 webhook. Email is not set up yet.'),
       findsOneWidget,
     );
-    // `deliveredTo` is an echo of the recipients, not a delivery receipt.
+    // Queued, not received: never claimed as delivered.
     expect(find.textContaining('Delivered'), findsNothing);
-    expect(find.textContaining('Sent to'), findsNothing);
 
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
   });
 
-  test('run now wording counts one row in the singular', () {
-    expect(
-      runNowMessage(
-        const ScheduleRunResult(
-          schedule: _active,
-          generatedAt: '2026-09-14T10:05:00.000Z',
-          rowCount: 1,
-          deliveredTo: [],
+  group('runNowMessage', () {
+    test('counts one row and many webhooks', () {
+      expect(
+        runNowMessage(
+          _runResult(
+            rowCount: 1,
+            deliveredTo: const ['https://a.test', 'https://b.test'],
+          ),
         ),
-      ),
-      startsWith('Generated 1 row. '),
-    );
+        'Generated 1 row. Queued for 2 webhooks. Email is not set up yet.',
+      );
+    });
+
+    test('says plainly when no webhook listens', () {
+      expect(
+        runNowMessage(_runResult(deliveredTo: const [])),
+        'Generated 42 rows. Not sent: no webhook is subscribed to '
+        'report.generated. Email is not set up yet.',
+      );
+    });
+
+    test('says when the webhook channel failed', () {
+      expect(
+        runNowMessage(
+          _runResult(
+            deliveredTo: const [],
+            webhook: const ReportDeliveryOutcome(
+              channel: 'webhook',
+              status: 'failed',
+            ),
+          ),
+        ),
+        'Generated 42 rows. Webhook delivery failed. Email is not set up yet.',
+      );
+    });
   });
 
   testWidgets('a failed run says so, in human words', (tester) async {
@@ -423,7 +511,7 @@ void main() {
       expect(repo.listCalls, greaterThan(listsBefore));
       expect(find.text('To new@acme.test'), findsOneWidget);
       expect(find.text('To ops@acme.test, lead@acme.test'), findsNothing);
-      expect(find.text('Daily · Never run'), findsNWidgets(2));
+      expect(find.text('Daily · Next run 2026-09-21 09:00'), findsOneWidget);
     });
 
     testWidgets('a failed save stays on the form and says why',
@@ -502,6 +590,16 @@ void main() {
             .toList();
         expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
         expect(panes.any((p) => p.kind == GlassKind.panel), isTrue);
+        // The next/last run lines sit inside the same glass tile.
+        final nextRun = find.byKey(const ValueKey<String>('schedule-next-run-s-active'));
+        expect(
+          tester
+              .widgetList<GlassPane>(
+                find.ancestor(of: nextRun, matching: find.byType(GlassPane)),
+              )
+              .any((p) => p.kind == GlassKind.tile && !p.blur),
+          isTrue,
+        );
         // The delivery note sits on glass too.
         expect(
           find.descendant(
