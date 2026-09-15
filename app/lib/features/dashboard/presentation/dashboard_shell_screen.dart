@@ -33,6 +33,8 @@ import '../../tasks/data/tasks_admin_repository.dart';
 import '../../territories/data/territories_repository.dart';
 import '../../trends/data/trends_repository.dart';
 import '../data/dashboard_repository.dart';
+import '../../sales_targets/data/sales_targets_repository.dart';
+import '../../sales_targets/presentation/sales_attainment_panel.dart';
 import '../../../core/theme/lumen_palette.dart';
 
 /// The manager's morning screen. It answers one question — *what is broken, and
@@ -64,6 +66,7 @@ class DashboardShellScreen extends ConsumerWidget {
     ref.invalidate(territoriesListProvider);
     ref.invalidate(agentActivityTodayProvider);
     ref.invalidate(liveAgentLocationsProvider);
+    ref.invalidate(currentMonthAttainmentProvider);
     // Awaited last so the progress indicator tracks the headline number; the
     // rest refetch in parallel behind it.
     ref.invalidate(dashboardSnapshotProvider);
@@ -142,6 +145,9 @@ class DashboardShellScreen extends ConsumerWidget {
                   ),
                 const SizedBox(height: 12),
                 const AgentActivityPanel(),
+                const SizedBox(height: 12),
+                // This month's sell-in (orders) against target (#119).
+                const SalesAttainmentPanel(),
                 const SizedBox(height: 12),
                 const _StubCaveat(),
               ],
@@ -353,7 +359,8 @@ extension on _ExecutionScorePanelState {
               ),
               const SizedBox(height: 10),
               snapshot.when(
-                loading: () => const _OnDarkPane(child: _InlineLoader(height: 56)),
+                loading: () =>
+                    const _OnDarkPane(child: _InlineLoader(height: 56)),
                 error: (err, _) => _OnDarkPane(
                   child: _InlineError(
                     message: 'Could not load KPIs',
@@ -378,7 +385,9 @@ extension on _ExecutionScorePanelState {
                           enabled: animate,
                           child: DeltaPill(
                             delta: d.change!,
-                            tone: d.change! < 0 ? DeltaTone.bad : DeltaTone.good,
+                            tone: d.change! < 0
+                                ? DeltaTone.bad
+                                : DeltaTone.good,
                           ),
                         ),
                         _ => const SizedBox.shrink(),
@@ -1875,23 +1884,23 @@ class _FilterBar extends ConsumerWidget {
     );
 
     final filters = Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 10,
-        runSpacing: 6,
-        children: [
-          const SectionLabel('Territory'),
-          territoryDropdown,
-          const SizedBox(width: 4),
-          // The window is what makes every delta on this screen possible: without
-          // a bounded range there is no previous period, and every arrow would be
-          // invented. "All" is offered, and honestly shows no arrows at all.
-          _RangeControl(
-            key: const ValueKey('filter-daterange'),
-            selected: filter.range,
-            onChanged: (r) => update(filter.copyWith(range: r)),
-          ),
-        ],
-      );
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 6,
+      children: [
+        const SectionLabel('Territory'),
+        territoryDropdown,
+        const SizedBox(width: 4),
+        // The window is what makes every delta on this screen possible: without
+        // a bounded range there is no previous period, and every arrow would be
+        // invented. "All" is offered, and honestly shows no arrows at all.
+        _RangeControl(
+          key: const ValueKey('filter-daterange'),
+          selected: filter.range,
+          onChanged: (r) => update(filter.copyWith(range: r)),
+        ),
+      ],
+    );
 
     // One glass bar scopes everything beneath it — never a filter in a panel.
     if (colors.glass) {
@@ -2147,7 +2156,10 @@ class _BenchmarkCell extends StatelessWidget {
             ),
             LumenStatusPill(status: status),
             const SizedBox(width: 9),
-            Text(_fmtPct(value), style: LumenGlass.figure(size: 14, color: ink)),
+            Text(
+              _fmtPct(value),
+              style: LumenGlass.figure(size: 14, color: ink),
+            ),
             if (delta.hasDelta) ...[
               const SizedBox(width: 7),
               DeltaPill(
@@ -2315,4 +2327,3 @@ class _GlassTerritoryBars extends StatelessWidget {
     );
   }
 }
-
