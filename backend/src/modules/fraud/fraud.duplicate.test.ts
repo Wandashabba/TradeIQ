@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import { MAX_NEAR_DUPLICATE_DISTANCE } from '../photos/photoHash';
 import {
   computeFraudSignals,
@@ -45,8 +46,18 @@ describe('duplicate_photo (#244)', () => {
     ...overrides,
   });
 
-  const score = (photoMatches: FraudPhotoMatch[] | undefined, kpi?: unknown, v: FraudVisitInput = visit()) =>
-    computeFraudSignals(v, { photos: [], sectionCreatedAts: [checkinTs], failedAttempts: [], photoMatches }, kpi);
+  const score = (
+    photoMatches: FraudPhotoMatch[] | undefined,
+    kpi?: unknown,
+    v: FraudVisitInput = visit(),
+    timeZone: string = DEFAULT_CLIENT_TIME_ZONE,
+  ) =>
+    computeFraudSignals(
+      v,
+      { photos: [], sectionCreatedAts: [checkinTs], failedAttempts: [], photoMatches },
+      kpi,
+      timeZone,
+    );
   const codes = (...args: Parameters<typeof score>) => score(...args).signals.map((s) => s.code);
 
   describe('weights: another outlet over the same outlet, exact over near', () => {
@@ -171,6 +182,42 @@ describe('duplicate_photo (#244)', () => {
     it('is silent with no matches, or none supplied (photos without hashes produce none)', () => {
       expect(codes([])).toEqual([]);
       expect(codes(undefined)).toEqual([]);
+    });
+  });
+
+  describe("the matched visit's date, in the client's timezone (#325)", () => {
+    // 23:30Z on 14 Sep is 01:30 SAST on the 15th, and 19:30 EDT on the 14th.
+    const lateEvening = new Date('2026-09-14T23:30:00.000Z');
+    // The reuse, checked in after both matches below.
+    const reuse = () => visit({ checkinTs: new Date('2026-09-16T09:00:00.000Z') });
+    const dateIn = (timeZone: string, matchCheckinTs: Date = lateEvening) =>
+      score([match({ matchCheckinTs })], {}, reuse(), timeZone).signals[0].detail;
+
+    it('reads a 23:30Z check-in as the next day for a Johannesburg client', () => {
+      expect(dateIn('Africa/Johannesburg')).toContain('a different outlet on 2026-09-15 (device check-in)');
+      expect(dateIn('Africa/Johannesburg')).not.toContain('2026-09-14');
+    });
+
+    it('reads the same check-in as the same day for a UTC or a New York client', () => {
+      expect(dateIn('UTC')).toContain('a different outlet on 2026-09-14 (device check-in)');
+      expect(dateIn('America/New_York')).toContain('a different outlet on 2026-09-14 (device check-in)');
+    });
+
+    it('reads an early-morning UTC check-in as the previous day west of Greenwich', () => {
+      // 02:30Z on 15 Sep is 22:30 EDT on the 14th, and 04:30 SAST on the 15th.
+      const earlyMorning = new Date('2026-09-15T02:30:00.000Z');
+      expect(dateIn('America/New_York', earlyMorning)).toContain('on 2026-09-14 (device check-in)');
+      expect(dateIn('UTC', earlyMorning)).toContain('on 2026-09-15 (device check-in)');
+      expect(dateIn('Africa/Johannesburg', earlyMorning)).toContain('on 2026-09-15 (device check-in)');
+    });
+
+    it('changes only the wording: which match is chosen and its weight are zone-free', () => {
+      const zones = ['Africa/Johannesburg', 'UTC', 'America/New_York'];
+      const results = zones.map((zone) => score([match({ matchCheckinTs: lateEvening })], {}, reuse(), zone));
+      for (const result of results) {
+        expect(result.riskScore).toBe(35);
+        expect(result.signals.map((s) => s.code)).toEqual(['duplicate_photo']);
+      }
     });
   });
 

@@ -1,5 +1,6 @@
 import { Prisma, VisitStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { DEFAULT_CLIENT_TIME_ZONE, localCalendarDate } from '../../lib/clientTime';
 import { DEFAULT_LIMIT, buildPage } from '../../lib/pagination';
 import { GEOFENCE_RADIUS_M, haversineDistanceMeters } from '../../lib/geofence';
 import { kpiThreshold } from '../../lib/kpiThresholds';
@@ -681,6 +682,7 @@ function duplicatePhoto(
   visit: FraudVisitInput,
   related: FraudRelatedInput,
   kpiThresholds: unknown,
+  timeZone: string,
 ): FraudSignal | null {
   const matches = related.photoMatches ?? [];
   if (matches.length === 0) {
@@ -725,7 +727,10 @@ function duplicatePhoto(
   const kind = match.exact
     ? 'byte-identical to'
     : `a near-duplicate (${match.distance} of ${PERCEPTUAL_HASH_BITS} bits differ, threshold ${maxDistance}) of`;
-  const date = match.matchCheckinTs.toISOString().slice(0, 10);
+  // The matched visit's calendar date in the CLIENT's timezone (#325), so it
+  // reads as the same day the visit list shows a manager cross-checking it: a
+  // 00:30 SAST check-in is 22:30Z the evening before.
+  const date = localCalendarDate(match.matchCheckinTs, timeZone).toISOString().slice(0, 10);
   return {
     code: 'duplicate_photo',
     detail:
@@ -898,11 +903,17 @@ function stockOutsideOutlet(
  * `kpiThresholds` is the visit's client's raw `Client.kpiThresholds` column;
  * the dwell band and the capture-timeline tolerance read it. Absent, every
  * edge takes its default.
+ *
+ * `timeZone` is the client's IANA `Client.timezone` (#309); every calendar date
+ * a detail names is in it (#325). Required, not defaulted: a caller that forgot
+ * it would silently print UTC dates, which is the bug #325 fixed. Durations
+ * (dwell, capture gaps, the failed-attempt window) are zone-free and unaffected.
  */
 export function computeFraudSignals(
   visit: FraudVisitInput,
   related: FraudRelatedInput,
-  kpiThresholds: unknown = {},
+  kpiThresholds: unknown,
+  timeZone: string,
 ): FraudResult {
   const signals: FraudSignal[] = [];
 
@@ -1082,7 +1093,7 @@ export function computeFraudSignals(
   // 8. Duplicate photo (#244) — this visit's photo already appeared on an
   //    earlier visit of the same client. Any status, like photo_gps_divergence:
   //    an uploaded photo is evidence whether or not the visit was submitted.
-  const duplicate = duplicatePhoto(visit, related, kpiThresholds);
+  const duplicate = duplicatePhoto(visit, related, kpiThresholds, timeZone);
   if (duplicate) {
     signals.push(duplicate);
   }
@@ -1556,9 +1567,13 @@ export async function scoreFraudBatch(clientId: string, visits: FraudVisitPayloa
         },
       },
     }),
-    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
+    // Thresholds and timezone together: one read per batch, however many visits
+    // or signals use them. An unresolvable client takes the schema default zone,
+    // as getClientTimeZone does — never UTC.
+    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true, timezone: true } }),
   ]);
   const kpiThresholds = client?.kpiThresholds;
+  const timeZone = client?.timezone ?? DEFAULT_CLIENT_TIME_ZONE;
   const attemptsByVisit = new Map(
     visits.map((visit) => [
       visit.id,
@@ -1604,6 +1619,7 @@ export async function scoreFraudBatch(clientId: string, visits: FraudVisitPayloa
         nearbyOutlets: nearbyOutletsByVisit.get(visit.id) ?? [],
       },
       kpiThresholds,
+      timeZone,
     ),
   );
 }
@@ -1770,7 +1786,9 @@ export interface FlaggedPage {
  * earlier visits' stock and photos, rejected check-in attempts, the client's
  * kpiThresholds — and this list does not see those changes until the visit is
  * rescored. A client that changes a fraud threshold runs
- * `npm run rescore-fraud -- --client <id> --all`. GET /fraud/visits/:id is
+ * `npm run rescore-fraud -- --client <id> --all`. The detail text is part of the
+ * snapshot too: dates in it are in the client's timezone as of scoring (#325),
+ * so a timezone change, or scores stored before #325 (UTC dates), need the same. GET /fraud/visits/:id is
  * always live, so the visit a reviewer opens is scored against today's data.
  *
  * Visits without a stored score are excluded and counted in `unscored`.
