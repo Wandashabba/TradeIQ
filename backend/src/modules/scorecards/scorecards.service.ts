@@ -15,7 +15,7 @@ export const SCORECARD_DIMENSIONS = [
 
 export type ScorecardDimension = (typeof SCORECARD_DIMENSIONS)[number];
 
-const DEFAULT_GREEN_THRESHOLD = 80;
+export const DEFAULT_GREEN_THRESHOLD = 80;
 const DEFAULT_AMBER_THRESHOLD = 60;
 
 function clamp(value: number, min = 0, max = 100): number {

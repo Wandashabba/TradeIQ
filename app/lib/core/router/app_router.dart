@@ -32,6 +32,7 @@ import '../../features/templates/presentation/template_form_screen.dart';
 import '../../features/templates/presentation/templates_screen.dart';
 import '../../features/dispatch/presentation/dispatch_screen.dart';
 import '../../features/trends/presentation/trends_screen.dart';
+import '../../features/visits/presentation/visit_detail_screen.dart';
 import '../../features/assistant/presentation/artifact_screen.dart';
 import '../../features/assistant/presentation/assistant_gate.dart';
 import '../auth/session_controller.dart';
@@ -95,8 +96,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Template subroutes (e.g. /audit-templates/:id/preview) are manager
       // territory too — the exact-match set above only covers the list screen.
       final isTemplatesSubroute = loc.startsWith('/audit-templates/');
+      // A visit under review (/visits/:id) is supervisory: its API is
+      // manager/admin-only, so an agent would only ever land on a 403.
+      final isVisitReview = loc.startsWith('/visits/');
       if (role == 'field_agent' &&
-          (managerOnly.contains(loc) || isTemplatesSubroute)) {
+          (managerOnly.contains(loc) || isTemplatesSubroute || isVisitReview)) {
         return '/today';
       }
       if (role != 'field_agent' && (isAuditRoute || isAgentOnly)) {
@@ -260,6 +264,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trends',
         pageBuilder: (context, state) => managerPage(const TrendsScreen()),
+      ),
+      // One visit, for review (#208). Pushed from alerts, the fraud review and
+      // the agent trail, so the back chip returns to the list it came from.
+      GoRoute(
+        path: '/visits/:id',
+        pageBuilder: (context, state) => managerPage(
+          VisitDetailScreen(visitId: state.pathParameters['id']!),
+          key: state.pageKey,
+        ),
       ),
     ],
   );

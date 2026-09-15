@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
@@ -375,10 +377,8 @@ void main() {
       expect(find.byKey(const ValueKey<String>('ack-a-open')), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('ack-a-done')), findsNothing);
 
-      // Ruling (2026-07-25): NO "View visit" action. The manager console has
-      // no visit-detail route — the agent trail takes a day/agent context,
-      // not a visit id — and a dead link would be dishonest chrome. If a
-      // visit-detail screen ever lands, this is the test to loosen.
+      // Neither row carries a visitId, so neither offers "View visit" (#208):
+      // the action exists only where there is a visit to open.
       expect(find.text('View visit'), findsNothing);
       expect(
         find.descendant(
@@ -666,6 +666,97 @@ void main() {
       expect(find.text('Shelf price mismatch'), findsOneWidget);
       expect(find.byKey(const ValueKey('worklist-thumb')), findsNothing);
       expect(find.byType(EvidenceThumb), findsNothing);
+    });
+  });
+
+  group('view visit (#208)', () {
+    /// The alerts screen under a router that also knows the visit route, so a
+    /// tap can be followed to where it lands.
+    Widget navApp(AlertsRepository repo) => ProviderScope(
+      overrides: [
+        alertsRepositoryProvider.overrideWithValue(repo),
+        photosRepositoryProvider.overrideWithValue(_FakePhotosRepository()),
+      ],
+      child: MaterialApp.router(
+        routerConfig: GoRouter(
+          initialLocation: '/alerts',
+          routes: [
+            GoRoute(
+              path: '/alerts',
+              builder: (context, state) => const AlertsScreen(),
+            ),
+            GoRoute(
+              path: '/visits/:id',
+              builder: (context, state) =>
+                  Text('visit detail ${state.pathParameters['id']}'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    testWidgets('a row with a visit offers View visit beside Acknowledge', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          _FakeAlertsRepository(alerts: const [_evidenced, _unacknowledged]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('view-visit-a-photo')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey<String>('ack-a-photo')), findsOneWidget);
+      // The visitless row gets no link.
+      expect(
+        find.byKey(const ValueKey<String>('view-visit-a-open')),
+        findsNothing,
+      );
+      expect(find.text('View visit'), findsOneWidget);
+    });
+
+    testWidgets('an acknowledged row keeps View visit, loses Acknowledge', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(_FakeAlertsRepository(alerts: [_acked(_evidenced)])),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('view-visit-a-photo')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey<String>('ack-a-photo')), findsNothing);
+    });
+
+    testWidgets('tapping it opens that visit, and back returns to alerts', (
+      tester,
+    ) async {
+      final repo = _FakeAlertsRepository(alerts: const [_evidenced]);
+      await tester.pumpWidget(navApp(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('view-visit-a-photo')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('visit detail v1'), findsOneWidget);
+      // Opening a visit is not acknowledging its alert.
+      expect(repo.ackCalls, 0);
+
+      // Pushed, not replaced: popping lands back on the worklist.
+      final router = GoRouter.of(tester.element(find.text('visit detail v1')));
+      expect(router.canPop(), isTrue);
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Shelf gap on aisle 3'), findsOneWidget);
     });
   });
 

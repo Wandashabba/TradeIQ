@@ -161,6 +161,117 @@ paths:
           description: Outlet not found for this client
         '422':
           description: Check-in location is outside the outlet geofence
+  /visits/{id}:
+    get:
+      summary: One visit, for manager review — manager/admin, tenant-scoped (#208)
+      description: >
+        Outlet, agent, device check-in and submit times, geofence distance, the
+        perfect-store score with every dimension (null = not measurable), a
+        summary per capture section, photo METADATA with thumbnail URLs, and the
+        visit's fraud signals. Photo bytes are never included; fetch each
+        thumbnail from `thumbnailUrl` (GET /photos/{id}/thumbnail). A draft
+        (in_progress) visit returns `submittedAtClient: null` and, until scored,
+        `score: null`. Section rows are read up to 500 each and photos up to
+        200; `count`/`total` are always exact and `truncated` marks a section
+        whose findings came from fewer rows than exist.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The visit detail
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status, outlet, agent, checkinTs, submittedAtClient, geofence, score, sections, photos, fraud]
+                properties:
+                  id: { type: string }
+                  status: { type: string, enum: [in_progress, submitted] }
+                  outlet:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      code: { type: string }
+                      channelType: { type: string }
+                  agent:
+                    type: object
+                    description: User has no display-name column, so the email is the agent's name.
+                    properties:
+                      id: { type: string }
+                      email: { type: string }
+                  checkinTs: { type: string, format: date-time, description: Device clock at check-in }
+                  submittedAtClient:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Device clock at submit; null for a draft or a visit recorded before it existed
+                  geofence:
+                    type: object
+                    properties:
+                      pass: { type: boolean }
+                      distanceM: { type: number, nullable: true }
+                  score:
+                    type: object
+                    nullable: true
+                    properties:
+                      weightedTotal: { type: number }
+                      ratingBand: { type: string, enum: [green, amber, red] }
+                      target: { type: number, description: "The client's current green threshold" }
+                      scoredAt: { type: string, format: date-time }
+                      dimensions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            key: { type: string, enum: [availability, visibility, display, pricing, competitive, salesCapability] }
+                            score: { type: number, nullable: true }
+                  sections:
+                    type: array
+                    description: Always the five sections, in this order - stock, visibility, pricing, competitive, risks.
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string, enum: [stock, visibility, pricing, competitive, risks] }
+                        count: { type: integer }
+                        flagged: { type: integer, description: Rows needing attention }
+                        findings: { type: array, maxItems: 3, items: { type: string } }
+                        truncated: { type: boolean }
+                  photos:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            section: { type: string }
+                            timestamp: { type: string, format: date-time }
+                            thumbnailUrl: { type: string, example: /photos/3f2a.../thumbnail }
+                  fraud:
+                    type: object
+                    properties:
+                      riskScore: { type: number, minimum: 0, maximum: 100 }
+                      signals:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            code: { type: string }
+                            detail: { type: string }
+                            weight: { type: number }
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller is not a manager or admin
+        '404':
+          description: Visit not found for this client
   /visits/{id}/submit:
     post:
       summary: Mark a visit submitted — field_agent, owner only

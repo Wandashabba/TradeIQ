@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // for a single piece of client-only UI state (the selected day) with no
 // business logic attached.
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/geo/label_declutter.dart';
@@ -602,12 +603,20 @@ class _StopPinState extends State<_StopPin>
     final innerHaloAlpha = widget.isLast ? 0.65 : 0.5;
     final outerHaloAlpha = widget.isLast ? 0.25 : 0.18;
 
+    // Every stop is a confirmed visit, so a tap opens it for review (#208).
+    // The pin was already announced as a button; now it behaves like one.
+    void openVisit() => context.push('/visits/${stop.visitId}');
+
     return Semantics(
       button: true,
       excludeSemantics: true,
       label: '${widget.agentName}, stop ${widget.ordinal}, '
           '${stop.outletName}, $time',
-      child: Tooltip(
+      onTap: openVisit,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: openVisit,
+        child: Tooltip(
         // Leads with the agent name: every agent's pins restart at "1", so on
         // a multi-agent day the tooltip is what tells three identical "1"
         // pins apart for a sighted manager — the Semantics label above says
@@ -702,6 +711,7 @@ class _StopPinState extends State<_StopPin>
               ),
           ],
         ),
+      ),
       ),
     );
   }
