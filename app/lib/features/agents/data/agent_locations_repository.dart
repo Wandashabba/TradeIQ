@@ -8,11 +8,24 @@ import '../../dashboard/data/dashboard_repository.dart'
 
 /// Where an agent is, from their foreground location heartbeat (#153 T1).
 ///
-/// Four states, where T0's check-in trail ([AgentState]) has three: a heartbeat
+/// Six states, where T0's check-in trail ([AgentState]) has three: a heartbeat
 /// can observe that pings have stopped, so `offline` is finally something we
 /// see rather than guess. Derived on the server; see
 /// `backend/src/modules/agents/agentLocations.service.ts`.
-enum LiveAgentState { atStore, inTransit, stale, offline }
+///
+/// - [nearStore]: a fresh ping inside a store's fence whose GPS accuracy is too
+///   poor (or unknown) to say the agent is IN it.
+/// - [notSharing]: the agent declined the current location notice. Takes
+///   precedence over every other state, and the server sends no position.
+///   An agent who never answered is [offline] instead.
+enum LiveAgentState {
+  atStore,
+  nearStore,
+  inTransit,
+  stale,
+  offline,
+  notSharing,
+}
 
 /// One agent's latest shared position, as of [AgentLocationsPage.serverTime].
 class AgentLocation {
@@ -46,11 +59,15 @@ class AgentLocation {
   final String? currentOutletName;
 
   /// The best-known last store — from the latest ping's geofence when
-  /// [lastOutletFromPing], otherwise from the latest confirmed check-in.
+  /// [lastOutletFromPing], otherwise from the latest confirmed check-in. For
+  /// [LiveAgentState.nearStore] it is the store the ping is near.
   final String? lastOutletName;
   final bool lastOutletFromPing;
 
-  bool get hasPosition => lat != null && lng != null;
+  /// Never true for [LiveAgentState.notSharing], even if a position slipped
+  /// through: an agent who declined is never pinned on a map.
+  bool get hasPosition =>
+      lat != null && lng != null && state != LiveAgentState.notSharing;
 
   factory AgentLocation.fromJson(Map<String, dynamic> json) {
     final ping = json['lastPing'] as Map<String, dynamic>?;
@@ -61,8 +78,10 @@ class AgentLocation {
       name: json['name'] as String,
       state: switch (json['state']) {
         'at_store' => LiveAgentState.atStore,
+        'near_store' => LiveAgentState.nearStore,
         'in_transit' => LiveAgentState.inTransit,
         'stale' => LiveAgentState.stale,
+        'not_sharing' => LiveAgentState.notSharing,
         // Anything unrecognised is offline: the state that claims the least.
         _ => LiveAgentState.offline,
       },
@@ -86,6 +105,7 @@ class AgentLocationsPage {
     required this.intervalSeconds,
     required this.staleAfterSeconds,
     required this.offlineAfterSeconds,
+    this.maxAtStoreAccuracyM,
     required this.agents,
     required this.truncated,
   });
@@ -95,6 +115,10 @@ class AgentLocationsPage {
   final int intervalSeconds;
   final int staleAfterSeconds;
   final int offlineAfterSeconds;
+
+  /// The worst GPS accuracy, in metres, that still reads "at store"; null from
+  /// a server that predates the rule.
+  final int? maxAtStoreAccuracyM;
   final List<AgentLocation> agents;
 
   /// The server had more agents than one page; say so rather than imply a team.
@@ -106,6 +130,7 @@ class AgentLocationsPage {
         intervalSeconds: (json['intervalSeconds'] as num).toInt(),
         staleAfterSeconds: (json['staleAfterSeconds'] as num).toInt(),
         offlineAfterSeconds: (json['offlineAfterSeconds'] as num).toInt(),
+        maxAtStoreAccuracyM: (json['maxAtStoreAccuracyM'] as num?)?.toInt(),
         agents: ((json['data'] as List?) ?? const [])
             .map((e) => AgentLocation.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -181,7 +206,9 @@ String formatAgeSeconds(int? seconds) {
 
 String liveStateLabel(LiveAgentState state) => switch (state) {
   LiveAgentState.atStore => 'At store',
+  LiveAgentState.nearStore => 'Near store',
   LiveAgentState.inTransit => 'In transit',
   LiveAgentState.stale => 'Stale',
   LiveAgentState.offline => 'Offline',
+  LiveAgentState.notSharing => 'Not sharing',
 };
