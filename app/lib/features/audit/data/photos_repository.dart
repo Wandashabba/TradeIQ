@@ -230,11 +230,16 @@ final photoImageBytesProvider = FutureProvider.autoDispose
 /// `core/sync/sync_service.dart`). An agent in a dead aisle still gets to file
 /// their evidence.
 abstract class QueuedPhotosRepository {
+  /// [gpsTag] and [capturedAt] are the device's reading at the SHUTTER, not at
+  /// queue or send time: the row can sit in the outbox for hours before it
+  /// reaches `POST /photos`, and both are stored in its payload so they survive
+  /// that wait (#310, #246). [capturedAt] falls back to now when unknown.
   Future<void> queuePhoto({
     required String visitDraftId,
     required String section,
     required String dataUrl,
     Map<String, dynamic> gpsTag,
+    DateTime? capturedAt,
   });
 }
 
@@ -251,6 +256,7 @@ class DriftQueuedPhotosRepository implements QueuedPhotosRepository {
     required String section,
     required String dataUrl,
     Map<String, dynamic> gpsTag = const {},
+    DateTime? capturedAt,
   }) async {
     await db.enqueue(
       entityType: 'photo',
@@ -260,7 +266,9 @@ class DriftQueuedPhotosRepository implements QueuedPhotosRepository {
         'section': section,
         'dataUrl': dataUrl,
         'gpsTag': gpsTag,
-        'timestamp': DateTime.now().toIso8601String(),
+        // UTC with its `Z`: a bare local ISO string has no offset, and the
+        // server would read it in its own zone, shifting the capture by hours.
+        'timestamp': (capturedAt ?? DateTime.now()).toUtc().toIso8601String(),
       }),
     );
 

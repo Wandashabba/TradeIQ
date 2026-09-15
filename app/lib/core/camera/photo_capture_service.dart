@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../location/photo_geotagger.dart';
+
 /// Where a photo came from. Gallery is not a convenience — an agent standing in
 /// a dark aisle with a cracked camera still has to be able to file evidence.
 enum PhotoSource { camera, gallery }
@@ -10,10 +12,25 @@ enum PhotoSource { camera, gallery }
 /// A captured image, already encoded as the `data:` URL the backend stores
 /// (ADR 0007 — base64 in Postgres until object storage lands, #65).
 class CapturedPhoto {
-  const CapturedPhoto({required this.dataUrl, required this.byteLength});
+  const CapturedPhoto({
+    required this.dataUrl,
+    required this.byteLength,
+    required this.capturedAt,
+    this.gpsTag = const <String, dynamic>{},
+  });
 
   final String dataUrl;
   final int byteLength;
+
+  /// The device clock when the picker handed the photo back. This, not the
+  /// moment the section is saved or the outbox sends, is the photo's
+  /// `timestamp` — `capture_timeline_gap` (#246) places the shot by it.
+  final DateTime capturedAt;
+
+  /// Where the device was when the photo was taken — `{lat, lng, accuracy?,
+  /// fixedAt?}` — or empty when location was refused, unavailable or slow, or
+  /// the capture did not ask for it (see [PhotoGeotagger]).
+  final Map<String, dynamic> gpsTag;
 }
 
 /// Raised when an image survives downscaling and is still too big for
@@ -64,9 +81,18 @@ class ImagePickerGatewayImpl implements ImagePickerGateway {
 /// OCR models (#1, #2) will eventually be trained on. Until now the app
 /// uploaded a 1×1 transparent placeholder, so nothing real was ever captured.
 class PhotoCaptureService {
-  PhotoCaptureService({required this.gateway});
+  PhotoCaptureService({
+    required this.gateway,
+    this.geotagger,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final ImagePickerGateway gateway;
+
+  /// Reads the device location for a geotagged capture. Null means no capture
+  /// is ever geotagged.
+  final PhotoGeotagger? geotagger;
+  final DateTime Function() _clock;
 
   /// The server cap. Enforced here too, so a 12 MB photo fails on the device
   /// with a sentence a human can act on rather than as a 400 after the upload.
@@ -79,7 +105,16 @@ class PhotoCaptureService {
 
   /// Returns null when the agent backs out of the picker — a cancel is a
   /// normal outcome, not an error.
-  Future<CapturedPhoto?> capture(PhotoSource source) async {
+  ///
+  /// [geotag] records where the device is as the photo comes back (#310). It
+  /// is opt-in because only audit evidence is placed by the fraud engine: a
+  /// message attachment has no business asking for the sender's location. The
+  /// wait is bounded by the geotagger's timeout, and no fix still yields the
+  /// photo, with an empty tag.
+  Future<CapturedPhoto?> capture(
+    PhotoSource source, {
+    bool geotag = false,
+  }) async {
     final file = await gateway.pick(
       source: source == PhotoSource.camera
           ? ImageSource.camera
@@ -88,6 +123,8 @@ class PhotoCaptureService {
       imageQuality: _quality,
     );
     if (file == null) return null;
+    // Stamped before any location wait, so a slow fix cannot shift it.
+    final capturedAt = _clock();
 
     final bytes = await file.readAsBytes();
     // Trust the picker when it reports a type; fall back to the extension only
@@ -98,7 +135,16 @@ class PhotoCaptureService {
     if (dataUrl.length > maxDataUrlBytes) {
       throw PhotoTooLargeException(dataUrl.length);
     }
-    return CapturedPhoto(dataUrl: dataUrl, byteLength: dataUrl.length);
+    final tagger = geotagger;
+    final gpsTag = geotag && tagger != null
+        ? await tagger.tag()
+        : const <String, dynamic>{};
+    return CapturedPhoto(
+      dataUrl: dataUrl,
+      byteLength: dataUrl.length,
+      capturedAt: capturedAt,
+      gpsTag: gpsTag,
+    );
   }
 
   static String _mimeFor(String name) {
@@ -111,5 +157,8 @@ class PhotoCaptureService {
 }
 
 final photoCaptureServiceProvider = Provider<PhotoCaptureService>(
-  (ref) => PhotoCaptureService(gateway: ImagePickerGatewayImpl()),
+  (ref) => PhotoCaptureService(
+    gateway: ImagePickerGatewayImpl(),
+    geotagger: ref.read(photoGeotaggerProvider),
+  ),
 );

@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/location/location_service.dart';
+import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 
 class _FakeGateway implements ImagePickerGateway {
   _FakeGateway({this.file, this.throws = false});
@@ -117,4 +120,91 @@ void main() {
     // agent would never learn the camera permission is off.
     expect(() => service.capture(PhotoSource.camera), throwsException);
   });
+
+  group('geotagging (#310)', () {
+    final shutter = DateTime.utc(2026, 9, 15, 10, 4, 5);
+
+    PhotoCaptureService service(
+      Future<LocationResult> Function() location, {
+      Duration timeout = PhotoGeotagger.defaultTimeout,
+    }) => PhotoCaptureService(
+      gateway: _FakeGateway(file: _xfile(Uint8List.fromList([1, 2]))),
+      geotagger: PhotoGeotagger(
+        location: _FakeLocation(location),
+        timeout: timeout,
+      ),
+      clock: () => shutter,
+    );
+
+    test('with location granted, the photo carries the fix and the shutter '
+        'time', () async {
+      final photo = await service(
+        () async => LocationGranted(-26.2041, 28.0473, accuracy: 8),
+      ).capture(PhotoSource.camera, geotag: true);
+
+      expect(photo!.gpsTag, {'lat': -26.2041, 'lng': 28.0473, 'accuracy': 8.0});
+      expect(photo.capturedAt, shutter);
+    });
+
+    test('with location refused, the photo is still captured, untagged', () async {
+      final photo = await service(
+        () async => LocationDenied(),
+      ).capture(PhotoSource.camera, geotag: true);
+
+      expect(photo, isNotNull);
+      expect(photo!.dataUrl, startsWith('data:image/jpeg;base64,'));
+      expect(photo.gpsTag, isEmpty);
+      expect(photo.capturedAt, shutter);
+    });
+
+    test('a fix that never comes does not hold the capture', () async {
+      final watch = Stopwatch()..start();
+      final photo = await service(
+        () => Completer<LocationResult>().future,
+        timeout: const Duration(milliseconds: 50),
+      ).capture(PhotoSource.camera, geotag: true);
+      watch.stop();
+
+      expect(photo, isNotNull);
+      expect(photo!.gpsTag, isEmpty);
+      expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+    });
+
+    test('the capture time is the shutter, not when the fix arrived', () async {
+      var now = shutter;
+      final fix = Completer<LocationResult>();
+      final svc = PhotoCaptureService(
+        gateway: _FakeGateway(file: _xfile(Uint8List.fromList([1]))),
+        geotagger: PhotoGeotagger(location: _FakeLocation(() => fix.future)),
+        clock: () => now,
+      );
+
+      final pending = svc.capture(PhotoSource.camera, geotag: true);
+      await Future<void>.delayed(Duration.zero);
+      now = shutter.add(const Duration(seconds: 3));
+      fix.complete(LocationGranted(1, 2));
+
+      expect((await pending)!.capturedAt, shutter);
+    });
+
+    test('without geotag: true it never looks for a location', () async {
+      var asked = 0;
+      final photo = await service(() async {
+        asked++;
+        return LocationGranted(1, 2);
+      }).capture(PhotoSource.gallery);
+
+      expect(asked, 0);
+      expect(photo!.gpsTag, isEmpty);
+    });
+  });
+}
+
+class _FakeLocation extends LocationService {
+  _FakeLocation(this._answer);
+
+  final Future<LocationResult> Function() _answer;
+
+  @override
+  Future<LocationResult> getPositionIfPermitted() => _answer();
 }

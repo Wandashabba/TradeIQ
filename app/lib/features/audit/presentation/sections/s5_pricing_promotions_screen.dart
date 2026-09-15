@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/camera/photo_capture_service.dart';
 import '../../../../core/theme/lumen_glass.dart';
 import '../../../../core/theme/lumen_palette.dart';
 import '../../../../core/theme/tiq_colors.dart';
@@ -53,7 +54,7 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
   final _comms = <String, TextEditingController>{};
   final _promo = <String, bool>{};
   bool _saved = false;
-  String? _photoDataUrl;
+  CapturedPhoto? _photo;
 
   @override
   void initState() {
@@ -97,13 +98,16 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
     // would be trained on. Prices themselves stay manually entered — the OCR
     // seam (`ocr.stub.ts`) is a passthrough that returns whatever it was given,
     // so nothing here is machine-read yet, and the UI does not pretend it is.
-    if (_photoDataUrl != null) {
+    final photo = _photo;
+    if (photo != null) {
       await ref
           .read(queuedPhotosRepositoryProvider)
           .queuePhoto(
             visitDraftId: widget.visitDraftId,
             section: 'pricing',
-            dataUrl: _photoDataUrl!,
+            dataUrl: photo.dataUrl,
+            gpsTag: photo.gpsTag,
+            capturedAt: photo.capturedAt,
           );
     }
 
@@ -169,7 +173,8 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
         PhotoCaptureField(
           label: l10n.s5PhotoLabel,
           helperText: l10n.s5PhotoHelper,
-          onCaptured: (dataUrl) => setState(() => _photoDataUrl = dataUrl),
+          geotag: true,
+          onPhotoCaptured: (photo) => setState(() => _photo = photo),
         ),
         const SizedBox(height: 12),
         AgentButton(label: l10n.s5SaveButton, onPressed: _save),

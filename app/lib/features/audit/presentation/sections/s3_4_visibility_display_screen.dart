@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/camera/photo_capture_service.dart';
 import '../../../../core/theme/lumen_glass.dart';
 import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
@@ -32,7 +33,7 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
   final _cleanliness = TextEditingController();
   bool _highTraffic = false;
   bool _saved = false;
-  String? _photoDataUrl;
+  CapturedPhoto? _photo;
 
   @override
   void dispose() {
@@ -68,13 +69,16 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
     //
     // So: capture the evidence now (this is the corpus #1/#2 need to train on),
     // and wire photoUrl through only once the stub is a real model.
-    if (_photoDataUrl != null) {
+    final photo = _photo;
+    if (photo != null) {
       await ref
           .read(queuedPhotosRepositoryProvider)
           .queuePhoto(
             visitDraftId: widget.visitDraftId,
             section: 'visibility',
-            dataUrl: _photoDataUrl!,
+            dataUrl: photo.dataUrl,
+            gpsTag: photo.gpsTag,
+            capturedAt: photo.capturedAt,
           );
     }
 
@@ -167,7 +171,8 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
         PhotoCaptureField(
           label: l10n.s34PhotoLabel,
           helperText: l10n.s34PhotoHelper,
-          onCaptured: (dataUrl) => setState(() => _photoDataUrl = dataUrl),
+          geotag: true,
+          onPhotoCaptured: (photo) => setState(() => _photo = photo),
         ),
         const SizedBox(height: 12),
         AgentButton(label: l10n.s34SaveButton, onPressed: _save),

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/camera/photo_capture_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/lumen_glass.dart';
 import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
 import '../../../../core/widgets/glass.dart';
+import '../../../../core/widgets/photo_capture_field.dart';
 import '../../../../l10n/l10n.dart';
+import '../../data/photos_repository.dart';
 import '../../data/skus_repository.dart';
 import '../../data/stock_repository.dart';
 
@@ -53,6 +56,11 @@ class _StockFormState extends ConsumerState<_StockForm> {
   final _lastStockin = <String, DateTime>{};
   bool _saved = false;
 
+  /// The optional shelf photo (#310). A count has no position of its own; a
+  /// geotagged photo taken while counting is what places it for
+  /// `stock_outside_outlet` (#248).
+  CapturedPhoto? _photo;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +85,21 @@ class _StockFormState extends ConsumerState<_StockForm> {
     await ref
         .read(stockRepositoryProvider)
         .saveStock(visitDraftId: widget.visitDraftId, entries: entries);
+
+    final photo = _photo;
+    if (photo != null) {
+      await ref
+          .read(queuedPhotosRepositoryProvider)
+          .queuePhoto(
+            visitDraftId: widget.visitDraftId,
+            section: 'stock',
+            dataUrl: photo.dataUrl,
+            gpsTag: photo.gpsTag,
+            capturedAt: photo.capturedAt,
+          );
+      // Queued once. A second Save re-sends the counts, not a duplicate photo.
+      _photo = null;
+    }
     if (mounted) setState(() => _saved = true);
   }
 
@@ -195,6 +218,12 @@ class _StockFormState extends ConsumerState<_StockForm> {
               ),
             ),
           ),
+        const SizedBox(height: 16),
+        PhotoCaptureField(
+          label: l10n.s34PhotoLabel,
+          geotag: true,
+          onPhotoCaptured: (photo) => setState(() => _photo = photo),
+        ),
         const SizedBox(height: 12),
         // The inline save is the ONLY thing that persists this section — the
         // wrapper's "Done" button just pops back to the hub. It must stay.

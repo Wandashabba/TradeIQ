@@ -23,8 +23,10 @@ class PhotoCaptureField extends ConsumerStatefulWidget {
   const PhotoCaptureField({
     super.key,
     required this.label,
-    required this.onCaptured,
+    this.onCaptured,
+    this.onPhotoCaptured,
     this.helperText,
+    this.geotag = false,
   });
 
   final String label;
@@ -33,8 +35,17 @@ class PhotoCaptureField extends ConsumerStatefulWidget {
   /// null of its own accord — Retake re-shoots rather than clearing, and backing
   /// out of a retake keeps the existing photo. `onCaptured(null)` stays a valid
   /// contract call, but nothing in this field triggers it.
-  final ValueChanged<String?> onCaptured;
+  final ValueChanged<String?>? onCaptured;
+
+  /// Called with the whole capture — data URL, device capture time and
+  /// `gpsTag` — for callers that upload it as visit evidence.
+  final ValueChanged<CapturedPhoto>? onPhotoCaptured;
   final String? helperText;
+
+  /// Geotag the capture (#310). Audit evidence only: the fraud engine places
+  /// visit photos by this tag, and a photo that is not audit evidence (a task
+  /// closure days later) must not be placed as if it were.
+  final bool geotag;
 
   @override
   ConsumerState<PhotoCaptureField> createState() => _PhotoCaptureFieldState();
@@ -47,7 +58,7 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
   /// The tile is now a single affordance that hands off to the full-screen
   /// [GuidedCaptureScreen]. That screen owns the capture — it drives the
   /// unchanged [PhotoCaptureService] and surfaces its own errors inline — and
-  /// pops the encoded `dataUrl`, or `null` when the agent backs out.
+  /// pops the [CapturedPhoto], or `null` when the agent backs out.
   Future<void> _openGuidedCapture() async {
     // A framing line for the guide: the section's own helper if it has one,
     // otherwise a sensible default derived from the label.
@@ -55,18 +66,25 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
         widget.helperText ??
         context.l10n.photoFieldDefaultHint(widget.label.toLowerCase());
     try {
-      final dataUrl = await Navigator.of(context).push<String>(
-        agentSectionRoute(GuidedCaptureScreen(label: widget.label, hint: hint)),
+      final photo = await Navigator.of(context).push<CapturedPhoto>(
+        agentSectionRoute(
+          GuidedCaptureScreen(
+            label: widget.label,
+            hint: hint,
+            geotag: widget.geotag,
+          ),
+        ),
       );
       if (!mounted) return;
       // A cancel returns null — leave the field exactly as it was (a retake
       // that is backed out of keeps the existing photo).
-      if (dataUrl == null) return;
+      if (photo == null) return;
       setState(() {
-        _dataUrl = dataUrl;
+        _dataUrl = photo.dataUrl;
         _error = null;
       });
-      widget.onCaptured(dataUrl);
+      widget.onCaptured?.call(photo.dataUrl);
+      widget.onPhotoCaptured?.call(photo);
     } catch (e) {
       // The guided screen surfaces capture errors itself; this only guards the
       // handoff, so a permission-denied still reads as an explanation here.

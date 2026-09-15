@@ -47,7 +47,7 @@ const _hint = 'Shoot the whole shelf, edge to edge';
 Widget _host(
   ThemeMode mode, {
   required ImagePickerGateway gateway,
-  void Function(String?)? onResult,
+  void Function(CapturedPhoto?)? onResult,
 }) => ProviderScope(
   overrides: [
     photoCaptureServiceProvider.overrideWithValue(
@@ -64,7 +64,7 @@ Widget _host(
           child: ElevatedButton(
             key: const ValueKey('open'),
             onPressed: () async {
-              final r = await Navigator.of(context).push<String>(
+              final r = await Navigator.of(context).push<CapturedPhoto>(
                 MaterialPageRoute(
                   builder: (_) => const GuidedCaptureScreen(
                     label: 'Shelf photo',
@@ -189,12 +189,12 @@ void main() {
     });
   }
 
-  testWidgets('Capture drives capture(camera) and pops with the dataUrl', (
+  testWidgets('Capture drives capture(camera) and pops with the photo', (
     tester,
   ) async {
     final bytes = Uint8List.fromList([1, 2, 3, 4]);
     final gateway = _Gateway(file: _xfile(bytes));
-    String? result;
+    CapturedPhoto? result;
     var called = false;
     await tester.pumpWidget(
       _host(
@@ -212,10 +212,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(gateway.requested, ImageSource.camera);
-    // A non-null capture pops the route with the encoded data URL.
+    // A non-null capture pops the route with the photo and its data URL.
     expect(find.byType(GuidedCaptureScreen), findsNothing);
     expect(called, isTrue);
-    expect(result, startsWith('data:image/jpeg;base64,'));
+    expect(result!.dataUrl, startsWith('data:image/jpeg;base64,'));
+    // Not asked to geotag, so it never looked for a location.
+    expect(result!.gpsTag, isEmpty);
   });
 
   testWidgets('Choose from gallery drives capture(gallery)', (tester) async {

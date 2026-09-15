@@ -103,6 +103,58 @@ class _NeverAnswersPermissionGateway implements GeolocatorGateway {
 }
 
 void main() {
+  group('getPositionIfPermitted (photo geotags, #310)', () {
+    test('never raises the permission prompt — undecided is simply denied', () async {
+      // This gateway THROWS if asked to request permission, which would come
+      // back as a LocationError. LocationDenied proves it was never asked.
+      final service = LocationService(gateway: _ThrowingPermissionGateway());
+
+      expect(await service.getPositionIfPermitted(), isA<LocationDenied>());
+    });
+
+    test('an undeterminable permission is denied here, where a fix request '
+        'would itself prompt — check-in keeps its old behaviour', () async {
+      final gateway = _FakeGateway(
+        initialPermission: LocationPermission.unableToDetermine,
+        position: _fakePosition(1, 2),
+      );
+
+      expect(
+        await LocationService(gateway: gateway).getPositionIfPermitted(),
+        isA<LocationDenied>(),
+      );
+      expect(
+        await LocationService(gateway: gateway).getCurrentPosition(),
+        isA<LocationGranted>(),
+      );
+    });
+
+    test('with permission already granted, returns the fix', () async {
+      final service = LocationService(
+        gateway: _FakeGateway(
+          initialPermission: LocationPermission.whileInUse,
+          position: _fakePosition(-26.2, 28.0),
+        ),
+      );
+
+      final result = await service.getPositionIfPermitted();
+
+      expect(result, isA<LocationGranted>());
+      expect((result as LocationGranted).lat, -26.2);
+    });
+  });
+
+  test('a granted fix carries the platform accuracy and fix time', () async {
+    final service = LocationService(
+      gateway: _FakeGateway(position: _fakePosition(-26.2, 28.0)),
+    );
+
+    final result = await service.getCurrentPosition() as LocationGranted;
+
+    expect(result.accuracy, 5);
+    expect(result.fixedAt, DateTime(2026, 1, 1));
+  });
+
   test('returns LocationError instead of hanging when the fix never arrives', () async {
     final service = LocationService(
       gateway: _NeverFixesGateway(),

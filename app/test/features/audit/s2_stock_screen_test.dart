@@ -1,7 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/location/location_service.dart';
+import 'package:tradeiq_app/core/location/photo_geotagger.dart';
+import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/lumen_glass.dart';
@@ -79,6 +85,41 @@ class _SpyStockRepository implements StockRepository {
   }
 }
 
+class _SpyQueuedPhotos implements QueuedPhotosRepository {
+  final calls = <Map<String, Object?>>[];
+
+  @override
+  Future<void> queuePhoto({
+    required String visitDraftId,
+    required String section,
+    required String dataUrl,
+    Map<String, dynamic> gpsTag = const {},
+    DateTime? capturedAt,
+  }) async => calls.add({
+    'visitDraftId': visitDraftId,
+    'section': section,
+    'dataUrl': dataUrl,
+    'gpsTag': gpsTag,
+    'capturedAt': capturedAt,
+  });
+}
+
+class _PhotoGateway implements ImagePickerGateway {
+  @override
+  Future<XFile?> pick({
+    required ImageSource source,
+    required double maxWidth,
+    required int imageQuality,
+  }) async =>
+      XFile.fromData(Uint8List.fromList([1, 2, 3]), path: 'shelf.jpg');
+}
+
+class _GrantedLocation extends LocationService {
+  @override
+  Future<LocationResult> getPositionIfPermitted() async =>
+      LocationGranted(-26.2041, 28.0473, accuracy: 7);
+}
+
 const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
 
 ThemeData _themeFor(String name) =>
@@ -121,6 +162,60 @@ BoxDecoration _cardDecoration(WidgetTester tester, Finder inner) {
 }
 
 void main() {
+  testWidgets('a shelf photo is queued once as stock evidence, with its '
+      'gpsTag and shutter time (#310)', (tester) async {
+    final shutter = DateTime.utc(2026, 9, 15, 10, 4, 5);
+    final photos = _SpyQueuedPhotos();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
+          stockRepositoryProvider.overrideWithValue(_SpyStockRepository()),
+          queuedPhotosRepositoryProvider.overrideWithValue(photos),
+          photoCaptureServiceProvider.overrideWithValue(
+            PhotoCaptureService(
+              gateway: _PhotoGateway(),
+              geotagger: PhotoGeotagger(location: _GrantedLocation()),
+              clock: () => shutter,
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: S2StockScreen(visitDraftId: 'v1', outletId: 'o1'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const ValueKey('photo-add')));
+    await tester.tap(find.byKey(const ValueKey('photo-add')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('guided-capture')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Save stock'));
+    await tester.tap(find.text('Save stock'));
+    await tester.pumpAndSettle();
+
+    expect(photos.calls, hasLength(1));
+    final call = photos.calls.single;
+    expect(call['visitDraftId'], 'v1');
+    expect(call['section'], 'stock');
+    expect(call['dataUrl'], startsWith('data:image/jpeg;base64,'));
+    expect(call['gpsTag'], {'lat': -26.2041, 'lng': 28.0473, 'accuracy': 7.0});
+    expect(call['capturedAt'], shutter);
+
+    // Saving the counts again does not queue the same photo twice.
+    await tester.tap(find.text('Save stock'));
+    await tester.pumpAndSettle();
+    expect(photos.calls, hasLength(1));
+  });
+
   testWidgets('shows read-only server context and calls saveStock on Save', (
     tester,
   ) async {

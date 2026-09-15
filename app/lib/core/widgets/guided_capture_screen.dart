@@ -20,7 +20,7 @@ import 'glass.dart';
 /// and corner brackets) before the camera opens, instead of guessing from a
 /// cramped inline tile.
 ///
-/// Pops with the encoded `dataUrl` on a successful capture; pops with `null`
+/// Pops with the [CapturedPhoto] on a successful capture; pops with `null`
 /// (the default) when the agent backs out — a cancel is a normal outcome, not
 /// an error, so the caller simply keeps what it had.
 class GuidedCaptureScreen extends ConsumerStatefulWidget {
@@ -28,6 +28,7 @@ class GuidedCaptureScreen extends ConsumerStatefulWidget {
     super.key,
     required this.label,
     required this.hint,
+    this.geotag = false,
   });
 
   /// The section this evidence belongs to — the screen's title.
@@ -35,6 +36,10 @@ class GuidedCaptureScreen extends ConsumerStatefulWidget {
 
   /// One line telling the agent how to frame the shot.
   final String hint;
+
+  /// Tag the photo with where the device is as it is taken (#310). See
+  /// [PhotoCaptureService.capture].
+  final bool geotag;
 
   @override
   ConsumerState<GuidedCaptureScreen> createState() =>
@@ -51,7 +56,9 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
       _error = null;
     });
     try {
-      final photo = await ref.read(photoCaptureServiceProvider).capture(source);
+      final photo = await ref
+          .read(photoCaptureServiceProvider)
+          .capture(source, geotag: widget.geotag);
       // A cancel is a normal outcome, not a failure — stay on the guide so the
       // agent can line the shot up again rather than being thrown all the way
       // back out.
@@ -59,7 +66,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
         if (mounted) setState(() => _busy = false);
         return;
       }
-      if (mounted) Navigator.of(context).pop(photo.dataUrl);
+      if (mounted) Navigator.of(context).pop(photo);
     } on PhotoTooLargeException catch (e) {
       if (mounted) {
         setState(() {
