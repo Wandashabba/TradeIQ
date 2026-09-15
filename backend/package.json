@@ -18,7 +18,8 @@
     "create-admin": "ts-node scripts/create-admin.ts",
     "enable-assistant": "ts-node scripts/enable-assistant.ts",
     "backfill-photo-hashes": "ts-node scripts/backfill-photo-hashes.ts",
-    "backfill-points-ledger": "ts-node scripts/backfill-points-ledger.ts"
+    "backfill-points-ledger": "ts-node scripts/backfill-points-ledger.ts",
+    "cleanup-orphan-attachment-photos": "ts-node scripts/cleanup-orphan-attachment-photos.ts"
   },
   "keywords": [],
   "author": "",
