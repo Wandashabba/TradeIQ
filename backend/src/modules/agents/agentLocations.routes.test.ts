@@ -2,17 +2,23 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { TestUser, foreignTenant, userIn } from '../../test-utils/tenants';
+import { LOCATION_NOTICE_VERSION } from '../locations/locationPolicy';
 import { deriveLiveState } from './agentLocations.service';
 
 /**
  * #153 T1 — GET /agents/locations: each agent's latest ping, its age, and one
- * of four states. Age decides before place, ordering is by recordedAt, and the
- * page is bounded.
+ * of six states. A decline beats everything, age decides before place, GPS
+ * accuracy decides at vs near a store, ordering is by recordedAt, and the page
+ * is bounded.
  */
 describe('deriveLiveState', () => {
   // Default interval 120s → stale after max(300, 3×120) = 360s; offline after 1800s.
-  const at = (ageSeconds: number | null, insideOutlet = false) =>
-    deriveLiveState({ ageSeconds, insideOutlet, intervalSeconds: 120 });
+  const at = (
+    ageSeconds: number | null,
+    insideOutlet = false,
+    accuracyM: number | null = 8,
+    declined = false,
+  ) => deriveLiveState({ ageSeconds, insideOutlet, accuracyM, intervalSeconds: 120, declined });
 
   it('never shared is offline', () => expect(at(null)).toBe('offline'));
   it('fresh inside a fence is at_store', () => expect(at(0, true)).toBe('at_store'));
@@ -22,12 +28,242 @@ describe('deriveLiveState', () => {
   it('past thirty minutes is offline', () => expect(at(1801, true)).toBe('offline'));
 
   it('never calls a ping stale sooner than five minutes, however short the interval', () => {
-    expect(deriveLiveState({ ageSeconds: 299, insideOutlet: false, intervalSeconds: 60 })).toBe('in_transit');
-    expect(deriveLiveState({ ageSeconds: 301, insideOutlet: false, intervalSeconds: 60 })).toBe('stale');
+    const base = { insideOutlet: false, accuracyM: 8, declined: false };
+    expect(deriveLiveState({ ...base, ageSeconds: 299, intervalSeconds: 60 })).toBe('in_transit');
+    expect(deriveLiveState({ ...base, ageSeconds: 301, intervalSeconds: 60 })).toBe('stale');
   });
 
   it('stretches stale with a longer tenant interval', () => {
-    expect(deriveLiveState({ ageSeconds: 800, insideOutlet: true, intervalSeconds: 300 })).toBe('at_store');
+    expect(
+      deriveLiveState({ ageSeconds: 800, insideOutlet: true, accuracyM: 8, intervalSeconds: 300, declined: false }),
+    ).toBe('at_store');
+  });
+
+  describe('GPS accuracy gates at_store', () => {
+    it('accuracy of exactly 100m is at_store', () => expect(at(30, true, 100)).toBe('at_store'));
+    it('accuracy of 101m is near_store', () => expect(at(30, true, 101)).toBe('near_store'));
+    it('no accuracy estimate is near_store', () => expect(at(30, true, null)).toBe('near_store'));
+    it('accuracy never matters outside every fence', () => expect(at(30, false, null)).toBe('in_transit'));
+    it('age still beats place: a stale low-accuracy ping in a fence is stale', () => {
+      expect(at(361, true, null)).toBe('stale');
+      expect(at(1801, true, 500)).toBe('offline');
+    });
+  });
+
+  describe('a decline beats every other state', () => {
+    it.each<[string, number | null, boolean, number | null]>([
+      ['a fresh at-store ping', 10, true, 8],
+      ['a fresh near-store ping', 10, true, null],
+      ['a fresh in-transit ping', 10, false, 8],
+      ['a stale ping', 600, true, 8],
+      ['an old ping', 7200, false, 8],
+      ['no ping at all', null, false, null],
+    ])('%s reads not_sharing', (_, ageSeconds, inside, accuracyM) => {
+      expect(at(ageSeconds, inside, accuracyM, true)).toBe('not_sharing');
+    });
+  });
+});
+
+describe('GET /agents/locations — consent and accuracy (#153)', () => {
+  const SEC = 1000;
+  const MIN = 60 * SEC;
+  const store = { lat: -26.2, lng: 28.1 };
+  // ~10m north of the store: inside its 50m fence.
+  const inStore = { lat: store.lat + 0.00009, lng: store.lng };
+  // ~1.1km north: outside the fence.
+  const road = { lat: -26.19, lng: 28.1 };
+
+  let clientId: string;
+  let outletId: string;
+  let manager: TestUser;
+  const agents = {} as Record<
+    | 'declinedFresh'
+    | 'declinedOld'
+    | 'reacknowledged'
+    | 'oldNoticeDeclined'
+    | 'neverAnswered'
+    | 'accuracy100'
+    | 'accuracy101'
+    | 'accuracyNull'
+    | 'staleLowAccuracy',
+    TestUser
+  >;
+
+  const ping = (agent: TestUser, ageMs: number, where: { lat: number; lng: number }, accuracyM: number | null) =>
+    prisma.agentLocationPing.create({
+      data: {
+        clientId: agent.clientId,
+        agentId: agent.userId,
+        ...where,
+        accuracyM,
+        recordedAt: new Date(Date.now() - ageMs),
+        source: 'foreground',
+      },
+    });
+
+  /** Answers in order, oldest first, spaced so `createdAt` ordering is unambiguous. */
+  const answer = async (
+    agent: TestUser,
+    decisions: Array<'acknowledged' | 'declined'>,
+    noticeVersion = LOCATION_NOTICE_VERSION,
+  ) => {
+    for (const [i, decision] of decisions.entries()) {
+      const at = new Date(Date.now() - (decisions.length - i) * MIN);
+      await prisma.locationConsent.create({
+        data: { clientId, agentId: agent.userId, noticeVersion, decision, decidedAt: at, createdAt: at },
+      });
+    }
+  };
+
+  const rows = async () => {
+    const res = await request(app)
+      .get('/agents/locations?limit=200')
+      .set('Authorization', `Bearer ${manager.token}`);
+    expect(res.status).toBe(200);
+    return {
+      body: res.body,
+      byId: new Map<string, Record<string, unknown>>(
+        res.body.data.map((row: Record<string, unknown>) => [row.agentId, row]),
+      ),
+    };
+  };
+
+  beforeAll(async () => {
+    const client = await prisma.client.create({
+      data: { name: 'ALOC-Consent', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+    });
+    clientId = client.id;
+    outletId = (
+      await prisma.outlet.create({
+        data: { clientId, name: 'Rosebank PnP', code: 'ALOC-C1', channelType: 'grocery', territoryId: 'GP', ...store },
+      })
+    ).id;
+    manager = await userIn(clientId, 'manager');
+    for (const key of [
+      'declinedFresh',
+      'declinedOld',
+      'reacknowledged',
+      'oldNoticeDeclined',
+      'neverAnswered',
+      'accuracy100',
+      'accuracy101',
+      'accuracyNull',
+      'staleLowAccuracy',
+    ] as const) {
+      agents[key] = await userIn(clientId, 'field_agent');
+    }
+
+    // Declined after a fresh, accurate at-store ping: not_sharing, not at_store.
+    await ping(agents.declinedFresh, 20 * SEC, inStore, 8);
+    await answer(agents.declinedFresh, ['acknowledged', 'declined']);
+    // Declined, with only an old ping: not_sharing, not offline.
+    await ping(agents.declinedOld, 3 * 60 * MIN, road, 8);
+    await answer(agents.declinedOld, ['acknowledged', 'declined']);
+    await prisma.visit.create({
+      data: {
+        clientId,
+        outletId,
+        agentId: agents.declinedOld.userId,
+        checkinTs: new Date(Date.now() - 4 * 60 * MIN),
+        checkinLat: store.lat,
+        checkinLng: store.lng,
+        geofencePass: true,
+        status: 'submitted',
+      },
+    });
+    // Declined, then acknowledged again: back to reading by ping.
+    await ping(agents.reacknowledged, 30 * SEC, road, 8);
+    await answer(agents.reacknowledged, ['acknowledged', 'declined', 'acknowledged']);
+    // Declined an OLDER notice only: that answer no longer counts.
+    await ping(agents.oldNoticeDeclined, 30 * SEC, road, 8);
+    await answer(agents.oldNoticeDeclined, ['declined'], '2020-01-01');
+    // Never answered the notice, so never shared: offline.
+
+    await ping(agents.accuracy100, 30 * SEC, inStore, 100);
+    await ping(agents.accuracy101, 30 * SEC, inStore, 101);
+    await ping(agents.accuracyNull, 30 * SEC, inStore, null);
+    await ping(agents.staleLowAccuracy, 10 * MIN, inStore, null);
+  });
+
+  afterAll(async () => {
+    await prisma.visit.deleteMany({ where: { clientId } });
+    await prisma.outlet.deleteMany({ where: { clientId } });
+    await prisma.user.deleteMany({ where: { clientId } });
+    await prisma.client.delete({ where: { id: clientId } });
+  });
+
+  it('carries the accuracy limit in the thresholds envelope', async () => {
+    const { body } = await rows();
+    expect(body).toMatchObject({
+      intervalSeconds: 120,
+      staleAfterSeconds: 360,
+      offlineAfterSeconds: 1800,
+      maxAtStoreAccuracyM: 100,
+    });
+  });
+
+  it('a declined agent with a fresh ping reads not_sharing, and their position is withheld', async () => {
+    const { byId } = await rows();
+    expect(byId.get(agents.declinedFresh.userId)).toMatchObject({
+      state: 'not_sharing',
+      lastPing: null,
+      ageSeconds: null,
+      currentOutlet: null,
+      lastOutlet: null,
+    });
+  });
+
+  it('a declined agent with only an old ping reads not_sharing, not offline, keeping the check-in', async () => {
+    const { byId } = await rows();
+    expect(byId.get(agents.declinedOld.userId)).toMatchObject({
+      state: 'not_sharing',
+      lastPing: null,
+      lastOutlet: { id: outletId, name: 'Rosebank PnP', source: 'check_in' },
+    });
+  });
+
+  it('declining stores nothing extra and deletes nothing: the pings are still there', async () => {
+    expect(await prisma.agentLocationPing.count({ where: { agentId: agents.declinedFresh.userId } })).toBe(1);
+    expect(await prisma.agentLocationPing.count({ where: { agentId: agents.declinedOld.userId } })).toBe(1);
+  });
+
+  it('a declined-then-re-acknowledged agent reads by ping', async () => {
+    const { byId } = await rows();
+    const row = byId.get(agents.reacknowledged.userId)!;
+    expect(row).toMatchObject({ state: 'in_transit', lastPing: { accuracyM: 8 } });
+    expect(row.ageSeconds).toEqual(expect.any(Number));
+  });
+
+  it('a decline of an older notice does not count', async () => {
+    const { byId } = await rows();
+    expect(byId.get(agents.oldNoticeDeclined.userId)).toMatchObject({ state: 'in_transit' });
+  });
+
+  it('an agent who never answered reads offline', async () => {
+    const { byId } = await rows();
+    expect(byId.get(agents.neverAnswered.userId)).toMatchObject({ state: 'offline', lastPing: null, ageSeconds: null });
+  });
+
+  it('accuracy 100m inside a fence is at_store; 101m and none are near_store', async () => {
+    const { byId } = await rows();
+    const outlet = { id: outletId, name: 'Rosebank PnP' };
+    expect(byId.get(agents.accuracy100.userId)).toMatchObject({
+      state: 'at_store',
+      currentOutlet: outlet,
+      lastOutlet: { ...outlet, source: 'ping' },
+    });
+    for (const agent of [agents.accuracy101, agents.accuracyNull]) {
+      expect(byId.get(agent.userId)).toMatchObject({
+        state: 'near_store',
+        currentOutlet: null,
+        lastOutlet: { ...outlet, source: 'ping' },
+      });
+    }
+  });
+
+  it('stale beats near_store: age before place still holds', async () => {
+    const { byId } = await rows();
+    expect(byId.get(agents.staleLowAccuracy.userId)).toMatchObject({ state: 'stale', currentOutlet: null });
   });
 });
 
@@ -120,14 +356,20 @@ describe('GET /agents/locations (#153 T1)', () => {
     await foreign.cleanup();
   });
 
-  it('derives all four states, with age, outlet and the server clock', async () => {
+  it('derives the four ping-age states, with age, outlet and the server clock', async () => {
     const before = Date.now();
     const res = await get(manager);
     expect(res.status).toBe(200);
 
     const serverTime = new Date(res.body.serverTime).getTime();
     expect(serverTime).toBeGreaterThanOrEqual(before - SEC);
-    expect(res.body).toMatchObject({ intervalSeconds: 120, staleAfterSeconds: 360, offlineAfterSeconds: 1800, nextCursor: null });
+    expect(res.body).toMatchObject({
+      intervalSeconds: 120,
+      staleAfterSeconds: 360,
+      offlineAfterSeconds: 1800,
+      maxAtStoreAccuracyM: 100,
+      nextCursor: null,
+    });
 
     const byId = new Map<string, Record<string, unknown>>(
       res.body.data.map((row: Record<string, unknown>) => [row.agentId, row]),
