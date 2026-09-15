@@ -110,6 +110,44 @@ void main() {
     expect(rows.first.synced, isTrue);
   });
 
+  test('onItemSynced hears about items that sent, never ones that failed', () async {
+    final db = LocalDb(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.enqueue(entityType: 'visit', entityId: 'visit-1', payloadJson: '{}');
+    await db.enqueue(
+      entityType: 'visit_submit',
+      entityId: 'visit-2',
+      payloadJson: '{}',
+    );
+
+    final heard = <String>[];
+    await SyncService(
+      db: db,
+      flusher: _FailFirstFlusher(),
+      onItemSynced: (item) => heard.add(item.entityId),
+    ).flushPending();
+
+    expect(heard, ['visit-2']);
+  });
+
+  test('a throwing onItemSynced does not stop the queue', () async {
+    final db = LocalDb(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.enqueue(entityType: 'visit', entityId: 'visit-a', payloadJson: '{}');
+    await db.enqueue(entityType: 'visit', entityId: 'visit-b', payloadJson: '{}');
+
+    final flusher = RecordingFlusher();
+    await SyncService(
+      db: db,
+      flusher: flusher,
+      onItemSynced: (_) => throw StateError('listener broke'),
+    ).flushPending();
+
+    expect(flusher.sent, ['visit-a', 'visit-b']);
+    final rows = await db.select(db.syncQueueItems).get();
+    expect(rows.every((r) => r.synced), isTrue);
+  });
+
   test(
     'flushPending does not let one failing item block the rest of the queue',
     () async {

@@ -275,6 +275,14 @@ paths:
   /visits/{id}/submit:
     post:
       summary: Mark a visit submitted — field_agent, owner only
+      description: >-
+        After the visit is persisted, submit also (best-effort — none of these
+        can fail a submission that has already been saved): marks the agent's
+        beat-plan stops for this outlet visited (#52), on plans of the same
+        client and agent that are not completed and whose scheduledDate falls on
+        the UTC calendar day of the visit's device check-in time (checkinTs) —
+        idempotent, so a re-submit or duplicate sync changes nothing; fires the
+        visit.submitted webhook; and evaluates the client's active alert rules.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: id
@@ -851,6 +859,7 @@ paths:
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
         - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
+        - { $ref: '#/components/parameters/TrendTerritoryId' }
       responses: { '200': { description: Time series }, '400': { description: Invalid params }, '403': { description: Forbidden } }
   /trends/availability:
     get:
@@ -860,6 +869,7 @@ paths:
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
         - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
+        - { $ref: '#/components/parameters/TrendTerritoryId' }
       responses: { '200': { description: Time series }, '400': { description: Invalid params } }
   /trends/perfect-store:
     get:
@@ -869,7 +879,42 @@ paths:
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
         - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
+        - { $ref: '#/components/parameters/TrendTerritoryId' }
       responses: { '200': { description: Time series }, '400': { description: Invalid params } }
+  /trends/share-of-shelf:
+    get:
+      summary: Share-of-shelf % trend (own vs competitor facings) — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
+        - { $ref: '#/components/parameters/TrendTerritoryId' }
+      responses: { '200': { description: Time series }, '400': { description: Invalid params } }
+  /trends/benchmark:
+    get:
+      summary: Cross-territory benchmark within the caller's client (#123) — manager/admin
+      description: >-
+        Every territory of the caller's client, each with its series and period
+        average, against the client-wide series as the reference line. Outlets
+        join territories by Outlet.territoryId = Territory.code. Buckets and
+        territories with no data are absent or carry average null / count 0 —
+        never a fabricated zero. For shareOfShelf only visits that captured
+        facings are counted. Cross-client benchmarks are out of scope.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: metric, in: query, required: true, schema: { type: string, enum: [perfectStore, availability, scorecards, shareOfShelf] } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: interval, in: query, schema: { type: string, enum: [day, week] } }
+      responses:
+        '200':
+          description: Territory benchmark
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TerritoryBenchmarkReport' }
+        '400': { description: 'Invalid metric, interval or date; or territoryId supplied' }
+        '403': { description: Forbidden }
   # ── Phase 2 (Intelligence) ────────────────────────────────────────────────
   /fraud/visits/{visitId}:
     get:
@@ -1271,6 +1316,15 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  parameters:
+    TrendTerritoryId:
+      name: territoryId
+      in: query
+      description: >-
+        A Territory.id of the caller's client. Resolved to the territory's code
+        (which Outlet.territoryId stores); an unknown or foreign id returns an
+        empty series.
+      schema: { type: string }
   schemas:
     DisplayName:
       type: string
@@ -1351,3 +1405,50 @@ components:
         lastAttemptAt: { type: string, format: date-time, nullable: true }
         deliveredAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
+    TrendPoint:
+      type: object
+      required: [period, value, count]
+      properties:
+        period: { type: string, format: date-time, description: 'Bucket start (UTC midnight; Monday for weeks)' }
+        value: { type: number }
+        count: { type: integer }
+    BenchmarkSeries:
+      type: object
+      required: [average, count, points]
+      properties:
+        average: { type: number, nullable: true, description: 'Metric over the whole window; null when nothing was measured' }
+        count: { type: integer }
+        points: { type: array, items: { $ref: '#/components/schemas/TrendPoint' } }
+    TerritoryBenchmark:
+      allOf:
+        - $ref: '#/components/schemas/BenchmarkSeries'
+        - type: object
+          required: [territoryId, territoryName, territoryCode, rank, deltaFromClient, position]
+          properties:
+            territoryId: { type: string }
+            territoryName: { type: string }
+            territoryCode: { type: string }
+            rank: { type: integer, nullable: true, description: '1-based by average, highest first; null without data' }
+            deltaFromClient: { type: number, nullable: true, description: 'average minus the client average' }
+            position: { type: string, nullable: true, enum: [above, below, level] }
+    TerritoryBenchmarkReport:
+      type: object
+      required: [metric, interval, unit, target, client, unassigned, territories]
+      properties:
+        metric: { type: string, enum: [perfectStore, availability, scorecards, shareOfShelf] }
+        interval: { type: string, enum: [day, week] }
+        unit: { type: string, enum: [score, percent] }
+        target:
+          type: object
+          nullable: true
+          description: "The client's configured standard for the metric (scorecards: kpiThresholds.green)"
+          properties:
+            value: { type: number }
+            label: { type: string }
+        client: { $ref: '#/components/schemas/BenchmarkSeries' }
+        unassigned:
+          type: object
+          description: Rows whose outlet matches no territory of the client (included in client)
+          properties:
+            count: { type: integer }
+        territories: { type: array, items: { $ref: '#/components/schemas/TerritoryBenchmark' } }

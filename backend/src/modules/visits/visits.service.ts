@@ -14,6 +14,7 @@ import {
 } from '../scorecards/scorecards.service';
 import { coverageStatus } from '../../services/forecast.service';
 import { kpiThreshold } from '../../lib/kpiThresholds';
+import { markRouteStopsVisited } from '../beatplans/beatplans.service';
 
 export interface CheckInInput {
   outletId: string;
@@ -121,6 +122,22 @@ export async function submitVisit(input: SubmitVisitInput) {
     where: { id: input.visitId },
     data: { status: 'submitted', ...(submittedAtClient ? { submittedAtClient } : {}) },
   });
+
+  // Issue #52: the visit is the stop being visited, so the agent's route
+  // progresses without a manager ticking it. Done here, server-side, so an
+  // offline visit that syncs hours later is handled exactly like a live one.
+  // Best-effort, like evaluateVisit below: the submission is already persisted
+  // and must not fail because route bookkeeping did.
+  try {
+    await markRouteStopsVisited({
+      clientId: submitted.clientId,
+      agentId: submitted.agentId,
+      outletId: submitted.outletId,
+      checkinTs: submitted.checkinTs,
+    });
+  } catch (err) {
+    console.error(`Marking beat-plan stops visited failed for visit ${submitted.id}:`, err);
+  }
 
   // Issue #38: fire best-effort to any webhooks the client has subscribed to
   // this event. dispatchWebhookEvent never throws (swallows delivery errors),
