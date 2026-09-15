@@ -3,6 +3,7 @@ import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { parsePagination } from '../../lib/pagination';
 import {
+  MAX_CLIENT_MESSAGE_ID_LENGTH,
   MAX_MESSAGE_ATTACHMENTS,
   createAnnouncement,
   createMessage,
@@ -17,12 +18,36 @@ messagesRouter.use(requireAuth);
 export const announcementsRouter = Router();
 announcementsRouter.use(requireAuth);
 
+// Idempotency (#308) rides in the JSON body as `clientMessageId`, not an
+// `Idempotency-Key` header: the key is stored on the message and returned with
+// it, so it is part of the resource, and the app already builds this body.
+// 201 when this request created the message; 200 with the ORIGINAL message
+// (and `Idempotent-Replayed: true`) when an earlier request with the same key
+// already had. The same key with a different message is a 409.
+const CLIENT_MESSAGE_ID_RE = /^[A-Za-z0-9._:-]+$/;
+
 messagesRouter.post('/', async (req: AuthedRequest, res) => {
-  const { body, recipientId, attachmentPhotoIds } = req.body as {
+  const { body, recipientId, attachmentPhotoIds, clientMessageId } = req.body as {
     body?: unknown;
     recipientId?: unknown;
     attachmentPhotoIds?: unknown;
+    clientMessageId?: unknown;
   };
+
+  if (
+    clientMessageId !== undefined &&
+    (typeof clientMessageId !== 'string' ||
+      clientMessageId.length === 0 ||
+      clientMessageId.length > MAX_CLIENT_MESSAGE_ID_LENGTH ||
+      !CLIENT_MESSAGE_ID_RE.test(clientMessageId))
+  ) {
+    res.status(400).json({
+      error:
+        `clientMessageId must be 1-${MAX_CLIENT_MESSAGE_ID_LENGTH} characters of ` +
+        'letters, digits, ".", "_", ":" or "-" (a UUID works) when given',
+    });
+    return;
+  }
 
   if (
     attachmentPhotoIds !== undefined &&
@@ -55,14 +80,18 @@ messagesRouter.post('/', async (req: AuthedRequest, res) => {
     return;
   }
 
-  const message = await createMessage({
+  const { message, replayed } = await createMessage({
     clientId: req.user!.clientId,
     senderId: req.user!.userId,
     body,
     recipientId: recipientId as string | undefined,
     attachmentPhotoIds: photoIds,
+    clientMessageId: clientMessageId as string | undefined,
   });
-  res.status(201).json(message);
+  if (replayed) {
+    res.set('Idempotent-Replayed', 'true');
+  }
+  res.status(replayed ? 200 : 201).json(message);
 });
 
 messagesRouter.get('/', async (req: AuthedRequest, res) => {

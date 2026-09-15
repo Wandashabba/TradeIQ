@@ -1131,6 +1131,20 @@ paths:
         evidence), and not already be attached to a message. `body` may be
         blank when at least one image is attached. Announcements do not take
         attachments.
+
+
+        Idempotent with `clientMessageId` (#308). The client generates one key
+        (a UUID) per composed message and sends it on every attempt to send
+        that message. It is carried in the body rather than an
+        `Idempotency-Key` header because it is stored on the message and
+        returned with it. Keys are unique per sender. A retry with the same key
+        and the same body, recipientId and attachmentPhotoIds (in order)
+        returns the ORIGINAL message with 200 and `Idempotent-Replayed: true`,
+        not a duplicate and not a 409, so a send whose response was lost can
+        be retried safely. The same key with a different message is a 409:
+        answering with the original would tell the sender their new message
+        went out when it did not. Two concurrent requests with one key create
+        one message; the other gets the 200 replay.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -1143,13 +1157,24 @@ paths:
                 body: { type: string }
                 recipientId: { type: string, description: 'omit for a broadcast to the whole client' }
                 attachmentPhotoIds: { type: array, maxItems: 4, uniqueItems: true, items: { type: string } }
+                clientMessageId:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                  pattern: '^[A-Za-z0-9._:-]+$'
+                  description: 'idempotency key, one per composed message (a UUID); optional'
       responses:
+        '200':
+          description: Replay — a message with this clientMessageId from this sender already exists and is returned unchanged
+          headers:
+            Idempotent-Replayed: { schema: { type: string, enum: ['true'] } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } }
         '201':
           description: Sent
           content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } }
-        '400': { description: Empty body with no images, malformed or repeated attachmentPhotoIds, more than 4 images, or visit evidence attached }
+        '400': { description: Empty body with no images, malformed or repeated attachmentPhotoIds, more than 4 images, visit evidence attached, or a malformed clientMessageId }
         '404': { description: Recipient not found, or an attachment photo not found / not in the client / not uploaded by the caller }
-        '409': { description: An attachment photo is already attached to a message }
+        '409': { description: An attachment photo is already attached to a message, or clientMessageId was already used by this sender for a different message }
   /messages/{id}/read:
     patch:
       summary: Mark a message read (recipient only)
@@ -1516,6 +1541,7 @@ components:
         readAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
         attachments: { type: array, maxItems: 4, items: { $ref: '#/components/schemas/MessageAttachment' } }
+        clientMessageId: { type: string, nullable: true, description: "the sender's idempotency key; null when sent without one" }
     DisplayName:
       type: string
       nullable: true

@@ -134,6 +134,63 @@ void main() {
     expect(adapter.captured!.data, {'body': 'hi', 'recipientId': 'u2'});
   });
 
+  test('sendMessage sends clientMessageId, the idempotency key (#308)', () async {
+    final adapter = _CapturingAdapter(
+      '{"id":"m11","body":"hi","recipientId":null,"attachments":[],'
+      '"clientMessageId":"key-1"}',
+      statusCode: 201,
+    );
+    final previous = dio.httpClientAdapter;
+    dio.httpClientAdapter = adapter;
+    addTearDown(() => dio.httpClientAdapter = previous);
+
+    await DioCollaborationRepository().sendMessage(
+      'hi',
+      attachmentPhotoIds: const ['p1'],
+      clientMessageId: 'key-1',
+    );
+
+    expect(adapter.captured!.data, {
+      'body': 'hi',
+      'attachmentPhotoIds': ['p1'],
+      'clientMessageId': 'key-1',
+    });
+  });
+
+  test('a replayed send (200) parses as the original message (#308)', () async {
+    final adapter = _CapturingAdapter(
+      '{"id":"m-original","body":"hi","recipientId":null,"attachments":[],'
+      '"clientMessageId":"key-1"}',
+    );
+    final previous = dio.httpClientAdapter;
+    dio.httpClientAdapter = adapter;
+    addTearDown(() => dio.httpClientAdapter = previous);
+
+    final message = await DioCollaborationRepository().sendMessage(
+      'hi',
+      clientMessageId: 'key-1',
+    );
+
+    expect(message.id, 'm-original');
+  });
+
+  test('sendMessage without a key omits clientMessageId from the wire', () async {
+    final adapter = _CapturingAdapter(
+      '{"id":"m12","body":"hi","recipientId":null,"attachments":[]}',
+      statusCode: 201,
+    );
+    final previous = dio.httpClientAdapter;
+    dio.httpClientAdapter = adapter;
+    addTearDown(() => dio.httpClientAdapter = previous);
+
+    await DioCollaborationRepository().sendMessage('hi');
+
+    expect(
+      (adapter.captured!.data as Map<String, dynamic>).containsKey('clientMessageId'),
+      isFalse,
+    );
+  });
+
   test('Announcement.fromJson parses all fields', () {
     final announcement = Announcement.fromJson(const {
       'id': 'a1',

@@ -67,6 +67,9 @@ class _FakeCollaborationRepository implements CollaborationRepository {
   List<String>? sentAttachmentIds;
   int sendCalls = 0;
 
+  /// The clientMessageId of every send attempt, failed ones included (#308).
+  final attemptKeys = <String?>[];
+
   /// While set, sendMessage throws — the test flips it off to recover.
   bool failSend = false;
   ({String title, String body})? posted;
@@ -80,8 +83,10 @@ class _FakeCollaborationRepository implements CollaborationRepository {
     String body, {
     String? recipientId,
     List<String> attachmentPhotoIds = const [],
+    String? clientMessageId,
   }) async {
     sendCalls++;
+    attemptKeys.add(clientMessageId);
     if (failSend) throw Exception('send failed');
     sentBody = body;
     sentAttachmentIds = attachmentPhotoIds;
@@ -111,6 +116,7 @@ class _ThrowingCollaborationRepository implements CollaborationRepository {
     String body, {
     String? recipientId,
     List<String> attachmentPhotoIds = const [],
+    String? clientMessageId,
   }) async =>
       throw Exception('boom');
 
@@ -303,6 +309,81 @@ void main() {
     expect(repo.sentBody, 'hello team');
     // A text message sends no attachments.
     expect(repo.sentAttachmentIds, isEmpty);
+  });
+
+  group('idempotency key (#308)', () {
+    Future<void> typeAndSend(WidgetTester tester, String text) async {
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('message-body')),
+        text,
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('send-message')));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapSend(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey<String>('send-message')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a retry of the same draft reuses its key; the next draft '
+        'gets a new one', (tester) async {
+      final repo = _FakeCollaborationRepository()..failSend = true;
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
+
+      await typeAndSend(tester, 'restock done');
+      expect(find.textContaining('Message not sent'), findsOneWidget);
+
+      await tapSend(tester); // still failing
+      repo.failSend = false;
+      await tapSend(tester); // goes through
+
+      expect(repo.attemptKeys, hasLength(3));
+      final key = repo.attemptKeys.first;
+      expect(key, isNotNull);
+      expect(key, isNotEmpty);
+      expect(repo.attemptKeys, everyElement(key));
+
+      // Sent, so the draft is cleared and the next message is a new one.
+      await typeAndSend(tester, 'next message');
+      expect(repo.attemptKeys, hasLength(4));
+      expect(repo.attemptKeys.last, isNotNull);
+      expect(repo.attemptKeys.last, isNot(key));
+    });
+
+    testWidgets('a retry with photos keeps the key and does not re-upload',
+        (tester) async {
+      final repo = _FakeCollaborationRepository()..failSend = true;
+      final photos = _FakePhotosRepository();
+      await tester.pumpWidget(_app(repo, photos: photos));
+      await tester.pumpAndSettle();
+
+      await _attachPhoto(tester);
+      await tapSend(tester);
+      repo.failSend = false;
+      await tapSend(tester);
+
+      expect(photos.uploadedDataUrls, hasLength(1));
+      expect(repo.attemptKeys, hasLength(2));
+      expect(repo.attemptKeys[1], repo.attemptKeys[0]);
+      expect(repo.sentAttachmentIds, ['att-1']);
+    });
+
+    testWidgets('editing a failed draft before retrying mints a new key — it '
+        'is a different message now', (tester) async {
+      final repo = _FakeCollaborationRepository()..failSend = true;
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
+
+      await typeAndSend(tester, 'restock dnoe');
+      repo.failSend = false;
+      await typeAndSend(tester, 'restock done');
+
+      expect(repo.attemptKeys, hasLength(2));
+      expect(repo.attemptKeys[1], isNot(repo.attemptKeys[0]));
+      expect(repo.sentBody, 'restock done');
+    });
   });
 
   testWidgets('shows an error message when the list fails to load',

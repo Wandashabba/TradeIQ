@@ -33,6 +33,8 @@ function toMessageResponse(row: MessageRow) {
   };
 }
 
+type MessageResponse = ReturnType<typeof toMessageResponse>;
+
 export interface CreateMessageInput {
   clientId: string;
   senderId: string;
@@ -40,6 +42,60 @@ export interface CreateMessageInput {
   recipientId?: string;
   /** Photo ids from `POST /photos` with purpose `message_attachment`. */
   attachmentPhotoIds?: string[];
+  /**
+   * The client's idempotency key for this composed message (#308). See
+   * createMessage.
+   */
+  clientMessageId?: string;
+}
+
+export interface CreateMessageResult {
+  message: MessageResponse;
+  /** True when an earlier send with the same clientMessageId is being returned. */
+  replayed: boolean;
+}
+
+/** Longest accepted clientMessageId. A UUID is 36; this leaves room, not abuse. */
+export const MAX_CLIENT_MESSAGE_ID_LENGTH = 128;
+
+/**
+ * Returns the sender's message already stored under `clientMessageId`, or
+ * null. Throws ConflictError when one exists but the retry describes a
+ * DIFFERENT message — see createMessage for why that is a 409.
+ */
+async function findReplay(
+  input: CreateMessageInput,
+  photoIds: string[],
+): Promise<MessageResponse | null> {
+  if (input.clientMessageId === undefined) {
+    return null;
+  }
+  const existing = await prisma.message.findFirst({
+    where: {
+      senderId: input.senderId,
+      clientId: input.clientId,
+      clientMessageId: input.clientMessageId,
+    },
+    include: messageInclude,
+  });
+  if (!existing) {
+    return null;
+  }
+
+  const samePhotos =
+    existing.attachments.length === photoIds.length &&
+    existing.attachments.every((a, i) => a.photoId === photoIds[i]);
+  if (
+    existing.body !== input.body ||
+    existing.recipientId !== (input.recipientId ?? null) ||
+    !samePhotos
+  ) {
+    throw new ConflictError(
+      'clientMessageId was already used for a different message; ' +
+        'generate a new clientMessageId for each composed message',
+    );
+  }
+  return toMessageResponse(existing);
 }
 
 /**
@@ -85,7 +141,59 @@ async function assertAttachable(input: CreateMessageInput, photoIds: string[]): 
   }
 }
 
-export async function createMessage(input: CreateMessageInput) {
+/**
+ * Creates a message — idempotently when `clientMessageId` is given (#308).
+ *
+ * Without a key, a client whose response was lost cannot tell a failed send
+ * from a saved one, and retrying a saved send with images got a 409 (the
+ * photos were already attached) although the message had gone out.
+ *
+ * With a key, unique per sender:
+ * * **Retry** (same key, same body, recipient and attachments in order) →
+ *   the ORIGINAL message, `replayed: true`. Nothing is created or re-checked:
+ *   the attachment checks would 409 on photos that the original already owns.
+ * * **Mismatched retry** (same key, anything different) → 409. A key names one
+ *   composed message; reusing it for another is a client bug, and answering
+ *   with the original would tell the sender their NEW words went out when they
+ *   did not. The 409 says exactly that, so nothing is silently dropped.
+ * * **Race** (two requests with one key at once) → both may miss the lookup;
+ *   the unique (sender_id, client_message_id) index lets exactly one insert
+ *   win. The loser — whether it trips that index, the photo_id index, or the
+ *   "already attached" check after the winner committed — looks the key up
+ *   again and answers as a retry would.
+ *
+ * Keys are per sender: another user's identical key is a different message.
+ */
+export async function createMessage(input: CreateMessageInput): Promise<CreateMessageResult> {
+  const photoIds = input.attachmentPhotoIds ?? [];
+
+  const earlier = await findReplay(input, photoIds);
+  if (earlier) {
+    return { message: earlier, replayed: true };
+  }
+
+  try {
+    return { message: await insertMessage(input, photoIds), replayed: false };
+  } catch (err) {
+    const collided =
+      err instanceof ConflictError ||
+      (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002');
+    if (collided && input.clientMessageId !== undefined) {
+      const winner = await findReplay(input, photoIds);
+      if (winner) {
+        return { message: winner, replayed: true };
+      }
+    }
+    // Two concurrent sends of the same upload both pass the attachment check;
+    // the unique photo_id index lets exactly one of them win.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new ConflictError('Attachment photo is already attached to a message');
+    }
+    throw err;
+  }
+}
+
+async function insertMessage(input: CreateMessageInput, photoIds: string[]) {
   // A directed message must target a user inside the caller's tenant; a null
   // recipient is a broadcast to the whole client and needs no lookup.
   if (input.recipientId) {
@@ -98,33 +206,24 @@ export async function createMessage(input: CreateMessageInput) {
     }
   }
 
-  const photoIds = input.attachmentPhotoIds ?? [];
   await assertAttachable(input, photoIds);
 
-  try {
-    // The message and its attachment rows are one nested write, so a message
-    // never lands with half its images.
-    const row = await prisma.message.create({
-      data: {
-        clientId: input.clientId,
-        senderId: input.senderId,
-        recipientId: input.recipientId,
-        body: input.body,
-        attachments: {
-          create: photoIds.map((photoId, position) => ({ photoId, position })),
-        },
+  // The message and its attachment rows are one nested write, so a message
+  // never lands with half its images.
+  const row = await prisma.message.create({
+    data: {
+      clientId: input.clientId,
+      senderId: input.senderId,
+      recipientId: input.recipientId,
+      body: input.body,
+      clientMessageId: input.clientMessageId,
+      attachments: {
+        create: photoIds.map((photoId, position) => ({ photoId, position })),
       },
-      include: messageInclude,
-    });
-    return toMessageResponse(row);
-  } catch (err) {
-    // Two concurrent sends of the same upload both pass the check above; the
-    // unique photo_id index lets exactly one of them win.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      throw new ConflictError('Attachment photo is already attached to a message');
-    }
-    throw err;
-  }
+    },
+    include: messageInclude,
+  });
+  return toMessageResponse(row);
 }
 
 export interface ListMessagesInput {
