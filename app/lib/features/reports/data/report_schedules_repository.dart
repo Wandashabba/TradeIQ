@@ -101,9 +101,9 @@ class ReportDeliveryOutcome {
 /// What `POST /report-schedules/:id/run` returns: the report was generated,
 /// the run recorded, and it was handed to every delivery channel.
 ///
-/// [deliveredTo] lists the webhook URLs a delivery was queued for — empty when
-/// nothing was sent. Queued is not yet received; the Webhooks screen shows each
-/// delivery's outcome.
+/// [deliveredTo] lists every target a delivery was queued for — webhook URLs,
+/// then email addresses — and is empty when nothing was sent. Queued is not
+/// yet received; the Webhooks screen shows each webhook delivery's outcome.
 class ScheduleRunResult {
   const ScheduleRunResult({
     required this.schedule,

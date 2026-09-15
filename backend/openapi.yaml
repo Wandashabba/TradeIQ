@@ -1191,11 +1191,158 @@ paths:
   /forecast:
     get:
       summary: Exponential-smoothing demand forecast for a SKU — manager/admin
+      description: >-
+        The input series is order-derived sell-in (#119): units of the SKU on the
+        client's non-cancelled orders per local calendar day in Client.timezone,
+        over the last 28 complete days (today excluded), zero-filled, optionally
+        at one outlet. It used to be VisitStock.salesActual, which agents no
+        longer capture (#112) and which is no longer read. Sell-in is what outlets
+        ordered, not consumer sell-out. Coverage days divide the latest observed
+        on-shelf units by the forecast daily demand; null when demand is zero.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: skuId, in: query, required: true, schema: { type: string } }
         - { name: outletId, in: query, schema: { type: string } }
-      responses: { '200': { description: Forecast }, '400': { description: Missing skuId }, '404': { description: SKU not found } }
+      responses:
+        '200':
+          description: Forecast
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkuForecast' }
+        '400': { description: Missing skuId }
+        '404': { description: SKU not found }
+  # ── Sales targets (#119) ──────────────────────────────────────────────────
+  /sales-targets:
+    get:
+      summary: List monthly sell-in targets — manager/admin
+      description: >-
+        A target is units of sell-in — what outlets ordered through TradeIQ,
+        labelled "Sell-in (orders)" — for one SKU and month, client-wide or
+        scoped to one territory or one outlet. It is not consumer sell-out.
+        Field agents get 403 on every /sales-targets route.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: month, in: query, schema: { type: string, example: '2026-09' }, description: 'YYYY-MM' }
+        - { name: skuId, in: query, schema: { type: string } }
+        - { name: territoryId, in: query, schema: { type: string }, description: Only targets scoped to this territory }
+        - { name: outletId, in: query, schema: { type: string }, description: Only targets scoped to this outlet }
+        - { name: scope, in: query, schema: { type: string, enum: [client, territory, outlet] } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: One page of targets, newest month first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/SalesTarget' } }
+                  nextCursor: { type: string, nullable: true }
+        '400': { description: Invalid month, scope or filter }
+        '403': { description: Not a manager or admin }
+    put:
+      summary: Set the target for one SKU, month and scope (create or replace) — manager/admin
+      description: >-
+        Upserts on (SKU, month, territory, outlet): a second PUT for the same
+        scope replaces targetUnits on the same row. territoryId and outletId are
+        mutually exclusive; omit both for a client-wide target. Every id must
+        belong to the caller's client.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [skuId, month, targetUnits]
+              properties:
+                skuId: { type: string }
+                month: { type: string, example: '2026-09', description: 'YYYY-MM (YYYY-MM-01 also accepted)' }
+                territoryId: { type: string, nullable: true }
+                outletId: { type: string, nullable: true }
+                targetUnits: { type: integer, minimum: 0, maximum: 1000000000 }
+      responses:
+        '200':
+          description: Existing target replaced
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalesTarget' }
+        '201':
+          description: Target created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalesTarget' }
+        '400': { description: Invalid body, or both territoryId and outletId given }
+        '403': { description: Not a manager or admin }
+        '404': { description: SKU, territory or outlet not found in the caller's client }
+  /sales-targets/{id}:
+    delete:
+      summary: Delete a sales target — manager/admin
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Deleted }
+        '403': { description: Not a manager or admin }
+        '404': { description: Not found in the caller's client }
+  /sales-targets/import:
+    post:
+      summary: Bulk-set targets from a CSV, with a dry-run preview — manager/admin
+      description: >-
+        Header row required. Columns (case, spaces, underscores ignored): month
+        (YYYY-MM), sku (SKU id, or exact name ignoring case), targetUnits (whole
+        number), and optional territory (id or code) and outlet (id or code).
+        Every row is validated and errors are returned per row; ids and codes
+        resolve only within the caller's client. Unless dryRun, all valid rows
+        are upserted in one statement (one transaction) — invalid rows do not
+        block valid ones, and re-uploading is idempotent. At most 5000 rows.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: dryRun, in: query, schema: { type: string, enum: ['true'] }, description: Same as dryRun true in the body }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [csv]
+              properties:
+                csv: { type: string, description: The file contents, example: "month,sku,targetUnits,territory,outlet\n2026-09,Cola 2L,1200,,\n" }
+                dryRun: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Validation result, and what was (or would be) written
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalesTargetImportResult' }
+        '400': { description: Unreadable CSV, missing required column, no rows, or too many rows }
+        '403': { description: Not a manager or admin }
+  /sales-targets/attainment:
+    get:
+      summary: Actual sell-in vs target per SKU for a month — manager/admin
+      description: >-
+        Actual units are the sum of order-line quantities on the client's
+        non-cancelled orders whose createdAt falls within the month's local
+        calendar days in Client.timezone — for a Johannesburg client an order at
+        23:30Z on the last UTC day of the month counts toward the next month.
+        Every SKU is listed (targetUnits null where no client-wide target is
+        set), with territory- and outlet-scoped targets under it. A territory's
+        actual is the sell-in of its outlets. attainmentPct is actual / target x
+        100, null when the target is missing or zero. This is sell-in, not
+        consumer sell-out.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: month, in: query, required: true, schema: { type: string, example: '2026-09' }, description: 'YYYY-MM' }
+        - { name: skuId, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Attainment report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SalesAttainmentReport' }
+        '400': { description: Missing or invalid month }
+        '403': { description: Not a manager or admin }
   # ── Phase 3 Tier-2 ────────────────────────────────────────────────────────
   /orders:
     get:
@@ -1654,8 +1801,9 @@ paths:
         (per-client timezones are #309). A schedule missed while no backend
         instance was running fires once on catch-up, not once per missed
         period. Each run is generated and delivered as a `report.generated`
-        webhook event to the client's active webhooks subscribed to it; email
-        delivery is not configured, so `recipients` are stored but not emailed.
+        webhook event to the client's active webhooks subscribed to it, and
+        emailed to `recipients` when SMTP is configured on the deployment
+        (otherwise the run records email as `not_configured`).
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -1679,15 +1827,33 @@ paths:
                   nextCursor: { type: string, nullable: true }
     post:
       summary: Schedule a saved report — manager/admin
-      description: The first run is one cadence period after creation.
+      description: >
+        The first run is one cadence period after creation. `recipients` must be
+        1–50 email addresses; they are trimmed and de-duplicated
+        case-insensitively.
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reportDefinitionId, cadence, recipients]
+              properties:
+                reportDefinitionId: { type: string }
+                cadence: { type: string, enum: [daily, weekly] }
+                recipients:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string, format: email }
       responses:
         '201':
           description: Created
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ReportSchedule' }
-        '400': { description: Invalid }
+        '400': { description: Invalid (including a recipient that is not an email address) }
         '404': { description: Report definition not found }
   /report-schedules/{id}:
     patch:
@@ -1696,16 +1862,32 @@ paths:
         Pausing (`active: false`) clears `nextRunAt`. Resuming schedules the
         next run one period from now; it does not fire for the time spent
         paused. Changing the cadence of an active schedule counts the new
-        period from the previous due time.
+        period from the previous due time. `recipients`, when given, follows
+        the same rules as on create.
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                active: { type: boolean }
+                cadence: { type: string, enum: [daily, weekly] }
+                recipients:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string, format: email }
       responses:
         '200':
           description: Updated
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ReportSchedule' }
-        '400': { description: Invalid }
+        '400': { description: Invalid (including a recipient that is not an email address) }
         '404': { description: Not found }
     delete:
       summary: Delete a report schedule — manager/admin
@@ -1719,7 +1901,8 @@ paths:
       description: >
         The same code path as a scheduled run: generates the report, records a
         run, and delivers it through every channel (a `report.generated`
-        webhook event; email is not configured). Does not move `nextRunAt`.
+        webhook event, and one email per recipient when SMTP is configured).
+        Does not move `nextRunAt`.
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses:
@@ -1734,8 +1917,10 @@ paths:
     get:
       summary: Download a run's report as CSV — manager/admin
       description: >
-        What a `report.generated` webhook's `csvPath` points at. Subscribers
-        fetch it with a manager/admin bearer token. The rows are regenerated
+        What a `report.generated` webhook's `csvPath` points at, fetched with a
+        manager/admin bearer token. Machine subscribers that hold no token use
+        the signed `csvDownloadUrl` instead (`GET /report-downloads/{token}`).
+        The rows are regenerated
         from the schedule's report definition, bounded to records whose report
         date (checkinTs for visits, createdAt otherwise) is at or before the
         run's `generatedAt`: records added after the run are excluded, while
@@ -1754,6 +1939,63 @@ paths:
         '401': { description: Unauthenticated }
         '403': { description: Forbidden (not manager/admin) }
         '404': { description: Not found (or another client's schedule or run) }
+  /report-schedules/{id}/runs/{runId}/email-deliveries:
+    get:
+      summary: A run's email delivery log — manager/admin
+      description: >
+        One row per recipient the run was emailed to, newest first: status,
+        attempts, the last error, and whether the CSV was attached. Failed
+        sends are retried on the webhook schedule (1m, 5m, 25m, 2h, 6h) and give
+        up after 6 attempts. Empty when email was not configured for the run
+        (see the run's `deliveries`). Another client's run is a 404.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: runId, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Email deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ReportEmailDelivery' } }
+                  nextCursor: { type: string, nullable: true }
+        '401': { description: Unauthenticated }
+        '403': { description: Forbidden (not manager/admin) }
+        '404': { description: Not found (or another client's schedule or run) }
+  /report-downloads/{token}:
+    get:
+      summary: Download a run's CSV through a signed link — no bearer token (#66)
+      description: >
+        The `csvDownloadUrl` of a `report.generated` webhook payload, and the
+        link in report emails. The token is an HMAC (REPORT_LINK_SECRET) over
+        one client, one schedule and one run, with an expiry 7 days after the
+        run was generated: it opens that run's CSV and nothing else, and needs
+        no login. Anyone holding the link can download the file until it
+        expires, so treat it as a credential. Rotating REPORT_LINK_SECRET
+        revokes every link. Same CSV as `GET /report-schedules/{id}/runs/{runId}/csv`.
+        Rate-limited per IP. Responses are `Cache-Control: private, no-store`.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+          description: Opaque signed token, as issued in `csvDownloadUrl`.
+      responses:
+        '200':
+          description: The run's report (attachment)
+          content:
+            text/csv:
+              schema: { type: string }
+        '401': { description: Invalid link (malformed, tampered, signed with another key, or links not configured) }
+        '404': { description: The link is valid but its run no longer exists (the schedule was deleted) }
+        '410': { description: The link has expired }
+        '429': { description: Too many downloads from this address }
   /locations/settings:
     get:
       summary: Foreground location sharing settings for the signed-in agent — field agent (#153 T1)
@@ -2210,7 +2452,11 @@ components:
         recipients:
           type: array
           items: { type: string }
-          description: Stored for email delivery, which is not configured yet.
+          description: >
+            Email addresses each run is emailed to, when SMTP is configured.
+            Schedules created before addresses were validated may hold other
+            strings; the email channel skips those and names them in its
+            outcome's `detail`.
         active: { type: boolean }
         lastRunAt: { type: string, format: date-time, nullable: true, description: The latest run, scheduled or manual. }
         nextRunAt: { type: string, format: date-time, nullable: true, description: When the worker next fires it; null while paused. }
@@ -2226,17 +2472,27 @@ components:
           type: string
           enum: [queued, no_subscribers, not_configured, failed]
           description: >
-            queued — webhook deliveries were created (see each webhook's
-            delivery log for the outcome); no_subscribers — no active webhook
-            is subscribed to report.generated; not_configured — email delivery
-            is not set up on this deployment; failed — the channel errored
-            before queuing anything.
+            queued — delivery rows were created and retry on failure (see the
+            webhook's delivery log, or the run's email-deliveries);
+            no_subscribers — no active webhook is subscribed to
+            report.generated, or the schedule has no valid email address;
+            not_configured — email (SMTP) is not set up on this deployment,
+            with the reason in `detail`; failed — the channel errored before
+            queuing anything.
         targets:
           type: array
           items: { type: string }
-          description: Webhook URLs queued to; for email, the stored recipients.
+          description: >
+            Webhook URLs queued to; for email, the addresses queued to (or, when
+            not_configured, the stored recipients).
         webhookDeliveryIds: { type: array, items: { type: string } }
-        detail: { type: string }
+        emailDeliveryIds:
+          type: array
+          items: { type: string }
+          description: The email delivery rows created, one per recipient (email channel only).
+        detail:
+          type: string
+          description: Why, for any status but queued; for queued email, which stored entries were skipped as not email addresses.
     ScheduleRunResult:
       type: object
       properties:
@@ -2249,8 +2505,10 @@ components:
           type: array
           items: { type: string }
           description: >
-            The webhook URLs a report.generated delivery was queued for. Empty
-            when nothing was sent. No longer an echo of `recipients`.
+            Every target something was queued to: the webhook URLs a
+            report.generated delivery was created for, then the email addresses
+            an email was queued to. Empty when nothing was sent. Not an echo of
+            `recipients`.
         deliveries: { type: array, items: { $ref: '#/components/schemas/ReportDeliveryOutcome' } }
     ReportGeneratedPayload:
       type: object
@@ -2259,7 +2517,8 @@ components:
         `{ event, payload, timestamp }` envelope). A pointer to the report, not
         its rows: reports have no row cap and the body is stored and re-sent on
         every retry, so it stays a few hundred bytes. Fetch the rows from
-        `csvPath` with a manager/admin bearer token. De-duplicate on `runId`.
+        `csvDownloadUrl` (signed, no token needed) or from `csvPath` with a
+        manager/admin bearer token. De-duplicate on `runId`.
       properties:
         scheduleId: { type: string }
         reportId: { type: string, description: The report definition id. }
@@ -2274,6 +2533,40 @@ components:
           type: string
           nullable: true
           description: csvPath on the PUBLIC_API_URL origin when that is configured; otherwise null.
+        csvDownloadUrl:
+          type: string
+          nullable: true
+          example: 'https://tradeiq-backend.fly.dev/report-downloads/{token}'
+          description: >
+            Added in #66 (additive). A signed, time-limited link to this run's
+            CSV that needs no bearer token (`GET /report-downloads/{token}`).
+            Scoped to this run of this client; the same link is issued on every
+            retry. Null unless PUBLIC_API_URL and REPORT_LINK_SECRET are
+            configured.
+        csvDownloadExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When `csvDownloadUrl` stops working (7 days after `generatedAt`); null with it.
+    ReportEmailDelivery:
+      type: object
+      description: One report run emailed to one recipient (#66), with the webhook delivery retry semantics.
+      properties:
+        id: { type: string }
+        runId: { type: string }
+        clientId: { type: string }
+        recipient: { type: string, format: email }
+        status: { type: string, enum: [pending, succeeded, failed_retrying, gave_up] }
+        attempts: { type: integer }
+        lastError: { type: string, nullable: true, description: 'The last SMTP error, or why email gave up (e.g. SMTP no longer configured).' }
+        nextAttemptAt: { type: string, format: date-time, nullable: true }
+        lastAttemptAt: { type: string, format: date-time, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        csvAttached:
+          type: boolean
+          nullable: true
+          description: Whether the delivered email carried the CSV (false means link only, over the 5 MB cap). Null until delivered.
+        createdAt: { type: string, format: date-time }
     TrendPoint:
       type: object
       required: [period, value, count]
@@ -2362,3 +2655,134 @@ components:
           properties:
             route: { type: string }
             category: { type: string, enum: [alerts, tasks, messages, sla] }
+    SkuForecast:
+      type: object
+      required: [skuId, method, historySource, historyDays, historyPoints, forecastNextPeriod, forecastCoverageDays]
+      properties:
+        skuId: { type: string }
+        method: { type: string, enum: [exponential_smoothing] }
+        historySource: { type: string, enum: [sell_in_orders], description: 'Order-derived sell-in (#119), not VisitStock.salesActual' }
+        historyDays: { type: integer, example: 28 }
+        historyPoints: { type: array, items: { type: number }, description: 'Units ordered per local day, oldest first, zero-filled' }
+        forecastNextPeriod: { type: number, description: Forecast units for the next local day }
+        forecastCoverageDays: { type: number, nullable: true, description: 'Latest on-shelf units / forecast daily demand; null when demand is zero' }
+    SalesTargetRef:
+      type: object
+      required: [id, name, code]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        code: { type: string }
+    SalesTarget:
+      type: object
+      required: [id, skuId, sku, month, scope, territoryId, territory, outletId, outlet, targetUnits, createdById, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        skuId: { type: string }
+        sku:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+        month: { type: string, example: '2026-09', description: 'YYYY-MM; the whole month of local days in Client.timezone' }
+        scope: { type: string, enum: [client, territory, outlet] }
+        territoryId: { type: string, nullable: true }
+        territory: { allOf: [{ $ref: '#/components/schemas/SalesTargetRef' }], nullable: true }
+        outletId: { type: string, nullable: true }
+        outlet: { allOf: [{ $ref: '#/components/schemas/SalesTargetRef' }], nullable: true }
+        targetUnits: { type: integer, minimum: 0, description: Units of sell-in (orders) }
+        createdById: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SalesTargetImportResult:
+      type: object
+      required: [dryRun, totalRows, validRows, invalidRows, errors, rows, created, updated]
+      properties:
+        dryRun: { type: boolean }
+        totalRows: { type: integer, description: Non-blank data rows read }
+        validRows: { type: integer }
+        invalidRows: { type: integer, description: Distinct rows with at least one error }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [row, column, message]
+            properties:
+              row: { type: integer, description: '1-based CSV row; the header is row 1' }
+              column: { type: string, nullable: true, enum: [month, sku, targetUnits, territory, outlet, null] }
+              message: { type: string }
+        rows:
+          type: array
+          description: The valid rows, as they are (or would be) written
+          items:
+            type: object
+            required: [row, skuId, skuName, month, scope, territoryId, territoryCode, outletId, outletCode, targetUnits, action]
+            properties:
+              row: { type: integer }
+              skuId: { type: string }
+              skuName: { type: string }
+              month: { type: string, example: '2026-09' }
+              scope: { type: string, enum: [client, territory, outlet] }
+              territoryId: { type: string, nullable: true }
+              territoryCode: { type: string, nullable: true }
+              outletId: { type: string, nullable: true }
+              outletCode: { type: string, nullable: true }
+              targetUnits: { type: integer }
+              action: { type: string, enum: [create, update] }
+        created: { type: integer, description: 'Targets created (predicted on a dry run)' }
+        updated: { type: integer, description: 'Existing targets replaced (predicted on a dry run)' }
+    SalesAttainmentLevel:
+      type: object
+      required: [targets, targetUnits, actualUnits, attainmentPct]
+      properties:
+        targets: { type: integer }
+        targetUnits: { type: integer }
+        actualUnits: { type: integer, description: Sell-in units of the targeted SKU-scopes }
+        attainmentPct: { type: number, nullable: true }
+    SalesAttainmentReport:
+      type: object
+      required: [month, timeZone, from, to, metric, metricLabel, skus, summary, truncated]
+      properties:
+        month: { type: string, example: '2026-09' }
+        timeZone: { type: string, example: Africa/Johannesburg }
+        from: { type: string, format: date-time, description: 'Instant the month begins locally (inclusive)' }
+        to: { type: string, format: date-time, description: 'Instant the next month begins locally (exclusive)' }
+        metric: { type: string, enum: [sell_in_units] }
+        metricLabel: { type: string, enum: ['Sell-in (orders)'] }
+        skus:
+          type: array
+          items:
+            type: object
+            required: [skuId, skuName, category, targetId, targetUnits, actualUnits, attainmentPct, scoped]
+            properties:
+              skuId: { type: string }
+              skuName: { type: string }
+              category: { type: string }
+              targetId: { type: string, nullable: true, description: The client-wide target, if set }
+              targetUnits: { type: integer, nullable: true }
+              actualUnits: { type: integer, description: All of the client's sell-in of this SKU in the month }
+              attainmentPct: { type: number, nullable: true }
+              scoped:
+                type: array
+                items:
+                  type: object
+                  required: [targetId, scope, territory, outlet, targetUnits, actualUnits, attainmentPct]
+                  properties:
+                    targetId: { type: string }
+                    scope: { type: string, enum: [territory, outlet] }
+                    territory: { allOf: [{ $ref: '#/components/schemas/SalesTargetRef' }], nullable: true }
+                    outlet: { allOf: [{ $ref: '#/components/schemas/SalesTargetRef' }], nullable: true }
+                    targetUnits: { type: integer }
+                    actualUnits: { type: integer }
+                    attainmentPct: { type: number, nullable: true }
+        summary:
+          type: object
+          description: >-
+            Totals per scope level, never added across levels (a client-wide and a
+            territory target for one SKU count the same orders).
+          required: [client, territory, outlet]
+          properties:
+            client: { $ref: '#/components/schemas/SalesAttainmentLevel' }
+            territory: { $ref: '#/components/schemas/SalesAttainmentLevel' }
+            outlet: { $ref: '#/components/schemas/SalesAttainmentLevel' }
+        truncated: { type: boolean, description: 'More than 1000 SKUs; the list was cut' }

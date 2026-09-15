@@ -10,6 +10,7 @@ import {
   ReportDeliveryOutcome,
   ReportGeneratedPayload,
 } from './reportschedules.delivery';
+import { publicApiBase, signedReportLink } from './reportschedules.links';
 
 // The cadences a schedule may fire on. Free-text at the schema level; this is
 // the runtime allow-list.
@@ -20,7 +21,10 @@ export function isCadence(value: unknown): value is Cadence {
   return typeof value === 'string' && (CADENCES as readonly string[]).includes(value);
 }
 
-// A non-empty array of string recipients (emails/webhook targets).
+// A non-empty array of strings: how stored recipients are read back. Writes
+// are held to email addresses by `validateRecipients` (reportschedules.email.ts);
+// rows stored before that may still hold other strings, which the email
+// channel skips and names in its outcome.
 export function isRecipients(value: unknown): value is string[] {
   return Array.isArray(value) && value.length > 0 && value.every((r) => typeof r === 'string');
 }
@@ -160,8 +164,8 @@ export function runCsvPath(scheduleId: string, runId: string): string {
 
 /** `path` on the public API origin, when `PUBLIC_API_URL` is configured. */
 function publicApiUrl(path: string): string | null {
-  const base = process.env.PUBLIC_API_URL?.trim();
-  return base ? `${base.replace(/\/+$/, '')}${path}` : null;
+  const base = publicApiBase();
+  return base ? `${base}${path}` : null;
 }
 
 function isUniqueViolation(err: unknown): boolean {
@@ -209,6 +213,14 @@ async function executeRun(
   }
 
   const csvPath = runCsvPath(schedule.id, run.id);
+  // No token needed to redeem it: scoped to this run of this tenant, and it
+  // expires (reportschedules.links.ts). Null unless links are configured.
+  const download = signedReportLink({
+    clientId: schedule.clientId,
+    scheduleId: schedule.id,
+    runId: run.id,
+    generatedAt: run.generatedAt,
+  });
   const payload: ReportGeneratedPayload = {
     scheduleId: schedule.id,
     reportId: report.definition.id,
@@ -220,6 +232,8 @@ async function executeRun(
     rowCount: report.rowCount,
     csvPath,
     csvUrl: publicApiUrl(csvPath),
+    csvDownloadUrl: download?.url ?? null,
+    csvDownloadExpiresAt: download?.expiresAt.toISOString() ?? null,
   };
   const deliveries = await deliverReport({
     clientId: schedule.clientId,

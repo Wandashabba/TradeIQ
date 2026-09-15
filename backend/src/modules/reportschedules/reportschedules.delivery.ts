@@ -1,30 +1,30 @@
 import { enqueueWebhookEvent } from '../webhooks/webhooks.service';
+import { emailDeliveryChannel } from './reportschedules.email';
+
+export { EMAIL_NOT_CONFIGURED } from './reportschedules.email';
 
 /**
  * Where a generated report goes (#66): one channel per transport, each
  * reporting what it actually did.
  *
- * Built: **webhook**. The run is announced as a `report.generated` event to the
- * client's active webhooks subscribed to it, through the ordinary webhook
- * fan-out — so it gets the signed body, the retry schedule, the delivery log
- * and the health state every other event gets.
- *
- * Not built: **email**. It needs a mail provider and credentials. The stub
- * below is the seam: a real implementation replaces it in
- * `REPORT_DELIVERY_CHANNELS` and nothing else changes. Until then it records,
- * honestly, that email was not sent, and the recipients stay stored on the
- * schedule for when it is.
+ * - **webhook**. The run is announced as a `report.generated` event to the
+ *   client's active webhooks subscribed to it, through the ordinary webhook
+ *   fan-out — so it gets the signed body, the retry schedule, the delivery log
+ *   and the health state every other event gets.
+ * - **email** (reportschedules.email.ts). One message per schedule recipient
+ *   over SMTP, retried on the same schedule. Off until SMTP_* is configured,
+ *   and the run records `not_configured` with the reason until then.
  */
 
 /** The webhook event a report run is announced as. */
 export const REPORT_GENERATED_EVENT = 'report.generated';
 
 export type ReportDeliveryStatus =
-  /** Handed to the transport; for webhooks, delivery rows exist and retry. */
+  /** Handed to the transport; delivery rows exist and retry. */
   | 'queued'
-  /** The channel works but nobody is listening (no subscribed webhooks). */
+  /** The channel works but nobody is listening (no subscribed webhooks, no email recipients). */
   | 'no_subscribers'
-  /** The channel is not set up on this deployment (email). */
+  /** The channel is not set up on this deployment (email without SMTP). */
   | 'not_configured'
   /** The channel tried and failed before anything was queued. */
   | 'failed';
@@ -33,10 +33,12 @@ export type ReportDeliveryStatus =
 export interface ReportDeliveryOutcome {
   channel: string;
   status: ReportDeliveryStatus;
-  /** Where it was queued to: webhook URLs; for email, the stored recipients. */
+  /** Where it was queued to: webhook URLs; for email, the recipients. */
   targets: string[];
   /** The webhook delivery rows created, to follow in the delivery log. */
   webhookDeliveryIds?: string[];
+  /** The email delivery rows created, one per recipient. */
+  emailDeliveryIds?: string[];
   /** A human-readable reason for any status other than `queued`. */
   detail?: string;
 }
@@ -45,8 +47,9 @@ export interface ReportDeliveryOutcome {
  * The `report.generated` webhook payload. Deliberately a pointer, not the rows:
  * a report has no row cap (an unfiltered visits report is a tenant's whole
  * visit history), and the body is stored on every delivery row and re-sent on
- * every retry. The subscriber fetches the CSV from `csvPath` with a
- * manager/admin bearer token. The payload itself stays a few hundred bytes.
+ * every retry. The subscriber fetches the CSV from `csvDownloadUrl` (no token
+ * needed) or from `csvPath` with a manager/admin bearer token. The payload
+ * itself stays a few hundred bytes.
  */
 export interface ReportGeneratedPayload {
   scheduleId: string;
@@ -61,6 +64,13 @@ export interface ReportGeneratedPayload {
   csvPath: string;
   /** `csvPath` on `PUBLIC_API_URL`, when that is configured; otherwise null. */
   csvUrl: string | null;
+  /**
+   * A signed link to the run's CSV that needs no bearer token, when
+   * PUBLIC_API_URL and REPORT_LINK_SECRET are configured; otherwise null.
+   */
+  csvDownloadUrl: string | null;
+  /** When `csvDownloadUrl` stops working; null with it. */
+  csvDownloadExpiresAt: string | null;
 }
 
 export interface ReportDeliveryContext {
@@ -96,24 +106,11 @@ export const webhookDeliveryChannel: ReportDeliveryChannel = {
   },
 };
 
-export const EMAIL_NOT_CONFIGURED = 'Email delivery not configured';
-
-/** The email seam. Sends nothing; says so. */
-export const emailDeliveryChannelStub: ReportDeliveryChannel = {
-  name: 'email',
-  async deliver({ recipients }) {
-    return {
-      channel: 'email',
-      status: 'not_configured',
-      targets: recipients,
-      detail: EMAIL_NOT_CONFIGURED,
-    };
-  },
-};
+export { emailDeliveryChannel };
 
 export const REPORT_DELIVERY_CHANNELS: readonly ReportDeliveryChannel[] = [
   webhookDeliveryChannel,
-  emailDeliveryChannelStub,
+  emailDeliveryChannel,
 ];
 
 /**

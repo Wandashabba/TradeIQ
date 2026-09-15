@@ -1,192 +1,187 @@
 import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
-import { issueToken } from '../auth/auth.service';
-import { userIn } from '../../test-utils/tenants';
+import { startOfLocalDay } from '../../lib/clientTime';
+import { forecastCoverageDays, forecastDemand } from '../../services/forecast.service';
+import { TestUser, foreignTenant, userIn } from '../../test-utils/tenants';
+import { trailingLocalDays } from '../salesTargets/salesMonth';
+import { FORECAST_HISTORY_DAYS } from './forecast.service';
+
+const ZONE = 'Africa/Johannesburg';
+const HOUR_MS = 60 * 60 * 1000;
 
 describe('forecast routes', () => {
   let clientId: string;
-  let otherClientId: string;
-  let managerToken: string;
-  let agentToken: string;
+  let manager: TestUser;
+  let agent: TestUser;
+  let foreign: Awaited<ReturnType<typeof foreignTenant>>;
   let skuId: string;
-  let otherSkuId: string;
+  let quietSkuId: string;
+  let foreignSkuId: string;
   let outletId: string;
-  let agentId: string;
+  let otherOutletId: string;
+  let foreignOutletId: string;
+
+  // The series the forecast should see: index 27 is yesterday (local), 26 the day before.
+  let dates: Date[];
+
+  async function order(
+    outlet: string,
+    sku: string,
+    quantity: number,
+    createdAt: Date,
+    options: { status?: string; clientId?: string; agentId?: string } = {},
+  ) {
+    await prisma.order.create({
+      data: {
+        clientId: options.clientId ?? clientId,
+        outletId: outlet,
+        agentId: options.agentId ?? agent.userId,
+        status: options.status ?? 'submitted',
+        createdAt,
+        lines: { create: [{ skuId: sku, quantity, unitPrice: 1 }] },
+      },
+    });
+  }
 
   beforeAll(async () => {
     const client = await prisma.client.create({
       data: { name: 'FCAST-Client A', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
     clientId = client.id;
-    managerToken = (await userIn(clientId, 'manager')).token;
+    manager = await userIn(clientId, 'manager');
+    agent = await userIn(clientId, 'field_agent');
 
-    const agent = await prisma.user.create({
-      data: { email: 'fcast-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
-    });
-    agentToken = issueToken({ userId: agent.id, role: 'field_agent', clientId });
-    agentId = agent.id;
+    const outlet = (code: string, cid = clientId) =>
+      prisma.outlet.create({
+        data: { name: code, code, channelType: 'hypermarket', lat: -26.2, lng: 28.04, territoryId: 'fcast-t1', clientId: cid },
+      });
+    outletId = (await outlet('FCAST-001')).id;
+    otherOutletId = (await outlet('FCAST-002')).id;
+    const sku = (name: string, cid = clientId) =>
+      prisma.sku.create({ data: { clientId: cid, name, category: 'Beverages', minFacingsStandard: 4, rrp: 19.99 } });
+    skuId = (await sku('FCAST-Cola')).id;
+    quietSkuId = (await sku('FCAST-Quiet')).id;
 
-    const outlet = await prisma.outlet.create({
+    foreign = await foreignTenant('field_agent');
+    foreignSkuId = (await sku('FCAST-Other Cola', foreign.clientId)).id;
+    foreignOutletId = (await outlet('FCAST-FX', foreign.clientId)).id;
+
+    const now = new Date();
+    ({ dates } = trailingLocalDays(now, FORECAST_HISTORY_DAYS, ZONE));
+    const at = (day: Date, hours: number) => new Date(startOfLocalDay(day, ZONE).getTime() + hours * HOUR_MS);
+    const yesterday = dates[27];
+    const dayBefore = dates[26];
+
+    await order(outletId, skuId, 10, at(yesterday, 9));
+    await order(outletId, skuId, 20, at(yesterday, 15));
+    await order(otherOutletId, skuId, 5, at(yesterday, 11));
+    await order(outletId, skuId, 10, at(dayBefore, 12));
+    // 23:59 local on the day before yesterday — still that day, though it is 21:59Z.
+    await order(outletId, skuId, 2, new Date(startOfLocalDay(yesterday, ZONE).getTime() - 60_000));
+    // Excluded: cancelled, still today, before the window, another tenant.
+    await order(outletId, skuId, 500, at(yesterday, 10), { status: 'cancelled' });
+    await order(outletId, skuId, 999, now);
+    await order(outletId, skuId, 300, at(dates[0], -24));
+    await order(foreignOutletId, skuId, 1000, at(yesterday, 10), { clientId: foreign.clientId, agentId: foreign.userId });
+
+    // A shelf observation: its unitsAvailable feeds coverage; its salesActual is
+    // the old input and must no longer count for anything.
+    const visit = await prisma.visit.create({
       data: {
-        name: 'FCAST-Outlet 1',
-        code: 'FCAST-001',
-        channelType: 'hypermarket',
-        lat: -26.2041,
-        lng: 28.0473,
-        territoryId: 'fcast-t1',
+        outletId,
+        agentId: agent.userId,
         clientId,
+        checkinTs: at(yesterday, 8),
+        checkinLat: -26.2,
+        checkinLng: 28.04,
+        geofencePass: true,
+        status: 'submitted',
       },
     });
-    outletId = outlet.id;
-
-    const sku = await prisma.sku.create({
-      data: { clientId, name: 'FCAST-Cola', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99 },
-    });
-    skuId = sku.id;
-
-    // Three visits, each with one stock row, increasing salesActual (10, 20, 30)
-    // and ascending createdAt so the history series is deterministic.
-    const salesSeries = [10, 20, 30];
-    for (let i = 0; i < salesSeries.length; i += 1) {
-      const visit = await prisma.visit.create({
-        data: {
-          outletId: outlet.id,
-          agentId: agent.id,
-          clientId,
-          checkinTs: new Date(`2026-07-0${i + 1}T09:00:00.000Z`),
-          checkinLat: -26.2041,
-          checkinLng: 28.0473,
-          geofencePass: true,
-          status: 'submitted',
-        },
-      });
-      await prisma.visitStock.create({
-        data: {
-          visitId: visit.id,
-          skuId: sku.id,
-          unitsAvailable: 60,
-          lastStockinDate: new Date(`2026-07-0${i + 1}T00:00:00.000Z`),
-          daysOutOfStock: 0,
-          velocityAvg: 5,
-          coverageDaysPredicted: 12,
-          salesActual: salesSeries[i],
-          salesTarget: 40,
-          createdAt: new Date(`2026-07-0${i + 1}T10:00:00.000Z`),
-        },
-      });
-    }
-
-    // Second client with its own SKU — used to prove tenant isolation (404).
-    const otherClient = await prisma.client.create({
-      data: { name: 'FCAST-Client B', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
-    });
-    otherClientId = otherClient.id;
-    const otherSku = await prisma.sku.create({
+    await prisma.visitStock.create({
       data: {
-        clientId: otherClientId,
-        name: 'FCAST-Other Cola',
-        category: 'Beverages',
-        minFacingsStandard: 4,
-        rrp: 9.99,
+        visitId: visit.id,
+        skuId,
+        unitsAvailable: 60,
+        lastStockinDate: yesterday,
+        daysOutOfStock: 0,
+        velocityAvg: 5,
+        coverageDaysPredicted: 12,
+        salesActual: 777,
+        salesTarget: 40,
       },
     });
-    otherSkuId = otherSku.id;
   });
 
   afterAll(async () => {
-    const clientIds = [clientId, otherClientId];
+    const clientIds = [clientId, foreign.clientId];
     await prisma.visitStock.deleteMany({ where: { visit: { clientId: { in: clientIds } } } });
     await prisma.visit.deleteMany({ where: { clientId: { in: clientIds } } });
+    await prisma.orderLine.deleteMany({ where: { order: { clientId: { in: clientIds } } } });
+    await prisma.order.deleteMany({ where: { clientId: { in: clientIds } } });
     await prisma.sku.deleteMany({ where: { clientId: { in: clientIds } } });
     await prisma.outlet.deleteMany({ where: { clientId: { in: clientIds } } });
-    await prisma.user.deleteMany({ where: { clientId: { in: clientIds } } });
-    await prisma.client.deleteMany({ where: { id: { in: clientIds } } });
+    await prisma.user.deleteMany({ where: { clientId } });
+    await prisma.client.delete({ where: { id: clientId } });
+    await foreign.cleanup();
     await prisma.$disconnect();
   });
 
-  it('returns an exponential-smoothing forecast for the SKU', async () => {
-    const res = await request(app)
-      .get('/forecast')
-      .query({ skuId })
-      .set('Authorization', `Bearer ${managerToken}`);
+  const expectedSeries = (yesterdayUnits: number, dayBeforeUnits: number) => {
+    const series = new Array<number>(FORECAST_HISTORY_DAYS).fill(0);
+    series[27] = yesterdayUnits;
+    series[26] = dayBeforeUnits;
+    return series;
+  };
+
+  it('forecasts from daily order sell-in in the client timezone, not VisitStock.salesActual', async () => {
+    const res = await request(app).get('/forecast').query({ skuId }).set('Authorization', `Bearer ${manager.token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.skuId).toBe(skuId);
-    expect(res.body.method).toBe('exponential_smoothing');
-    expect(res.body.historyPoints).toHaveLength(3);
-    expect(typeof res.body.forecastNextPeriod).toBe('number');
-    expect(typeof res.body.forecastCoverageDays).toBe('number');
+    const series = expectedSeries(35, 12);
+    expect(res.body).toEqual({
+      skuId,
+      method: 'exponential_smoothing',
+      historySource: 'sell_in_orders',
+      historyDays: FORECAST_HISTORY_DAYS,
+      historyPoints: series,
+      forecastNextPeriod: forecastDemand(series),
+      forecastCoverageDays: forecastCoverageDays({ unitsAvailable: 60, salesHistory: series }),
+    });
+    expect(res.body.forecastNextPeriod).toBeGreaterThan(0);
   });
 
-  it('excludes rows with a null salesActual from the forecast series (unrecorded ≠ zero)', async () => {
-    const nullSku = await prisma.sku.create({
-      data: { clientId, name: 'FCAST-NullCola', category: 'Beverages', minFacingsStandard: 4, rrp: 14.99 },
-    });
-
-    // Same three-visit shape as the primary fixture, but the middle observation
-    // was never captured (null) rather than recorded as 0 — the read path must
-    // drop it from the history series, not silently treat "unknown" as "zero".
-    const salesSeriesWithGap: Array<number | null> = [10, null, 30];
-    for (let i = 0; i < salesSeriesWithGap.length; i += 1) {
-      const visit = await prisma.visit.create({
-        data: {
-          outletId,
-          agentId,
-          clientId,
-          checkinTs: new Date(`2026-07-1${i + 1}T09:00:00.000Z`),
-          checkinLat: -26.2041,
-          checkinLng: 28.0473,
-          geofencePass: true,
-          status: 'submitted',
-        },
-      });
-      await prisma.visitStock.create({
-        data: {
-          visitId: visit.id,
-          skuId: nullSku.id,
-          unitsAvailable: 60,
-          lastStockinDate: new Date(`2026-07-1${i + 1}T00:00:00.000Z`),
-          daysOutOfStock: 0,
-          velocityAvg: 5,
-          coverageDaysPredicted: 12,
-          salesActual: salesSeriesWithGap[i],
-          salesTarget: 40,
-          createdAt: new Date(`2026-07-1${i + 1}T10:00:00.000Z`),
-        },
-      });
-    }
-
+  it('narrows the series to one outlet', async () => {
     const res = await request(app)
       .get('/forecast')
-      .query({ skuId: nullSku.id })
-      .set('Authorization', `Bearer ${managerToken}`);
-
+      .query({ skuId, outletId: otherOutletId })
+      .set('Authorization', `Bearer ${manager.token}`);
     expect(res.status).toBe(200);
-    // 3 rows seeded, but only 2 carry a recorded salesActual — the null row is dropped.
-    expect(res.body.historyPoints).toEqual([10, 30]);
-    // SES(alpha=0.5) over [10, 30]: s0 = 10, s1 = 0.5*30 + 0.5*10 = 20.
-    expect(res.body.forecastNextPeriod).toBe(20);
+    expect(res.body.historyPoints).toEqual(expectedSeries(5, 0));
+  });
+
+  it('is a flat zero series with no coverage estimate for a SKU nobody ordered', async () => {
+    const res = await request(app).get('/forecast').query({ skuId: quietSkuId }).set('Authorization', `Bearer ${manager.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.historyPoints).toEqual(new Array(FORECAST_HISTORY_DAYS).fill(0));
+    expect(res.body.forecastNextPeriod).toBe(0);
+    // Zero demand is infinite cover, which JSON carries as null.
+    expect(res.body.forecastCoverageDays).toBeNull();
   });
 
   it('404s for a SKU belonging to another client', async () => {
-    const res = await request(app)
-      .get('/forecast')
-      .query({ skuId: otherSkuId })
-      .set('Authorization', `Bearer ${managerToken}`);
+    const res = await request(app).get('/forecast').query({ skuId: foreignSkuId }).set('Authorization', `Bearer ${manager.token}`);
     expect(res.status).toBe(404);
   });
 
   it('400s when skuId is missing', async () => {
-    const res = await request(app).get('/forecast').set('Authorization', `Bearer ${managerToken}`);
+    const res = await request(app).get('/forecast').set('Authorization', `Bearer ${manager.token}`);
     expect(res.status).toBe(400);
   });
 
   it('forbids a field agent with 403', async () => {
-    const res = await request(app)
-      .get('/forecast')
-      .query({ skuId })
-      .set('Authorization', `Bearer ${agentToken}`);
+    const res = await request(app).get('/forecast').query({ skuId }).set('Authorization', `Bearer ${agent.token}`);
     expect(res.status).toBe(403);
   });
 

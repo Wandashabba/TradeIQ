@@ -28,6 +28,10 @@ primary_region = "lhr"
 [env]
   PORT = "4000"
   NODE_ENV = "production"
+  # The public origin, for links the API hands out (a run's csvUrl and signed
+  # csvDownloadUrl, and the link in report emails, #66). Not a secret.
+  # SMTP_* and REPORT_LINK_SECRET are secrets: see docs/operations/report-email.md.
+  PUBLIC_API_URL = "https://tradeiq-backend.fly.dev"
 
 [http_service]
   internal_port = 4000

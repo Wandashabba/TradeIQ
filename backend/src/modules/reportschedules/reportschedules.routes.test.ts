@@ -179,6 +179,15 @@ describe('report-schedules routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects recipients that are not email addresses with 400, naming them', async () => {
+    const res = await request(app)
+      .post('/report-schedules')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ ...validBody(), recipients: ['ops@example.com', 'https://hooks.example.com/x'] });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('not an email address: https://hooks.example.com/x');
+  });
+
   it("returns 404 when the report definition belongs to another client", async () => {
     const res = await request(app)
       .post('/report-schedules')
@@ -258,7 +267,8 @@ describe('report-schedules routes', () => {
         channel: 'email',
         status: 'not_configured',
         targets: ['ops@example.com', 'lead@example.com'],
-        detail: 'Email delivery not configured',
+        // SMTP is not set in the test environment, and the reason says so.
+        detail: 'Email delivery not configured: SMTP_HOST and SMTP_FROM are not set',
       },
     ]);
     // A manual run is extra: the cadence's next run does not move.

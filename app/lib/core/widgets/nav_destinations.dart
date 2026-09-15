@@ -21,10 +21,10 @@ enum NavGroup { operate, insight, configure }
 extension NavGroupHeading on NavGroup {
   /// The group header as the UI renders it (rail and menu sheet).
   String get heading => switch (this) {
-        NavGroup.operate => 'OPERATE',
-        NavGroup.insight => 'INSIGHT',
-        NavGroup.configure => 'CONFIGURE',
-      };
+    NavGroup.operate => 'OPERATE',
+    NavGroup.insight => 'INSIGHT',
+    NavGroup.configure => 'CONFIGURE',
+  };
 }
 
 /// Single source of manager navigation. The sidebar, the floating bottom
@@ -112,6 +112,12 @@ const managerDestinations = <NavDestination>[
     group: NavGroup.insight,
   ),
   NavDestination(
+    route: '/sales-targets',
+    label: 'Sales targets',
+    icon: Icons.flag_outlined,
+    group: NavGroup.insight,
+  ),
+  NavDestination(
     route: '/leaderboard',
     label: 'Leaderboard',
     icon: Icons.leaderboard_outlined,
@@ -175,5 +181,7 @@ const managerDestinations = <NavDestination>[
 ];
 
 /// The destinations of one group, in declaration order.
-List<NavDestination> destinationsIn(NavGroup group) =>
-    [for (final d in managerDestinations) if (d.group == group) d];
+List<NavDestination> destinationsIn(NavGroup group) => [
+  for (final d in managerDestinations)
+    if (d.group == group) d,
+];
