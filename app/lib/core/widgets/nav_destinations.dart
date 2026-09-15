@@ -118,6 +118,12 @@ const managerDestinations = <NavDestination>[
     group: NavGroup.insight,
   ),
   NavDestination(
+    route: '/contests',
+    label: 'Contests',
+    icon: Icons.emoji_events_outlined,
+    group: NavGroup.insight,
+  ),
+  NavDestination(
     route: '/fraud',
     label: 'Fraud review',
     icon: Icons.gpp_maybe_outlined,

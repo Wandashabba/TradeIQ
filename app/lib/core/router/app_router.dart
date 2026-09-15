@@ -15,6 +15,9 @@ import '../../features/outlets/presentation/create_outlet_screen.dart';
 import '../../features/outlets/presentation/outlets_list_screen.dart';
 import '../../features/tasks/presentation/tasks_screen.dart';
 import '../../features/campaigns/presentation/campaigns_screen.dart';
+import '../../features/contests/presentation/contest_standings_screen.dart';
+import '../../features/contests/presentation/contests_screen.dart';
+import '../../features/contests/presentation/my_contests_screen.dart';
 import '../../features/alerts/presentation/alert_rules_screen.dart';
 import '../../features/alerts/presentation/alerts_screen.dart';
 import '../../features/territories/presentation/territories_screen.dart';
@@ -77,6 +80,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/dashboard',
         '/tasks',
         '/campaigns',
+        '/contests',
         '/alerts',
         '/alert-rules',
         '/territories',
@@ -105,12 +109,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       // An agent's points history (/leaderboard/:agentId) is supervisory too:
       // its API is manager/admin-only. /leaderboard itself stays shared — the
       // standings endpoint is open to every signed-in user.
-      final isAgentPointsHistory = loc.startsWith('/leaderboard/');
+      // The one exception is /leaderboard/contests (#124): the agent's
+      // Contests view, whose API (GET /contests/current) is open to every
+      // signed-in user like the standings themselves.
+      final isLeaderboardContests = loc == '/leaderboard/contests';
+      final isAgentPointsHistory =
+          loc.startsWith('/leaderboard/') && !isLeaderboardContests;
+      // Managing contests and their full standings (/contests/:id) is
+      // supervisory: every /contests API but /contests/current is manager-only.
+      final isContestsSubroute = loc.startsWith('/contests/');
       if (role == 'field_agent' &&
           (managerOnly.contains(loc) ||
               isTemplatesSubroute ||
               isVisitReview ||
-              isAgentPointsHistory)) {
+              isAgentPointsHistory ||
+              isContestsSubroute)) {
         return '/today';
       }
       if (role != 'field_agent' && (isAuditRoute || isAgentOnly)) {
@@ -182,6 +195,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => managerPage(const CampaignsScreen()),
       ),
       GoRoute(
+        path: '/contests',
+        pageBuilder: (context, state) => managerPage(const ContestsScreen()),
+      ),
+      // One contest's full standings. A sibling route, not a menu destination:
+      // the rail keeps Contests selected under /contests/.
+      GoRoute(
+        path: '/contests/:id',
+        pageBuilder: (context, state) => managerPage(
+          ContestStandingsScreen(contestId: state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
         path: '/alerts',
         pageBuilder: (context, state) => managerPage(const AlertsScreen()),
       ),
@@ -208,6 +233,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/leaderboard',
         pageBuilder: (context, state) => managerPage(const LeaderboardScreen()),
+      ),
+      // The agent's Contests view, reached from the leaderboard (#124).
+      // Declared before /leaderboard/:agentId so `contests` is never read as
+      // an agent id. An agent screen, so a plain builder like /today.
+      GoRoute(
+        path: '/leaderboard/contests',
+        builder: (context, state) => const MyContestsScreen(),
       ),
       // Drill-down from a leaderboard row (#124). A sibling route, not a menu
       // destination: the rail keeps Leaderboard selected under /leaderboard/.

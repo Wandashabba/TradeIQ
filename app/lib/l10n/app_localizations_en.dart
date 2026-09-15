@@ -1311,4 +1311,85 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get locationStopCancel => 'Keep sharing';
+
+  @override
+  String get contestsTitle => 'Contests';
+
+  @override
+  String get contestsSubtitle => 'Earn points, climb the standings';
+
+  @override
+  String get contestsActiveHeading => 'Running now';
+
+  @override
+  String get contestsEndedHeading => 'Recently ended';
+
+  @override
+  String contestDaysLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days left',
+      one: '1 day left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get contestEnded => 'Ended';
+
+  @override
+  String contestDateRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
+  String get contestPrizeLabel => 'Prize';
+
+  @override
+  String get contestCountsLabel => 'What counts';
+
+  @override
+  String get contestEventAll => 'All points';
+
+  @override
+  String get contestEventVisitSubmitted => 'Submitted visits';
+
+  @override
+  String get contestEventTaskClosed => 'Closed tasks';
+
+  @override
+  String get contestEventScorecard => 'Scorecards';
+
+  @override
+  String contestYourRank(int rank, int total) {
+    return 'Your rank: $rank of $total';
+  }
+
+  @override
+  String contestPoints(String points) {
+    return '$points pts';
+  }
+
+  @override
+  String get contestNotRanked => 'You’re not on this contest’s standings';
+
+  @override
+  String get contestStandingsHeading => 'Standings';
+
+  @override
+  String get contestYouTag => 'You';
+
+  @override
+  String get contestsEmptyTitle => 'No contests right now';
+
+  @override
+  String get contestsEmptyBody =>
+      'When your manager starts a contest, it shows up here.';
+
+  @override
+  String get contestsLoadError => 'Couldn’t load contests';
+
+  @override
+  String get contestsRetry => 'Try again';
 }

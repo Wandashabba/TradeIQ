@@ -1326,4 +1326,86 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get locationStopCancel => 'Hou aan om te deel';
+
+  @override
+  String get contestsTitle => 'Kompetisies';
+
+  @override
+  String get contestsSubtitle => 'Verdien punte, klim op die ranglys';
+
+  @override
+  String get contestsActiveHeading => 'Loop nou';
+
+  @override
+  String get contestsEndedHeading => 'Onlangs afgeloop';
+
+  @override
+  String contestDaysLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Nog $count dae',
+      one: 'Nog 1 dag',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get contestEnded => 'Afgeloop';
+
+  @override
+  String contestDateRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
+  String get contestPrizeLabel => 'Prys';
+
+  @override
+  String get contestCountsLabel => 'Wat tel';
+
+  @override
+  String get contestEventAll => 'Alle punte';
+
+  @override
+  String get contestEventVisitSubmitted => 'Ingediende besoeke';
+
+  @override
+  String get contestEventTaskClosed => 'Afgehandelde take';
+
+  @override
+  String get contestEventScorecard => 'Telkaarte';
+
+  @override
+  String contestYourRank(int rank, int total) {
+    return 'Jou posisie: $rank van $total';
+  }
+
+  @override
+  String contestPoints(String points) {
+    return '$points punte';
+  }
+
+  @override
+  String get contestNotRanked =>
+      'Jy is nie op hierdie kompetisie se ranglys nie';
+
+  @override
+  String get contestStandingsHeading => 'Ranglys';
+
+  @override
+  String get contestYouTag => 'Jy';
+
+  @override
+  String get contestsEmptyTitle => 'Tans geen kompetisies nie';
+
+  @override
+  String get contestsEmptyBody =>
+      'Wanneer jou bestuurder ’n kompetisie begin, verskyn dit hier.';
+
+  @override
+  String get contestsLoadError => 'Kon nie kompetisies laai nie';
+
+  @override
+  String get contestsRetry => 'Probeer weer';
 }

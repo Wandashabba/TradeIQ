@@ -72,6 +72,7 @@ model Client {
   locationPings      AgentLocationPing[]
   agentDaySummaries  AgentDaySummary[]
   locationConsents   LocationConsent[]
+  contests           Contest[]
 
   /// The audit template whose questions field agents answer on every visit, as
   /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
@@ -116,6 +117,7 @@ model User {
   locationPings    AgentLocationPing[]
   daySummaries     AgentDaySummary[]
   locationConsents LocationConsent[]
+  contestsCreated  Contest[]           @relation("ContestCreator")
 
   @@index([clientId, role])
   @@map("users")
@@ -465,6 +467,7 @@ model Territory {
   createdAt   DateTime        @default(now()) @map("created_at")
   assignments UserTerritory[]
   beatPlans   BeatPlan[]
+  contests    Contest[]
 
   @@unique([clientId, code])
   @@map("territories")
@@ -1137,4 +1140,42 @@ model LocationConsent {
 
   @@index([clientId, agentId, createdAt])
   @@map("location_consents")
+}
+
+/// A time-boxed competition over the points ledger (#124): agents ranked by
+/// the points they earn between two dates, for a prize.
+///
+/// `startDate` / `endDate` are calendar dates, inclusive, counted in
+/// Client.timezone — the campaign window rules (#324, campaignWindow.ts).
+///
+/// Status is not stored. It is computed from the dates and the client's
+/// "today": upcoming, active or ended — or cancelled once `cancelledAt` is set,
+/// which hides the contest from agents.
+///
+/// `territoryId` scopes the contest to agents assigned to that territory.
+/// `eventTypes` lists the ledger reasons that count; empty means all of them.
+/// See src/modules/contests/contestStandings.ts for the ranking rules.
+model Contest {
+  id               String     @id @default(uuid())
+  clientId         String     @map("client_id")
+  client           Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name             String
+  description      String?
+  /// Free text: what the winner gets.
+  prizeDescription String?    @map("prize_description")
+  startDate        DateTime   @map("start_date") @db.Date
+  endDate          DateTime   @map("end_date") @db.Date
+  territoryId      String?    @map("territory_id")
+  /// Restrict: deleting a territory must not silently widen its contests to
+  /// the whole client.
+  territory        Territory? @relation(fields: [territoryId], references: [id], onDelete: Restrict)
+  eventTypes       String[]   @default([]) @map("event_types")
+  createdById      String     @map("created_by_id")
+  createdBy        User       @relation("ContestCreator", fields: [createdById], references: [id])
+  cancelledAt      DateTime?  @map("cancelled_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  @@index([clientId, endDate])
+  @@map("contests")
 }
