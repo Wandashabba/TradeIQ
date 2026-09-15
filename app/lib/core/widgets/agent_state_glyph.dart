@@ -293,20 +293,27 @@ class _DashedRingPainter extends _GlyphPainter {
 /// which requires this to be reachable without reaching into a private
 /// library. Returns the same `Type` [_painterFor] would build a painter of,
 /// for a given [state].
-Type glyphPainterTypeFor(AgentState state) => _painterFor(state, const Color(0xFF000000)).runtimeType;
+Type glyphPainterTypeFor(AgentState state) =>
+    _painterFor(state, const Color(0xFF000000)).runtimeType;
 
-/// The glyph for a LIVE location state (#153 T1): four states, four
+/// The glyph for a LIVE location state (#153 T1): six states, six
 /// silhouettes, so the live layer survives greyscale and colour-blindness
 /// exactly as the check-in states do (#144).
 ///
 /// At store and in transit reuse the check-in glyphs on purpose — they mean
-/// the same thing, now observed by a heartbeat rather than a check-in. The two
-/// new states get shapes nothing else uses:
+/// the same thing, now observed by a heartbeat rather than a check-in. The
+/// other states get shapes nothing else uses:
 ///
+///  * **near store** — a hollow map pin standing in a dashed ring: a place,
+///    but only to within the ring. Deliberately NOT the storefront (that
+///    would claim "in the store") and not the chevrons (the agent is not
+///    moving between stores).
 ///  * **stale** — an hourglass: the position is there, but time has run on it.
 ///  * **offline** — a ring struck through: nothing is coming in.
+///  * **not sharing** — a padlock: the agent chose to keep it private. No
+///    slash, so it cannot be mistaken for offline's struck ring.
 ///
-/// Neither reuses the hollow dashed ring of the check-in `idle` state, which
+/// None reuses the hollow dashed ring of the check-in `idle` state, which
 /// means something different ("no check-in today").
 class LiveAgentStateGlyph extends StatelessWidget {
   const LiveAgentStateGlyph({
@@ -331,10 +338,102 @@ class LiveAgentStateGlyph extends StatelessWidget {
 CustomPainter _livePainterFor(LiveAgentState state, Color color) =>
     switch (state) {
       LiveAgentState.atStore => _StorefrontPainter(color),
+      LiveAgentState.nearStore => _ApproximatePinPainter(color),
       LiveAgentState.inTransit => _ChevronTrailPainter(color),
       LiveAgentState.stale => _HourglassPainter(color),
       LiveAgentState.offline => _StruckRingPainter(color),
+      LiveAgentState.notSharing => _PadlockPainter(color),
     };
+
+/// Near store: a hollow map pin whose tip stands in the middle of a dashed
+/// ring — "around here", the ring being the GPS uncertainty.
+class _ApproximatePinPainter extends _GlyphPainter {
+  const _ApproximatePinPainter(super.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.1, w * 0.1)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // The dashed uncertainty ring, flattened like a patch of ground.
+    final ring = Rect.fromCenter(
+      center: Offset(w * 0.5, h * 0.80),
+      width: w * 0.88,
+      height: h * 0.30,
+    );
+    const dashes = 6;
+    final perDash = (2 * math.pi) / dashes;
+    for (var i = 0; i < dashes; i++) {
+      canvas.drawArc(ring, i * perDash, perDash * 0.55, false, stroke);
+    }
+
+    // The pin: a round head tapering to a tip at the ring's centre.
+    final head = Offset(w * 0.5, h * 0.32);
+    final r = w * 0.21;
+    final pin = Path()
+      ..moveTo(w * 0.5, h * 0.78)
+      ..lineTo(
+        head.dx + r * math.cos(5 * math.pi / 6),
+        head.dy + r * math.sin(5 * math.pi / 6),
+      )
+      ..arcTo(
+        Rect.fromCircle(center: head, radius: r),
+        5 * math.pi / 6,
+        4 * math.pi / 3,
+        false,
+      )
+      ..close();
+    canvas.drawPath(pin, stroke);
+  }
+}
+
+/// Not sharing: a padlock — a stroked shackle over a solid body.
+class _PadlockPainter extends _GlyphPainter {
+  const _PadlockPainter(super.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.2, w * 0.11)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final shackleCentre = Offset(w * 0.5, h * 0.36);
+    final shackleRadius = w * 0.2;
+    final shackle = Path()
+      ..moveTo(w * 0.3, h * 0.50)
+      ..lineTo(w * 0.3, shackleCentre.dy)
+      ..arcTo(
+        Rect.fromCircle(center: shackleCentre, radius: shackleRadius),
+        math.pi,
+        math.pi,
+        false,
+      )
+      ..lineTo(w * 0.7, h * 0.50);
+    canvas.drawPath(shackle, stroke);
+
+    canvas.drawRRect(
+      RRect.fromLTRBR(
+        w * 0.18,
+        h * 0.48,
+        w * 0.82,
+        h * 0.90,
+        Radius.circular(w * 0.08),
+      ),
+      Paint()..color = color,
+    );
+  }
+}
 
 /// Stale: an hourglass — two stroked triangles meeting at the waist, capped
 /// top and bottom.
@@ -398,6 +497,6 @@ class _StruckRingPainter extends _GlyphPainter {
 }
 
 /// The painter type [LiveAgentStateGlyph] draws for [state], so a test can
-/// prove the four states differ by SHAPE rather than colour.
+/// prove the six states differ by SHAPE rather than colour.
 Type livePainterTypeFor(LiveAgentState state) =>
     _livePainterFor(state, const Color(0xFF000000)).runtimeType;

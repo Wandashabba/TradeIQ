@@ -2,39 +2,62 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { personLabel } from '../../lib/personName';
 import {
+  LOCATION_NOTICE_VERSION,
+  MAX_AT_STORE_ACCURACY_M,
   OFFLINE_AFTER_SECONDS,
+  confirmsStore,
   pingIntervalSeconds,
   staleAfterSeconds,
 } from '../locations/locationPolicy';
 import { containingOutlet, outletsNear } from '../locations/outletFence';
 
 /**
- * Four states, now that a heartbeat exists. T0 (`agents.service.ts`) had three
- * and deliberately no `offline`, because without a heartbeat it could not tell
- * a phone that is off from an agent between stores. A foreground heartbeat can:
- * pings stop.
+ * Six states. T0 (`agents.service.ts`) had three and deliberately no `offline`,
+ * because without a heartbeat it could not tell a phone that is off from an
+ * agent between stores. A foreground heartbeat can: pings stop.
+ *
+ * Added after product review on #153:
+ * - `near_store` — a fresh ping inside an outlet fence whose GPS accuracy is
+ *   too poor (or unknown) to say the agent is IN the store
+ *   (`MAX_AT_STORE_ACCURACY_M`).
+ * - `not_sharing` — the agent's latest answer to the CURRENT location notice is
+ *   `declined`. Distinct from `offline`, which also covers an agent who never
+ *   answered at all.
  */
-export type LiveAgentState = 'at_store' | 'in_transit' | 'stale' | 'offline';
+export type LiveAgentState = 'at_store' | 'near_store' | 'in_transit' | 'stale' | 'offline' | 'not_sharing';
 
 export interface DeriveLiveStateInput {
   /** Seconds since the latest ping was recorded; null if there has never been one. */
   ageSeconds: number | null;
   /** Whether the latest ping sits inside an outlet geofence. */
   insideOutlet: boolean;
+  /** The latest ping's horizontal accuracy in metres; null when the platform gave none. */
+  accuracyM: number | null;
   intervalSeconds: number;
+  /** The agent's latest answer to the current notice is `declined`. */
+  declined: boolean;
 }
 
 /**
- * Age decides first, place second. A position is only described as "at a
- * store" or "in transit" while it is recent enough to be where the agent IS —
- * an old ping inside a store fence is stale, not at_store, because risk 2 on
- * #153 is exactly a marker that reads live when it is 40 minutes old.
+ * In order, first match wins:
+ * 1. **Declined → not_sharing**, whatever pings exist. A manager must not read
+ *    an agent who said no as merely offline, nor see a pre-decline ping as live.
+ * 2. **Age** — never shared, or older than `OFFLINE_AFTER_SECONDS` → offline;
+ *    older than `staleAfterSeconds` → stale. A position is only described by
+ *    place while it is recent enough to be where the agent IS — an old ping
+ *    inside a store fence is stale, not at_store, because risk 2 on #153 is
+ *    exactly a marker that reads live when it is 40 minutes old.
+ * 3. **Place** — outside every fence → in_transit; inside one with accuracy
+ *    that confirms it (`confirmsStore`) → at_store; inside one otherwise →
+ *    near_store.
  */
 export function deriveLiveState(input: DeriveLiveStateInput): LiveAgentState {
   const { ageSeconds } = input;
+  if (input.declined) return 'not_sharing';
   if (ageSeconds === null || ageSeconds > OFFLINE_AFTER_SECONDS) return 'offline';
   if (ageSeconds > staleAfterSeconds(input.intervalSeconds)) return 'stale';
-  return input.insideOutlet ? 'at_store' : 'in_transit';
+  if (!input.insideOutlet) return 'in_transit';
+  return confirmsStore(input.accuracyM) ? 'at_store' : 'near_store';
 }
 
 export interface AgentLocation {
@@ -43,9 +66,14 @@ export interface AgentLocation {
   displayName: string | null;
   email: string;
   state: LiveAgentState;
-  /** The newest ping by `recordedAt`, or null if the agent has never shared. */
+  /**
+   * The newest ping by `recordedAt`, or null if the agent has never shared.
+   * Always null for `not_sharing`: the stored pings are kept under normal
+   * retention, but a map that kept pinning a declined agent's last position
+   * would go on showing where they are after they said no.
+   */
   lastPing: { lat: number; lng: number; accuracyM: number | null; recordedAt: Date } | null;
-  /** Whole seconds between `lastPing.recordedAt` and `serverTime`; never negative. */
+  /** Whole seconds between `lastPing.recordedAt` and `serverTime`; never negative. Null when `lastPing` is. */
   ageSeconds: number | null;
   /** Set only when `state` is `at_store`. */
   currentOutlet: { id: string; name: string } | null;
@@ -53,7 +81,9 @@ export interface AgentLocation {
    * The best-known last store and where that knowledge came from: the latest
    * ping's fence (`ping`) when it was inside one, otherwise the latest
    * confirmed check-in (`check_in`). The source is named so a client never
-   * presents a check-in from this morning as a live reading.
+   * presents a check-in from this morning as a live reading. For `near_store`
+   * this is the fence the ping fell in; for `not_sharing` only a check-in is
+   * ever given.
    */
   lastOutlet: { id: string; name: string; at: Date; source: 'ping' | 'check_in' } | null;
 }
@@ -72,6 +102,8 @@ export interface AgentLocationsPage {
   intervalSeconds: number;
   staleAfterSeconds: number;
   offlineAfterSeconds: number;
+  /** The worst accuracy a ping may have and still read `at_store`. */
+  maxAtStoreAccuracyM: number;
   data: AgentLocation[];
   nextCursor: string | null;
 }
@@ -89,6 +121,11 @@ interface LatestVisitRow {
   outletId: string;
   outletName: string;
   checkinTs: Date;
+}
+
+interface LatestConsentRow {
+  agentId: string;
+  decision: string;
 }
 
 /**
@@ -109,6 +146,7 @@ export async function listAgentLocations(input: ListAgentLocationsInput): Promis
     intervalSeconds,
     staleAfterSeconds: staleAfterSeconds(intervalSeconds),
     offlineAfterSeconds: OFFLINE_AFTER_SECONDS,
+    maxAtStoreAccuracyM: MAX_AT_STORE_ACCURACY_M,
   };
 
   let agentIdFilter: string[] | undefined;
@@ -142,7 +180,7 @@ export async function listAgentLocations(input: ListAgentLocationsInput): Promis
   const ids = Prisma.join(page.map((a) => a.id));
   // DISTINCT ON walks the (client_id, agent_id, recorded_at) index backwards:
   // one row per agent, newest by RECORDED time — never by arrival.
-  const [latestPings, latestVisits] = await Promise.all([
+  const [latestPings, latestVisits, latestConsents] = await Promise.all([
     prisma.$queryRaw<LatestPingRow[]>`
       SELECT DISTINCT ON (agent_id)
         agent_id AS "agentId", lat, lng, accuracy_m AS "accuracyM", recorded_at AS "recordedAt"
@@ -156,11 +194,21 @@ export async function listAgentLocations(input: ListAgentLocationsInput): Promis
       JOIN outlets o ON o.id = v.outlet_id
       WHERE v.client_id = ${clientId} AND v.agent_id IN (${ids})
       ORDER BY v.agent_id, v.checkin_ts DESC, v.id DESC`,
+    // The latest answer to the CURRENT notice, ordered as `currentConsent`
+    // (locations.service.ts) orders it, so the map and the ingest gate agree.
+    prisma.$queryRaw<LatestConsentRow[]>`
+      SELECT DISTINCT ON (agent_id) agent_id AS "agentId", decision
+      FROM location_consents
+      WHERE client_id = ${clientId} AND agent_id IN (${ids}) AND notice_version = ${LOCATION_NOTICE_VERSION}
+      ORDER BY agent_id, created_at DESC, id DESC`,
   ]);
 
-  const pingByAgent = new Map(latestPings.map((p) => [p.agentId, p]));
+  const declined = new Set(latestConsents.filter((c) => c.decision === 'declined').map((c) => c.agentId));
+  // A declined agent's pings are never shown, so they are not matched to fences either.
+  const shownPings = latestPings.filter((p) => !declined.has(p.agentId));
+  const pingByAgent = new Map(shownPings.map((p) => [p.agentId, p]));
   const visitByAgent = new Map(latestVisits.map((v) => [v.agentId, v]));
-  const outlets = await outletsNear(clientId, latestPings);
+  const outlets = await outletsNear(clientId, shownPings);
 
   return {
     ...envelope,
@@ -172,7 +220,13 @@ export async function listAgentLocations(input: ListAgentLocationsInput): Promis
       const ageSeconds = ping
         ? Math.max(0, Math.floor((serverTime.getTime() - ping.recordedAt.getTime()) / 1000))
         : null;
-      const state = deriveLiveState({ ageSeconds, insideOutlet: fence !== null, intervalSeconds });
+      const state = deriveLiveState({
+        ageSeconds,
+        insideOutlet: fence !== null,
+        accuracyM: ping?.accuracyM ?? null,
+        intervalSeconds,
+        declined: declined.has(agent.id),
+      });
 
       let lastOutlet: AgentLocation['lastOutlet'] = null;
       if (fence && ping) {

@@ -1966,11 +1966,17 @@ paths:
     get:
       summary: Each field agent's latest foreground location, age and live state — manager/admin (#153 T1)
       description: >
-        Paged by agent (limit default 50, max 200). States: at_store (fresh ping
-        inside an outlet's 50m check-in geofence), in_transit (fresh ping outside
-        every fence), stale (older than staleAfterSeconds = max(300, 3 ×
-        intervalSeconds)), offline (older than offlineAfterSeconds = 1800, or never
-        shared). Age decides before place. ageSeconds is measured against serverTime.
+        Paged by agent (limit default 50, max 200). States, first match wins:
+        not_sharing (the agent's latest answer to the current location notice is
+        declined — takes precedence over any stored ping, and lastPing/ageSeconds
+        are then null); offline (older than offlineAfterSeconds = 1800, or never
+        shared, including an agent who never answered the notice); stale (older
+        than staleAfterSeconds = max(300, 3 × intervalSeconds)); in_transit (fresh
+        ping outside every fence); at_store (fresh ping inside an outlet's 50m
+        check-in geofence with accuracyM not null and ≤ maxAtStoreAccuracyM = 100);
+        near_store (fresh ping inside a fence whose accuracyM is null or above
+        maxAtStoreAccuracyM — lastOutlet names the fence). Age decides before
+        place. ageSeconds is measured against serverTime.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: territoryId, in: query, schema: { type: string }, description: A Territory.id; restricts to agents assigned to it }
@@ -1988,6 +1994,7 @@ paths:
                   intervalSeconds: { type: integer }
                   staleAfterSeconds: { type: integer }
                   offlineAfterSeconds: { type: integer }
+                  maxAtStoreAccuracyM: { type: integer, description: 'The worst GPS accuracy, in metres, at which a ping inside a fence reads at_store' }
                   nextCursor: { type: string, nullable: true }
                   data:
                     type: array
@@ -1998,10 +2005,11 @@ paths:
                         name: { type: string, description: 'displayName, else email' }
                         displayName: { $ref: '#/components/schemas/DisplayName' }
                         email: { type: string }
-                        state: { type: string, enum: [at_store, in_transit, stale, offline] }
+                        state: { type: string, enum: [at_store, near_store, in_transit, stale, offline, not_sharing] }
                         lastPing:
                           type: object
                           nullable: true
+                          description: Null when the agent has never shared, and always null for not_sharing.
                           properties:
                             lat: { type: number }
                             lng: { type: number }
@@ -2021,6 +2029,7 @@ paths:
                           description: >
                             The latest ping's fence (source ping) when it was inside
                             one, otherwise the latest confirmed check-in (source check_in).
+                            For not_sharing, only a check-in is ever given.
                           properties:
                             id: { type: string }
                             name: { type: string }

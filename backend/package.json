@@ -21,7 +21,8 @@
     "backfill-points-ledger": "ts-node scripts/backfill-points-ledger.ts",
     "rescore-fraud": "ts-node scripts/rescore-fraud.ts",
     "prune-location-pings": "ts-node scripts/prune-location-pings.ts",
-    "cleanup-orphan-attachment-photos": "ts-node scripts/cleanup-orphan-attachment-photos.ts"
+    "cleanup-orphan-attachment-photos": "ts-node scripts/cleanup-orphan-attachment-photos.ts",
+    "rotate-demo-passwords": "ts-node scripts/rotate-demo-passwords.ts"
   },
   "keywords": [],
   "author": "",

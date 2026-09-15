@@ -38,13 +38,17 @@ export function pingIntervalSeconds(kpiThresholds: unknown): number {
 }
 
 // ── Live-map states ──────────────────────────────────────────────────────────
+//
+// Product-confirmed on #153 (2026-09-15): stale = max(5 min, 3 missed
+// intervals), offline = 30 min. The reasoning below is why they were proposed;
+// the numbers are no longer an open question.
 
 /**
  * A ping is stale once this many intervals have passed without a newer one.
  * One missed ping is ordinary — a slow GPS fix, a lift, a basement stockroom —
  * and flagging it would make "stale" noise a manager learns to ignore (the
  * open question T0 left on #153). Three in a row means the position on screen
- * is no longer where the agent is.
+ * is no longer where the agent is. Product-confirmed.
  */
 export const STALE_AFTER_MISSED_PINGS = 3;
 
@@ -52,6 +56,7 @@ export const STALE_AFTER_MISSED_PINGS = 3;
  * Never call a ping stale sooner than this, whatever the interval. At the
  * one-minute floor, three missed pings is three minutes — shorter than a slow
  * outbox flush on 2G, so the map would flicker stale for agents who are fine.
+ * Product-confirmed.
  */
 export const MIN_STALE_AFTER_SECONDS = 5 * 60;
 
@@ -62,11 +67,37 @@ export const MIN_STALE_AFTER_SECONDS = 5 * 60;
  * them apart, and "offline" claims neither. Thirty minutes is well past any
  * plausible run of missed foreground pings (the stale band), so an agent who
  * reaches it has stopped sharing rather than lost signal for a moment.
+ * Product-confirmed.
  */
 export const OFFLINE_AFTER_SECONDS = 30 * 60;
 
 export function staleAfterSeconds(intervalSeconds: number): number {
   return Math.max(MIN_STALE_AFTER_SECONDS, STALE_AFTER_MISSED_PINGS * intervalSeconds);
+}
+
+/**
+ * The worst GPS accuracy (metres, the platform's horizontal estimate) at which
+ * a ping inside an outlet fence is trusted to mean the agent is IN that store.
+ * Product decision on #153 (2026-09-15).
+ *
+ * The check-in fence is only 50m. Indoors, where agents spend their day, phones
+ * fall back to Wi-Fi and cell positioning with estimates of hundreds of metres,
+ * and those fixes routinely land inside the fence of a store the agent is only
+ * driving past or parked beside. At 100m — two fence radii — the fix puts the
+ * agent in or right beside that store; past it, "at store" would be a claim the
+ * reading cannot support, so the map says "near" instead. A ping with no
+ * estimate at all has nothing vouching for it and is treated the same way.
+ */
+export const MAX_AT_STORE_ACCURACY_M = 100;
+
+/**
+ * Whether a ping is precise enough to place the agent IN the outlet whose fence
+ * it falls in. One rule for the live map (`at_store` vs `near_store`) and for
+ * the stops retention writes into `AgentDaySummary`, so the two never disagree
+ * about what counted as being at a store.
+ */
+export function confirmsStore(accuracyM: number | null): boolean {
+  return accuracyM !== null && accuracyM <= MAX_AT_STORE_ACCURACY_M;
 }
 
 // ── Ingest bounds ────────────────────────────────────────────────────────────

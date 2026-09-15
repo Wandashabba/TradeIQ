@@ -16,6 +16,7 @@ import {
 import { buildComms } from './comms';
 import { ALERT_RULE_IDS, buildOps } from './ops';
 import { SECTION_TINTS, demoPhotoDataUrl } from './photos';
+import { resolveSeedPassword } from './password';
 import { resetDemoData } from './reset';
 import { buildVisitHistory } from './visits';
 
@@ -29,6 +30,10 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     );
   }
 
+  // Resolved before anything is deleted: a production seed without its own
+  // password must fail while the existing data is still intact (#160).
+  const seedPassword = resolveSeedPassword();
+
   const anchor = startOfUtcDay(new Date());
   const home = homeCoordinates();
   const outlets = buildOutlets(home);
@@ -36,7 +41,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
 
   // Hash once: bcrypt at cost 10 is deliberately slow, and all demo accounts
   // share a password.
-  const passwordHash = await hashPassword(DEMO_PASSWORD);
+  const passwordHash = await hashPassword(seedPassword.password);
 
   const [visibilityPhoto, pricingPhoto, competitivePhoto, closurePhoto] = await Promise.all([
     demoPhotoDataUrl(SECTION_TINTS.visibility!),
@@ -408,7 +413,9 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     [
       `Seeded ${'Kalahari Beverages'} — ${HISTORY_WEEKS} weeks of history ending today`,
       `sign in with any of: ${USERS.map((u) => u.email).join(', ')}`,
-      `password: ${DEMO_PASSWORD}`,
+      // Only the published default is printed. A supplied SEED_DEMO_PASSWORD is
+      // a real secret and does not belong in a terminal or a deploy log.
+      `password: ${seedPassword.isWellKnownDefault ? DEMO_PASSWORD : '(from SEED_DEMO_PASSWORD, not printed)'}`,
       `${outlets.length} outlets, ${SKUS.length} SKUs, ${visits.length} visits`,
       `${ops.tasks.length} tasks (${openTasks} open), ${ops.alerts.length} alerts (${openAlerts} unacknowledged)`,
       `${comms.messages.length} messages, ${comms.announcements.length} announcements`,
