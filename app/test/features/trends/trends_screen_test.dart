@@ -32,6 +32,17 @@ class _FakeTrendsRepository implements TrendsRepository {
 
   @override
   Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => _points;
+
+  @override
+  Future<TerritoryBenchmarkReport> benchmark(
+    BenchmarkMetric metric, [
+    TrendQuery query = const TrendQuery(),
+  ]) async => TerritoryBenchmarkReport(
+    metric: metric,
+    isPercent: false,
+    client: const BenchmarkSeries(average: null, count: 0, points: []),
+    territories: const [],
+  );
 }
 
 class _ThrowingTrendsRepository implements TrendsRepository {
@@ -43,6 +54,12 @@ class _ThrowingTrendsRepository implements TrendsRepository {
 
   @override
   Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
+
+  @override
+  Future<TerritoryBenchmarkReport> benchmark(
+    BenchmarkMetric metric, [
+    TrendQuery query = const TrendQuery(),
+  ]) async => throw Exception('boom');
 }
 
 Widget _app(TrendsRepository repo, {ThemeData? theme}) => routedApp(
