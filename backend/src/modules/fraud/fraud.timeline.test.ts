@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import {
   CAPTURE_TIMELINE_TOLERANCE_MINUTES_KEY,
   captureTimelineToleranceMs,
@@ -60,12 +61,17 @@ describe('capture_timeline_gap (#246)', () => {
   });
 
   const codes = (v: FraudVisitInput, photos: FraudPhotoInput[], kpi?: unknown) =>
-    computeFraudSignals(v, related(photos), kpi).signals.map((s) => s.code);
+    computeFraudSignals(v, related(photos), kpi, DEFAULT_CLIENT_TIME_ZONE).signals.map((s) => s.code);
 
   describe('fires outside the tolerance', () => {
     it('flags a shelf photo taken hours after the visit was submitted (device clock)', () => {
       // The issue's own example: counts at ~09:10, photo at 13:50.
-      const result = computeFraudSignals(visit(), related([photo(5), photo(SUBMIT_MINUTES + 270)]));
+      const result = computeFraudSignals(
+        visit(),
+        related([photo(5), photo(SUBMIT_MINUTES + 270)]),
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
+      );
 
       expect(result.signals.map((s) => s.code)).toEqual(['capture_timeline_gap']);
       expect(result.riskScore).toBe(15);
@@ -76,7 +82,7 @@ describe('capture_timeline_gap (#246)', () => {
     });
 
     it('flags a shelf photo taken before the agent checked in', () => {
-      const result = computeFraudSignals(visit(), related([photo(-20)]));
+      const result = computeFraudSignals(visit(), related([photo(-20)]), {}, DEFAULT_CLIENT_TIME_ZONE);
 
       expect(result.signals.map((s) => s.code)).toEqual(['capture_timeline_gap']);
       expect(result.signals[0].detail).toContain('20 min before check-in');
@@ -86,6 +92,8 @@ describe('capture_timeline_gap (#246)', () => {
       const result = computeFraudSignals(
         visit(),
         related([photo(-40), photo(SUBMIT_MINUTES + 90), photo(10)]),
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
       );
 
       expect(result.signals[0].detail).toContain('2 photo(s) taken outside the visit');
@@ -134,7 +142,12 @@ describe('capture_timeline_gap (#246)', () => {
     });
 
     it('leaves a visit with no counts to no_capture, which already says the stronger thing', () => {
-      const result = computeFraudSignals(visit(), { ...related([late]), sectionCreatedAts: [] });
+      const result = computeFraudSignals(
+        visit(),
+        { ...related([late]), sectionCreatedAts: [] },
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
+      );
       expect(result.signals.map((s) => s.code)).toEqual(['no_capture']);
     });
 
@@ -150,7 +163,12 @@ describe('capture_timeline_gap (#246)', () => {
 
     it('ignores the server clock entirely: a late sync alone is not a gap', () => {
       // Every photo in the device window; the stock rows landed 8.5h later.
-      expect(computeFraudSignals(visit(), related([photo(5)])).signals).toEqual([]);
+      expect(computeFraudSignals(
+        visit(),
+        related([photo(5)]),
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
+      ).signals).toEqual([]);
     });
   });
 
@@ -167,7 +185,7 @@ describe('capture_timeline_gap (#246)', () => {
       // The detail names the tolerance actually applied.
       const [signal] = computeFraudSignals(visit(), related(tenAfter), {
         captureTimelineToleranceMinutes: 5,
-      }).signals;
+      }, DEFAULT_CLIENT_TIME_ZONE).signals;
       expect(signal.detail).toContain('beyond the 5 min tolerance');
     });
 
@@ -199,6 +217,8 @@ describe('capture_timeline_gap (#246)', () => {
       const result = computeFraudSignals(
         visit(),
         related([photo(5), photo(SUBMIT_MINUTES + 270, { gpsTag: FAR_AWAY })]),
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
       );
 
       expect(result.signals.map((s) => s.code)).toEqual([
@@ -216,6 +236,8 @@ describe('capture_timeline_gap (#246)', () => {
       const result = computeFraudSignals(
         visit(),
         related([photo(5, { gpsTag: FAR_AWAY }), photo(SUBMIT_MINUTES + 270)]),
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
       );
 
       expect(result.signals.map((s) => s.code)).toEqual([
@@ -230,6 +252,8 @@ describe('capture_timeline_gap (#246)', () => {
       const result = computeFraudSignals(
         visit(),
         related([photo(-60, { gpsTag: FAR_AWAY }), photo(SUBMIT_MINUTES + 60)]),
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
       );
       expect(result.riskScore).toBe(25 + 15);
     });
@@ -239,6 +263,8 @@ describe('capture_timeline_gap (#246)', () => {
       const slow = computeFraudSignals(
         visit({ submittedAtClient: minutesAfter(90) }),
         related([photo(90 + 120)]),
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
       );
       expect(slow.signals.map((s) => s.code)).toEqual(['slow_completion', 'capture_timeline_gap']);
       expect(slow.riskScore).toBe(10 + 15);
@@ -248,6 +274,8 @@ describe('capture_timeline_gap (#246)', () => {
       const fast = computeFraudSignals(
         visit({ submittedAtClient: new Date(checkinTs.getTime() + 20_000) }),
         related([photo(-120)]),
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
       );
       expect(fast.signals.map((s) => s.code)).toEqual(['fast_completion', 'capture_timeline_gap']);
       expect(fast.riskScore).toBe(20 + 15);
@@ -255,7 +283,7 @@ describe('capture_timeline_gap (#246)', () => {
 
     it('cannot put a visit on the default review list (50) by itself, however many photos', () => {
       const many = Array.from({ length: 12 }, (_, i) => photo(SUBMIT_MINUTES + 60 * (i + 1)));
-      const result = computeFraudSignals(visit(), related(many));
+      const result = computeFraudSignals(visit(), related(many), {}, DEFAULT_CLIENT_TIME_ZONE);
       expect(result.riskScore).toBe(15);
       expect(result.riskScore).toBeLessThan(50);
     });
@@ -267,6 +295,8 @@ describe('capture_timeline_gap (#246)', () => {
           ...related([photo(SUBMIT_MINUTES + 270)]),
           failedAttempts: [{ createdAt: minutesAfter(-30) }],
         },
+        {},
+        DEFAULT_CLIENT_TIME_ZONE,
       );
       expect(result.signals.map((s) => s.code)).toEqual([
         'geofence_distance',

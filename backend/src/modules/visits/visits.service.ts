@@ -14,6 +14,7 @@ import {
 } from '../scorecards/scorecards.service';
 import { coverageStatus } from '../../services/forecast.service';
 import { kpiThreshold } from '../../lib/kpiThresholds';
+import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import { markRouteStopsVisited } from '../beatplans/beatplans.service';
 import { recordPointsBestEffort, recordVisitSubmitted } from '../gamification/pointsLedger';
 
@@ -406,7 +407,7 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
       },
       select: { createdAt: true },
     }),
-    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
+    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true, timezone: true } }),
   ]);
 
   const sectionCreatedAts: Date[] = [
@@ -431,6 +432,8 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
     },
     { photos: visit.photos, sectionCreatedAts, failedAttempts },
     client?.kpiThresholds,
+    // Resolved in the same client read as the thresholds (#325).
+    client?.timezone ?? DEFAULT_CLIENT_TIME_ZONE,
   );
 
   let score: VisitDetail['score'] = null;

@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import { GEOFENCE_RADIUS_M, haversineDistanceMeters } from '../../lib/geofence';
 import {
   computeFraudSignals,
@@ -78,7 +79,8 @@ describe('stock_outside_outlet (#248)', () => {
     ...extra,
   });
 
-  const score = (v: FraudVisitInput, r: FraudRelatedInput, kpi?: unknown) => computeFraudSignals(v, r, kpi);
+  const score = (v: FraudVisitInput, r: FraudRelatedInput, kpi?: unknown) =>
+    computeFraudSignals(v, r, kpi, DEFAULT_CLIENT_TIME_ZONE);
   const codes = (v: FraudVisitInput, r: FraudRelatedInput, kpi?: unknown) => score(v, r, kpi).signals.map((s) => s.code);
   const outsideOf = (v: FraudVisitInput, r: FraudRelatedInput, kpi?: unknown) =>
     score(v, r, kpi).signals.find((s) => s.code === 'stock_outside_outlet');
