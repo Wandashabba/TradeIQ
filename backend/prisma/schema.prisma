@@ -411,6 +411,10 @@ model Photo {
   @@index([visitId])
   @@index([clientId])
   @@index([contentHash])
+  // WITH (fastupdate = off), set by migration 20260915090000 (#311): Prisma
+  // cannot express index storage parameters. A pending list made every
+  // near-duplicate probe scan all recent uploads linearly. Recreating this
+  // index by hand must keep it.
   @@index([perceptualHashBands], type: Gin)
   @@map("photos")
 }
