@@ -805,7 +805,7 @@ computes, so these are **backend** work items.
 **Fraud signals described in the field but not implemented** (existing:
 `capture_timeline_gap`, `duplicate_photo`, `failed_attempts`,
 `fast_completion`, `geofence_distance`, `no_capture`, `photo_gps_divergence`,
-`repeating_stock_counts`, `slow_completion`):
+`repeating_stock_counts`, `slow_completion`, `stock_outside_outlet`):
 
 - [x] #244 — Duplicate photo reuse across outlets / visits → `duplicate_photo`.
       Upload stores a SHA-256 content hash and a 64-bit dHash (never compares
@@ -832,7 +832,17 @@ computes, so these are **backend** work items.
       via `kpiThresholds.fastCompletionMinutes` / `slowCompletionMinutes`
       (defaults 1 / 48 min, 4x the ~12-min benchmark); flat weight 10 so an
       idle app corroborates but never flags alone
-- [ ] #248 — Stock scanned outside its assigned outlet
+- [x] #248 — Stock scanned outside its assigned outlet → `stock_outside_outlet`.
+      Strong reading only: a photo from the visit's device window (the sitting
+      the counts were keyed in) geotagged inside another outlet of the same
+      client (≤50m, `GEOFENCE_RADIUS_M`) and clear of its own fence plus
+      `kpiThresholds.stockOutsideOutletToleranceMeters` (default 25). Flat 30;
+      20 when it is the same photo `photo_gps_divergence` scored, back to 30 when
+      a rejected check-in attempt came from inside that outlet. Never flags alone.
+      The weak reading (merely outside its own fence) is not scored: check-in is
+      inside by construction and every other position is already
+      `geofence_distance`, `photo_gps_divergence` or `failed_attempts`. One
+      bounding-box outlet lookup per call; PostGIS (#63) at scale
 
 **Product direction, not yet scoped:**
 - [ ] #249 — Macro overlay (interest rates, fuel, disposable income) →
