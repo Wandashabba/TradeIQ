@@ -407,6 +407,83 @@
   "@myWorkStateWaiting": {
     "description": "Row state word; shown upper-cased."
   },
+  "syncErrorWaitingForVisit": "Waiting for the visit to send first",
+  "@syncErrorWaitingForVisit": {
+    "description": "Why a queued capture has not sent: its visit (check-in) must reach the server first. Clears itself."
+  },
+  "syncErrorNoConnection": "No connection",
+  "@syncErrorNoConnection": {
+    "description": "Why a queued capture has not sent: no signal."
+  },
+  "syncErrorSignedOut": "Signed out — sign in again",
+  "@syncErrorSignedOut": {
+    "description": "Why a queued capture has not sent: the session ended (401/403)."
+  },
+  "syncErrorTooLarge": "Too large to send",
+  "@syncErrorTooLarge": {
+    "description": "Why a queued capture has not sent: the server refuses its size (413)."
+  },
+  "syncErrorServerProblem": "Server problem — will retry",
+  "@syncErrorServerProblem": {
+    "description": "Why a queued capture has not sent: a server error (5xx). Retried automatically."
+  },
+  "syncErrorRejected": "Rejected by the server ({status})",
+  "@syncErrorRejected": {
+    "description": "Why a queued capture has not sent: the server refused it. 'status' is the HTTP status code, e.g. 422.",
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "syncErrorCouldNotSend": "Could not send",
+  "@syncErrorCouldNotSend": {
+    "description": "Why a queued capture has not sent: any other failure."
+  },
+  "syncItemCheckIn": "Check-in",
+  "@syncItemCheckIn": {
+    "description": "Your work row label for a queued visit check-in."
+  },
+  "syncItemSubmittedVisit": "Submitted visit",
+  "@syncItemSubmittedVisit": {
+    "description": "Your work row label for a queued visit submission."
+  },
+  "syncItemStockCount": "Stock count",
+  "@syncItemStockCount": {
+    "description": "Your work row label for queued stock (S2) captures."
+  },
+  "syncItemVisibility": "Visibility & display",
+  "@syncItemVisibility": {
+    "description": "Your work row label for queued visibility & display (S3/S4) captures."
+  },
+  "syncItemPricing": "Pricing",
+  "@syncItemPricing": {
+    "description": "Your work row label for queued pricing (S5) captures."
+  },
+  "syncItemCompetitive": "Competitive",
+  "@syncItemCompetitive": {
+    "description": "Your work row label for queued competitive (S6) captures."
+  },
+  "syncItemCapability": "Team capability",
+  "@syncItemCapability": {
+    "description": "Your work row label for queued team capability (S7) captures."
+  },
+  "syncItemRisks": "Risks",
+  "@syncItemRisks": {
+    "description": "Your work row label for queued risks (S8)."
+  },
+  "syncItemActionPlan": "Action plan",
+  "@syncItemActionPlan": {
+    "description": "Your work row label for a queued action-plan task (S9)."
+  },
+  "syncItemScore": "Score",
+  "@syncItemScore": {
+    "description": "Your work row label for the queued scorecard (S10)."
+  },
+  "syncItemPhoto": "Photo",
+  "@syncItemPhoto": {
+    "description": "Your work row label for a queued section photo."
+  },
   "visitStartingTitle": "Starting visit",
   "@visitStartingTitle": {
     "description": "App bar title while the outlet list loads before check-in."

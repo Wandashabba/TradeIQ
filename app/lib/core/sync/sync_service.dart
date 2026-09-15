@@ -8,6 +8,7 @@ import '../../features/beatplans/data/today_route.dart'
     show invalidateRouteProgress;
 import '../network/api_client.dart' as api_client;
 import '../storage/local_db.dart';
+import 'sync_error.dart';
 
 abstract class QueueFlusher {
   Future<void> flush(SyncQueueItem item);
@@ -159,7 +160,9 @@ class SyncService {
             .write(
           SyncQueueItemsCompanion(
             attempts: Value(item.attempts + 1),
-            lastError: Value(_describe(e)),
+            // A code, not a sentence: the row outlives the language the agent
+            // had set when it failed. The screen words it (SyncError.message).
+            lastError: Value(SyncError.of(e).code),
             lastAttemptAt: Value(DateTime.now()),
           ),
         );
@@ -181,24 +184,6 @@ class SyncService {
         // not stop the rest of the queue sending.
       }
     }
-  }
-
-  /// A sentence an agent standing in a shop can act on — not a stack trace.
-  static String _describe(Object error) {
-    if (error is StateError) {
-      // The parent visit has not reached the server yet, so this child cannot
-      // name it. Ordinary, and self-healing on the next flush.
-      return 'Waiting for the visit to send first';
-    }
-    if (error is DioException) {
-      final status = error.response?.statusCode;
-      if (status == null) return 'No connection';
-      if (status == 401 || status == 403) return 'Signed out — sign in again';
-      if (status == 413) return 'Too large to send';
-      if (status >= 500) return 'Server problem — will retry';
-      return 'Rejected by the server ($status)';
-    }
-    return 'Could not send';
   }
 }
 

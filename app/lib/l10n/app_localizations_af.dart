@@ -380,6 +380,62 @@ class AppLocalizationsAf extends AppLocalizations {
   String get myWorkStateWaiting => 'Wag';
 
   @override
+  String get syncErrorWaitingForVisit => 'Wag dat die besoek eers gestuur word';
+
+  @override
+  String get syncErrorNoConnection => 'Geen verbinding nie';
+
+  @override
+  String get syncErrorSignedOut => 'Uitgeteken — teken weer in';
+
+  @override
+  String get syncErrorTooLarge => 'Te groot om te stuur';
+
+  @override
+  String get syncErrorServerProblem => 'Bedienerprobleem — sal weer probeer';
+
+  @override
+  String syncErrorRejected(int status) {
+    return 'Deur die bediener geweier ($status)';
+  }
+
+  @override
+  String get syncErrorCouldNotSend => 'Kon nie stuur nie';
+
+  @override
+  String get syncItemCheckIn => 'Aanmelding';
+
+  @override
+  String get syncItemSubmittedVisit => 'Ingediende besoek';
+
+  @override
+  String get syncItemStockCount => 'Voorraadtelling';
+
+  @override
+  String get syncItemVisibility => 'Sigbaarheid & uitstalling';
+
+  @override
+  String get syncItemPricing => 'Pryse';
+
+  @override
+  String get syncItemCompetitive => 'Mededinging';
+
+  @override
+  String get syncItemCapability => 'Spanvermoë';
+
+  @override
+  String get syncItemRisks => 'Risiko’s';
+
+  @override
+  String get syncItemActionPlan => 'Aksieplan';
+
+  @override
+  String get syncItemScore => 'Telling';
+
+  @override
+  String get syncItemPhoto => 'Foto';
+
+  @override
   String get visitStartingTitle => 'Besoek begin';
 
   @override

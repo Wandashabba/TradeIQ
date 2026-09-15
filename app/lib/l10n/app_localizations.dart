@@ -662,6 +662,114 @@ abstract class AppLocalizations {
   /// **'Waiting'**
   String get myWorkStateWaiting;
 
+  /// Why a queued capture has not sent: its visit (check-in) must reach the server first. Clears itself.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the visit to send first'**
+  String get syncErrorWaitingForVisit;
+
+  /// Why a queued capture has not sent: no signal.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection'**
+  String get syncErrorNoConnection;
+
+  /// Why a queued capture has not sent: the session ended (401/403).
+  ///
+  /// In en, this message translates to:
+  /// **'Signed out — sign in again'**
+  String get syncErrorSignedOut;
+
+  /// Why a queued capture has not sent: the server refuses its size (413).
+  ///
+  /// In en, this message translates to:
+  /// **'Too large to send'**
+  String get syncErrorTooLarge;
+
+  /// Why a queued capture has not sent: a server error (5xx). Retried automatically.
+  ///
+  /// In en, this message translates to:
+  /// **'Server problem — will retry'**
+  String get syncErrorServerProblem;
+
+  /// Why a queued capture has not sent: the server refused it. 'status' is the HTTP status code, e.g. 422.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected by the server ({status})'**
+  String syncErrorRejected(int status);
+
+  /// Why a queued capture has not sent: any other failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send'**
+  String get syncErrorCouldNotSend;
+
+  /// Your work row label for a queued visit check-in.
+  ///
+  /// In en, this message translates to:
+  /// **'Check-in'**
+  String get syncItemCheckIn;
+
+  /// Your work row label for a queued visit submission.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted visit'**
+  String get syncItemSubmittedVisit;
+
+  /// Your work row label for queued stock (S2) captures.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock count'**
+  String get syncItemStockCount;
+
+  /// Your work row label for queued visibility & display (S3/S4) captures.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility & display'**
+  String get syncItemVisibility;
+
+  /// Your work row label for queued pricing (S5) captures.
+  ///
+  /// In en, this message translates to:
+  /// **'Pricing'**
+  String get syncItemPricing;
+
+  /// Your work row label for queued competitive (S6) captures.
+  ///
+  /// In en, this message translates to:
+  /// **'Competitive'**
+  String get syncItemCompetitive;
+
+  /// Your work row label for queued team capability (S7) captures.
+  ///
+  /// In en, this message translates to:
+  /// **'Team capability'**
+  String get syncItemCapability;
+
+  /// Your work row label for queued risks (S8).
+  ///
+  /// In en, this message translates to:
+  /// **'Risks'**
+  String get syncItemRisks;
+
+  /// Your work row label for a queued action-plan task (S9).
+  ///
+  /// In en, this message translates to:
+  /// **'Action plan'**
+  String get syncItemActionPlan;
+
+  /// Your work row label for the queued scorecard (S10).
+  ///
+  /// In en, this message translates to:
+  /// **'Score'**
+  String get syncItemScore;
+
+  /// Your work row label for a queued section photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get syncItemPhoto;
+
   /// App bar title while the outlet list loads before check-in.
   ///
   /// In en, this message translates to:

@@ -251,7 +251,7 @@ class _Row extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.label,
+                  item.labelIn(l10n),
                   style: TextStyle(fontSize: 14, color: colors.ink1),
                 ),
                 const SizedBox(height: 2),
@@ -259,7 +259,7 @@ class _Row extends StatelessWidget {
                   // Show the reason on the rows that need a human, and the age
                   // on the ones that don't.
                   showError && item.lastError != null
-                      ? item.lastError!
+                      ? item.problemIn(l10n)!
                       : formatAgo(item.queuedAt, l10n),
                   style: TextStyle(
                     fontSize: 12,

@@ -364,6 +364,69 @@ void main() {
     },
   );
 
+  group('sync errors and item labels follow the agent’s language', () {
+    // What the outbox actually holds now: codes, plus one row written by an
+    // older build that stored the English line itself.
+    final coded = _item(
+      id: 11,
+      entityType: 'photo',
+      synced: false,
+      lastError: 'sync:tooLarge',
+    );
+    final legacy = _item(
+      id: 12,
+      entityType: 'visibility',
+      synced: false,
+      lastError: 'Rejected by the server (422)',
+    );
+    final waiting = _item(
+      id: 13,
+      entityType: 'stock',
+      synced: false,
+      lastError: 'sync:noConnection',
+    );
+    SyncStatus queue() => SyncStatus(
+      pending: [waiting, coded, legacy],
+      sent: const [],
+      needsAttention: [coded, legacy],
+    );
+
+    Widget app(Locale locale) => routedApp(
+      const MyWorkScreen(),
+      overrides: _overrides(queue()),
+      locale: locale,
+    );
+
+    testWidgets('Afrikaans', (tester) async {
+      await tester.pumpWidget(app(const Locale('af')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Foto'), findsOneWidget);
+      expect(find.text('Te groot om te stuur'), findsOneWidget);
+      expect(find.text('Sigbaarheid & uitstalling'), findsOneWidget);
+      expect(find.text('Deur die bediener geweier (422)'), findsOneWidget);
+      expect(find.text('Voorraadtelling'), findsOneWidget);
+
+      expect(find.text('Photo'), findsNothing);
+      expect(find.text('Too large to send'), findsNothing);
+      expect(find.text('Stock count'), findsNothing);
+      expect(find.textContaining('Rejected by the server'), findsNothing);
+      expect(find.textContaining('sync:'), findsNothing, reason: 'no codes');
+    });
+
+    testWidgets('English reads exactly as before', (tester) async {
+      await tester.pumpWidget(app(const Locale('en')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Photo'), findsOneWidget);
+      expect(find.text('Too large to send'), findsOneWidget);
+      expect(find.text('Visibility & display'), findsOneWidget);
+      expect(find.text('Rejected by the server (422)'), findsOneWidget);
+      expect(find.text('Stock count'), findsOneWidget);
+      expect(find.textContaining('sync:'), findsNothing, reason: 'no codes');
+    });
+  });
+
   test('no non-geometry AppColors. remain in the my-work source', () {
     final src = File(
       'lib/features/audit/presentation/my_work_screen.dart',
