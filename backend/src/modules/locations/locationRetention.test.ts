@@ -47,9 +47,10 @@ describe('location ping retention (#178)', () => {
       })
     ).id;
 
-  const addPing = (agent: TestUser, at: Date, where: { lat: number; lng: number }) =>
+  /** Accurate (10m) unless told otherwise, so a ping in a fence confirms a stop. */
+  const addPing = (agent: TestUser, at: Date, where: { lat: number; lng: number }, accuracyM: number | null = 10) =>
     prisma.agentLocationPing.create({
-      data: { clientId: agent.clientId, agentId: agent.userId, ...where, recordedAt: at, source: 'foreground' },
+      data: { clientId: agent.clientId, agentId: agent.userId, ...where, accuracyM, recordedAt: at, source: 'foreground' },
     });
 
   const summary = (agent: TestUser, day: Date) =>
@@ -90,16 +91,17 @@ describe('location ping retention (#178)', () => {
       { id: 'b', name: 'Store B', ...storeB },
     ];
     const at = (minute: number) => new Date(Date.UTC(2026, 8, 1, 8, minute));
+    const good = { accuracyM: 10 };
 
     it('folds consecutive in-fence pings into ordered stops, whatever order they arrive in', () => {
       const stops = foldStops(
         [
-          { ...storeB, recordedAt: at(30) },
-          { ...storeA, recordedAt: at(2) },
-          { ...street, recordedAt: at(15) },
-          { ...storeA, recordedAt: at(0) },
-          { ...storeB, recordedAt: at(34) },
-          { ...storeA, recordedAt: at(4) },
+          { ...storeB, ...good, recordedAt: at(30) },
+          { ...storeA, ...good, recordedAt: at(2) },
+          { ...street, ...good, recordedAt: at(15) },
+          { ...storeA, ...good, recordedAt: at(0) },
+          { ...storeB, ...good, recordedAt: at(34) },
+          { ...storeA, ...good, recordedAt: at(4) },
         ],
         outlets,
       );
@@ -112,9 +114,9 @@ describe('location ping retention (#178)', () => {
     it('treats leaving and returning to the same store as two stops', () => {
       const stops = foldStops(
         [
-          { ...storeA, recordedAt: at(0) },
-          { ...street, recordedAt: at(10) },
-          { ...storeA, recordedAt: at(20) },
+          { ...storeA, ...good, recordedAt: at(0) },
+          { ...street, ...good, recordedAt: at(10) },
+          { ...storeA, ...good, recordedAt: at(20) },
         ],
         outlets,
       );
@@ -125,7 +127,35 @@ describe('location ping retention (#178)', () => {
     });
 
     it('has no stops for a day spent outside every fence', () => {
-      expect(foldStops([{ ...street, recordedAt: at(0) }], outlets)).toEqual([]);
+      expect(foldStops([{ ...street, ...good, recordedAt: at(0) }], outlets)).toEqual([]);
+    });
+
+    describe('GPS accuracy (#153): only pings that confirm a store make stops', () => {
+      it('accuracy of exactly 100m confirms a stop; 101m and none do not', () => {
+        expect(foldStops([{ ...storeA, accuracyM: 100, recordedAt: at(0) }], outlets)).toHaveLength(1);
+        expect(foldStops([{ ...storeA, accuracyM: 101, recordedAt: at(0) }], outlets)).toEqual([]);
+        expect(foldStops([{ ...storeA, accuracyM: null, recordedAt: at(0) }], outlets)).toEqual([]);
+      });
+
+      it('a low-accuracy ping neither opens, extends nor ends a stop', () => {
+        const stops = foldStops(
+          [
+            { ...storeA, accuracyM: 12, recordedAt: at(0) },
+            // Indoors, the fix degrades: inside the fence but unconfirmed...
+            { ...storeA, accuracyM: null, recordedAt: at(2) },
+            // ...or thrown outside it. Neither ends the visit.
+            { ...street, accuracyM: 900, recordedAt: at(4) },
+            { ...storeA, accuracyM: 100, recordedAt: at(6) },
+            // Poor fixes at another store open nothing there.
+            { ...storeB, accuracyM: 250, recordedAt: at(30) },
+            { ...storeB, accuracyM: null, recordedAt: at(32) },
+          ],
+          outlets,
+        );
+        expect(stops).toEqual<StopSummary[]>([
+          { outletId: 'a', outletName: 'Store A', arrivedAt: at(0).toISOString(), leftAt: at(6).toISOString(), pingCount: 2 },
+        ]);
+      });
     });
   });
 
@@ -203,6 +233,35 @@ describe('location ping retention (#178)', () => {
       ]);
       expect(await summary(agent, dayAt(95, 0))).toMatchObject({ pingCount: 1, stops: [] });
       expect(await summary(agent, dayAt(89, 0))).toBeNull();
+    });
+
+    it('a day summary with low-accuracy pings counts them but writes no stop from them', async () => {
+      const agent = await userIn(clientId, 'field_agent');
+      // Store A: only poor or missing accuracy — never confirmed.
+      await addPing(agent, dayAt(100, 8), storeA, 250);
+      await addPing(agent, dayAt(100, 8.1), storeA, null);
+      // Store B: confirmed, with a poor fix in the middle that neither ends nor extends it.
+      await addPing(agent, dayAt(100, 9), storeB, 30);
+      await addPing(agent, dayAt(100, 9.1), storeB, 101);
+      await addPing(agent, dayAt(100, 9.2), storeB, 100);
+      // A poor fix is still the day's last ping.
+      await addPing(agent, dayAt(100, 9.5), storeB, 400);
+
+      const result = await pruneLocationPings({ now });
+
+      expect(result).toMatchObject({ agentDaysSummarised: 1, pingsDeleted: 6 });
+      const day = await summary(agent, dayAt(100, 0));
+      expect(day).toMatchObject({ pingCount: 6, firstPingAt: dayAt(100, 8), lastPingAt: dayAt(100, 9.5) });
+      expect(day!.stops).toEqual([
+        {
+          outletId: outletB,
+          outletName: 'Store B',
+          arrivedAt: dayAt(100, 9).toISOString(),
+          leftAt: dayAt(100, 9.2).toISOString(),
+          pingCount: 2,
+        },
+      ]);
+      expect(await rawCount(agent)).toBe(0);
     });
 
     it('holds the cutoff exactly: the last instant before it goes, the cutoff itself stays', async () => {
