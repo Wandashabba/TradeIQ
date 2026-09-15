@@ -20,8 +20,10 @@ import '../../features/alerts/presentation/alerts_screen.dart';
 import '../../features/territories/presentation/territories_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 import '../../features/beatplans/presentation/beatplans_screen.dart';
+import '../../features/gamification/presentation/agent_points_screen.dart';
 import '../../features/gamification/presentation/leaderboard_screen.dart';
 import '../../features/fraud/presentation/fraud_screen.dart';
+import '../../features/reports/presentation/report_schedules_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/collaboration/presentation/messages_screen.dart';
 import '../../features/users/presentation/users_screen.dart';
@@ -32,6 +34,7 @@ import '../../features/templates/presentation/template_form_screen.dart';
 import '../../features/templates/presentation/templates_screen.dart';
 import '../../features/dispatch/presentation/dispatch_screen.dart';
 import '../../features/trends/presentation/trends_screen.dart';
+import '../../features/visits/presentation/visit_detail_screen.dart';
 import '../../features/assistant/presentation/artifact_screen.dart';
 import '../../features/assistant/presentation/assistant_gate.dart';
 import '../auth/session_controller.dart';
@@ -80,6 +83,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/agents/activity',
         '/fraud',
         '/reports',
+        '/reports/schedules',
         '/users',
         '/incentives',
         '/webhooks',
@@ -95,8 +99,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Template subroutes (e.g. /audit-templates/:id/preview) are manager
       // territory too — the exact-match set above only covers the list screen.
       final isTemplatesSubroute = loc.startsWith('/audit-templates/');
+      // A visit under review (/visits/:id) is supervisory: its API is
+      // manager/admin-only, so an agent would only ever land on a 403.
+      final isVisitReview = loc.startsWith('/visits/');
       if (role == 'field_agent' &&
-          (managerOnly.contains(loc) || isTemplatesSubroute)) {
+          (managerOnly.contains(loc) || isTemplatesSubroute || isVisitReview)) {
         return '/today';
       }
       if (role != 'field_agent' && (isAuditRoute || isAgentOnly)) {
@@ -193,6 +200,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/leaderboard',
         pageBuilder: (context, state) => managerPage(const LeaderboardScreen()),
       ),
+      // Drill-down from a leaderboard row (#124). A sibling route, not a menu
+      // destination: the rail keeps Leaderboard selected under /leaderboard/.
+      GoRoute(
+        path: '/leaderboard/:agentId',
+        pageBuilder: (context, state) => managerPage(
+          AgentPointsScreen(agentId: state.pathParameters['agentId']!),
+        ),
+      ),
       GoRoute(
         path: '/fraud',
         pageBuilder: (context, state) => managerPage(const FraudScreen()),
@@ -220,6 +235,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reports',
         pageBuilder: (context, state) => managerPage(const ReportsScreen()),
+      ),
+      // Reached from the Reports top bar. A sibling route, not a menu
+      // destination: the rail keeps Reports selected under /reports/.
+      GoRoute(
+        path: '/reports/schedules',
+        pageBuilder: (context, state) =>
+            managerPage(const ReportSchedulesScreen()),
       ),
       GoRoute(
         path: '/messages',
@@ -260,6 +282,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trends',
         pageBuilder: (context, state) => managerPage(const TrendsScreen()),
+      ),
+      // One visit, for review (#208). Pushed from alerts, the fraud review and
+      // the agent trail, so the back chip returns to the list it came from.
+      GoRoute(
+        path: '/visits/:id',
+        pageBuilder: (context, state) => managerPage(
+          VisitDetailScreen(visitId: state.pathParameters['id']!),
+          key: state.pageKey,
+        ),
       ),
     ],
   );

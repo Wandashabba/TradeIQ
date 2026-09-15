@@ -27,7 +27,10 @@ export async function resetDemoData(prisma: PrismaClient, clientId: string): Pro
   await prisma.visitVisibility.deleteMany({ where: { visit: { clientId } } });
   await prisma.visitStock.deleteMany({ where: { visit: { clientId } } });
 
-  // Rows that reference visits and/or outlets.
+  // Rows that reference visits and/or outlets. Ledger entries point at visits,
+  // tasks and scorecards without a foreign key, so they would otherwise outlive
+  // them and inflate the leaderboard after a reseed.
+  await prisma.pointsLedgerEntry.deleteMany({ where: { clientId } });
   await prisma.task.deleteMany({ where: { outlet: { clientId } } });
   await prisma.order.deleteMany({ where: { clientId } });
   await prisma.alert.deleteMany({ where: { clientId } });
@@ -39,7 +42,10 @@ export async function resetDemoData(prisma: PrismaClient, clientId: string): Pro
   await prisma.beatPlan.deleteMany({ where: { clientId } });
   await prisma.campaignOutlet.deleteMany({ where: { campaign: { clientId } } });
   await prisma.campaign.deleteMany({ where: { clientId } });
+  // Message attachments cascade with their message; the photos behind them
+  // (#125) have no visit, so the visit-scoped photo delete above missed them.
   await prisma.message.deleteMany({ where: { clientId } });
+  await prisma.photo.deleteMany({ where: { clientId } });
   await prisma.announcement.deleteMany({ where: { clientId } });
 
   // Configuration.

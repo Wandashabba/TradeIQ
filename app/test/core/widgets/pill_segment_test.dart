@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/pill_segment.dart';
 
@@ -32,12 +34,14 @@ Widget _wrap(Widget child, ThemeData theme) => MaterialApp(
 void main() {
   final themes = <(String, ThemeData, TiqColors)>[
     ('light', AppTheme.light(), TiqColors.light),
-    ('dark', AppTheme.dark(), TiqColors.dark),
+    ('dark', AppTheme.dark(), TiqColors.night),
   ];
 
   group('PillSegment', () {
     for (final (name, theme, palette) in themes) {
-      testWidgets('$name active = solid brand under white', (tester) async {
+      testWidgets('$name active = the solid primary action under its ink', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           _wrap(
             PillSegment(label: 'Last 30', selected: true, onTap: () {}),
@@ -46,13 +50,14 @@ void main() {
         );
 
         final r = _read(tester);
-        expect(r.deco.color, palette.brand, reason: '$name active bg');
+        // The dark #241F47 pill by day; the bright lavender pill at night.
+        expect(r.deco.color, palette.action, reason: '$name active bg');
         expect(
           (r.deco.border! as Border).top.color,
-          palette.brand,
+          palette.action,
           reason: '$name active border',
         );
-        expect(r.text.color, Colors.white, reason: '$name active text');
+        expect(r.text.color, palette.onAction, reason: '$name active text');
       });
 
       testWidgets('$name inactive = surface1 + hairline under ink2', (
@@ -96,12 +101,21 @@ void main() {
       });
 
       testWidgets(
-        '$name self-contained AA pairs (white/brand, ink2/surface1)',
+        '$name self-contained AA pairs (ink/brand, onAction/action, '
+        'ink2/surface1)',
         (tester) async {
+          // White carries brand by day; night's pale lavender brand carries
+          // the dark action ink instead.
+          final onBrand = palette.isNight ? palette.onAction : Colors.white;
           expect(
-            contrastRatio(Colors.white, palette.brand),
+            contrastRatio(onBrand, palette.brand),
             greaterThanOrEqualTo(4.5),
-            reason: '$name white-on-brand',
+            reason: '$name ink-on-brand',
+          );
+          expect(
+            contrastRatio(palette.onAction, palette.action),
+            greaterThanOrEqualTo(4.5),
+            reason: '$name onAction-on-action',
           );
           expect(
             contrastRatio(palette.ink2, palette.surface1),
@@ -134,6 +148,31 @@ void main() {
           isSemantics(isButton: true, isSelected: false),
         );
         handle.dispose();
+      });
+    }
+
+    for (final (name, theme, lumen) in [
+      ('light', AppTheme.light(), LumenPalette.light),
+      ('dark: night', AppTheme.dark(), LumenPalette.dark),
+    ]) {
+      testWidgets('$name glass lifts only the active pill off its pane', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          _wrap(PillSegment(label: 'On', selected: true, onTap: () {}), theme),
+        );
+        final shadow = _read(tester).deco.boxShadow;
+        expect(shadow, hasLength(1));
+        expect(shadow!.single.blurRadius, LumenGlass.shadowPill.blurRadius);
+        expect(shadow.single.color, lumen.shadow);
+
+        await tester.pumpWidget(
+          _wrap(
+            PillSegment(label: 'Off', selected: false, onTap: () {}),
+            theme,
+          ),
+        );
+        expect(_read(tester).deco.boxShadow, isNull);
       });
     }
 

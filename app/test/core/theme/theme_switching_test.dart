@@ -101,7 +101,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('theme-toggle')));
       await tester.pumpAndSettle();
 
-      expect(plane(), TiqColors.dark.plane);
+      expect(plane(), TiqColors.night.plane);
       expect(store.stored, ThemeMode.dark); // persisted
       expect(find.byTooltip('Switch to light theme'), findsOneWidget);
 

@@ -3,12 +3,27 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
 
-Widget _wrap(Widget child) => MaterialApp(
+import '../theme/tiq_colors_test.dart' show contrastRatio;
+
+Widget _wrap(Widget child, {ThemeData? theme}) => MaterialApp(
+  theme: theme,
   home: Scaffold(body: SizedBox(width: 600, height: 300, child: child)),
 );
+
+/// Hovers the far right of [chart], where the nearest point is the last.
+Future<void> _hoverEnd(WidgetTester tester, Finder chart) async {
+  final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await gesture.addPointer(location: Offset.zero);
+  addTearDown(gesture.removePointer);
+  await gesture.moveTo(tester.getCenter(chart) + const Offset(240, 0));
+  await tester.pumpAndSettle();
+}
 
 /// Records every Path the painter draws so tests can pin the actual [Paint] —
 /// widget-config assertions alone would let a painter silently ignore its
@@ -331,6 +346,125 @@ void main() {
       await tester.pumpWidget(_wrap(const Sparkline(values: [1, 3, 2, 5])));
       paints = _recordPaths(tester, find.byType(Sparkline), const Size(96, 22));
       expect(paints.where((p) => p.shader != null), isEmpty);
+    });
+  });
+
+  group('Lumen Glass (light)', () {
+    const earlier = <ChartPoint>[
+      (label: '14 May', value: 70.0),
+      (label: '13 Jun', value: 71.1),
+    ];
+
+    testWidgets('the series takes the accent, the comparison a slate mark', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const LineChart(points: _series, comparison: earlier),
+          theme: AppTheme.light(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final strokes = _recordPaths(
+        tester,
+        find.byType(LineChart),
+        const Size(600, 208),
+      ).where((p) => p.style == PaintingStyle.stroke);
+      expect(strokes.map((p) => p.color.toARGB32()).toSet(), {
+        LumenPalette.light.accentSolid.toARGB32(),
+        TiqColors.light.ink4.toARGB32(),
+      });
+      // Lines are graphics: each must hold 3:1 against the pane.
+      for (final p in strokes) {
+        expect(
+          contrastRatio(p.color, TiqColors.light.surface1),
+          greaterThanOrEqualTo(3.0),
+        );
+      }
+    });
+
+    testWidgets('the sparkline and the legend speak the same accent', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(const Sparkline(values: [1, 3, 2, 5]), theme: AppTheme.light()),
+      );
+      final spark = _recordPaths(
+        tester,
+        find.byType(Sparkline),
+        const Size(96, 22),
+      );
+      // ARGB32, not Color ==: Paint round-trips the channels through floats.
+      expect(
+        spark.single.color.toARGB32(),
+        LumenPalette.light.accentSolid.toARGB32(),
+      );
+
+      await tester.pumpWidget(
+        _wrap(BarChart.legend(), theme: AppTheme.light()),
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Container && w.color == LumenPalette.light.accentSolid,
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Below target'), findsOneWidget);
+    });
+
+    testWidgets('the scrub readout is an opaque dark chip whose words clear '
+        'AA', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          const LineChart(points: _series, seriesName: 'Execution score'),
+          theme: AppTheme.light(),
+        ),
+      );
+      await _hoverEnd(tester, find.byType(LineChart));
+
+      final ground = Color.alphaBlend(
+        LumenPalette.light.darkFill,
+        TiqColors.light.surface1,
+      );
+      expect(ground.a, 1.0);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration! as BoxDecoration).color == ground,
+        ),
+        findsOneWidget,
+      );
+
+      Color ink(String text) =>
+          tester.widget<Text>(find.text(text)).style!.color!;
+      final value = tester.widget<Text>(find.text('78.4'));
+      expect(value.style?.fontFamily, LumenGlass.mono);
+      // Every word on the chip, composited, measured against the chip.
+      for (final text in ['78.4', '13 JUL', 'Execution score', '1.2']) {
+        final ratio = contrastRatio(Color.alphaBlend(ink(text), ground), ground);
+        expect(ratio, greaterThanOrEqualTo(4.5), reason: '"$text" $ratio:1');
+      }
+      // The delta keeps its arrow — direction is never colour alone.
+      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    });
+
+    testWidgets('dark keeps the fixed instrument readout', (tester) async {
+      await tester.pumpWidget(_wrap(const LineChart(points: _series)));
+      await _hoverEnd(tester, find.byType(LineChart));
+
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration! as BoxDecoration).color ==
+                  const Color(0xFF05060A),
+        ),
+        findsOneWidget,
+      );
     });
   });
 

@@ -11,7 +11,9 @@ import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/audit/data/visit_review.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
@@ -180,7 +182,7 @@ Widget _appWith(
 }
 
 /// Both themes, each with the palette its assertions read against.
-const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.dark)];
+const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
 
 ThemeData _themeFor(String name) =>
     name == 'light' ? AppTheme.light() : AppTheme.dark();
@@ -420,39 +422,52 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Glass hero: the console's washed-panel recipe — a heroWash→surface1
-        // gradient under a heroBorder hairline, not a flat surface1 card.
-        final hero = tester.widget<Container>(
-          find
-              .ancestor(
-                of: find.byKey(const ValueKey('visit-progress')),
-                matching: find.byWidgetPredicate(
-                  (w) =>
-                      w is Container &&
-                      w.decoration is BoxDecoration &&
-                      (w.decoration! as BoxDecoration).gradient != null,
-                ),
-              )
-              .first,
-        );
-        final deco = hero.decoration! as BoxDecoration;
-        final grad = deco.gradient! as LinearGradient;
-        expect(grad.colors, [
-          palette.heroWash,
-          palette.surface1,
-        ], reason: '$name hero gradient');
-        expect(
-          (deco.border! as Border).top.color,
-          palette.heroBorder,
-          reason: '$name hero border',
-        );
+        if (palette.glass) {
+          // Lumen Glass: the progress sits on a glass pane, not a washed card.
+          expect(
+            find.ancestor(
+              of: find.byKey(const ValueKey('visit-progress')),
+              matching: find.byType(GlassPane),
+            ),
+            findsWidgets,
+            reason: '$name glass pane',
+          );
+        } else {
+          // The flat theme's washed-panel recipe — a heroWash→surface1
+          // gradient under a heroBorder hairline, not a flat surface1 card.
+          final hero = tester.widget<Container>(
+            find
+                .ancestor(
+                  of: find.byKey(const ValueKey('visit-progress')),
+                  matching: find.byWidgetPredicate(
+                    (w) =>
+                        w is Container &&
+                        w.decoration is BoxDecoration &&
+                        (w.decoration! as BoxDecoration).gradient != null,
+                  ),
+                )
+                .first,
+          );
+          final deco = hero.decoration! as BoxDecoration;
+          final grad = deco.gradient! as LinearGradient;
+          expect(grad.colors, [
+            palette.heroWash,
+            palette.surface1,
+          ], reason: '$name hero gradient');
+          expect(
+            (deco.border! as Border).top.color,
+            palette.heroBorder,
+            reason: '$name hero border',
+          );
+        }
 
         // The count is the biggest thing in the panel — 30–32px ink1.
         final count = tester.widget<AnimatedCount>(find.byType(AnimatedCount));
         expect(count.value, 4, reason: '$name four sections done');
         expect(
           count.style.fontSize,
-          inInclusiveRange(30, 32),
+          // Glass sets the count at the handoff's 40px.
+          palette.glass ? 40 : inInclusiveRange(30, 32),
           reason: '$name count size',
         );
         expect(count.style.color, palette.ink1, reason: '$name count colour');
@@ -464,16 +479,23 @@ void main() {
           tester,
           find.text('Ready to submit'),
         );
-        expect(readyFg, palette.good, reason: '$name ready pill text');
+        final good = LumenStatus.good.swatchOf(palette);
+        expect(
+          readyFg,
+          palette.glass ? good.ink : palette.good,
+          reason: '$name ready pill text',
+        );
         // Pin the wash itself: flattening the bg (keeping green text) must fail
         // a test, so the ready state stays visibly distinct from the neutral
         // chip — good-on-surface2 would still clear AA and hide the loss.
         expect(
           readyBg,
-          Color.alphaBlend(
-            palette.good.withValues(alpha: 0.12),
-            palette.surface1,
-          ),
+          palette.glass
+              ? Color.alphaBlend(good.tint, palette.surface1)
+              : Color.alphaBlend(
+                  palette.good.withValues(alpha: 0.12),
+                  palette.surface1,
+                ),
           reason: '$name ready pill wash',
         );
         expect(
@@ -562,9 +584,16 @@ void main() {
         // (raw crit fails AA in dark) fails this assert directly.
         final (reqBg, reqFg) = pillColours(
           tester,
-          find.text('REQUIRED TO SUBMIT').first,
+          // Glass tiles say REQ (the whole phrase goes to a screen reader).
+          find.text(palette.glass ? 'REQ' : 'REQUIRED TO SUBMIT').first,
         );
-        expect(reqFg, palette.critText, reason: '$name required pill text');
+        expect(
+          reqFg,
+          palette.glass
+              ? LumenStatus.crit.swatchOf(palette).ink
+              : palette.critText,
+          reason: '$name required pill text',
+        );
         expect(
           contrastRatio(reqFg, reqBg),
           greaterThanOrEqualTo(4.5),
@@ -607,7 +636,13 @@ void main() {
           tester,
           find.textContaining('650 m away'),
         );
-        expect(distFg, palette.critText, reason: '$name distance text');
+        expect(
+          distFg,
+          palette.glass
+              ? LumenStatus.crit.swatchOf(palette).ink
+              : palette.critText,
+          reason: '$name distance text',
+        );
         expect(
           contrastRatio(distFg, distBg),
           greaterThanOrEqualTo(4.5),

@@ -5,12 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // for a single piece of client-only UI state (the selected day) with no
 // business logic attached.
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/geo/label_declutter.dart';
 import '../../../core/geo/mercator_fit.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
+import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_motion.dart' show reduceMotion;
 import '../../../core/widgets/basemap.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/agents_repository.dart';
@@ -79,11 +85,68 @@ class AgentTrailScreen extends ConsumerWidget {
         onRetry: () => ref.invalidate(agentActivityForDayProvider(day)),
         builder: (page) {
           final withStops = page.agents.where((a) => a.stops.isNotEmpty).toList();
+          final glass = context.colors.glass;
+          if (withStops.isEmpty && glass) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: GlassPane(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 16,
+                  ),
+                  child: Text(
+                    'No check-ins on this day.',
+                    style: TextStyle(fontSize: 13, color: context.lumen.ink),
+                  ),
+                ),
+              ),
+            );
+          }
           if (withStops.isEmpty) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text('No check-ins on this day.'),
+              ),
+            );
+          }
+
+          if (glass) {
+            // Glass: the legend is a pane on the lit ground and the map is
+            // framed beneath it as one rounded island — the basemap itself is
+            // unchanged, the dark world it has always been.
+            final radius = BorderRadius.circular(LumenGlass.radiusCard);
+            final lumen = context.lumen;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                children: [
+                  _TrailLegend(truncated: page.truncated),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: radius,
+                        boxShadow: [
+                          BoxShadow(
+                            color: lumen.shadow,
+                            blurRadius: 30,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      foregroundDecoration: BoxDecoration(
+                        borderRadius: radius,
+                        border: Border.all(color: lumen.panelRim),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: radius,
+                        child: _TrailMap(day: day, withStops: withStops),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -249,6 +312,16 @@ class _TrailMapState extends State<_TrailMap> {
         // flat index keeps that honest.
         var flatIndex = 0;
 
+        // Glass draws the trail in the Lumen accent. Still a literal, not a
+        // palette read: the line sits on the dark basemap in both themes, so
+        // it takes the pale accent that reads over navy, whichever theme the
+        // console around the map is in.
+        final trailColor = context.colors.glass
+            ? const Color(0xE6B5ABFC)
+            // 0xFF4D9BFF at .8 alpha (0.8 × 255 = 0xCC): luminous against the
+            // navy ground without competing with the pin glow.
+            : const Color(0xCC4D9BFF);
+
         return FlutterMap(
           // Keyed on the day AND a fingerprint of the plotted coordinates: a
           // key change is what mounts a fresh State, and because we don't
@@ -301,10 +374,7 @@ class _TrailMapState extends State<_TrailMap> {
                     Polyline(
                       points: [for (final s in a.stops) LatLng(s.lat, s.lng)],
                       strokeWidth: 3,
-                      // 0xFF4D9BFF at .8 alpha (0.8 × 255 = 0xCC): luminous
-                      // against the navy ground without competing with the
-                      // pin glow.
-                      color: const Color(0xCC4D9BFF),
+                      color: trailColor,
                       // Dashed, deliberately. A solid line would claim we
                       // know the route between two check-ins. We know two
                       // points; the rest is inference, and the stroke
@@ -363,6 +433,40 @@ class _TrailLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final message =
+        'Numbered pins are confirmed check-ins. Dashed lines connect them in '
+        'order — they are not a recorded route.'
+        // A partial map that looks complete is worse than no map. If the
+        // server had more agents than we asked for, say so here rather than
+        // let the manager read empty space as "nobody else worked".
+        '${truncated ? ' Showing the first 200 agents only.' : ''}';
+
+    if (context.colors.glass) {
+      // Glass: the legend leaves the map's navy world and becomes a pane on
+      // the console's own ground, above the framed map it explains.
+      final lumen = context.lumen;
+      return GlassPane(
+        radius: LumenGlass.radiusControl,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Kicker('How to read it', color: lumen.kicker),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: lumen.inkMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -371,12 +475,7 @@ class _TrailLegend extends StatelessWidget {
       // matches the tiles it sits against rather than the console around it.
       color: const Color(0xCC050A16),
       child: Text(
-        'Numbered pins are confirmed check-ins. Dashed lines connect them in '
-        'order — they are not a recorded route.'
-        // A partial map that looks complete is worse than no map. If the
-        // server had more agents than we asked for, say so here rather than
-        // let the manager read empty space as "nobody else worked".
-        '${truncated ? ' Showing the first 200 agents only.' : ''}',
+        message,
         style: const TextStyle(fontSize: 12, color: Color(0xFF8FA5C6)),
       ),
     );
@@ -489,19 +588,35 @@ class _StopPinState extends State<_StopPin>
     final stop = widget.stop;
     final time = '${_two(stop.checkinTs.hour)}:${_two(stop.checkinTs.minute)}';
     // The last stop gets the brighter core and the stronger halo.
-    final highlight =
-        widget.isLast ? const Color(0xFF9FD4FF) : const Color(0xFF7CC0FF);
-    final core =
-        widget.isLast ? const Color(0xFF3B93F5) : const Color(0xFF1F7AE0);
+    //
+    // Glass trades the Tide Guide blues for the Lumen accent. Still literals,
+    // not palette reads: the pin sits on the dark basemap in both themes, and
+    // the white numeral is held to 3:1 against each core (6.8:1 and 4.3:1).
+    final glass = context.colors.glass;
+    final highlight = glass
+        ? (widget.isLast ? const Color(0xFFCFC7FF) : const Color(0xFF9184D9))
+        : (widget.isLast ? const Color(0xFF9FD4FF) : const Color(0xFF7CC0FF));
+    final core = glass
+        ? (widget.isLast ? const Color(0xFF7A6FC0) : const Color(0xFF5D5294))
+        : (widget.isLast ? const Color(0xFF3B93F5) : const Color(0xFF1F7AE0));
+    final glow = glass ? const Color(0xFFB5ABFC) : _glow;
     final innerHaloAlpha = widget.isLast ? 0.65 : 0.5;
     final outerHaloAlpha = widget.isLast ? 0.25 : 0.18;
+
+    // Every stop is a confirmed visit, so a tap opens it for review (#208).
+    // The pin was already announced as a button; now it behaves like one.
+    void openVisit() => context.push('/visits/${stop.visitId}');
 
     return Semantics(
       button: true,
       excludeSemantics: true,
       label: '${widget.agentName}, stop ${widget.ordinal}, '
           '${stop.outletName}, $time',
-      child: Tooltip(
+      onTap: openVisit,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: openVisit,
+        child: Tooltip(
         // Leads with the agent name: every agent's pins restart at "1", so on
         // a multi-agent day the tooltip is what tells three identical "1"
         // pins apart for a sighted manager — the Semantics label above says
@@ -540,13 +655,13 @@ class _StopPinState extends State<_StopPin>
                       border: Border.all(color: Colors.white, width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: _glow.withValues(
+                          color: glow.withValues(
                               alpha: innerHaloAlpha * breathe),
                           blurRadius: 22,
                           spreadRadius: 6,
                         ),
                         BoxShadow(
-                          color: _glow.withValues(
+                          color: glow.withValues(
                               alpha: outerHaloAlpha * breathe),
                           blurRadius: 44,
                           spreadRadius: 12,
@@ -583,15 +698,20 @@ class _StopPinState extends State<_StopPin>
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFFD9E6FF),
-                  shadows: [Shadow(blurRadius: 5, color: Colors.black)],
+                  // Glass tints the luminous label toward the accent, still
+                  // near-white over the dark basemap.
+                  color: glass
+                      ? const Color(0xFFEDE9FF)
+                      : const Color(0xFFD9E6FF),
+                  shadows: const [Shadow(blurRadius: 5, color: Colors.black)],
                 ),
               ),
           ],
         ),
+      ),
       ),
     );
   }

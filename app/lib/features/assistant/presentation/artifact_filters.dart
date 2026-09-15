@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../../territories/data/territories_repository.dart';
 import '../data/artifact_repository.dart';
 
@@ -194,6 +198,21 @@ class ArtifactFilters extends ConsumerWidget {
           ),
           if (onExport != null) ...[
             const SizedBox(height: 14),
+            // Glass: the panel's one action is the dark action pill. The words
+            // stay on it while it works — a spinner in their place would leave
+            // a screen reader announcing an unlabelled button.
+            if (context.colors.glass)
+              GlassPrimaryButton(
+                key: const ValueKey('artifact-export-pdf'),
+                onPressed: exporting || busy ? null : onExport,
+                icon: exporting
+                    ? Icons.hourglass_top
+                    : Icons.picture_as_pdf_outlined,
+                label: exporting ? 'Preparing…' : 'Export PDF',
+                height: 44,
+                sweep: false,
+              )
+            else
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -274,12 +293,34 @@ class _PeriodControl extends StatelessWidget {
           icon: const Icon(Icons.date_range_outlined, size: 15),
           label: Text(
             custom ? '${period['from']} → ${period['to']}' : 'Pick dates',
-            style: const TextStyle(fontSize: 12),
+            // A chosen range is a pair of dates — figures, so mono in glass.
+            style: colors.glass && custom
+                ? LumenGlass.figure(
+                    size: 12,
+                    weight: FontWeight.w500,
+                    color: context.lumen.accentInk,
+                  )
+                : const TextStyle(fontSize: 12),
           ),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: custom ? colors.ink1 : colors.ink2,
-            side: BorderSide(color: custom ? colors.brand : colors.lineStrong),
-          ),
+          style: colors.glass
+              // Glass: a pill-glass button, rimmed in the accent once a custom
+              // range is the one in force — the same "where you are" mark the
+              // selected period pill wears.
+              ? OutlinedButton.styleFrom(
+                  foregroundColor: custom
+                      ? context.lumen.accentInk
+                      : context.lumen.ink,
+                  backgroundColor: context.lumen.pillFill,
+                  side: BorderSide(
+                    color: custom ? context.lumen.accent : context.lumen.pillRim,
+                  ),
+                )
+              : OutlinedButton.styleFrom(
+                  foregroundColor: custom ? colors.ink1 : colors.ink2,
+                  side: BorderSide(
+                    color: custom ? colors.brand : colors.lineStrong,
+                  ),
+                ),
         ),
       ],
     );
@@ -352,7 +393,9 @@ class _ChoiceRow extends StatelessWidget {
               key: ValueKey('artifact-filter-$value'),
               onTap: busy || value == selected ? null : () => onChanged(value),
               borderRadius: BorderRadius.circular(999),
-              child: Container(
+              child: colors.glass
+                  ? _glassPill(context, label, value == selected)
+                  : Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 11,
                   vertical: 6,
@@ -382,6 +425,30 @@ class _ChoiceRow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// One option as a glass pill. Unselected is barely-there glass; the selected
+/// option is the bright pill with the accent rim that means "where you are",
+/// in the accent ink at a heavier weight — so it reads without the fill, and
+/// `Semantics.selected` above says so to a screen reader.
+Widget _glassPill(BuildContext context, String label, bool on) {
+  final lumen = context.lumen;
+  return GlassPane(
+    kind: GlassKind.pill,
+    radius: 999,
+    shadow: on,
+    fillColor: on ? null : lumen.tileFill,
+    rimColor: on ? lumen.accent : lumen.pillRim,
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+    child: Text(
+      label,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: on ? FontWeight.w600 : FontWeight.w400,
+        color: on ? lumen.accentInk : lumen.inkMuted,
+      ),
+    ),
+  );
 }
 
 /// Territory scope, from the tenant's own list.

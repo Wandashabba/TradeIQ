@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/human_error.dart';
 import '../theme/app_colors.dart';
+import '../theme/lumen_glass.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_motion.dart' show Motion, reduceMotion;
 import 'console.dart';
+import 'glass.dart';
 
 /// The shared list/worklist pattern for the manager console.
 ///
@@ -272,6 +274,32 @@ class WorklistCardShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      final r = colors.radiusCard;
+      return Padding(
+        padding: margin,
+        child: GlassPane(
+          kind: GlassKind.tile,
+          radius: r,
+          // A row repeats down a list, so it never blurs (see GlassPane.blur),
+          // and it sits inside a panel that already owns the shadow.
+          blur: false,
+          shadow: false,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(r - 1),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(width: edgeWidth, color: edgeColor),
+                  Expanded(child: child),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Container(
       margin: margin,
       decoration: BoxDecoration(
@@ -360,6 +388,12 @@ class WorklistRow extends StatefulWidget {
   /// evidence"); when null the row renders exactly as before, no reserved
   /// space, no placeholder. Never put generated art here.
   final Widget? thumb;
+
+  /// How far a resolved row fades, per palette. Glass fades less: its lighter
+  /// #241F47 ink blended 60% toward the glass card reads only 4.1:1, and a
+  /// done row must still be readable.
+  static double resolvedOpacityOf(TiqColors colors) =>
+      colors.glass ? 0.7 : 0.6;
 
   @override
   State<WorklistRow> createState() => _WorklistRowState();
@@ -467,7 +501,9 @@ class _WorklistRowState extends State<WorklistRow> {
           );
 
     return Opacity(
-      opacity: resolved ? 0.6 : 1,
+      // Glass fades a resolved row less: its #241F47 ink blended 60% toward
+      // the glass card reads only 4.1:1, and a done row must still be read.
+      opacity: resolved ? WorklistRow.resolvedOpacityOf(colors) : 1,
       // The shell single-sources the card chrome, the concentric clip and the
       // edge bar. This row keeps its own interaction model (the InkWell + wash
       // in `body`) and its leading/severity content — those diverge from
@@ -558,7 +594,7 @@ class CodeToken extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          fontFamily: 'monospace',
+          fontFamily: colors.glass ? LumenGlass.mono : 'monospace',
           fontSize: 10.5,
           color: colors.ink3,
         ),
@@ -614,6 +650,18 @@ class FilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      return GlassPane(
+        radius: LumenGlass.radiusControl,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 10,
+          runSpacing: 6,
+          children: children,
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(

@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../clients/data/clients_repository.dart';
 import '../data/artifact_repository.dart';
@@ -354,6 +358,36 @@ class _AppliedFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      // A pill on the ground, headed by a kicker, so the sentence reads as the
+      // scope of the view rather than as a caption lost under the controls.
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: GlassPane(
+          kind: GlassKind.pill,
+          radius: LumenGlass.radiusControl,
+          shadow: false,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Kicker('Showing'),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  describeParamsInWords(params),
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: context.lumen.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Text(
       describeParamsInWords(params),
       style: TextStyle(fontSize: 12, height: 1.4, color: colors.ink3),
@@ -369,6 +403,32 @@ class _RefusalNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      final sw = LumenStatus.crit.swatchOf(colors);
+      return Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          // Opaque: the crit wash composited onto the pane, so the words'
+          // contrast is measured against what is actually painted (6.7:1).
+          color: Color.alphaBlend(sw.tint, colors.surface1),
+          border: Border.all(color: sw.rim),
+          borderRadius: BorderRadius.circular(LumenGlass.radiusControl),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline, size: 15, color: sw.ink),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(fontSize: 12.5, height: 1.4, color: sw.ink),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -401,6 +461,45 @@ class _LoadFailure extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      final lumen = context.lumen;
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: GlassPane(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.insights_outlined,
+                    size: 26,
+                    color: lumen.accentInk,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: lumen.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  OutlinedButton(
+                    onPressed: onRetry,
+                    child: const Text('Try again'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),

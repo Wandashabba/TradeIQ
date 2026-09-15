@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/lumen_glass.dart';
+import '../theme/lumen_palette.dart';
 import '../theme/tiq_colors.dart';
 
 /// The console's segmented-pill idiom, single-sourced: active is a solid
@@ -63,16 +65,29 @@ class PillSegment extends StatelessWidget {
               ? const EdgeInsets.symmetric(horizontal: 12, vertical: 5)
               : null,
           decoration: BoxDecoration(
-            color: selected ? colors.brand : colors.surface1,
-            border: Border.all(color: selected ? colors.brand : colors.line),
+            // Active is the theme's primary action: brand in dark, the dark
+            // #241F47 pill in Lumen Glass — each with its own AA ink.
+            color: selected ? colors.action : colors.surface1,
+            border: Border.all(color: selected ? colors.action : colors.line),
             borderRadius: BorderRadius.circular(AppColors.radiusPill),
+            // Glass lifts the active pill off its pane with the handoff's pill
+            // shadow; the fills are already the composited glass tokens.
+            boxShadow: colors.glass && selected
+                ? [
+                    BoxShadow(
+                      color: context.lumen.shadow,
+                      blurRadius: LumenGlass.shadowPill.blurRadius,
+                      offset: LumenGlass.shadowPill.offset,
+                    ),
+                  ]
+                : null,
           ),
           child: Text(
             label,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : colors.ink2,
+              color: selected ? colors.onAction : colors.ink2,
             ),
           ),
         ),

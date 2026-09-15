@@ -62,32 +62,41 @@ model Client {
   reportSchedules    ReportSchedule[]
   assistantArtifacts AssistantArtifact[]
   assistantActions   AssistantAction[]
+  photos             Photo[]
+  pointsLedger       PointsLedgerEntry[]
 
   @@map("clients")
 }
 
 model User {
-  id               String           @id @default(uuid())
-  email            String           @unique
-  passwordHash     String           @map("password_hash")
+  id               String              @id @default(uuid())
+  email            String              @unique
+  // What people call this person ("Sipho Ndlovu"). Nullable on purpose: rows
+  // that predate it have nothing to backfill from but the email local-part, and
+  // guessing a name from that is wrong often enough to be worse than blank
+  // (#280). Display falls back to `email` when it is null.
+  displayName      String?             @map("display_name")
+  passwordHash     String              @map("password_hash")
   role             UserRole
-  clientId         String           @map("client_id")
-  client           Client           @relation(fields: [clientId], references: [id])
+  clientId         String              @map("client_id")
+  client           Client              @relation(fields: [clientId], references: [id])
   // Deactivated users keep their history but cannot log in (admin provisioning).
-  active           Boolean          @default(true)
+  active           Boolean             @default(true)
   // Last-known agent location (updated on check-in) — feeds predictive dispatch.
-  lastLat          Float?           @map("last_lat")
-  lastLng          Float?           @map("last_lng")
-  lastSeenAt       DateTime?        @map("last_seen_at")
+  lastLat          Float?              @map("last_lat")
+  lastLng          Float?              @map("last_lng")
+  lastSeenAt       DateTime?           @map("last_seen_at")
   visits           Visit[]
   tasksOwned       Task[]
   territories      UserTerritory[]
   beatPlans        BeatPlan[]
   checkInAttempts  CheckInAttempt[]
   ordersTaken      Order[]
-  messagesSent     Message[]        @relation("MessageSender")
-  messagesReceived Message[]        @relation("MessageRecipient")
+  messagesSent     Message[]           @relation("MessageSender")
+  messagesReceived Message[]           @relation("MessageRecipient")
   announcements    Announcement[]
+  photosUploaded   Photo[]             @relation("PhotoUploader")
+  pointsLedger     PointsLedgerEntry[]
 
   @@index([clientId, role])
   @@map("users")
@@ -353,32 +362,54 @@ model Task {
   @@map("tasks")
 }
 
+/// A stored image (ADR 0007: a base64 data URL in `url`).
+///
+/// Two kinds share this one pipeline, told apart by `visitId`:
+/// * **Visit evidence** — `visitId` set, uploaded by the visit's agent during an
+///   audit. Tenant-scoped through photo -> visit -> clientId, as it always was.
+/// * **Message attachment** (#125) — `visitId` null, `section`
+///   `message_attachment`, owned directly by `clientId` + `uploadedById`, and
+///   linked to a message through `MessageAttachment`.
+///
+/// `clientId` and `uploadedById` are nullable only because rows that predate
+/// them have nothing to backfill from here; every new upload sets both.
+///
+/// Every relation is `Restrict` explicitly. An optional relation would default
+/// to SET NULL, and deleting a visit must keep failing while it has evidence —
+/// silently turning visit evidence into an unowned, visit-less photo is not a
+/// behaviour change this schema should make by accident.
 model Photo {
-  id        String   @id @default(uuid())
-  visitId   String   @map("visit_id")
-  visit     Visit    @relation(fields: [visitId], references: [id])
-  section   String
-  url       String
-  gpsTag    Json     @map("gps_tag")
-  timestamp DateTime
-  createdAt DateTime @default(now()) @map("created_at")
+  id                  String             @id @default(uuid())
+  visitId             String?            @map("visit_id")
+  visit               Visit?             @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  clientId            String?            @map("client_id")
+  client              Client?            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  uploadedById        String?            @map("uploaded_by_id")
+  uploadedBy          User?              @relation("PhotoUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  section             String
+  url                 String
+  gpsTag              Json               @map("gps_tag")
+  timestamp           DateTime
+  createdAt           DateTime           @default(now()) @map("created_at")
+  messageAttachment   MessageAttachment?
   /// SHA-256 (hex) of the decoded image bytes, computed at upload (#244).
   /// Null for rows written before it existed until backfilled
   /// (scripts/backfill-photo-hashes.ts), and for payloads that are not a base64
   /// image data URL. Duplicate detection compares THIS, never `url`: a btree
   /// cannot index a multi-MB base64 string (~2704-byte cap).
-  contentHash         String? @map("content_hash")
+  contentHash         String?            @map("content_hash")
   /// 64-bit difference hash (dHash) as 16 hex chars, computed at upload (#244).
   /// Survives re-encoding and light cropping, unlike contentHash. Null when the
   /// bytes do not decode as an image.
-  perceptualHash      String? @map("perceptual_hash")
+  perceptualHash      String?            @map("perceptual_hash")
   /// The dHash split into four position-tagged 16-bit bands
   /// (band index << 16 | band value), GIN-indexed so a near-duplicate lookup
   /// probes the index instead of comparing every photo. Empty when there is no
   /// hash or the hash is degenerate (a blank frame) — see photos/photoHash.ts.
-  perceptualHashBands Int[]   @default([]) @map("perceptual_hash_bands")
+  perceptualHashBands Int[]              @default([]) @map("perceptual_hash_bands")
 
   @@index([visitId])
+  @@index([clientId])
   @@index([contentHash])
   @@index([perceptualHashBands], type: Gin)
   @@map("photos")
@@ -648,20 +679,45 @@ model OrderLine {
 /// Direct/group field message (Phase 3 #37). `recipientId` null = broadcast
 /// within the client.
 model Message {
-  id          String    @id @default(uuid())
-  clientId    String    @map("client_id")
-  client      Client    @relation(fields: [clientId], references: [id])
-  senderId    String    @map("sender_id")
-  sender      User      @relation("MessageSender", fields: [senderId], references: [id])
-  recipientId String?   @map("recipient_id")
-  recipient   User?     @relation("MessageRecipient", fields: [recipientId], references: [id])
+  id          String              @id @default(uuid())
+  clientId    String              @map("client_id")
+  client      Client              @relation(fields: [clientId], references: [id])
+  senderId    String              @map("sender_id")
+  sender      User                @relation("MessageSender", fields: [senderId], references: [id])
+  recipientId String?             @map("recipient_id")
+  recipient   User?               @relation("MessageRecipient", fields: [recipientId], references: [id])
   body        String
-  readAt      DateTime? @map("read_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  readAt      DateTime?           @map("read_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  attachments MessageAttachment[]
 
   @@index([clientId])
   @@index([recipientId])
   @@map("messages")
+}
+
+/// An image attached to a message (#125).
+///
+/// IMAGES ONLY, by design: attachments reuse the existing photo pipeline
+/// (`POST /photos`, base64 in Postgres per ADR 0007, and its thumbnail route)
+/// rather than a general-purpose file store. There is no PDF or arbitrary-file
+/// support — that would need real object storage first.
+///
+/// `photoId` is unique: a photo is attached to at most one message, so the
+/// access grant an attachment confers (see photos.service) has exactly one
+/// source. A message carries at most MAX_MESSAGE_ATTACHMENTS (4), in
+/// `position` order.
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  photoId   String   @unique @map("photo_id")
+  photo     Photo    @relation(fields: [photoId], references: [id])
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([messageId])
+  @@map("message_attachments")
 }
 
 /// A broadcast announcement to the client's field team (Phase 3 #37).
@@ -691,8 +747,53 @@ model Webhook {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
+  /// Health (#100). Deliveries that gave up since the last success. Reset to 0
+  /// by any successful delivery; the webhook reads as unhealthy while > 0.
+  consecutiveFailures Int                    @default(0) @map("consecutive_failures")
+  /// The outcome and time of the most recent delivery attempt, stored rather
+  /// than derived: the list endpoint would otherwise need the newest delivery
+  /// per webhook, and Prisma paginates nested relations in memory.
+  lastDeliveryStatus  WebhookDeliveryStatus? @map("last_delivery_status")
+  lastDeliveryAt      DateTime?              @map("last_delivery_at")
+  deliveries          WebhookDelivery[]
+
   @@index([clientId, event, active])
   @@map("webhooks")
+}
+
+enum WebhookDeliveryStatus {
+  pending
+  succeeded
+  failed_retrying
+  gave_up
+}
+
+/// One event delivered to one webhook (#100) — the outbox row that makes the
+/// fan-out retryable and auditable. The payload is the exact envelope sent, so
+/// every retry re-sends the same body; only the signature timestamp changes.
+model WebhookDelivery {
+  id             String                @id @default(uuid())
+  webhookId      String                @map("webhook_id")
+  webhook        Webhook               @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  /// Denormalised from the webhook so the deliveries endpoint scopes by tenant
+  /// without a join.
+  clientId       String                @map("client_id")
+  event          String
+  payload        Json
+  status         WebhookDeliveryStatus @default(pending)
+  attempts       Int                   @default(0)
+  lastStatusCode Int?                  @map("last_status_code")
+  lastError      String?               @map("last_error")
+  /// When the row is next due. Also the claim lease: a processor that takes a
+  /// row pushes this forward, so nobody else picks it up mid-attempt.
+  nextAttemptAt  DateTime?             @map("next_attempt_at")
+  lastAttemptAt  DateTime?             @map("last_attempt_at")
+  deliveredAt    DateTime?             @map("delivered_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([webhookId, createdAt])
+  @@map("webhook_deliveries")
 }
 
 /// A saved report definition (Phase 3 #39) — a named, filtered report the
@@ -729,6 +830,52 @@ model IncentiveScheme {
   @@map("incentive_schemes")
 }
 
+/// One points-earning event for one agent (#124). The leaderboard is a sum over
+/// these rows in its window, so every point on it can be traced back to the
+/// visit, task or scorecard that earned it — and audited, disputed or explained.
+///
+/// `reason` says what was rewarded; `sourceType` + `sourceId` say which record
+/// did it. The source is polymorphic on purpose (no FK): a ledger row outlives
+/// nothing it points at being edited, and one table serves every reason.
+///
+/// Reasons in use (see src/modules/gamification/pointsLedger.ts):
+/// - `visit_submitted` (+2, source `visit`, occurredAt = checkinTs)
+/// - `task_closed`     (+5, source `task`,  occurredAt = when it was closed)
+/// - `scorecard`       (0 points, source `scorecard`, `score` = weightedTotal,
+///                      occurredAt = scorecard createdAt). The formula adds the
+///                      *mean* score in the window, which no per-event sum can
+///                      express, so the entry carries the score it contributes
+///                      to that mean rather than pretending to a fixed amount.
+///
+/// `points` may be negative, for later manual adjustments.
+///
+/// Unique on (sourceType, sourceId, reason): writing an event twice is a no-op,
+/// so the write hooks and the backfill can both run any number of times.
+///
+/// Cascades from Client/User: users are deactivated, not deleted, in practice;
+/// the cascade only stops a tenant/user teardown being blocked by derived rows.
+model PointsLedgerEntry {
+  id         String   @id @default(uuid())
+  clientId   String   @map("client_id")
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agentId    String   @map("agent_id")
+  agent      User     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  points     Int
+  reason     String
+  sourceType String   @map("source_type")
+  sourceId   String   @map("source_id")
+  /// The value a non-additive reason contributes (the scorecard's
+  /// weightedTotal). Null for reasons that are a plain points amount.
+  score      Float?
+  occurredAt DateTime @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([sourceType, sourceId, reason])
+  @@index([clientId, agentId, occurredAt])
+  @@index([clientId, occurredAt])
+  @@map("points_ledger_entries")
+}
+
 /// A recurring delivery of a saved report (Phase 3 #39). The scheduler that
 /// fires these is infra (Phase 4); this model + the run endpoint are the seam.
 model ReportSchedule {
@@ -760,25 +907,25 @@ model ReportSchedule {
 /// which is not a data leak (the roster still re-authorises every run) but is
 /// someone else's workspace.
 model AssistantArtifact {
-  id             String   @id @default(uuid())
-  clientId       String   @map("client_id")
-  client         Client   @relation(fields: [clientId], references: [id])
-  userId         String   @map("user_id")
-  conversationId String   @map("conversation_id")
+  id              String    @id @default(uuid())
+  clientId        String    @map("client_id")
+  client          Client    @relation(fields: [clientId], references: [id])
+  userId          String    @map("user_id")
+  conversationId  String    @map("conversation_id")
   /// The view-spec type from the closed catalog — `trend_chart`, `outlet_map`, …
-  type           String
-  toolName       String   @map("tool_name")
-  params         Json
+  type            String
+  toolName        String    @map("tool_name")
+  params          Json
   /// Previous params, oldest first, for undo. Capped in the service layer.
-  paramsHistory  Json     @default("[]") @map("params_history")
+  paramsHistory   Json      @default("[]") @map("params_history")
   /// Set when the USER moved a control, cleared once a turn has told the model.
   /// Non-null means the model's picture of this view is stale — it is reasoning
   /// from whatever params it last saw, which is no longer what is on screen.
   /// A timestamp rather than a boolean so the notes can be ordered when several
   /// views moved between two turns.
   paramsChangedAt DateTime? @map("params_changed_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@index([clientId, userId, conversationId])
   @@map("assistant_artifacts")
@@ -796,14 +943,14 @@ model AssistantArtifact {
 /// cannot have is the signal worth keeping, and a ledger of successes only
 /// cannot distinguish "nobody tried" from "somebody tried repeatedly".
 model AssistantAction {
-  id             String   @id @default(uuid())
-  clientId       String   @map("client_id")
-  client         Client   @relation(fields: [clientId], references: [id])
+  id             String    @id @default(uuid())
+  clientId       String    @map("client_id")
+  client         Client    @relation(fields: [clientId], references: [id])
   /// Who asked. Not a relation: a user may be deleted and the ledger must
   /// outlive them, which is the whole point of an audit trail.
-  userId         String   @map("user_id")
-  conversationId String?  @map("conversation_id")
-  toolName       String   @map("tool_name")
+  userId         String    @map("user_id")
+  conversationId String?   @map("conversation_id")
+  toolName       String    @map("tool_name")
   /// The tier AT THE TIME. Denormalised on purpose — re-deriving it from
   /// risk.ts when the ledger is read would rewrite history every time the
   /// policy table changes, and "what did we consider risky then" is exactly
@@ -818,8 +965,8 @@ model AssistantAction {
   detail         String?
   /// What an undo would need for a `reversible` action — the created row's id,
   /// the previous value. Null for tiers that cannot be undone this way.
-  undoContext    Json?    @map("undo_context")
-  createdAt      DateTime @default(now()) @map("created_at")
+  undoContext    Json?     @map("undo_context")
+  createdAt      DateTime  @default(now()) @map("created_at")
   resolvedAt     DateTime? @map("resolved_at")
 
   /// The audit view filters by tenant and orders by time; the second index

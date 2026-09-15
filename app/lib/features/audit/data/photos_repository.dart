@@ -62,6 +62,18 @@ abstract class PhotosRepository {
   /// the authed client. `Image.network` cannot send the Authorization header
   /// on web, so the bytes route is the only honest one.
   Future<Uint8List> thumbnailBytes(String photoId);
+
+  /// `POST /photos` with purpose `message_attachment` (#125) — the same
+  /// base64 pipeline as visit evidence, with no visit. Any role may call it.
+  /// Returns the new photo's id, to pass as a message's `attachmentPhotoIds`.
+  /// Images only: the server rejects anything that does not decode as one.
+  Future<String> uploadMessageAttachment(String dataUrl);
+
+  /// `GET /photos/:id/image` — the full-size image as BYTES through the authed
+  /// client, for the same web-header reason as [thumbnailBytes]. Deliberately
+  /// not cached here: originals are up to megabytes, and they are only fetched
+  /// when someone opens one.
+  Future<Uint8List> imageBytes(String photoId);
 }
 
 class DioPhotosRepository implements PhotosRepository {
@@ -144,6 +156,28 @@ class DioPhotosRepository implements PhotosRepository {
     }
     return bytes;
   }
+
+  @override
+  Future<String> uploadMessageAttachment(String dataUrl) async {
+    final response = await _client.post(
+      '/photos',
+      data: {
+        'purpose': 'message_attachment',
+        'dataUrl': dataUrl,
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+      },
+    );
+    return (response.data as Map<String, dynamic>)['id'] as String;
+  }
+
+  @override
+  Future<Uint8List> imageBytes(String photoId) async {
+    final response = await _client.get<List<int>>(
+      '/photos/$photoId/image',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return Uint8List.fromList(response.data!);
+  }
 }
 
 final photosRepositoryProvider = Provider<PhotosRepository>(
@@ -174,6 +208,16 @@ final thumbnailBytesProvider = FutureProvider.autoDispose
 final visitPhotosProvider = FutureProvider.autoDispose
     .family<List<VisitPhoto>, String>(
       (ref, visitId) => ref.watch(photosRepositoryProvider).listPhotos(visitId),
+      retry: (_, _) => null,
+    );
+
+/// One photo's full-size bytes, fetched when a message attachment is opened
+/// (#125) and released when its dialog closes. Retry is off for the same
+/// reason as [visitPhotosProvider]: a watched dialog shows the failure and its
+/// Retry button at once instead of a spinner hiding a backoff.
+final photoImageBytesProvider = FutureProvider.autoDispose
+    .family<Uint8List, String>(
+      (ref, photoId) => ref.watch(photosRepositoryProvider).imageBytes(photoId),
       retry: (_, _) => null,
     );
 

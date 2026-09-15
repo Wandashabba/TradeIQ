@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/lumen_glass.dart';
+import '../theme/lumen_palette.dart';
 import '../theme/tiq_colors.dart';
 
 /// The console's chart set. Hand-rolled on [CustomPainter] — the shapes needed
@@ -33,7 +35,42 @@ LinearGradient glassAreaGradient(Color brand) => LinearGradient(
   colors: [brand.withValues(alpha: 0.28), brand.withValues(alpha: 0.0)],
 );
 
-TextStyle _labelStyle(TiqColors c) => TextStyle(fontSize: 10, color: c.ink3);
+/// The chart inks. Dark instrument reads its slots unchanged; glass draws in
+/// Lumen's own palette so a chart belongs to the pane it sits on — the accent
+/// for the series, a slate mark for the comparison behind it (a different hue
+/// AND lightness, and the legend names both), and hairlines cut from the muted
+/// ink, translucent enough to take the pane's tint.
+class _ChartInks {
+  const _ChartInks(this.c, this.l);
+
+  final TiqColors c;
+  final LumenPalette l;
+
+  Color get series => c.glass ? l.accentSolid : c.series1;
+  Color get comparison => c.glass ? c.ink4 : c.series2;
+  Color get grid => c.glass ? l.inkMuted.withValues(alpha: 0.12) : c.grid;
+  Color get axis => c.glass ? l.inkMuted.withValues(alpha: 0.32) : c.axis;
+
+  /// A bar's empty track.
+  Color get track => c.glass ? l.track : c.grid;
+
+  /// The dashed threshold rule — a stroke, so 3:1 is the bar in both.
+  Color get target => c.glass ? l.ink.withValues(alpha: 0.6) : c.ink4;
+}
+
+TextStyle _labelStyle(TiqColors c, LumenPalette l) => c.glass
+    ? TextStyle(
+        fontFamily: LumenGlass.mono,
+        fontSize: 9.5,
+        color: l.inkMuted,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      )
+    : TextStyle(fontSize: 10, color: c.ink3);
+
+/// The one direct label on a plot (a line's endpoint, a bar's value).
+TextStyle _figureStyle(TiqColors c, LumenPalette l) => c.glass
+    ? LumenGlass.figure(size: 11, color: l.ink)
+    : TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: c.ink2);
 
 TextPainter _text(String s, {required TextStyle style}) {
   final tp = TextPainter(
@@ -155,6 +192,7 @@ class _LineChartState extends State<LineChart> {
     }
 
     final colors = context.colors;
+    final ink = _ChartInks(colors, context.lumen);
     final scale = _niceScale(
       // Both series, or the comparison rides off the top of the plot on the
       // first month it beat the current one.
@@ -188,6 +226,7 @@ class _LineChartState extends State<LineChart> {
                 valueSuffix: widget.valueSuffix,
                 progress: t,
                 colors: colors,
+                lumen: context.lumen,
                 lineWidth: widget.lineWidth,
                 gradientFill: widget.gradientFill,
               );
@@ -265,13 +304,13 @@ class _LineChartState extends State<LineChart> {
             runSpacing: 4,
             children: [
               _LegendItem(
-                color: colors.series1,
+                color: ink.series,
                 label: widget.seriesName.isEmpty
                     ? 'This period'
                     : widget.seriesName,
               ),
               _LegendItem(
-                color: colors.series2,
+                color: ink.comparison,
                 label: widget.comparisonName.isEmpty
                     ? 'Comparison'
                     : widget.comparisonName,
@@ -315,6 +354,7 @@ class _LinePainter extends CustomPainter {
     required this.hover,
     required this.valueSuffix,
     required this.colors,
+    required this.lumen,
     this.comparison = const [],
     this.progress = 1,
     this.lineWidth = 2,
@@ -331,7 +371,10 @@ class _LinePainter extends CustomPainter {
   final int? hover;
   final String valueSuffix;
   final TiqColors colors;
+  final LumenPalette lumen;
   final double lineWidth;
+
+  _ChartInks get ink => _ChartInks(colors, lumen);
   final bool gradientFill;
 
   /// 0 → 1 as the series draws itself in. The chrome (grid, axes, target rule)
@@ -365,7 +408,7 @@ class _LinePainter extends CustomPainter {
     final baseY = size.height - _pad.bottom;
 
     final hair = Paint()
-      ..color = colors.grid
+      ..color = ink.grid
       ..strokeWidth = 1;
 
     // y gridlines + ticks
@@ -376,7 +419,7 @@ class _LinePainter extends CustomPainter {
         Offset(_pad.left + innerW, y),
         hair,
       );
-      final tp = _text(_trim(v), style: _labelStyle(colors));
+      final tp = _text(_trim(v), style: _labelStyle(colors, lumen));
       tp.paint(canvas, Offset(_pad.left - 8 - tp.width, y - tp.height / 2));
     }
 
@@ -386,7 +429,7 @@ class _LinePainter extends CustomPainter {
       final dash = Paint()
         // ink4: a stroke, not text — 3:1 is the bar, and the quieter weight
         // keeps the rule behind the data.
-        ..color = colors.ink4
+        ..color = ink.target
         ..strokeWidth = 1;
       for (var x = _pad.left; x < _pad.left + innerW; x += 6) {
         canvas.drawLine(
@@ -395,7 +438,7 @@ class _LinePainter extends CustomPainter {
           dash,
         );
       }
-      final tp = _text('Target', style: _labelStyle(colors));
+      final tp = _text('Target', style: _labelStyle(colors, lumen));
       tp.paint(canvas, Offset(_pad.left + innerW + 5, y - tp.height / 2));
     }
 
@@ -419,7 +462,7 @@ class _LinePainter extends CustomPainter {
       canvas.drawPath(
         other,
         Paint()
-          ..color = colors.series2
+          ..color = ink.comparison
           ..style = PaintingStyle.stroke
           ..strokeWidth = lineWidth
           ..strokeJoin = StrokeJoin.round
@@ -454,13 +497,13 @@ class _LinePainter extends CustomPainter {
         Rect.fromLTRB(_pad.left, _pad.top, _pad.left + innerW, baseY),
       );
     } else {
-      areaPaint.color = colors.series1.withValues(alpha: 0.14);
+      areaPaint.color = ink.series.withValues(alpha: 0.14);
     }
     canvas.drawPath(area, areaPaint);
     canvas.drawPath(
       path,
       Paint()
-        ..color = colors.series1
+        ..color = ink.series
         ..style = PaintingStyle.stroke
         ..strokeWidth = lineWidth
         ..strokeJoin = StrokeJoin.round
@@ -473,11 +516,11 @@ class _LinePainter extends CustomPainter {
       Offset(_pad.left, baseY),
       Offset(_pad.left + innerW, baseY),
       Paint()
-        ..color = colors.axis
+        ..color = ink.axis
         ..strokeWidth = 1,
     );
     for (final i in {0, points.length ~/ 2, points.length - 1}) {
-      final tp = _text(points[i].label, style: _labelStyle(colors));
+      final tp = _text(points[i].label, style: _labelStyle(colors, lumen));
       final x = xFor(i, size.width);
       final dx = i == 0
           ? x
@@ -495,7 +538,7 @@ class _LinePainter extends CustomPainter {
       xFor(last, size.width),
       _yFor(points[last].value, size.height),
     );
-    canvas.drawCircle(lastO, 4, Paint()..color = colors.series1);
+    canvas.drawCircle(lastO, 4, Paint()..color = ink.series);
     canvas.drawCircle(
       lastO,
       4,
@@ -506,11 +549,7 @@ class _LinePainter extends CustomPainter {
     );
     final lbl = _text(
       '${_trim(points[last].value)}$valueSuffix',
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: colors.ink2,
-      ),
+      style: _figureStyle(colors, lumen),
     );
     lbl.paint(canvas, Offset(lastO.dx - lbl.width, lastO.dy - lbl.height - 7));
 
@@ -521,11 +560,11 @@ class _LinePainter extends CustomPainter {
         Offset(hx, _pad.top),
         Offset(hx, baseY),
         Paint()
-          ..color = colors.axis
+          ..color = ink.axis
           ..strokeWidth = 1,
       );
       final ho = Offset(hx, _yFor(points[hover!].value, size.height));
-      canvas.drawCircle(ho, 4.5, Paint()..color = colors.series1);
+      canvas.drawCircle(ho, 4.5, Paint()..color = ink.series);
       canvas.drawCircle(
         ho,
         4.5,
@@ -545,6 +584,7 @@ class _LinePainter extends CustomPainter {
       old.target != target ||
       old.progress != progress ||
       old.colors != colors ||
+      old.lumen != lumen ||
       old.lineWidth != lineWidth ||
       old.gradientFill != gradientFill;
 }
@@ -630,6 +670,7 @@ class _ColumnChartState extends State<ColumnChart>
             hover: _hover,
             progress: _progress,
             colors: colors,
+            lumen: context.lumen,
           );
           return MouseRegion(
             onHover: (e) {
@@ -666,6 +707,7 @@ class _ColumnPainter extends CustomPainter {
     required this.scale,
     required this.hover,
     required this.colors,
+    required this.lumen,
     this.progress = 1,
   });
 
@@ -674,6 +716,9 @@ class _ColumnPainter extends CustomPainter {
   final int? hover;
   final double progress;
   final TiqColors colors;
+  final LumenPalette lumen;
+
+  _ChartInks get ink => _ChartInks(colors, lumen);
 
   static const _pad = EdgeInsets.fromLTRB(38, 12, 10, 24);
 
@@ -697,7 +742,7 @@ class _ColumnPainter extends CustomPainter {
     final barW = math.min(30.0, step - 8);
 
     final hair = Paint()
-      ..color = colors.grid
+      ..color = ink.grid
       ..strokeWidth = 1;
 
     for (var v = scale.min; v <= scale.max + 1e-9; v += scale.step) {
@@ -708,7 +753,7 @@ class _ColumnPainter extends CustomPainter {
         Offset(_pad.left + innerW, y),
         hair,
       );
-      final tp = _text(_trim(v), style: _labelStyle(colors));
+      final tp = _text(_trim(v), style: _labelStyle(colors, lumen));
       tp.paint(canvas, Offset(_pad.left - 8 - tp.width, y - tp.height / 2));
     }
 
@@ -727,11 +772,11 @@ class _ColumnPainter extends CustomPainter {
         rect,
         Paint()
           ..color = hover == null || hover == i
-              ? colors.series1
-              : colors.series1.withValues(alpha: 0.55),
+              ? ink.series
+              : ink.series.withValues(alpha: 0.55),
       );
 
-      final tp = _text(points[i].label, style: _labelStyle(colors));
+      final tp = _text(points[i].label, style: _labelStyle(colors, lumen));
       tp.paint(
         canvas,
         Offset(
@@ -745,7 +790,7 @@ class _ColumnPainter extends CustomPainter {
       Offset(_pad.left, baseY),
       Offset(_pad.left + innerW, baseY),
       Paint()
-        ..color = colors.axis
+        ..color = ink.axis
         ..strokeWidth = 1,
     );
   }
@@ -755,7 +800,8 @@ class _ColumnPainter extends CustomPainter {
       old.points != points ||
       old.hover != hover ||
       old.progress != progress ||
-      old.colors != colors;
+      old.colors != colors ||
+      old.lumen != lumen;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -780,9 +826,10 @@ class BarChart extends StatelessWidget {
   static Widget legend() => Builder(
     builder: (context) {
       final colors = context.colors;
+      final ink = _ChartInks(colors, context.lumen);
       return Row(
         children: [
-          _LegendItem(color: colors.series1, label: 'Meets target'),
+          _LegendItem(color: ink.series, label: 'Meets target'),
           const SizedBox(width: 14),
           _LegendItem(color: colors.crit, label: 'Below target'),
         ],
@@ -815,6 +862,7 @@ class BarChart extends StatelessWidget {
             max: max,
             progress: t,
             colors: context.colors,
+            lumen: context.lumen,
           ),
         ),
       ),
@@ -828,6 +876,7 @@ class _BarPainter extends CustomPainter {
     required this.target,
     required this.max,
     required this.colors,
+    required this.lumen,
     this.progress = 1,
   });
 
@@ -836,6 +885,9 @@ class _BarPainter extends CustomPainter {
   final double max;
   final double progress;
   final TiqColors colors;
+  final LumenPalette lumen;
+
+  _ChartInks get ink => _ChartInks(colors, lumen);
 
   static const _pad = EdgeInsets.fromLTRB(92, 6, 46, 22);
   static const _rowH = 30.0;
@@ -848,7 +900,7 @@ class _BarPainter extends CustomPainter {
     final plotH = points.length * _rowH;
 
     final hair = Paint()
-      ..color = colors.grid
+      ..color = ink.grid
       ..strokeWidth = 1;
 
     for (final v in [0.0, max * .25, max * .5, max * .75, max]) {
@@ -857,13 +909,13 @@ class _BarPainter extends CustomPainter {
         Offset(x(v), _pad.top + plotH),
         hair,
       );
-      final tp = _text(_trim(v), style: _labelStyle(colors));
+      final tp = _text(_trim(v), style: _labelStyle(colors, lumen));
       tp.paint(canvas, Offset(x(v) - tp.width / 2, _pad.top + plotH + 6));
     }
 
     // Target rule. ink4: a stroke, not text — 3:1 suffices, quiet by design.
     final dash = Paint()
-      ..color = colors.ink4
+      ..color = ink.target
       ..strokeWidth = 1;
     for (var y = _pad.top; y < _pad.top + plotH; y += 6) {
       canvas.drawLine(
@@ -893,7 +945,7 @@ class _BarPainter extends CustomPainter {
           Rect.fromLTWH(_pad.left, y, innerW, barH),
           const Radius.circular(1),
         ),
-        Paint()..color = colors.grid,
+        Paint()..color = ink.track,
       );
       final grown = (x(p.value) - _pad.left) * progress.clamp(0, 1);
       canvas.drawRRect(
@@ -901,7 +953,7 @@ class _BarPainter extends CustomPainter {
           Rect.fromLTWH(_pad.left, y, math.max(2, grown), barH),
           const Radius.circular(1),
         ),
-        Paint()..color = p.value < target ? colors.crit : colors.series1,
+        Paint()..color = p.value < target ? colors.crit : ink.series,
       );
 
       // The figure only appears once its bar has arrived under it.
@@ -909,11 +961,7 @@ class _BarPainter extends CustomPainter {
 
       final val = _text(
         p.value.toStringAsFixed(1),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: colors.ink2,
-        ),
+        style: _figureStyle(colors, lumen),
       );
       val.paint(canvas, Offset(x(p.value) + 7, y + (barH - val.height) / 2));
     }
@@ -924,7 +972,8 @@ class _BarPainter extends CustomPainter {
       old.points != points ||
       old.target != target ||
       old.progress != progress ||
-      old.colors != colors;
+      old.colors != colors ||
+      old.lumen != lumen;
 }
 
 class _LegendItem extends StatelessWidget {
@@ -1005,18 +1054,31 @@ class Sparkline extends StatelessWidget {
       width: width ?? double.infinity,
       height: height,
       child: CustomPaint(
-        painter: _SparkPainter(values, context.colors, gradient: gradient),
+        painter: _SparkPainter(
+          values,
+          context.colors,
+          lumen: context.lumen,
+          gradient: gradient,
+        ),
       ),
     );
   }
 }
 
 class _SparkPainter extends CustomPainter {
-  _SparkPainter(this.values, this.colors, {this.gradient = false});
+  _SparkPainter(
+    this.values,
+    this.colors, {
+    required this.lumen,
+    this.gradient = false,
+  });
 
   final List<double> values;
   final TiqColors colors;
+  final LumenPalette lumen;
   final bool gradient;
+
+  _ChartInks get ink => _ChartInks(colors, lumen);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1049,7 +1111,7 @@ class _SparkPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = colors.series1
+        ..color = ink.series
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5
         ..strokeJoin = StrokeJoin.round
@@ -1058,13 +1120,16 @@ class _SparkPainter extends CustomPainter {
     canvas.drawCircle(
       at(values.length - 1),
       2.5,
-      Paint()..color = colors.series1,
+      Paint()..color = ink.series,
     );
   }
 
   @override
   bool shouldRepaint(_SparkPainter old) =>
-      old.values != values || old.colors != colors || old.gradient != gradient;
+      old.values != values ||
+      old.colors != colors ||
+      old.lumen != lumen ||
+      old.gradient != gradient;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1078,6 +1143,49 @@ class _SparkPainter extends CustomPainter {
 /// themes (matching tooltipTheme in app_theme.dart) — an inverted readout on a
 /// light chart is the premium convention, and it keeps hover legible without a
 /// second derivation. Hence AppColors statics, not context.colors.
+///
+/// Glass keeps the inversion in its own dark: the dark pane, composited
+/// opaque over surface1 so its words keep AA, under white figures and
+/// [LumenGlass.onDarkMuted] labels — inks that belong to the dark pane, which
+/// is dark in either theme.
+BoxDecoration _readoutBox(TiqColors c, LumenPalette l) => c.glass
+    ? BoxDecoration(
+        color: Color.alphaBlend(l.darkFill, c.surface1),
+        border: Border.all(color: l.darkRim),
+        borderRadius: BorderRadius.circular(LumenGlass.radiusIconTile),
+        boxShadow: [
+          BoxShadow(
+            color: l.shadow,
+            blurRadius: LumenGlass.shadowTile.blurRadius,
+            offset: LumenGlass.shadowTile.offset,
+          ),
+        ],
+      )
+    : BoxDecoration(
+        color: const Color(0xFF05060A),
+        border: Border.all(color: AppColors.lineStrong),
+        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+      );
+
+TextStyle _readoutLabel(bool glass) => glass
+    ? LumenGlass.kickerStyle(color: LumenGlass.onDarkMuted, size: 9.5)
+    : const TextStyle(fontSize: 10, letterSpacing: 0.6, color: AppColors.ink3);
+
+TextStyle _readoutFigure(bool glass, double size) => glass
+    ? LumenGlass.figure(size: size, color: Colors.white)
+    : TextStyle(
+        fontSize: size,
+        fontWeight: FontWeight.w600,
+        color: AppColors.ink1,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+
+TextStyle _readoutMeta(bool glass, {bool tabular = false}) => TextStyle(
+  fontSize: 11,
+  color: glass ? LumenGlass.onDarkMuted : AppColors.ink3,
+  fontFeatures: tabular ? const [FontFeature.tabularFigures()] : null,
+);
+
 class _Tooltip extends StatelessWidget {
   const _Tooltip({
     required this.point,
@@ -1096,6 +1204,7 @@ class _Tooltip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const w = 136.0;
+    final glass = context.colors.glass;
     final left = (x + 12).clamp(0.0, math.max(0.0, plotWidth - w)).toDouble();
     return Stack(
       children: [
@@ -1105,38 +1214,19 @@ class _Tooltip extends StatelessWidget {
           child: Container(
             width: w,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF05060A),
-              border: Border.all(color: AppColors.lineStrong),
-              borderRadius: BorderRadius.circular(AppColors.radiusControl),
-            ),
+            decoration: _readoutBox(context.colors, context.lumen),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  point.label.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 0.6,
-                    color: AppColors.ink3,
-                  ),
-                ),
+                Text(point.label.toUpperCase(), style: _readoutLabel(glass)),
                 const SizedBox(height: 2),
                 Text(
                   '${_trim(point.value)}$suffix',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink1,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
+                  style: _readoutFigure(glass, 13),
                 ),
                 if (seriesName.isNotEmpty)
-                  Text(
-                    seriesName,
-                    style: const TextStyle(fontSize: 11, color: AppColors.ink3),
-                  ),
+                  Text(seriesName, style: _readoutMeta(glass)),
               ],
             ),
           ),
@@ -1208,6 +1298,7 @@ class _ScrubReadout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const w = 176.0;
+    final glass = context.colors.glass;
     final left = (x + 12).clamp(0.0, math.max(0.0, plotWidth - w)).toDouble();
     final delta = previous == null ? null : point.value - previous!;
 
@@ -1219,23 +1310,12 @@ class _ScrubReadout extends StatelessWidget {
           child: Container(
             width: w,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF05060A),
-              border: Border.all(color: AppColors.lineStrong),
-              borderRadius: BorderRadius.circular(AppColors.radiusControl),
-            ),
+            decoration: _readoutBox(context.colors, context.lumen),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  point.label.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 0.6,
-                    color: AppColors.ink3,
-                  ),
-                ),
+                Text(point.label.toUpperCase(), style: _readoutLabel(glass)),
                 const SizedBox(height: 3),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -1243,12 +1323,7 @@ class _ScrubReadout extends StatelessWidget {
                   children: [
                     Text(
                       '${_trim(point.value)}$suffix',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink1,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
+                      style: _readoutFigure(glass, 15),
                     ),
                     if (delta != null && delta.abs() >= 0.05) ...[
                       const SizedBox(width: 7),
@@ -1259,13 +1334,7 @@ class _ScrubReadout extends StatelessWidget {
                 if (seriesName.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      seriesName,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.ink3,
-                      ),
-                    ),
+                    child: Text(seriesName, style: _readoutMeta(glass)),
                   ),
                 if (against != null)
                   Padding(
@@ -1273,11 +1342,7 @@ class _ScrubReadout extends StatelessWidget {
                     child: Text(
                       '${_trim(against!.value)}$suffix · ${against!.label}'
                       '${againstName.isEmpty ? '' : ' ($againstName)'}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.ink3,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
+                      style: _readoutMeta(glass, tabular: true),
                     ),
                   ),
               ],
@@ -1317,7 +1382,12 @@ class DeltaBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final up = value >= 0;
-    final color = up ? context.colors.good : context.colors.crit;
+    final c = context.colors;
+    // Glass only ever sets this on the dark scrub readout, where the light
+    // theme's status inks would vanish — so it takes the on-dark pair there.
+    final color = up
+        ? (c.glass ? LumenGlass.onDarkGood : c.good)
+        : (c.glass ? LumenGlass.onDarkCrit : c.crit);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),

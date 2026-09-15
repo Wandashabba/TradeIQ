@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/core/widgets/console.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/photo_capture_field.dart';
 import 'package:tradeiq_app/features/audit/data/visibility_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s3_4_visibility_display_screen.dart';
@@ -141,7 +143,37 @@ void main() {
           findsNWidgets(3),
           reason: '$name three AgentFields',
         );
-        expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        final glass = tester
+            .element(find.byType(S3S4VisibilityDisplayScreen))
+            .colors
+            .glass;
+        if (glass) {
+          // Lumen Glass: one no-blur tile per question group — branding,
+          // measurements, placement — rather than one long console panel.
+          final tile = find.byWidgetPredicate(
+            (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
+          );
+          expect(
+            find.byType(PanelCard),
+            findsNothing,
+            reason: '$name no panel',
+          );
+          // Each group on its OWN tile. Counted per group rather than in total:
+          // the shared photo field frames itself in a tile of its own.
+          final tiles = <Element>{};
+          for (final label in [
+            'BRANDING ELEMENTS PRESENT',
+            'Facings count',
+            'High-traffic location',
+          ]) {
+            final own = find.ancestor(of: find.text(label), matching: tile);
+            expect(own, findsOneWidget, reason: '$name "$label" on a tile');
+            tiles.add(tester.element(own));
+          }
+          expect(tiles, hasLength(3), reason: '$name three separate tiles');
+        } else {
+          expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
+        }
         expect(
           find.widgetWithText(AgentButton, 'Save visibility'),
           findsOneWidget,

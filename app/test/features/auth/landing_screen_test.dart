@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
+import 'package:tradeiq_app/core/widgets/dimmed_aisle_backdrop.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/auth/presentation/landing_screen.dart';
 
 import '../../helpers/routed_app.dart';
@@ -65,4 +70,33 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('TRADEIQ'), findsOneWidget);
   });
+
+  testWidgets('light: the splash is the lit ground, the wordmark in ink', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      routedApp(const LandingScreen(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LitGround), findsOneWidget);
+    expect(find.byType(DimmedAisleBackdrop), findsNothing);
+    final wordmark = tester.widget<Text>(find.text('TRADEIQ'));
+    expect(wordmark.style?.color, LumenGlass.ink);
+  });
+
+  testWidgets(
+    'dark: the splash is the night ground, the wordmark in night ink',
+    (tester) async {
+      await tester.pumpWidget(
+        routedApp(const LandingScreen(), theme: AppTheme.dark()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LitGround), findsOneWidget);
+      expect(find.byType(DimmedAisleBackdrop), findsNothing);
+      final wordmark = tester.widget<Text>(find.text('TRADEIQ'));
+      expect(wordmark.style?.color, LumenPalette.dark.ink);
+    },
+  );
 }

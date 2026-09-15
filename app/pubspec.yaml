@@ -30,6 +30,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Field-app localisation (#40): gen-l10n ARB messages plus the Material
+  # widgets' own translations; `intl` formats dates in the active locale.
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -84,6 +89,9 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Runs gen-l10n (config in l10n.yaml) on pub get / build / test.
+  generate: true
+
   assets:
     - assets/images/tradeiq-ti-monogram.png
     - assets/videos/Steadycam_gliding_down_aisle_202607102247.mp4
@@ -105,6 +113,21 @@ flutter:
         - asset: assets/fonts/Inter-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+
+    # JetBrains Mono — the Lumen Glass figure and micro-label face: every
+    # numeral in a data role and every uppercase kicker. Bundled for the same
+    # offline reason as Inter. SIL OFL 1.1 — licence at
+    # assets/fonts/OFL-JetBrainsMono.txt.
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/JetBrainsMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
           weight: 700
 
   # To add assets to your application, add an assets section, like this:

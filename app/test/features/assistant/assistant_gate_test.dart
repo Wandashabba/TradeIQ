@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/assistant/presentation/assistant_gate.dart';
 import 'package:tradeiq_app/features/assistant/presentation/chat_screen.dart';
 import 'package:tradeiq_app/features/clients/data/clients_repository.dart';
@@ -36,14 +37,18 @@ class StubClients implements ClientsRepository {
       throw UnimplementedError();
 }
 
-Future<void> pumpGate(WidgetTester tester, Object clientsResult) async {
+Future<void> pumpGate(
+  WidgetTester tester,
+  Object clientsResult, {
+  ThemeData? theme,
+}) async {
   tester.view.physicalSize = const Size(1400, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
   await tester.pumpWidget(routedApp(
     const AssistantGate(),
-    theme: AppTheme.dark(),
+    theme: theme ?? AppTheme.dark(),
     overrides: [
       clientsRepositoryProvider.overrideWithValue(StubClients(clientsResult)),
     ],
@@ -77,6 +82,36 @@ void main() {
     await pumpGate(tester, Exception('network down'));
 
     expect(find.byType(AssistantChatScreen), findsOneWidget);
+  });
+
+  testWidgets('light: the explanation sits in one glass panel', (tester) async {
+    await pumpGate(
+      tester,
+      config(assistantEnabled: false),
+      theme: AppTheme.light(),
+    );
+
+    final pane = find.ancestor(
+      of: find.textContaining('Not switched on'),
+      matching: find.byType(GlassPane),
+    );
+    expect(pane, findsOneWidget);
+    expect(tester.widget<GlassPane>(pane).kind, GlassKind.panel);
+    // The words that matter survive the restyle.
+    expect(find.textContaining('TradeIQ contact'), findsOneWidget);
+  });
+
+  testWidgets('dark: the explanation sits in the same glass panel',
+      (tester) async {
+    await pumpGate(tester, config(assistantEnabled: false));
+
+    final pane = find.ancestor(
+      of: find.textContaining('Not switched on'),
+      matching: find.byType(GlassPane),
+    );
+    expect(pane, findsOneWidget);
+    expect(tester.widget<GlassPane>(pane).kind, GlassKind.panel);
+    expect(find.textContaining('TradeIQ contact'), findsOneWidget);
   });
 
   test('defaults to off when the server predates the field', () {

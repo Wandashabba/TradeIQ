@@ -5,6 +5,8 @@ import 'package:dio/dio.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -237,7 +239,14 @@ class _ThresholdsPanelState extends ConsumerState<_ThresholdsPanel> {
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: colors.line)),
+                    // Glass rule is the pane rim — see _WeightRow.
+                    border: Border(
+                      top: BorderSide(
+                        color: colors.glass
+                            ? context.lumen.panelRim
+                            : colors.line,
+                      ),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,7 +348,13 @@ class _WeightRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: colors.line)),
+        // Glass rules are the pane's own rim — a grey hairline reads as dirt
+        // on a lit pane.
+        border: Border(
+          top: BorderSide(
+            color: colors.glass ? context.lumen.panelRim : colors.line,
+          ),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -371,12 +386,16 @@ class _WeightRow extends StatelessWidget {
                   ? const StatusChip(label: 'Excluded', level: StatusLevel.warning)
                   : Text(
                       '${share.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: colors.ink1,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                      style: colors.glass
+                          ? LumenGlass.figure(size: 13, color: colors.ink1)
+                          : TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colors.ink1,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
                     ),
             ),
           ),
@@ -428,10 +447,16 @@ class ReadOnlyNotice extends StatelessWidget {
     return Container(
       key: const ValueKey<String>('read-only-notice'),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      // Glass keeps the opaque surface2 ground, so the ink3 words still
+      // measure true; only the hairline turns into the pane rim.
       decoration: BoxDecoration(
         color: colors.surface2,
-        border: Border.all(color: colors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
+        border: Border.all(
+          color: colors.glass ? context.lumen.panelRim : colors.lineStrong,
+        ),
+        borderRadius: BorderRadius.circular(
+          colors.glass ? LumenGlass.radiusControl : AppColors.radiusControl,
+        ),
       ),
       child: Row(
         children: [

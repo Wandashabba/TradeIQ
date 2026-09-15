@@ -41,6 +41,27 @@
 </head>
 <body>
   <!--
+    sql.js, vendored from npm (sql.js@1.14.1, dist/sql-wasm.{js,wasm}).
+
+    The web build's drift connection is the legacy `WebDatabase`, which reaches
+    for a global `initSqlJs` the moment the database is opened. Without it the
+    open throws `Could not access the sql.js javascript library` — and because
+    the check-in path writes a visit draft before anything else, an agent on
+    web gets "Could not start the visit" with no way forward.
+
+    Loaded synchronously and ahead of the Flutter bootstrap so the global is
+    defined before any Dart code can ask for it. Same reasoning as the fonts
+    comment above: served from our own assets, not a CDN.
+
+    This does NOT persist anything — the connection is
+    `DriftWebStorage.volatile()`, so the database lives in memory and a refresh
+    still discards queued captures (#140). Revisit alongside #177 if the web
+    build ever needs a durable local database, because that is the point at
+    which the encryption question in local_db_connection_web.dart becomes real.
+  -->
+  <script src="sql-wasm.js"></script>
+
+  <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
     or to give the user feedback during the initialization process.

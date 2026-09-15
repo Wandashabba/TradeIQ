@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -23,7 +25,8 @@ class LeaderboardScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Points accrue from submitted visits and closed tasks.',
+            'Points accrue from scorecards, submitted visits and closed '
+            'tasks. Tap an agent to see how they earned theirs.',
             style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
@@ -76,18 +79,28 @@ class _LeaderboardRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return WorklistRow(
       key: ValueKey('leaderboard-${entry.agentId}'),
-      title: entry.email,
+      title: entry.label,
       meta: Text(
         '${entry.points.toStringAsFixed(0)} pts · '
         '${entry.visitsSubmitted} visits · '
         '${entry.tasksClosed} tasks closed',
         softWrap: false,
         overflow: TextOverflow.ellipsis,
+        // A line of figures: glass sets it in the mono so ranks compare down
+        // the column. Null keeps the row's own meta style in dark.
+        style: context.colors.glass
+            ? const TextStyle(
+                fontFamily: LumenGlass.mono,
+                fontFeatures: [FontFeature.tabularFigures()],
+              )
+            : null,
       ),
       // One hue for every rank — position is the ranking, colour would only
       // restate it as a judgement.
       level: StatusLevel.neutral,
       statusLabel: 'Rank ${entry.rank}',
+      // The ledger behind the number (#124): how this agent earned it.
+      onTap: () => context.push('/leaderboard/${entry.agentId}'),
     );
   }
 }

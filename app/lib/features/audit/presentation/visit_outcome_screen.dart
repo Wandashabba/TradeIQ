@@ -3,12 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/lumen_kit.dart';
+import '../../../l10n/l10n.dart';
 import '../data/scorecards_repository.dart';
+import '../../../core/theme/lumen_palette.dart';
 
 /// How the visit ended.
 ///
@@ -38,8 +43,9 @@ class VisitOutcomeScreen extends ConsumerWidget {
       visitOutcomeProvider((visitDraftId: visitDraftId, outletId: outletId)),
     );
 
+    final l10n = context.l10n;
     return AgentScaffold(
-      title: 'Visit submitted',
+      title: l10n.outcomeTitle,
       subtitle: outletName,
       showSyncChip: false,
       // There is no way back into a submitted visit. Back means "on to the next
@@ -50,7 +56,7 @@ class VisitOutcomeScreen extends ConsumerWidget {
         children: [
           AgentButton(
             key: const ValueKey('next-store'),
-            label: 'Next store',
+            label: l10n.outcomeNextStore,
             icon: Icons.arrow_forward,
             onPressed: () => context.go('/today'),
           ),
@@ -61,11 +67,10 @@ class VisitOutcomeScreen extends ConsumerWidget {
         // Failing to *read* the score is not failing to submit. The captures are
         // in the outbox either way, and saying so is the only thing that matters
         // to someone walking out of a shop.
-        error: (_, _) =>
-            const _HeldOnPhone(reason: 'Could not reach the server just now'),
+        error: (_, _) => const _HeldOnPhone(unreachable: true),
         data: (outcome) {
           if (outcome.isHeldOnPhone) {
-            return const _HeldOnPhone(reason: 'No signal right now');
+            return const _HeldOnPhone(unreachable: false);
           }
           return _Scored(outcome: outcome);
         },
@@ -91,7 +96,7 @@ class _Scoring extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'Sending your visit…',
+            context.l10n.outcomeSending,
             style: TextStyle(fontSize: 13.5, color: colors.ink2),
           ),
         ],
@@ -103,20 +108,22 @@ class _Scoring extends StatelessWidget {
 /// Submitted, but still on the phone. This is the ordinary case in a shop with
 /// no signal, so it is not an error — it is a receipt.
 class _HeldOnPhone extends StatelessWidget {
-  const _HeldOnPhone({required this.reason});
+  const _HeldOnPhone({required this.unreachable});
 
-  final String reason;
+  /// True when the server could not be read; false when there is no signal.
+  final bool unreachable;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       children: [
         const Center(child: TickMark(done: true, size: 44)),
         const SizedBox(height: 16),
         Text(
-          'Your visit is safe on this phone',
+          l10n.outcomeHeldTitle,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 18,
@@ -126,24 +133,24 @@ class _HeldOnPhone extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '$reason — it will send itself the moment you have signal. '
-          'You can close the app.',
+          unreachable
+              ? l10n.outcomeHeldBodyUnreachable
+              : l10n.outcomeHeldBodyNoSignal,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13.5, height: 1.5, color: colors.ink2),
         ),
         const SizedBox(height: 22),
-        const StatusBanner(
+        StatusBanner(
           level: BannerLevel.warn,
-          title: 'Scored when it sends',
-          subtitle: 'Your score is worked out on the server, not on the phone',
+          title: l10n.outcomeScoredWhenSends,
+          subtitle: l10n.outcomeScoredOnServer,
         ),
         const SizedBox(height: 12),
         Text(
           // Not showing a number here is deliberate, and worth one sentence:
           // an agent who is shown 74 in the shop and finds 68 in the morning
           // will not trust the third one.
-          'We are not guessing at a score here. You will see the real one — the '
-          'same one your manager sees — as soon as this reaches the server.',
+          l10n.outcomeNoGuess,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, height: 1.5, color: colors.ink3),
         ),
@@ -160,8 +167,10 @@ class _Scored extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _GlassScored(outcome: outcome);
+    final l10n = context.l10n;
     final score = outcome.score!;
-    final band = _band(colors, score.ratingBand);
+    final band = _band(l10n, colors, score.ratingBand);
     final delta = outcome.delta;
 
     return ListView(
@@ -247,7 +256,7 @@ class _Scored extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        const _Heading('How it was scored'),
+        _Heading(l10n.outcomeHowScored),
         DecoratedBox(
           decoration: BoxDecoration(
             color: colors.surface1,
@@ -260,12 +269,12 @@ class _Scored extends StatelessWidget {
                 Reveal(
                   index: i,
                   child: _Dimension(
-                    label: entry.value,
+                    label: _dimensionLabel(l10n, entry.key, entry.value),
                     // Absent means the server could not measure it. It shows as
                     // "—", never as a zero that reads like the agent failed at
                     // something they were never given a chance to do (#93).
                     score: score.scoreOf(entry.key),
-                    unmeasurableReason: kUnmeasurableReasons[entry.key],
+                    unmeasurableReason: _unmeasurableReason(l10n, entry.key),
                     isLast: i == kDimensionLabels.length - 1,
                   ),
                 ),
@@ -280,13 +289,17 @@ class _Scored extends StatelessWidget {
   /// the raw status token; the word takes the text-grade tint — red as `crit`
   /// text fails 4.5:1 on the hero wash, so the word uses `critText`.
   static ({Color dot, Color text, String word}) _band(
+    AppLocalizations l10n,
     TiqColors colors,
     String band,
-  ) => switch (band) {
-    'green' => (dot: colors.good, text: colors.good, word: 'Green'),
-    'amber' => (dot: colors.warn, text: colors.warn, word: 'Amber'),
-    _ => (dot: colors.crit, text: colors.critText, word: 'Red'),
-  };
+  ) {
+    final word = l10n.outcomeRatingBand(band);
+    return switch (band) {
+      'green' => (dot: colors.good, text: colors.good, word: word),
+      'amber' => (dot: colors.warn, text: colors.warn, word: word),
+      _ => (dot: colors.crit, text: colors.critText, word: word),
+    };
+  }
 }
 
 /// Up or down since this agent's last visit to this store — the only comparison
@@ -300,10 +313,11 @@ class _Delta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     final rounded = points.round();
     if (rounded == 0) {
       return Text(
-        'Same as your last visit here (${previous.weightedTotal.round()}).',
+        l10n.outcomeDeltaSame(previous.weightedTotal.round()),
         style: TextStyle(fontSize: 12.5, color: colors.ink3),
       );
     }
@@ -323,16 +337,19 @@ class _Delta extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(
-          '${up ? 'Up' : 'Down'} ${rounded.abs()} '
-          '${rounded.abs() == 1 ? 'point' : 'points'}',
+          up
+              ? l10n.outcomeDeltaUp(rounded.abs())
+              : l10n.outcomeDeltaDown(rounded.abs()),
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
             color: color,
           ),
         ),
+        // Styled apart from the movement, so it is its own message; the
+        // leading space is layout, not copy.
         Text(
-          ' from your last visit here (${previous.weightedTotal.round()}).',
+          ' ${l10n.outcomeDeltaFromLast(previous.weightedTotal.round())}',
           style: TextStyle(fontSize: 12.5, color: colors.ink3),
         ),
       ],
@@ -450,7 +467,7 @@ class _Bar extends StatelessWidget {
 }
 
 class _HatchPainter extends CustomPainter {
-  _HatchPainter({required this.track, required this.hatch});
+  const _HatchPainter({required this.track, required this.hatch});
 
   final Color track;
   final Color hatch;
@@ -506,3 +523,321 @@ class _Heading extends StatelessWidget {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Lumen Glass — the score on the one dark pane
+// ═══════════════════════════════════════════════════════════════════════
+
+/// The score reveal in glass. The score is the one surface in the product that
+/// should feel heavier than everything around it, so it is the dark pane: the
+/// figure, the band in words, the published perfect-store banding under it,
+/// and every dimension drawn against the 80-point standard.
+class _GlassScored extends StatelessWidget {
+  const _GlassScored({required this.outcome});
+
+  final VisitOutcome outcome;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final score = outcome.score!;
+    final delta = outcome.delta;
+    final word = l10n.outcomeRatingBand(score.ratingBand);
+    final ink = switch (score.ratingBand) {
+      'green' => LumenGlass.onDarkGood,
+      'amber' => LumenGlass.onDarkWarn,
+      _ => LumenGlass.onDarkCrit,
+    };
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+      children: [
+        GlassRise(
+          child: GlassPane(
+            key: const ValueKey('score-hero'),
+            kind: GlassKind.dark,
+            radius: LumenGlass.radiusScore,
+            padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Positioned(
+                  top: -94,
+                  right: -74,
+                  child: GlassBloom(diameter: 190),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Kicker(
+                      l10n.outcomePerfectStoreScore,
+                      color: LumenGlass.onDarkMuted,
+                      size: 9.5,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.end,
+                      spacing: 12,
+                      runSpacing: 6,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            // The one moment in the visit worth landing.
+                            AnimatedCount(
+                              value: score.weightedTotal.round(),
+                              style: LumenGlass.hero(
+                                size: 74,
+                                color: Colors.white,
+                              ).copyWith(
+                                shadows: const [
+                                  Shadow(
+                                    color: Color(0x99B5ABFC),
+                                    blurRadius: 40,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Text(
+                              '/100',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: LumenGlass.onDarkMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: ink,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 7),
+                              // The band is spelled out, never left to colour.
+                              Text(
+                                word,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    ScoreBandBar(score: score.weightedTotal),
+                    if (delta != null) ...[
+                      const SizedBox(height: 14),
+                      _GlassDelta(points: delta, previous: outcome.previous!),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
+        Kicker(l10n.outcomeHowScored),
+        const SizedBox(height: 10),
+        GlassPane(
+          child: Column(
+            children: [
+              for (final (i, entry) in kDimensionLabels.entries.indexed)
+                Reveal(
+                  index: i,
+                  child: _GlassDimension(
+                    label: _dimensionLabel(l10n, entry.key, entry.value),
+                    // Absent means the server could not measure it: "—", never
+                    // a zero that reads like a failure (#93).
+                    score: score.scoreOf(entry.key),
+                    unmeasurableReason: _unmeasurableReason(l10n, entry.key),
+                    isLast: i == kDimensionLabels.length - 1,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Up or down since this agent's last visit here, in light inks on the pane.
+class _GlassDelta extends StatelessWidget {
+  const _GlassDelta({required this.points, required this.previous});
+
+  final double points;
+  final ServerScorecard previous;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final rounded = points.round();
+    final was = previous.weightedTotal.round();
+    if (rounded == 0) {
+      return Text(
+        l10n.outcomeDeltaSame(was),
+        style: const TextStyle(fontSize: 12.5, color: LumenGlass.onDarkMuted),
+      );
+    }
+    final up = rounded > 0;
+    final color = up ? LumenGlass.onDarkGood : LumenGlass.onDarkCrit;
+    return Row(
+      children: [
+        Icon(
+          up ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 13,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          up
+              ? l10n.outcomeDeltaUp(rounded.abs())
+              : l10n.outcomeDeltaDown(rounded.abs()),
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            ' ${l10n.outcomeDeltaFromLast(was)}',
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: LumenGlass.onDarkMuted,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One dimension against the 80-point standard: its figure in status ink and
+/// a bar with the tick at 80. Unmeasured is hatched and reads "—".
+class _GlassDimension extends StatelessWidget {
+  const _GlassDimension({
+    required this.label,
+    required this.score,
+    required this.unmeasurableReason,
+    required this.isLast,
+  });
+
+  final String label;
+  final double? score;
+  final String? unmeasurableReason;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final value = score;
+    final status = value == null
+        ? LumenStatus.none
+        : value >= 80
+        ? LumenStatus.good
+        : value >= 70
+        ? LumenStatus.warn
+        : LumenStatus.crit;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 13, 18, 13),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(bottom: BorderSide(color: context.lumen.white(0xB3))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    color: context.lumen.ink,
+                  ),
+                ),
+              ),
+              Text(
+                value == null ? '—' : value.round().toString(),
+                style: LumenGlass.figure(
+                  size: 14,
+                  color: value == null
+                      ? context.lumen.inkMuted
+                      : status.swatchOf(colors).ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (value == null)
+            SizedBox(
+              height: 6,
+              child: CustomPaint(
+                painter: _HatchPainter(
+                  track: context.lumen.track,
+                  hatch: Color(0x665B5F75),
+                ),
+                size: Size.infinite,
+              ),
+            )
+          else
+            BenchmarkBar(value: value, target: 80, status: status, height: 6),
+          if (value == null && unmeasurableReason != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              unmeasurableReason!,
+              style: TextStyle(
+                fontSize: 11.5,
+                color: context.lumen.inkMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A dimension's name in the active language. The keys are the API's
+/// ([kDimensionLabels]); an unknown key keeps the repository's English label.
+String _dimensionLabel(AppLocalizations l10n, String key, String fallback) =>
+    switch (key) {
+      'availability' => l10n.outcomeDimensionAvailability,
+      'visibility' => l10n.outcomeDimensionVisibility,
+      'display' => l10n.outcomeDimensionDisplay,
+      'pricing' => l10n.outcomeDimensionPricing,
+      'competitive' => l10n.outcomeDimensionCompetitive,
+      'salesCapability' => l10n.outcomeDimensionSalesCapability,
+      _ => fallback,
+    };
+
+/// Why a dimension could not be scored ([kUnmeasurableReasons]), localised.
+String? _unmeasurableReason(AppLocalizations l10n, String key) =>
+    switch (key) {
+      'competitive' => l10n.outcomeUnmeasurableCompetitive,
+      'salesCapability' => l10n.outcomeUnmeasurableSalesCapability,
+      _ => kUnmeasurableReasons[key],
+    };

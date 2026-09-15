@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -107,6 +109,17 @@ class _TerritoryRow extends ConsumerWidget {
               return Text('Failed to load coverage: ${snapshot.error}');
             }
             final coverage = snapshot.data!;
+            if (context.colors.glass) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _FigureLine('Outlets', '${coverage.outletCount}'),
+                  _FigureLine('Agents', '${coverage.agentCount}'),
+                  _FigureLine('Coverage', '${coverage.coverageRate.round()}%'),
+                ],
+              );
+            }
             return Text(
               'Outlets: ${coverage.outletCount}   Agents: ${coverage.agentCount}\n'
               'Coverage: ${coverage.coverageRate.round()}%',
@@ -258,7 +271,7 @@ class _AssignAgentDialogState extends ConsumerState<_AssignAgentDialog> {
             decoration: const InputDecoration(labelText: 'Field agent'),
             items: [
               for (final u in fieldAgents)
-                DropdownMenuItem(value: u.id, child: Text(u.email)),
+                DropdownMenuItem(value: u.id, child: Text(u.label)),
             ],
             onChanged: (v) => setState(() => _agentId = v),
           );
@@ -275,6 +288,34 @@ class _AssignAgentDialogState extends ConsumerState<_AssignAgentDialog> {
           child: const Text('Assign'),
         ),
       ],
+    );
+  }
+}
+
+/// One count in the glass coverage dialog: the words left, the figure right.
+class _FigureLine extends StatelessWidget {
+  const _FigureLine(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final lumen = context.lumen;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: lumen.inkMuted),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(value, style: LumenGlass.figure(color: lumen.ink)),
+        ],
+      ),
     );
   }
 }

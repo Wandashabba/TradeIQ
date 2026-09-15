@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 
@@ -21,7 +22,7 @@ Widget _app(Widget child, ThemeMode mode) => MaterialApp(
 
 final _themes = <String, ({ThemeMode mode, TiqColors colors})>{
   'light': (mode: ThemeMode.light, colors: TiqColors.light),
-  'dark': (mode: ThemeMode.dark, colors: TiqColors.dark),
+  'dark': (mode: ThemeMode.dark, colors: TiqColors.night),
 };
 
 /// The single [AnimatedContainer] each primitive paints its state onto (the
@@ -50,21 +51,31 @@ void main() {
         expect(_stateDeco(tester, AgentToggle).color, colors.brand);
       });
 
-      testWidgets('OFF track is surface3 with a lineStrong border', (
-        tester,
-      ) async {
-        await tester.pumpWidget(
-          _app(
-            AgentToggle(label: 'High traffic', value: false, onChanged: (_) {}),
-            mode,
-          ),
-        );
-        final deco = _stateDeco(tester, AgentToggle);
-        expect(deco.color, colors.surface3);
-        expect((deco.border! as Border).top.color, colors.lineStrong);
-        // ON and OFF must be visibly different states, not colour twins.
-        expect(deco.color, isNot(colors.brand));
-      });
+      testWidgets(
+        'OFF track is surface3 (glass: the Lumen track) with a lineStrong border',
+        (tester) async {
+          await tester.pumpWidget(
+            _app(
+              AgentToggle(
+                label: 'High traffic',
+                value: false,
+                onChanged: (_) {},
+              ),
+              mode,
+            ),
+          );
+          final deco = _stateDeco(tester, AgentToggle);
+          expect(
+            deco.color,
+            colors.glass
+                ? (colors.isNight ? LumenPalette.dark : LumenPalette.light).track
+                : colors.surface3,
+          );
+          expect((deco.border! as Border).top.color, colors.lineStrong);
+          // ON and OFF must be visibly different states, not colour twins.
+          expect(deco.color, isNot(colors.brand));
+        },
+      );
 
       testWidgets('label is ink1 and clears 4.5:1 on its ground', (
         tester,
@@ -146,23 +157,30 @@ void main() {
         expect(_stateDeco(tester, AgentCheck).color, colors.brand);
       });
 
-      testWidgets('unchecked box is surface2 with a lineStrong border', (
-        tester,
-      ) async {
-        await tester.pumpWidget(
-          _app(
-            AgentCheck(
-              label: 'Branding present',
-              value: false,
-              onChanged: (_) {},
+      testWidgets(
+        'unchecked box is surface2 (glass: a pill fill) with a lineStrong border',
+        (tester) async {
+          await tester.pumpWidget(
+            _app(
+              AgentCheck(
+                label: 'Branding present',
+                value: false,
+                onChanged: (_) {},
+              ),
+              mode,
             ),
-            mode,
-          ),
-        );
-        final deco = _stateDeco(tester, AgentCheck);
-        expect(deco.color, colors.surface2);
-        expect((deco.border! as Border).top.color, colors.lineStrong);
-      });
+          );
+          final deco = _stateDeco(tester, AgentCheck);
+          expect(
+            deco.color,
+            colors.glass
+                ? (colors.isNight ? LumenPalette.dark : LumenPalette.light)
+                      .pillFill
+                : colors.surface2,
+          );
+          expect((deco.border! as Border).top.color, colors.lineStrong);
+        },
+      );
 
       testWidgets('checked state carries a tick that clears 4.5:1 on brand', (
         tester,

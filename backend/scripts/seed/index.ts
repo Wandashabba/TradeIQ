@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma, TaskPriority, TaskStatus } from '@prisma/client';
 import { hashPassword } from '../../src/modules/auth/auth.service';
 import { rescoreFraudScores } from '../../src/modules/fraud/fraudRescore';
+import { backfillPointsLedger } from '../../src/modules/gamification/pointsLedgerBackfill';
 import { addDays, HISTORY_WEEKS, startOfUtcDay } from './calendar';
 import {
   DEMO_CLIENT_ID,
@@ -75,6 +76,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     data: USERS.map((user) => ({
       id: user.id,
       email: user.email,
+      displayName: user.name,
       passwordHash,
       role: user.role,
       clientId: DEMO_CLIENT_ID,
@@ -294,7 +296,12 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   // Today's beat plan for the demo agent, opening with the home-base outlet so
   // the live geofence check-in is the natural next action.
   const demoAgent = agents[0]!;
-  const gautengOutlets = outlets.filter((o) => o.territoryId === 'demo-territory-gp');
+  // Outlets carry the territory CODE; the BeatPlan below carries the territory
+  // ID, because `BeatPlan.territoryId` is a real foreign key while
+  // `Outlet.territoryId` is free text mirroring the code. Same field name, two
+  // different meanings, one line apart — which is exactly how the id ended up
+  // on the outlets in the first place.
+  const gautengOutlets = outlets.filter((o) => o.territoryId === 'GP');
   const stopOutlets = [
     outlets.find((o) => o.id === HOME_OUTLET_ID)!,
     ...gautengOutlets.filter((o) => o.id !== HOME_OUTLET_ID).slice(0, 4),
@@ -388,6 +395,11 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       },
     });
   }
+
+  // The seed writes history directly, past the live ledger hooks, so the
+  // leaderboard's points ledger (#124) is built from it the way production
+  // history is.
+  await backfillPointsLedger({ clientId: DEMO_CLIENT_ID }, prisma);
 
   const openTasks = ops.tasks.filter((t) => t.status === 'open').length;
   const openAlerts = ops.alerts.filter((a) => !a.acknowledged).length;

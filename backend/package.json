@@ -18,6 +18,7 @@
     "create-admin": "ts-node scripts/create-admin.ts",
     "enable-assistant": "ts-node scripts/enable-assistant.ts",
     "backfill-photo-hashes": "ts-node scripts/backfill-photo-hashes.ts",
+    "backfill-points-ledger": "ts-node scripts/backfill-points-ledger.ts",
     "rescore-fraud": "ts-node scripts/rescore-fraud.ts"
   },
   "keywords": [],
@@ -58,6 +59,7 @@
     "typescript": "^6.0.3"
   },
   "overrides": {
-    "brace-expansion": "5.0.9"
+    "brace-expansion": "5.0.9",
+    "deepmerge-ts": "^8.0.0"
   }
 }

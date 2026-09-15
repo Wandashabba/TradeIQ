@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/l10n.dart';
 import '../camera/photo_capture_service.dart';
+import '../theme/lumen_glass.dart';
+import '../theme/lumen_palette.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_kit.dart';
 import 'console.dart';
+import 'glass.dart';
 
 /// A full-screen, guided launch into the OS camera.
 ///
@@ -68,7 +72,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
       // button is broken will stop filing evidence.
       if (mounted) {
         setState(() {
-          _error = 'Could not capture a photo: $e';
+          _error = context.l10n.captureError('$e');
           _busy = false;
         });
       }
@@ -78,27 +82,56 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Scaffold(
-      backgroundColor: colors.plane,
+    final l10n = context.l10n;
+    final glass = colors.glass;
+    final brackets = CustomPaint(
+      key: const ValueKey('framing-brackets'),
+      // A guide graphic, not a viewfinder — brand-coloured
+      // corner brackets an agent lines the real shot up inside.
+      painter: _FramingBracketPainter(colors.brand),
+    );
+    final scaffold = Scaffold(
+      // Glass: the lit ground shows through a transparent scaffold and bar.
+      backgroundColor: glass ? Colors.transparent : colors.plane,
       appBar: AppBar(
-        backgroundColor: colors.plane,
+        backgroundColor: glass ? Colors.transparent : colors.plane,
         elevation: 0,
         leading: IconButton(
           key: const ValueKey('guided-close'),
-          icon: const Icon(Icons.close, size: 22),
-          tooltip: 'Cancel',
+          padding: glass ? const EdgeInsets.all(5) : null,
+          // Glass sets the close mark in a 38px glass chip, as GlassBackChip
+          // does — kept an IconButton so its key, tooltip and tap are unchanged.
+          icon: glass
+              ? GlassPane(
+                  kind: GlassKind.pill,
+                  radius: 13,
+                  shadow: false,
+                  child: SizedBox(
+                    width: 38,
+                    height: 38,
+                    child: Icon(
+                      Icons.close,
+                      size: 20,
+                      color: context.lumen.accentInk,
+                    ),
+                  ),
+                )
+              : const Icon(Icons.close, size: 22),
+          tooltip: l10n.captureCancelTooltip,
           // Backing out returns null — the caller keeps whatever it had.
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           widget.label,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
-            color: colors.ink1,
-          ),
+          style: glass
+              ? LumenGlass.title(size: 20, color: context.lumen.ink)
+              : TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: colors.ink1,
+                ),
         ),
       ),
       body: SafeArea(
@@ -116,12 +149,15 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
                 child: Center(
                   child: AspectRatio(
                     aspectRatio: 3 / 4,
-                    child: CustomPaint(
-                      key: const ValueKey('framing-brackets'),
-                      // A guide graphic, not a viewfinder — brand-coloured
-                      // corner brackets an agent lines the real shot up inside.
-                      painter: _FramingBracketPainter(colors.brand),
-                    ),
+                    // Glass frames the guide in a panel, so the target reads
+                    // as a place on the lit ground rather than loose strokes.
+                    child: glass
+                        ? GlassPane(
+                            radius: LumenGlass.radiusHero,
+                            padding: const EdgeInsets.all(14),
+                            child: brackets,
+                          )
+                        : brackets,
                   ),
                 ),
               ),
@@ -130,8 +166,8 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const StatusChip(
-                      label: 'Error',
+                    StatusChip(
+                      label: l10n.captureErrorChip,
                       level: StatusLevel.critical,
                     ),
                     const SizedBox(width: 8),
@@ -148,7 +184,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
               const SizedBox(height: 16),
               AgentButton(
                 key: const ValueKey('guided-capture'),
-                label: 'Capture',
+                label: l10n.captureButton,
                 icon: Icons.photo_camera_outlined,
                 onPressed: _busy ? null : () => _capture(PhotoSource.camera),
               ),
@@ -157,7 +193,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
               // still has to be able to file evidence.
               AgentButton(
                 key: const ValueKey('guided-gallery'),
-                label: 'Choose from gallery',
+                label: l10n.captureGalleryButton,
                 icon: Icons.photo_library_outlined,
                 secondary: true,
                 onPressed: _busy ? null : () => _capture(PhotoSource.gallery),
@@ -167,6 +203,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
         ),
       ),
     );
+    return glass ? LitGround(child: scaffold) : scaffold;
   }
 }
 

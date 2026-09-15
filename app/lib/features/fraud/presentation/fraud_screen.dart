@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -21,7 +23,8 @@ class FraudScreen extends ConsumerWidget {
           ? StatusLevel.warning
           : StatusLevel.neutral;
 
-  static String _word(StatusLevel level) => switch (level) {
+  /// The band's word. Public so the visit detail screen names risk the same way.
+  static String wordFor(StatusLevel level) => switch (level) {
         StatusLevel.critical => 'High risk',
         StatusLevel.warning => 'Elevated',
         _ => 'Low risk',
@@ -166,6 +169,14 @@ class _FlaggedVisitRow extends StatelessWidget {
                   'Risk ${visit.riskScore.toStringAsFixed(0)} · $codes',
                   softWrap: false,
                   overflow: TextOverflow.ellipsis,
+                  // A figure and rule codes — machine-facing, so glass sets
+                  // them in the mono. Null keeps the meta style in dark.
+                  style: context.colors.glass
+                      ? const TextStyle(
+                          fontFamily: LumenGlass.mono,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        )
+                      : null,
                 ),
               ),
             ],
@@ -182,7 +193,15 @@ class _FlaggedVisitRow extends StatelessWidget {
         ],
       ),
       level: level,
-      statusLabel: FraudScreen._word(level),
+      statusLabel: FraudScreen.wordFor(level),
+      // The evidence behind the score is one hop away: the whole visit.
+      actions: [
+        RowAction(
+          key: ValueKey<String>('view-visit-${visit.visitId}'),
+          label: 'View visit',
+          onPressed: () => context.push('/visits/${visit.visitId}'),
+        ),
+      ],
     );
   }
 }

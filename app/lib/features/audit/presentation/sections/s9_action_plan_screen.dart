@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/lumen_glass.dart';
 import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
+import '../../../../core/widgets/glass.dart';
+import '../../../../l10n/l10n.dart';
 import '../../data/tasks_repository.dart';
 
 /// S9 — Action Plan: manual corrective tasks raised by the agent. Risks
@@ -24,12 +27,6 @@ class S9ActionPlanScreen extends ConsumerStatefulWidget {
 }
 
 class _S9State extends ConsumerState<S9ActionPlanScreen> {
-  static const _priorityOptions = <({String value, String label})>[
-    (value: 'critical', label: 'Critical'),
-    (value: 'high', label: 'High'),
-    (value: 'normal', label: 'Normal'),
-  ];
-
   final _findingType = TextEditingController();
   final _requiredFix = TextEditingController();
   String _priority = 'normal';
@@ -64,63 +61,74 @@ class _S9State extends ConsumerState<S9ActionPlanScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
+    final priorityOptions = <({String value, String label})>[
+      (value: 'critical', label: l10n.s9PriorityCritical),
+      (value: 'high', label: l10n.s9PriorityHigh),
+      (value: 'normal', label: l10n.s9PriorityNormal),
+    ];
+    final form = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AgentField(
+          label: l10n.s9FindingTypeLabel,
+          child: TextField(
+            key: const ValueKey('task-type'),
+            controller: _findingType,
+            decoration: InputDecoration(hintText: l10n.s9FindingTypeHint),
+          ),
+        ),
+        AgentField(
+          label: l10n.s9RequiredFixLabel,
+          child: TextField(
+            key: const ValueKey('task-fix'),
+            controller: _requiredFix,
+            decoration: InputDecoration(hintText: l10n.s9RequiredFixHint),
+          ),
+        ),
+        Text(
+          l10n.s9PriorityLabel,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: colors.ink2,
+          ),
+        ),
+        const SizedBox(height: 7),
+        ChoiceRow<String>(
+          options: priorityOptions,
+          selected: _priority,
+          onChanged: (v) => setState(() => _priority = v),
+        ),
+      ],
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Risks flagged in S8 auto-create tasks with an SLA server-side. '
-          'Add any extra manual tasks below.',
+          l10n.s9Intro,
           style: TextStyle(color: colors.ink2, height: 1.4),
         ),
         const SizedBox(height: 12),
-        PanelCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AgentField(
-                label: 'Finding type',
-                child: TextField(
-                  key: const ValueKey('task-type'),
-                  controller: _findingType,
-                  decoration: const InputDecoration(
-                    hintText: 'What needs fixing',
-                  ),
-                ),
-              ),
-              AgentField(
-                label: 'Required fix',
-                child: TextField(
-                  key: const ValueKey('task-fix'),
-                  controller: _requiredFix,
-                  decoration: const InputDecoration(
-                    hintText: 'The corrective action',
-                  ),
-                ),
-              ),
-              Text(
-                'Priority',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: colors.ink2,
-                ),
-              ),
-              const SizedBox(height: 7),
-              ChoiceRow<String>(
-                options: _priorityOptions,
-                selected: _priority,
-                onChanged: (v) => setState(() => _priority = v),
-              ),
-            ],
-          ),
-        ),
+        if (colors.glass)
+          // Glass: the task being written is one no-blur tile.
+          GlassPane(
+            kind: GlassKind.tile,
+            blur: false,
+            radius: LumenGlass.radiusCard,
+            padding: const EdgeInsets.all(16),
+            child: form,
+          )
+        else
+          PanelCard(child: form),
         const SizedBox(height: 12),
-        AgentButton(label: 'Add task', onPressed: _addTask),
+        AgentButton(label: l10n.s9AddButton, onPressed: _addTask),
         if (_saved)
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(
-              'Task queued for sync',
+              l10n.s9Saved,
               style: TextStyle(color: colors.ink2),
             ),
           ),

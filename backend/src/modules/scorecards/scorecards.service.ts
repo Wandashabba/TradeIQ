@@ -3,6 +3,8 @@ import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { facingsTotal, mean, round2 } from '../../lib/kpiMath';
+import { personLabel } from '../../lib/personName';
+import { recordPointsBestEffort, recordScorecard } from '../gamification/pointsLedger';
 
 export const SCORECARD_DIMENSIONS = [
   'availability',
@@ -15,7 +17,7 @@ export const SCORECARD_DIMENSIONS = [
 
 export type ScorecardDimension = (typeof SCORECARD_DIMENSIONS)[number];
 
-const DEFAULT_GREEN_THRESHOLD = 80;
+export const DEFAULT_GREEN_THRESHOLD = 80;
 const DEFAULT_AMBER_THRESHOLD = 60;
 
 function clamp(value: number, min = 0, max = 100): number {
@@ -161,11 +163,19 @@ export async function generateScorecard(input: GenerateScorecardInput) {
 
   // One Scorecard per visit (unique visitId) — upsert so re-submitting is
   // idempotent, mirroring the section-capture services.
-  return prisma.scorecard.upsert({
+  const scorecard = await prisma.scorecard.upsert({
     where: { visitId: input.visitId },
     create: { visitId: input.visitId, ...fields },
     update: fields,
   });
+
+  // Issue #124: the scorecard feeds the leaderboard's average — record it (or
+  // refresh its score on a regenerate). Best-effort: never fails the scorecard.
+  await recordPointsBestEffort(`scorecard ${scorecard.id}`, () =>
+    recordScorecard(scorecard, { clientId: visit.clientId, agentId: visit.agentId }),
+  );
+
+  return scorecard;
 }
 
 export async function listScorecardsForClient(input: {
@@ -236,6 +246,13 @@ export async function getScorecardByVisit(visitId: string, clientId: string) {
 export interface ResolvedAgent {
   id: string;
   email: string;
+  displayName: string | null;
+}
+
+/** "Sipho Ndlovu <sipho@acme.com>", or just the email when there is no name. */
+function describeCandidate(candidate: ResolvedAgent): string {
+  const name = candidate.displayName?.trim();
+  return name ? `${name} <${candidate.email}>` : candidate.email;
 }
 
 export class AgentNotFoundError extends Error {}
@@ -243,7 +260,7 @@ export class AmbiguousAgentError extends Error {
   constructor(readonly query: string, readonly candidates: ResolvedAgent[]) {
     super(
       `"${query}" matches ${candidates.length} people: ` +
-        `${candidates.map((c) => c.email).join(', ')}. Ask which one they mean.`,
+        `${candidates.map(describeCandidate).join(', ')}. Ask which one they mean.`,
     );
     this.name = 'AmbiguousAgentError';
   }
@@ -265,11 +282,22 @@ const MAX_AGENT_CANDIDATES = 5;
  * Managers say names. Ids come from tool results. Without something in between,
  * every question about a person costs an extra paid round trip — or fails.
  *
- * **Matching is against `email`, because `User` has no display-name column.**
- * That is a real product limitation, not a shortcut: `agents.service.ts` makes
- * the same observation about what it can show in the UI. So "Tumo" matches
- * `tumo@acme.com` on the local part. Add a display-name column and this
- * function is where it plugs in.
+ * **Matching runs most-specific first, and the first step that hits wins:**
+ *
+ * 1. exact `id` — what a follow-up turn supplies after a tool result;
+ * 2. exact `email`, case-insensitive;
+ * 3. exact `displayName`, case-insensitive — "Sipho Ndlovu";
+ * 4. `displayName` contains the query — "Sipho", "Ndlovu";
+ * 5. `email` contains the query — the fallback for people with no name yet.
+ *
+ * Names come before the email substring because a name is what a manager
+ * actually says, and a full name with a space ("Sipho Ndlovu") can never be a
+ * substring of `sipho.ndlovu@acme.com` (#280). The email step stays because
+ * `displayName` is nullable: accounts that predate it were not given one, and
+ * we do not guess one from the address.
+ *
+ * An exact step beats a partial one even when the partial would also hit: "Sam
+ * Taylor" must not be ambiguous merely because "Sam Taylor-Smith" exists.
  *
  * **Ambiguity is answered, not guessed.** Two people matching "Sipho" raises
  * {@link AmbiguousAgentError} naming both, so the assistant can ask. Picking
@@ -287,44 +315,51 @@ export async function resolveAgent(input: {
     throw new AgentNotFoundError('No agent was named.');
   }
 
-  const select = { id: true, email: true } as const;
+  const { clientId } = input;
+  const select = { id: true, email: true, displayName: true } as const;
 
   // An exact id, which is what a follow-up turn supplies after a tool result.
   const byId = await prisma.user.findFirst({
-    where: { id: query, clientId: input.clientId },
+    where: { id: query, clientId },
     select,
   });
   if (byId) return byId;
 
   // An exact email beats a partial match even when the partial would also hit:
   // "sam@acme.com" must not be ambiguous merely because "sam.taylor@acme.com"
-  // exists.
+  // exists. Email is unique, so this cannot be ambiguous itself.
   const byEmail = await prisma.user.findFirst({
-    where: { email: { equals: query, mode: 'insensitive' }, clientId: input.clientId },
+    where: { email: { equals: query, mode: 'insensitive' }, clientId },
     select,
   });
   if (byEmail) return byEmail;
 
-  const matches = await prisma.user.findMany({
-    where: {
-      clientId: input.clientId,
-      email: { contains: query, mode: 'insensitive' },
-    },
-    select,
-    // One more than we will name, so "and others" is honest rather than a guess.
-    take: MAX_AGENT_CANDIDATES + 1,
-    orderBy: { email: 'asc' },
-  });
+  // Names are not unique, so every name step can be ambiguous — two people
+  // really can both be called "Sipho Ndlovu", and that must still ask.
+  const steps: Prisma.UserWhereInput[] = [
+    { displayName: { equals: query, mode: 'insensitive' } },
+    { displayName: { contains: query, mode: 'insensitive' } },
+    { email: { contains: query, mode: 'insensitive' } },
+  ];
 
-  if (matches.length === 0) {
-    throw new AgentNotFoundError(
-      `No one matching "${query}" works here. Ask the user to check the name, ` +
-        'or use a tool that lists agents.',
-    );
+  for (const step of steps) {
+    const matches = await prisma.user.findMany({
+      where: { clientId, ...step },
+      select,
+      // One more than we will name, so "and others" is honest rather than a guess.
+      take: MAX_AGENT_CANDIDATES + 1,
+      orderBy: [{ displayName: { sort: 'asc', nulls: 'last' } }, { email: 'asc' }],
+    });
+    if (matches.length === 1) return matches[0];
+    if (matches.length > 1) {
+      throw new AmbiguousAgentError(query, matches.slice(0, MAX_AGENT_CANDIDATES));
+    }
   }
-  if (matches.length === 1) return matches[0];
 
-  throw new AmbiguousAgentError(query, matches.slice(0, MAX_AGENT_CANDIDATES));
+  throw new AgentNotFoundError(
+    `No one matching "${query}" works here. Ask the user to check the name, ` +
+      'or use a tool that lists agents.',
+  );
 }
 
 export interface AgentPerformanceInput {
@@ -337,8 +372,11 @@ export interface AgentPerformanceInput {
 
 export interface AgentPerformance {
   agentId: string;
-  /** The agent's email — `User` has no display-name column. Named for its role. */
+  /** What to call the agent: their display name, or their email when they have none. */
   agentName: string | null;
+  /** The agent's display name as stored; `null` when none was ever set. */
+  agentDisplayName: string | null;
+  agentEmail: string;
   visits: number;
   outletsVisited: number;
   scoredVisits: number;
@@ -374,7 +412,7 @@ export async function getAgentPerformance(input: AgentPerformanceInput): Promise
 
   const agent = await prisma.user.findFirst({
     where: { id: agentId, clientId },
-    select: { id: true, email: true },
+    select: { id: true, email: true, displayName: true },
   });
   // Not a NotFoundError: an agent id from another tenant and an agent id that
   // does not exist must be indistinguishable, or the endpoint becomes an
@@ -422,7 +460,9 @@ export async function getAgentPerformance(input: AgentPerformanceInput): Promise
 
   return {
     agentId,
-    agentName: agent.email,
+    agentName: personLabel(agent.displayName, agent.email),
+    agentDisplayName: agent.displayName,
+    agentEmail: agent.email,
     visits: visits.length,
     outletsVisited: new Set(visits.map((v) => v.outletId)).size,
     scoredVisits: scorecards.length,

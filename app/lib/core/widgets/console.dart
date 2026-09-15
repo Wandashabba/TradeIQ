@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/lumen_glass.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_motion.dart' show Motion, reduceMotion;
 import 'delta_pill.dart';
+import 'glass.dart';
+import 'lumen_kit.dart';
+import '../theme/lumen_palette.dart';
 
 /// Shared building blocks for the manager console.
 ///
@@ -31,13 +35,25 @@ extension StatusLevelColor on StatusLevel {
     StatusLevel.neutral => AppColors.ink3,
   };
 
-  /// Theme-aware lookup — resolves against the ambient [TiqColors].
-  Color colorOf(TiqColors c) => switch (this) {
-    StatusLevel.critical => c.crit,
-    StatusLevel.warning => c.warn,
-    StatusLevel.good => c.good,
-    StatusLevel.neutral => c.ink3,
+  /// The level as a Lumen Glass status role.
+  LumenStatus get lumen => switch (this) {
+    StatusLevel.critical => LumenStatus.crit,
+    StatusLevel.warning => LumenStatus.warn,
+    StatusLevel.good => LumenStatus.good,
+    StatusLevel.neutral => LumenStatus.none,
   };
+
+  /// Theme-aware lookup — resolves against the ambient [TiqColors]. In glass
+  /// it is the status INK: this one call colours marks and words alike, and
+  /// the handoff's inks are the ones that stay readable as text on glass.
+  Color colorOf(TiqColors c) => c.glass
+      ? lumen.swatchOf(c).ink
+      : switch (this) {
+          StatusLevel.critical => c.crit,
+          StatusLevel.warning => c.warn,
+          StatusLevel.good => c.good,
+          StatusLevel.neutral => c.ink3,
+        };
 }
 
 /// A small uppercase label that heads a section or a column.
@@ -50,6 +66,15 @@ class SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) {
+      return Text(
+        text.toUpperCase(),
+        style: LumenGlass.kickerStyle(
+          color: color ?? context.lumen.kicker,
+          size: 9.5,
+        ),
+      );
+    }
     return Text(
       text.toUpperCase(),
       style: TextStyle(
@@ -100,6 +125,64 @@ class PanelCard extends StatelessWidget {
     final colors = context.colors;
     final title = this.title;
     final subtitle = this.subtitle;
+
+    if (colors.glass) {
+      // Glass: the pane IS the container. [gradient] and [borderColor] were the
+      // flat theme's way of faking a lit hero, so they do not apply here.
+      final glassHead = title == null
+          ? null
+          : Container(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 13),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: context.lumen.white(0xB3)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: context.lumen.ink,
+                      ),
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.lumen.inkMuted,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  ?trailing,
+                ],
+              ),
+            );
+      return GlassPane(
+        radius: colors.radiusPanel,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ?glassHead,
+            if (padded)
+              Padding(padding: const EdgeInsets.all(16), child: child)
+            else
+              child,
+          ],
+        ),
+      );
+    }
     final head = title == null
         ? null
         : Container(
@@ -266,6 +349,9 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.colors.glass) {
+      return LumenStatusPill(status: level.lumen, label: label);
+    }
     final color = level.colorOf(context.colors);
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -354,13 +440,21 @@ class StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final figureStyle = TextStyle(
-      fontSize: 20,
-      height: 1.1,
-      fontWeight: FontWeight.w700,
-      letterSpacing: -0.4,
-      color: colors.ink1,
-    );
+    final figureStyle = colors.glass
+        ? TextStyle(
+            fontSize: 23,
+            height: 1.1,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.7,
+            color: context.lumen.ink,
+          )
+        : TextStyle(
+            fontSize: 20,
+            height: 1.1,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.4,
+            color: colors.ink1,
+          );
     final countUp = countUpValue;
     final countUpFmt = countUpFormat;
     // Opt in to the sweep only when BOTH the numeric and its formatter are
@@ -521,25 +615,42 @@ class AttentionRow extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         decoration: BoxDecoration(
           border: showDivider
-              ? Border(bottom: BorderSide(color: colors.line))
+              ? Border(
+                  bottom: BorderSide(
+                    color: colors.glass
+                        ? context.lumen.white(0xB3)
+                        : colors.line,
+                  ),
+                )
               : null,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 22,
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: level.colorOf(colors),
-                  fontFeatures: const [FontFeature.tabularFigures()],
+            // Glass sets the count in its status tile — a figure *in* a colour,
+            // with the tint and rim carrying the level as well as the ink.
+            if (colors.glass)
+              StatusTile(
+                status: level.lumen,
+                glyph: '$count',
+                size: 34,
+                fontSize: 15,
+                mono: true,
+              )
+            else
+              SizedBox(
+                width: 22,
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: level.colorOf(colors),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
+            SizedBox(width: colors.glass ? 13 : 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

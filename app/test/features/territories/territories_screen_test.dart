@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 import 'package:tradeiq_app/features/territories/presentation/territories_screen.dart';
 import 'package:tradeiq_app/features/users/data/users_repository.dart';
@@ -78,7 +79,14 @@ class _FakeUsersRepository implements UsersRepository {
   @override
   Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
         data: [
-          AppUser(id: 'a1', email: 'agent@x.com', role: 'field_agent', active: true),
+          AppUser(
+            id: 'a1',
+            email: 'agent@x.com',
+            role: 'field_agent',
+            active: true,
+            displayName: 'Ruan Botha',
+          ),
+          AppUser(id: 'a2', email: 'unnamed@x.com', role: 'field_agent', active: true),
         ],
         nextCursor: null,
       );
@@ -88,6 +96,7 @@ class _FakeUsersRepository implements UsersRepository {
     required String email,
     required String password,
     required String role,
+    String? displayName,
   }) async =>
       throw UnimplementedError();
 
@@ -108,9 +117,11 @@ class _RoleSession extends SessionController {
 Widget _app(
   TerritoriesRepository repo, {
   String? role,
+  ThemeData? theme,
 }) =>
     routedApp(
       const TerritoriesScreen(),
+      theme: theme,
       overrides: [
         territoriesRepositoryProvider.overrideWithValue(repo),
         usersRepositoryProvider.overrideWithValue(_FakeUsersRepository()),
@@ -158,7 +169,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey<String>('assign-agent-field')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('agent@x.com').last);
+    // Agents are picked by name; one without a name is still offered by email.
+    expect(find.text('agent@x.com'), findsNothing);
+    expect(find.text('unnamed@x.com'), findsWidgets);
+    await tester.tap(find.text('Ruan Botha').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey<String>('assign-agent-confirm')));
@@ -195,5 +209,21 @@ void main() {
     await tester.pump();
 
     expect(find.text('Gauteng North — Map'), findsOneWidget);
+  });
+
+  testWidgets('light: the coverage dialog sets its counts as mono figures',
+      (tester) async {
+    await tester.pumpWidget(
+      _app(_FakeTerritoriesRepository(), theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('territory-ter-1')));
+    await tester.pumpAndSettle();
+
+    final rate = tester.widget<Text>(find.text('67%'));
+    expect(rate.style?.fontFamily, 'JetBrains Mono');
+    expect(find.text('Outlets'), findsOneWidget);
+    expect(find.text('Agents'), findsOneWidget);
   });
 }

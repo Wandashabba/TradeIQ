@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/glass_page_scaffold.dart';
+import '../../../core/widgets/lumen_kit.dart';
 import '../data/territories_repository.dart';
 
 /// Manager/admin screen to create a territory (name, code, optional region).
@@ -52,53 +56,79 @@ class _TerritoryFormScreenState extends ConsumerState<TerritoryFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('New Territory')),
+    final fields = <Widget>[
+      TextFormField(
+        key: const ValueKey<String>('territory-name-field'),
+        controller: _nameCtrl,
+        decoration: const InputDecoration(
+            labelText: 'Name', border: OutlineInputBorder()),
+        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        key: const ValueKey<String>('territory-code-field'),
+        controller: _codeCtrl,
+        decoration: const InputDecoration(
+            labelText: 'Code', border: OutlineInputBorder()),
+        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        controller: _regionCtrl,
+        decoration: const InputDecoration(
+            labelText: 'Region (optional)', border: OutlineInputBorder()),
+      ),
+    ];
+
+    return GlassPageScaffold(
+      title: const Text('New Territory'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                key: const ValueKey<String>('territory-name-field'),
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Name', border: OutlineInputBorder()),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const ValueKey<String>('territory-code-field'),
-                controller: _codeCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Code', border: OutlineInputBorder()),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _regionCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Region (optional)',
-                    border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                key: const ValueKey<String>('territory-save-button'),
-                onPressed: _submitting ? null : _submit,
-                child: _submitting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('Create Territory'),
-              ),
-            ],
-          ),
+          child: context.colors.glass
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GlassPane(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Kicker('Territory'),
+                          const SizedBox(height: 12),
+                          ...fields,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    GlassPrimaryButton(
+                      key: const ValueKey<String>('territory-save-button'),
+                      label: 'Create Territory',
+                      busy: _submitting,
+                      onPressed: _submit,
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ...fields,
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      key: const ValueKey<String>('territory-save-button'),
+                      onPressed: _submitting ? null : _submit,
+                      child: _submitting
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Text('Create Territory'),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

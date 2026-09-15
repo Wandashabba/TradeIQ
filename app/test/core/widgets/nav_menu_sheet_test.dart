@@ -4,7 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/nav_destinations.dart';
 import 'package:tradeiq_app/core/widgets/nav_menu_sheet.dart';
+
+import '../theme/tiq_colors_test.dart' show contrastRatio;
 
 /// A real, decodable image (1×1 transparent PNG) for the header band.
 final _pngBytes = Uint8List.fromList(const <int>[
@@ -38,9 +45,9 @@ class _MissingAssetBundle extends CachingAssetBundle {
 /// The sheet is normally shown by [showNavMenuSheet]; here it is pumped
 /// directly to test its own contract. The ProviderScope exists for the
 /// theme-toggle and sign-out rows, which are riverpod Consumers.
-Widget _app(Widget sheet) => ProviderScope(
+Widget _app(Widget sheet, {ThemeData? theme}) => ProviderScope(
   child: MaterialApp(
-    theme: AppTheme.light(),
+    theme: theme ?? AppTheme.light(),
     home: Scaffold(body: sheet),
   ),
 );
@@ -119,4 +126,56 @@ void main() {
       expect(tester.getSize(find.byType(Image)), Size.zero);
     },
   );
+
+  group('Lumen Glass', () {
+    for (final (name, theme, colors, lumen) in [
+      ('light', AppTheme.light(), TiqColors.light, LumenPalette.light),
+      ('dark: night', AppTheme.dark(), TiqColors.night, LumenPalette.dark),
+    ]) {
+      testWidgets(
+        '$name glass destination tiles, glass housekeeping pills, mono kickers',
+        (tester) async {
+          await tester.pumpWidget(_app(const NavMenuSheet(), theme: theme));
+
+          final route = destinationsIn(NavGroup.values.first).first.route;
+          final tile = tester.widget<GlassPane>(
+            find.ancestor(
+              of: find.byKey(ValueKey('nav-sheet-$route')),
+              matching: find.byType(GlassPane),
+            ),
+          );
+          expect(tile.kind, GlassKind.tile);
+          // Twelve-plus tiles in one sheet: none may blur.
+          expect(tile.blur, isFalse);
+
+          final signOut = tester.widget<GlassPane>(
+            find.ancestor(
+              of: find.text('Sign out'),
+              matching: find.byType(GlassPane),
+            ),
+          );
+          expect(signOut.kind, GlassKind.pill);
+
+          final heading = tester.widget<Text>(find.text('OPERATE'));
+          expect(heading.style?.fontFamily, LumenGlass.mono);
+          expect(heading.style?.color, lumen.kicker);
+          final ratio = contrastRatio(heading.style!.color!, colors.surface1);
+          expect(ratio, greaterThanOrEqualTo(4.5), reason: 'kicker $ratio:1');
+
+          // The sheet itself: opaque surface1 under the palette's panel rim.
+          final sheet = tester.widget<Container>(
+            find
+                .descendant(
+                  of: find.byType(NavMenuSheet),
+                  matching: find.byType(Container),
+                )
+                .first,
+          );
+          final deco = sheet.decoration! as BoxDecoration;
+          expect(deco.color, colors.surface1);
+          expect((deco.border! as Border).top.color, lumen.panelRim);
+        },
+      );
+    }
+  });
 }

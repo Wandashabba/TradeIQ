@@ -14,7 +14,8 @@ truth. Summary of entities (see the schema file for exact fields/types):
 | `Visit` | One agent's audit visit to one outlet — the root of S1–S10 data. |
 | `VisitStock` / `VisitVisibility` / `VisitPricing` / `VisitCompetitive` / `VisitCapability` / `VisitRisk` | One row (or set of rows) per `Visit`, one per audit section (S2, S3-4, S5, S6, S7, S8). |
 | `Task` | Auto-created from a flagged finding; has `priority`, `slaDueAt` (via `slaClock.ts`), `ownerId`, and closure-verification fields. |
-| `Photo` | GPS+timestamp-tagged photo evidence, one per required capture point. |
+| `Photo` | A stored image (base64, ADR 0007). Either GPS+timestamp-tagged visit evidence (`visitId` set), or a message attachment (`visitId` null, owned by `clientId` + `uploadedById`). |
+| `MessageAttachment` | Links an image `Photo` to a `Message` (#125), at most 4 per message, each photo attached once. Images only — no general file attachments. |
 | `Scorecard` | The S10 weighted-total output for a `Visit`. |
 
 `VisitStock` and `VisitPricing` each carry a proper `skuId` foreign key with

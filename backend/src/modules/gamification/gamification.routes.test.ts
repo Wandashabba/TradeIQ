@@ -2,16 +2,18 @@ import { createServer } from 'http';
 import express from 'express';
 import request from 'supertest';
 import { prisma } from '../../lib/prisma';
+import { errorHandler } from '../../middleware/errorHandler';
 import { issueToken } from '../auth/auth.service';
 import { gamificationRouter } from './gamification.routes';
+import { backfillPointsLedger } from './pointsLedgerBackfill';
 
-// The gamification router is not mounted on the shared app in this branch
-// (app.ts is owned elsewhere / parallel work in flight), so we mount it on a
-// minimal local app. This keeps the suite self-contained without touching
-// app.ts. Deviation from dashboard.routes.test.ts, which imports the shared app.
+// The gamification router is mounted on a minimal local app so the suite stays
+// self-contained; errorHandler turns NotFoundError/ValidationError into 404/400
+// exactly as app.ts does.
 const expressApp = express();
 expressApp.use(express.json());
 expressApp.use('/gamification', gamificationRouter);
+expressApp.use(errorHandler);
 // Listening once, so supertest reuses this socket instead of binding a fresh
 // ephemeral port per request — see src/testHttpServer.ts (#227).
 const app = createServer(expressApp).listen(0);
@@ -20,10 +22,13 @@ app.unref();
 describe('gamification routes', () => {
   let clientId: string;
   let otherClientId: string;
+  let managerId: string;
   let managerToken: string;
   let agentAId: string;
   let agentAToken: string;
   let agentBId: string;
+  let otherAgentId: string;
+  let closedTaskId: string;
 
   beforeAll(async () => {
     const client = await prisma.client.create({
@@ -34,10 +39,17 @@ describe('gamification routes', () => {
     const manager = await prisma.user.create({
       data: { email: 'game-manager@example.com', passwordHash: 'x', role: 'manager', clientId },
     });
+    managerId = manager.id;
     managerToken = issueToken({ userId: manager.id, role: 'manager', clientId });
 
     const agentA = await prisma.user.create({
-      data: { email: 'game-agent-a@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+      data: {
+        email: 'game-agent-a@example.com',
+        displayName: 'Aisha Patel',
+        passwordHash: 'x',
+        role: 'field_agent',
+        clientId,
+      },
     });
     agentAId = agentA.id;
     agentAToken = issueToken({ userId: agentA.id, role: 'field_agent', clientId });
@@ -60,7 +72,8 @@ describe('gamification routes', () => {
     });
 
     // Agent A: two submitted visits (checkinTs 07-01 and 07-05) with scorecards
-    // 80 and 90 (createdAt aligned to the visit), plus one closed task.
+    // 80 and 90 (createdAt aligned to the visit), plus one task closed on 07-06
+    // (backfilled closures are dated by createdAt).
     const visitA1 = await prisma.visit.create({
       data: {
         outletId: outlet.id,
@@ -103,7 +116,7 @@ describe('gamification routes', () => {
         createdAt: new Date('2026-07-05T09:00:00.000Z'),
       },
     });
-    await prisma.task.create({
+    const closedTask = await prisma.task.create({
       data: {
         outletId: outlet.id,
         findingType: 'out_of_stock',
@@ -112,8 +125,10 @@ describe('gamification routes', () => {
         slaDueAt: new Date('2026-07-10T09:00:00.000Z'),
         ownerId: agentA.id,
         status: 'closed',
+        createdAt: new Date('2026-07-06T09:00:00.000Z'),
       },
     });
+    closedTaskId = closedTask.id;
 
     // Agent B: one submitted visit (checkinTs 07-03) with scorecard 60.
     const visitB1 = await prisma.visit.create({
@@ -151,6 +166,7 @@ describe('gamification routes', () => {
         clientId: otherClientId,
       },
     });
+    otherAgentId = otherAgent.id;
     const otherOutlet = await prisma.outlet.create({
       data: {
         name: 'GAME-Outlet B',
@@ -183,10 +199,15 @@ describe('gamification routes', () => {
         createdAt: new Date('2026-07-02T09:00:00.000Z'),
       },
     });
+
+    // The rows above were written directly, past the live hooks — build their
+    // ledger entries the way production history is.
+    await backfillPointsLedger();
   });
 
   afterAll(async () => {
     const clientIds = [clientId, otherClientId];
+    await prisma.pointsLedgerEntry.deleteMany({ where: { clientId: { in: clientIds } } });
     await prisma.task.deleteMany({ where: { outlet: { clientId: { in: clientIds } } } });
     await prisma.scorecard.deleteMany({ where: { visit: { clientId: { in: clientIds } } } });
     await prisma.visit.deleteMany({ where: { clientId: { in: clientIds } } });
@@ -206,9 +227,12 @@ describe('gamification routes', () => {
     expect(res.body).toHaveLength(2);
 
     // Agent A: avg(80, 90) = 85 + 1 closed task * 5 + 2 visits * 2 = 94.
+    // A has a display name (#280); B was never given one, so B's is null and
+    // the app falls back to the email.
     expect(res.body[0]).toEqual({
       agentId: agentAId,
       email: 'game-agent-a@example.com',
+      displayName: 'Aisha Patel',
       visitsSubmitted: 2,
       tasksClosed: 1,
       avgScorecard: 85,
@@ -219,6 +243,7 @@ describe('gamification routes', () => {
     expect(res.body[1]).toEqual({
       agentId: agentBId,
       email: 'game-agent-b@example.com',
+      displayName: null,
       visitsSubmitted: 1,
       tasksClosed: 0,
       avgScorecard: 60,
@@ -227,7 +252,7 @@ describe('gamification routes', () => {
     });
   });
 
-  it('filters visits and scorecards by the from/to window', async () => {
+  it('filters visits, scorecards and task closures by the from/to window', async () => {
     const res = await request(app)
       .get('/gamification/leaderboard')
       .query({ from: '2026-07-02T00:00:00.000Z', to: '2026-07-04T00:00:00.000Z' })
@@ -244,36 +269,76 @@ describe('gamification routes', () => {
       points: 62,
       rank: 1,
     });
-    // Agent A has no in-window visits/scorecards; the closed task is not
-    // windowed, so points = 0 + 1 * 5 + 0 = 5.
+    // Agent A has nothing in window. #124: the task closed on 07-06 is dated on
+    // the ledger, so it no longer counts here — the computed board counted
+    // closures for all time whatever the window (see gamification.parity.test.ts).
     expect(res.body[1]).toMatchObject({
       agentId: agentAId,
       visitsSubmitted: 0,
       avgScorecard: 0,
-      tasksClosed: 1,
-      points: 5,
+      tasksClosed: 0,
+      points: 0,
       rank: 2,
     });
   });
 
-  it('returns the caller own entry from /me', async () => {
+  it('returns the caller own entry from /me, with how the points were earned', async () => {
     const res = await request(app)
       .get('/gamification/me')
       .set('Authorization', `Bearer ${agentAToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
+    const { recentEntries, ...entry } = res.body;
+    expect(entry).toEqual({
       agentId: agentAId,
       email: 'game-agent-a@example.com',
+      displayName: 'Aisha Patel',
       visitsSubmitted: 2,
       tasksClosed: 1,
       avgScorecard: 85,
       points: 94,
       rank: 1,
     });
+
+    // Newest first: the 07-06 closure, then 07-05's visit + scorecard, then 07-01's.
+    expect(recentEntries).toHaveLength(5);
+    expect(recentEntries[0]).toEqual({
+      id: expect.any(String),
+      points: 5,
+      reason: 'task_closed',
+      sourceType: 'task',
+      sourceId: closedTaskId,
+      score: null,
+      occurredAt: '2026-07-06T09:00:00.000Z',
+      outletName: 'GAME-Outlet 1',
+    });
+    const dates = recentEntries.map((e: { occurredAt: string }) => e.occurredAt);
+    expect(dates).toEqual([...dates].sort().reverse());
+    // The entries explain the number: sum of points + mean of scores = 94.
+    const sum = recentEntries.reduce((s: number, e: { points: number }) => s + e.points, 0);
+    const scores = recentEntries
+      .filter((e: { reason: string }) => e.reason === 'scorecard')
+      .map((e: { score: number }) => e.score);
+    expect(sum + scores.reduce((s: number, v: number) => s + v, 0) / scores.length).toBe(94);
+    expect(recentEntries.every((e: { outletName: string }) => e.outletName === 'GAME-Outlet 1')).toBe(
+      true,
+    );
   });
 
-  it('returns a zeroed last-place entry from /me for a caller with no activity', async () => {
+  it('windows /me recentEntries like the entry', async () => {
+    const res = await request(app)
+      .get('/gamification/me')
+      .query({ from: '2026-07-05T00:00:00.000Z', to: '2026-07-05T23:59:59.000Z' })
+      .set('Authorization', `Bearer ${agentAToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.recentEntries.map((e: { reason: string }) => e.reason).sort()).toEqual([
+      'scorecard',
+      'visit_submitted',
+    ]);
+  });
+
+  it('returns a zeroed last-place entry and no history from /me for a caller with no activity', async () => {
     const res = await request(app)
       .get('/gamification/me')
       .set('Authorization', `Bearer ${managerToken}`);
@@ -283,11 +348,79 @@ describe('gamification routes', () => {
     expect(res.body).toEqual({
       agentId: expect.any(String),
       email: 'game-manager@example.com',
+      displayName: null,
       visitsSubmitted: 0,
       tasksClosed: 0,
       avgScorecard: 0,
       points: 0,
       rank: 3,
+      recentEntries: [],
+    });
+  });
+
+  describe('GET /gamification/agents/:agentId/points', () => {
+    it('lists one agent entries, newest first, for a manager', async () => {
+      const res = await request(app)
+        .get(`/gamification/agents/${agentAId}/points`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.agent).toEqual({
+        agentId: agentAId,
+        email: 'game-agent-a@example.com',
+        displayName: 'Aisha Patel',
+      });
+      expect(res.body.data).toHaveLength(5);
+      expect(res.body.data[0]).toMatchObject({ reason: 'task_closed', points: 5 });
+      expect(res.body.nextCursor).toBeNull();
+    });
+
+    it('paginates with limit and cursor without repeating or dropping entries', async () => {
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const res: request.Response = await request(app)
+          .get(`/gamification/agents/${agentAId}/points`)
+          .query({ limit: 2, ...(cursor ? { cursor } : {}) })
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(200);
+        expect(res.body.data.length).toBeLessThanOrEqual(2);
+        seen.push(...res.body.data.map((e: { id: string }) => e.id));
+        cursor = res.body.nextCursor;
+      } while (cursor);
+
+      expect(seen).toHaveLength(5);
+      expect(new Set(seen).size).toBe(5);
+    });
+
+    it('is manager/admin only', async () => {
+      const res = await request(app)
+        .get(`/gamification/agents/${agentAId}/points`)
+        .set('Authorization', `Bearer ${agentAToken}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('404s for another tenant agent and for a non-agent', async () => {
+      for (const id of [otherAgentId, managerId, 'no-such-user']) {
+        const res = await request(app)
+          .get(`/gamification/agents/${id}/points`)
+          .set('Authorization', `Bearer ${managerToken}`);
+        expect(res.status).toBe(404);
+      }
+    });
+
+    it('rejects a bad limit or date with 400', async () => {
+      const badLimit = await request(app)
+        .get(`/gamification/agents/${agentAId}/points`)
+        .query({ limit: '0' })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(badLimit.status).toBe(400);
+
+      const badDate = await request(app)
+        .get(`/gamification/agents/${agentAId}/points`)
+        .query({ to: 'soon' })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(badDate.status).toBe(400);
     });
   });
 
@@ -296,6 +429,14 @@ describe('gamification routes', () => {
       .get('/gamification/leaderboard')
       .query({ from: 'not-a-date' })
       .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an unparseable /me date with 400', async () => {
+    const res = await request(app)
+      .get('/gamification/me')
+      .query({ to: 'not-a-date' })
+      .set('Authorization', `Bearer ${agentAToken}`);
     expect(res.status).toBe(400);
   });
 
@@ -366,9 +507,11 @@ describe('gamification leaderboard — fractional mean', () => {
         },
       });
     }
+    await backfillPointsLedger({ clientId });
   });
 
   afterAll(async () => {
+    await prisma.pointsLedgerEntry.deleteMany({ where: { clientId } });
     await prisma.scorecard.deleteMany({ where: { visit: { clientId } } });
     await prisma.visit.deleteMany({ where: { clientId } });
     await prisma.outlet.deleteMany({ where: { clientId } });
@@ -388,6 +531,7 @@ describe('gamification leaderboard — fractional mean', () => {
     expect(res.body[0]).toEqual({
       agentId,
       email: 'game-frac-agent@example.com',
+      displayName: null,
       visitsSubmitted: 3,
       tasksClosed: 0,
       avgScorecard: 78.33,

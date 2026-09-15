@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/assistant/data/artifact_repository.dart';
 import 'package:tradeiq_app/features/assistant/export/artifact_exporter.dart';
 import 'package:tradeiq_app/features/assistant/presentation/artifact_screen.dart';
 import 'package:tradeiq_app/features/territories/data/territories_repository.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 /// A repository that answers from a script and records what it was asked for.
@@ -114,6 +119,7 @@ Future<void> pumpArtifact(
   StubArtifactRepository repository, {
   Size size = const Size(1400, 1600),
   RecordingExporter? exporter,
+  ThemeData? theme,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -122,7 +128,7 @@ Future<void> pumpArtifact(
   await tester.pumpWidget(
     routedApp(
       const ArtifactScreen(artifactId: '2b3f0d0e-1f2a-4c3b-9d4e-5f6a7b8c9d0e'),
-      theme: AppTheme.dark(),
+      theme: theme ?? AppTheme.dark(),
       overrides: [
         artifactRepositoryProvider.overrideWithValue(repository),
         if (exporter != null)
@@ -537,6 +543,224 @@ void main() {
 
       expect(find.textContaining('not available in this build'), findsOneWidget);
       expect(find.textContaining('Please try again'), findsNothing);
+    });
+  });
+
+  group('Lumen Glass (light)', () {
+    Future<void> pumpLight(
+      WidgetTester tester,
+      StubArtifactRepository repository, {
+      Size size = const Size(1400, 1600),
+      RecordingExporter? exporter,
+    }) => pumpArtifact(
+      tester,
+      repository,
+      size: size,
+      exporter: exporter,
+      theme: AppTheme.light(),
+    );
+
+    GlassPane paneIn(WidgetTester tester, String key) =>
+        tester.widget<GlassPane>(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(GlassPane),
+          ),
+        );
+
+    testWidgets('the period in force is the bright, accent-rimmed pill', (
+      tester,
+    ) async {
+      await pumpLight(tester, StubArtifactRepository(trendArtifact()));
+
+      final on = paneIn(tester, 'artifact-filter-mtd');
+      final off = paneIn(tester, 'artifact-filter-ytd');
+      expect(on.kind, GlassKind.pill);
+      expect(on.rimColor, LumenPalette.light.accent);
+      expect(on.shadow, isTrue);
+      expect(off.rimColor, LumenPalette.light.pillRim);
+      expect(off.shadow, isFalse);
+
+      // Never the fill alone: the weight changes, and the state is announced.
+      final label = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('artifact-filter-mtd')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(label.style!.fontWeight, FontWeight.w600);
+      final semantics = tester.widget<Semantics>(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey('artifact-filter-mtd')),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      expect(semantics.properties.selected, isTrue);
+    });
+
+    testWidgets('a pill still posts the whole params bag', (tester) async {
+      final repository = StubArtifactRepository(trendArtifact());
+      await pumpLight(tester, repository);
+
+      await tester.tap(find.byKey(const ValueKey('artifact-filter-ytd')));
+      await tester.pumpAndSettle();
+
+      expect(repository.refinements.single['period'], {'kind': 'ytd'});
+    });
+
+    testWidgets('export is the glass primary action, and still exports', (
+      tester,
+    ) async {
+      final exporter = RecordingExporter();
+      await pumpLight(
+        tester,
+        StubArtifactRepository(trendArtifact(compared: true)),
+        exporter: exporter,
+      );
+
+      final export = find.byKey(const ValueKey('artifact-export-pdf'));
+      expect(tester.widget(export), isA<GlassPrimaryButton>());
+      expect(find.text('Export PDF'), findsOneWidget);
+
+      await tester.tap(export);
+      await tester.pumpAndSettle();
+      expect(exporter.request!.title, 'Execution score');
+    });
+
+    testWidgets('the table twin: mono figures over white-rim dividers', (
+      tester,
+    ) async {
+      await pumpLight(
+        tester,
+        StubArtifactRepository(trendArtifact(compared: true)),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('artifact-view-table')));
+      await tester.pumpAndSettle();
+
+      // The view in force is the raised pill in the toggle.
+      final segment = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('artifact-view-table')),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect(
+        (segment.decoration! as BoxDecoration).color,
+        LumenPalette.light.pillFill,
+      );
+
+      expect(
+        tester.widget<Text>(find.text('74')).style!.fontFamily,
+        LumenGlass.mono,
+      );
+      expect(
+        tester.widget<Text>(find.text('5.7%')).style!.fontFamily,
+        LumenGlass.mono,
+      );
+      final row = tester.widget<Container>(
+        find.ancestor(of: find.text('74'), matching: find.byType(Container)).first,
+      );
+      expect(
+        ((row.decoration! as BoxDecoration).border! as Border).top.color,
+        LumenPalette.light.white(0xB3),
+      );
+    });
+
+    testWidgets('a refusal is words on an opaque crit wash that clears AA', (
+      tester,
+    ) async {
+      final repository = StubArtifactRepository(trendArtifact())
+        ..refuseWith = 'Those parameters are not valid for this view.';
+      await pumpLight(tester, repository);
+
+      await tester.tap(find.byKey(const ValueKey('artifact-filter-ytd')));
+      await tester.pumpAndSettle();
+
+      final words = find.text('Those parameters are not valid for this view.');
+      final ink = tester.widget<Text>(words).style!.color!;
+      final wash = (tester
+                  .widget<Container>(
+                    find
+                        .ancestor(of: words, matching: find.byType(Container))
+                        .first,
+                  )
+                  .decoration!
+              as BoxDecoration)
+          .color!;
+      // Contrast is only honest measured against an opaque ground.
+      expect(wash.a, 1.0);
+      expect(contrastRatio(wash, ink), greaterThanOrEqualTo(4.5));
+      // And the state carries a glyph, not only a colour.
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    });
+
+    testWidgets('the applied filters read as a pill headed by a kicker', (
+      tester,
+    ) async {
+      await pumpLight(tester, StubArtifactRepository(trendArtifact()));
+
+      final sentence = find.text('Month to date · daily buckets.');
+      expect(sentence, findsOneWidget);
+      expect(
+        tester
+            .widget<GlassPane>(
+              find.ancestor(of: sentence, matching: find.byType(GlassPane)).first,
+            )
+            .kind,
+        GlassKind.pill,
+      );
+      expect(find.byType(Kicker), findsWidgets);
+      expect(find.text('SHOWING'), findsOneWidget);
+    });
+
+    for (final size in const [Size(390, 844), Size(1440, 900)]) {
+      testWidgets('lays out at ${size.width.toInt()} wide without overflow', (
+        tester,
+      ) async {
+        await pumpLight(
+          tester,
+          StubArtifactRepository(trendArtifact(compared: true)),
+          size: size,
+        );
+
+        expect(find.text('Filters'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('a load failure explains itself on a glass panel', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        routedApp(
+          const ArtifactScreen(artifactId: 'gone'),
+          theme: AppTheme.light(),
+          overrides: [
+            artifactRepositoryProvider.overrideWithValue(_FailingRepository()),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final message = find.text('That view is no longer available.');
+      expect(
+        tester
+            .widget<GlassPane>(
+              find.ancestor(of: message, matching: find.byType(GlassPane)).first,
+            )
+            .kind,
+        GlassKind.panel,
+      );
+      expect(find.text('Try again'), findsOneWidget);
     });
   });
 }

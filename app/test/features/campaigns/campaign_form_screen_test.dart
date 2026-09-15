@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/campaigns/data/campaigns_repository.dart';
 import 'package:tradeiq_app/features/campaigns/presentation/campaign_form_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -28,6 +31,9 @@ class _RecordingCampaignsRepository implements CampaignsRepository {
   @override
   Future<CampaignCompliance> getCompliance(String id) async =>
       throw UnimplementedError();
+
+  @override
+  Future<CampaignRoi> getRoi(String id) async => throw UnimplementedError();
 
   @override
   Future<Campaign> createCampaign({
@@ -94,12 +100,25 @@ class _FakeOutletsRepository implements OutletsRepository {
       throw UnimplementedError();
 }
 
-Widget _app(CampaignsRepository repo, {Campaign? campaign}) => ProviderScope(
+Widget _app(
+  CampaignsRepository repo, {
+  Campaign? campaign,
+  ThemeData? theme,
+}) =>
+    ProviderScope(
       overrides: [
         campaignsRepositoryProvider.overrideWithValue(repo),
         outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
       ],
-      child: MaterialApp(home: CampaignFormScreen(campaign: campaign)),
+      child: MaterialApp(
+        theme: theme,
+        home: CampaignFormScreen(campaign: campaign),
+      ),
+    );
+
+/// The nearest glass pane around [finder].
+GlassPane _paneAround(WidgetTester tester, Finder finder) => tester.widget<GlassPane>(
+      find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
     );
 
 void main() {
@@ -183,5 +202,59 @@ void main() {
     expect(repo.updatedArgs!['name'], 'Summer Push');
     expect(repo.updatedArgs!['status'], 'active');
     expect(repo.createdArgs, isNull);
+  });
+
+  testWidgets('light: create groups into glass panels and saves from glass',
+      (tester) async {
+    final repo = _RecordingCampaignsRepository();
+    await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+
+    for (final kicker in ['DETAILS', 'SCHEDULE', 'OUTLETS']) {
+      expect(_paneAround(tester, find.text(kicker)).kind, GlassKind.panel);
+    }
+    // An unset date says so in words, never a blank.
+    expect(find.text('Not set'), findsNWidgets(2));
+    final save = find.byKey(const ValueKey<String>('campaign-save-button'));
+    expect(tester.widget(save), isA<GlassPrimaryButton>());
+    expect(find.byType(FilledButton), findsNothing);
+
+    await tester.enterText(
+        find.byKey(const ValueKey<String>('campaign-name-field')), 'Q3 Blitz');
+    for (final key in ['campaign-start-date', 'campaign-end-date']) {
+      final pick = find.byKey(ValueKey<String>(key));
+      await tester.ensureVisible(pick);
+      await tester.tap(pick);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    }
+
+    final option = find.byKey(const ValueKey<String>('outlet-option-o1'));
+    expect(_paneAround(tester, option).kind, GlassKind.tile);
+    await tester.ensureVisible(option);
+    await tester.tap(option);
+    await tester.pump();
+    expect(find.text('1 selected'), findsOneWidget);
+
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    expect(repo.createdArgs!['name'], 'Q3 Blitz');
+    expect(repo.createdArgs!['outletIds'], contains('o1'));
+  });
+
+  testWidgets('light: edit puts the status control in its own glass panel',
+      (tester) async {
+    final repo = _RecordingCampaignsRepository();
+    await tester.pumpWidget(
+      _app(repo, campaign: _existing, theme: AppTheme.light()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(_paneAround(tester, find.text('STATUS')).kind, GlassKind.panel);
+    expect(find.text('SCHEDULE'), findsNothing);
+    expect(find.text('Save Changes'), findsOneWidget);
   });
 }

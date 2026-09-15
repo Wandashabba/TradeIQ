@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../data/chat_controller.dart';
 import '../view_specs/view_spec_registry.dart';
@@ -110,17 +113,22 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Ask about sales, stock, visibility or competition',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colors.ink1,
-              ),
+              style: colors.glass
+                  ? LumenGlass.title(size: 20, color: context.lumen.ink)
+                  : TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.ink1,
+                    ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: colors.glass ? 8 : 6),
             Text(
               'I can read your data and explain it. I cannot change anything yet.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: colors.ink3),
+              style: TextStyle(
+                fontSize: colors.glass ? 12.5 : 12,
+                color: colors.glass ? context.lumen.inkMuted : colors.ink3,
+              ),
             ),
             const SizedBox(height: 20),
             for (final example in _examples)
@@ -143,8 +151,34 @@ class _ExampleChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    void ask() => ref.read(chatControllerProvider.notifier).send(text);
+
+    if (colors.glass) {
+      // A glass pill. The ink sits on a transparent Material inside the pane,
+      // so the press is painted over the glass rather than buried beneath it.
+      return GlassPane(
+        kind: GlassKind.pill,
+        radius: 999,
+        shadow: false,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: ask,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Text(
+                text,
+                style: TextStyle(fontSize: 12.5, color: context.lumen.ink),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return InkWell(
-      onTap: () => ref.read(chatControllerProvider.notifier).send(text),
+      onTap: ask,
       borderRadius: BorderRadius.circular(999),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -169,6 +203,8 @@ class _MessageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _glass(context.lumen);
+
     final isUser = message.role == ChatRole.user;
 
     if (isUser) {
@@ -223,6 +259,81 @@ class _MessageView extends StatelessWidget {
       ],
     );
   }
+
+  /// Lumen Glass: the manager's turn is the action glass in its own ink; the
+  /// assistant's is a tile — a list item, so unblurred. Anything the turn drew
+  /// lands below its bubble as its own panel, never a pane inside a pane.
+  Widget _glass(LumenPalette lumen) {
+    if (message.role == ChatRole.user) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: GlassPane(
+            kind: GlassKind.action,
+            radius: LumenGlass.radiusCard,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Text(
+              message.text,
+              style: TextStyle(
+                fontSize: 13.5,
+                height: 1.4,
+                color: lumen.actionInk,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final thinking = message.text.isEmpty && message.streaming;
+    final answer = message.error != null || message.text.isNotEmpty || thinking;
+    // A turn that is only an artifact gets no empty bubble above it.
+    final bubble = message.tools.isNotEmpty || answer;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (bubble)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: GlassPane(
+              kind: GlassKind.tile,
+              blur: false,
+              radius: LumenGlass.radiusCard,
+              padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final tool in message.tools) _ToolChip(tool: tool),
+                  if (message.tools.isNotEmpty && answer)
+                    const SizedBox(height: 6),
+                  if (message.error != null)
+                    _ErrorNote(message: message.error!)
+                  else ...[
+                    if (message.text.isNotEmpty)
+                      SelectableText(
+                        message.text,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          height: 1.5,
+                          color: lumen.ink,
+                        ),
+                      ),
+                    if (thinking) const _ThinkingDots(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        for (final artifact in message.artifacts) ...[
+          const SizedBox(height: 10),
+          ArtifactView(artifact: artifact, expandable: true),
+        ],
+      ],
+    );
+  }
 }
 
 class _ToolChip extends StatelessWidget {
@@ -261,12 +372,19 @@ class _ToolChip extends StatelessWidget {
                     size: 12,
                     color: failed ? colors.ink4 : colors.ink3,
                   )
-                : const CircularProgressIndicator(strokeWidth: 1.5),
+                : CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    // Null keeps the theme's own spinner colour off glass.
+                    color: colors.glass ? context.lumen.accentSolid : null,
+                  ),
           ),
           const SizedBox(width: 7),
           Text(
             failed ? '${_label(tool)} — unavailable' : _label(tool),
-            style: TextStyle(fontSize: 11.5, color: colors.ink3),
+            style: TextStyle(
+              fontSize: 11.5,
+              color: colors.glass ? context.lumen.inkMuted : colors.ink3,
+            ),
           ),
         ],
       ),
@@ -333,6 +451,8 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _glass(context.lumen);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       decoration: BoxDecoration(
@@ -382,6 +502,79 @@ class _Composer extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// The composer as a floating glass bar: the field is borderless inside it,
+  /// and Send is the action pill. Sending dims the pill but keeps its arrow in
+  /// the action ink, so a blocked send still reads.
+  Widget _glass(LumenPalette lumen) {
+    const none = InputBorder.none;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: GlassPane(
+        kind: GlassKind.bar,
+        radius: LumenGlass.radiusHero,
+        padding: const EdgeInsets.all(6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                enabled: !sending,
+                minLines: 1,
+                maxLines: 5,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => onSend(),
+                style: TextStyle(fontSize: 13.5, color: lumen.ink),
+                decoration: InputDecoration(
+                  hintText: 'Ask about your team, stock, shelf or competitors',
+                  // inkMuted, not ink4: a hint is words, and ink4 is for marks.
+                  hintStyle: TextStyle(fontSize: 13, color: lumen.inkMuted),
+                  filled: false,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: none,
+                  enabledBorder: none,
+                  focusedBorder: none,
+                  disabledBorder: none,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(LumenGlass.radiusButton),
+                boxShadow: sending
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: lumen.shadow,
+                          blurRadius: 26,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
+              ),
+              child: IconButton(
+                onPressed: sending ? null : onSend,
+                icon: const Icon(Icons.arrow_upward),
+                tooltip: 'Send',
+                style: IconButton.styleFrom(
+                  backgroundColor: lumen.actionFill,
+                  disabledBackgroundColor: lumen.actionDisabled,
+                  foregroundColor: lumen.actionInk,
+                  disabledForegroundColor: lumen.actionInk,
+                  side: BorderSide(color: lumen.actionRim),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(LumenGlass.radiusButton),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

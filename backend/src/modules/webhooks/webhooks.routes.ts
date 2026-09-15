@@ -6,8 +6,11 @@ import { parsePagination } from '../../lib/pagination';
 import {
   createWebhook,
   deleteWebhook,
+  DeliveryNotRedeliverableError,
   findWebhookForClient,
+  listDeliveriesForWebhook,
   listWebhooksForClient,
+  redeliver,
   updateWebhook,
 } from './webhooks.service';
 
@@ -92,3 +95,41 @@ webhooksRouter.delete('/:id', requireRole('manager', 'admin'), async (req: Authe
   await deleteWebhook(webhook.id);
   res.status(204).send();
 });
+
+// Recent deliveries to one webhook, newest first (#100).
+webhooksRouter.get(
+  '/:id/deliveries',
+  requireRole('manager', 'admin'),
+  async (req: AuthedRequest, res) => {
+    // Default to a short recent list: this backs a row expanding on screen.
+    const { limit, cursor } = parsePagination(req, 20);
+    const { id } = req.params as { id: string };
+    // Tenant check: throws NotFoundError (404) when the row is another client's.
+    const webhook = await findWebhookForClient(id, req.user!.clientId);
+    const page = await listDeliveriesForWebhook({ webhookId: webhook.id, limit, cursor });
+    res.status(200).json(page);
+  },
+);
+
+export const webhookDeliveriesRouter = Router();
+webhookDeliveriesRouter.use(requireAuth);
+
+// Re-queue a failed delivery and attempt it now (#100).
+webhookDeliveriesRouter.post(
+  '/:id/redeliver',
+  requireRole('manager', 'admin'),
+  async (req: AuthedRequest, res) => {
+    const { id } = req.params as { id: string };
+    try {
+      // Tenant-scoped inside: another client's delivery is a 404.
+      const delivery = await redeliver(id, req.user!.clientId);
+      res.status(202).json(delivery);
+    } catch (err) {
+      if (err instanceof DeliveryNotRedeliverableError) {
+        res.status(409).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  },
+);

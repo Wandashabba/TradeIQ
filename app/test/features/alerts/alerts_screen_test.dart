@@ -1,11 +1,16 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/evidence_thumb.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/core/widgets/worklist.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
@@ -154,10 +159,19 @@ class _FakePhotosRepository implements PhotosRepository {
 
   @override
   Future<List<VisitPhoto>> listPhotos(String visitId) async => const [];
+
+  @override
+  Future<String> uploadMessageAttachment(String dataUrl) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Uint8List> imageBytes(String photoId) async =>
+      throw UnimplementedError();
 }
 
-Widget _app(AlertsRepository repo) => routedApp(
+Widget _app(AlertsRepository repo, {ThemeData? theme}) => routedApp(
   const AlertsScreen(),
+  theme: theme,
   overrides: [
     alertsRepositoryProvider.overrideWithValue(repo),
     photosRepositoryProvider.overrideWithValue(_FakePhotosRepository()),
@@ -165,6 +179,74 @@ Widget _app(AlertsRepository repo) => routedApp(
 );
 
 void main() {
+  group('Lumen Glass (light)', () {
+    testWidgets('rows are glass tiles and the selected tab rides a pill', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(_FakeAlertsRepository(), theme: AppTheme.light()),
+      );
+      await tester.pumpAndSettle();
+
+      // A row repeats down the list, so its pane is a no-blur tile.
+      final panes = tester.widgetList<GlassPane>(
+        find.ancestor(
+          of: find.text('SKU 42 out of stock'),
+          matching: find.byType(GlassPane),
+        ),
+      );
+      expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
+
+      // The selected segment is lifted onto a pill; the rest are bare words.
+      GlassPane? pillOf(String tab) {
+        final f = find.descendant(
+          of: find.byKey(ValueKey(tab)),
+          matching: find.byType(GlassPane),
+        );
+        return f.evaluate().isEmpty ? null : tester.widget<GlassPane>(f);
+      }
+
+      expect(pillOf('tab-_Tab.open')?.kind, GlassKind.pill);
+      expect(pillOf('tab-_Tab.all'), isNull);
+
+      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
+      await tester.pumpAndSettle();
+      expect(pillOf('tab-_Tab.all')?.kind, GlassKind.pill);
+      expect(pillOf('tab-_Tab.open'), isNull);
+    });
+
+    testWidgets('the ✓ ACKED word clears 4.5:1 through the row fade', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(_FakeAlertsRepository(), theme: AppTheme.light()),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
+      await tester.pumpAndSettle();
+
+      const t = TiqColors.light;
+      final pill = tester.widget<Container>(
+        find.byKey(const ValueKey('acked-pill')),
+      );
+      final ground = (pill.decoration! as BoxDecoration).color!;
+      // Opaque, so the maths below is the colour actually on screen.
+      expect(ground.a, 1.0);
+      final label = tester.widget<Text>(find.text('✓ ACKED'));
+      expect(label.style!.fontFamily, LumenGlass.mono);
+
+      // The whole card fades toward the pane it sits on — words and ground.
+      final fade = WorklistRow.resolvedOpacityOf(t);
+      expect(
+        contrastRatio(
+          Color.lerp(t.surface1, label.style!.color, fade)!,
+          Color.lerp(t.surface1, ground, fade)!,
+        ),
+        greaterThanOrEqualTo(4.5),
+      );
+    });
+  });
+
   testWidgets('opens on the triage list — what is still open', (tester) async {
     await tester.pumpWidget(_app(_FakeAlertsRepository()));
     await tester.pumpAndSettle();
@@ -275,10 +357,12 @@ void main() {
       // read: ≥4.5:1. (At the shipped 0.6 this is ~6.2:1 dark, ~4.7:1
       // light — which is why 0.6 was kept rather than raised.)
       for (final t in [TiqColors.dark, TiqColors.light]) {
+        // Each palette at its OWN resolved fade: glass fades less (0.7) than
+        // the flat theme (0.6) precisely so this blend still reads.
         final compositedTitle = Color.lerp(
           t.surface1,
           t.ink1,
-          ackedGate.opacity,
+          WorklistRow.resolvedOpacityOf(t),
         )!;
         expect(
           contrastRatio(compositedTitle, t.surface1),
@@ -301,10 +385,8 @@ void main() {
       expect(find.byKey(const ValueKey<String>('ack-a-open')), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('ack-a-done')), findsNothing);
 
-      // Ruling (2026-07-25): NO "View visit" action. The manager console has
-      // no visit-detail route — the agent trail takes a day/agent context,
-      // not a visit id — and a dead link would be dishonest chrome. If a
-      // visit-detail screen ever lands, this is the test to loosen.
+      // Neither row carries a visitId, so neither offers "View visit" (#208):
+      // the action exists only where there is a visit to open.
       expect(find.text('View visit'), findsNothing);
       expect(
         find.descendant(
@@ -592,6 +674,97 @@ void main() {
       expect(find.text('Shelf price mismatch'), findsOneWidget);
       expect(find.byKey(const ValueKey('worklist-thumb')), findsNothing);
       expect(find.byType(EvidenceThumb), findsNothing);
+    });
+  });
+
+  group('view visit (#208)', () {
+    /// The alerts screen under a router that also knows the visit route, so a
+    /// tap can be followed to where it lands.
+    Widget navApp(AlertsRepository repo) => ProviderScope(
+      overrides: [
+        alertsRepositoryProvider.overrideWithValue(repo),
+        photosRepositoryProvider.overrideWithValue(_FakePhotosRepository()),
+      ],
+      child: MaterialApp.router(
+        routerConfig: GoRouter(
+          initialLocation: '/alerts',
+          routes: [
+            GoRoute(
+              path: '/alerts',
+              builder: (context, state) => const AlertsScreen(),
+            ),
+            GoRoute(
+              path: '/visits/:id',
+              builder: (context, state) =>
+                  Text('visit detail ${state.pathParameters['id']}'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    testWidgets('a row with a visit offers View visit beside Acknowledge', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          _FakeAlertsRepository(alerts: const [_evidenced, _unacknowledged]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('view-visit-a-photo')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey<String>('ack-a-photo')), findsOneWidget);
+      // The visitless row gets no link.
+      expect(
+        find.byKey(const ValueKey<String>('view-visit-a-open')),
+        findsNothing,
+      );
+      expect(find.text('View visit'), findsOneWidget);
+    });
+
+    testWidgets('an acknowledged row keeps View visit, loses Acknowledge', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(_FakeAlertsRepository(alerts: [_acked(_evidenced)])),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('view-visit-a-photo')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey<String>('ack-a-photo')), findsNothing);
+    });
+
+    testWidgets('tapping it opens that visit, and back returns to alerts', (
+      tester,
+    ) async {
+      final repo = _FakeAlertsRepository(alerts: const [_evidenced]);
+      await tester.pumpWidget(navApp(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('view-visit-a-photo')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('visit detail v1'), findsOneWidget);
+      // Opening a visit is not acknowledging its alert.
+      expect(repo.ackCalls, 0);
+
+      // Pushed, not replaced: popping lands back on the worklist.
+      final router = GoRouter.of(tester.element(find.text('visit detail v1')));
+      expect(router.canPop(), isTrue);
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Shelf gap on aisle 3'), findsOneWidget);
     });
   });
 

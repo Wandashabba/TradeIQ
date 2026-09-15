@@ -2,9 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
+import 'package:tradeiq_app/core/theme/lumen_palette.dart';
+import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/clients/data/clients_repository.dart';
 import 'package:tradeiq_app/features/clients/presentation/client_config_screen.dart';
 
+import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
 
 const _config = ClientConfig(
@@ -90,8 +95,13 @@ class _FixedSessionController extends SessionController {
 
 /// Defaults to an admin: PATCH /clients/me is admin-only, so that is the role
 /// the editing tests are about.
-Widget _app(ClientsRepository repo, {String role = 'admin'}) => routedApp(
+Widget _app(
+  ClientsRepository repo, {
+  String role = 'admin',
+  ThemeData? theme,
+}) => routedApp(
       const ClientConfigScreen(),
+      theme: theme,
       overrides: [
         clientsRepositoryProvider.overrideWithValue(repo),
         sessionControllerProvider.overrideWith(
@@ -110,6 +120,36 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 }
 
 void main() {
+  testWidgets('light: the read-only notice is opaque and rimmed; shares are mono',
+      (tester) async {
+    await _pump(
+      tester,
+      _app(_FakeClientsRepository(), role: 'manager', theme: AppTheme.light()),
+    );
+
+    const t = TiqColors.light;
+    final notice = tester.widget<Container>(
+      find.byKey(const ValueKey<String>('read-only-notice')).first,
+    );
+    final deco = notice.decoration! as BoxDecoration;
+    // An opaque ground, so its words measure against the colour on screen.
+    expect(deco.color, t.surface2);
+    expect(deco.color!.a, 1.0);
+    expect((deco.border! as Border).top.color, LumenPalette.light.panelRim);
+    expect(contrastRatio(t.ink3, t.surface2), greaterThanOrEqualTo(4.5));
+
+    expect(
+      tester.widget<Text>(find.text('60.0%')).style!.fontFamily,
+      LumenGlass.mono,
+    );
+  });
+
+  testWidgets('dark: the share figure keeps its flat style', (tester) async {
+    await _pump(tester, _app(_FakeClientsRepository()));
+
+    expect(tester.widget<Text>(find.text('60.0%')).style!.fontFamily, isNull);
+  });
+
   testWidgets('renders a weight field for each scorecard weight', (tester) async {
     await _pump(tester, _app(_FakeClientsRepository()));
 

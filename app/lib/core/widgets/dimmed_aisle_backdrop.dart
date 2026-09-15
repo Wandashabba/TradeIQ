@@ -22,17 +22,7 @@ class DimmedAisleBackdrop extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         if (video != null && video.value.isInitialized)
-          SizedBox.expand(
-            child: FittedBox(
-              fit: BoxFit.cover,
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(
-                width: video.value.size.width,
-                height: video.value.size.height,
-                child: VideoPlayer(video),
-              ),
-            ),
-          )
+          AisleFootage(controller: video)
         else
           const DecoratedBox(
             decoration: BoxDecoration(
@@ -48,6 +38,33 @@ class DimmedAisleBackdrop extends StatelessWidget {
           decoration: BoxDecoration(color: Color(0xE6060709)), // 90% #060709
         ),
       ],
+    );
+  }
+}
+
+/// The aisle footage alone, cover-fitted. Nothing until [controller] is
+/// initialised — widget tests have no platform video.
+class AisleFootage extends StatelessWidget {
+  const AisleFootage({super.key, this.controller});
+
+  final VideoPlayerController? controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final video = controller;
+    if (video == null || !video.value.isInitialized) {
+      return const SizedBox.expand();
+    }
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox(
+          width: video.value.size.width,
+          height: video.value.size.height,
+          child: VideoPlayer(video),
+        ),
+      ),
     );
   }
 }

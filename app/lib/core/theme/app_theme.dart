@@ -1,40 +1,42 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'lumen_glass.dart';
+import 'lumen_palette.dart';
 import 'tiq_colors.dart';
 
 /// The TradeIQ themes.
 ///
 /// Both modes are built by one [_base] from a [TiqColors] scheme, so component
 /// themes (inputs, buttons, cards, appbar, chips…) cannot drift between them.
-/// Geometry is squared off — controls are 3px, panels 4px, and nothing is a
-/// stadium/pill. One type family throughout (Inter); `tabular-nums` is applied
-/// per-widget where digits must align vertically, not globally.
-///
-/// Mirrors `design/tokens.css`.
+/// Both are Lumen Glass (14px controls, 20px panels): light on the lit
+/// lavender ground with the dark `#241F47` primary action, dark on the indigo
+/// night ground with a bright lavender one. One text family throughout
+/// (Inter); figures and micro-labels opt into JetBrains Mono per-widget via
+/// `LumenGlass.figure` / `kickerStyle`, not globally.
 class AppTheme {
   AppTheme._();
 
-  static const _control = BorderRadius.all(
-    Radius.circular(AppColors.radiusControl),
-  );
-  static const _panel = BorderRadius.all(
-    Radius.circular(AppColors.radiusPanel),
-  );
-
-  static ThemeData dark() => _base(TiqColors.dark, Brightness.dark);
+  /// Lumen Glass at night. The flat instrument palette ([TiqColors.dark])
+  /// no longer backs a theme; it remains only as the fallback for widgets
+  /// pumped without one.
+  static ThemeData dark() => _base(TiqColors.night, Brightness.dark);
 
   static ThemeData light() => _base(TiqColors.light, Brightness.light);
 
   static ThemeData _base(TiqColors c, Brightness brightness) {
+    final control = BorderRadius.all(Radius.circular(c.radiusControl));
+    final lumen = c.isNight ? LumenPalette.dark : LumenPalette.light;
+    final panel = BorderRadius.all(Radius.circular(c.radiusPanel));
+
     final fieldBorder = OutlineInputBorder(
-      borderRadius: _control,
+      borderRadius: control,
       borderSide: BorderSide(color: c.lineStrong),
     );
 
     final colorScheme = brightness == Brightness.dark
         ? ColorScheme.dark(
             primary: c.brand,
-            onPrimary: Colors.white,
+            onPrimary: c.isNight ? c.onAction : Colors.white,
             secondary: c.series1,
             onSecondary: Colors.white,
             surface: c.surface1,
@@ -121,50 +123,53 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: _panel,
+          borderRadius: panel,
           side: BorderSide(color: c.line),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: c.surface2,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 11,
+          vertical: 12,
+        ),
         hintStyle: TextStyle(color: c.ink3, fontSize: 13),
         labelStyle: TextStyle(color: c.ink2, fontSize: 12.5),
         floatingLabelStyle: TextStyle(color: c.series1),
         border: fieldBorder,
         enabledBorder: fieldBorder,
         focusedBorder: OutlineInputBorder(
-          borderRadius: _control,
+          borderRadius: control,
           borderSide: BorderSide(color: c.brand, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: _control,
+          borderRadius: control,
           borderSide: BorderSide(color: c.crit),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: _control,
+          borderRadius: control,
           borderSide: BorderSide(color: c.crit, width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: c.brand,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: c.brand.withValues(alpha: .4),
+          backgroundColor: c.action,
+          foregroundColor: c.onAction,
+          disabledBackgroundColor: c.action.withValues(alpha: .4),
           disabledForegroundColor: Colors.white70,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          shape: const RoundedRectangleBorder(borderRadius: _control),
+          shape: RoundedRectangleBorder(borderRadius: control),
           textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: c.brand,
-          foregroundColor: Colors.white,
+          backgroundColor: c.action,
+          foregroundColor: c.onAction,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          shape: const RoundedRectangleBorder(borderRadius: _control),
+          shape: RoundedRectangleBorder(borderRadius: control),
           textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
       ),
@@ -174,18 +179,26 @@ class AppTheme {
           backgroundColor: c.surface2,
           side: BorderSide(color: c.lineStrong),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          shape: const RoundedRectangleBorder(borderRadius: _control),
-          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(borderRadius: control),
+          textStyle: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: c.series1,
-          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-          shape: const RoundedRectangleBorder(borderRadius: _control),
+          foregroundColor: c.glass ? c.brand : c.series1,
+          textStyle: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: control),
         ),
       ),
       checkboxTheme: CheckboxThemeData(
+        // A lavender box at night takes the dark tick.
+        checkColor: c.isNight ? WidgetStatePropertyAll(c.onAction) : null,
         fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? c.brand
@@ -201,11 +214,7 @@ class AppTheme {
           backgroundColor: WidgetStatePropertyAll(c.surface2),
         ),
       ),
-      dividerTheme: DividerThemeData(
-        color: c.line,
-        space: 1,
-        thickness: 1,
-      ),
+      dividerTheme: DividerThemeData(color: c.line, space: 1, thickness: 1),
       listTileTheme: ListTileThemeData(
         iconColor: c.ink3,
         textColor: c.ink2,
@@ -214,7 +223,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: c.surface2,
         side: BorderSide(color: c.line),
-        shape: const RoundedRectangleBorder(borderRadius: _control),
+        shape: RoundedRectangleBorder(borderRadius: control),
         labelStyle: TextStyle(fontSize: 11.5, color: c.ink2),
       ),
       // Tooltips stay the dark instrument surface in BOTH modes: an inverted
@@ -224,11 +233,90 @@ class AppTheme {
       tooltipTheme: const TooltipThemeData(
         decoration: BoxDecoration(
           color: Color(0xFF05060A),
-          border: Border.fromBorderSide(BorderSide(color: AppColors.lineStrong)),
-          borderRadius: _control,
+          border: Border.fromBorderSide(
+            BorderSide(color: AppColors.lineStrong),
+          ),
+          borderRadius: BorderRadius.all(
+            Radius.circular(AppColors.radiusControl),
+          ),
         ),
         textStyle: TextStyle(color: AppColors.ink1, fontSize: 11.5),
       ),
+      // Overlays. Glass only: dark keeps Material's defaults, untouched. The
+      // grounds are opaque on purpose — a dialog's words must clear AA on their
+      // own, whatever is behind the scrim.
+      dialogTheme: c.glass
+          ? DialogThemeData(
+              backgroundColor: c.surface1,
+              surfaceTintColor: Colors.transparent,
+              elevation: 18,
+              shadowColor: const Color(0x40241F47),
+              shape: RoundedRectangleBorder(
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(LumenGlass.radiusHero),
+                ),
+                side: BorderSide(color: lumen.panelRim),
+              ),
+              titleTextStyle: TextStyle(
+                color: c.ink1,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Inter',
+              ),
+              contentTextStyle: TextStyle(
+                color: c.ink2,
+                fontSize: 13.5,
+                height: 1.45,
+                fontFamily: 'Inter',
+              ),
+            )
+          : null,
+      snackBarTheme: c.glass
+          ? SnackBarThemeData(
+              // By day the one dark pane; by night a pane lifted off the ground.
+              backgroundColor: c.isNight
+                  ? const Color(0xFF2D2A48)
+                  : LumenGlass.inkDark,
+              contentTextStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                fontFamily: 'Inter',
+              ),
+              actionTextColor: lumen.accentLight,
+              behavior: SnackBarBehavior.floating,
+              elevation: 0,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(
+                  Radius.circular(LumenGlass.radiusControl),
+                ),
+              ),
+            )
+          : null,
+      bottomSheetTheme: c.glass
+          ? BottomSheetThemeData(
+              backgroundColor: c.surface1,
+              surfaceTintColor: Colors.transparent,
+              dragHandleColor: c.lineStrong,
+              shape: RoundedRectangleBorder(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(LumenGlass.radiusScore),
+                ),
+                side: BorderSide(color: lumen.panelRim),
+              ),
+            )
+          : null,
+      popupMenuTheme: c.glass
+          ? PopupMenuThemeData(
+              color: c.surface1,
+              surfaceTintColor: Colors.transparent,
+              elevation: 10,
+              shadowColor: const Color(0x33241F47),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(LumenGlass.radiusControl),
+                side: BorderSide(color: lumen.panelRim),
+              ),
+            )
+          : null,
       useMaterial3: true,
     );
   }

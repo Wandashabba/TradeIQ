@@ -69,24 +69,53 @@ void main() {
       expect(d.navInactiveInk, const Color(0xFF8A94A6));
       expect(d.navActivePillBg, const Color(0xFF12305C));
       expect(d.navActiveInk, const Color(0xFF6DB4FF));
+      // Material & geometry: dark is NOT glass, keeps the squared instrument
+      // radii, and its primary action is still brand.
+      expect(d.glass, isFalse);
+      expect(d.action, const Color(0xFF0A6CF0));
+      expect(d.onAction, const Color(0xFFFFFFFF));
+      expect(d.radiusControl, 3);
+      expect(d.radiusCard, 12);
+      expect(d.radiusPanel, 12);
     });
 
-    test('light carries the dark ink forward as its primary text color', () {
-      // "the two modes read as one product" — spec §Paper & Ink.
-      expect(TiqColors.light.ink1, const Color(0xFF14161C));
-      expect(TiqColors.light.plane, const Color(0xFFF7F8FA));
-      expect(TiqColors.light.surface1, const Color(0xFFFFFFFF));
-      expect(TiqColors.light.line, const Color(0xFFE3E5EA));
-      // Hero glass: light's values are the 2026-07-24 spec's exact hexes.
-      expect(TiqColors.light.heroWash, const Color(0xFFF2F7FF));
-      expect(TiqColors.light.heroBorder, const Color(0xFFDBE7FA));
-      // Floating bottom bar: byte-for-byte the hexes TiqBottomNavBar shipped
-      // hardcoded in sub-1 — tokenizing them must not repaint light at all.
-      expect(TiqColors.light.navBarBg, const Color(0xEBFFFFFF));
-      expect(TiqColors.light.navBarLine, const Color(0xFFE3E5EA));
-      expect(TiqColors.light.navInactiveInk, const Color(0xFF5C6470));
-      expect(TiqColors.light.navActivePillBg, const Color(0xFFEAF2FF));
-      expect(TiqColors.light.navActiveInk, const Color(0xFF0A6CF0));
+    test('light is Lumen Glass (design handoff, turn 4)', () {
+      const l = TiqColors.light;
+      expect(l.glass, isTrue);
+      // Ink and ground straight from the handoff's token table.
+      expect(l.ink1, const Color(0xFF241F47));
+      expect(l.ink3, const Color(0xFF5B5F75));
+      expect(l.plane, const Color(0xFFECEAF6));
+      // Surfaces are glass panes COMPOSITED over the ground — opaque, so the
+      // contrast groups below measure what an agent actually reads.
+      expect(l.surface1, const Color(0xFFF7F6FB));
+      expect(l.surface1.a, 1.0);
+      expect(l.surface2.a, 1.0);
+      expect(l.surface3.a, 1.0);
+      // One accent, never a status; the primary action is the dark ink.
+      expect(l.brand, const Color(0xFF5D5294));
+      expect(l.action, const Color(0xFF241F47));
+      // R/A/G marks, and crit's word colour.
+      // Deepened past the handoff's fills: these slots are also set as words.
+      expect(l.good, const Color(0xFF17704A));
+      expect(l.warn, const Color(0xFF8A5A00));
+      expect(l.crit, const Color(0xFFB3261E));
+      expect(l.critText, const Color(0xFF8C1D17));
+      // The floating bar is half-white glass with a dark-ink active slot.
+      expect(l.navBarBg, const Color(0x80FFFFFF));
+      expect(l.navActiveInk, const Color(0xFF241F47));
+      // Geometry replaces the squared 3/12 set.
+      expect(l.radiusControl, 14);
+      expect(l.radiusCard, 16);
+      expect(l.radiusPanel, 20);
+    });
+
+    test('white clears 4.5:1 on the light primary action', () {
+      final ratio = contrastRatio(
+        TiqColors.light.onAction,
+        TiqColors.light.action,
+      );
+      expect(ratio, greaterThanOrEqualTo(4.5), reason: 'onAction is $ratio:1');
     });
 
     test('lerp interpolates and copyWith replaces a single slot', () {
@@ -95,6 +124,9 @@ void main() {
         mid.plane,
         Color.lerp(TiqColors.dark.plane, TiqColors.light.plane, 0.5),
       );
+      expect(TiqColors.dark.lerp(TiqColors.light, 0.4).glass, isFalse);
+      expect(TiqColors.dark.lerp(TiqColors.light, 0.6).glass, isTrue);
+      expect(mid.radiusPanel, 16); // halfway between 12 and 20
       final copied = TiqColors.dark.copyWith(brand: const Color(0xFF123456));
       expect(copied.brand, const Color(0xFF123456));
       expect(copied.plane, TiqColors.dark.plane);

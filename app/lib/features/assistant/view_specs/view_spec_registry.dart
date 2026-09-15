@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
+import '../../../core/theme/tiq_colors.dart';
+import '../../../core/widgets/glass.dart';
 import '../data/chat_controller.dart';
 import 'agent_scorecard_card.dart';
 import 'outlet_map_card.dart';
@@ -101,6 +105,30 @@ class UnsupportedArtifactNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.colors.glass) {
+      final muted = context.lumen.inkMuted;
+      // An unblurred tile: it sits in the transcript like any other turn.
+      return GlassPane(
+        kind: GlassKind.tile,
+        blur: false,
+        shadow: false,
+        radius: LumenGlass.radiusControl,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, size: 16, color: muted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'This answer includes a “$type” view your app version cannot '
+                'draw yet. The summary above still applies.',
+                style: TextStyle(fontSize: 12, height: 1.4, color: muted),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

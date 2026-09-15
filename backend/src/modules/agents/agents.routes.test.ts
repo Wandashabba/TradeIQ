@@ -62,7 +62,10 @@ describe('agents routes', () => {
       expect(res.body.data).toEqual([
         {
           agentId,
+          // No display name set, so the label falls back to the email (#280).
           name: 'AGTR-agent@example.com',
+          displayName: null,
+          email: 'AGTR-agent@example.com',
           state: 'idle',
           currentOutlet: null,
           lastSeenAt: null,

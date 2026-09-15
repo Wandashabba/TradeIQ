@@ -4,6 +4,19 @@ import { facingsTotal, mean, pct } from '../../lib/kpiMath';
 
 const PRICE_COMPLIANCE_TOLERANCE_PCT = 5;
 
+/**
+ * The published perfect-store banding, highest first. An outlet sits in the
+ * first band whose `minScore` its score reaches — so 89.9 is 80–89, never
+ * 90–100. The healthy band starts at 80 and below 70 is an execution gap.
+ */
+const SCORE_BANDS: ReadonlyArray<{ label: string; minScore: number }> = [
+  { label: '90–100', minScore: 90 },
+  { label: '80–89', minScore: 80 },
+  { label: '70–79', minScore: 70 },
+  { label: '60–69', minScore: 60 },
+  { label: '<60', minScore: 0 },
+];
+
 export interface DashboardFilters {
   clientId: string;
   territoryId?: string;
@@ -28,6 +41,18 @@ export interface DashboardSummary {
     outletsVisited: number;
     outletsTotal: number;
   };
+  /**
+   * How many outlets sit in each perfect-store band — the distribution the
+   * console draws instead of an average, because a manager acts on how many
+   * doors are in which band. Always all five bands, highest first.
+   */
+  scoreBands: ScoreBand[];
+}
+
+export interface ScoreBand {
+  label: string;
+  minScore: number;
+  outlets: number;
 }
 
 /** The exact payload shape produced by the visit query's `include` below. */
@@ -113,6 +138,26 @@ function computeKpisFromScope(outlets: ScopedOutlet[], visits: ScopedVisit[]): D
     scorecards.length,
   );
 
+  // Perfect-store distribution counts DOORS, not visits: an outlet visited
+  // three times in the window is one outlet, so each counts once — at its most
+  // recent scored visit, the state a manager would find if they went today.
+  const latestScoreByOutlet = new Map<string, { at: number; score: number }>();
+  for (const visit of visits) {
+    if (!visit.scorecard) continue;
+    const at = visit.checkinTs.getTime();
+    const seen = latestScoreByOutlet.get(visit.outletId);
+    if (!seen || at > seen.at) {
+      latestScoreByOutlet.set(visit.outletId, { at, score: visit.scorecard.weightedTotal });
+    }
+  }
+  const scoreBands: ScoreBand[] = SCORE_BANDS.map((band) => ({ ...band, outlets: 0 }));
+  for (const { score } of latestScoreByOutlet.values()) {
+    // A score below every floor (never expected, but not impossible from a
+    // malformed weight set) lands in the lowest band rather than vanishing.
+    const band = scoreBands.find((b) => score >= b.minScore) ?? scoreBands[scoreBands.length - 1]!;
+    band.outlets += 1;
+  }
+
   return {
     kpis: {
       numericDistribution,
@@ -129,6 +174,7 @@ function computeKpisFromScope(outlets: ScopedOutlet[], visits: ScopedVisit[]): D
       outletsVisited,
       outletsTotal,
     },
+    scoreBands,
   };
 }
 

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
 import 'package:tradeiq_app/features/beatplans/data/beatplans_repository.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/beat_plan_form_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -46,7 +49,14 @@ class _FakeUsersRepository implements UsersRepository {
   @override
   Future<PaginatedResponse<AppUser>> listUsers() async => const PaginatedResponse(
         data: [
-          AppUser(id: 'a1', email: 'agent-one@x.com', role: 'field_agent', active: true),
+          AppUser(
+            id: 'a1',
+            email: 'agent-one@x.com',
+            role: 'field_agent',
+            active: true,
+            displayName: 'Aisha Patel',
+          ),
+          AppUser(id: 'a2', email: 'agent-two@x.com', role: 'field_agent', active: true),
           AppUser(id: 'm1', email: 'manager@x.com', role: 'manager', active: true),
         ],
         nextCursor: null,
@@ -57,6 +67,7 @@ class _FakeUsersRepository implements UsersRepository {
     required String email,
     required String password,
     required String role,
+    String? displayName,
   }) async =>
       throw UnimplementedError();
 
@@ -116,7 +127,8 @@ class _FakeOutletsRepository implements OutletsRepository {
       throw UnimplementedError();
 }
 
-Widget _app(_RecordingBeatPlansRepository repo) => ProviderScope(
+Widget _app(_RecordingBeatPlansRepository repo, {ThemeData? theme}) =>
+    ProviderScope(
       overrides: [
         beatPlansRepositoryProvider.overrideWithValue(repo),
         usersRepositoryProvider.overrideWithValue(_FakeUsersRepository()),
@@ -124,7 +136,12 @@ Widget _app(_RecordingBeatPlansRepository repo) => ProviderScope(
             .overrideWithValue(_FakeTerritoriesRepository()),
         outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
       ],
-      child: const MaterialApp(home: BeatPlanFormScreen()),
+      child: MaterialApp(theme: theme, home: const BeatPlanFormScreen()),
+    );
+
+/// The nearest glass pane around [finder].
+GlassPane _paneAround(WidgetTester tester, Finder finder) => tester.widget<GlassPane>(
+      find.ancestor(of: finder, matching: find.byType(GlassPane)).first,
     );
 
 void main() {
@@ -135,7 +152,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
     await tester.pumpAndSettle();
 
-    expect(find.text('agent-one@x.com'), findsWidgets);
+    // A named agent is offered by name; an unnamed one falls back to email.
+    expect(find.text('Aisha Patel'), findsWidgets);
+    expect(find.text('agent-one@x.com'), findsNothing);
+    expect(find.text('agent-two@x.com'), findsWidgets);
     // The manager must not be offered as a beat-plan assignee.
     expect(find.text('manager@x.com'), findsNothing);
   });
@@ -155,7 +175,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('agent-one@x.com').last);
+    await tester.tap(find.text('Aisha Patel').last);
     await tester.pumpAndSettle();
 
     // Add both outlets: o2 first, then o1, to prove order is preserved.
@@ -195,5 +215,59 @@ void main() {
 
     expect(find.textContaining('Select a field agent'), findsOneWidget);
     expect(repo.createdArgs, isNull);
+  });
+
+  testWidgets('light: plan and stops are glass panels, stops are tiles',
+      (tester) async {
+    final repo = _RecordingBeatPlansRepository();
+    await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
+    await tester.pumpAndSettle();
+
+    expect(_paneAround(tester, find.text('PLAN')).kind, GlassKind.panel);
+    expect(
+      _paneAround(tester, find.text('STOPS (IN ORDER)')).kind,
+      GlassKind.panel,
+    );
+    expect(find.text('0 stops'), findsOneWidget);
+
+    await tester.enterText(
+        find.byKey(const ValueKey<String>('beatplan-name-field')), 'North Route');
+    await tester.tap(find.byKey(const ValueKey<String>('beatplan-date-pick')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey<String>('beatplan-agent-field')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aisha Patel').last);
+    await tester.pumpAndSettle();
+
+    for (final id in ['o2', 'o1']) {
+      final available = find.byKey(ValueKey<String>('stop-available-$id'));
+      expect(_paneAround(tester, available).kind, GlassKind.tile);
+      await tester.ensureVisible(available);
+      await tester.tap(available);
+      await tester.pump();
+    }
+
+    // The sequence rides in a status tile, a count in mono.
+    final first = find.byKey(const ValueKey<String>('stop-selected-o2'));
+    expect(_paneAround(tester, first).kind, GlassKind.tile);
+    expect(
+      tester
+          .widget<StatusTile>(
+            find.descendant(of: first, matching: find.byType(StatusTile)),
+          )
+          .glyph,
+      '1',
+    );
+    expect(find.text('2 stops'), findsOneWidget);
+
+    final save = find.byKey(const ValueKey<String>('beatplan-save-button'));
+    expect(tester.widget(save), isA<GlassPrimaryButton>());
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+
+    expect(repo.createdArgs!['outletIds'], ['o2', 'o1']);
   });
 }

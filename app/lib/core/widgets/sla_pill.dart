@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/lumen_glass.dart';
+import '../theme/lumen_palette.dart';
 import '../theme/status_pill_colors.dart';
 import '../theme/tiq_colors.dart';
 
@@ -17,7 +19,8 @@ import '../theme/tiq_colors.dart';
 /// green) — a verdict is the same verdict in both themes, and each pair is
 /// self-contained ≥4.5:1 (pinned in sla_pill_test.dart). Only the muted
 /// "due later" state rides on theme tokens (surface2 under ink2), because it
-/// is chrome, not a verdict.
+/// is chrome, not a verdict. Lumen Glass swaps the washes for its own status
+/// swatches, composited opaque so each pair still clears AA on its own.
 ///
 /// `now` is an input, never a clock read — the screen takes `DateTime.now()`
 /// once per build and threads it, so tests can pin time.
@@ -98,9 +101,42 @@ class SlaPill extends StatelessWidget {
     );
   }
 
+  /// Glass: each verdict maps to its Lumen status; the muted "due later"
+  /// states stay chrome (a white-rimmed surface2 chip under inkMuted).
+  LumenStatus? _status(String label) {
+    if (done) return LumenStatus.good;
+    if (label.startsWith('OVERDUE')) return LumenStatus.crit;
+    if (label == 'DUE TODAY') return LumenStatus.warn;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final (label, bg, fg) = _resolve(context.colors);
+    final colors = context.colors;
+    final (label, bg, fg) = _resolve(colors);
+
+    if (colors.glass) {
+      final sw = _status(label)?.swatchOf(colors);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          // Opaque composite, so the ink clears AA over any pane.
+          color: sw == null
+              ? colors.surface2
+              : Color.alphaBlend(sw.tint, colors.surface1),
+          border: Border.all(color: sw?.rim ?? context.lumen.pillRim),
+          borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
+        ),
+        child: Text(
+          label,
+          style: LumenGlass.figure(
+            size: 10.5,
+            color: sw?.ink ?? context.lumen.inkMuted,
+            weight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

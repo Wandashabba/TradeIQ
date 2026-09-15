@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -99,6 +100,14 @@ class _SchemeRow extends ConsumerWidget {
               '· ${scheme.rewardPoints} pts',
               softWrap: false,
               overflow: TextOverflow.ellipsis,
+              // Threshold and payout are figures: glass sets them in the
+              // mono. Null keeps the meta style in dark.
+              style: context.colors.glass
+                  ? const TextStyle(
+                      fontFamily: LumenGlass.mono,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    )
+                  : null,
             ),
           ),
         ],

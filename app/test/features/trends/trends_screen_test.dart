@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/widgets/charts.dart';
+import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/trends/data/trends_repository.dart';
 import 'package:tradeiq_app/features/trends/presentation/trends_screen.dart';
 
@@ -29,6 +32,17 @@ class _FakeTrendsRepository implements TrendsRepository {
 
   @override
   Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => _points;
+
+  @override
+  Future<TerritoryBenchmarkReport> benchmark(
+    BenchmarkMetric metric, [
+    TrendQuery query = const TrendQuery(),
+  ]) async => TerritoryBenchmarkReport(
+    metric: metric,
+    isPercent: false,
+    client: const BenchmarkSeries(average: null, count: 0, points: []),
+    territories: const [],
+  );
 }
 
 class _ThrowingTrendsRepository implements TrendsRepository {
@@ -40,10 +54,17 @@ class _ThrowingTrendsRepository implements TrendsRepository {
 
   @override
   Future<List<TrendPoint>> perfectStore([TrendQuery query = const TrendQuery()]) async => throw Exception('boom');
+
+  @override
+  Future<TerritoryBenchmarkReport> benchmark(
+    BenchmarkMetric metric, [
+    TrendQuery query = const TrendQuery(),
+  ]) async => throw Exception('boom');
 }
 
-Widget _app(TrendsRepository repo) => routedApp(
+Widget _app(TrendsRepository repo, {ThemeData? theme}) => routedApp(
       const TrendsScreen(),
+      theme: theme,
       overrides: [
         trendsRepositoryProvider.overrideWithValue(repo),
       ],
@@ -61,6 +82,43 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 }
 
 void main() {
+  testWidgets('light: both switches ride a glass pill; table figures are mono',
+      (tester) async {
+    await _pump(tester, _app(_FakeTrendsRepository(), theme: AppTheme.light()));
+
+    // The selected segment is lifted onto a pill; the rest are bare words.
+    GlassPane? pillIn(Finder segment) {
+      final f = find.descendant(of: segment, matching: find.byType(GlassPane));
+      return f.evaluate().isEmpty ? null : tester.widget<GlassPane>(f);
+    }
+
+    expect(
+      pillIn(find.byKey(const ValueKey('interval-week')))?.kind,
+      GlassKind.pill,
+    );
+    expect(pillIn(find.byKey(const ValueKey('interval-day'))), isNull);
+
+    final scorecards = find.byKey(const ValueKey('trend-scorecards'));
+    Finder inPanel(Finder f) => find.descendant(of: scorecards, matching: f);
+    expect(
+      pillIn(inPanel(find.byKey(const ValueKey('view-chart'))))?.kind,
+      GlassKind.pill,
+    );
+
+    await tester.tap(inPanel(find.byKey(const ValueKey('view-table'))));
+    await tester.pumpAndSettle();
+    expect(
+      pillIn(inPanel(find.byKey(const ValueKey('view-table'))))?.kind,
+      GlassKind.pill,
+    );
+    expect(pillIn(inPanel(find.byKey(const ValueKey('view-chart')))), isNull);
+
+    expect(
+      tester.widget<Text>(inPanel(find.text('80'))).style!.fontFamily,
+      LumenGlass.mono,
+    );
+  });
+
   testWidgets('renders the three trend sections as charts', (tester) async {
     await _pump(tester, _app(_FakeTrendsRepository()));
 

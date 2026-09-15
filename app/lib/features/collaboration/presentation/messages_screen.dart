@@ -1,13 +1,23 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_controller.dart';
+import '../../../core/camera/photo_capture_service.dart';
+import '../../../core/network/human_error.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/lumen_glass.dart';
+import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
+import '../../audit/data/photos_repository.dart';
 import '../data/collaboration_repository.dart';
+import 'message_attachment_thumb.dart';
 
 /// The team channel. Two feeds live here, and a segmented control switches
 /// between them rather than stacking them:
@@ -31,9 +41,38 @@ class MessagesScreen extends ConsumerStatefulWidget {
 
 enum _Feed { messages, announcements }
 
+/// A photo picked for the draft but not yet sent (#125).
+///
+/// Uploaded at SEND time, not at pick time, so an abandoned draft leaves
+/// nothing on the server. Once an upload succeeds its [photoId] is kept: if
+/// the send then fails, retrying does not upload the same photo twice.
+class _PendingAttachment {
+  _PendingAttachment(this.dataUrl) : bytes = _decode(dataUrl);
+
+  final String dataUrl;
+
+  /// Decoded once for the preview, not on every rebuild.
+  final Uint8List? bytes;
+  String? photoId;
+
+  static Uint8List? _decode(String dataUrl) {
+    final comma = dataUrl.indexOf(',');
+    if (comma == -1) return null;
+    try {
+      return base64Decode(dataUrl.substring(comma + 1));
+    } on FormatException {
+      return null;
+    }
+  }
+}
+
 class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   final _bodyCtrl = TextEditingController();
   _Feed _feed = _Feed.messages;
+
+  final _pending = <_PendingAttachment>[];
+  bool _sending = false;
+  String? _composerError;
 
   @override
   void dispose() {
@@ -41,14 +80,97 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     super.dispose();
   }
 
+  /// Pick or take a photo through the same [PhotoCaptureService] the audit
+  /// flow uses — downscaled, encoded, and size-checked before it is ever sent.
+  Future<void> _attach() async {
+    if (_pending.length >= maxMessageAttachments || _sending) return;
+    final source = await showModalBottomSheet<PhotoSource>(
+      context: context,
+      backgroundColor: context.colors.surface1,
+      builder: (_) => const _AttachSourceSheet(),
+    );
+    if (source == null || !mounted) return;
+    try {
+      final photo = await ref.read(photoCaptureServiceProvider).capture(source);
+      // A cancelled picker is a normal outcome — the draft stays as it was.
+      if (photo == null || !mounted) return;
+      setState(() {
+        _pending.add(_PendingAttachment(photo.dataUrl));
+        _composerError = null;
+      });
+    } on PhotoTooLargeException catch (e) {
+      if (mounted) setState(() => _composerError = e.toString());
+    } catch (_) {
+      // Denied camera permission lands here. Say so rather than doing nothing.
+      if (mounted) {
+        setState(
+          () => _composerError =
+              'Could not add a photo. Check camera and photo permissions.',
+        );
+      }
+    }
+  }
+
+  void _removeAttachment(int index) {
+    setState(() {
+      _pending.removeAt(index);
+      _composerError = null;
+    });
+  }
+
   Future<void> _send() async {
     final body = _bodyCtrl.text.trim();
-    if (body.isEmpty) return;
-    await ref.read(collaborationRepositoryProvider).sendMessage(body);
-    if (mounted) {
-      _bodyCtrl.clear();
-      ref.invalidate(messagesProvider);
+    if (_sending || (body.isEmpty && _pending.isEmpty)) return;
+    setState(() {
+      _sending = true;
+      _composerError = null;
+    });
+
+    // Upload whatever has not made it yet. On failure nothing is sent, and the
+    // draft — words and photos — stays exactly where the sender left it.
+    final photos = ref.read(photosRepositoryProvider);
+    for (final attachment in _pending) {
+      if (attachment.photoId != null) continue;
+      try {
+        attachment.photoId = await photos.uploadMessageAttachment(
+          attachment.dataUrl,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _sending = false;
+          _composerError =
+              'A photo failed to upload, so nothing was sent. '
+              '${humanErrorMessage(e)} Your draft is kept.';
+        });
+        return;
+      }
     }
+
+    try {
+      await ref
+          .read(collaborationRepositoryProvider)
+          .sendMessage(
+            body,
+            attachmentPhotoIds: [for (final a in _pending) a.photoId!],
+          );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _composerError =
+            'Message not sent. ${humanErrorMessage(e)} Your draft is kept.';
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    _bodyCtrl.clear();
+    setState(() {
+      _pending.clear();
+      _sending = false;
+    });
+    ref.invalidate(messagesProvider);
   }
 
   Future<void> _compose() async {
@@ -124,7 +246,16 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
             ),
           ),
           // The composer belongs to the conversation, not to the broadcast.
-          if (!onAnnouncements) _Composer(controller: _bodyCtrl, onSend: _send),
+          if (!onAnnouncements)
+            _Composer(
+              controller: _bodyCtrl,
+              onSend: _send,
+              onAttach: _attach,
+              onRemove: _removeAttachment,
+              pending: _pending,
+              sending: _sending,
+              error: _composerError,
+            ),
         ],
       ),
     );
@@ -165,30 +296,58 @@ class _MessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final direct = message.recipientId != null;
+    final images = message.attachments;
+    // An image can be the whole message; the row still needs a headline.
+    final title = message.body.trim().isNotEmpty
+        ? message.body
+        : images.length == 1
+        ? 'Photo'
+        : '${images.length} photos';
+
+    final metaLine = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CodeToken(message.id),
+        if (direct) ...[
+          const SizedBox(width: 6),
+          const Text('·'),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              'To ${message.recipientId}',
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ],
+    );
 
     return WorklistRow(
       key: ValueKey('message-${message.id}'),
-      title: message.body,
+      title: title,
       // The id is machine-facing — a manager quoting a message in a bug report
-      // wants the thing the system knows it by.
-      meta: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CodeToken(message.id),
-          if (direct) ...[
-            const SizedBox(width: 6),
-            const Text('·'),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                'To ${message.recipientId}',
-                softWrap: false,
-                overflow: TextOverflow.ellipsis,
-              ),
+      // wants the thing the system knows it by. The images sit under it, inside
+      // the same tile, so they read as part of this message and no other.
+      meta: images.isEmpty
+          ? metaLine
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                metaLine,
+                const SizedBox(height: 8),
+                Wrap(
+                  key: ValueKey('message-attachments-${message.id}'),
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final a in images)
+                      MessageAttachmentThumb(photoId: a.photoId),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ],
-      ),
       // A message has no severity, so it carries one hue and one hue only.
       level: StatusLevel.neutral,
       statusLabel: direct ? 'Direct' : 'Broadcast',
@@ -346,49 +505,269 @@ class _AnnouncementDialogState extends State<_AnnouncementDialog> {
   }
 }
 
-class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.onSend});
-
-  final TextEditingController controller;
-  final VoidCallback onSend;
+/// Camera or library — the same two sources the guided audit capture offers.
+class _AttachSourceSheet extends StatelessWidget {
+  const _AttachSourceSheet();
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    Widget option(Key key, IconData icon, String label, PhotoSource source) =>
+        ListTile(
+          key: key,
+          leading: Icon(icon, color: colors.ink2),
+          title: Text(
+            label,
+            style: TextStyle(fontSize: 14, color: colors.ink1),
+          ),
+          onTap: () => Navigator.of(context).pop(source),
+        );
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          option(
+            const ValueKey<String>('attach-camera'),
+            Icons.photo_camera_outlined,
+            'Take photo',
+            PhotoSource.camera,
+          ),
+          option(
+            const ValueKey<String>('attach-gallery'),
+            Icons.photo_library_outlined,
+            'Choose from library',
+            PhotoSource.gallery,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Composer extends StatelessWidget {
+  const _Composer({
+    required this.controller,
+    required this.onSend,
+    required this.onAttach,
+    required this.onRemove,
+    required this.pending,
+    required this.sending,
+    required this.error,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onSend;
+  final VoidCallback onAttach;
+  final ValueChanged<int> onRemove;
+  final List<_PendingAttachment> pending;
+  final bool sending;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final iconInk = colors.glass ? context.lumen.accentInk : colors.ink1;
+    final canAttach = !sending && pending.length < maxMessageAttachments;
+
+    final field = Expanded(
+      child: TextField(
+        key: const ValueKey<String>('message-body'),
+        controller: controller,
+        style: TextStyle(fontSize: 13, color: colors.ink1),
+        onSubmitted: (_) => onSend(),
+        decoration: InputDecoration(
+          hintText: 'Message the team',
+          isDense: true,
+          filled: true,
+          // Opaque in both themes: the words and hint measure true however
+          // the thread scrolls beneath a glass bar.
+          fillColor: colors.surface2,
+          hintStyle: TextStyle(fontSize: 13, color: colors.ink3),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        ),
+      ),
+    );
+    final attach = IconButton(
+      key: const ValueKey<String>('attach-photo'),
+      icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+      color: iconInk,
+      tooltip: canAttach
+          ? 'Attach photo'
+          : 'Up to $maxMessageAttachments photos per message',
+      onPressed: canAttach ? onAttach : null,
+    );
+    final send = IconButton(
+      key: const ValueKey<String>('send-message'),
+      icon: sending
+          ? SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: iconInk),
+            )
+          : const Icon(Icons.send, size: 18),
+      color: iconInk,
+      tooltip: 'Send',
+      onPressed: sending ? null : onSend,
+    );
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (pending.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: SingleChildScrollView(
+              key: const ValueKey<String>('pending-attachments'),
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < pending.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _PendingThumb(
+                        index: i,
+                        attachment: pending[i],
+                        onRemove: sending ? null : () => onRemove(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const StatusChip(label: 'Not sent', level: StatusLevel.critical),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    error!,
+                    key: const ValueKey<String>('composer-error'),
+                    style: TextStyle(fontSize: 11.5, color: colors.ink2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Row(
+          children: [attach, const SizedBox(width: 2), field, const SizedBox(width: 8), send],
+        ),
+      ],
+    );
+
+    // Glass: the composer floats as a bar over the thread, not a ruled footer.
+    if (colors.glass) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+        child: GlassPane(
+          kind: GlassKind.bar,
+          padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+          child: content,
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(
         color: colors.surface1,
         border: Border(top: BorderSide(color: colors.line)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              key: const ValueKey<String>('message-body'),
-              controller: controller,
-              style: TextStyle(fontSize: 13, color: colors.ink1),
-              onSubmitted: (_) => onSend(),
-              decoration: InputDecoration(
-                hintText: 'Message the team',
-                isDense: true,
-                filled: true,
-                fillColor: colors.surface2,
-                hintStyle: TextStyle(fontSize: 13, color: colors.ink3),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: content,
+    );
+  }
+}
+
+/// A picked photo waiting in the draft: what will be sent, and a way to take it
+/// back out before it is.
+class _PendingThumb extends StatelessWidget {
+  const _PendingThumb({
+    required this.index,
+    required this.attachment,
+    required this.onRemove,
+  });
+
+  static const double size = 56;
+
+  final int index;
+  final _PendingAttachment attachment;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final radius = BorderRadius.circular(
+      colors.glass ? LumenGlass.radiusControl - 4 : AppColors.radiusControl,
+    );
+    final broken = Container(
+      width: size,
+      height: size,
+      color: colors.surface2,
+      alignment: Alignment.center,
+      child: Icon(Icons.broken_image_outlined, size: 18, color: colors.ink3),
+    );
+    final bytes = attachment.bytes;
+
+    Widget photo = ClipRRect(
+      borderRadius: radius,
+      child: bytes == null
+          ? broken
+          : Image.memory(
+              bytes,
+              key: ValueKey('pending-attachment-$index'),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) => broken,
+            ),
+    );
+    if (colors.glass) {
+      // Glass frames the photo — a rim over its edge — and never tints it.
+      photo = DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: context.lumen.tileRim),
+        ),
+        child: photo,
+      );
+    }
+
+    return Semantics(
+      label: 'Photo ${index + 1} ready to send',
+      image: true,
+      child: SizedBox(
+        width: size + 8,
+        height: size + 8,
+        child: Stack(
+          children: [
+            Positioned(left: 0, bottom: 0, child: photo),
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Material(
+                color: colors.surface1,
+                shape: CircleBorder(side: BorderSide(color: colors.line)),
+                child: InkWell(
+                  key: ValueKey('pending-attachment-remove-$index'),
+                  customBorder: const CircleBorder(),
+                  onTap: onRemove,
+                  child: Tooltip(
+                    message: 'Remove photo',
+                    child: Padding(
+                      padding: const EdgeInsets.all(3),
+                      child: Icon(Icons.close, size: 14, color: colors.ink1),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            key: const ValueKey<String>('send-message'),
-            icon: const Icon(Icons.send, size: 18),
-            color: colors.ink1,
-            tooltip: 'Send',
-            onPressed: onSend,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -406,9 +785,49 @@ class _Segmented<T> extends StatelessWidget {
   final T selected;
   final ValueChanged<T> onChanged;
 
+  /// Glass: a bar track with the selected segment lifted onto a bright pill —
+  /// the dashboard filter bar's idiom. Both states share one padding (a
+  /// pane's rim paints over its edge, it adds no size), so a tap never
+  /// shifts the row.
+  Widget _glass() {
+    const pad = EdgeInsets.symmetric(horizontal: 11, vertical: 5);
+    const inner = LumenGlass.radiusControl - 3;
+    return GlassPane(
+      kind: GlassKind.bar,
+      radius: LumenGlass.radiusControl,
+      blur: false,
+      shadow: false,
+      specular: false,
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final s in segments)
+            InkWell(
+              key: ValueKey('tab-${s.value}'),
+              onTap: () => onChanged(s.value),
+              borderRadius: BorderRadius.circular(inner),
+              child: s.value == selected
+                  ? GlassPane(
+                      kind: GlassKind.pill,
+                      radius: inner,
+                      padding: pad,
+                      child: _GlassSegmentLabel(s.label, selected: true),
+                    )
+                  : Padding(
+                      padding: pad,
+                      child: _GlassSegmentLabel(s.label, selected: false),
+                    ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    if (colors.glass) return _glass();
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: colors.lineStrong),
@@ -451,4 +870,23 @@ class _Segmented<T> extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A glass segment's words: ink when selected, the muted ink otherwise — both
+/// clear 4.5:1 on the bar, and the lifted pill carries the state as well.
+class _GlassSegmentLabel extends StatelessWidget {
+  const _GlassSegmentLabel(this.label, {required this.selected});
+
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: selected ? context.lumen.ink : context.lumen.inkMuted,
+    ),
+  );
 }
