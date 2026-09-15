@@ -365,5 +365,20 @@
   "contestsEmptyBody": "Wanneer jou bestuurder ’n kompetisie begin, verskyn dit hier.",
   "contestsLoadError": "Kon nie kompetisies laai nie",
   "contestsRetry": "Probeer weer",
-  "contestsRunningHint": "{count, plural, =1{1 kompetisie loop nou} other{{count} kompetisies loop nou}}"
+  "contestsRunningHint": "{count, plural, =1{1 kompetisie loop nou} other{{count} kompetisies loop nou}}",
+  "agentNotificationsTooltip": "Kennisgewings",
+  "notificationsTitle": "Kennisgewings",
+  "notificationsSubtitle": "Kies wat na hierdie foon kom",
+  "notificationsTasksLabel": "Take wat aan jou toegewys is",
+  "notificationsTasksHelp": "Wanneer jou bestuurder vir jou ’n taak gee",
+  "notificationsMessagesLabel": "Boodskappe en aankondigings",
+  "notificationsMessagesHelp": "Boodskappe aan jou of die span, en aankondigings",
+  "notificationsSlaLabel": "Agterstallige take",
+  "notificationsSlaHelp": "Wanneer een van jou take sy sperdatum oorskry",
+  "notificationsNotSetUpTitle": "Kennisgewings is nog nie aangeskakel nie",
+  "notificationsNotSetUpBody": "Jou keuses word gestoor en geld sodra dit aangeskakel is.",
+  "notificationsLoadErrorTitle": "Kon nie jou kennisgewing-instellings laai nie",
+  "notificationsRetry": "Probeer weer",
+  "notificationsSaveFailed": "Kon dit nie stoor nie. Kyk of jy verbinding het en probeer weer.",
+  "notificationsFooter": "Jy kan ook kennisgewings vir TradeIQ in jou foon se instellings afskakel."
 }

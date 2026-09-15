@@ -2293,6 +2293,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 contest running} other{{count} contests running}}'**
   String contestsRunningHint(int count);
+
+  /// Tooltip on the agent app bar's bell button, which opens the notification settings (#67).
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get agentNotificationsTooltip;
+
+  /// Title of the agent's push notification settings screen (#67).
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// Subtitle under the notification settings title.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what reaches this phone'**
+  String get notificationsSubtitle;
+
+  /// Toggle: push when someone assigns the agent a task.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks assigned to you'**
+  String get notificationsTasksLabel;
+
+  /// Help line under notificationsTasksLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'When your manager gives you a task'**
+  String get notificationsTasksHelp;
+
+  /// Toggle: push for new messages, team messages and announcements.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages and announcements'**
+  String get notificationsMessagesLabel;
+
+  /// Help line under notificationsMessagesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages to you or the team, and announcements'**
+  String get notificationsMessagesHelp;
+
+  /// Toggle: push when one of the agent's tasks passes its SLA deadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue tasks'**
+  String get notificationsSlaLabel;
+
+  /// Help line under notificationsSlaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'When one of your tasks passes its deadline'**
+  String get notificationsSlaHelp;
+
+  /// Banner when push is not configured in this build of the app. Not an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications aren’t switched on yet'**
+  String get notificationsNotSetUpTitle;
+
+  /// Under notificationsNotSetUpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your choices are saved and apply as soon as they are.'**
+  String get notificationsNotSetUpBody;
+
+  /// Shown when the settings could not be fetched.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t load your notification settings'**
+  String get notificationsLoadErrorTitle;
+
+  /// Button to fetch the notification settings again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get notificationsRetry;
+
+  /// Snackbar when a toggle could not be saved; the toggle flips back.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save that. Check your connection and try again.'**
+  String get notificationsSaveFailed;
+
+  /// Footnote under the notification toggles.
+  ///
+  /// In en, this message translates to:
+  /// **'You can also turn off notifications for TradeIQ in your phone’s settings.'**
+  String get notificationsFooter;
 }
 
 class _AppLocalizationsDelegate

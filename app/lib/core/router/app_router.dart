@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart' show FadeTransition;
+import 'package:flutter/material.dart' show FadeTransition, MaterialPage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -37,9 +37,11 @@ import '../../features/templates/presentation/template_form_screen.dart';
 import '../../features/templates/presentation/templates_screen.dart';
 import '../../features/dispatch/presentation/dispatch_screen.dart';
 import '../../features/trends/presentation/trends_screen.dart';
+import '../../features/sales_targets/presentation/sales_targets_screen.dart';
 import '../../features/visits/presentation/visit_detail_screen.dart';
 import '../../features/assistant/presentation/artifact_screen.dart';
 import '../../features/assistant/presentation/assistant_gate.dart';
+import '../../features/notifications/presentation/notification_preferences_screen.dart';
 import '../auth/session_controller.dart';
 import 'manager_page.dart';
 import 'session_refresh_listenable.dart';
@@ -95,6 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/audit-templates',
         '/dispatch',
         '/trends',
+        '/sales-targets',
       };
       final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
       // The agent's route for the day. Their home, and theirs alone — a manager
@@ -323,6 +326,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/trends',
         pageBuilder: (context, state) => managerPage(const TrendsScreen()),
       ),
+      // Monthly sell-in targets per SKU (#119). Manager/admin only: its API
+      // refuses field agents outright.
+      GoRoute(
+        path: '/sales-targets',
+        pageBuilder: (context, state) =>
+            managerPage(const SalesTargetsScreen()),
+      ),
       // One visit, for review (#208). Pushed from alerts, the fraud review and
       // the agent trail, so the back chip returns to the list it came from.
       GoRoute(
@@ -331,6 +341,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           VisitDetailScreen(visitId: state.pathParameters['id']!),
           key: state.pageKey,
         ),
+      ),
+      // Push notification settings (#67). Shared by every role, so it sits in
+      // neither guard set: an agent's page is pushed over their day like their
+      // other screens, a manager's is a console page.
+      GoRoute(
+        path: '/notifications',
+        pageBuilder: (context, state) =>
+            ref.read(sessionControllerProvider).value?.role == 'field_agent'
+            ? MaterialPage<void>(
+                key: state.pageKey,
+                child: const NotificationPreferencesScreen(),
+              )
+            : managerPage(
+                const NotificationPreferencesScreen(),
+                key: state.pageKey,
+              ),
       ),
     ],
   );

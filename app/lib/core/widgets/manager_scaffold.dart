@@ -107,6 +107,13 @@ class ManagerScaffold extends ConsumerWidget {
             : null,
         actions: [
           ...?actions,
+          // Push notification settings (#67).
+          IconButton(
+            key: const ValueKey('manager-notifications'),
+            icon: const Icon(Icons.notifications_none_outlined, size: 18),
+            tooltip: 'Notification settings',
+            onPressed: () => context.go('/notifications'),
+          ),
           IconButton(
             key: const ValueKey('theme-toggle'),
             icon: Icon(

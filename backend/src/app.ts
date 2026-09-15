@@ -44,7 +44,9 @@ import { locationsRouter } from './modules/locations/locations.routes';
 import { incentivesRouter } from './modules/incentives/incentives.routes';
 import { reportSchedulesRouter } from './modules/reportschedules/reportschedules.routes';
 import { reportDownloadsRouter } from './modules/reportschedules/reportschedules.downloads.routes';
+import { salesTargetsRouter } from './modules/salesTargets/salesTargets.routes';
 import { assistantRouter } from './modules/assistant/assistant.routes';
+import { pushRouter } from './modules/push/push.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -139,11 +141,13 @@ app.use('/reports', reportsRouter);
 app.use('/clients', clientsRouter);
 app.use('/users', usersRouter);
 app.use('/locations', locationsRouter);
+app.use('/push', pushRouter);
 app.use('/incentives', incentivesRouter);
 app.use('/report-schedules', reportSchedulesRouter);
 // Signed CSV links (#66). No bearer token: the signed token in the path is the
 // credential, so this must not sit under the report-schedules router's auth.
 app.use('/report-downloads', reportDownloadsRouter);
+app.use('/sales-targets', salesTargetsRouter);
 // Every route below /assistant is gated on the per-client rollout flag, which
 // 404s a tenant outside the rollout. The kill switch is therefore
 // indistinguishable from the feature never having shipped.

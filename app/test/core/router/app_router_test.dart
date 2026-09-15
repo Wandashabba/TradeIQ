@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/push/push_config.dart';
+import 'package:tradeiq_app/core/push/push_repository.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
@@ -14,6 +16,8 @@ import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
+import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
+import 'package:tradeiq_app/features/sales_targets/presentation/sales_targets_screen.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 
 import '../../features/contests/contests_fakes.dart';
@@ -147,6 +151,34 @@ Widget _appWithOverrides(List<Override> overrides) {
           MaterialApp.router(routerConfig: ref.watch(routerProvider)),
     ),
   );
+}
+
+class _FakeSalesTargetsRepository implements SalesTargetsRepository {
+  @override
+  Future<SalesAttainmentReport> attainment(String month) async =>
+      const SalesAttainmentReport(
+        month: '2026-09',
+        timeZone: 'Africa/Johannesburg',
+        skus: [],
+      );
+
+  @override
+  Future<void> upsert({
+    required String skuId,
+    required String month,
+    required int targetUnits,
+    String? territoryId,
+    String? outletId,
+  }) async {}
+
+  @override
+  Future<void> delete(String id) async {}
+
+  @override
+  Future<SalesTargetImportResult> importCsv(
+    String csv, {
+    required bool dryRun,
+  }) async => throw UnimplementedError();
 }
 
 void main() {
@@ -468,6 +500,59 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a field_agent navigating to sales targets is bounced to their route',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
+          salesTargetsRepositoryProvider.overrideWithValue(
+            _FakeSalesTargetsRepository(),
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/sales-targets');
+      await tester.pumpAndSettle();
+
+      // Sales targets are manager/admin (#119): the API refuses agents.
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(SalesTargetsScreen), findsNothing);
+    },
+  );
+
+  testWidgets('a manager can open sales targets', (tester) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(const SessionState(role: 'manager')),
+        ),
+        salesTargetsRepositoryProvider.overrideWithValue(
+          _FakeSalesTargetsRepository(),
+        ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    container.read(routerProvider).go('/sales-targets');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SalesTargetsScreen), findsOneWidget);
+  });
+
   testWidgets('a manager can open report schedules', (tester) async {
     await tester.pumpWidget(
       _appWithOverrides([
@@ -702,4 +787,58 @@ void main() {
       expect(find.text('Aisha Patel'), findsOneWidget);
     });
   });
+
+  // Push notification settings (#67) are shared: neither role is bounced.
+  for (final (role, title) in [
+    ('field_agent', 'Notifications'),
+    ('manager', 'Notifications'),
+  ]) {
+    testWidgets('a $role can open /notifications', (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(SessionState(role: role)),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
+          pushRepositoryProvider.overrideWithValue(_FakePushRepository()),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/notifications');
+      await tester.pumpAndSettle();
+
+      expect(find.text(title), findsOneWidget);
+      expect(find.text('Overdue tasks'), findsOneWidget);
+      expect(find.text('Today'), findsNothing);
+      expect(find.text('Execution overview'), findsNothing);
+    });
+  }
+}
+
+class _FakePushRepository implements PushRepository {
+  @override
+  Future<NotificationPreferences> fetchPreferences() async =>
+      const NotificationPreferences();
+
+  @override
+  Future<NotificationPreferences> updatePreferences(
+    Map<NotificationCategory, bool> changes,
+  ) async => const NotificationPreferences();
+
+  @override
+  Future<void> registerDevice({
+    required String token,
+    required PushPlatform platform,
+  }) async {}
+
+  @override
+  Future<void> unregisterDevice(
+    String token, {
+    required String authToken,
+  }) async {}
 }

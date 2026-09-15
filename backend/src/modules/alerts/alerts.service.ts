@@ -2,6 +2,7 @@ import { Alert, Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
+import { pushAlertRaised } from '../push/push.triggers';
 import { buildPage } from '../../lib/pagination';
 import { attachEvidencePhotoIds } from '../photos/photos.service';
 
@@ -186,6 +187,8 @@ export async function evaluateVisit(input: EvaluateVisitInput): Promise<Alert[]>
       count: created.length,
       alertIds: created.map((a) => a.id),
     });
+    // #67: the same event as a push to the tenant's managers. Fire-and-forget.
+    pushAlertRaised({ clientId: input.clientId, visitId: input.visitId, alerts: created });
   }
 
   return created;

@@ -73,6 +73,12 @@ void main() {
     tester,
   ) async {
     await _pumpAt(tester, 1400);
+    // The rail is a lazy list. Since Sales targets joined the menu (#119) the
+    // last CONFIGURE row sits past the cache extent at 900px tall, so give the
+    // rail a desktop's height rather than scroll it: this checks keys, not
+    // scrolling.
+    tester.view.physicalSize = const Size(1400, 1200);
+    await tester.pumpAndSettle();
 
     for (final route in const [
       '/dashboard',
@@ -118,9 +124,7 @@ void main() {
     expect(find.text('Sign out'), findsOneWidget);
   });
 
-  testWidgets('under reduced motion the pill does not animate', (
-    tester,
-  ) async {
+  testWidgets('under reduced motion the pill does not animate', (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
@@ -159,7 +163,9 @@ void main() {
       routedApp(
         ManagerScaffold(
           title: 'Execution overview',
-          actions: [TextButton(onPressed: () {}, child: const Text('Export CSV'))],
+          actions: [
+            TextButton(onPressed: () {}, child: const Text('Export CSV')),
+          ],
           body: const Text('body'),
         ),
       ),
