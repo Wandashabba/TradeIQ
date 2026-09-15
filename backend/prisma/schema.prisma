@@ -963,12 +963,46 @@ model ReportScheduleRun {
   rowCount    Int            @map("row_count")
   /// Per-channel outcomes (ReportDeliveryOutcome[]): webhook deliveries queued,
   /// email not configured, and so on.
-  deliveries  Json
-  createdAt   DateTime       @default(now()) @map("created_at")
+  deliveries      Json
+  createdAt       DateTime              @default(now()) @map("created_at")
+  emailDeliveries ReportEmailDelivery[]
 
   @@unique([scheduleId, dueAt])
   @@index([clientId, scheduleId, createdAt])
   @@map("report_schedule_runs")
+}
+
+/// One report run emailed to one recipient (#66) — the email counterpart of a
+/// WebhookDelivery, with the same statuses, retry schedule and claim lease
+/// (reportschedules.email.ts). One row per recipient, so one bad mailbox never
+/// holds up, or re-sends to, the others.
+///
+/// The message itself is not stored: it is rebuilt on every attempt from the
+/// run (the CSV is regenerated bounded to the run's `generatedAt`), so a row
+/// stays a few hundred bytes whatever the report size.
+model ReportEmailDelivery {
+  id            String                @id @default(uuid())
+  runId         String                @map("run_id")
+  run           ReportScheduleRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  /// Denormalised from the run so the delivery log scopes by tenant without a
+  /// join.
+  clientId      String                @map("client_id")
+  recipient     String
+  status        WebhookDeliveryStatus @default(pending)
+  attempts      Int                   @default(0)
+  lastError     String?               @map("last_error")
+  /// When the row is next due. Also the claim lease, as on webhook_deliveries.
+  nextAttemptAt DateTime?             @map("next_attempt_at")
+  lastAttemptAt DateTime?             @map("last_attempt_at")
+  deliveredAt   DateTime?             @map("delivered_at")
+  /// Whether the delivered message carried the CSV (false: link only, over the
+  /// attachment cap). Null until delivered.
+  csvAttached   Boolean?              @map("csv_attached")
+  createdAt     DateTime              @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([runId, createdAt])
+  @@map("report_email_deliveries")
 }
 
 /// A persisted, refinable view produced by a tool call in an assistant turn.

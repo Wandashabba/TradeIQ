@@ -5,13 +5,13 @@ import {
   createSchedule,
   deleteSchedule,
   isCadence,
-  isRecipients,
   listSchedules,
   runCsvForClient,
   runSchedule,
   updateSchedule,
   type Cadence,
 } from './reportschedules.service';
+import { listEmailDeliveriesForRun, validateRecipients } from './reportschedules.email';
 import { parsePagination } from '../../lib/pagination';
 
 export const reportSchedulesRouter = Router();
@@ -34,8 +34,9 @@ reportSchedulesRouter.post('/', async (req: AuthedRequest, res) => {
     res.status(400).json({ error: 'cadence must be one of daily|weekly' });
     return;
   }
-  if (!isRecipients(recipients)) {
-    res.status(400).json({ error: 'recipients must be a non-empty array of strings' });
+  const checked = validateRecipients(recipients);
+  if (!checked.ok) {
+    res.status(400).json({ error: checked.error });
     return;
   }
 
@@ -43,7 +44,7 @@ reportSchedulesRouter.post('/', async (req: AuthedRequest, res) => {
     clientId: req.user!.clientId,
     reportDefinitionId,
     cadence,
-    recipients,
+    recipients: checked.recipients,
   });
   res.status(201).json(schedule);
 });
@@ -61,15 +62,15 @@ reportSchedulesRouter.patch('/:id', async (req: AuthedRequest, res) => {
     recipients?: unknown;
   };
 
-  if (
-    (active !== undefined && typeof active !== 'boolean') ||
-    (cadence !== undefined && !isCadence(cadence)) ||
-    (recipients !== undefined && !isRecipients(recipients))
-  ) {
+  if ((active !== undefined && typeof active !== 'boolean') || (cadence !== undefined && !isCadence(cadence))) {
     res.status(400).json({
-      error:
-        'active must be a boolean, cadence must be daily|weekly, and recipients must be a non-empty array of strings',
+      error: 'active must be a boolean, and cadence must be daily|weekly',
     });
+    return;
+  }
+  const checked = recipients === undefined ? undefined : validateRecipients(recipients);
+  if (checked && !checked.ok) {
+    res.status(400).json({ error: checked.error });
     return;
   }
   if (active === undefined && cadence === undefined && recipients === undefined) {
@@ -81,7 +82,7 @@ reportSchedulesRouter.patch('/:id', async (req: AuthedRequest, res) => {
   const schedule = await updateSchedule(id, req.user!.clientId, {
     active: active as boolean | undefined,
     cadence: cadence as Cadence | undefined,
-    recipients: recipients as string[] | undefined,
+    recipients: checked?.ok ? checked.recipients : undefined,
   });
   res.status(200).json(schedule);
 });
@@ -100,6 +101,8 @@ reportSchedulesRouter.post('/:id/run', async (req: AuthedRequest, res) => {
 
 // A run's CSV (#66) — what a `report.generated` webhook's `csvPath` points at.
 // Manager/admin like the rest of this router; another client's run is a 404.
+// Machine subscribers use the signed `csvDownloadUrl` instead
+// (reportschedules.downloads.routes.ts).
 reportSchedulesRouter.get('/:id/runs/:runId/csv', async (req: AuthedRequest, res) => {
   const { id, runId } = req.params as { id: string; runId: string };
   const { run, csv } = await runCsvForClient(id, runId, req.user!.clientId);
@@ -107,4 +110,19 @@ reportSchedulesRouter.get('/:id/runs/:runId/csv', async (req: AuthedRequest, res
   // The filename uses the stored id, never the raw path segment.
   res.setHeader('Content-Disposition', `attachment; filename="report-${run.id}.csv"`);
   res.status(200).type('text/csv').send(csv);
+});
+
+// A run's email delivery log (#66): one row per recipient, with attempts and
+// the last error. Another client's run is a 404.
+reportSchedulesRouter.get('/:id/runs/:runId/email-deliveries', async (req: AuthedRequest, res) => {
+  const { id, runId } = req.params as { id: string; runId: string };
+  const { limit, cursor } = parsePagination(req);
+  const page = await listEmailDeliveriesForRun({
+    scheduleId: id,
+    runId,
+    clientId: req.user!.clientId,
+    limit,
+    cursor,
+  });
+  res.status(200).json(page);
 });
