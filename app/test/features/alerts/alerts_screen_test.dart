@@ -159,6 +159,14 @@ class _FakePhotosRepository implements PhotosRepository {
 
   @override
   Future<List<VisitPhoto>> listPhotos(String visitId) async => const [];
+
+  @override
+  Future<String> uploadMessageAttachment(String dataUrl) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Uint8List> imageBytes(String photoId) async =>
+      throw UnimplementedError();
 }
 
 Widget _app(AlertsRepository repo, {ThemeData? theme}) => routedApp(

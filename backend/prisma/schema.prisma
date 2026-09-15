@@ -62,6 +62,7 @@ model Client {
   reportSchedules    ReportSchedule[]
   assistantArtifacts AssistantArtifact[]
   assistantActions   AssistantAction[]
+  photos             Photo[]
 
   @@map("clients")
 }
@@ -93,6 +94,7 @@ model User {
   messagesSent     Message[]        @relation("MessageSender")
   messagesReceived Message[]        @relation("MessageRecipient")
   announcements    Announcement[]
+  photosUploaded   Photo[]          @relation("PhotoUploader")
 
   @@index([clientId, role])
   @@map("users")
@@ -333,15 +335,36 @@ model Task {
   @@map("tasks")
 }
 
+/// A stored image (ADR 0007: a base64 data URL in `url`).
+///
+/// Two kinds share this one pipeline, told apart by `visitId`:
+/// * **Visit evidence** — `visitId` set, uploaded by the visit's agent during an
+///   audit. Tenant-scoped through photo -> visit -> clientId, as it always was.
+/// * **Message attachment** (#125) — `visitId` null, `section`
+///   `message_attachment`, owned directly by `clientId` + `uploadedById`, and
+///   linked to a message through `MessageAttachment`.
+///
+/// `clientId` and `uploadedById` are nullable only because rows that predate
+/// them have nothing to backfill from here; every new upload sets both.
+///
+/// Every relation is `Restrict` explicitly. An optional relation would default
+/// to SET NULL, and deleting a visit must keep failing while it has evidence —
+/// silently turning visit evidence into an unowned, visit-less photo is not a
+/// behaviour change this schema should make by accident.
 model Photo {
-  id        String   @id @default(uuid())
-  visitId   String   @map("visit_id")
-  visit     Visit    @relation(fields: [visitId], references: [id])
-  section   String
-  url       String
-  gpsTag    Json     @map("gps_tag")
-  timestamp DateTime
-  createdAt DateTime @default(now()) @map("created_at")
+  id                String             @id @default(uuid())
+  visitId           String?            @map("visit_id")
+  visit             Visit?             @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  clientId          String?            @map("client_id")
+  client            Client?            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  uploadedById      String?            @map("uploaded_by_id")
+  uploadedBy        User?              @relation("PhotoUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  section           String
+  url               String
+  gpsTag            Json               @map("gps_tag")
+  timestamp         DateTime
+  createdAt         DateTime           @default(now()) @map("created_at")
+  messageAttachment MessageAttachment?
   /// SHA-256 (hex) of the decoded image bytes, computed at upload (#244).
   /// Null for rows written before it existed until backfilled
   /// (scripts/backfill-photo-hashes.ts), and for payloads that are not a base64
@@ -359,6 +382,7 @@ model Photo {
   perceptualHashBands Int[]   @default([]) @map("perceptual_hash_bands")
 
   @@index([visitId])
+  @@index([clientId])
   @@index([contentHash])
   @@index([perceptualHashBands], type: Gin)
   @@map("photos")
@@ -638,10 +662,35 @@ model Message {
   body        String
   readAt      DateTime? @map("read_at")
   createdAt   DateTime  @default(now()) @map("created_at")
+  attachments MessageAttachment[]
 
   @@index([clientId])
   @@index([recipientId])
   @@map("messages")
+}
+
+/// An image attached to a message (#125).
+///
+/// IMAGES ONLY, by design: attachments reuse the existing photo pipeline
+/// (`POST /photos`, base64 in Postgres per ADR 0007, and its thumbnail route)
+/// rather than a general-purpose file store. There is no PDF or arbitrary-file
+/// support — that would need real object storage first.
+///
+/// `photoId` is unique: a photo is attached to at most one message, so the
+/// access grant an attachment confers (see photos.service) has exactly one
+/// source. A message carries at most MAX_MESSAGE_ATTACHMENTS (4), in
+/// `position` order.
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  messageId String   @map("message_id")
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  photoId   String   @unique @map("photo_id")
+  photo     Photo    @relation(fields: [photoId], references: [id])
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([messageId])
+  @@map("message_attachments")
 }
 
 /// A broadcast announcement to the client's field team (Phase 3 #37).
