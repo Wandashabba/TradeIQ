@@ -302,6 +302,12 @@ class _FakeTrendsRepository implements TrendsRepository {
   Future<List<TrendPoint>> perfectStore([
     TrendQuery query = const TrendQuery(),
   ]) async => perfectStorePoints;
+
+  @override
+  Future<TerritoryBenchmarkReport> benchmark(
+    BenchmarkMetric metric, [
+    TrendQuery query = const TrendQuery(),
+  ]) async => throw UnimplementedError();
 }
 
 AlertItem _alert({required String severity, String metric = 'out_of_stock'}) =>

@@ -2,12 +2,15 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import {
+  BENCHMARK_METRICS,
   TrendFilters,
   TrendInterval,
   getAvailabilityTrend,
   getPerfectStoreTrend,
   getScorecardsTrend,
   getShareOfShelfTrend,
+  getTerritoryBenchmark,
+  isBenchmarkMetric,
 } from './trends.service';
 
 export const trendsRouter = Router();
@@ -46,7 +49,10 @@ function parseQuery(req: AuthedRequest): ParseResult {
     }
   }
 
-  return { ok: true, value: { interval, from, to } };
+  // A Territory.id; the service resolves it to the code outlets carry.
+  const territoryId = queryString(req.query.territoryId);
+
+  return { ok: true, value: { interval, from, to, territoryId } };
 }
 
 type TrendHandler = (filters: TrendFilters) => Promise<unknown>;
@@ -68,3 +74,32 @@ trendRoute('/scorecards', getScorecardsTrend);
 trendRoute('/availability', getAvailabilityTrend);
 trendRoute('/perfect-store', getPerfectStoreTrend);
 trendRoute('/share-of-shelf', getShareOfShelfTrend);
+
+// Every territory of the caller's client against the client-wide line (#123).
+trendsRouter.get('/benchmark', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
+  const metric = queryString(req.query.metric);
+  if (metric === undefined || !isBenchmarkMetric(metric)) {
+    res.status(400).json({ error: `metric must be one of ${BENCHMARK_METRICS.join(', ')}` });
+    return;
+  }
+  const parsed = parseQuery(req);
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+  if (parsed.value.territoryId !== undefined) {
+    // The benchmark is every territory by definition; a filter here would be
+    // silently ignored, so refuse it instead.
+    res.status(400).json({ error: 'territoryId is not supported on /trends/benchmark' });
+    return;
+  }
+  const { interval, from, to } = parsed.value;
+  const report = await getTerritoryBenchmark({
+    clientId: req.user!.clientId,
+    metric,
+    interval,
+    from,
+    to,
+  });
+  res.status(200).json(report);
+});
