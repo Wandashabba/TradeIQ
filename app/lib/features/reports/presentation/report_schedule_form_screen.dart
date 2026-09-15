@@ -9,6 +9,12 @@ import '../../../core/widgets/lumen_kit.dart';
 import '../data/report_schedules_repository.dart';
 import '../data/reports_repository.dart';
 
+/// The cadence field's hint (#66): the backend fires schedules on their
+/// cadence and sends them to webhooks; email is not built yet.
+const scheduleCadenceHelp =
+    'Runs automatically on this cadence (UTC) and is sent to webhooks '
+    'subscribed to $reportGeneratedEvent. Email is not set up yet.';
+
 /// Splits the recipients box into entries: one per line, or separated by
 /// commas or semicolons. Blank entries are dropped, so "a, , b" is two.
 List<String> parseRecipients(String raw) => [
@@ -191,9 +197,10 @@ class _ReportScheduleFormScreenState
       initialValue: _cadence,
       decoration: const InputDecoration(
         labelText: 'Cadence',
-        // The cadence is stored, not acted on (#66) — say so where it is set.
-        helperText: 'Saved with the schedule. Nothing sends on it yet.',
-        helperMaxLines: 2,
+        // The backend fires schedules on this cadence (#66); email is the part
+        // still missing — say both where it is set.
+        helperText: scheduleCadenceHelp,
+        helperMaxLines: 3,
         border: OutlineInputBorder(),
       ),
       items: [

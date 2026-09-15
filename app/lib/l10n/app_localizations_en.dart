@@ -1210,6 +1210,58 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get visitTemplateSectionKicker => 'Client questions';
+
+  @override
+  String visitTemplateTileDetail(String detail) {
+    return 'Client questions · $detail';
+  }
+
+  @override
+  String get visitTemplateSectionIntro =>
+      'Extra questions this client asks on every visit. Answer the required ones before you submit.';
+
+  @override
+  String visitTemplateProgressAnswered(int answered, int total) {
+    return '$answered of $total answered';
+  }
+
+  @override
+  String visitTemplateRequiredLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count required questions left',
+      one: '1 required question left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get visitTemplateAllRequiredAnswered =>
+      'All required questions answered';
+
+  @override
+  String get visitTemplateFieldRequired => 'Required';
+
+  @override
+  String get visitTemplateFieldRequiredError => 'Answer this before you submit';
+
+  @override
+  String get visitTemplateSave => 'Save answers';
+
+  @override
+  String get visitTemplateSaved => 'Answers saved — queued for sync';
+
+  @override
+  String get visitTemplatePhotoUnsupported =>
+      'Photo questions can’t be answered in the app yet';
+
+  @override
+  String get visitTemplateNoQuestions =>
+      'This client’s template has no questions yet';
+
+  @override
   String get locationNoticeTitle => 'Your location is shared with your manager';
 
   @override

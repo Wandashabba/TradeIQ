@@ -20,7 +20,7 @@ import {
   type StockLevels,
 } from '../pillars.service';
 import { eraseToolTypes, type AnyAssistantTool } from '../types';
-import type { ToolContext } from './execution';
+import { clientTimeZoneOf, type ToolContext } from './execution';
 
 /**
  * The four pillars, as tools.
@@ -61,11 +61,12 @@ const comparableWindowArgs = windowArgs.extend({ compareTo: compareToSchema.opti
 
 export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
   const { user, now } = ctx;
+  const timeZone = clientTimeZoneOf(ctx);
 
   /** Resolve the model's period into the window every service takes. */
-  const scope = (args: z.infer<typeof windowArgs>) => ({
+  const scope = async (args: z.infer<typeof windowArgs>) => ({
     clientId: user.clientId,
-    ...resolvePeriod(args.period, now),
+    ...resolvePeriod(args.period, now, await timeZone()),
     ...(args.territoryId ? { territoryId: args.territoryId } : {}),
   });
 
@@ -77,9 +78,12 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
    * mixed place and time would be uninterpretable, and the user would not be
    * able to tell which half moved.
    */
-  const comparisonScope = (args: z.infer<typeof comparableWindowArgs>, compareTo: CompareTo) => ({
+  const comparisonScope = async (
+    args: z.infer<typeof comparableWindowArgs>,
+    compareTo: CompareTo,
+  ) => ({
     clientId: user.clientId,
-    ...comparisonWindow(args.period, compareTo, now),
+    ...comparisonWindow(args.period, compareTo, now, await timeZone()),
     // `id` is optional in the declared shape and guaranteed present for a
     // territory basis by the schema's refinement; the guard keeps the types
     // honest rather than asserting past them.
@@ -101,12 +105,14 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
    */
   const withComparison = async <R>(
     args: z.infer<typeof comparableWindowArgs>,
-    run: (window: ReturnType<typeof scope>) => Promise<R>,
+    run: (window: Awaited<ReturnType<typeof scope>>) => Promise<R>,
   ): Promise<R | (R & { comparison: Comparison })> => {
-    const current = await run(scope(args));
+    const current = await run(await scope(args));
     if (!args.compareTo) return current;
 
-    const values = await run(comparisonScope(args, args.compareTo) as ReturnType<typeof scope>);
+    const values = await run(
+      (await comparisonScope(args, args.compareTo)) as Awaited<ReturnType<typeof scope>>,
+    );
     return {
       ...current,
       comparison: {
@@ -161,7 +167,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       args: windowArgs.extend({
         limit: z.number().int().min(1).max(50).default(20).describe('How many SKUs to return.'),
       }),
-      run: async (args) => getSkuMovement({ ...scope(args), limit: args.limit }),
+      run: async (args) => getSkuMovement({ ...(await scope(args)), limit: args.limit }),
     }),
 
     // ── Stock ────────────────────────────────────────────────────────────
@@ -240,7 +246,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       }),
       run: async (args) =>
         getVisitSummary({
-          ...scope(args),
+          ...(await scope(args)),
           ...(args.agentId ? { agentId: args.agentId } : {}),
           ...(args.outletId ? { outletId: args.outletId } : {}),
         }),
@@ -270,7 +276,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
           .describe('Minimum risk score. Use 50 unless the user asks for everything.'),
       }),
       run: async (args) => {
-        const { from, to } = resolvePeriod(args.period, now);
+        const { from, to } = resolvePeriod(args.period, now, await timeZone());
         return listFlagged({ clientId: user.clientId, minScore: args.minScore, from, to });
       },
     }),

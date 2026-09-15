@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  addCalendarDays,
+  localCalendarDate,
+  mondayOfCalendarWeek,
+  startOfLocalDay,
+} from '../../lib/clientTime';
 
 /**
  * The period vocabulary, taken verbatim from what the practitioner filters by
@@ -96,57 +102,58 @@ export interface DateRange {
  * written in the final second. Every caller here compares `gte from` and
  * `lt to`, so a day boundary belongs to exactly one bucket.
  *
- * **UTC throughout.** Rows are stored in UTC and the existing dashboard and
- * trends services bucket in UTC (`bucketStart` in `trends.service.ts`). Doing
- * anything else here would make the assistant disagree with the dashboard about
- * what "today" contains, which is a worse failure than being an hour off from
- * SAST — the user can reconcile a consistent number, not a contradictory one.
+ * **The client's calendar (#309).** Days, weeks, months and years are counted
+ * in the client's timezone — the same calendar the trends service buckets in
+ * (`bucketStart` in `trends.service.ts`), so the assistant and the dashboard
+ * agree about what "today" contains. The calendar dates are worked out first
+ * (`localCalendarDate`, stepped in whole days), and only the boundaries are
+ * converted to instants: "today" in Johannesburg on 6 Aug is
+ * `[5 Aug 22:00Z, 6 Aug 22:00Z)`, because the rows it filters carry real
+ * instants. Stepping instants by 24h instead would drift an hour across DST.
  *
  * `now` is a parameter rather than a call to `new Date()` so this function is
  * pure and its tests do not fail on a date nobody chose — the exact trap that
  * bit the fraud suite (#262).
  */
-export function resolvePeriod(period: Period, now: Date): DateRange {
-  const startOfDay = (d: Date) =>
-    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const addDays = (d: Date, days: number) => new Date(d.getTime() + days * 86_400_000);
-
-  const today = startOfDay(now);
+export function resolvePeriod(period: Period, now: Date, timeZone: string): DateRange {
+  // Calendar date → the instant it begins in the client's zone.
+  const at = (date: Date) => startOfLocalDay(date, timeZone);
+  const today = localCalendarDate(now, timeZone);
+  const tomorrow = addCalendarDays(today, 1);
 
   switch (period.kind) {
     case 'today':
-      return { from: today, to: addDays(today, 1) };
+      return { from: at(today), to: at(tomorrow) };
 
     case 'yesterday':
-      return { from: addDays(today, -1), to: today };
+      return { from: at(addCalendarDays(today, -1)), to: at(today) };
 
     case 'previous_week': {
       // The previous *calendar* week, Monday to Monday — not "the last 7 days".
       // A manager asking about last week means the week that ended, and a
       // rolling window would include today's partial data in the comparison.
-      const dayOfWeek = (today.getUTCDay() + 6) % 7; // Monday = 0
-      const thisMonday = addDays(today, -dayOfWeek);
-      return { from: addDays(thisMonday, -7), to: thisMonday };
+      const thisMonday = mondayOfCalendarWeek(today);
+      return { from: at(addCalendarDays(thisMonday, -7)), to: at(thisMonday) };
     }
 
     case 'mtd':
       return {
-        from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
-        to: addDays(today, 1),
+        from: at(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))),
+        to: at(tomorrow),
       };
 
     case 'ytd':
       return {
-        from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)),
-        to: addDays(today, 1),
+        from: at(new Date(Date.UTC(today.getUTCFullYear(), 0, 1))),
+        to: at(tomorrow),
       };
 
     case 'custom': {
-      const from = new Date(`${period.from}T00:00:00.000Z`);
+      const from = at(new Date(`${period.from}T00:00:00.000Z`));
       // The user's `to` is the last day they mean to include, so the half-open
       // upper bound is the day after. Using `to` directly excludes the whole
       // final day — an off-by-one that reads as "the data is missing".
-      const to = addDays(new Date(`${period.to}T00:00:00.000Z`), 1);
+      const to = at(addCalendarDays(new Date(`${period.to}T00:00:00.000Z`), 1));
       if (to <= from) {
         throw new InvalidPeriodError('The end of a custom period must not precede its start.');
       }

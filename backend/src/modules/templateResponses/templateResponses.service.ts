@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
-import { NotFoundError } from '../../middleware/errorHandler';
+import { NotFoundError, ValidationError } from '../../middleware/errorHandler';
 
 export interface RecordTemplateResponseInput {
   visitId: string;
@@ -11,6 +11,9 @@ export interface RecordTemplateResponseInput {
   // Free-form answers keyed by the template schema's field ids. Stored as-is,
   // mirroring how AuditTemplate.schema itself is stored.
   answers: Prisma.InputJsonValue;
+  // The template version the answers were given against, as the agent's
+  // device rendered it. Omitted = the template's current version.
+  templateVersion?: number;
 }
 
 export interface ListTemplateResponsesInput {
@@ -55,18 +58,24 @@ export async function recordTemplateResponse(input: RecordTemplateResponseInput)
   if (!template) {
     throw new NotFoundError('Template not found');
   }
+  // A device cannot have rendered a version that does not exist yet.
+  if (input.templateVersion !== undefined && input.templateVersion > template.version) {
+    throw new ValidationError('templateVersion is newer than the template');
+  }
+  const templateVersion = input.templateVersion ?? template.version;
 
   // One response per (visit, template) — upsert so re-submitting a section is
-  // idempotent. templateVersion snapshots the version answered against; a
-  // re-submit after a schema patch records the new version.
+  // idempotent. templateVersion snapshots the version answered against: the
+  // one the agent's device rendered when it says so (an offline answer can
+  // sync after a schema edit), otherwise the template's current version.
   return prisma.visitTemplateResponse.upsert({
     where: { visitId_templateId: { visitId: input.visitId, templateId: input.templateId } },
     create: {
       visitId: input.visitId,
       templateId: input.templateId,
-      templateVersion: template.version,
+      templateVersion,
       answers: input.answers,
     },
-    update: { templateVersion: template.version, answers: input.answers },
+    update: { templateVersion, answers: input.answers },
   });
 }

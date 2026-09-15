@@ -2,8 +2,10 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { mean, pct } from '../../lib/kpiMath';
 import { NotFoundError } from '../../middleware/errorHandler';
-import { baselineWindow, computeRoi, type Roi } from './roi';
+import { computeRoi, type Roi } from './roi';
+import { baselineWindow, campaignWindow } from './campaignWindow';
 import { buildPage } from '../../lib/pagination';
+import { getClientTimeZone } from '../clients/clients.service';
 
 export type CampaignStatus = 'draft' | 'active' | 'completed';
 
@@ -117,16 +119,21 @@ export async function updateCampaign(id: string, clientId: string, patch: Update
 }
 
 export async function getCampaignCompliance(id: string, clientId: string): Promise<CampaignCompliance> {
-  const campaign = await prisma.campaign.findFirst({
-    where: { id, clientId },
-    include: { outlets: { select: { outletId: true } } },
-  });
+  const [campaign, timeZone] = await Promise.all([
+    prisma.campaign.findFirst({
+      where: { id, clientId },
+      include: { outlets: { select: { outletId: true } } },
+    }),
+    getClientTimeZone(clientId),
+  ]);
   if (!campaign) {
     throw new NotFoundError('Campaign not found');
   }
 
   const outletIds = campaign.outlets.map((link) => link.outletId);
   const outletsTotal = outletIds.length;
+  // Inclusive local calendar days, half-open as instants (#324).
+  const window = campaignWindow(campaign.startDate, campaign.endDate, timeZone);
 
   // Submitted visits over the campaign's outlets whose check-in falls inside
   // the campaign window. No outlets → no qualifying visits, so short-circuit
@@ -138,7 +145,7 @@ export async function getCampaignCompliance(id: string, clientId: string): Promi
             clientId,
             outletId: { in: outletIds },
             status: 'submitted',
-            checkinTs: { gte: campaign.startDate, lte: campaign.endDate },
+            checkinTs: { gte: window.from, lt: window.to },
           },
           include: { visibility: true, pricing: true },
         })
@@ -162,9 +169,13 @@ export async function getCampaignCompliance(id: string, clientId: string): Promi
 export interface CampaignRoi extends Roi {
   campaignId: string;
   outletsTotal: number;
-  /** The campaign window, echoed so a caller need not re-fetch it. */
+  /**
+   * The campaign window as the instants it covers, half-open `[from, to)`:
+   * the start of `startDate` to the start of the day after `endDate`, in the
+   * client's timezone (#324).
+   */
   window: { from: string; to: string };
-  /** The equal-length window the baseline was measured over. */
+  /** The window the baseline was measured over: as many local days, `[from, to)`. */
   baselineWindow: { from: string; to: string };
   /** Orders attributed to the campaign, and orders in the baseline window. */
   orderCount: { attributed: number; baseline: number };
@@ -182,22 +193,27 @@ export interface CampaignRoi extends Roi {
  *   number someone has already acted on.
  * - **Baseline** is the same outlets over an equal-length, contiguous window
  *   immediately before the campaign, counted by date rather than attribution
- *   (there was no campaign then to attribute to).
+ *   (there was no campaign then to attribute to). Both windows are whole local
+ *   calendar days in the client's timezone (#324, see `campaignWindow.ts`).
  * - **Cancelled orders are excluded from both sides.** A cancelled order is not
  *   revenue, and leaving it in the baseline while excluding it from the campaign
  *   period would understate the lift.
  */
 export async function getCampaignRoi(id: string, clientId: string): Promise<CampaignRoi> {
-  const campaign = await prisma.campaign.findFirst({
-    where: { id, clientId },
-    include: { outlets: { select: { outletId: true } } },
-  });
+  const [campaign, timeZone] = await Promise.all([
+    prisma.campaign.findFirst({
+      where: { id, clientId },
+      include: { outlets: { select: { outletId: true } } },
+    }),
+    getClientTimeZone(clientId),
+  ]);
   if (!campaign) {
     throw new NotFoundError('Campaign not found');
   }
 
   const outletIds = campaign.outlets.map((link) => link.outletId);
-  const base = baselineWindow(campaign.startDate, campaign.endDate);
+  const window = campaignWindow(campaign.startDate, campaign.endDate, timeZone);
+  const base = baselineWindow(window, timeZone);
 
   const [attributed, baseline] = await Promise.all([
     prisma.order.aggregate({
@@ -224,7 +240,7 @@ export async function getCampaignRoi(id: string, clientId: string): Promise<Camp
   return {
     campaignId: id,
     outletsTotal: outletIds.length,
-    window: { from: campaign.startDate.toISOString(), to: campaign.endDate.toISOString() },
+    window: { from: window.from.toISOString(), to: window.to.toISOString() },
     baselineWindow: { from: base.from.toISOString(), to: base.to.toISOString() },
     orderCount: { attributed: attributed._count, baseline: baseline._count },
     ...computeRoi({

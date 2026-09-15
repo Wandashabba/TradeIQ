@@ -127,6 +127,51 @@ describe('template-responses routes', () => {
     expect(res.body.templateVersion).toBe(2);
   });
 
+  it('records the version the device rendered, even when it syncs after a schema edit', async () => {
+    // Offline-first: the agent answered against v1; the manager patched the
+    // schema to v2 before the outbox flushed. The row must say v1.
+    const res = await request(app)
+      .post('/template-responses')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ ...validBody(), templateVersion: 1 });
+
+    expect(res.status).toBe(201);
+    expect(res.body.templateVersion).toBe(1);
+    const row = await prisma.visitTemplateResponse.findUnique({
+      where: { visitId_templateId: { visitId, templateId } },
+    });
+    expect(row?.templateVersion).toBe(1);
+  });
+
+  it('rejects a templateVersion newer than the template (400)', async () => {
+    const res = await request(app)
+      .post('/template-responses')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ ...validBody(), templateVersion: 99 });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a malformed templateVersion (400)', async () => {
+    for (const templateVersion of [0, 1.5, '1']) {
+      const res = await request(app)
+        .post('/template-responses')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({ ...validBody(), templateVersion });
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it('reads back what was saved (answers and version)', async () => {
+    const res = await request(app)
+      .get('/template-responses')
+      .query({ visitId, templateId })
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].answers).toEqual({ onShelf: true });
+    expect(res.body.data[0].templateVersion).toBe(1);
+  });
+
   it("forbids an agent from writing a template response onto another agent's visit (404)", async () => {
     const res = await request(app)
       .post('/template-responses')

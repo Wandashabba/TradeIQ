@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import { computeFraudSignals, FraudPhotoInput, FraudRelatedInput, FraudVisitInput } from './fraud.service';
 
 /**
@@ -50,14 +51,19 @@ describe('photo_gps_divergence skips task-closure photos (#317)', () => {
   });
 
   it('is silent when the only far-away photo is a task-closure photo', () => {
-    const result = computeFraudSignals(visit, related([auditPhoto(ON_SITE), closurePhoto(FURTHER)]));
+    const result = computeFraudSignals(
+      visit,
+      related([auditPhoto(ON_SITE), closurePhoto(FURTHER)]),
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
+    );
 
     expect(result.signals).toEqual([]);
     expect(result.riskScore).toBe(0);
   });
 
   it('still fires for a far-away audit photo', () => {
-    const result = computeFraudSignals(visit, related([auditPhoto(FAR)]));
+    const result = computeFraudSignals(visit, related([auditPhoto(FAR)]), {}, DEFAULT_CLIENT_TIME_ZONE);
 
     expect(result.signals).toEqual([
       { code: 'photo_gps_divergence', detail: "A photo's GPS tag is 556m from the check-in location", weight: 25 },
@@ -66,7 +72,12 @@ describe('photo_gps_divergence skips task-closure photos (#317)', () => {
   });
 
   it('still fires with both, measured from the audit photo rather than the further closure photo', () => {
-    const result = computeFraudSignals(visit, related([closurePhoto(FURTHER), auditPhoto(FAR)]));
+    const result = computeFraudSignals(
+      visit,
+      related([closurePhoto(FURTHER), auditPhoto(FAR)]),
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
+    );
 
     expect(result.signals).toEqual([
       { code: 'photo_gps_divergence', detail: "A photo's GPS tag is 556m from the check-in location", weight: 25 },
@@ -76,7 +87,12 @@ describe('photo_gps_divergence skips task-closure photos (#317)', () => {
 
   it('reads the same section value as the timeline signal: any other section is an audit photo', () => {
     const relabelled = { ...closurePhoto(FURTHER), section: 'visibility' };
-    const codes = computeFraudSignals(visit, related([relabelled])).signals.map((s) => s.code);
+    const codes = computeFraudSignals(
+      visit,
+      related([relabelled]),
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
+    ).signals.map((s) => s.code);
 
     // Now an audit photo, it diverges AND sits outside the device window.
     expect(codes).toEqual(['photo_gps_divergence', 'capture_timeline_gap']);

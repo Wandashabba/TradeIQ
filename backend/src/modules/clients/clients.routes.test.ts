@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
@@ -169,6 +170,124 @@ describe('clients routes', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ scorecardWeights: { availability: Number.NaN } });
     expect(res.status).toBe(400);
+  });
+
+  describe('timezone (#309)', () => {
+    it('defaults to Africa/Johannesburg for a client created without one', async () => {
+      const res = await request(app).get('/clients/me').set('Authorization', `Bearer ${agentToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.timezone).toBe('Africa/Johannesburg');
+    });
+
+    it('gives a pre-existing row the default at the database level', async () => {
+      // Written with raw SQL that never names the column — how rows that
+      // existed before the migration look — so this is the column default and
+      // not Prisma filling one in client-side.
+      const id = randomUUID();
+      await prisma.$executeRaw`
+        INSERT INTO clients (id, name, industry, scorecard_weights, kpi_thresholds)
+        VALUES (${id}, 'CLIENT-Legacy', 'FMCG', '{}'::jsonb, '{}'::jsonb)`;
+      try {
+        const row = await prisma.client.findUniqueOrThrow({ where: { id }, select: { timezone: true } });
+        expect(row.timezone).toBe('Africa/Johannesburg');
+      } finally {
+        await prisma.client.delete({ where: { id } });
+      }
+    });
+
+    it('lets a manager set the timezone, and reflects it on re-GET', async () => {
+      const res = await request(app)
+        .patch('/clients/me')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ timezone: 'America/New_York' });
+      expect(res.status).toBe(200);
+      expect(res.body.timezone).toBe('America/New_York');
+      // Nothing else moved.
+      expect(res.body.kpiThresholds).toEqual({ green: 85, amber: 60 });
+
+      const reGet = await request(app).get('/clients/me').set('Authorization', `Bearer ${agentToken}`);
+      expect(reGet.body.timezone).toBe('America/New_York');
+    });
+
+    it('lets an admin set the timezone alongside scoring config', async () => {
+      const res = await request(app)
+        .patch('/clients/me')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ timezone: 'Africa/Johannesburg', kpiThresholds: { green: 85, amber: 60 } });
+      expect(res.status).toBe(200);
+      expect(res.body.timezone).toBe('Africa/Johannesburg');
+    });
+
+    it('accepts UTC', async () => {
+      const res = await request(app)
+        .patch('/clients/me')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ timezone: 'UTC' });
+      expect(res.status).toBe(200);
+      expect(res.body.timezone).toBe('UTC');
+    });
+
+    it.each([
+      ['an unknown zone', 'Mars/Olympus_Mons'],
+      ['a case-folded name', 'africa/johannesburg'],
+      ['a fixed offset', '+02:00'],
+      ['an abbreviation', 'SAST'],
+      ['an empty string', ''],
+      ['a number', 2],
+      ['null', null],
+    ])('rejects %s with 400 and changes nothing', async (_label, timezone) => {
+      const before = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+      const res = await request(app)
+        .patch('/clients/me')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ timezone });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/IANA/);
+      const after = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+      expect(after.timezone).toBe(before.timezone);
+    });
+
+    it('forbids a manager from sneaking scoring config in with a timezone', async () => {
+      const before = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+      const res = await request(app)
+        .patch('/clients/me')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ timezone: 'Europe/London', scorecardWeights: { availability: 1 } });
+      expect(res.status).toBe(403);
+      const after = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+      expect(after.timezone).toBe(before.timezone);
+      expect(after.scorecardWeights).toEqual(before.scorecardWeights);
+    });
+
+    it('forbids a field agent from setting the timezone', async () => {
+      const res = await request(app)
+        .patch('/clients/me')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({ timezone: 'Europe/London' });
+      expect(res.status).toBe(403);
+    });
+
+    it("only ever changes the caller's own client", async () => {
+      const res = await request(app)
+        .patch('/clients/me')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ timezone: 'Asia/Tokyo' });
+      expect(res.status).toBe(200);
+
+      const other = await request(app)
+        .get('/clients/me')
+        .set('Authorization', `Bearer ${otherAdminToken}`);
+      expect(other.body.id).toBe(otherClientId);
+      expect(other.body.timezone).toBe('Africa/Johannesburg');
+
+      const otherRes = await request(app)
+        .patch('/clients/me')
+        .set('Authorization', `Bearer ${otherAdminToken}`)
+        .send({ timezone: 'Europe/Berlin' });
+      expect(otherRes.status).toBe(200);
+      const mine = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+      expect(mine.timezone).toBe('Asia/Tokyo');
+    });
   });
 
   it('scopes GET to the caller client — a second client admin sees only their own', async () => {

@@ -22,9 +22,20 @@ const _templates = [
     version: 1,
     active: false,
   ),
+  AuditTemplate(
+    id: 'tpl-3',
+    name: 'Promo Check',
+    version: 4,
+    active: true,
+  ),
 ];
 
 class _FakeTemplatesRepository implements TemplatesRepository {
+  _FakeTemplatesRepository({this.selectedId});
+
+  String? selectedId;
+  final selections = <String?>[];
+
   @override
   Future<PaginatedResponse<AuditTemplate>> listTemplates() async =>
       const PaginatedResponse(data: _templates, nextCursor: null);
@@ -32,6 +43,25 @@ class _FakeTemplatesRepository implements TemplatesRepository {
   @override
   Future<AuditTemplateDetail> fetchTemplate(String id) =>
       throw UnimplementedError();
+
+  AuditTemplateDetail? _detail() {
+    for (final t in _templates) {
+      if (t.id == selectedId) {
+        return AuditTemplateDetail(template: t, schema: const {});
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<AuditTemplateDetail?> fetchSelected() async => _detail();
+
+  @override
+  Future<AuditTemplateDetail?> selectForAudits(String? templateId) async {
+    selections.add(templateId);
+    selectedId = templateId;
+    return _detail();
+  }
 }
 
 class _FailingTemplatesRepository implements TemplatesRepository {
@@ -42,6 +72,13 @@ class _FailingTemplatesRepository implements TemplatesRepository {
   @override
   Future<AuditTemplateDetail> fetchTemplate(String id) =>
       throw UnimplementedError();
+
+  @override
+  Future<AuditTemplateDetail?> fetchSelected() async => null;
+
+  @override
+  Future<AuditTemplateDetail?> selectForAudits(String? templateId) async =>
+      null;
 }
 
 Widget _app(TemplatesRepository repo, {ThemeData? theme}) => routedApp(
@@ -82,5 +119,70 @@ void main() {
     );
     expect(tile.kind, GlassKind.tile);
     expect(tile.blur, isFalse);
+  });
+
+  group('use in audits (#122)', () {
+    for (final (name, theme) in [
+      ('light', AppTheme.light),
+      ('night', AppTheme.dark),
+    ]) {
+      testWidgets('$name: says plainly when no template is in use', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          _app(_FakeTemplatesRepository(), theme: theme()),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('No template is used in audits.'), findsOneWidget);
+        expect(find.byKey(const ValueKey('templates-stop-using')), findsNothing);
+        // Only active templates can be put in front of agents.
+        expect(find.byKey(const ValueKey('template-use-tpl-1')), findsOneWidget);
+        expect(find.byKey(const ValueKey('template-use-tpl-3')), findsOneWidget);
+        expect(find.byKey(const ValueKey('template-use-tpl-2')), findsNothing);
+      });
+    }
+
+    testWidgets('names the active template and marks its row', (tester) async {
+      await tester.pumpWidget(
+        _app(_FakeTemplatesRepository(selectedId: 'tpl-3')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('“Promo Check” (v4)'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^in audits$', caseSensitive: false)), findsOneWidget);
+      // The one in use has no "Use in audits" of its own.
+      expect(find.byKey(const ValueKey('template-use-tpl-3')), findsNothing);
+      expect(find.byKey(const ValueKey('templates-stop-using')), findsOneWidget);
+    });
+
+    testWidgets('"Use in audits" selects the template and says so', (
+      tester,
+    ) async {
+      final repo = _FakeTemplatesRepository();
+      await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('template-use-tpl-1')));
+      await tester.pumpAndSettle();
+
+      expect(repo.selections, ['tpl-1']);
+      expect(find.text('“Grocery Audit” (v2)'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^in audits$', caseSensitive: false)), findsOneWidget);
+      expect(find.text('“Grocery Audit” is now used in audits.'), findsOneWidget);
+    });
+
+    testWidgets('"Stop using" clears the selection', (tester) async {
+      final repo = _FakeTemplatesRepository(selectedId: 'tpl-1');
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('templates-stop-using')));
+      await tester.pumpAndSettle();
+
+      expect(repo.selections, [null]);
+      expect(find.text('No template is used in audits.'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^in audits$', caseSensitive: false)), findsNothing);
+    });
   });
 }

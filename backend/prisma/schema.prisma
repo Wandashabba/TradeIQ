@@ -41,6 +41,11 @@ model Client {
   /// without a deliberate opt-in. Off is a true kill switch — Phases 0-2 mutate
   /// nothing, so degrading to today's dashboard loses no data.
   assistantEnabled   Boolean             @default(false) @map("assistant_enabled")
+  /// IANA zone the client's field team works in (#309). Every calendar-day
+  /// rule reads it: which beat plan a check-in belongs to, trend day/week
+  /// buckets, and the assistant's "today"/"last week". Validated against the
+  /// runtime's IANA list on write; editable by managers and admins.
+  timezone           String              @default("Africa/Johannesburg")
   users              User[]
   outlets            Outlet[]
   skus               Sku[]
@@ -51,7 +56,7 @@ model Client {
   beatPlans          BeatPlan[]
   alertRules         AlertRule[]
   alerts             Alert[]
-  auditTemplates     AuditTemplate[]
+  auditTemplates     AuditTemplate[]     @relation("ClientAuditTemplates")
   checkInAttempts    CheckInAttempt[]
   orders             Order[]
   messages           Message[]
@@ -67,6 +72,14 @@ model Client {
   locationPings      AgentLocationPing[]
   agentDaySummaries  AgentDaySummary[]
   locationConsents   LocationConsent[]
+
+  /// The audit template whose questions field agents answer on every visit, as
+  /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
+  /// sections and never feeds the perfect-store score. Null = no client
+  /// questions. Must be one of this client's own templates (enforced in
+  /// templates.service); pausing the template clears it, deleting it nulls it.
+  auditTemplateId    String?             @unique @map("audit_template_id")
+  auditTemplate      AuditTemplate?      @relation("ClientSelectedAuditTemplate", fields: [auditTemplateId], references: [id], onDelete: SetNull)
 
   @@map("clients")
 }
@@ -417,6 +430,10 @@ model Photo {
   @@index([visitId])
   @@index([clientId])
   @@index([contentHash])
+  // WITH (fastupdate = off), set by migration 20260915090000 (#311): Prisma
+  // cannot express index storage parameters. A pending list made every
+  // near-duplicate probe scan all recent uploads linearly. Recreating this
+  // index by hand must keep it.
   @@index([perceptualHashBands], type: Gin)
   @@map("photos")
 }
@@ -587,7 +604,7 @@ model Alert {
 model AuditTemplate {
   id        String   @id @default(uuid())
   clientId  String   @map("client_id")
-  client    Client   @relation(fields: [clientId], references: [id])
+  client    Client   @relation("ClientAuditTemplates", fields: [clientId], references: [id])
   name      String
   industry  String?
   schema    Json
@@ -596,6 +613,8 @@ model AuditTemplate {
   createdAt DateTime @default(now()) @map("created_at")
 
   responses VisitTemplateResponse[]
+  /// The client that uses this template in its field audits, if any (#122).
+  selectedByClient Client? @relation("ClientSelectedAuditTemplate")
 
   @@map("audit_templates")
 }
@@ -811,7 +830,7 @@ model WebhookDelivery {
 }
 
 /// A saved report definition (Phase 3 #39) — a named, filtered report the
-/// manager can generate on demand (scheduled delivery is a follow-up).
+/// manager can generate on demand, or on a cadence via a ReportSchedule (#66).
 model ReportDefinition {
   id        String           @id @default(uuid())
   clientId  String           @map("client_id")
@@ -890,22 +909,63 @@ model PointsLedgerEntry {
   @@map("points_ledger_entries")
 }
 
-/// A recurring delivery of a saved report (Phase 3 #39). The scheduler that
-/// fires these is infra (Phase 4); this model + the run endpoint are the seam.
+/// A recurring delivery of a saved report (Phase 3 #39; fired by the schedule
+/// worker since #66 — see src/modules/reportschedules/reportschedules.worker.ts).
 model ReportSchedule {
-  id                 String           @id @default(uuid())
-  clientId           String           @map("client_id")
-  client             Client           @relation(fields: [clientId], references: [id])
-  reportDefinitionId String           @map("report_definition_id")
-  reportDefinition   ReportDefinition @relation(fields: [reportDefinitionId], references: [id])
+  id                 String              @id @default(uuid())
+  clientId           String              @map("client_id")
+  client             Client              @relation(fields: [clientId], references: [id])
+  reportDefinitionId String              @map("report_definition_id")
+  reportDefinition   ReportDefinition    @relation(fields: [reportDefinitionId], references: [id])
   cadence            String // daily | weekly
   recipients         Json
-  lastRunAt          DateTime?        @map("last_run_at")
-  active             Boolean          @default(true)
-  createdAt          DateTime         @default(now()) @map("created_at")
+  /// When the schedule last ran, by the worker or by "run now".
+  lastRunAt          DateTime?           @map("last_run_at")
+  /// When the worker next fires it (#66). Null while paused. Advanced from the
+  /// due time it replaces, never from when the run happened to finish, so the
+  /// time of day does not drift. See reportschedules.cadence.ts.
+  nextRunAt          DateTime?           @map("next_run_at")
+  /// The claim lease: a worker that takes a due schedule sets this, so no other
+  /// instance picks it up mid-run. A crashed run is retried once it lapses.
+  claimedUntil       DateTime?           @map("claimed_until")
+  active             Boolean             @default(true)
+  createdAt          DateTime            @default(now()) @map("created_at")
+  runs               ReportScheduleRun[]
 
   @@index([clientId])
+  @@index([active, nextRunAt])
   @@map("report_schedules")
+}
+
+/// One run of a report schedule (#66): scheduled by the worker, or manual.
+///
+/// Stores what happened, not the report: the rows are regenerated when the run's
+/// CSV is downloaded (bounded to the run's `generatedAt`), so a schedule firing
+/// daily does not keep a copy of a tenant's whole visit history per day.
+///
+/// Unique on (scheduleId, dueAt): a scheduled due time fires at most one run,
+/// even if two workers ever raced for it. Manual runs have no due time, and
+/// Postgres treats NULLs as distinct, so they never collide.
+model ReportScheduleRun {
+  id          String         @id @default(uuid())
+  scheduleId  String         @map("schedule_id")
+  schedule    ReportSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  /// Denormalised from the schedule so the download endpoint scopes by tenant
+  /// without a join.
+  clientId    String         @map("client_id")
+  trigger     String // scheduled | manual
+  /// The due time a scheduled run fired for; null for a manual run.
+  dueAt       DateTime?      @map("due_at")
+  generatedAt DateTime       @map("generated_at")
+  rowCount    Int            @map("row_count")
+  /// Per-channel outcomes (ReportDeliveryOutcome[]): webhook deliveries queued,
+  /// email not configured, and so on.
+  deliveries  Json
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  @@unique([scheduleId, dueAt])
+  @@index([clientId, scheduleId, createdAt])
+  @@map("report_schedule_runs")
 }
 
 /// A persisted, refinable view produced by a tool call in an assistant turn.

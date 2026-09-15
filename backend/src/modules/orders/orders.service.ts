@@ -3,6 +3,8 @@ import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
 import { buildPage } from '../../lib/pagination';
+import { getClientTimeZone } from '../clients/clients.service';
+import { campaignRunningAt } from '../campaigns/campaignWindow';
 
 export type OrderStatus = 'submitted' | 'confirmed' | 'cancelled';
 
@@ -54,19 +56,26 @@ function computeTotal(lines: OrderLineInput[]): number {
  * needs an allocation model (split by weight, or an order↔campaign join), and
  * that is a product decision nobody has made. Documented here so a surprising
  * ROI figure is traceable rather than mysterious.
+ *
+ * ## Which days count
+ *
+ * A campaign covers `at` when the local calendar date `at` falls on, in the
+ * client's `timeZone`, is within `[startDate, endDate]` inclusive (#324) — so an
+ * order at 15:00 on the end date counts, and one at 00:30 the next day does not.
+ * See `campaignWindow.ts` for how stored dates are read.
  */
-async function attributeToCampaign(
+export async function attributeToCampaign(
   tx: Prisma.TransactionClient,
   clientId: string,
   outletId: string,
   at: Date,
+  timeZone: string,
 ): Promise<string | null> {
   const campaign = await tx.campaign.findFirst({
     where: {
       clientId,
       status: 'active',
-      startDate: { lte: at },
-      endDate: { gte: at },
+      ...campaignRunningAt(at, timeZone),
       outlets: { some: { outletId } },
     },
     orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
@@ -107,9 +116,11 @@ export async function createOrder(input: CreateOrderInput) {
 
   // Campaign attribution and the write share one transaction, so an order can
   // never exist with an attribution decided against a campaign that changed
-  // underneath it.
+  // underneath it. The zone is read first: which local day "now" is does not
+  // depend on the campaign rows the transaction guards.
+  const timeZone = await getClientTimeZone(input.clientId);
   const campaignId = await prisma.$transaction((tx) =>
-    attributeToCampaign(tx, input.clientId, input.outletId, new Date()),
+    attributeToCampaign(tx, input.clientId, input.outletId, new Date(), timeZone),
   );
 
   // Nested create runs the order + its lines in a single implicit transaction.

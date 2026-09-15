@@ -404,9 +404,10 @@ describe('campaigns routes', () => {
     let roiCampaignId: string;
 
     beforeAll(async () => {
-      // A campaign that ran last month over outlet 1.
-      const start = new Date('2026-06-01T00:00:00.000Z');
-      const end = new Date('2026-07-01T00:00:00.000Z');
+      // A campaign that ran through June over outlet 1, stored the way the
+      // campaign form sends it: plain dates, inclusive (#324).
+      const start = new Date('2026-06-01');
+      const end = new Date('2026-06-30');
       const campaign = await prisma.campaign.create({
         data: {
           clientId,
@@ -489,8 +490,14 @@ describe('campaigns routes', () => {
         .get(`/campaigns/${roiCampaignId}/roi`)
         .set('Authorization', `Bearer ${managerToken}`);
 
-      expect(res.body.baselineWindow.to).toBe('2026-06-01T00:00:00.000Z');
-      expect(res.body.baselineWindow.from).toBe('2026-05-02T00:00:00.000Z');
+      // 1–30 Jun inclusive in the client's zone (Africa/Johannesburg, the
+      // default), so the baseline is the 30 local days 2–31 May (#324).
+      expect(res.body.window).toEqual({
+        from: '2026-05-31T22:00:00.000Z',
+        to: '2026-06-30T22:00:00.000Z',
+      });
+      expect(res.body.baselineWindow.to).toBe('2026-05-31T22:00:00.000Z');
+      expect(res.body.baselineWindow.from).toBe('2026-05-01T22:00:00.000Z');
     });
 
     it('says unmeasurable rather than inventing a number when there is no budget', async () => {
@@ -541,6 +548,208 @@ describe('campaigns routes', () => {
         .set('Authorization', `Bearer ${agentToken}`);
 
       expect(res.status).toBe(403);
+    });
+  });
+
+  describe('window is inclusive local calendar days (#324)', () => {
+    /** A submitted visit with a planogram score that identifies it in the rollup. */
+    async function visitAt(tenantId: string, byAgent: string, outlet: string, iso: string, pct: number) {
+      const visit = await prisma.visit.create({
+        data: {
+          outletId: outlet,
+          agentId: byAgent,
+          clientId: tenantId,
+          checkinTs: new Date(iso),
+          checkinLat: -26.2041,
+          checkinLng: 28.0473,
+          geofencePass: true,
+          status: 'submitted',
+        },
+      });
+      await prisma.visitVisibility.create({
+        data: {
+          visitId: visit.id,
+          brandingElements: {},
+          planogramCompliancePct: pct,
+          facingsCount: {},
+          highTrafficPass: true,
+          cleanlinessScore: 3,
+        },
+      });
+    }
+
+    async function outletIn(tenantId: string, code: string) {
+      const outlet = await prisma.outlet.create({
+        data: {
+          name: `CAMP-${code}`,
+          code: `CAMP-${code}`,
+          channelType: 'supermarket',
+          lat: -26.2,
+          lng: 28.0,
+          territoryId: 't1',
+          clientId: tenantId,
+        },
+      });
+      return outlet.id;
+    }
+
+    async function orderAt(tenantId: string, byAgent: string, outlet: string, iso: string, total: number) {
+      await prisma.order.create({
+        data: {
+          clientId: tenantId,
+          outletId: outlet,
+          agentId: byAgent,
+          status: 'submitted',
+          total,
+          createdAt: new Date(iso),
+        },
+      });
+    }
+
+    describe('in SAST (the default zone)', () => {
+      let campaignId: string;
+
+      beforeAll(async () => {
+        const outlets = await Promise.all(
+          ['W-1', 'W-2', 'W-3', 'W-4'].map((code) => outletIn(clientId, code)),
+        );
+
+        // Created through the API with plain dates, as the campaign form sends.
+        const res = await request(app)
+          .post('/campaigns')
+          .set('Authorization', `Bearer ${managerToken}`)
+          .send({
+            name: 'CAMP-Sep-2024',
+            startDate: '2024-09-01',
+            endDate: '2024-09-30',
+            budget: 100,
+            outletIds: outlets,
+          });
+        expect(res.status).toBe(201);
+        // Stored as UTC midnight of each date.
+        expect(res.body.startDate).toBe('2024-09-01T00:00:00.000Z');
+        expect(res.body.endDate).toBe('2024-09-30T00:00:00.000Z');
+        campaignId = res.body.id;
+
+        const [w1, w2, w3, w4] = outlets;
+        await visitAt(clientId, agentId, w1, '2024-08-31T22:30:00.000Z', 70); // 00:30, start date
+        await visitAt(clientId, agentId, w2, '2024-09-30T13:00:00.000Z', 90); // 15:00, end date
+        await visitAt(clientId, agentId, w3, '2024-09-30T22:30:00.000Z', 10); // 00:30, day after end
+        await visitAt(clientId, agentId, w4, '2024-08-31T21:30:00.000Z', 20); // 23:30, day before start
+
+        // Baseline is 2–31 Aug local.
+        await orderAt(clientId, agentId, w1, '2024-08-31T21:30:00.000Z', 300); // 23:30 31 Aug: in
+        await orderAt(clientId, agentId, w1, '2024-08-31T22:30:00.000Z', 700); // 00:30 1 Sep: out
+        await orderAt(clientId, agentId, w1, '2024-08-01T21:30:00.000Z', 20); // 23:30 1 Aug: out
+        await orderAt(clientId, agentId, w1, '2024-08-01T22:30:00.000Z', 5); // 00:30 2 Aug: in
+      });
+
+      it('counts visits on the start and end dates and none either side', async () => {
+        const res = await request(app)
+          .get(`/campaigns/${campaignId}/compliance`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.outletsTotal).toBe(4);
+        expect(res.body.outletsVisited).toBe(2);
+        // Only the 70 and the 90: the 10 and the 20 are outside the window.
+        expect(res.body.avgPlanogramCompliancePct).toBe(80);
+      });
+
+      it('measures the baseline over the same number of local days just before', async () => {
+        const res = await request(app)
+          .get(`/campaigns/${campaignId}/roi`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.window).toEqual({
+          from: '2024-08-31T22:00:00.000Z',
+          to: '2024-09-30T22:00:00.000Z',
+        });
+        expect(res.body.baselineWindow).toEqual({
+          from: '2024-08-01T22:00:00.000Z',
+          to: '2024-08-31T22:00:00.000Z',
+        });
+        expect(res.body.orderCount.baseline).toBe(2);
+        expect(res.body.baselineRevenue).toBe(305);
+      });
+    });
+
+    describe('in America/New_York across a DST change', () => {
+      let nyClientId: string;
+      let nyManagerToken: string;
+      let nyCampaignId: string;
+
+      beforeAll(async () => {
+        const ny = await prisma.client.create({
+          data: {
+            name: 'CAMP-NY-Client',
+            industry: 'FMCG',
+            scorecardWeights: {},
+            kpiThresholds: {},
+            timezone: 'America/New_York',
+          },
+        });
+        nyClientId = ny.id;
+        nyManagerToken = (await userIn(nyClientId, 'manager')).token;
+        const nyAgentId = (await userIn(nyClientId, 'field_agent')).userId;
+        const outlet = await outletIn(nyClientId, 'NY-1');
+
+        // US clocks fall back on 2 Nov 2025, the campaign's last day.
+        const campaign = await prisma.campaign.create({
+          data: {
+            clientId: nyClientId,
+            name: 'CAMP-NY-Fall-Back',
+            startDate: new Date('2025-10-27'),
+            endDate: new Date('2025-11-02'),
+            outlets: { create: [{ outletId: outlet }] },
+          },
+        });
+        nyCampaignId = campaign.id;
+
+        await visitAt(nyClientId, nyAgentId, outlet, '2025-11-02T20:00:00.000Z', 100); // 15:00 EST, end date
+        await visitAt(nyClientId, nyAgentId, outlet, '2025-11-03T04:30:00.000Z', 60); // 23:30 EST, end date
+        await visitAt(nyClientId, nyAgentId, outlet, '2025-11-03T05:30:00.000Z', 10); // 00:30 EST, 3 Nov
+        await visitAt(nyClientId, nyAgentId, outlet, '2025-10-27T03:30:00.000Z', 20); // 23:30 EDT, 26 Oct
+      });
+
+      afterAll(async () => {
+        await prisma.visitVisibility.deleteMany({ where: { visit: { clientId: nyClientId } } });
+        await prisma.visit.deleteMany({ where: { clientId: nyClientId } });
+        await prisma.campaignOutlet.deleteMany({ where: { campaign: { clientId: nyClientId } } });
+        await prisma.campaign.deleteMany({ where: { clientId: nyClientId } });
+        await prisma.outlet.deleteMany({ where: { clientId: nyClientId } });
+        await prisma.user.deleteMany({ where: { clientId: nyClientId } });
+        await prisma.client.delete({ where: { id: nyClientId } });
+      });
+
+      it('counts the whole local end date, including the hour DST adds', async () => {
+        const res = await request(app)
+          .get(`/campaigns/${nyCampaignId}/compliance`)
+          .set('Authorization', `Bearer ${nyManagerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.outletsVisited).toBe(1);
+        // The 100 and the 60 only.
+        expect(res.body.avgPlanogramCompliancePct).toBe(80);
+      });
+
+      it('reports windows bounded by local midnight on each side of the change', async () => {
+        const res = await request(app)
+          .get(`/campaigns/${nyCampaignId}/roi`)
+          .set('Authorization', `Bearer ${nyManagerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.window).toEqual({
+          from: '2025-10-27T04:00:00.000Z', // 00:00 EDT
+          to: '2025-11-03T05:00:00.000Z', // 00:00 EST
+        });
+        // Seven local days before: 20–26 Oct, all EDT.
+        expect(res.body.baselineWindow).toEqual({
+          from: '2025-10-20T04:00:00.000Z',
+          to: '2025-10-27T04:00:00.000Z',
+        });
+      });
     });
   });
 });

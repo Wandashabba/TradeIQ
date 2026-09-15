@@ -11,6 +11,7 @@ import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/worklist.dart';
 import '../../audit/data/photos_repository.dart';
 import '../../fraud/presentation/fraud_screen.dart';
+import '../../templates/domain/template_schema.dart';
 import '../data/visit_detail_repository.dart';
 
 /// One visit, as a manager reviews it (#208): who went where and when, the
@@ -123,6 +124,10 @@ class _DetailBody extends StatelessWidget {
         _ScorePanel(detail: detail),
         const SizedBox(height: 12),
         _Sections(sections: detail.sections),
+        for (final answers in detail.templateResponses) ...[
+          const SizedBox(height: 12),
+          _TemplateAnswersPanel(answers: answers),
+        ],
         const SizedBox(height: 12),
         _Photos(detail: detail),
         if (detail.signals.isNotEmpty) ...[
@@ -130,6 +135,157 @@ class _DetailBody extends StatelessWidget {
           _FraudPanel(detail: detail),
         ],
       ],
+    );
+  }
+}
+
+// ── Client questions ───────────────────────────────────────────────────────
+
+/// The visit's answers to the client's audit template (#122), each under the
+/// question the template asked. The template's own score, when its schema is
+/// weighted, is shown here only — it is not part of the perfect-store score.
+class _TemplateAnswersPanel extends StatelessWidget {
+  const _TemplateAnswersPanel({required this.answers});
+
+  final VisitTemplateAnswers answers;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final schema = TemplateSchema.parse(answers.schema);
+    final given = Map<String, Object?>.from(answers.answers);
+    final known = {for (final f in schema.fields) f.id};
+    final orphans = [
+      for (final entry in given.entries)
+        if (!known.contains(entry.key)) entry,
+    ];
+    final maxScore = schema.maxScore;
+
+    final version = answers.answeredOlderVersion
+        ? 'Answered against v${answers.templateVersion} · template now '
+              'v${answers.currentVersion}, labels from the current version'
+        : 'Answered against v${answers.templateVersion}';
+
+    final rows = <Widget>[
+      for (final field in schema.fields)
+        // A question hidden by its condition was never put to the agent.
+        if (field.isVisible(given))
+          _AnswerRow(
+            key: ValueKey('visit-template-answer-${field.id}'),
+            label: field.label,
+            value: _answerText(field, given),
+            missing: !field.isAnswered(given),
+            required: field.blocksSubmit,
+          ),
+      for (final entry in orphans)
+        _AnswerRow(
+          key: ValueKey('visit-template-answer-${entry.key}'),
+          label: '${entry.key} (no longer in the template)',
+          value: _plain(entry.value),
+          missing: false,
+          required: false,
+        ),
+    ];
+
+    return PanelCard(
+      key: ValueKey('visit-template-${answers.templateId}'),
+      title: 'Client questions · ${answers.templateName}',
+      subtitle: version,
+      trailing: maxScore > 0
+          ? LumenStatusPill(
+              key: const ValueKey('visit-template-score'),
+              status: LumenStatus.none,
+              label:
+                  'Template score ${_trim(schema.scoreFor(given))} / ${_trim(maxScore)}',
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (rows.isEmpty)
+            Text(
+              'No answers were recorded.',
+              style: TextStyle(fontSize: 12.5, color: colors.ink3),
+            )
+          else
+            ...rows,
+          if (maxScore > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'The template score is the client’s own measure. It is not '
+                'part of the perfect store score.',
+                style: TextStyle(fontSize: 11, color: colors.ink3),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _answerText(TemplateField field, Map<String, Object?> given) {
+    if (field.type == TemplateFieldType.photo) return 'Not captured in the app';
+    if (!field.isAnswered(given)) return 'Not answered';
+    return _plain(given[field.id]);
+  }
+
+  static String _plain(Object? value) => switch (value) {
+    true => 'Yes',
+    false => 'No',
+    final num n => _trim(n.toDouble()),
+    null => '—',
+    _ => '$value',
+  };
+
+  static String _trim(double v) =>
+      v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
+}
+
+class _AnswerRow extends StatelessWidget {
+  const _AnswerRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.missing,
+    required this.required,
+  });
+
+  final String label;
+  final String value;
+  final bool missing;
+  final bool required;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              required ? '$label (required)' : label,
+              style: TextStyle(fontSize: 12.5, height: 1.35, color: colors.ink2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.35,
+                fontWeight: missing ? FontWeight.w400 : FontWeight.w600,
+                color: missing ? colors.ink3 : colors.ink1,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

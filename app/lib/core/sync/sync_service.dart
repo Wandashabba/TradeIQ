@@ -146,6 +146,21 @@ class HttpQueueFlusher implements QueueFlusher {
       case locationConsentEntity:
         await _dio.post('/locations/consent', data: jsonDecode(item.payloadJson));
         return;
+      case 'template_response':
+        // The client-questions section (#122). The server upserts per (visit,
+        // template), so a later save simply overwrites an earlier one. The
+        // version is the one this device rendered: it may sync after the
+        // manager has edited the template.
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
+        await _dio.post('/template-responses', data: {
+          'visitId': remoteId,
+          'templateId': payload['templateId'],
+          if (payload['templateVersion'] != null)
+            'templateVersion': payload['templateVersion'],
+          'answers': payload['answers'],
+        });
+        return;
       default:
         throw UnimplementedError('HTTP sync for ${item.entityType} not wired yet');
     }

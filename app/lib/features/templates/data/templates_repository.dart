@@ -45,6 +45,21 @@ class AuditTemplateDetail {
 abstract class TemplatesRepository {
   Future<PaginatedResponse<AuditTemplate>> listTemplates();
   Future<AuditTemplateDetail> fetchTemplate(String id);
+
+  /// `GET /templates/selected`: the template this client uses in audits —
+  /// its questions become an extra section after S1–S10 (#122) — or null.
+  Future<AuditTemplateDetail?> fetchSelected();
+
+  /// `PUT /templates/selected` (manager/admin): use [templateId] in audits,
+  /// or stop using one with null. Returns the template now in use.
+  Future<AuditTemplateDetail?> selectForAudits(String? templateId);
+}
+
+AuditTemplateDetail? _selectedFrom(Object? data) {
+  final template = data is Map<String, dynamic> ? data['template'] : null;
+  return template is Map<String, dynamic>
+      ? AuditTemplateDetail.fromJson(template)
+      : null;
 }
 
 class DioTemplatesRepository implements TemplatesRepository {
@@ -62,6 +77,21 @@ class DioTemplatesRepository implements TemplatesRepository {
     final response = await dio.get('/templates/$id');
     return AuditTemplateDetail.fromJson(response.data as Map<String, dynamic>);
   }
+
+  @override
+  Future<AuditTemplateDetail?> fetchSelected() async {
+    final response = await dio.get('/templates/selected');
+    return _selectedFrom(response.data);
+  }
+
+  @override
+  Future<AuditTemplateDetail?> selectForAudits(String? templateId) async {
+    final response = await dio.put(
+      '/templates/selected',
+      data: {'templateId': templateId},
+    );
+    return _selectedFrom(response.data);
+  }
 }
 
 final templatesRepositoryProvider =
@@ -76,6 +106,13 @@ final templatesListProvider = FutureProvider<List<AuditTemplate>>((ref) async {
   final page = await ref.read(templatesRepositoryProvider).listTemplates();
   return page.data;
 });
+
+/// The template this client uses in audits, or null (#122). Manager console:
+/// the agent app reads it through the visit's pinned copy instead, so the
+/// audit works without signal.
+final selectedTemplateProvider = FutureProvider<AuditTemplateDetail?>(
+  (ref) => ref.read(templatesRepositoryProvider).fetchSelected(),
+);
 
 final templateDetailProvider =
     FutureProvider.family<AuditTemplateDetail, String>((ref, id) {

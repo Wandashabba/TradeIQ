@@ -265,14 +265,16 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('the cadence field says it is stored, not sent', (tester) async {
+  testWidgets('the cadence field says it runs automatically, email not yet',
+      (tester) async {
     await tester.pumpWidget(_app(_RecordingSchedulesRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Saved with the schedule. Nothing sends on it yet.'),
-      findsOneWidget,
-    );
+    expect(find.text(scheduleCadenceHelp), findsOneWidget);
+    expect(scheduleCadenceHelp, contains('Runs automatically'));
+    expect(scheduleCadenceHelp, contains('report.generated'));
+    expect(scheduleCadenceHelp, contains('Email is not set up yet'));
+    expect(find.textContaining('Nothing sends'), findsNothing);
   });
 
   group('edit mode', () {
@@ -299,11 +301,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.text(scheduleReportLockedNote), findsOneWidget);
-      // Still honest that nothing is sent on the cadence.
-      expect(
-        find.text('Saved with the schedule. Nothing sends on it yet.'),
-        findsOneWidget,
-      );
+      // Still honest about delivery: runs automatically, email not set up.
+      expect(find.text(scheduleCadenceHelp), findsOneWidget);
     });
 
     testWidgets('saves the new cadence and recipients, blanks dropped',

@@ -9,31 +9,61 @@ import '../../../core/widgets/worklist.dart';
 import '../data/report_schedules_repository.dart';
 import 'report_schedule_form_screen.dart';
 
-/// The standing note on this screen. Nothing fires a schedule on its cadence
-/// (#66), and `POST /report-schedules/:id/run` generates the report and
-/// records the run but sends nothing — so the screen says both, plainly.
+/// The standing note on this screen, worded from what the backend does (#66):
+/// active schedules fire on their cadence and go to the client's webhooks
+/// subscribed to `report.generated`; email is not built, so recipients are
+/// kept but nobody is emailed.
 const scheduleDeliveryNote =
-    'Schedules are saved but not sent automatically yet. Run now generates '
-    'the report and records the run; it does not send it to recipients.';
+    'Active schedules run automatically on their cadence and are sent to '
+    'your webhooks subscribed to $reportGeneratedEvent. Email is not set up '
+    'yet: recipients are kept on file but not emailed.';
 
-/// What a successful Run now is reported as. Worded from what the API actually
-/// did: `rowCount` is real, while `deliveredTo` only echoes the configured
-/// recipients, so it is deliberately not presented as a delivery.
-String runNowMessage(ScheduleRunResult result) =>
-    'Generated ${result.rowCount} ${result.rowCount == 1 ? 'row' : 'rows'}. '
-    'Not sent to recipients: delivery is not built yet.';
+/// What a successful Run now is reported as, from what the API says happened:
+/// how many rows, how many webhooks a delivery was queued for (or that none
+/// listens), and that email was not sent.
+String runNowMessage(ScheduleRunResult result) {
+  final parts = <String>[
+    'Generated ${result.rowCount} ${result.rowCount == 1 ? 'row' : 'rows'}.',
+  ];
 
-/// "Last run 2026-09-14 10:05" in local time, or "Never run".
-String lastRunLabel(DateTime? at) {
-  if (at == null) return 'Never run';
+  final queued = result.deliveredTo.length;
+  final webhook = result.outcomeFor('webhook');
+  if (queued > 0) {
+    parts.add('Queued for $queued ${queued == 1 ? 'webhook' : 'webhooks'}.');
+  } else if (webhook?.status == 'failed') {
+    parts.add('Webhook delivery failed.');
+  } else {
+    parts.add('Not sent: no webhook is subscribed to $reportGeneratedEvent.');
+  }
+
+  if (result.outcomeFor('email')?.status == 'not_configured') {
+    parts.add('Email is not set up yet.');
+  }
+  return parts.join(' ');
+}
+
+String _stamp(DateTime at) {
   final l = at.toLocal();
   String two(int n) => n.toString().padLeft(2, '0');
-  return 'Last run ${l.year}-${two(l.month)}-${two(l.day)} '
+  return '${l.year}-${two(l.month)}-${two(l.day)} '
       '${two(l.hour)}:${two(l.minute)}';
 }
 
-/// Report schedules, as a worklist: which saved report, how often, to whom,
-/// and whether the schedule is active or paused — a mark and a word.
+/// "Last run 2026-09-14 10:05" in local time, or "Never run".
+String lastRunLabel(DateTime? at) =>
+    at == null ? 'Never run' : 'Last run ${_stamp(at)}';
+
+/// "Next run 2026-09-15 09:00" in local time. A paused schedule has no next
+/// run and says so rather than showing a stale time.
+String nextRunLabel(ReportSchedule schedule) {
+  if (!schedule.active) return 'Paused, no next run';
+  final at = schedule.nextRunAt;
+  return at == null ? 'Next run not scheduled' : 'Next run ${_stamp(at)}';
+}
+
+/// Report schedules, as a worklist: which saved report, how often, when it
+/// next and last ran, to whom, and whether the schedule is active or paused —
+/// a mark and a word.
 class ReportSchedulesScreen extends ConsumerWidget {
   const ReportSchedulesScreen({super.key});
 
@@ -88,8 +118,8 @@ class ReportSchedulesScreen extends ConsumerWidget {
                 child: list.isEmpty
                     ? const EmptyState(
                         message: 'No report schedules',
-                        hint: 'Schedule a saved report to keep its cadence '
-                            'and recipients on file.',
+                        hint: 'Schedule a saved report to run it '
+                            'automatically on a cadence.',
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,6 +187,7 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
           await ref
               .read(reportSchedulesRepositoryProvider)
               .setActive(widget.schedule.id, active);
+          // Pausing clears the next run and resuming sets a new one.
           _refresh();
           return null;
         },
@@ -237,7 +268,15 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('${cadenceLabel(s.cadence)} · ${lastRunLabel(s.lastRunAt)}'),
+          Text(
+            '${cadenceLabel(s.cadence)} · ${nextRunLabel(s)}',
+            key: ValueKey<String>('schedule-next-run-${s.id}'),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            lastRunLabel(s.lastRunAt),
+            key: ValueKey<String>('schedule-last-run-${s.id}'),
+          ),
           const SizedBox(height: 2),
           Text(recipients, maxLines: 2, overflow: TextOverflow.ellipsis),
         ],

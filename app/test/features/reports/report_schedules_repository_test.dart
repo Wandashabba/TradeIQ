@@ -200,13 +200,31 @@ void main() {
       expect(adapter.last!.path, '/report-schedules/s1');
     });
 
-    test('runNow POSTs to /run and parses the run result', () async {
+    test('runNow POSTs to /run and parses the run and its deliveries',
+        () async {
       final adapter = _RecordingAdapter(
         jsonEncode({
           'schedule': _row,
+          'runId': 'run-1',
+          'trigger': 'manual',
           'generatedAt': '2026-09-14T10:05:00.000Z',
           'rowCount': 42,
-          'deliveredTo': ['ops@acme.test', 'lead@acme.test'],
+          'deliveredTo': ['https://hooks.acme.test/reports'],
+          'deliveries': [
+            {
+              'channel': 'webhook',
+              'status': 'queued',
+              'targets': ['https://hooks.acme.test/reports'],
+              'webhookDeliveryIds': ['d1'],
+            },
+            {
+              'channel': 'email',
+              'status': 'not_configured',
+              'targets': ['ops@acme.test', 'lead@acme.test'],
+              'detail': 'Email delivery not configured',
+            },
+            'not-an-outcome',
+          ],
         }),
       );
       dio.httpClientAdapter = adapter;
@@ -215,10 +233,29 @@ void main() {
 
       expect(adapter.last!.method, 'POST');
       expect(adapter.last!.path, '/report-schedules/s1/run');
+      expect(result.runId, 'run-1');
       expect(result.rowCount, 42);
       expect(result.generatedAt, '2026-09-14T10:05:00.000Z');
-      expect(result.deliveredTo, ['ops@acme.test', 'lead@acme.test']);
+      expect(result.deliveredTo, ['https://hooks.acme.test/reports']);
       expect(result.schedule.id, 's1');
+      expect(result.deliveries, hasLength(2));
+      expect(result.outcomeFor('webhook')!.status, 'queued');
+      final email = result.outcomeFor('email')!;
+      expect(email.status, 'not_configured');
+      expect(email.targets, ['ops@acme.test', 'lead@acme.test']);
+      expect(email.detail, 'Email delivery not configured');
+      expect(result.outcomeFor('sms'), isNull);
+    });
+
+    test('an older run response without deliveries still parses', () {
+      final result = ScheduleRunResult.fromJson({
+        'schedule': _row,
+        'generatedAt': '2026-09-14T10:05:00.000Z',
+        'rowCount': 3,
+      });
+      expect(result.runId, isNull);
+      expect(result.deliveredTo, isEmpty);
+      expect(result.deliveries, isEmpty);
     });
   });
 }

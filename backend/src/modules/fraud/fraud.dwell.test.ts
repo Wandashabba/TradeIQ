@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import {
   computeFraudSignals,
   DEFAULT_SLOW_COMPLETION_MINUTES,
@@ -49,12 +50,14 @@ describe('fast_completion dwell (#101)', () => {
   };
 
   const codes = (v: FraudVisitInput) =>
-    computeFraudSignals(v, related).signals.map((s) => s.code);
+    computeFraudSignals(v, related, {}, DEFAULT_CLIENT_TIME_ZONE).signals.map((s) => s.code);
 
   it('flags a genuinely fast visit using the device clock', () => {
     const result = computeFraudSignals(
       visit({ submittedAtClient: new Date('2026-07-13T09:00:20.000Z') }), // 20s
       related,
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
     );
 
     expect(result.signals.map((s) => s.code)).toContain('fast_completion');
@@ -70,6 +73,8 @@ describe('fast_completion dwell (#101)', () => {
     const result = computeFraudSignals(
       visit({ submittedAtClient: new Date('2026-07-13T09:40:00.000Z') }), // 40 min
       related,
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
     );
 
     expect(result.signals.map((s) => s.code)).not.toContain('fast_completion');
@@ -82,6 +87,8 @@ describe('fast_completion dwell (#101)', () => {
     const result = computeFraudSignals(
       visit({ submittedAtClient: new Date('2026-07-13T08:59:30.000Z') }),
       related,
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
     );
 
     expect(result.signals.map((s) => s.code)).not.toContain('fast_completion');
@@ -102,7 +109,7 @@ describe('fast_completion dwell (#101)', () => {
     const result = computeFraudSignals(visit({ submittedAtClient: null }), {
       ...related,
       sectionCreatedAts: [],
-    });
+    }, {}, DEFAULT_CLIENT_TIME_ZONE);
 
     expect(result.signals.map((s) => s.code)).toContain('no_capture');
   });
@@ -139,12 +146,14 @@ describe('slow_completion dwell (#247)', () => {
   };
 
   const codes = (v: FraudVisitInput, kpi?: unknown) =>
-    computeFraudSignals(v, related, kpi).signals.map((s) => s.code);
+    computeFraudSignals(v, related, kpi, DEFAULT_CLIENT_TIME_ZONE).signals.map((s) => s.code);
 
   it('fires above the default band, on the device clock', () => {
     const result = computeFraudSignals(
       visit({ submittedAtClient: minutesAfter(DEFAULT_SLOW_COMPLETION_MINUTES + 12) }),
       related,
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
     );
 
     expect(result.signals.map((s) => s.code)).toEqual(['slow_completion']);
@@ -168,8 +177,13 @@ describe('slow_completion dwell (#247)', () => {
     // Section rows synced nine hours later. That is the network, not the agent,
     // and it must not be read as a slow visit.
     const lateSync = { ...related, sectionCreatedAts: [new Date('2026-07-13T18:00:00.000Z')] };
-    expect(computeFraudSignals(visit({ submittedAtClient: null }), lateSync).signals).toEqual([]);
-    expect(computeFraudSignals(visit(), lateSync).signals).toEqual([]);
+    expect(computeFraudSignals(
+      visit({ submittedAtClient: null }),
+      lateSync,
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
+    ).signals).toEqual([]);
+    expect(computeFraudSignals(visit(), lateSync, {}, DEFAULT_CLIENT_TIME_ZONE).signals).toEqual([]);
   });
 
   it('does not fire on a draft, or on a submitted visit with nothing captured', () => {
@@ -177,7 +191,7 @@ describe('slow_completion dwell (#247)', () => {
     const none = computeFraudSignals(visit({ submittedAtClient: minutesAfter(120) }), {
       ...related,
       sectionCreatedAts: [],
-    });
+    }, {}, DEFAULT_CLIENT_TIME_ZONE);
     // no_capture already says the stronger thing.
     expect(none.signals.map((s) => s.code)).toEqual(['no_capture']);
   });
@@ -191,7 +205,12 @@ describe('slow_completion dwell (#247)', () => {
     expect(codes(seventy)).toEqual(['slow_completion']);
     expect(codes(seventy, { [SLOW_COMPLETION_MINUTES_KEY]: 90 })).toEqual([]);
     // The detail names the band that was actually applied.
-    const [signal] = computeFraudSignals(thirty, related, { slowCompletionMinutes: 20 }).signals;
+    const [signal] = computeFraudSignals(
+      thirty,
+      related,
+      { slowCompletionMinutes: 20 },
+      DEFAULT_CLIENT_TIME_ZONE,
+    ).signals;
     expect(signal.detail).toContain('over the 20 min benchmark');
   });
 
@@ -228,8 +247,18 @@ describe('slow_completion dwell (#247)', () => {
   });
 
   it('caps an idle app: a phone left open overnight scores no higher than a 49-minute visit', () => {
-    const justOver = computeFraudSignals(visit({ submittedAtClient: minutesAfter(49) }), related);
-    const overnight = computeFraudSignals(visit({ submittedAtClient: minutesAfter(14 * 60) }), related);
+    const justOver = computeFraudSignals(
+      visit({ submittedAtClient: minutesAfter(49) }),
+      related,
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
+    );
+    const overnight = computeFraudSignals(
+      visit({ submittedAtClient: minutesAfter(14 * 60) }),
+      related,
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
+    );
 
     expect(justOver.riskScore).toBe(10);
     expect(overnight.riskScore).toBe(justOver.riskScore);
@@ -245,6 +274,8 @@ describe('slow_completion dwell (#247)', () => {
         ...related,
         photos: [{ gpsTag: { lat: -26.21, lng: 28.0 } }],
       },
+      {},
+      DEFAULT_CLIENT_TIME_ZONE,
     );
 
     expect(result.signals.map((s) => s.code)).toEqual(

@@ -6,6 +6,8 @@ import { expandOccurrences, type Recurrence } from './recurrence';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { buildPage } from '../../lib/pagination';
 import type { AuthTokenPayload } from '../auth/auth.service';
+import { addCalendarDays, localCalendarDate } from '../../lib/clientTime';
+import { getClientTimeZone } from '../clients/clients.service';
 
 export type BeatPlanStatus = 'planned' | 'in_progress' | 'completed';
 
@@ -220,8 +222,6 @@ export interface MarkRouteStopsVisitedInput {
   checkinTs: Date;
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
 /**
  * Issue #52: a submitted visit IS the stop being visited. Before this, only the
  * manager's checkbox (`updateStop`) ever set `visited`, so an agent could work
@@ -231,17 +231,17 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * same agent. Both guards are applied independently — a plan is never matched
  * on agent alone.
  *
- * **Which day.** Plans whose `scheduledDate` falls on the UTC calendar day of
- * the check-in, as a half-open range `[00:00Z, next 00:00Z)`. This is the
- * convention plans are already written in: the plan form sends `YYYY-MM-DD`,
- * which is stored as midnight UTC, and recurrence expands in the UTC calendar
- * (`recurrence.ts`). There is no `Client.timezone` and the server does no other
- * timezone reasoning, so a local-day rule would be a guess. The range (rather
- * than equality with midnight) also matches a plan created with a full instant.
- * Known edge: on SAST (UTC+2) a check-in between 00:00 and 02:00 local lands on
- * the previous UTC day. Nobody audits a shop at that hour; if it ever matters
- * the fix is a `Client.timezone`, not a wider window — a wider window would
- * start ticking yesterday's and tomorrow's occurrences of a daily series.
+ * **Which day (#309).** The check-in's calendar date in the CLIENT's timezone
+ * (`Client.timezone`), compared as a calendar date — not as an instant. A plan's
+ * `scheduledDate` is a calendar date stored as UTC midnight of that date (the
+ * plan form sends `YYYY-MM-DD`; recurrence emits the same, `recurrence.ts`), so
+ * a Johannesburg check-in at 00:30 on the 15th (22:30Z on the 14th) resolves to
+ * the date 15th and matches the plan stored at `15th 00:00Z`. Matched as the
+ * half-open range `[date 00:00Z, next date 00:00Z)` rather than equality, so a
+ * plan created with a full instant on that UTC date still matches.
+ *
+ * Never a wider window: that would start ticking yesterday's and tomorrow's
+ * occurrences of a daily series.
  *
  * **Which plans.** Not `completed` ones: a manager who closed a plan has closed
  * it. (`planned | in_progress | completed` is the whole status set — there is
@@ -253,9 +253,9 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * duplicate offline sync marks nothing twice. Returns how many stops changed.
  */
 export async function markRouteStopsVisited(input: MarkRouteStopsVisitedInput): Promise<number> {
-  const ts = input.checkinTs;
-  const dayStart = new Date(Date.UTC(ts.getUTCFullYear(), ts.getUTCMonth(), ts.getUTCDate()));
-  const dayEnd = new Date(dayStart.getTime() + MS_PER_DAY);
+  const timeZone = await getClientTimeZone(input.clientId);
+  const dayStart = localCalendarDate(input.checkinTs, timeZone);
+  const dayEnd = addCalendarDays(dayStart, 1);
 
   const { count } = await prisma.beatPlanStop.updateMany({
     where: {

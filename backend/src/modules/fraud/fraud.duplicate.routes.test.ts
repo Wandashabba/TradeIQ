@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { DEFAULT_CLIENT_TIME_ZONE, localCalendarDate } from '../../lib/clientTime';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { reencodedCopy, shelfJpeg, toDataUrl } from '../../test-utils/shelfImage';
@@ -220,9 +221,41 @@ describe('duplicate_photo routes (#244)', () => {
       ]);
       expect(result.riskScore).toBe(35);
       expect(result.signals[0].detail).toContain('byte-identical to a photo from a visit to a different outlet');
-      expect(result.signals[0].detail).toContain(daysAgo(10).toISOString().slice(0, 10));
+      // The client was created without a timezone, so its dates read in
+      // Africa/Johannesburg (#325), whatever hour of the UTC day this runs at.
+      const first = await prisma.visit.findUniqueOrThrow({ where: { id: visits.aFirst }, select: { checkinTs: true } });
+      expect(result.signals[0].detail).toContain(
+        `on ${localCalendarDate(first.checkinTs, DEFAULT_CLIENT_TIME_ZONE).toISOString().slice(0, 10)} (device check-in)`,
+      );
 
       expect((await fraudFor(visits.aFirst)).signals).toEqual([]);
+    });
+
+    it("names the matched visit's date in the client's timezone, read from the database (#325)", async () => {
+      const { checkinTs } = await prisma.visit.findUniqueOrThrow({
+        where: { id: visits.aFirst },
+        select: { checkinTs: true },
+      });
+      // 23:30Z on the first use's own UTC day: still about ten days back, well
+      // before the reuse five days ago, and already tomorrow in Johannesburg.
+      const utcDay = Date.UTC(checkinTs.getUTCFullYear(), checkinTs.getUTCMonth(), checkinTs.getUTCDate());
+      const lateEvening = new Date(utcDay + 23.5 * 60 * 60 * 1000);
+      const sameDay = new Date(utcDay).toISOString().slice(0, 10);
+      const nextDay = new Date(utcDay + DAY_MS).toISOString().slice(0, 10);
+      const dateOnDetail = async () => (await duplicateOf(visits.aCross))!.detail.match(/ on (\d{4}-\d{2}-\d{2}) \(device check-in\)/)?.[1];
+      const setTimeZone = (timezone: string) => prisma.client.update({ where: { id: clientId }, data: { timezone } });
+      try {
+        await prisma.visit.update({ where: { id: visits.aFirst }, data: { checkinTs: lateEvening } });
+        // Created without a timezone: Africa/Johannesburg.
+        expect(await dateOnDetail()).toBe(nextDay);
+        await setTimeZone('UTC');
+        expect(await dateOnDetail()).toBe(sameDay);
+        await setTimeZone('America/New_York');
+        expect(await dateOnDetail()).toBe(sameDay);
+      } finally {
+        await prisma.visit.update({ where: { id: visits.aFirst }, data: { checkinTs } });
+        await setTimeZone(DEFAULT_CLIENT_TIME_ZONE);
+      }
     });
 
     it('scores the same image from an earlier visit to the same outlet as the weaker signal', async () => {

@@ -1500,6 +1500,72 @@
       }
     }
   },
+  "visitTemplateSectionKicker": "Client questions",
+  "@visitTemplateSectionKicker": {
+    "description": "Visit hub and the client-questions section: labels the extra section built from the client's own audit template (#122). The template name itself is client-authored and not translated."
+  },
+  "visitTemplateTileDetail": "Client questions · {detail}",
+  "@visitTemplateTileDetail": {
+    "description": "Visit hub tile/row line under the client template's name: the section kind, then its state (e.g. \"2 of 5 answered\" or \"Optional\").",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "visitTemplateSectionIntro": "Extra questions this client asks on every visit. Answer the required ones before you submit.",
+  "@visitTemplateSectionIntro": {
+    "description": "Client-questions section: one-line intro above the questions."
+  },
+  "visitTemplateProgressAnswered": "{answered} of {total} answered",
+  "@visitTemplateProgressAnswered": {
+    "description": "Client-questions progress: visible questions answered out of visible questions.",
+    "placeholders": {
+      "answered": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "visitTemplateRequiredLeft": "{count, plural, =1{1 required question left} other{{count} required questions left}}",
+  "@visitTemplateRequiredLeft": {
+    "description": "Client-questions section and hub: required questions still unanswered, which block the submit.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "visitTemplateAllRequiredAnswered": "All required questions answered",
+  "@visitTemplateAllRequiredAnswered": {
+    "description": "Client-questions section: shown once nothing required is left."
+  },
+  "visitTemplateFieldRequired": "Required",
+  "@visitTemplateFieldRequired": {
+    "description": "Client-questions section: marker on a question that must be answered before submitting."
+  },
+  "visitTemplateFieldRequiredError": "Answer this before you submit",
+  "@visitTemplateFieldRequiredError": {
+    "description": "Client-questions section: shown on an unanswered required question after the agent saves."
+  },
+  "visitTemplateSave": "Save answers",
+  "@visitTemplateSave": {
+    "description": "Client-questions section: save button. Answers are queued for sync."
+  },
+  "visitTemplateSaved": "Answers saved — queued for sync",
+  "@visitTemplateSaved": {
+    "description": "Client-questions section: confirmation after saving."
+  },
+  "visitTemplatePhotoUnsupported": "Photo questions can’t be answered in the app yet",
+  "@visitTemplatePhotoUnsupported": {
+    "description": "Client-questions section: shown on a photo question, which cannot be captured in the form yet and never blocks the submit."
+  },
+  "visitTemplateNoQuestions": "This client’s template has no questions yet",
+  "@visitTemplateNoQuestions": {
+    "description": "Client-questions section: the template has no renderable questions."
+  },
   "locationNoticeTitle": "Your location is shared with your manager",
   "@locationNoticeTitle": {
     "description": "Title of the one-time location notice (#153, POPIA). Shown before the app sends any location."

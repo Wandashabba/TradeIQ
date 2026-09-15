@@ -12,6 +12,7 @@ import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/clients_repository.dart';
+import '../data/iana_time_zones.dart';
 
 class ClientConfigScreen extends ConsumerWidget {
   const ClientConfigScreen({super.key});
@@ -111,6 +112,8 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _TimezonePanel(timezone: widget.config.timezone),
+        const SizedBox(height: 16),
         PanelCard(
           title: 'Scorecard weights',
           subtitle: 'Relative — the server normalises by their total',
@@ -166,6 +169,329 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
         const SizedBox(height: 16),
         _ThresholdsPanel(thresholds: widget.config.kpiThresholds),
       ],
+    );
+  }
+}
+
+/// The client's timezone (#309) — the calendar every day-based rule counts in.
+///
+/// Shown to anyone who can open the screen; changeable by a manager or an
+/// admin. Picked from a list rather than typed, because the server accepts only
+/// exact canonical IANA names and a free-text box would mostly produce 400s.
+class _TimezonePanel extends ConsumerStatefulWidget {
+  const _TimezonePanel({required this.timezone});
+
+  final String timezone;
+
+  @override
+  ConsumerState<_TimezonePanel> createState() => _TimezonePanelState();
+}
+
+class _TimezonePanelState extends ConsumerState<_TimezonePanel> {
+  bool _saving = false;
+
+  Future<void> _change() async {
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (_) => _TimezonePickerDialog(current: widget.timezone),
+    );
+    if (picked == null || picked == widget.timezone || !mounted) return;
+
+    setState(() => _saving = true);
+    try {
+      await ref.read(clientsRepositoryProvider).updateTimezone(picked);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Timezone set to $picked')),
+      );
+      ref.invalidate(clientConfigProvider);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            describeSaveFailure(
+              e,
+              forbidden:
+                  'Only a manager or administrator can change the timezone.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final canEdit = canEditTimezone(ref);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PanelCard(
+          title: 'Timezone',
+          subtitle: "The calendar your team's days are counted in",
+          child: Container(
+            key: const ValueKey<String>('timezone-current'),
+            padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+            // Same ground as the read-only notice: opaque surface2, so the zone
+            // name measures true; only the hairline becomes the pane rim.
+            decoration: BoxDecoration(
+              color: colors.surface2,
+              border: Border.all(
+                color: colors.glass ? context.lumen.panelRim : colors.lineStrong,
+              ),
+              borderRadius: BorderRadius.circular(
+                colors.glass ? LumenGlass.radiusControl : AppColors.radiusControl,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.schedule_outlined, size: 16, color: colors.ink3),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      widget.timezone,
+                      key: const ValueKey<String>('timezone-value'),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.ink1,
+                      ),
+                    ),
+                  ),
+                ),
+                if (canEdit)
+                  TextButton(
+                    key: const ValueKey<String>('change-timezone'),
+                    onPressed: _saving ? null : _change,
+                    child: Text(_saving ? 'Saving…' : 'Change'),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Decides which day a check-in counts toward — a visit at 00:30 belongs '
+          "to that morning's route, not yesterday's — and where trend days and "
+          'weeks begin. A change applies to trends straight away; stops already '
+          'ticked on past routes stay as they are.',
+          style: TextStyle(fontSize: 11.5, color: colors.ink3, height: 1.5),
+        ),
+      ],
+    );
+  }
+}
+
+/// Zones offered above the full list. Johannesburg leads: it is where every
+/// current field team works, and the zone a new client starts in.
+const suggestedTimeZones = <String>[defaultClientTimeZone];
+
+/// The picker's two sections for a search [query].
+///
+/// With no query, [suggested] holds [suggestedTimeZones] followed by [current]
+/// (when it is not already one of them), and [all] holds every other zone, so
+/// nothing is listed twice. With a query, matching is case-insensitive and
+/// treats a space as the underscore IANA names use ("new york" finds
+/// `America/New_York`); [suggested] is empty and any suggested zone that
+/// matches leads [all].
+({List<String> suggested, List<String> all}) timezoneOptions(
+  String query, {
+  required String current,
+}) {
+  final needle = query.trim().toLowerCase().replaceAll(' ', '_');
+  if (needle.isEmpty) {
+    final suggested = <String>[
+      ...suggestedTimeZones,
+      if (!suggestedTimeZones.contains(current)) current,
+    ];
+    return (
+      suggested: suggested,
+      all: [
+        for (final zone in ianaTimeZones)
+          if (!suggested.contains(zone)) zone,
+      ],
+    );
+  }
+  final matches = [
+    for (final zone in ianaTimeZones)
+      if (zone.toLowerCase().contains(needle)) zone,
+  ];
+  return (
+    suggested: const [],
+    all: [
+      for (final zone in suggestedTimeZones)
+        if (matches.contains(zone)) zone,
+      for (final zone in matches)
+        if (!suggestedTimeZones.contains(zone)) zone,
+    ],
+  );
+}
+
+class _TimezonePickerDialog extends StatefulWidget {
+  const _TimezonePickerDialog({required this.current});
+
+  final String current;
+
+  @override
+  State<_TimezonePickerDialog> createState() => _TimezonePickerDialogState();
+}
+
+class _TimezonePickerDialogState extends State<_TimezonePickerDialog> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final options = timezoneOptions(_search.text, current: widget.current);
+    // Headers and zones in one lazily built list: there are ~420 zones, and
+    // building every row up front for a dialog most people search is waste.
+    final rows = <Object>[
+      if (options.suggested.isNotEmpty) ...[
+        const _PickerHeader('Suggested'),
+        ...options.suggested,
+        const _PickerHeader('All timezones'),
+      ],
+      ...options.all,
+    ];
+
+    return AlertDialog(
+      title: const Text('Choose timezone'),
+      content: SizedBox(
+        width: 440,
+        height: 460,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              key: const ValueKey<String>('timezone-search'),
+              controller: _search,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                isDense: true,
+                prefixIcon: Icon(Icons.search, size: 18),
+                hintText: 'Search — e.g. Johannesburg, New York',
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: options.all.isEmpty && options.suggested.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No timezone matches "${_search.text.trim()}".',
+                        key: const ValueKey<String>('timezone-no-match'),
+                        style: TextStyle(fontSize: 12.5, color: colors.ink3),
+                      ),
+                    )
+                  : ListView.builder(
+                      key: const ValueKey<String>('timezone-options'),
+                      itemCount: rows.length,
+                      itemBuilder: (context, index) {
+                        final row = rows[index];
+                        if (row is _PickerHeader) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+                            child: SectionLabel(row.label),
+                          );
+                        }
+                        final zone = row as String;
+                        return _ZoneRow(
+                          zone: zone,
+                          selected: zone == widget.current,
+                          onTap: () => Navigator.of(context).pop(zone),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
+}
+
+class _PickerHeader {
+  const _PickerHeader(this.label);
+  final String label;
+}
+
+class _ZoneRow extends StatelessWidget {
+  const _ZoneRow({
+    required this.zone,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String zone;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    // The place a manager recognises first, the exact IANA name under it.
+    final place = zone.split('/').last.replaceAll('_', ' ');
+
+    return InkWell(
+      key: ValueKey<String>('timezone-option-$zone'),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        decoration: BoxDecoration(
+          // Glass rule is the pane rim — see _WeightRow.
+          border: Border(
+            top: BorderSide(
+              color: colors.glass ? context.lumen.panelRim : colors.line,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(place, style: TextStyle(fontSize: 13, color: colors.ink1)),
+                  if (place != zone) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      zone,
+                      style: TextStyle(fontSize: 11, color: colors.ink3),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(
+                Icons.check,
+                key: const ValueKey<String>('timezone-selected'),
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -422,10 +748,24 @@ class _WeightRow extends StatelessWidget {
 bool canEditConfig(WidgetRef ref) =>
     ref.watch(sessionControllerProvider).value?.role == 'admin';
 
+/// Whether the signed-in user may change the client's timezone.
+///
+/// Wider than [canEditConfig]: `PATCH /clients/me` accepts `timezone` from a
+/// manager too (#309), while weights and thresholds stay admin-only.
+bool canEditTimezone(WidgetRef ref) {
+  final role = ref.watch(sessionControllerProvider).value?.role;
+  return role == 'manager' || role == 'admin';
+}
+
 /// A save failure in words a human can act on, rather than a stack trace.
-String describeSaveFailure(Object error) {
+///
+/// [forbidden] is what a 403 means for the thing being saved.
+String describeSaveFailure(
+  Object error, {
+  String forbidden = 'Only an administrator can change scoring config.',
+}) {
   if (error is DioException && error.response?.statusCode == 403) {
-    return 'Only an administrator can change scoring config.';
+    return forbidden;
   }
   if (error is DioException && error.response?.statusCode == 400) {
     final message = error.response?.data;

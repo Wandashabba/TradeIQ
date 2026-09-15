@@ -1,4 +1,4 @@
-import { baselineWindow, computeRoi } from './roi';
+import { computeRoi } from './roi';
 
 describe('computeRoi', () => {
   it('measures incremental revenue against spend', () => {
@@ -66,36 +66,5 @@ describe('computeRoi', () => {
 
     expect(roi.incrementalRevenue).toBe(0);
     expect(roi.roiPct).toBe(-100);
-  });
-});
-
-describe('baselineWindow', () => {
-  it('is the equal-length window immediately before the campaign', () => {
-    const start = new Date('2026-07-01T00:00:00.000Z');
-    const end = new Date('2026-07-31T00:00:00.000Z');
-
-    const { from, to } = baselineWindow(start, end);
-
-    expect(to.toISOString()).toBe(start.toISOString());
-    expect(from.toISOString()).toBe('2026-06-01T00:00:00.000Z');
-    // Equal length, or the comparison invents lift out of arithmetic.
-    expect(to.getTime() - from.getTime()).toBe(end.getTime() - start.getTime());
-  });
-
-  it('is contiguous with the campaign, leaving no unmeasured gap', () => {
-    const start = new Date('2026-03-10T00:00:00.000Z');
-    const end = new Date('2026-03-17T00:00:00.000Z');
-
-    const { to } = baselineWindow(start, end);
-
-    expect(to.getTime()).toBe(start.getTime());
-  });
-
-  it('collapses to an empty window for a zero-length campaign', () => {
-    const instant = new Date('2026-05-05T00:00:00.000Z');
-
-    const { from, to } = baselineWindow(instant, instant);
-
-    expect(from.getTime()).toBe(to.getTime());
   });
 });

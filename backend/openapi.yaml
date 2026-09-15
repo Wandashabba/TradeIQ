@@ -266,6 +266,25 @@ paths:
                             code: { type: string }
                             detail: { type: string }
                             weight: { type: number }
+                  templateResponses:
+                    type: array
+                    description: >
+                      The visit's answers to its client's audit template (#122) —
+                      the client-questions section that supplements S1–S10. Empty
+                      when there are none. `schema` is the template's CURRENT
+                      schema (no version history is kept), for resolving question
+                      labels; compare `templateVersion` with `currentVersion`.
+                      Never part of `score`.
+                    items:
+                      type: object
+                      properties:
+                        templateId: { type: string }
+                        templateName: { type: string }
+                        templateVersion: { type: integer, description: The version the answers were given against }
+                        currentVersion: { type: integer }
+                        schema: { type: object, additionalProperties: true }
+                        answers: { type: object, additionalProperties: true, description: Keyed by the schema's field ids }
+                        recordedAt: { type: string, format: date-time }
         '401':
           description: Missing or invalid token
         '403':
@@ -279,9 +298,12 @@ paths:
         After the visit is persisted, submit also (best-effort — none of these
         can fail a submission that has already been saved): marks the agent's
         beat-plan stops for this outlet visited (#52), on plans of the same
-        client and agent that are not completed and whose scheduledDate falls on
-        the UTC calendar day of the visit's device check-in time (checkinTs) —
-        idempotent, so a re-submit or duplicate sync changes nothing; fires the
+        client and agent that are not completed and whose scheduledDate is the
+        calendar date of the visit's device check-in time (checkinTs) in the
+        client's timezone (Client.timezone, #309) — so a 00:30 SAST check-in
+        counts toward that day's plan, not the previous one. scheduledDate is a
+        calendar date stored as UTC midnight, and is compared as a date, not
+        an instant. Idempotent, so a re-submit or duplicate sync changes nothing; fires the
         visit.submitted webhook; and evaluates the client's active alert rules.
       security: [{ bearerAuth: [] }]
       parameters:
@@ -799,6 +821,11 @@ paths:
       responses: { '200': { description: Campaigns } }
     post:
       summary: Create a campaign + assign outlets — manager/admin
+      description: >-
+        startDate and endDate are calendar dates (YYYY-MM-DD; a full ISO instant is
+        read as its UTC date). The campaign window is inclusive of both dates in the
+        client's timezone: from the start of startDate to the end of endDate, local.
+        Compliance, order attribution and the ROI baseline all use that window.
       security: [{ bearerAuth: [] }]
       responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden }, '404': { description: Outlet not found } }
   /campaigns/{id}:
@@ -893,6 +920,95 @@ paths:
       summary: Create an audit template — manager/admin
       security: [{ bearerAuth: [] }]
       responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden } }
+  /templates/selected:
+    get:
+      summary: The client's audit template — any role (#122)
+      description: >
+        The template whose questions field agents answer on every visit, as an
+        extra "client questions" section after the fixed S1–S10. It supplements
+        those sections and never feeds the perfect-store score. `template` is
+        null when the client uses none; a paused template is never returned.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The selected template (with its schema), or null
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [template]
+                properties:
+                  template:
+                    nullable: true
+                    allOf: [{ $ref: '#/components/schemas/AuditTemplate' }]
+        '401': { description: Missing or invalid token }
+    put:
+      summary: Set or clear the client's audit template — manager/admin (#122)
+      description: >
+        Only one of the caller's client's own, active templates can be chosen.
+        Another client's template is a 404. Pass `templateId: null` to stop
+        using a template in audits. Pausing a template (PATCH active=false)
+        also clears it.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [templateId]
+              properties:
+                templateId: { type: string, nullable: true }
+      responses:
+        '200':
+          description: The template now in use, or null when cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [template]
+                properties:
+                  template:
+                    nullable: true
+                    allOf: [{ $ref: '#/components/schemas/AuditTemplate' }]
+        '400': { description: templateId missing or not a string/null, or the template is paused }
+        '403': { description: Caller is not a manager/admin }
+        '404': { description: Template not found for this client }
+  /template-responses:
+    post:
+      summary: Record a visit's answers to a template (upsert per visit+template) — field_agent
+      description: >
+        Answers are keyed by the schema's field ids. Re-posting overwrites the
+        answers. `templateVersion` is the version the agent's device rendered;
+        when omitted the template's current version is recorded. The visit must
+        be the caller's own; the template must belong to the caller's client.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId, templateId, answers]
+              properties:
+                visitId: { type: string }
+                templateId: { type: string }
+                answers: { type: object, additionalProperties: true }
+                templateVersion: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: The stored response, with templateVersion }
+        '400': { description: Invalid body, or templateVersion newer than the template }
+        '403': { description: Caller is not a field_agent }
+        '404': { description: Visit (of this agent) or template (of this client) not found }
+    get:
+      summary: List a visit's template responses — tenant-scoped
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: visitId, in: query, required: true, schema: { type: string } }
+        - { name: templateId, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses: { '200': { description: '{ data, nextCursor }' }, '400': { description: Missing visitId }, '404': { description: Visit not found } }
   /templates/{id}:
     get:
       summary: Fetch a template
@@ -1218,6 +1334,11 @@ paths:
                   nextCursor: { type: string, nullable: true }
     post:
       summary: Create a webhook subscription — manager/admin
+      description: >
+        `event` is the event to subscribe to. TradeIQ emits `visit.submitted`,
+        `alert.raised`, `order.created` and `report.generated` (a report
+        schedule ran; payload is ReportGeneratedPayload). Any non-empty string
+        is accepted, but an event not on that list never fires.
       security: [{ bearerAuth: [] }]
       responses: { '201': { description: Created }, '400': { description: Invalid url/event }, '403': { description: Forbidden } }
   /webhooks/{id}:
@@ -1355,13 +1476,58 @@ paths:
   # ── Follow-ups (Phase 1/3) ────────────────────────────────────────────────
   /clients/me:
     get:
-      summary: The caller's client config (scorecard weights / KPI thresholds)
+      summary: The caller's client config (scorecard weights / KPI thresholds / timezone)
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Config } }
+      responses:
+        '200':
+          description: Config
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, industry, scorecardWeights, kpiThresholds, assistantEnabled, timezone]
+                properties:
+                  id: { type: string }
+                  name: { type: string }
+                  industry: { type: string }
+                  scorecardWeights: { type: object, additionalProperties: { type: number } }
+                  kpiThresholds: { type: object, additionalProperties: { type: number } }
+                  assistantEnabled: { type: boolean, description: 'Read-only rollout flag' }
+                  timezone:
+                    type: string
+                    example: Africa/Johannesburg
+                    description: >-
+                      IANA zone the client's calendar days are counted in (#309):
+                      beat-plan route-stop matching, trend day/week buckets and the
+                      assistant's periods. Defaults to Africa/Johannesburg.
     patch:
-      summary: Update scorecard weights / KPI thresholds — admin
+      summary: Update scoring config (admin) and/or timezone (manager/admin)
+      description: >-
+        scorecardWeights and kpiThresholds are admin-only — a manager sending
+        either gets 403, even alongside timezone, and nothing is changed. A
+        manager may send timezone on its own.
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Updated }, '400': { description: Invalid }, '403': { description: Forbidden } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: At least one of scorecardWeights, kpiThresholds or timezone is required.
+              properties:
+                scorecardWeights: { type: object, additionalProperties: { type: number, minimum: 0 } }
+                kpiThresholds: { type: object, additionalProperties: { type: number } }
+                timezone:
+                  type: string
+                  example: America/New_York
+                  description: >-
+                    A canonical IANA zone name as listed by the runtime's
+                    Intl.supportedValuesOf('timeZone'), or UTC. Case-sensitive;
+                    offsets (+02:00), abbreviations (SAST) and aliases are a 400.
+      responses:
+        '200': { description: 'Updated config (same shape as GET)' }
+        '400': { description: 'Empty body, invalid weights/thresholds, or not an IANA timezone' }
+        '403': { description: 'Field agent; or a manager sending scorecardWeights/kpiThresholds' }
   /users:
     get:
       summary: List client users — manager/admin
@@ -1481,29 +1647,113 @@ paths:
   /report-schedules:
     get:
       summary: List report schedules — manager/admin
+      description: >
+        Active schedules are fired automatically by the schedule worker (#66).
+        Each carries `nextRunAt` (null while paused) and `lastRunAt`. Daily is
+        every 24h and weekly every 7 days from the previous due time, in UTC
+        (per-client timezones are #309). A schedule missed while no backend
+        instance was running fires once on catch-up, not once per missed
+        period. Each run is generated and delivered as a `report.generated`
+        webhook event to the client's active webhooks subscribed to it; email
+        delivery is not configured, so `recipients` are stored but not emailed.
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Schedules } }
+      responses:
+        '200':
+          description: Schedules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/ReportSchedule'
+                        - type: object
+                          properties:
+                            reportDefinition:
+                              type: object
+                              properties:
+                                name: { type: string }
+                  nextCursor: { type: string, nullable: true }
     post:
       summary: Schedule a saved report — manager/admin
+      description: The first run is one cadence period after creation.
       security: [{ bearerAuth: [] }]
-      responses: { '201': { description: Created }, '400': { description: Invalid }, '404': { description: Report definition not found } }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportSchedule' }
+        '400': { description: Invalid }
+        '404': { description: Report definition not found }
   /report-schedules/{id}:
     patch:
       summary: Update a report schedule — manager/admin
+      description: >
+        Pausing (`active: false`) clears `nextRunAt`. Resuming schedules the
+        next run one period from now; it does not fire for the time spent
+        paused. Changing the cadence of an active schedule counts the new
+        period from the previous due time.
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportSchedule' }
+        '400': { description: Invalid }
+        '404': { description: Not found }
     delete:
       summary: Delete a report schedule — manager/admin
+      description: The schedule's runs are deleted with it, so their CSV links stop resolving.
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '204': { description: Deleted }, '404': { description: Not found } }
   /report-schedules/{id}/run:
     post:
-      summary: Generate the scheduled report now + record the run — manager/admin
+      summary: Generate and deliver the scheduled report now — manager/admin
+      description: >
+        The same code path as a scheduled run: generates the report, records a
+        run, and delivers it through every channel (a `report.generated`
+        webhook event; email is not configured). Does not move `nextRunAt`.
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: 'Generated (delivery is Phase 4)' }, '404': { description: Not found } }
+      responses:
+        '200':
+          description: Generated, recorded and handed to the delivery channels
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleRunResult' }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+  /report-schedules/{id}/runs/{runId}/csv:
+    get:
+      summary: Download a run's report as CSV — manager/admin
+      description: >
+        What a `report.generated` webhook's `csvPath` points at. Subscribers
+        fetch it with a manager/admin bearer token. The rows are regenerated
+        from the schedule's report definition, bounded to records whose report
+        date (checkinTs for visits, createdAt otherwise) is at or before the
+        run's `generatedAt`: records added after the run are excluded, while
+        field values are current rather than frozen. Another client's run is a
+        404.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The run's report (attachment)
+          content:
+            text/csv:
+              schema: { type: string }
+        '401': { description: Unauthenticated }
+        '403': { description: Forbidden (not manager/admin) }
+        '404': { description: Not found (or another client's schedule or run) }
   /locations/settings:
     get:
       summary: Foreground location sharing settings for the signed-in agent — field agent (#153 T1)
@@ -1699,6 +1949,22 @@ components:
         empty series.
       schema: { type: string }
   schemas:
+    AuditTemplate:
+      type: object
+      description: >
+        A client's versioned dynamic-form template. `schema` is free-form JSON
+        (sections → fields with id/label/type/required/weight/visibleIf/options,
+        plus an optional top-level `scoring` map); the app renders it. A schema
+        edit bumps `version`.
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        name: { type: string }
+        industry: { type: string, nullable: true }
+        schema: { type: object, additionalProperties: true }
+        version: { type: integer }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
     MessageAttachment:
       type: object
       description: >
@@ -1834,11 +2100,92 @@ components:
         lastAttemptAt: { type: string, format: date-time, nullable: true }
         deliveredAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }
+    ReportSchedule:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        reportDefinitionId: { type: string }
+        cadence: { type: string, enum: [daily, weekly] }
+        recipients:
+          type: array
+          items: { type: string }
+          description: Stored for email delivery, which is not configured yet.
+        active: { type: boolean }
+        lastRunAt: { type: string, format: date-time, nullable: true, description: The latest run, scheduled or manual. }
+        nextRunAt: { type: string, format: date-time, nullable: true, description: When the worker next fires it; null while paused. }
+        claimedUntil: { type: string, format: date-time, nullable: true, description: Internal claim lease held by a worker mid-run. }
+        createdAt: { type: string, format: date-time }
+    ReportDeliveryOutcome:
+      type: object
+      description: What one delivery channel did with one run.
+      required: [channel, status, targets]
+      properties:
+        channel: { type: string, enum: [webhook, email] }
+        status:
+          type: string
+          enum: [queued, no_subscribers, not_configured, failed]
+          description: >
+            queued — webhook deliveries were created (see each webhook's
+            delivery log for the outcome); no_subscribers — no active webhook
+            is subscribed to report.generated; not_configured — email delivery
+            is not set up on this deployment; failed — the channel errored
+            before queuing anything.
+        targets:
+          type: array
+          items: { type: string }
+          description: Webhook URLs queued to; for email, the stored recipients.
+        webhookDeliveryIds: { type: array, items: { type: string } }
+        detail: { type: string }
+    ScheduleRunResult:
+      type: object
+      properties:
+        schedule: { $ref: '#/components/schemas/ReportSchedule' }
+        runId: { type: string }
+        trigger: { type: string, enum: [manual, scheduled] }
+        generatedAt: { type: string, format: date-time }
+        rowCount: { type: integer }
+        deliveredTo:
+          type: array
+          items: { type: string }
+          description: >
+            The webhook URLs a report.generated delivery was queued for. Empty
+            when nothing was sent. No longer an echo of `recipients`.
+        deliveries: { type: array, items: { $ref: '#/components/schemas/ReportDeliveryOutcome' } }
+    ReportGeneratedPayload:
+      type: object
+      description: >
+        The `payload` of a `report.generated` webhook event (inside the usual
+        `{ event, payload, timestamp }` envelope). A pointer to the report, not
+        its rows: reports have no row cap and the body is stored and re-sent on
+        every retry, so it stays a few hundred bytes. Fetch the rows from
+        `csvPath` with a manager/admin bearer token. De-duplicate on `runId`.
+      properties:
+        scheduleId: { type: string }
+        reportId: { type: string, description: The report definition id. }
+        reportName: { type: string }
+        reportType: { type: string, enum: [visits, scorecards, tasks, orders] }
+        runId: { type: string }
+        trigger: { type: string, enum: [manual, scheduled] }
+        generatedAt: { type: string, format: date-time }
+        rowCount: { type: integer }
+        csvPath: { type: string, example: '/report-schedules/{id}/runs/{runId}/csv' }
+        csvUrl:
+          type: string
+          nullable: true
+          description: csvPath on the PUBLIC_API_URL origin when that is configured; otherwise null.
     TrendPoint:
       type: object
       required: [period, value, count]
       properties:
-        period: { type: string, format: date-time, description: 'Bucket start (UTC midnight; Monday for weeks)' }
+        period:
+          type: string
+          format: date-time
+          description: >-
+            The bucket's first calendar date in the client's timezone
+            (Client.timezone, #309; Monday for weeks), encoded as UTC midnight of
+            that date — the same convention as a beat plan's scheduledDate. It
+            labels a local day; it is not the instant that day began.
         value: { type: number }
         count: { type: integer }
     BenchmarkSeries:

@@ -444,7 +444,11 @@ class _CreateWebhookDialogState extends ConsumerState<_CreateWebhookDialog> {
           TextField(
             key: const ValueKey<String>('new-event'),
             controller: _eventCtrl,
-            decoration: const InputDecoration(labelText: 'Event'),
+            decoration: InputDecoration(
+              labelText: 'Event',
+              helperText: 'One of: ${webhookEvents.join(', ')}',
+              helperMaxLines: 3,
+            ),
           ),
         ],
       ),

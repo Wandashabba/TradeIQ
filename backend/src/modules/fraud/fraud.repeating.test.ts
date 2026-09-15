@@ -1,3 +1,4 @@
+import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import {
   computeFraudSignals,
   DEFAULT_REPEATING_STOCK_RUN_LENGTH,
@@ -70,7 +71,7 @@ describe('repeating_stock_counts (#245)', () => {
     prior: FraudStockVisit[],
     kpi?: unknown,
     v: FraudVisitInput = visit(),
-  ) => computeFraudSignals(v, related(stock, prior), kpi);
+  ) => computeFraudSignals(v, related(stock, prior), kpi, DEFAULT_CLIENT_TIME_ZONE);
   const codes = (...args: Parameters<typeof score>) => score(...args).signals.map((s) => s.code);
 
   // The basket counted today, identical on the two previous weekly visits.
@@ -262,7 +263,7 @@ describe('repeating_stock_counts (#245)', () => {
         sectionCreatedAts: [checkinTs],
         failedAttempts: [],
         priorStockVisits: weeklyRun(),
-      });
+      }, {}, DEFAULT_CLIENT_TIME_ZONE);
       expect(none.signals).toEqual([]);
     });
 
@@ -274,7 +275,7 @@ describe('repeating_stock_counts (#245)', () => {
         sectionCreatedAts: [checkinTs],
         failedAttempts: [],
         stockCounts: basket,
-      });
+      }, {}, DEFAULT_CLIENT_TIME_ZONE);
       expect(unsupplied.signals).toEqual([]);
     });
   });

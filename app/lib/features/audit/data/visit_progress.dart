@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/storage/local_db.dart';
 import '../../../l10n/l10n.dart';
 import 'skus_repository.dart' show skusListProvider;
+import 'template_section_repository.dart';
 
 /// One section of the audit, as the agent sees it.
 enum AuditSection {
@@ -147,11 +148,76 @@ final class SectionDetail {
   String toString() => text(englishLocalizations);
 }
 
+/// The client-questions section (#122): the client's own audit template,
+/// pinned to this visit, and how far the agent has got with it.
+///
+/// Not an [AuditSection]: it exists only for a client that uses a template,
+/// it is named with the client's own words, and it supplements S1–S10 rather
+/// than being one of them. It never feeds the perfect-store score.
+class TemplateSectionProgress {
+  const TemplateSectionProgress({
+    required this.template,
+    required this.state,
+    required this.answered,
+    required this.questions,
+    required this.requiredLeft,
+    this.answers = const {},
+  });
+
+  /// [saved] is the newest saved answers, or null when never saved.
+  factory TemplateSectionProgress.of(
+    ClientTemplate template,
+    Map<String, Object?>? saved,
+  ) {
+    final answers = saved ?? const <String, Object?>{};
+    final schema = template.schema;
+    final left = schema.missingRequired(answers).length;
+    return TemplateSectionProgress(
+      template: template,
+      // Saved with a required question still open is PARTIAL, never done:
+      // that is the state the submit gate refuses.
+      state: saved == null
+          ? SectionState.notStarted
+          : left > 0
+          ? SectionState.partial
+          : SectionState.done,
+      answered: schema.answeredCount(answers),
+      questions: schema.questionCount(answers),
+      requiredLeft: left,
+      answers: answers,
+    );
+  }
+
+  final ClientTemplate template;
+  final SectionState state;
+  final int answered;
+  final int questions;
+
+  /// Visible required questions still unanswered — the submit blocks on these,
+  /// exactly as it blocks on an unfinished required fixed section.
+  final int requiredLeft;
+  final Map<String, Object?> answers;
+
+  /// Whether the template asks anything that must be answered. A template of
+  /// only optional questions never blocks, like an optional fixed section.
+  bool get isRequired => template.schema.hasRequired;
+
+  bool get blocking => requiredLeft > 0;
+
+  /// "Client questions · 2 of 5 answered" (or Not started / Optional).
+  String detailIn(AppLocalizations l10n) => l10n.visitTemplateTileDetail(
+    state == SectionState.notStarted
+        ? (isRequired ? l10n.visitSectionNotStarted : l10n.visitSectionOptional)
+        : l10n.visitTemplateProgressAnswered(answered, questions),
+  );
+}
+
 class VisitProgress {
   const VisitProgress({
     required this.states,
     required this.details,
     this.detailCodes = const {},
+    this.template,
   });
 
   final Map<AuditSection, SectionState> states;
@@ -163,6 +229,10 @@ class VisitProgress {
 
   /// The same lines as codes, for wording in the agent's language.
   final Map<AuditSection, SectionDetail> detailCodes;
+
+  /// The client-questions section, when this visit's client uses an audit
+  /// template. Null — and the hub exactly as it has always been — otherwise.
+  final TemplateSectionProgress? template;
 
   /// A section's line in [l10n]'s language, or null when it has none.
   String? detailIn(AuditSection s, AppLocalizations l10n) =>
@@ -176,15 +246,26 @@ class VisitProgress {
       .where((s) => s.required && stateOf(s) != SectionState.done)
       .toList();
 
-  bool get canSubmit => blocking.isEmpty;
+  /// Whether the client's required questions still block the submit.
+  bool get templateBlocking => template?.blocking ?? false;
 
-  int get doneCount => AuditSection.values
-      .where((s) => s.entityType != null && stateOf(s) == SectionState.done)
-      .length;
+  /// Everything that blocks the submit: the fixed sections in [blocking], plus
+  /// the client-questions section when it has required questions left.
+  int get blockingCount => blocking.length + (templateBlocking ? 1 : 0);
 
-  /// The eight capturable sections (score is an outcome, not a section).
+  bool get canSubmit => blocking.isEmpty && !templateBlocking;
+
+  int get doneCount =>
+      AuditSection.values
+          .where((s) => s.entityType != null && stateOf(s) == SectionState.done)
+          .length +
+      (template?.state == SectionState.done ? 1 : 0);
+
+  /// The eight capturable sections (score is an outcome, not a section), plus
+  /// the client-questions section when there is one.
   int get captureCount =>
-      AuditSection.values.where((s) => s.entityType != null).length;
+      AuditSection.values.where((s) => s.entityType != null).length +
+      (template == null ? 0 : 1);
 }
 
 /// Reads the audit's progress straight out of the local outbox.
@@ -203,6 +284,10 @@ final visitProgressProvider =
       final skuCount = ref
           .watch(skusListProvider(key.outletId))
           .maybeWhen(data: (list) => list.length, orElse: () => 0);
+      // The client template pinned to this visit — local, so offline too.
+      final template = ref
+          .watch(visitTemplateProvider(key.visitDraftId))
+          .maybeWhen(data: (t) => t, orElse: () => null);
 
       return db.select(db.syncQueueItems).watch().map((rows) {
         final payloads = <String, List<Map<String, dynamic>>>{};
@@ -262,6 +347,16 @@ final visitProgressProvider =
               key: value.text(englishLocalizations),
           },
           detailCodes: details,
+          template: template == null
+              ? null
+              : TemplateSectionProgress.of(
+                  template,
+                  latestTemplateAnswers(
+                    rows,
+                    visitDraftId: key.visitDraftId,
+                    templateId: template.templateId,
+                  ),
+                ),
         );
       });
     });

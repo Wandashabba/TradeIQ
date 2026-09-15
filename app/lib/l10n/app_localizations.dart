@@ -2006,6 +2006,78 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 photo} other{{count} photos}}'**
   String reviewPhotos(int count);
 
+  /// Visit hub and the client-questions section: labels the extra section built from the client's own audit template (#122). The template name itself is client-authored and not translated.
+  ///
+  /// In en, this message translates to:
+  /// **'Client questions'**
+  String get visitTemplateSectionKicker;
+
+  /// Visit hub tile/row line under the client template's name: the section kind, then its state (e.g. "2 of 5 answered" or "Optional").
+  ///
+  /// In en, this message translates to:
+  /// **'Client questions · {detail}'**
+  String visitTemplateTileDetail(String detail);
+
+  /// Client-questions section: one-line intro above the questions.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra questions this client asks on every visit. Answer the required ones before you submit.'**
+  String get visitTemplateSectionIntro;
+
+  /// Client-questions progress: visible questions answered out of visible questions.
+  ///
+  /// In en, this message translates to:
+  /// **'{answered} of {total} answered'**
+  String visitTemplateProgressAnswered(int answered, int total);
+
+  /// Client-questions section and hub: required questions still unanswered, which block the submit.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 required question left} other{{count} required questions left}}'**
+  String visitTemplateRequiredLeft(int count);
+
+  /// Client-questions section: shown once nothing required is left.
+  ///
+  /// In en, this message translates to:
+  /// **'All required questions answered'**
+  String get visitTemplateAllRequiredAnswered;
+
+  /// Client-questions section: marker on a question that must be answered before submitting.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get visitTemplateFieldRequired;
+
+  /// Client-questions section: shown on an unanswered required question after the agent saves.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer this before you submit'**
+  String get visitTemplateFieldRequiredError;
+
+  /// Client-questions section: save button. Answers are queued for sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Save answers'**
+  String get visitTemplateSave;
+
+  /// Client-questions section: confirmation after saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Answers saved — queued for sync'**
+  String get visitTemplateSaved;
+
+  /// Client-questions section: shown on a photo question, which cannot be captured in the form yet and never blocks the submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo questions can’t be answered in the app yet'**
+  String get visitTemplatePhotoUnsupported;
+
+  /// Client-questions section: the template has no renderable questions.
+  ///
+  /// In en, this message translates to:
+  /// **'This client’s template has no questions yet'**
+  String get visitTemplateNoQuestions;
+
   /// Title of the one-time location notice (#153, POPIA). Shown before the app sends any location.
   ///
   /// In en, this message translates to:

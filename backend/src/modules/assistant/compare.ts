@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { describePeriod, resolvePeriod, type DateRange, type Period } from './period';
+import { localCalendarDate, startOfLocalDay } from '../../lib/clientTime';
 
 /**
  * Comparison — the feature that kills the Excel overlay.
@@ -101,8 +102,13 @@ export type PeriodCompareTo = z.infer<typeof periodCompareToSchema>;
  * last month against Western Cape this month would answer a question nobody
  * asked, and the difference would silently mix place and time.
  */
-export function comparisonWindow(period: Period, compareTo: CompareTo, now: Date): DateRange {
-  const current = resolvePeriod(period, now);
+export function comparisonWindow(
+  period: Period,
+  compareTo: CompareTo,
+  now: Date,
+  timeZone: string,
+): DateRange {
+  const current = resolvePeriod(period, now, timeZone);
   switch (compareTo.kind) {
     case 'previous_period': {
       // Same length, ending where this one starts — the definition the
@@ -114,17 +120,25 @@ export function comparisonWindow(period: Period, compareTo: CompareTo, now: Date
     case 'same_period_last_year': {
       // Calendar-shifted, not 365 days back: "March vs March" must stay March
       // across a leap year, and the practitioner's vocabulary is months.
-      return { from: shiftYear(current.from), to: shiftYear(current.to) };
+      return { from: shiftYear(current.from, timeZone), to: shiftYear(current.to, timeZone) };
     }
     case 'territory':
       return current;
   }
 }
 
-function shiftYear(date: Date): Date {
-  const shifted = new Date(date);
-  shifted.setUTCFullYear(shifted.getUTCFullYear() - 1);
-  return shifted;
+/**
+ * The same local midnight one calendar year earlier. Shifted on the client's
+ * calendar date, not the instant: the instant a Johannesburg day starts is
+ * 22:00Z the evening before, and moving that UTC timestamp would mis-date
+ * windows that touch 1 March or a DST change. 29 Feb rolls to 1 Mar, as before.
+ */
+function shiftYear(boundary: Date, timeZone: string): Date {
+  const date = localCalendarDate(boundary, timeZone);
+  const shifted = new Date(
+    Date.UTC(date.getUTCFullYear() - 1, date.getUTCMonth(), date.getUTCDate()),
+  );
+  return startOfLocalDay(shifted, timeZone);
 }
 
 /** How the comparison series should be labelled, in the user's own vocabulary. */
