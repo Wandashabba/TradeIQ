@@ -11,12 +11,14 @@ part 'local_db.g.dart';
 /// Holds in-progress visit drafts ([VisitDrafts]) and the generic outbox of
 /// pending mutations ([SyncQueueItems]) that the sync service flushes to the
 /// backend once connectivity returns.
-@DriftDatabase(tables: [VisitDrafts, StockDrafts, SyncQueueItems])
+@DriftDatabase(
+  tables: [VisitDrafts, StockDrafts, SyncQueueItems, PinnedVisitTemplates],
+)
 class LocalDb extends _$LocalDb {
   LocalDb([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,6 +46,12 @@ class LocalDb extends _$LocalDb {
             // to migrate the database would recreate the exact bug this column
             // exists to prevent. Unowned rows are never flushed.
             await m.addColumn(syncQueueItems, syncQueueItems.userId);
+          }
+          if (from < 8) {
+            // Additive: the client's audit template pinned per visit (#122).
+            // A visit already in progress has no pin and simply shows no
+            // client-questions section.
+            await m.createTable(pinnedVisitTemplates);
           }
         },
       );

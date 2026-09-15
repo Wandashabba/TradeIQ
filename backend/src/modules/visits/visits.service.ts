@@ -288,6 +288,24 @@ export interface VisitDetail {
     items: Array<{ id: string; section: string; timestamp: Date; thumbnailUrl: string }>;
   };
   fraud: Pick<FraudResult, 'riskScore' | 'signals'>;
+  /**
+   * The visit's answers to its client's audit template — the "client
+   * questions" section that supplements S1–S10 (#122). Empty when the client
+   * uses no template or the agent answered none. `schema` is the template's
+   * CURRENT schema (templates keep no version history), so the app resolves
+   * question labels from it and says when `templateVersion` is older than
+   * `currentVersion`. Never part of `score`.
+   */
+  templateResponses: Array<{
+    templateId: string;
+    templateName: string;
+    /** The version the answers were given against. */
+    templateVersion: number;
+    currentVersion: number;
+    schema: Prisma.JsonValue;
+    answers: Prisma.JsonValue;
+    recordedAt: Date;
+  }>;
 }
 
 type VisitStatusValue = 'in_progress' | 'submitted';
@@ -385,6 +403,17 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
       _count: {
         select: { stock: true, pricing: true, competitive: true, risks: true, photos: true },
       },
+      // The client-questions section (#122). One row per template at most.
+      templateResponses: {
+        select: {
+          templateId: true,
+          templateVersion: true,
+          answers: true,
+          createdAt: true,
+          template: { select: { name: true, version: true, schema: true } },
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      },
     },
   });
   if (!visit) {
@@ -471,6 +500,15 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
       })),
     },
     fraud: { riskScore: fraud.riskScore, signals: fraud.signals },
+    templateResponses: visit.templateResponses.map((r) => ({
+      templateId: r.templateId,
+      templateName: r.template.name,
+      templateVersion: r.templateVersion,
+      currentVersion: r.template.version,
+      schema: r.template.schema,
+      answers: r.answers,
+      recordedAt: r.createdAt,
+    })),
   };
 }
 

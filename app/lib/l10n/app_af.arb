@@ -317,5 +317,17 @@
   "taskActionPlanReason": "Aksieplan wat jy geskryf het",
   "reviewSkusCounted": "{count, plural, =1{1 SKU getel} other{{count} SKU’s getel}}",
   "reviewCompetitors": "{count, plural, =1{1 mededinger} other{{count} mededingers}}",
-  "reviewPhotos": "{count, plural, =1{1 foto} other{{count} foto’s}}"
+  "reviewPhotos": "{count, plural, =1{1 foto} other{{count} foto’s}}",
+  "visitTemplateSectionKicker": "Kliëntvrae",
+  "visitTemplateTileDetail": "Kliëntvrae · {detail}",
+  "visitTemplateSectionIntro": "Ekstra vrae wat hierdie kliënt by elke besoek vra. Beantwoord die verpligte vrae voor jy indien.",
+  "visitTemplateProgressAnswered": "{answered} van {total} beantwoord",
+  "visitTemplateRequiredLeft": "{count, plural, =1{Nog 1 verpligte vraag} other{Nog {count} verpligte vrae}}",
+  "visitTemplateAllRequiredAnswered": "Alle verpligte vrae beantwoord",
+  "visitTemplateFieldRequired": "Verpligtend",
+  "visitTemplateFieldRequiredError": "Beantwoord dit voor jy indien",
+  "visitTemplateSave": "Stoor antwoorde",
+  "visitTemplateSaved": "Antwoorde gestoor — wag om gestuur te word",
+  "visitTemplatePhotoUnsupported": "Fotovrae kan nog nie in die app beantwoord word nie",
+  "visitTemplateNoQuestions": "Hierdie kliënt se sjabloon het nog geen vrae nie"
 }

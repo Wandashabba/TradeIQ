@@ -131,6 +131,54 @@ class VisitPhotoRef {
   );
 }
 
+/// The visit's answers to its client's audit template: the client-questions
+/// section that supplements S1–S10 (#122). Never part of the perfect-store
+/// score.
+class VisitTemplateAnswers {
+  const VisitTemplateAnswers({
+    required this.templateId,
+    required this.templateName,
+    required this.templateVersion,
+    required this.currentVersion,
+    required this.schema,
+    required this.answers,
+    this.recordedAt,
+  });
+
+  final String templateId;
+  final String templateName;
+
+  /// The version the agent answered against.
+  final int templateVersion;
+
+  /// The template's version now. [schema] is this version's schema: the
+  /// server keeps no history, so labels may have moved on since.
+  final int currentVersion;
+  final Map<String, dynamic> schema;
+  final Map<String, dynamic> answers;
+  final DateTime? recordedAt;
+
+  bool get answeredOlderVersion => templateVersion < currentVersion;
+
+  factory VisitTemplateAnswers.fromJson(Map<String, dynamic> json) {
+    final recorded = json['recordedAt'] as String?;
+    final version = (json['templateVersion'] as num?)?.toInt() ?? 1;
+    return VisitTemplateAnswers(
+      templateId: json['templateId'] as String,
+      templateName: json['templateName'] as String? ?? '',
+      templateVersion: version,
+      currentVersion: (json['currentVersion'] as num?)?.toInt() ?? version,
+      schema: json['schema'] is Map<String, dynamic>
+          ? json['schema'] as Map<String, dynamic>
+          : const {},
+      answers: json['answers'] is Map<String, dynamic>
+          ? json['answers'] as Map<String, dynamic>
+          : const {},
+      recordedAt: recorded == null ? null : DateTime.tryParse(recorded),
+    );
+  }
+}
+
 /// `GET /visits/:id`: one visit, as a manager reviews it.
 class VisitDetail {
   const VisitDetail({
@@ -148,9 +196,14 @@ class VisitDetail {
     required this.photos,
     required this.riskScore,
     required this.signals,
+    this.templateResponses = const [],
   });
 
   final String id;
+
+  /// Answers to the client's audit template (#122). Empty for a client
+  /// without one, or a visit where none were given.
+  final List<VisitTemplateAnswers> templateResponses;
 
   /// `in_progress` | `submitted`.
   final String status;
@@ -212,6 +265,10 @@ class VisitDetail {
       signals: [
         for (final s in (fraud['signals'] as List? ?? const []))
           FraudSignal.fromJson(s as Map<String, dynamic>),
+      ],
+      templateResponses: [
+        for (final r in (json['templateResponses'] as List? ?? const []))
+          VisitTemplateAnswers.fromJson(r as Map<String, dynamic>),
       ],
     );
   }

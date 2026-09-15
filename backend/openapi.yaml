@@ -266,6 +266,25 @@ paths:
                             code: { type: string }
                             detail: { type: string }
                             weight: { type: number }
+                  templateResponses:
+                    type: array
+                    description: >
+                      The visit's answers to its client's audit template (#122) —
+                      the client-questions section that supplements S1–S10. Empty
+                      when there are none. `schema` is the template's CURRENT
+                      schema (no version history is kept), for resolving question
+                      labels; compare `templateVersion` with `currentVersion`.
+                      Never part of `score`.
+                    items:
+                      type: object
+                      properties:
+                        templateId: { type: string }
+                        templateName: { type: string }
+                        templateVersion: { type: integer, description: The version the answers were given against }
+                        currentVersion: { type: integer }
+                        schema: { type: object, additionalProperties: true }
+                        answers: { type: object, additionalProperties: true, description: Keyed by the schema's field ids }
+                        recordedAt: { type: string, format: date-time }
         '401':
           description: Missing or invalid token
         '403':
@@ -893,6 +912,95 @@ paths:
       summary: Create an audit template — manager/admin
       security: [{ bearerAuth: [] }]
       responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden } }
+  /templates/selected:
+    get:
+      summary: The client's audit template — any role (#122)
+      description: >
+        The template whose questions field agents answer on every visit, as an
+        extra "client questions" section after the fixed S1–S10. It supplements
+        those sections and never feeds the perfect-store score. `template` is
+        null when the client uses none; a paused template is never returned.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The selected template (with its schema), or null
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [template]
+                properties:
+                  template:
+                    nullable: true
+                    allOf: [{ $ref: '#/components/schemas/AuditTemplate' }]
+        '401': { description: Missing or invalid token }
+    put:
+      summary: Set or clear the client's audit template — manager/admin (#122)
+      description: >
+        Only one of the caller's client's own, active templates can be chosen.
+        Another client's template is a 404. Pass `templateId: null` to stop
+        using a template in audits. Pausing a template (PATCH active=false)
+        also clears it.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [templateId]
+              properties:
+                templateId: { type: string, nullable: true }
+      responses:
+        '200':
+          description: The template now in use, or null when cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [template]
+                properties:
+                  template:
+                    nullable: true
+                    allOf: [{ $ref: '#/components/schemas/AuditTemplate' }]
+        '400': { description: templateId missing or not a string/null, or the template is paused }
+        '403': { description: Caller is not a manager/admin }
+        '404': { description: Template not found for this client }
+  /template-responses:
+    post:
+      summary: Record a visit's answers to a template (upsert per visit+template) — field_agent
+      description: >
+        Answers are keyed by the schema's field ids. Re-posting overwrites the
+        answers. `templateVersion` is the version the agent's device rendered;
+        when omitted the template's current version is recorded. The visit must
+        be the caller's own; the template must belong to the caller's client.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitId, templateId, answers]
+              properties:
+                visitId: { type: string }
+                templateId: { type: string }
+                answers: { type: object, additionalProperties: true }
+                templateVersion: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: The stored response, with templateVersion }
+        '400': { description: Invalid body, or templateVersion newer than the template }
+        '403': { description: Caller is not a field_agent }
+        '404': { description: Visit (of this agent) or template (of this client) not found }
+    get:
+      summary: List a visit's template responses — tenant-scoped
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: visitId, in: query, required: true, schema: { type: string } }
+        - { name: templateId, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses: { '200': { description: '{ data, nextCursor }' }, '400': { description: Missing visitId }, '404': { description: Visit not found } }
   /templates/{id}:
     get:
       summary: Fetch a template
@@ -1520,6 +1628,22 @@ components:
         empty series.
       schema: { type: string }
   schemas:
+    AuditTemplate:
+      type: object
+      description: >
+        A client's versioned dynamic-form template. `schema` is free-form JSON
+        (sections → fields with id/label/type/required/weight/visibleIf/options,
+        plus an optional top-level `scoring` map); the app renders it. A schema
+        edit bumps `version`.
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        name: { type: string }
+        industry: { type: string, nullable: true }
+        schema: { type: object, additionalProperties: true }
+        version: { type: integer }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
     MessageAttachment:
       type: object
       description: >

@@ -14,6 +14,7 @@ import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/features/audit/data/template_section_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/audit/data/visit_review.dart';
 import 'package:tradeiq_app/core/widgets/agent_kit.dart';
@@ -139,12 +140,32 @@ const _readyToSubmit = VisitProgress(
   details: {},
 );
 
+/// A client with no audit template: the hub these tests describe (#122).
+class _NoTemplateRepository implements TemplateSectionRepository {
+  @override
+  Future<void> pinForVisit(String visitDraftId) async {}
+
+  @override
+  Future<Map<String, Object?>> savedAnswers({
+    required String visitDraftId,
+    required String templateId,
+  }) async => const {};
+
+  @override
+  Future<void> saveAnswers({
+    required String visitDraftId,
+    required ClientTemplate template,
+    required Map<String, Object?> answers,
+  }) async {}
+}
+
 List<Override> _overrides(
   VisitsRepository visitsRepository,
   LocalDb db, {
   VisitProgress progress = _nothingDone,
 }) => [
   outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+  templateSectionRepositoryProvider.overrideWithValue(_NoTemplateRepository()),
   visitsRepositoryProvider.overrideWithValue(visitsRepository),
   skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
   localDbProvider.overrideWithValue(db),

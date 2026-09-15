@@ -73,6 +73,13 @@ class _FakeTemplatesRepository implements TemplatesRepository {
       const PaginatedResponse(data: [], nextCursor: null);
 
   @override
+  Future<AuditTemplateDetail?> fetchSelected() async => null;
+
+  @override
+  Future<AuditTemplateDetail?> selectForAudits(String? templateId) async =>
+      null;
+
+  @override
   Future<AuditTemplateDetail> fetchTemplate(String id) async =>
       const AuditTemplateDetail(
         template: AuditTemplate(

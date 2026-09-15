@@ -47,6 +47,7 @@ class TemplateField {
     this.options = const [],
     this.weight,
     this.visibleIf,
+    this.required = false,
   });
 
   final String id;
@@ -56,10 +57,33 @@ class TemplateField {
   final double? weight;
   final TemplateFieldCondition? visibleIf;
 
+  /// The schema's `required: true`. A required question must be answered
+  /// before the visit can be submitted — while it is visible.
+  final bool required;
+
   bool isVisible(Map<String, Object?> answers) {
     final condition = visibleIf;
     return condition == null || answers[condition.fieldId] == condition.equals;
   }
+
+  /// Whether [answers] holds a real answer for this field. A switch that was
+  /// recorded off is an answer; an empty or whitespace text is not.
+  bool isAnswered(Map<String, Object?> answers) {
+    final value = answers[id];
+    return switch (type) {
+      TemplateFieldType.boolean => value is bool,
+      TemplateFieldType.number => value is num,
+      TemplateFieldType.choice ||
+      TemplateFieldType.text => value is String && value.trim().isNotEmpty,
+      TemplateFieldType.photo => value != null,
+    };
+  }
+
+  /// Whether leaving this field unanswered blocks the submit.
+  ///
+  /// Photo questions cannot be captured in the form yet, so a required photo
+  /// never blocks: a gate the agent has no way to open is a dead end in a shop.
+  bool get blocksSubmit => required && type != TemplateFieldType.photo;
 }
 
 class TemplateSection {
@@ -78,6 +102,57 @@ class TemplateSchema {
   const TemplateSchema({required this.sections});
 
   final List<TemplateSection> sections;
+
+  Iterable<TemplateField> get fields => sections.expand((s) => s.fields);
+
+  /// Whether any question can block a submit.
+  bool get hasRequired => fields.any((f) => f.blocksSubmit);
+
+  /// The visible required questions still unanswered. The submit gate blocks
+  /// on exactly these; a required question hidden by its condition does not
+  /// count, because the agent cannot see it.
+  List<TemplateField> missingRequired(Map<String, Object?> answers) => [
+        for (final f in fields)
+          if (f.blocksSubmit && f.isVisible(answers) && !f.isAnswered(answers))
+            f,
+      ];
+
+  /// Visible, answerable questions (photos cannot be captured yet).
+  int questionCount(Map<String, Object?> answers) => fields
+      .where((f) => f.type != TemplateFieldType.photo && f.isVisible(answers))
+      .length;
+
+  /// Visible questions that hold an answer.
+  int answeredCount(Map<String, Object?> answers) => fields
+      .where((f) =>
+          f.type != TemplateFieldType.photo &&
+          f.isVisible(answers) &&
+          f.isAnswered(answers))
+      .length;
+
+  /// [answers] with every visible, untouched switch recorded as off.
+  ///
+  /// A switch renders off until it is flipped, so the agent who saves with it
+  /// off has answered "no" — recording nothing would leave a required yes/no
+  /// question blocking the submit while the screen shows it answered. Repeats
+  /// until stable, because recording a switch can reveal a question that
+  /// depends on it.
+  Map<String, Object?> withSwitchDefaults(Map<String, Object?> answers) {
+    final out = Map<String, Object?>.of(answers);
+    for (var pass = 0; pass <= sections.length + fields.length; pass++) {
+      var changed = false;
+      for (final f in fields) {
+        if (f.type == TemplateFieldType.boolean &&
+            f.isVisible(out) &&
+            out[f.id] is! bool) {
+          out[f.id] = false;
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+    return out;
+  }
 
   /// Sum of every weighted field, answered or not.
   double get maxScore => sections
@@ -185,6 +260,9 @@ class TemplateSchema {
       options: options,
       weight: rawWeight is num ? rawWeight.toDouble() : scoringWeights[id],
       visibleIf: visibleIf,
+      // Only a literal `true` makes a question required: a free-form schema
+      // with "yes" or 1 there should not silently start blocking submits.
+      required: rawField['required'] == true,
     );
   }
 }

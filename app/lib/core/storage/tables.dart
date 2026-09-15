@@ -1,5 +1,35 @@
 import 'package:drift/drift.dart';
 
+/// The client's audit template as it stood when a visit started (#122).
+///
+/// A client can add its own questions to the audit as an extra section after
+/// S1–S10. The template is pinned to the visit once, at check-in, so the
+/// questions cannot change under an agent mid-visit, reopening the section
+/// after the app is killed needs no signal, and the answers can say which
+/// version they were given against.
+///
+/// A row with a null [templateId] records that the client used no template
+/// when the visit started. The newest row for the signed-in agent is also the
+/// offline fallback for a visit started with no signal.
+@DataClassName('PinnedVisitTemplate')
+class PinnedVisitTemplates extends Table {
+  TextColumn get visitDraftId => text()();
+  TextColumn get templateId => text().nullable()();
+  TextColumn get templateName => text().nullable()();
+  IntColumn get templateVersion => integer().nullable()();
+
+  /// The template's `schema`, JSON-encoded exactly as the server sent it.
+  TextColumn get schemaJson => text().nullable()();
+
+  /// Who the template was fetched for, so a shared device never offers one
+  /// agent's client questions to another agent offline.
+  TextColumn get userId => text().nullable()();
+  DateTimeColumn get pinnedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {visitDraftId};
+}
+
 /// Local mirror of an in-progress (or recently completed) outlet visit.
 ///
 /// This mirrors the subset of the backend `Visit` model relevant to
