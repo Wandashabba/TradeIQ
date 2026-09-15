@@ -1,0 +1,1020 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for English (`en`).
+class AppLocalizationsEn extends AppLocalizations {
+  AppLocalizationsEn([String locale = 'en']) : super(locale);
+
+  @override
+  String get languageMenuTooltip => 'Language';
+
+  @override
+  String get languageSystem => 'System';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get languageAfrikaans => 'Afrikaans';
+
+  @override
+  String get agentBackTooltip => 'Back';
+
+  @override
+  String get agentThemeTooltip => 'Theme';
+
+  @override
+  String get agentLogOutTooltip => 'Log out';
+
+  @override
+  String get agoJustNow => 'just now';
+
+  @override
+  String agoMinutes(int minutes) {
+    return '$minutes min ago';
+  }
+
+  @override
+  String agoHours(int hours) {
+    return '${hours}h ago';
+  }
+
+  @override
+  String agoDays(int days) {
+    return '${days}d ago';
+  }
+
+  @override
+  String syncSendingTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sending $count captures…',
+      one: 'Sending 1 capture…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncSendingSubtitle => 'Keep going — you don’t have to wait';
+
+  @override
+  String syncAttentionTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items need your attention',
+      one: '1 item needs your attention',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncAttentionSubtitle =>
+      'They will not send on their own — tap to see';
+
+  @override
+  String syncHeldTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count captures held on this phone',
+      one: '1 capture held on this phone',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get syncHeldSubtitle => 'They will send themselves · nothing is lost';
+
+  @override
+  String get syncAllSentTitle => 'Everything is sent';
+
+  @override
+  String get syncNothingWaiting => 'Nothing waiting';
+
+  @override
+  String syncLastSent(String ago) {
+    return 'Last sent $ago';
+  }
+
+  @override
+  String get kitStepperFewer => 'One fewer';
+
+  @override
+  String get kitStepperMore => 'One more';
+
+  @override
+  String get captureCancelTooltip => 'Cancel';
+
+  @override
+  String get captureErrorChip => 'Error';
+
+  @override
+  String captureError(String error) {
+    return 'Could not capture a photo: $error';
+  }
+
+  @override
+  String get captureButton => 'Capture';
+
+  @override
+  String get captureGalleryButton => 'Choose from gallery';
+
+  @override
+  String photoFieldDefaultHint(String label) {
+    return 'Frame the $label inside the guides, edge to edge.';
+  }
+
+  @override
+  String get photoFieldAdd => 'Add photo';
+
+  @override
+  String get photoFieldCaptured => 'Captured';
+
+  @override
+  String get photoFieldRetake => 'Retake';
+
+  @override
+  String get loginInvalidCredentials => 'Invalid credentials';
+
+  @override
+  String get loginBackTooltip => 'Back to welcome';
+
+  @override
+  String get loginKicker => 'WELCOME BACK';
+
+  @override
+  String get loginSignIn => 'Sign in';
+
+  @override
+  String get loginSubtitle => 'Use your TradeIQ work account.';
+
+  @override
+  String get loginEmailLabel => 'Email';
+
+  @override
+  String get loginEmailHint => 'you@company.com';
+
+  @override
+  String get loginEmailRequired => 'Email is required';
+
+  @override
+  String get loginPasswordLabel => 'Password';
+
+  @override
+  String get loginPasswordHint => 'Enter your password';
+
+  @override
+  String get loginShowPassword => 'Show password';
+
+  @override
+  String get loginHidePassword => 'Hide password';
+
+  @override
+  String get loginPasswordRequired => 'Password is required';
+
+  @override
+  String get loginRememberMe => 'Remember me';
+
+  @override
+  String get loginForgotPassword => 'Forgot password?';
+
+  @override
+  String get loginPasswordResetUnavailable =>
+      'Password reset is not available yet.';
+
+  @override
+  String get todayTitle => 'Today';
+
+  @override
+  String get todayLoadErrorTitle => 'Could not load your route';
+
+  @override
+  String get todayLoadErrorDetail => 'You can still start a visit yourself.';
+
+  @override
+  String get todayNoRouteTitle => 'No route planned for today';
+
+  @override
+  String get todayNoPlanDetail =>
+      'Your manager has not built a beat plan for today. You can still visit a store — pick it yourself.';
+
+  @override
+  String get todayEmptyPlanDetail =>
+      'Today’s beat plan has no stops on it yet.';
+
+  @override
+  String get todayYourRouteHeading => 'Your route';
+
+  @override
+  String get todayVisitAnotherStore => 'Visit a store not on my route';
+
+  @override
+  String todayStoresOfTotal(int total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: ' of $total stores',
+      one: ' of 1 store',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String todayStoresLeft(int count) {
+    return '$count left';
+  }
+
+  @override
+  String get todayRouteDone => 'Route done';
+
+  @override
+  String get todayDistancesOff =>
+      'Distances are off — this phone will not say where it is.';
+
+  @override
+  String get todayStopDoneTag => 'DONE';
+
+  @override
+  String get todayStopNextTag => 'NEXT';
+
+  @override
+  String get todayPickStore => 'Pick a store to visit';
+
+  @override
+  String get todayNextUpHeading => 'Next up';
+
+  @override
+  String get todayRestOfDayHeading => 'The rest of the day';
+
+  @override
+  String get todayStoresRingLabel => 'Stores';
+
+  @override
+  String todayStopNumber(String number) {
+    return 'Stop $number';
+  }
+
+  @override
+  String get todayCheckInHere => 'Check in here';
+
+  @override
+  String get pickerTitle => 'Select an Outlet';
+
+  @override
+  String get pickerSubtitle => 'Tap a store to start a visit';
+
+  @override
+  String get pickerAddStore => 'Add a store';
+
+  @override
+  String get pickerScopeMine => 'My territories';
+
+  @override
+  String get pickerScopeAll => 'All stores';
+
+  @override
+  String pickerScopeMineSummary(int count) {
+    return '$count in your territories · tap All stores to see every shop';
+  }
+
+  @override
+  String pickerScopeAllSummary(int count) {
+    return 'All $count stores across this client';
+  }
+
+  @override
+  String get pickerLoadErrorTitle => 'Could not load your stores';
+
+  @override
+  String get pickerRetry => 'Try again';
+
+  @override
+  String get myWorkTitle => 'Your work';
+
+  @override
+  String get myWorkSubtitle => 'What is on this phone, and what is sent';
+
+  @override
+  String get myWorkSyncNow => 'Try sending now';
+
+  @override
+  String get myWorkLoadErrorTitle => 'Could not read your work';
+
+  @override
+  String get myWorkNeedsYouHeading => 'Needs you';
+
+  @override
+  String get myWorkWaitingHeading => 'Waiting to send';
+
+  @override
+  String get myWorkSentHeading => 'Sent';
+
+  @override
+  String get myWorkEmpty => 'Nothing captured yet';
+
+  @override
+  String get myWorkFooter =>
+      'Captures send themselves when you have signal — you never have to remember to do it. Nothing here is ever lost.';
+
+  @override
+  String myWorkSendingTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sending $count items…',
+      one: 'Sending 1 item…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get myWorkSendingSubtitle => 'You don’t have to wait for this';
+
+  @override
+  String myWorkFailedTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items will not send',
+      one: '1 item will not send',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get myWorkFailedSubtitle => 'Everything else is safe';
+
+  @override
+  String myWorkHeldTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items held on this phone',
+      one: '1 item held on this phone',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get myWorkHeldSubtitle => 'They will send themselves';
+
+  @override
+  String get myWorkStateSent => 'Sent';
+
+  @override
+  String get myWorkStateFailed => 'Failed';
+
+  @override
+  String get myWorkStateWaiting => 'Waiting';
+
+  @override
+  String get visitStartingTitle => 'Starting visit';
+
+  @override
+  String get visitTitle => 'Visit';
+
+  @override
+  String visitOutletLoadFailed(String error) {
+    return 'Failed to load outlet: $error';
+  }
+
+  @override
+  String get visitOutletNotFound => 'Outlet not found';
+
+  @override
+  String visitReadFailed(String error) {
+    return 'Could not read this visit: $error';
+  }
+
+  @override
+  String get visitInStoreJustNow => 'In store just now';
+
+  @override
+  String visitInStoreMinutes(int minutes) {
+    return 'In store $minutes min';
+  }
+
+  @override
+  String visitInStoreHours(int hours) {
+    return 'In store ${hours}h';
+  }
+
+  @override
+  String visitInStoreDays(int days) {
+    return 'In store ${days}d';
+  }
+
+  @override
+  String get visitAuditHeading => 'The audit';
+
+  @override
+  String get visitAnyOrderHint =>
+      'Do the sections in any order — the store will not always let you follow one. Everything saves as you go, even with no signal.';
+
+  @override
+  String visitFinishToSubmit(String sections) {
+    return 'Finish $sections to submit';
+  }
+
+  @override
+  String visitSectionsAnd(String first, String second) {
+    return '$first and $second';
+  }
+
+  @override
+  String get visitSubmitButton => 'Submit visit';
+
+  @override
+  String get visitSectionSavesAsYouGo => 'Saves as you go';
+
+  @override
+  String get visitSectionDoneBack => 'Done · back to visit';
+
+  @override
+  String visitProgressOfSections(int total) {
+    return ' of $total sections';
+  }
+
+  @override
+  String get visitReadyToSubmit => 'Ready to submit';
+
+  @override
+  String visitStillRequired(int count) {
+    return '$count still required';
+  }
+
+  @override
+  String get visitSectionsCaptured => 'Sections captured';
+
+  @override
+  String get visitScoreCalculatedOnSubmit => 'Calculated when you submit';
+
+  @override
+  String get visitSectionNotStarted => 'Not started';
+
+  @override
+  String get visitSectionOptional => 'Optional';
+
+  @override
+  String get visitRequiredToSubmitBadge => 'REQUIRED TO SUBMIT';
+
+  @override
+  String get visitRequiredToSubmit => 'Required to submit';
+
+  @override
+  String get visitRequiredShort => 'REQ';
+
+  @override
+  String get visitSectionOutletInfo => 'Outlet info';
+
+  @override
+  String get visitSectionStock => 'Stock & availability';
+
+  @override
+  String get visitSectionVisibility => 'Visibility & display';
+
+  @override
+  String get visitSectionPricing => 'Pricing & promotions';
+
+  @override
+  String get visitSectionCompetitive => 'Competitive';
+
+  @override
+  String get visitSectionCapability => 'Team capability';
+
+  @override
+  String get visitSectionRisks => 'Risks';
+
+  @override
+  String get visitSectionActionPlan => 'Action plan';
+
+  @override
+  String get visitSectionScore => 'Score';
+
+  @override
+  String get visitCheckInFinding => 'Finding you…';
+
+  @override
+  String get visitCheckInWithinHint =>
+      'You must be within 50 m of the store to check in. This is what proves the visit happened.';
+
+  @override
+  String get visitRetry => 'Try again';
+
+  @override
+  String get visitBackToRoute => 'Back to route';
+
+  @override
+  String get visitTooFarTitle => 'You’re too far away';
+
+  @override
+  String get visitTooFarBody =>
+      'Move closer to the store and try again. Nothing is lost — the visit hasn’t started.';
+
+  @override
+  String visitTooFarDistance(int meters) {
+    return '$meters m away · need 50 m or closer';
+  }
+
+  @override
+  String get visitTooFarFraudNote =>
+      'This attempt is recorded. Retrying from far away is itself a fraud signal, so it is better to walk closer than to keep tapping.';
+
+  @override
+  String get visitNoLocationTitle => 'Can’t find your location';
+
+  @override
+  String get visitCheckInFailedTitle => 'Could not start the visit';
+
+  @override
+  String get visitCheckInFailedNothingLost =>
+      'Nothing has been lost — the visit had not started yet.';
+
+  @override
+  String submitSubtitleInStore(String outlet, int minutes) {
+    return '$outlet · $minutes min in store';
+  }
+
+  @override
+  String get submitOfflineNote =>
+      'No signal? Submitting still works — it saves on the phone and sends itself.';
+
+  @override
+  String get submitIntro =>
+      'Check this over before it goes to your manager. After submitting you cannot change it.';
+
+  @override
+  String get submitWillRaiseHeading => 'This will raise';
+
+  @override
+  String submitAccusation(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'You are telling the manager $count things are wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.',
+      one:
+          'You are telling the manager one thing is wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String submitSectionsComplete(int done, int total) {
+    return '$done of $total sections complete';
+  }
+
+  @override
+  String submitTaskForManager(String priority) {
+    return 'Task for the manager · $priority';
+  }
+
+  @override
+  String submitPriority(String priority) {
+    String _temp0 = intl.Intl.selectLogic(priority, {
+      'critical': 'critical',
+      'high': 'high',
+      'normal': 'normal',
+      'low': 'low',
+      'other': '$priority',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get submitNothingToRaise =>
+      'Nothing to raise. You found no stockouts and flagged no risks — this store is in good shape.';
+
+  @override
+  String get outcomeTitle => 'Visit submitted';
+
+  @override
+  String get outcomeNextStore => 'Next store';
+
+  @override
+  String get outcomeSending => 'Sending your visit…';
+
+  @override
+  String get outcomeHeldTitle => 'Your visit is safe on this phone';
+
+  @override
+  String get outcomeHeldBodyUnreachable =>
+      'Could not reach the server just now — it will send itself the moment you have signal. You can close the app.';
+
+  @override
+  String get outcomeHeldBodyNoSignal =>
+      'No signal right now — it will send itself the moment you have signal. You can close the app.';
+
+  @override
+  String get outcomeScoredWhenSends => 'Scored when it sends';
+
+  @override
+  String get outcomeScoredOnServer =>
+      'Your score is worked out on the server, not on the phone';
+
+  @override
+  String get outcomeNoGuess =>
+      'We are not guessing at a score here. You will see the real one — the same one your manager sees — as soon as this reaches the server.';
+
+  @override
+  String outcomeRatingBand(String band) {
+    String _temp0 = intl.Intl.selectLogic(band, {
+      'green': 'Green',
+      'amber': 'Amber',
+      'other': 'Red',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String outcomeDeltaSame(int previous) {
+    return 'Same as your last visit here ($previous).';
+  }
+
+  @override
+  String outcomeDeltaUp(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Up $count points',
+      one: 'Up 1 point',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String outcomeDeltaDown(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Down $count points',
+      one: 'Down 1 point',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String outcomeDeltaFromLast(int previous) {
+    return 'from your last visit here ($previous).';
+  }
+
+  @override
+  String get outcomeHowScored => 'How it was scored';
+
+  @override
+  String get outcomePerfectStoreScore => 'Perfect-store score';
+
+  @override
+  String get outcomeDimensionAvailability => 'Availability';
+
+  @override
+  String get outcomeDimensionVisibility => 'Visibility';
+
+  @override
+  String get outcomeDimensionDisplay => 'Display';
+
+  @override
+  String get outcomeDimensionPricing => 'Pricing';
+
+  @override
+  String get outcomeDimensionCompetitive => 'Share of shelf';
+
+  @override
+  String get outcomeDimensionSalesCapability => 'Team capability';
+
+  @override
+  String get outcomeUnmeasurableCompetitive =>
+      'No competitor on shelf to measure against — not counted against you.';
+
+  @override
+  String get outcomeUnmeasurableSalesCapability =>
+      'No staff on shift to assess — not counted against you.';
+
+  @override
+  String get s1Title => 'Outlet check-in';
+
+  @override
+  String get s1ConfirmedAtCheckin => 'Confirmed at check-in';
+
+  @override
+  String get s1CheckedIn => 'Checked in';
+
+  @override
+  String get s1NotRecorded => 'Not recorded';
+
+  @override
+  String get s1Geofence => 'Geofence';
+
+  @override
+  String get s1Passed => 'Passed';
+
+  @override
+  String s2LoadFailed(String error) {
+    return 'Failed to load SKUs: $error';
+  }
+
+  @override
+  String get s2NoSkus => 'No SKUs configured for this client.';
+
+  @override
+  String s2ContextSelling(String velocity) {
+    return 'Selling ~$velocity/day';
+  }
+
+  @override
+  String s2ContextSellingOutOfStock(String velocity, int days) {
+    return 'Selling ~$velocity/day · out of stock ${days}d';
+  }
+
+  @override
+  String get s2ContextNoHistory => 'No sales history yet';
+
+  @override
+  String s2ContextNoHistoryOutOfStock(int days) {
+    return 'No sales history yet · out of stock ${days}d';
+  }
+
+  @override
+  String s2Rrp(String price) {
+    return 'RRP $price';
+  }
+
+  @override
+  String get s2OutOfStockRaisesTask =>
+      'Out of stock — this raises a task for the manager';
+
+  @override
+  String get s2ShoppersSwitch =>
+      '70% of shoppers switch brand when the product is missing.';
+
+  @override
+  String get s2SaveStock => 'Save stock';
+
+  @override
+  String get s2StockSaved => 'Stock saved — queued for sync';
+
+  @override
+  String get s2UnitsOnShelf => 'Units on shelf';
+
+  @override
+  String get s2Cancel => 'Cancel';
+
+  @override
+  String get s2Set => 'Set';
+
+  @override
+  String get s10ComputeFailed =>
+      'Could not compute the scorecard. Try refreshing.';
+
+  @override
+  String get s10DimensionScores => 'Dimension scores';
+
+  @override
+  String get s10WeightedTotal => 'Weighted total';
+
+  @override
+  String get s10Finalize => 'Finalize scorecard';
+
+  @override
+  String get s10Refresh => 'Refresh';
+
+  @override
+  String get s10Queued => 'Scorecard queued for sync';
+
+  @override
+  String get s10DimensionAvailability => 'Availability';
+
+  @override
+  String get s10DimensionVisibility => 'Visibility';
+
+  @override
+  String get s10DimensionDisplay => 'Display';
+
+  @override
+  String get s10DimensionPricing => 'Pricing';
+
+  @override
+  String get s10DimensionCompetitive => 'Competitive';
+
+  @override
+  String get s10DimensionSalesCapability => 'Sales Capability';
+
+  @override
+  String get s34BrandingPoster => 'Poster';
+
+  @override
+  String get s34BrandingShelfStrip => 'Shelf strip';
+
+  @override
+  String get s34BrandingWobbler => 'Wobbler';
+
+  @override
+  String get s34BrandingLabel => 'Branding elements present';
+
+  @override
+  String get s34PlanogramLabel => 'Planogram compliance %';
+
+  @override
+  String get s34FacingsLabel => 'Facings count';
+
+  @override
+  String get s34CleanlinessLabel => 'Cleanliness score';
+
+  @override
+  String get s34HighTrafficLabel => 'High-traffic location';
+
+  @override
+  String get s34PhotoLabel => 'Shelf photo';
+
+  @override
+  String get s34PhotoHelper =>
+      'Optional. Stored as evidence for this section and as training data for automated planogram scoring.';
+
+  @override
+  String get s34SaveButton => 'Save visibility';
+
+  @override
+  String get s34Saved => 'Visibility saved — queued for sync';
+
+  @override
+  String s5LoadError(String error) {
+    return 'Failed to load SKUs: $error';
+  }
+
+  @override
+  String get s5NoSkus => 'No SKUs configured for this client.';
+
+  @override
+  String get s5ActualPriceLabel => 'Actual price';
+
+  @override
+  String get s5PromoActiveLabel => 'Promotion active';
+
+  @override
+  String get s5CommsRatingLabel => 'Comms rating (1-5)';
+
+  @override
+  String get s5PhotoLabel => 'Shelf-price photo';
+
+  @override
+  String get s5PhotoHelper =>
+      'Optional. Prices are still entered by hand — this is evidence, and the training data for automated price reading.';
+
+  @override
+  String get s5SaveButton => 'Save pricing';
+
+  @override
+  String get s5Saved => 'Pricing saved — queued for sync';
+
+  @override
+  String s6CompetitorTitle(int number) {
+    return 'Competitor $number';
+  }
+
+  @override
+  String get s6SkuLabel => 'Competitor SKU';
+
+  @override
+  String get s6SkuHint => 'What the rival is selling';
+
+  @override
+  String get s6PriceLabel => 'Competitor price';
+
+  @override
+  String get s6PosmLabel => 'POSM type';
+
+  @override
+  String get s6PosmHint => 'Poster, wobbler, gondola…';
+
+  @override
+  String get s6FacingsLabel => 'Facings on shelf';
+
+  @override
+  String get s6FacingsHelp => 'How much shelf this competitor holds';
+
+  @override
+  String get s6PromoterLabel => 'Promoter present';
+
+  @override
+  String get s6AddButton => 'Add competitor';
+
+  @override
+  String get s6SaveButton => 'Save competitive';
+
+  @override
+  String get s6Saved => 'Competitive intel saved — queued for sync';
+
+  @override
+  String get s7TrainingProductKnowledge => 'Product knowledge';
+
+  @override
+  String get s7TrainingMerchandising => 'Merchandising';
+
+  @override
+  String get s7TrainingPosSystems => 'POS systems';
+
+  @override
+  String get s7HeadcountLabel => 'Staff headcount confirmed';
+
+  @override
+  String get s7HeadcountHint => 'Reps on the floor';
+
+  @override
+  String get s7TrainingLabel => 'Rep training completed';
+
+  @override
+  String get s7QuizLabel => 'Quiz score (0-100)';
+
+  @override
+  String get s7SaveButton => 'Save capability';
+
+  @override
+  String get s7Saved => 'Capability saved — queued for sync';
+
+  @override
+  String get s8SeverityCritical => 'Critical';
+
+  @override
+  String get s8SeverityHigh => 'High';
+
+  @override
+  String get s8SeverityNormal => 'Normal';
+
+  @override
+  String s8RiskTitle(int number) {
+    return 'Risk $number';
+  }
+
+  @override
+  String get s8FlagTypeLabel => 'Flag type';
+
+  @override
+  String get s8FlagTypeHint => 'What was flagged';
+
+  @override
+  String get s8SeverityLabel => 'Severity';
+
+  @override
+  String get s8NoteLabel => 'Note';
+
+  @override
+  String get s8NoteHint => 'Optional detail';
+
+  @override
+  String get s8AddButton => 'Flag a risk';
+
+  @override
+  String get s8SaveButton => 'Save risks';
+
+  @override
+  String get s8Saved =>
+      'Risks saved — queued for sync; follow-up tasks will be auto-created';
+
+  @override
+  String s8SeverityNote(String severity) {
+    String _temp0 = intl.Intl.selectLogic(severity, {
+      'critical': 'Critical risk — saving it raises a follow-up task',
+      'other': 'High risk — saving it raises a follow-up task',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get s9PriorityCritical => 'Critical';
+
+  @override
+  String get s9PriorityHigh => 'High';
+
+  @override
+  String get s9PriorityNormal => 'Normal';
+
+  @override
+  String get s9Intro =>
+      'Risks flagged in S8 auto-create tasks with an SLA server-side. Add any extra manual tasks below.';
+
+  @override
+  String get s9FindingTypeLabel => 'Finding type';
+
+  @override
+  String get s9FindingTypeHint => 'What needs fixing';
+
+  @override
+  String get s9RequiredFixLabel => 'Required fix';
+
+  @override
+  String get s9RequiredFixHint => 'The corrective action';
+
+  @override
+  String get s9PriorityLabel => 'Priority';
+
+  @override
+  String get s9AddButton => 'Add task';
+
+  @override
+  String get s9Saved => 'Task queued for sync';
+}

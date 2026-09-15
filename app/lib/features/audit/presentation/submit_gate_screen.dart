@@ -12,6 +12,7 @@ import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/lumen_kit.dart';
+import '../../../l10n/l10n.dart';
 import '../data/visit_progress.dart';
 import '../data/visit_review.dart';
 
@@ -50,23 +51,21 @@ class SubmitGateScreen extends ConsumerWidget {
         .watch(syncStatusProvider)
         .maybeWhen(data: (s) => s.pending.isNotEmpty, orElse: () => false);
 
+    final l10n = context.l10n;
     return AgentScaffold(
-      title: 'Submit visit',
-      subtitle: _inStore(),
+      title: l10n.visitSubmitButton,
+      subtitle: _inStore(l10n),
       showSyncChip: false,
       onBack: () => Navigator.of(context).pop(),
       bottomAction: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (offline)
-            const BarNote(
-              'No signal? Submitting still works — it saves on the phone and '
-              'sends itself.',
-            ),
+            BarNote(l10n.submitOfflineNote),
           // In glass the kit's primary button is the GlassPrimaryButton.
           AgentButton(
             key: const ValueKey('confirm-submit'),
-            label: 'Submit visit',
+            label: l10n.visitSubmitButton,
             onPressed: onConfirm,
           ),
         ],
@@ -76,7 +75,7 @@ class SubmitGateScreen extends ConsumerWidget {
         error: (err, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('Could not read this visit: $err'),
+            child: Text(l10n.visitReadFailed('$err')),
           ),
         ),
         data: (review) {
@@ -90,8 +89,7 @@ class SubmitGateScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
             children: [
               Text(
-                'Check this over before it goes to your manager. After '
-                'submitting you cannot change it.',
+                l10n.submitIntro,
                 style: TextStyle(
                   fontSize: 13.5,
                   height: 1.5,
@@ -109,7 +107,7 @@ class SubmitGateScreen extends ConsumerWidget {
               ),
               if (review.willRaise.isNotEmpty) ...[
                 const SizedBox(height: 18),
-                const _Heading('This will raise'),
+                _Heading(l10n.submitWillRaiseHeading),
                 Reveal(
                   index: 1,
                   child: colors.glass
@@ -138,7 +136,7 @@ class SubmitGateScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  _accusation(review.willRaise.length),
+                  l10n.submitAccusation(review.willRaise.length),
                   style: TextStyle(
                     fontSize: 12.5,
                     height: 1.5,
@@ -156,25 +154,17 @@ class SubmitGateScreen extends ConsumerWidget {
     );
   }
 
-  String? _inStore() {
+  String? _inStore(AppLocalizations l10n) {
     final start = checkinTs;
     if (start == null) return outletName;
     final minutes = DateTime.now().difference(start).inMinutes;
     if (minutes < 1) return outletName;
-    return '$outletName · $minutes min in store';
+    return l10n.submitSubtitleInStore(outletName, minutes);
   }
 
-  /// The agent is about to tell a manager that a store is failing at something.
-  /// Naming that plainly is the point: it is what makes the finding theirs, and
-  /// it is why they trust the app not to have made it up.
-  static String _accusation(int count) {
-    final subject = count == 1
-        ? 'You are telling the manager one thing is wrong in this store.'
-        : 'You are telling the manager $count things are wrong in this store.';
-    return '$subject They all come from what you captured — nothing is added '
-        'afterwards. If the manager already has one of these open, it will not '
-        'be raised twice.';
-  }
+  // The accusation copy (submitAccusation) names what the agent is about to
+  // tell a manager plainly: it is what makes the finding theirs, and it is why
+  // they trust the app not to have made it up.
 }
 
 class _CapturedCard extends StatelessWidget {
@@ -208,7 +198,10 @@ class _CapturedCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$sectionsDone of $sectionsTotal sections complete',
+                  context.l10n.submitSectionsComplete(
+                    sectionsDone,
+                    sectionsTotal,
+                  ),
                   style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
@@ -247,7 +240,10 @@ class _CapturedCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$sectionsDone of $sectionsTotal sections complete',
+                  context.l10n.submitSectionsComplete(
+                    sectionsDone,
+                    sectionsTotal,
+                  ),
                   style: TextStyle(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
@@ -320,7 +316,7 @@ class _TaskRow extends StatelessWidget {
                   // The priority is always paired with the word, never carried
                   // by the colour alone — a colour-blind agent in bad light
                   // still has to be able to tell urgent from routine.
-                  'Task for the manager · ${task.priority}',
+                  _taskLine(context.l10n, task),
                   style: TextStyle(fontSize: 11.5, color: colors.ink3),
                 ),
               ],
@@ -372,7 +368,7 @@ class _TaskRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Task for the manager · ${task.priority}',
+                  _taskLine(context.l10n, task),
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -416,8 +412,7 @@ class _NothingWrong extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Nothing to raise. You found no stockouts and flagged no '
-                'risks — this store is in good shape.',
+                context.l10n.submitNothingToRaise,
                 style: TextStyle(fontSize: 13, height: 1.45, color: good.ink),
               ),
             ),
@@ -438,8 +433,7 @@ class _NothingWrong extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Nothing to raise. You found no stockouts and flagged no risks — '
-              'this store is in good shape.',
+              context.l10n.submitNothingToRaise,
               style: TextStyle(fontSize: 13, height: 1.45, color: colors.ink2),
             ),
           ),
@@ -483,3 +477,8 @@ class _Heading extends StatelessWidget {
 /// in #214.
 Color _wash(TiqColors colors, Color token) =>
     Color.alphaBlend(token.withValues(alpha: 0.12), colors.surface1);
+
+/// "Task for the manager · high" — the server's priority, in the agent's
+/// language (an unknown priority is shown as the server sent it).
+String _taskLine(AppLocalizations l10n, RaisedTask task) =>
+    l10n.submitTaskForManager(l10n.submitPriority(task.priority));

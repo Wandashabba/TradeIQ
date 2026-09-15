@@ -1,0 +1,9 @@
+# gen-l10n configuration — see lib/l10n/README.md.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-dir: lib/l10n
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+# `AppLocalizations.of` returns null when no delegate is installed; the
+# `context.l10n` extension in lib/l10n/l10n.dart falls back to English then.
+nullable-getter: true
