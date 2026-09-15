@@ -257,7 +257,7 @@ void main() {
     expect(lastRunLabel(null), 'Never run');
   });
 
-  testWidgets('says schedules run automatically to webhooks, and email is not set up',
+  testWidgets('says schedules run automatically to webhooks, and email once set up',
       (tester) async {
     await tester.pumpWidget(_app(_FakeSchedulesRepository()));
     await tester.pumpAndSettle();
@@ -265,7 +265,7 @@ void main() {
     expect(find.text(scheduleDeliveryNote), findsOneWidget);
     expect(scheduleDeliveryNote, contains('run automatically'));
     expect(scheduleDeliveryNote, contains('webhooks subscribed to report.generated'));
-    expect(scheduleDeliveryNote, contains('Email is not set up yet'));
+    expect(scheduleDeliveryNote, contains('Recipients are emailed when email is set up'));
     expect(scheduleDeliveryNote, isNot(contains('not sent automatically')));
   });
 
@@ -301,7 +301,7 @@ void main() {
 
     expect(repo.runId, 's-active');
     expect(
-      find.text('Generated 42 rows. Queued for 1 webhook. Email is not set up yet.'),
+      find.text('Generated 42 rows. Queued for 1 webhook. Email is not set up on the server.'),
       findsOneWidget,
     );
     // Queued, not received: never claimed as delivered.
@@ -320,7 +320,7 @@ void main() {
             deliveredTo: const ['https://a.test', 'https://b.test'],
           ),
         ),
-        'Generated 1 row. Queued for 2 webhooks. Email is not set up yet.',
+        'Generated 1 row. Queued for 2 webhooks. Email is not set up on the server.',
       );
     });
 
@@ -328,7 +328,49 @@ void main() {
       expect(
         runNowMessage(_runResult(deliveredTo: const [])),
         'Generated 42 rows. Not sent: no webhook is subscribed to '
-        'report.generated. Email is not set up yet.',
+        'report.generated. Email is not set up on the server.',
+      );
+    });
+
+    test('counts webhooks from their own outcome, and emails queued', () {
+      // deliveredTo lists every target, email addresses included.
+      final result = ScheduleRunResult(
+        schedule: _active,
+        runId: 'run-2',
+        generatedAt: '2026-09-14T10:05:00.000Z',
+        rowCount: 3,
+        deliveredTo: ['https://a.test', 'ops@acme.test', 'lead@acme.test'],
+        deliveries: [
+          ReportDeliveryOutcome(channel: 'webhook', status: 'queued', targets: ['https://a.test']),
+          ReportDeliveryOutcome(
+            channel: 'email',
+            status: 'queued',
+            targets: ['ops@acme.test', 'lead@acme.test'],
+          ),
+        ],
+      );
+      expect(
+        runNowMessage(result),
+        'Generated 3 rows. Queued for 1 webhook. Emailing 2 recipients.',
+      );
+    });
+
+    test('says when no recipient is a usable email address', () {
+      final result = ScheduleRunResult(
+        schedule: _active,
+        runId: 'run-3',
+        generatedAt: '2026-09-14T10:05:00.000Z',
+        rowCount: 1,
+        deliveredTo: [],
+        deliveries: [
+          ReportDeliveryOutcome(channel: 'webhook', status: 'no_subscribers'),
+          ReportDeliveryOutcome(channel: 'email', status: 'no_subscribers'),
+        ],
+      );
+      expect(
+        runNowMessage(result),
+        'Generated 1 row. Not sent: no webhook is subscribed to '
+        'report.generated. Not emailed: no valid email recipients.',
       );
     });
 
@@ -343,7 +385,7 @@ void main() {
             ),
           ),
         ),
-        'Generated 42 rows. Webhook delivery failed. Email is not set up yet.',
+        'Generated 42 rows. Webhook delivery failed. Email is not set up on the server.',
       );
     });
   });
