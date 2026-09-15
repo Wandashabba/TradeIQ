@@ -1,6 +1,6 @@
 import { Prisma, VisitStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { buildPage } from '../../lib/pagination';
+import { DEFAULT_LIMIT, buildPage } from '../../lib/pagination';
 import { GEOFENCE_RADIUS_M, haversineDistanceMeters } from '../../lib/geofence';
 import { kpiThreshold } from '../../lib/kpiThresholds';
 import { NotFoundError } from '../../middleware/errorHandler';
@@ -1105,7 +1105,7 @@ export const fraudVisitInclude = {
   },
 } as const satisfies Prisma.VisitInclude;
 
-type FraudVisitPayload = Prisma.VisitGetPayload<{ include: typeof fraudVisitInclude }>;
+export type FraudVisitPayload = Prisma.VisitGetPayload<{ include: typeof fraudVisitInclude }>;
 
 function toFraudVisitInput(visit: FraudVisitPayload): FraudVisitInput {
   return {
@@ -1150,7 +1150,7 @@ function toStockCounts(visit: FraudVisitPayload): FraudStockCount[] {
   }));
 }
 
-/** Where one outlet's history ends: strictly before this visit, on (checkinTs, id). */
+/** Where one visit's stock history ends: strictly before it, on (checkinTs, id). */
 export interface PriorStockAnchor {
   outletId: string;
   checkinTs: Date;
@@ -1158,7 +1158,7 @@ export interface PriorStockAnchor {
 }
 
 interface PriorStockRow {
-  outlet_id: string;
+  anchor_visit_id: string;
   visit_id: string;
   checkin_ts: Date;
   sku_id: string;
@@ -1167,66 +1167,68 @@ interface PriorStockRow {
 }
 
 /**
- * Earlier submitted stock visits for many outlets, in ONE round trip (#245).
+ * Earlier submitted stock visits for many visits, in ONE round trip (#245).
  *
- * For each anchor, the `lookback` most recent SUBMITTED visits to that outlet
- * that recorded stock and sit strictly before the anchor visit on
- * (checkinTs, id), with their stock rows. Returned per outlet, newest first.
+ * For each anchor, the `lookback` most recent SUBMITTED visits to its outlet
+ * that recorded stock and sit strictly before it on (checkinTs, id), with their
+ * stock rows. Returned per ANCHOR visit id, newest first.
  *
- * `listFlagged` scores up to MAX_FRAUD_SCAN visits across as many outlets; a
- * history query per visit (or per outlet) would be the N+1 #120 removed from
- * stock capture. Postgres caps each outlet's history with a window function, as
- * fetchStockHistoryForOutlet does, so the cost is one query bounded by
- * outlets x lookback however much history an outlet has accumulated.
+ * Keyed per anchor rather than per outlet because a scoring batch (#236) is not
+ * a contiguous slice of an outlet's history: the rescore walks visits by id,
+ * and a backfill only picks the unscored ones, so the visits between two batch
+ * members are generally not in the batch and cannot stand in for each other's
+ * history. Each anchor's history is a LATERAL walk capped at `lookback`, so the
+ * cost is one query bounded by batch size x lookback however much history an
+ * outlet has accumulated, never a query per visit (the N+1 #120 removed from
+ * stock capture).
  */
 export async function loadPriorStockVisits(
   clientId: string,
   anchors: PriorStockAnchor[],
   lookback: number,
 ): Promise<Map<string, FraudStockVisit[]>> {
-  const byOutlet = new Map<string, FraudStockVisit[]>();
+  const byAnchor = new Map<string, FraudStockVisit[]>();
   if (anchors.length === 0 || lookback <= 0) {
-    return byOutlet;
+    return byAnchor;
   }
   const rows = await prisma.$queryRaw<PriorStockRow[]>(
     Prisma.sql`
-      SELECT r.outlet_id, r.id AS visit_id, r.checkin_ts,
+      SELECT anchor.visit_id AS anchor_visit_id, r.id AS visit_id, r.checkin_ts,
         vs.sku_id, vs.units_available, vs.velocity_avg
-      FROM (
-        SELECT v.id, v.outlet_id, v.checkin_ts,
-          ROW_NUMBER() OVER (
-            PARTITION BY v.outlet_id
-            ORDER BY v.checkin_ts DESC, v.id DESC
-          ) AS rn
+      FROM unnest(
+        ${anchors.map((a) => a.outletId)}::text[],
+        ${anchors.map((a) => a.checkinTs.toISOString())}::timestamp[],
+        ${anchors.map((a) => a.visitId)}::text[]
+      ) WITH ORDINALITY AS anchor(outlet_id, checkin_ts, visit_id, ord)
+      CROSS JOIN LATERAL (
+        SELECT v.id, v.checkin_ts
         FROM visits v
-        JOIN unnest(
-          ${anchors.map((a) => a.outletId)}::text[],
-          ${anchors.map((a) => a.checkinTs.toISOString())}::timestamp[],
-          ${anchors.map((a) => a.visitId)}::text[]
-        ) AS anchor(outlet_id, checkin_ts, visit_id)
-          ON anchor.outlet_id = v.outlet_id
         WHERE v.client_id = ${clientId}
+          AND v.outlet_id = anchor.outlet_id
           AND v.status = 'submitted'
           AND (v.checkin_ts, v.id) < (anchor.checkin_ts, anchor.visit_id)
           AND EXISTS (SELECT 1 FROM visit_stock s WHERE s.visit_id = v.id)
+        ORDER BY v.checkin_ts DESC, v.id DESC
+        LIMIT ${lookback}
       ) r
       JOIN visit_stock vs ON vs.visit_id = r.id
-      WHERE r.rn <= ${lookback}
-      ORDER BY r.outlet_id, r.rn, vs.sku_id
+      ORDER BY anchor.ord, r.checkin_ts DESC, r.id DESC, vs.sku_id
     `,
   );
 
-  // Rows arrive grouped by outlet and ordered newest visit first (rn), so
-  // appending preserves the database's (checkinTs, id) order exactly.
-  const byVisit = new Map<string, FraudStockVisit>();
+  // Rows arrive grouped by anchor, then newest visit first, so appending
+  // preserves the database's (checkinTs, id) order exactly. One earlier visit
+  // can be history for several anchors, so entries are keyed by the pair.
+  const entries = new Map<string, FraudStockVisit>();
   for (const row of rows) {
-    let entry = byVisit.get(row.visit_id);
+    const key = `${row.anchor_visit_id}|${row.visit_id}`;
+    let entry = entries.get(key);
     if (!entry) {
       entry = { visitId: row.visit_id, checkinTs: row.checkin_ts, stock: [] };
-      byVisit.set(row.visit_id, entry);
-      const list = byOutlet.get(row.outlet_id) ?? [];
+      entries.set(key, entry);
+      const list = byAnchor.get(row.anchor_visit_id) ?? [];
       list.push(entry);
-      byOutlet.set(row.outlet_id, list);
+      byAnchor.set(row.anchor_visit_id, list);
     }
     entry.stock.push({
       skuId: row.sku_id,
@@ -1234,7 +1236,7 @@ export async function loadPriorStockVisits(
       velocityAvg: row.velocity_avg,
     });
   }
-  return byOutlet;
+  return byAnchor;
 }
 
 /** One photo to look duplicates up for: a scored visit's own, with its hashes. */
@@ -1496,7 +1498,98 @@ export async function loadNearbyOutlets(
   return byVisit;
 }
 
-/** GET /fraud/visits/:visitId — score one tenant-scoped visit. */
+/**
+ * Score many loaded visits of ONE client, in a fixed number of queries (#236).
+ *
+ * The only scoring path. GET /fraud/visits/:id is a batch of one, the submit
+ * hook goes through that same function, and the rescore routine
+ * (fraudRescore.ts) feeds batches. Every lookup is batched: one read of
+ * rejected check-in attempts and one of the client's thresholds, then one stock
+ * history query (#245), one photo hash lookup (#244) and one outlet lookup
+ * (#248), each skipping itself when nothing in the batch needs it. Each visit
+ * gets exactly the inputs a batch of one would load, so a score does not depend
+ * on which batch computed it.
+ */
+export async function scoreFraudBatch(clientId: string, visits: FraudVisitPayload[]): Promise<FraudResult[]> {
+  if (visits.length === 0) {
+    return [];
+  }
+  const checkins = visits.map((visit) => visit.checkinTs.getTime());
+  const [attempts, client] = await Promise.all([
+    prisma.checkInAttempt.findMany({
+      where: {
+        clientId,
+        passed: false,
+        agentId: { in: [...new Set(visits.map((visit) => visit.agentId))] },
+        outletId: { in: [...new Set(visits.map((visit) => visit.outletId))] },
+        // Only the 6h before a check-in can count. Every reader applies that
+        // window again per visit (recentFailedAttempts); this only bounds the read.
+        createdAt: {
+          gte: new Date(Math.min(...checkins) - FAILED_ATTEMPT_WINDOW_MS),
+          lte: new Date(Math.max(...checkins)),
+        },
+      },
+    }),
+    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
+  ]);
+  const kpiThresholds = client?.kpiThresholds;
+  const attemptsByVisit = new Map(
+    visits.map((visit) => [
+      visit.id,
+      attempts.filter((attempt) => attempt.agentId === visit.agentId && attempt.outletId === visit.outletId),
+    ]),
+  );
+
+  const [priorByVisit, photoMatchesByVisit, nearbyOutletsByVisit] = await Promise.all([
+    // Only a submitted visit with counts can repeat anything.
+    loadPriorStockVisits(
+      clientId,
+      visits
+        .filter((visit) => visit.status === 'submitted' && visit.stock.length > 0)
+        .map((visit) => ({ outletId: visit.outletId, checkinTs: visit.checkinTs, visitId: visit.id })),
+      repeatingStockLookbackVisits(kpiThresholds),
+    ),
+    // Skips itself when no photo in the batch has a hash.
+    loadDuplicatePhotoMatches(
+      clientId,
+      visits.flatMap(duplicatePhotoSources),
+      duplicatePhotoMaxDistance(kpiThresholds),
+    ),
+    // Skips itself unless a submitted visit with stock has a geotagged photo
+    // from its counting sitting.
+    loadNearbyOutlets(
+      clientId,
+      visits.flatMap((visit) =>
+        stockOutsideOutletPositions(visit, attemptsByVisit.get(visit.id) ?? [], kpiThresholds),
+      ),
+    ),
+  ]);
+
+  return visits.map((visit) =>
+    computeFraudSignals(
+      toFraudVisitInput(visit),
+      {
+        photos: visit.photos,
+        sectionCreatedAts: sectionCreatedAts(visit),
+        failedAttempts: attemptsByVisit.get(visit.id) ?? [],
+        stockCounts: toStockCounts(visit),
+        priorStockVisits: priorByVisit.get(visit.id) ?? [],
+        photoMatches: photoMatchesByVisit.get(visit.id) ?? [],
+        nearbyOutlets: nearbyOutletsByVisit.get(visit.id) ?? [],
+      },
+      kpiThresholds,
+    ),
+  );
+}
+
+/**
+ * GET /fraud/visits/:visitId — score one tenant-scoped visit, LIVE.
+ *
+ * Always recomputed from the current data and the client's current
+ * kpiThresholds, never read from the stored `riskScore`: for one visit that is
+ * cheap, and it is the view a reviewer opens to decide. The stored column is a
+ * snapshot kept for the flagged list only (see listFlagged).
+ */
 export async function getVisitFraud(visitId: string, clientId: string): Promise<FraudResult> {
   const visit = await prisma.visit.findFirst({
     where: { id: visitId, clientId },
@@ -1505,51 +1598,60 @@ export async function getVisitFraud(visitId: string, clientId: string): Promise<
   if (!visit) {
     throw new NotFoundError('Visit not found');
   }
+  const [result] = await scoreFraudBatch(clientId, [visit]);
+  return result;
+}
 
-  const [failedAttempts, client] = await Promise.all([
-    prisma.checkInAttempt.findMany({
-      where: { clientId, agentId: visit.agentId, outletId: visit.outletId, passed: false },
-    }),
-    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
-  ]);
-
-  // Only a submitted visit with counts can repeat anything; skip the history
-  // read for everything else. The photo lookup skips itself when no photo has a
-  // hash.
-  const [priorStockVisits, photoMatches, nearbyOutlets] = await Promise.all([
-    visit.status === 'submitted' && visit.stock.length > 0
-      ? loadPriorStockVisits(
-          clientId,
-          [{ outletId: visit.outletId, checkinTs: visit.checkinTs, visitId: visit.id }],
-          repeatingStockLookbackVisits(client?.kpiThresholds),
-        ).then((byOutlet) => byOutlet.get(visit.outletId) ?? [])
-      : Promise.resolve([]),
-    loadDuplicatePhotoMatches(
-      clientId,
-      duplicatePhotoSources(visit),
-      duplicatePhotoMaxDistance(client?.kpiThresholds),
-    ).then((byVisit) => byVisit.get(visit.id) ?? []),
-    // #248: skips itself unless a submitted visit with stock has a geotagged
-    // photo from its counting sitting.
-    loadNearbyOutlets(
-      clientId,
-      stockOutsideOutletPositions(visit, failedAttempts, client?.kpiThresholds),
-    ).then((byVisit) => byVisit.get(visit.id) ?? []),
-  ]);
-
-  return computeFraudSignals(
-    toFraudVisitInput(visit),
-    {
-      photos: visit.photos,
-      sectionCreatedAts: sectionCreatedAts(visit),
-      failedAttempts,
-      stockCounts: toStockCounts(visit),
-      priorStockVisits,
-      photoMatches,
-      nearbyOutlets,
-    },
-    client?.kpiThresholds,
+/**
+ * Store fraud results on their visits (#236): `riskScore`, `fraudSignals` and
+ * `fraudScoredAt`, always together, in one transaction.
+ *
+ * `scoredAt` is when the inputs were read, taken before the scoring queries, so
+ * it measures how old the snapshot is, not when the row was written.
+ *
+ * Each write is guarded: a row is only written while its `fraudScoredAt` is
+ * null or earlier than `notNewerThan`. A score taken after that moment (a
+ * submit, or a second rescore that started later) is never replaced by this
+ * one. Returns how many rows were written; the rest kept their newer score.
+ */
+export async function storeFraudScores(
+  results: FraudResult[],
+  scoredAt: Date,
+  notNewerThan: Date = scoredAt,
+): Promise<number> {
+  if (results.length === 0) {
+    return 0;
+  }
+  const writes = await prisma.$transaction(
+    results.map((result) =>
+      prisma.visit.updateMany({
+        where: {
+          id: result.visitId,
+          OR: [{ fraudScoredAt: null }, { fraudScoredAt: { lt: notNewerThan } }],
+        },
+        data: {
+          riskScore: result.riskScore,
+          fraudSignals: result.signals as unknown as Prisma.InputJsonValue,
+          fraudScoredAt: scoredAt,
+        },
+      }),
+    ),
   );
+  return writes.reduce((sum, write) => sum + write.count, 0);
+}
+
+/**
+ * The submit hook (#236): score one visit and store the result on it.
+ *
+ * The same code path as GET /fraud/visits/:id, then one guarded write. It
+ * throws whatever that throws; submitVisit catches and logs, because a
+ * persisted submit must never fail on scoring.
+ */
+export async function scoreAndStoreVisitFraud(visitId: string, clientId: string): Promise<FraudResult> {
+  const scoredAt = new Date();
+  const result = await getVisitFraud(visitId, clientId);
+  await storeFraudScores([result], scoredAt);
+  return result;
 }
 
 export interface AttemptFilters {
@@ -1593,13 +1695,11 @@ export interface FlaggedVisit {
   agentId: string;
   riskScore: number;
   signals: FraudSignal[];
+  /** When the stored score's inputs were read: how old this snapshot is (#236). */
+  scoredAt: Date | null;
 }
 
-/** GET /fraud/flagged — submitted visits scoring at or above minScore. */
-/** How many submitted visits one call will score. See [listFlagged]. */
-export const MAX_FRAUD_SCAN = 2000;
-
-/** Default scan window when the caller does not name one. */
+/** Default review window when the caller does not name one. */
 export const DEFAULT_FRAUD_WINDOW_DAYS = 30;
 
 export interface ListFlaggedInput {
@@ -1607,155 +1707,101 @@ export interface ListFlaggedInput {
   minScore: number;
   from?: Date;
   to?: Date;
+  /** Page size. Defaults to the standard list default (DEFAULT_LIMIT). */
+  limit?: number;
+  cursor?: string;
 }
 
 export interface FlaggedPage {
   data: FlaggedVisit[];
-  /** How many visits were actually scored. */
-  scanned: number;
-  /** True when the scan hit [MAX_FRAUD_SCAN] and older visits went unscored. */
-  truncated: boolean;
+  nextCursor: string | null;
+  /**
+   * Submitted visits in the same window with no stored score yet (recorded
+   * before #236 and not backfilled). They can be neither listed nor ruled out,
+   * so they are counted: a list that silently skipped them would read as
+   * "nothing suspicious" when the truth is "not looked at".
+   */
+  unscored: number;
+  /** The window `data` and `unscored` cover, defaults applied. */
+  from: Date;
+  to: Date;
 }
 
 /**
- * Submitted visits scoring at or above `minScore`, newest-first within a
- * bounded window.
+ * GET /fraud/flagged — submitted visits whose STORED score is at or above
+ * `minScore`, highest risk first, one standard keyset page at a time (#236).
  *
- * This endpoint cannot paginate the way every other list does (#236): it
- * filters and sorts by a risk score **computed in memory**, so there is no
- * column to key a cursor on. What it can do — and now does — is refuse to scan
- * without limit. Previously it loaded every submitted visit the tenant had ever
- * recorded, on every request, which grows without bound at the ~190k
- * visits/year this schema anticipates.
+ * The score used to be computed in memory on every request, so the endpoint
+ * could only bound its scan (a date window plus a 2000-visit ceiling, #239) and
+ * could not paginate: both the filter and the sort were computed. It now reads
+ * `Visit.riskScore`, written at submit and by `npm run rescore-fraud`, so the
+ * filter and the sort are columns, served in order by the
+ * (client_id, status, risk_score DESC, id DESC) index, and the standard
+ * `take: limit + 1` / `cursor` template applies.
  *
- * Two bounds, because either alone can be defeated: a date window (default the
- * last 30 days, which is the horizon a fraud review actually cares about) and a
- * hard `MAX_FRAUD_SCAN` ceiling on rows scored.
+ * Staleness, stated plainly. A stored score is a snapshot taken at submit
+ * (`scoredAt`). Several signals read things that can change afterwards —
+ * earlier visits' stock and photos, rejected check-in attempts, the client's
+ * kpiThresholds — and this list does not see those changes until the visit is
+ * rescored. A client that changes a fraud threshold runs
+ * `npm run rescore-fraud -- --client <id> --all`. GET /fraud/visits/:id is
+ * always live, so the visit a reviewer opens is scored against today's data.
  *
- * `truncated` exists because a flagged list that quietly stops short is worse
- * than one that says it stopped. A manager who cannot see a suspicious visit
- * concludes there was not one. Same rule as `AgentActivityPage.truncated`.
+ * Visits without a stored score are excluded and counted in `unscored`.
+ *
+ * The window is a review horizon, no longer a scan bound: `checkinTs` within
+ * [from, to], defaulting to the last DEFAULT_FRAUD_WINDOW_DAYS as before.
  */
 export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage> {
-  const { clientId, minScore } = input;
+  const { clientId } = input;
+  const limit = input.limit ?? DEFAULT_LIMIT;
   const to = input.to ?? new Date();
-  const from =
-    input.from ?? new Date(to.getTime() - DEFAULT_FRAUD_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const from = input.from ?? new Date(to.getTime() - DEFAULT_FRAUD_WINDOW_DAYS * MS_PER_DAY);
+  // Scores are whole numbers in [0, 100] in an Int column: 49.5 means 50, and
+  // anything above 100 matches nothing (a fraction or 1e12 would be refused by
+  // the column's type rather than meaning "none").
+  const minScore = Math.min(RISK_MAX + 1, Math.max(RISK_MIN, Math.ceil(input.minScore)));
 
-  const [visits, failedAttempts, client] = await Promise.all([
+  const inWindow: Prisma.VisitWhereInput = {
+    clientId,
+    status: 'submitted',
+    checkinTs: { gte: from, lte: to },
+  };
+  const [rows, unscored] = await Promise.all([
     prisma.visit.findMany({
-      where: { clientId, status: 'submitted', checkinTs: { gte: from, lte: to } },
-      include: fraudVisitInclude,
-      // Newest first, so a truncated scan drops the OLDEST visits — the ones
-      // least likely to still be actionable — rather than an arbitrary slice.
-      orderBy: [{ checkinTs: 'desc' }, { id: 'desc' }],
-      take: MAX_FRAUD_SCAN + 1,
-    }),
-    // Scoped to the same window: the failed-attempt signal only ever matches
-    // attempts by the same agent at the same outlet, so attempts from outside
-    // the window cannot contribute to a visit inside it.
-    prisma.checkInAttempt.findMany({
-      where: { clientId, passed: false, createdAt: { gte: from, lte: to } },
-    }),
-    // One read for the whole scan: every visit here belongs to this client, so
-    // they all share its dwell band and capture-timeline tolerance.
-    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
-  ]);
-
-  const truncated = visits.length > MAX_FRAUD_SCAN;
-  if (truncated) {
-    visits.length = MAX_FRAUD_SCAN;
-  }
-
-  // Stock history for repeating_stock_counts (#245), per outlet, in one query.
-  //
-  // `visits` is newest first, and every submitted visit in the window newer
-  // than the scan's cutoff is in it. So for each outlet, the scanned visits
-  // themselves ARE its recent history, and the only history missing is what
-  // sits before the outlet's OLDEST scanned visit — outside the window, or cut
-  // off by truncation. That is what gets loaded, anchored on that visit. Each
-  // scored visit's history is then the outlet's later entries in one list: the
-  // same visits, in the same order, that GET /fraud/visits/:id would load.
-  const lookback = repeatingStockLookbackVisits(client?.kpiThresholds);
-  const oldestByOutlet = new Map<string, PriorStockAnchor>();
-  for (const visit of visits) {
-    // Newest first, so the last visit seen per outlet is its oldest.
-    oldestByOutlet.set(visit.outletId, {
-      outletId: visit.outletId,
-      checkinTs: visit.checkinTs,
-      visitId: visit.id,
-    });
-  }
-  const attemptsByVisit = new Map(
-    visits.map((visit) => [
-      visit.id,
-      failedAttempts.filter((attempt) => attempt.agentId === visit.agentId && attempt.outletId === visit.outletId),
-    ]),
-  );
-  // Duplicate photos (#244): every hashed photo in the scan is looked up in the
-  // same single query, alongside the stock history read — never per visit. So
-  // are the outlets near every capture position (#248).
-  const [earlier, photoMatchesByVisit, nearbyOutletsByVisit] = await Promise.all([
-    loadPriorStockVisits(clientId, [...oldestByOutlet.values()], lookback),
-    loadDuplicatePhotoMatches(
-      clientId,
-      visits.flatMap(duplicatePhotoSources),
-      duplicatePhotoMaxDistance(client?.kpiThresholds),
-    ),
-    loadNearbyOutlets(
-      clientId,
-      visits.flatMap((visit) =>
-        stockOutsideOutletPositions(visit, attemptsByVisit.get(visit.id) ?? [], client?.kpiThresholds),
-      ),
-    ),
-  ]);
-  const timelineByOutlet = new Map<string, FraudStockVisit[]>();
-  const positionInTimeline = new Map<string, number>();
-  for (const visit of visits) {
-    if (visit.stock.length === 0) {
-      continue;
-    }
-    const timeline = timelineByOutlet.get(visit.outletId) ?? [];
-    positionInTimeline.set(visit.id, timeline.length);
-    timeline.push({ visitId: visit.id, checkinTs: visit.checkinTs, stock: toStockCounts(visit) });
-    timelineByOutlet.set(visit.outletId, timeline);
-  }
-  for (const [outletId, timeline] of timelineByOutlet) {
-    timeline.push(...(earlier.get(outletId) ?? []));
-  }
-
-  const flagged: FlaggedVisit[] = [];
-  for (const visit of visits) {
-    const attemptsForVisit = attemptsByVisit.get(visit.id) ?? [];
-    const position = positionInTimeline.get(visit.id);
-    const priorStockVisits =
-      position === undefined
-        ? []
-        : (timelineByOutlet.get(visit.outletId) ?? []).slice(position + 1, position + 1 + lookback);
-    const result = computeFraudSignals(
-      toFraudVisitInput(visit),
-      {
-        photos: visit.photos,
-        sectionCreatedAts: sectionCreatedAts(visit),
-        failedAttempts: attemptsForVisit,
-        stockCounts: toStockCounts(visit),
-        priorStockVisits,
-        photoMatches: photoMatchesByVisit.get(visit.id) ?? [],
-        nearbyOutlets: nearbyOutletsByVisit.get(visit.id) ?? [],
+      where: { ...inWindow, riskScore: { gte: minScore } },
+      select: {
+        id: true,
+        outletId: true,
+        agentId: true,
+        riskScore: true,
+        fraudSignals: true,
+        fraudScoredAt: true,
       },
-      client?.kpiThresholds,
-    );
-    if (result.riskScore >= minScore) {
-      flagged.push({
-        visitId: visit.id,
-        outletId: visit.outletId,
-        agentId: visit.agentId,
-        riskScore: result.riskScore,
-        signals: result.signals,
-      });
-    }
-  }
+      // `id` is the unique tiebreaker, in the same direction as the primary
+      // sort — equal scores are the norm here (weights are a handful of flat
+      // values), and a mismatch drops or repeats rows at page boundaries.
+      orderBy: [{ riskScore: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+    }),
+    prisma.visit.count({ where: { ...inWindow, riskScore: null } }),
+  ]);
 
-  flagged.sort((a, b) => b.riskScore - a.riskScore);
-  return { data: flagged, scanned: visits.length, truncated };
+  const page = buildPage(rows, limit);
+  return {
+    data: page.data.map((row) => ({
+      visitId: row.id,
+      outletId: row.outletId,
+      agentId: row.agentId,
+      // Never null here: the filter requires a score.
+      riskScore: row.riskScore ?? RISK_MIN,
+      signals: (row.fraudSignals ?? []) as unknown as FraudSignal[],
+      scoredAt: row.fraudScoredAt,
+    })),
+    nextCursor: page.nextCursor,
+    unscored,
+    from,
+    to,
+  };
 }

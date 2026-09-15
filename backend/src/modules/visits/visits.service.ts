@@ -6,7 +6,7 @@ import { Prisma } from '@prisma/client';
 import type { AuthTokenPayload } from '../auth/auth.service';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
 import { DEFAULT_PRICE_DEVIATION_THRESHOLD, evaluateVisit } from '../alerts/alerts.service';
-import { computeFraudSignals, type FraudResult } from '../fraud/fraud.service';
+import { computeFraudSignals, scoreAndStoreVisitFraud, type FraudResult } from '../fraud/fraud.service';
 import {
   DEFAULT_GREEN_THRESHOLD,
   SCORECARD_DIMENSIONS,
@@ -162,6 +162,19 @@ export async function submitVisit(input: SubmitVisitInput) {
     await evaluateVisit({ clientId: submitted.clientId, visitId: submitted.id });
   } catch (err) {
     console.error(`Auto-evaluate alerts failed for visit ${submitted.id}:`, err);
+  }
+
+  // Issue #236: store the visit's fraud score, so GET /fraud/flagged filters and
+  // sorts on a column instead of scoring every visit on every request. The same
+  // code path as GET /fraud/visits/:id. Best-effort, like the alerts above: the
+  // submission is already persisted, and a visit left unscored is reported by
+  // the flagged list as `unscored` and picked up by `npm run rescore-fraud`.
+  // The stored score is a snapshot of today's history and thresholds; see
+  // listFlagged for how that is handled.
+  try {
+    await scoreAndStoreVisitFraud(submitted.id, submitted.clientId);
+  } catch (err) {
+    console.error(`Fraud scoring failed for visit ${submitted.id}:`, err);
   }
 
   return submitted;

@@ -32,7 +32,7 @@ class FraudScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final visits = ref.watch(flaggedVisitsProvider);
+    final flagged = ref.watch(flaggedVisitsProvider);
 
     return ManagerScaffold(
       title: 'Fraud Review',
@@ -44,13 +44,13 @@ class FraudScreen extends ConsumerWidget {
             style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
-          AsyncSection<List<FlaggedVisit>>(
-            value: visits,
+          AsyncSection<FlaggedPage>(
+            value: flagged,
             label: 'flagged visits',
             onRetry: () => ref.invalidate(flaggedVisitsProvider),
-            builder: (list) {
+            builder: (page) {
               // Riskiest first: the list reads top-down as the review order.
-              final sorted = [...list]
+              final sorted = [...page.data]
                 ..sort((a, b) => b.riskScore.compareTo(a.riskScore));
               int count(StatusLevel l) =>
                   sorted.where((v) => levelFor(v.riskScore) == l).length;
@@ -77,8 +77,25 @@ class FraudScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  // An unscored visit is not a clean one. Say so, rather than
+                  // let a short list read as "nothing suspicious" (#236).
+                  if (page.unscored > 0) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '${page.unscored} submitted '
+                      '${page.unscored == 1 ? 'visit has' : 'visits have'} '
+                      'not been scored yet and '
+                      '${page.unscored == 1 ? 'is' : 'are'} not listed here.',
+                      key: const ValueKey('fraud-unscored'),
+                      style:
+                          TextStyle(fontSize: 12, color: context.colors.ink3),
+                    ),
+                  ],
                   const SizedBox(height: 12),
-                  _FlaggedList(visits: sorted),
+                  _FlaggedList(
+                    visits: sorted,
+                    hasMore: page.nextCursor != null,
+                  ),
                 ],
               );
             },
@@ -90,15 +107,20 @@ class FraudScreen extends ConsumerWidget {
 }
 
 class _FlaggedList extends StatelessWidget {
-  const _FlaggedList({required this.visits});
+  const _FlaggedList({required this.visits, required this.hasMore});
 
   final List<FlaggedVisit> visits;
 
+  /// The backend returned the riskiest page and there are more below it.
+  final bool hasMore;
+
   @override
   Widget build(BuildContext context) {
+    final noun = visits.length == 1 ? 'visit' : 'visits';
     return PanelCard(
-      title: '${visits.length} flagged '
-          '${visits.length == 1 ? 'visit' : 'visits'}',
+      title: hasMore
+          ? 'Top ${visits.length} flagged $noun'
+          : '${visits.length} flagged $noun',
       subtitle: 'Highest risk first',
       padded: false,
       child: visits.isEmpty
