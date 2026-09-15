@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/session_controller.dart';
 import '../../../core/format/person_label.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/tiq_colors.dart';
@@ -17,21 +18,32 @@ class UsersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final users = ref.watch(usersListProvider);
+    final role = ref.watch(sessionControllerProvider).value?.role;
+    // Managers may list users, but creating and changing them (POST and
+    // PATCH /users) is admin-only on the server, so only admins get controls.
+    final canEdit = role == 'admin';
     return ManagerScaffold(
       title: 'Users',
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Add user',
-        onPressed: () => showDialog<void>(
-          context: context,
-          builder: (_) => const _CreateUserDialog(),
-        ),
-        child: const Icon(Icons.person_add),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton(
+              tooltip: 'Add user',
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const _CreateUserDialog(),
+              ),
+              child: const Icon(Icons.person_add),
+            )
+          : null,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Deactivating a user revokes sign-in immediately.',
+            canEdit
+                ? 'Deactivating a user revokes sign-in immediately.'
+                : 'Only admins can add or change users.',
+            key: canEdit
+                ? null
+                : const ValueKey<String>('users-read-only-note'),
             style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
@@ -60,7 +72,7 @@ class UsersScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _UserList(users: list),
+                  _UserList(users: list, canEdit: canEdit),
                 ],
               );
             },
@@ -72,9 +84,10 @@ class UsersScreen extends ConsumerWidget {
 }
 
 class _UserList extends StatelessWidget {
-  const _UserList({required this.users});
+  const _UserList({required this.users, required this.canEdit});
 
   final List<AppUser> users;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -90,16 +103,21 @@ class _UserList extends StatelessWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
-              children: [for (final u in users) _UserRow(user: u)],
+              children: [
+                for (final u in users) _UserRow(user: u, canEdit: canEdit),
+              ],
             ),
     );
   }
 }
 
 class _UserRow extends ConsumerWidget {
-  const _UserRow({required this.user});
+  const _UserRow({required this.user, required this.canEdit});
 
   final AppUser user;
+
+  /// Admin-only: the Edit name action and the active switch.
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -131,26 +149,28 @@ class _UserRow extends ConsumerWidget {
       statusLabel: user.active ? 'Active' : 'Inactive',
       resolved: !user.active,
       actions: [
-        IconButton(
-          key: ValueKey<String>('edit-name-${user.id}'),
-          tooltip: 'Edit name',
-          icon: Icon(Icons.edit_outlined, color: context.colors.ink2),
-          onPressed: () => showDialog<void>(
-            context: context,
-            builder: (_) => _EditNameDialog(user: user),
+        if (canEdit) ...[
+          IconButton(
+            key: ValueKey<String>('edit-name-${user.id}'),
+            tooltip: 'Edit name',
+            icon: Icon(Icons.edit_outlined, color: context.colors.ink2),
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => _EditNameDialog(user: user),
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: Switch(
-            key: ValueKey<String>('active-${user.id}'),
-            value: user.active,
-            onChanged: (v) async {
-              await ref.read(usersRepositoryProvider).setActive(user.id, v);
-              ref.invalidate(usersListProvider);
-            },
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Switch(
+              key: ValueKey<String>('active-${user.id}'),
+              value: user.active,
+              onChanged: (v) async {
+                await ref.read(usersRepositoryProvider).setActive(user.id, v);
+                ref.invalidate(usersListProvider);
+              },
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

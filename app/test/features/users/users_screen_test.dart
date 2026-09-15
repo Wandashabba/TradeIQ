@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/lumen_palette.dart';
@@ -158,11 +159,27 @@ Future<void> _saveName(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Widget _app(UsersRepository repo, {ThemeData? theme}) => routedApp(
+/// A session fixed to the given role, so role-gated UI is deterministic.
+class _RoleSession extends SessionController {
+  _RoleSession(this.role);
+  final String? role;
+
+  @override
+  Future<SessionState> build() async => SessionState(role: role, token: 't');
+}
+
+/// Defaults to admin: only admins get the create, activate and edit controls.
+Widget _app(
+  UsersRepository repo, {
+  ThemeData? theme,
+  String? role = 'admin',
+}) =>
+    routedApp(
       const UsersScreen(),
       theme: theme,
       overrides: [
         usersRepositoryProvider.overrideWithValue(repo),
+        sessionControllerProvider.overrideWith(() => _RoleSession(role)),
       ],
     );
 
@@ -309,6 +326,93 @@ void main() {
 
     expect(repo.createdEmail, 'new@example.com');
     expect(repo.createdDisplayName, isNull);
+  });
+
+  group('role gating', () {
+    Finder mutatingControls(String userId) => find.byWidgetPredicate(
+          (w) =>
+              w.key == ValueKey<String>('active-$userId') ||
+              w.key == ValueKey<String>('edit-name-$userId'),
+        );
+
+    for (final (label, theme) in [
+      ('light', AppTheme.light()),
+      ('dark', AppTheme.dark()),
+    ]) {
+      testWidgets('$label: an admin gets create, active switch and Edit name',
+          (tester) async {
+        await tester.pumpWidget(
+          _app(
+            _FakeUsersRepository(users: const [_namedUser, _activeUser]),
+            theme: theme,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(FloatingActionButton), findsOneWidget);
+        expect(find.byIcon(Icons.person_add), findsOneWidget);
+        for (final id in ['u-named', 'u-active']) {
+          expect(
+            find.byKey(ValueKey<String>('active-$id')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(ValueKey<String>('edit-name-$id')),
+            findsOneWidget,
+          );
+        }
+        expect(find.byType(Switch), findsNWidgets(2));
+        expect(
+          find.byKey(const ValueKey<String>('users-read-only-note')),
+          findsNothing,
+        );
+        expect(
+          find.text('Deactivating a user revokes sign-in immediately.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets(
+          '$label: a manager gets a read-only list with a note and no '
+          'mutating controls', (tester) async {
+        await tester.pumpWidget(
+          _app(
+            _FakeUsersRepository(
+              users: const [_namedUser, _activeUser, _inactiveUser],
+            ),
+            theme: theme,
+            role: 'manager',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Same rows: names, emails and status still shown.
+        expect(find.text('Sipho Ndlovu'), findsOneWidget);
+        expect(find.text('agent7@example.com'), findsOneWidget);
+        expect(find.text('active@example.com'), findsOneWidget);
+        expect(find.text('inactive@example.com'), findsOneWidget);
+        expect(find.text('3 users'), findsOneWidget);
+
+        // No create button, no switches, no Edit name.
+        expect(find.byType(FloatingActionButton), findsNothing);
+        expect(find.byIcon(Icons.person_add), findsNothing);
+        expect(find.byType(Switch), findsNothing);
+        expect(find.byIcon(Icons.edit_outlined), findsNothing);
+        for (final id in ['u-named', 'u-active', 'u-inactive']) {
+          expect(mutatingControls(id), findsNothing);
+        }
+
+        expect(
+          find.byKey(const ValueKey<String>('users-read-only-note')),
+          findsOneWidget,
+        );
+        expect(find.text('Only admins can add or change users.'), findsOneWidget);
+        expect(
+          find.text('Deactivating a user revokes sign-in immediately.'),
+          findsNothing,
+        );
+      });
+    }
   });
 
   group('edit name', () {
