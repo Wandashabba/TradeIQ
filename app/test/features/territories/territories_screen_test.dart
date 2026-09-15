@@ -103,6 +103,10 @@ class _FakeUsersRepository implements UsersRepository {
   @override
   Future<AppUser> setActive(String id, bool active) async =>
       throw UnimplementedError();
+
+  @override
+  Future<AppUser> updateDisplayName(String id, String? displayName) async =>
+      throw UnimplementedError();
 }
 
 /// A session fixed to the given role, so role-gated UI is deterministic.
