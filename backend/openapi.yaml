@@ -1266,6 +1266,11 @@ paths:
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: 'Generated (delivery is Phase 4)' }, '404': { description: Not found } }
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     DisplayName:
       type: string
@@ -1305,12 +1310,6 @@ components:
         avgScorecard: { type: number }
         points: { type: number }
         rank: { type: integer }
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  schemas:
     Webhook:
       type: object
       properties:
