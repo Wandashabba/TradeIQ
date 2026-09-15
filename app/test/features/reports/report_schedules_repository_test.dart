@@ -142,6 +142,54 @@ void main() {
       expect(adapter.last!.data, {'active': false});
     });
 
+    test('updateSchedule PATCHes the cadence and recipients', () async {
+      final adapter = _RecordingAdapter(jsonEncode(_row));
+      dio.httpClientAdapter = adapter;
+
+      final updated = await DioReportSchedulesRepository().updateSchedule(
+        's1',
+        cadence: 'weekly',
+        recipients: const ['ops@acme.test', 'lead@acme.test'],
+      );
+
+      expect(adapter.last!.method, 'PATCH');
+      expect(adapter.last!.path, '/report-schedules/s1');
+      // Never the report: the route cannot relink a schedule.
+      expect(adapter.last!.data, {
+        'cadence': 'weekly',
+        'recipients': ['ops@acme.test', 'lead@acme.test'],
+      });
+      expect(updated.id, 's1');
+      expect(updated.cadence, 'weekly');
+    });
+
+    test('updateSchedule sends only the fields it is given', () async {
+      final adapter = _RecordingAdapter(jsonEncode(_row));
+      dio.httpClientAdapter = adapter;
+
+      await DioReportSchedulesRepository()
+          .updateSchedule('s1', recipients: const ['ops@acme.test']);
+      expect(adapter.last!.data, {
+        'recipients': ['ops@acme.test'],
+      });
+
+      await DioReportSchedulesRepository()
+          .updateSchedule('s1', cadence: 'daily');
+      expect(adapter.last!.data, {'cadence': 'daily'});
+    });
+
+    test('updateSchedule surfaces a 400 as an error', () async {
+      dio.httpClientAdapter = _RecordingAdapter(
+        jsonEncode({'error': 'cadence must be daily|weekly'}),
+        status: 400,
+      );
+
+      expect(
+        DioReportSchedulesRepository().updateSchedule('s1', cadence: 'daily'),
+        throwsA(isA<DioException>()),
+      );
+    });
+
     test('deleteSchedule sends DELETE and accepts the 204', () async {
       final adapter = _RecordingAdapter('', status: 204);
       dio.httpClientAdapter = adapter;

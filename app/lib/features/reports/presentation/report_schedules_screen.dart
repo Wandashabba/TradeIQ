@@ -175,6 +175,18 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
         failure: 'Run failed.',
       );
 
+  /// Opens the form in edit mode. The form saves, refreshes the list and pops
+  /// itself; a failed save stays on the form.
+  void _edit() {
+    if (_busy) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            ReportScheduleFormScreen(schedule: widget.schedule),
+      ),
+    );
+  }
+
   Future<void> _delete() async {
     if (_busy) return;
     final confirmed = await showDialog<bool>(
@@ -244,6 +256,11 @@ class _ScheduleRowState extends ConsumerState<_ScheduleRow> {
           key: ValueKey<String>('run-${s.id}'),
           label: 'Run now',
           onPressed: _runNow,
+        ),
+        RowAction(
+          key: ValueKey<String>('edit-${s.id}'),
+          label: 'Edit',
+          onPressed: _edit,
         ),
         RowAction(
           key: ValueKey<String>('delete-${s.id}'),
