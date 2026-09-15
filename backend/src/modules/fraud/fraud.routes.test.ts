@@ -524,6 +524,50 @@ describe('fraud routes', () => {
       expect(res.body.riskScore).toBe(15);
     });
 
+    it('ignores a far-away task-closure photo for photo_gps_divergence, but not a far-away audit photo (#317)', async () => {
+      // Geotag the timeline visit's closure photo ~500m from the check-in, as a
+      // closure taken away from the outlet would be once closure photos carry GPS.
+      const closure = await prisma.photo.findFirstOrThrow({
+        where: { visitId: timelineVisitId, section: 'task_closure' },
+        select: { id: true },
+      });
+      const farTag = { lat: FAR_PHOTO_LAT, lng: OUTLET_LNG };
+      await prisma.photo.update({ where: { id: closure.id }, data: { gpsTag: farTag } });
+      try {
+        const closureOnly = await request(app)
+          .get(`/fraud/visits/${timelineVisitId}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(closureOnly.status).toBe(200);
+        // The route loads each photo's section, so the far closure photo scores
+        // nothing: only the existing 270-min timeline gap remains.
+        expect(closureOnly.body.signals.map((s: { code: string }) => s.code)).toEqual(['capture_timeline_gap']);
+        expect(closureOnly.body.riskScore).toBe(15);
+
+        // The same far photo as an audit photo does fire.
+        await prisma.photo.update({ where: { id: closure.id }, data: { section: 'visibility' } });
+        const audit = await request(app)
+          .get(`/fraud/visits/${timelineVisitId}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(audit.status).toBe(200);
+        expect(audit.body.signals[0]).toEqual({
+          code: 'photo_gps_divergence',
+          detail: "A photo's GPS tag is 500m from the check-in location",
+          weight: 25,
+        });
+        expect(audit.body.signals.map((s: { code: string }) => s.code)).toEqual([
+          'photo_gps_divergence',
+          'capture_timeline_gap',
+        ]);
+      } finally {
+        await prisma.photo.update({
+          where: { id: closure.id },
+          data: { section: 'task_closure', gpsTag: {} },
+        });
+      }
+    });
+
     it("applies the tenant's own capture-timeline tolerance, read from the database", async () => {
       await prisma.client.update({
         where: { id: clientId },

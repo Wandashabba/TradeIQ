@@ -65,6 +65,18 @@ export const DEFAULT_CAPTURE_TIMELINE_TOLERANCE_MINUTES = 15;
 // later and by design (tasks_screen.dart). It is not part of the audit sitting.
 const TASK_CLOSURE_PHOTO_SECTION = 'task_closure';
 
+/**
+ * A task-closure photo: evidence attached to the originating visit when a task
+ * is closed, often days later and from wherever it was closed. It says nothing
+ * about when or where the audit happened, so no photo signal reads it:
+ * capture_timeline_gap (#246), stock_outside_outlet (#248),
+ * photo_gps_divergence (#317) and the duplicate_photo lookups (#244) all skip
+ * it through this one rule.
+ */
+function isTaskClosurePhoto(photo: { section?: string | null }): boolean {
+  return photo.section === TASK_CLOSURE_PHOTO_SECTION;
+}
+
 // ── Repeating stock counts (#245) ──────────────────────────────────────────
 // "2-1, 2-1": the same counts submitted visit after visit. Real shelf stock
 // moves, so a run of identical `unitsAvailable` for one (outlet, SKU) across
@@ -338,14 +350,17 @@ export interface FraudPhotoInput {
   gpsTag: Prisma.JsonValue;
   /** The DEVICE clock at capture. Absent → the photo has no place on the timeline. */
   timestamp?: Date | null;
-  /** The audit section it evidences; `task_closure` photos are not audit captures. */
+  /**
+   * The audit section it evidences; `task_closure` photos are not audit
+   * captures, and no photo signal reads them (see isTaskClosurePhoto).
+   */
   section?: string;
 }
 
 /** Related rows the heuristics reason over, pre-loaded by the caller. */
 export interface FraudRelatedInput {
-  // Photos captured on the visit: gpsTag (divergence), timestamp + section
-  // (capture timeline, #246).
+  // Photos captured on the visit: gpsTag + section (divergence, #317),
+  // timestamp + section (capture timeline, #246).
   photos: FraudPhotoInput[];
   // createdAt of every captured row across the five audit sections (stock,
   // visibility, pricing, competitive, capability).
@@ -773,7 +788,7 @@ function captureSittingPhotos<P extends FraudPhotoInput>(
   const toleranceMs = captureTimelineToleranceMs(kpiThresholds);
   const placed: Array<{ photo: P; coords: { lat: number; lng: number } }> = [];
   for (const photo of photos) {
-    if (photo.section === TASK_CLOSURE_PHOTO_SECTION || !photo.timestamp) {
+    if (isTaskClosurePhoto(photo) || !photo.timestamp) {
       continue;
     }
     const takenMs = photo.timestamp.getTime();
@@ -913,12 +928,18 @@ export function computeFraudSignals(
   }
 
   // 3. A photo's GPS tag diverges far from the recorded check-in location.
+  //    Task-closure photos are skipped (#317): one is taken wherever the task
+  //    was closed, days later, so a legitimate closure away from the outlet
+  //    would otherwise score its originating visit as a divergence.
   const checkin = { lat: visit.checkinLat, lng: visit.checkinLng };
   let maxDivergenceM = 0;
   // Remembered so the capture-timeline signal (6) can tell a second piece of
   // evidence from the same photo seen again.
   const divergentPhotos = new Set<FraudPhotoInput>();
   for (const photo of related.photos) {
+    if (isTaskClosurePhoto(photo)) {
+      continue;
+    }
     const coords = readCoords(photo.gpsTag);
     if (!coords) {
       continue;
@@ -1015,7 +1036,7 @@ export function computeFraudSignals(
       const toleranceMs = captureTimelineToleranceMs(kpiThresholds);
       const outside: Array<{ photo: FraudPhotoInput; gapMs: number; after: boolean }> = [];
       for (const photo of related.photos) {
-        if (photo.section === TASK_CLOSURE_PHOTO_SECTION || !photo.timestamp) {
+        if (isTaskClosurePhoto(photo) || !photo.timestamp) {
           continue;
         }
         const takenMs = photo.timestamp.getTime();
@@ -1088,7 +1109,8 @@ export const fraudVisitInclude = {
   competitive: true,
   capability: true,
   // Fraud inspects each photo's gpsTag, device timestamp and section (see
-  // FraudRelatedInput), and its id and two hashes to look duplicates up (#244).
+  // FraudRelatedInput; section is how every photo signal skips task-closure
+  // photos), and its id and two hashes to look duplicates up (#244).
   // Selecting the base64 `url` too meant listFlagged detoasted every stored
   // image — MBs per row — only to discard them. Select only the fields we read:
   // a 64-char and a 16-char string, never the bytes (and not the band array,
@@ -1263,7 +1285,7 @@ interface DuplicatePhotoRow {
 /** A scored visit's photos worth looking up: audit captures that carry a hash. */
 function duplicatePhotoSources(visit: FraudVisitPayload): DuplicatePhotoSource[] {
   return visit.photos
-    .filter((photo) => photo.section !== TASK_CLOSURE_PHOTO_SECTION && photo.contentHash !== null)
+    .filter((photo) => !isTaskClosurePhoto(photo) && photo.contentHash !== null)
     .map((photo) => ({
       photoId: photo.id,
       section: photo.section,
@@ -1303,7 +1325,7 @@ export async function loadDuplicatePhotoMatches(
   maxDistance: number,
 ): Promise<Map<string, FraudPhotoMatch[]>> {
   const byVisit = new Map<string, FraudPhotoMatch[]>();
-  const hashed = sources.filter((s) => s.contentHash !== null && s.section !== TASK_CLOSURE_PHOTO_SECTION);
+  const hashed = sources.filter((s) => s.contentHash !== null && !isTaskClosurePhoto(s));
   if (hashed.length === 0) {
     return byVisit;
   }
