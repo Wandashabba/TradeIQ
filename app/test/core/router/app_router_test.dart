@@ -127,9 +127,8 @@ Widget _appWithOverrides(List<Override> overrides) {
       // so pumpAndSettle never settles against a real one — stub the provider.
       syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
       visitProgressProvider.overrideWith(
-        (ref, arg) => Stream.value(
-          const VisitProgress(states: {}, details: {}),
-        ),
+        (ref, arg) =>
+            Stream.value(const VisitProgress(states: {}, details: {})),
       ),
       ...overrides,
     ],
@@ -399,6 +398,35 @@ void main() {
       // /visits/:id is supervisory (#208): its API is manager/admin-only.
       expect(find.text('Today'), findsOneWidget);
       expect(find.text('Visit review'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a field_agent navigating to an agent\'s points history is bounced to their route',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/leaderboard/a1');
+      await tester.pumpAndSettle();
+
+      // /leaderboard/:agentId is supervisory (#124): its API is
+      // manager/admin-only, so an agent would only ever land on a 403.
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Points history'), findsNothing);
     },
   );
 
