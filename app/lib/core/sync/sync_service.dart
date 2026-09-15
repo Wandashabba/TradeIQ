@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/beatplans/data/today_route.dart'
+    show invalidateRouteProgress;
 import '../network/api_client.dart' as api_client;
 import '../storage/local_db.dart';
 
@@ -118,10 +120,17 @@ class HttpQueueFlusher implements QueueFlusher {
 }
 
 class SyncService {
-  SyncService({required this.db, required this.flusher});
+  SyncService({required this.db, required this.flusher, this.onItemSynced});
 
   final LocalDb db;
   final QueueFlusher flusher;
+
+  /// Told about each item once the server has accepted it and the row is
+  /// marked synced — the moment server-side effects of that item are real.
+  ///
+  /// A refresh hint, nothing more: it cannot fail the flush, and it is never
+  /// called for an item that did not send.
+  final void Function(SyncQueueItem item)? onItemSynced;
 
   Future<void> flushPending() async {
     // Nobody is signed in, so nothing is ours to send. Flushing here would
@@ -165,6 +174,12 @@ class SyncService {
           lastAttemptAt: Value(DateTime.now()),
         ),
       );
+      try {
+        onItemSynced?.call(item);
+      } catch (_) {
+        // The item is on the server either way; a listener that throws must
+        // not stop the rest of the queue sending.
+      }
     }
   }
 
@@ -189,5 +204,14 @@ class SyncService {
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.read(localDbProvider);
-  return SyncService(db: db, flusher: HttpQueueFlusher(db: db));
+  return SyncService(
+    db: db,
+    flusher: HttpQueueFlusher(db: db),
+    onItemSynced: (item) {
+      // The server marks the beat-plan stop visited when a submit lands (#52).
+      // Refresh the route only then — not when the agent taps submit, because
+      // offline that would swap a usable cached route for a failed fetch.
+      if (item.entityType == 'visit_submit') invalidateRouteProgress(ref);
+    },
+  );
 });
