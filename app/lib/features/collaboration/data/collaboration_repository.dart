@@ -72,10 +72,18 @@ abstract class CollaborationRepository {
   /// `PhotosRepository.uploadMessageAttachment` — at most
   /// [maxMessageAttachments], each uploaded by the caller. [body] may be blank
   /// only when at least one image is attached.
+  ///
+  /// [clientMessageId] is the idempotency key for this composed message
+  /// (#308): generate it once, send the SAME value on every retry of that
+  /// message, and a new one for the next message. The server then answers a
+  /// retry whose first response was lost with the original message (200)
+  /// rather than a duplicate or a 409. The same key with different content is
+  /// a 409, so a changed draft needs a new key.
   Future<Message> sendMessage(
     String body, {
     String? recipientId,
     List<String> attachmentPhotoIds = const [],
+    String? clientMessageId,
   });
   Future<PaginatedResponse<Announcement>> listAnnouncements();
 
@@ -106,9 +114,14 @@ class DioCollaborationRepository implements CollaborationRepository {
     String body, {
     String? recipientId,
     List<String> attachmentPhotoIds = const [],
+    String? clientMessageId,
   }) async {
     final data = <String, dynamic>{'body': body};
     if (recipientId != null) data['recipientId'] = recipientId;
+    // A body field, not an Idempotency-Key header: the server stores it on the
+    // message. 201 (created) and 200 (a replay of an earlier send) both parse
+    // as the message.
+    if (clientMessageId != null) data['clientMessageId'] = clientMessageId;
     // Omitted rather than sent empty, so a text message's wire shape is
     // exactly what it was before attachments existed.
     if (attachmentPhotoIds.isNotEmpty) {

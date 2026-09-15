@@ -1025,4 +1025,145 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get s9Saved => 'Taak wag om gestuur te word';
+
+  @override
+  String get errorSessionExpired =>
+      'Jou sessie het verval. Teken asseblief weer in.';
+
+  @override
+  String get errorUnreachable =>
+      'Kon nie die bediener bereik nie. Kyk of jy verbinding het en probeer weer.';
+
+  @override
+  String get errorGeneric => 'Iets het fout gegaan. Probeer asseblief weer.';
+
+  @override
+  String get checkInLocationPermissionDenied =>
+      'Toestemming vir ligging is geweier';
+
+  @override
+  String get checkInLocationServicesDisabled => 'Liggingdienste is afgeskakel';
+
+  @override
+  String get checkInLocationTimedOut =>
+      'Dit het te lank geneem om jou ligging te kry. Maak seker dat ligging vir TradeIQ aangeskakel is, en probeer dan weer.';
+
+  @override
+  String checkInLocationFailed(String error) {
+    return 'Kon nie jou huidige ligging kry nie: $error';
+  }
+
+  @override
+  String get progressConfirmedAtCheckIn => 'Bevestig by aanmelding';
+
+  @override
+  String progressSkusOfTotal(int items, int total) {
+    return '$items van $total SKU’s';
+  }
+
+  @override
+  String progressStockCounted(int items) {
+    return '$items SKU’s getel';
+  }
+
+  @override
+  String progressStockOutOfStock(int items, int outOfStock) {
+    return '$items SKU’s · $outOfStock uit voorraad';
+  }
+
+  @override
+  String progressSkusPriced(int items) {
+    return '$items SKU’s geprys';
+  }
+
+  @override
+  String get progressNoCompetitors => 'Geen op die rak nie';
+
+  @override
+  String progressCompetitors(int items) {
+    String _temp0 = intl.Intl.pluralLogic(
+      items,
+      locale: localeName,
+      other: '$items mededingers',
+      one: '1 mededinger',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get progressCaptured => 'Vasgelê';
+
+  @override
+  String get progressNoRisks => 'Geen gemerk nie';
+
+  @override
+  String progressRisksRaised(int items) {
+    return '$items gemerk';
+  }
+
+  @override
+  String taskStockoutTitle(String sku) {
+    return '$sku is uit voorraad';
+  }
+
+  @override
+  String get taskStockoutTitleUnnamed => 'Hierdie SKU is uit voorraad';
+
+  @override
+  String get taskStockoutReason => 'Jy het nul op die rak getel';
+
+  @override
+  String taskRiskTitle(String flagType) {
+    return '$flagType gemerk';
+  }
+
+  @override
+  String get taskRiskTitleUntyped => 'Risiko gemerk';
+
+  @override
+  String taskRiskReason(String flagType) {
+    return 'Risiko wat jy gemerk het · $flagType';
+  }
+
+  @override
+  String get taskRiskReasonUntyped => 'Risiko wat jy gemerk het';
+
+  @override
+  String get taskActionPlanTitleUntitled => 'Aksie waarvoor jy gevra het';
+
+  @override
+  String get taskActionPlanReason => 'Aksieplan wat jy geskryf het';
+
+  @override
+  String reviewSkusCounted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count SKU’s getel',
+      one: '1 SKU getel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reviewCompetitors(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mededingers',
+      one: '1 mededinger',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reviewPhotos(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count foto’s',
+      one: '1 foto',
+    );
+    return '$_temp0';
+  }
 }

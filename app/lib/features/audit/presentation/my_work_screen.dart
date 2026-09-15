@@ -50,7 +50,7 @@ class MyWorkScreen extends ConsumerWidget {
           child: StatusBanner(
             level: BannerLevel.bad,
             title: l10n.myWorkLoadErrorTitle,
-            subtitle: humanErrorMessage(err),
+            subtitle: humanErrorMessage(err, l10n),
           ),
         ),
         data: (s) => ListView(

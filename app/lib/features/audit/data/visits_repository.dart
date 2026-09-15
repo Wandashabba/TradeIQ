@@ -10,6 +10,7 @@ import '../../../core/location/location_service.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_service.dart';
+import '../../../l10n/l10n.dart';
 
 sealed class CheckInResult {}
 
@@ -23,10 +24,56 @@ class CheckInGeofenceFailed extends CheckInResult {
   final double distanceMeters;
 }
 
-class CheckInLocationUnavailable extends CheckInResult {
-  CheckInLocationUnavailable(this.message);
-  final String message;
+/// Why the phone could not say where the agent is.
+enum CheckInLocationProblem {
+  permissionDenied,
+  servicesDisabled,
+  timedOut,
+
+  /// The location lookup threw; the detail says what with.
+  failed,
 }
+
+class CheckInLocationUnavailable extends CheckInResult {
+  /// A failure described by [message] alone, shown as it is.
+  CheckInLocationUnavailable(this.message) : problem = null, detail = null;
+
+  /// A known failure, worded in the agent's language by the screen.
+  CheckInLocationUnavailable.because(
+    CheckInLocationProblem this.problem, {
+    this.detail,
+  }) : message = _locationProblemText(problem, detail, englishLocalizations);
+
+  /// The English copy.
+  final String message;
+
+  /// Null when this failure has no code — [message] is then all there is.
+  final CheckInLocationProblem? problem;
+
+  /// The underlying error, for [CheckInLocationProblem.failed].
+  final String? detail;
+
+  /// The copy in [l10n]'s language.
+  String messageIn(AppLocalizations l10n) {
+    final problem = this.problem;
+    return problem == null
+        ? message
+        : _locationProblemText(problem, detail, l10n);
+  }
+}
+
+String _locationProblemText(
+  CheckInLocationProblem problem,
+  String? detail,
+  AppLocalizations l10n,
+) => switch (problem) {
+  CheckInLocationProblem.permissionDenied =>
+    l10n.checkInLocationPermissionDenied,
+  CheckInLocationProblem.servicesDisabled =>
+    l10n.checkInLocationServicesDisabled,
+  CheckInLocationProblem.timedOut => l10n.checkInLocationTimedOut,
+  CheckInLocationProblem.failed => l10n.checkInLocationFailed(detail ?? ''),
+};
 
 /// The check-in could not be started for a reason that is not the agent's
 /// fault and not about where they are standing — the local database refusing
@@ -37,8 +84,13 @@ class CheckInLocationUnavailable extends CheckInResult {
 /// uncaught failure here renders as the locating radar, which tells the agent
 /// the app is still trying when it has already given up.
 class CheckInFailed extends CheckInResult {
-  CheckInFailed(this.message);
-  final String message;
+  CheckInFailed(this.reason);
+
+  /// What kind of failure — the screen words it via [HumanError.message].
+  final HumanError reason;
+
+  /// The English copy.
+  String get message => reason.message();
 }
 
 abstract class VisitsRepository {
@@ -89,10 +141,24 @@ class DriftVisitsRepository implements VisitsRepository {
       final locationResult = await locationService.getCurrentPosition();
 
       return switch (locationResult) {
-        LocationDenied() => CheckInLocationUnavailable(
-          'Location permission denied',
+        LocationDenied() => CheckInLocationUnavailable.because(
+          CheckInLocationProblem.permissionDenied,
         ),
-        LocationError(:final message) => CheckInLocationUnavailable(message),
+        LocationError(:final kind, :final message, :final detail) =>
+          switch (kind) {
+            LocationErrorKind.servicesDisabled =>
+              CheckInLocationUnavailable.because(
+                CheckInLocationProblem.servicesDisabled,
+              ),
+            LocationErrorKind.timedOut => CheckInLocationUnavailable.because(
+              CheckInLocationProblem.timedOut,
+            ),
+            LocationErrorKind.failed => CheckInLocationUnavailable.because(
+              CheckInLocationProblem.failed,
+              detail: detail,
+            ),
+            null => CheckInLocationUnavailable(message),
+          },
         LocationGranted(:final lat, :final lng) => await _checkInAt(
           outletId,
           outletLat,
@@ -107,7 +173,7 @@ class DriftVisitsRepository implements VisitsRepository {
       // diagnosable. Returning rather than rethrowing is the point — see
       // [CheckInFailed].
       debugPrint('Check-in failed for outlet $outletId: $error\n$stack');
-      return CheckInFailed(humanErrorMessage(error));
+      return CheckInFailed(HumanError.of(error));
     }
   }
 

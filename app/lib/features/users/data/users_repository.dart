@@ -41,7 +41,17 @@ abstract class UsersRepository {
     String? displayName,
   });
   Future<AppUser> setActive(String id, bool active);
+
+  /// Sets, changes or clears a user's display name via PATCH /users/:id.
+  ///
+  /// The name is trimmed; null or blank clears it. The server caps a name at
+  /// [displayNameMaxLength] characters after trimming.
+  Future<AppUser> updateDisplayName(String id, String? displayName);
 }
+
+/// Longest display name the server accepts (after trimming). Mirrors
+/// `DISPLAY_NAME_MAX_LENGTH` in `backend/src/lib/personName.ts`.
+const displayNameMaxLength = 120;
 
 class DioUsersRepository implements UsersRepository {
   @override
@@ -76,6 +86,16 @@ class DioUsersRepository implements UsersRepository {
   Future<AppUser> setActive(String id, bool active) async {
     final response = await dio.patch('/users/$id', data: {
       'active': active,
+    });
+    return AppUser.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<AppUser> updateDisplayName(String id, String? displayName) async {
+    final response = await dio.patch('/users/$id', data: {
+      // Always present, unlike on create: an absent key means "leave it
+      // unchanged", so clearing must send an explicit null.
+      'displayName': nonBlankName(displayName),
     });
     return AppUser.fromJson(response.data as Map<String, dynamic>);
   }

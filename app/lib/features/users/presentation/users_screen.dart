@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/session_controller.dart';
 import '../../../core/format/person_label.dart';
+import '../../../core/network/human_error.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
@@ -16,21 +18,32 @@ class UsersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final users = ref.watch(usersListProvider);
+    final role = ref.watch(sessionControllerProvider).value?.role;
+    // Managers may list users, but creating and changing them (POST and
+    // PATCH /users) is admin-only on the server, so only admins get controls.
+    final canEdit = role == 'admin';
     return ManagerScaffold(
       title: 'Users',
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Add user',
-        onPressed: () => showDialog<void>(
-          context: context,
-          builder: (_) => const _CreateUserDialog(),
-        ),
-        child: const Icon(Icons.person_add),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton(
+              tooltip: 'Add user',
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const _CreateUserDialog(),
+              ),
+              child: const Icon(Icons.person_add),
+            )
+          : null,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Deactivating a user revokes sign-in immediately.',
+            canEdit
+                ? 'Deactivating a user revokes sign-in immediately.'
+                : 'Only admins can add or change users.',
+            key: canEdit
+                ? null
+                : const ValueKey<String>('users-read-only-note'),
             style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
@@ -59,7 +72,7 @@ class UsersScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _UserList(users: list),
+                  _UserList(users: list, canEdit: canEdit),
                 ],
               );
             },
@@ -71,9 +84,10 @@ class UsersScreen extends ConsumerWidget {
 }
 
 class _UserList extends StatelessWidget {
-  const _UserList({required this.users});
+  const _UserList({required this.users, required this.canEdit});
 
   final List<AppUser> users;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -89,16 +103,21 @@ class _UserList extends StatelessWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
-              children: [for (final u in users) _UserRow(user: u)],
+              children: [
+                for (final u in users) _UserRow(user: u, canEdit: canEdit),
+              ],
             ),
     );
   }
 }
 
 class _UserRow extends ConsumerWidget {
-  const _UserRow({required this.user});
+  const _UserRow({required this.user, required this.canEdit});
 
   final AppUser user;
+
+  /// Admin-only: the Edit name action and the active switch.
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -130,16 +149,147 @@ class _UserRow extends ConsumerWidget {
       statusLabel: user.active ? 'Active' : 'Inactive',
       resolved: !user.active,
       actions: [
-        Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: Switch(
-            key: ValueKey<String>('active-${user.id}'),
-            value: user.active,
-            onChanged: (v) async {
-              await ref.read(usersRepositoryProvider).setActive(user.id, v);
-              ref.invalidate(usersListProvider);
-            },
+        if (canEdit) ...[
+          IconButton(
+            key: ValueKey<String>('edit-name-${user.id}'),
+            tooltip: 'Edit name',
+            icon: Icon(Icons.edit_outlined, color: context.colors.ink2),
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => _EditNameDialog(user: user),
+            ),
           ),
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Switch(
+              key: ValueKey<String>('active-${user.id}'),
+              value: user.active,
+              onChanged: (v) async {
+                await ref.read(usersRepositoryProvider).setActive(user.id, v);
+                ref.invalidate(usersListProvider);
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Sets, changes or clears one user's display name. Styled by the app's dialog
+/// theme, which is glass by day and by night.
+class _EditNameDialog extends ConsumerStatefulWidget {
+  const _EditNameDialog({required this.user});
+
+  final AppUser user;
+
+  @override
+  ConsumerState<_EditNameDialog> createState() => _EditNameDialogState();
+}
+
+class _EditNameDialogState extends ConsumerState<_EditNameDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final _nameCtrl =
+      TextEditingController(text: widget.user.displayName ?? '');
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  String? _validate(String? value) {
+    // The server trims before it measures, so surrounding spaces don't count.
+    if ((value ?? '').trim().length > displayNameMaxLength) {
+      return 'Use $displayNameMaxLength characters or fewer.';
+    }
+    return null;
+  }
+
+  Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final next = nonBlankName(_nameCtrl.text);
+    // Nothing changed: close without a request.
+    if (next == nonBlankName(widget.user.displayName)) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(usersRepositoryProvider)
+          .updateDisplayName(widget.user.id, next);
+      ref.invalidate(usersListProvider);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      // Stay open so the typed name is not lost; say why in plain words.
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not save the name. ${humanErrorMessage(e)}';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return AlertDialog(
+      title: const Text('Edit name'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.user.email,
+              style: TextStyle(fontSize: 12, color: colors.ink3),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: const ValueKey<String>('edit-name-field'),
+              controller: _nameCtrl,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              validator: _validate,
+              onFieldSubmitted: (_) => _saving ? null : _save(),
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                helperText: 'Leave blank to clear the name; the email is '
+                    'shown instead.',
+                helperMaxLines: 2,
+                errorMaxLines: 2,
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                key: const ValueKey<String>('edit-name-error'),
+                style: TextStyle(fontSize: 13, color: colors.critText),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey<String>('edit-name-cancel'),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey<String>('edit-name-save'),
+          onPressed: _saving ? null : _save,
+          child: const Text('Save'),
         ),
       ],
     );

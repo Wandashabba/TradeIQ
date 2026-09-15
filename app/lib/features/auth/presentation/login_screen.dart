@@ -33,7 +33,7 @@ String loginErrorMessage(Object error, [AppLocalizations? l10n]) {
   if (error is DioException && error.response?.statusCode == 401) {
     return (l10n ?? englishLocalizations).loginInvalidCredentials;
   }
-  return humanErrorMessage(error);
+  return humanErrorMessage(error, l10n);
 }
 
 class LoginScreen extends ConsumerStatefulWidget {

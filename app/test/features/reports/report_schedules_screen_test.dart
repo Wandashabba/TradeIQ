@@ -34,27 +34,56 @@ const _paused = ReportSchedule(
 
 class _FakeSchedulesRepository implements ReportSchedulesRepository {
   _FakeSchedulesRepository({
-    this.schedules = const [_active, _paused],
+    List<ReportSchedule> schedules = const [_active, _paused],
     this.failList = false,
     this.failRun = false,
+    this.failUpdate = false,
     this.pendingList,
-  });
+  }) : schedules = [...schedules];
 
+  /// Mutable, so an update is visible on the next list — like the server.
   final List<ReportSchedule> schedules;
   final bool failList;
   final bool failRun;
+  final bool failUpdate;
   final Completer<PaginatedResponse<ReportSchedule>>? pendingList;
 
   String? toggledId;
   bool? toggledValue;
   String? runId;
   String? deletedId;
+  String? updatedId;
+  int listCalls = 0;
 
   @override
   Future<PaginatedResponse<ReportSchedule>> listSchedules() async {
+    listCalls++;
     if (pendingList != null) return pendingList!.future;
     if (failList) throw Exception('boom');
-    return PaginatedResponse(data: schedules, nextCursor: null);
+    return PaginatedResponse(data: [...schedules], nextCursor: null);
+  }
+
+  @override
+  Future<ReportSchedule> updateSchedule(
+    String id, {
+    String? cadence,
+    List<String>? recipients,
+  }) async {
+    updatedId = id;
+    if (failUpdate) throw Exception('boom');
+    final i = schedules.indexWhere((s) => s.id == id);
+    final old = schedules[i];
+    final updated = ReportSchedule(
+      id: old.id,
+      reportDefinitionId: old.reportDefinitionId,
+      reportName: old.reportName,
+      cadence: cadence ?? old.cadence,
+      recipients: recipients ?? old.recipients,
+      active: old.active,
+      lastRunAt: old.lastRunAt,
+    );
+    schedules[i] = updated;
+    return updated;
   }
 
   @override
@@ -313,11 +342,150 @@ void main() {
     expect(find.text('New Schedule'), findsOneWidget);
   });
 
+  group('edit', () {
+    final recipientsField =
+        find.byKey(const ValueKey<String>('schedule-recipients-field'));
+    final save = find.byKey(const ValueKey<String>('schedule-save-button'));
+
+    testWidgets('each row has Edit beside its other actions', (tester) async {
+      await tester.pumpWidget(_app(_FakeSchedulesRepository()));
+      await tester.pumpAndSettle();
+
+      for (final id in const ['s-active', 's-paused']) {
+        final row = find.byKey(ValueKey<String>('schedule-$id'));
+        for (final key in ['toggle-$id', 'run-$id', 'edit-$id', 'delete-$id']) {
+          expect(
+            find.descendant(of: row, matching: find.byKey(ValueKey(key))),
+            findsOneWidget,
+            reason: key,
+          );
+        }
+        expect(
+          find.descendant(
+            of: find.byKey(ValueKey<String>('edit-$id')),
+            matching: find.text('Edit'),
+          ),
+          findsOneWidget,
+        );
+      }
+    });
+
+    testWidgets('Edit opens the form prefilled with that schedule',
+        (tester) async {
+      await tester.pumpWidget(_app(_FakeSchedulesRepository()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey<String>('edit-s-paused')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Edit Schedule'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('schedule-report-readonly')),
+          matching: find.text('Sales by SKU'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('schedule-cadence-field')),
+          matching: find.text('Daily'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<TextFormField>(recipientsField).controller!.text,
+        'sales@acme.test',
+      );
+    });
+
+    testWidgets('a save returns to the list, which shows the change',
+        (tester) async {
+      final repo = _FakeSchedulesRepository();
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
+      final listsBefore = repo.listCalls;
+
+      await tester.tap(find.byKey(const ValueKey<String>('edit-s-active')));
+      await tester.pumpAndSettle();
+      await tester
+          .tap(find.byKey(const ValueKey<String>('schedule-cadence-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Daily').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(recipientsField, 'new@acme.test\n\n');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(repo.updatedId, 's-active');
+      expect(find.text('Edit Schedule'), findsNothing);
+      expect(repo.listCalls, greaterThan(listsBefore));
+      expect(find.text('To new@acme.test'), findsOneWidget);
+      expect(find.text('To ops@acme.test, lead@acme.test'), findsNothing);
+      expect(find.text('Daily · Never run'), findsNWidgets(2));
+    });
+
+    testWidgets('a failed save stays on the form and says why',
+        (tester) async {
+      final repo = _FakeSchedulesRepository(failUpdate: true);
+      await tester.pumpWidget(_app(repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey<String>('edit-s-active')));
+      await tester.pumpAndSettle();
+      await tester.enterText(recipientsField, 'new@acme.test');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(repo.updatedId, 's-active');
+      expect(find.text('Edit Schedule'), findsOneWidget);
+      expect(
+        find.text(
+          'Failed to save changes. Something went wrong. Please try again.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<TextFormField>(recipientsField).controller!.text,
+        'new@acme.test',
+      );
+    });
+  });
+
   for (final (name, theme, palette) in [
     ('light', AppTheme.light(), TiqColors.light),
     ('dark', AppTheme.dark(), TiqColors.night),
   ]) {
     group('Lumen Glass ($name)', () {
+      testWidgets('Edit sits in the glass row and opens a glass form',
+          (tester) async {
+        await tester.pumpWidget(_app(_FakeSchedulesRepository(), theme: theme));
+        await tester.pumpAndSettle();
+
+        final edit = find.byKey(const ValueKey<String>('edit-s-active'));
+        expect(
+          find.ancestor(of: edit, matching: find.byType(GlassPane)),
+          findsWidgets,
+        );
+
+        await tester.tap(edit);
+        await tester.pumpAndSettle();
+        final pane = tester.widget<GlassPane>(
+          find
+              .ancestor(
+                of: find.byKey(
+                  const ValueKey<String>('schedule-report-readonly'),
+                ),
+                matching: find.byType(GlassPane),
+              )
+              .first,
+        );
+        expect(pane.kind, GlassKind.panel);
+        expect(tester.takeException(), isNull);
+      });
+
       testWidgets('rows are no-blur glass tiles inside a glass panel',
           (tester) async {
         await tester.pumpWidget(_app(_FakeSchedulesRepository(), theme: theme));

@@ -69,7 +69,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
           );
     } catch (error, stack) {
       debugPrint('Check-in threw for outlet ${widget.outletId}: $error\n$stack');
-      result = CheckInFailed(humanErrorMessage(error));
+      result = CheckInFailed(HumanError.of(error));
     }
     if (!mounted) return;
     setState(() {
@@ -207,17 +207,17 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
               _checkInResult = null;
             }),
           ),
-          CheckInLocationUnavailable(:final message) => _NoLocation(
+          final CheckInLocationUnavailable unavailable => _NoLocation(
             outlet: outlet,
-            message: message,
+            message: unavailable.messageIn(context.l10n),
             onRetry: () => setState(() {
               _checkInStarted = false;
               _checkInResult = null;
             }),
           ),
-          CheckInFailed(:final message) => _CheckInFailed(
+          CheckInFailed(:final reason) => _CheckInFailed(
             outlet: outlet,
-            message: message,
+            message: reason.message(context.l10n),
             onRetry: () => setState(() {
               _checkInStarted = false;
               _checkInResult = null;
@@ -253,7 +253,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
                       child: _SectionTile(
                         section: section,
                         state: progress.stateOf(section),
-                        detail: progress.details[section],
+                        detail: progress.detailIn(section, context.l10n),
                         // The score is the RESULT of the other eight.
                         onTap: section == AuditSection.score
                             ? null
@@ -348,7 +348,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
                         child: _SectionRow(
                           section: section,
                           state: progress.stateOf(section),
-                          detail: progress.details[section],
+                          detail: progress.detailIn(section, context.l10n),
                           last: section == AuditSection.values.last,
                           // The score is the RESULT of the other eight, so it
                           // cannot be opened and filled in.

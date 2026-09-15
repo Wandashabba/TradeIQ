@@ -22,9 +22,21 @@ class LocationGranted extends LocationResult {
 
 class LocationDenied extends LocationResult {}
 
+/// Why a [LocationError] happened, for callers that word it themselves (the
+/// check-in screen, in the agent's language).
+enum LocationErrorKind { servicesDisabled, timedOut, failed }
+
 class LocationError extends LocationResult {
-  LocationError(this.message);
+  LocationError(this.message, {this.kind, this.detail});
+
+  /// English description.
   final String message;
+
+  /// Null for an error this service has no code for.
+  final LocationErrorKind? kind;
+
+  /// The underlying failure, for [LocationErrorKind.failed].
+  final String? detail;
 }
 
 class LocationService {
@@ -85,7 +97,10 @@ class LocationService {
       }
 
       if (!await _gateway.isLocationServiceEnabled().timeout(permissionTimeout)) {
-        return LocationError('Location services are disabled');
+        return LocationError(
+          'Location services are disabled',
+          kind: LocationErrorKind.servicesDisabled,
+        );
       }
 
       final position = await _gateway.getCurrentPosition().timeout(fixTimeout);
@@ -99,9 +114,14 @@ class LocationService {
       return LocationError(
         'Timed out waiting for your location. Check that location is switched '
         'on for TradeIQ, then try again.',
+        kind: LocationErrorKind.timedOut,
       );
     } catch (e) {
-      return LocationError('Failed to get current location: $e');
+      return LocationError(
+        'Failed to get current location: $e',
+        kind: LocationErrorKind.failed,
+        detail: '$e',
+      );
     }
   }
 }

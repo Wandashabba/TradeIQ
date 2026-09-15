@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../../../core/camera/photo_capture_service.dart';
@@ -74,6 +75,40 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   bool _sending = false;
   String? _composerError;
 
+  static const _uuid = Uuid();
+
+  /// The idempotency key of the draft being sent (#308). Minted when Send is
+  /// first pressed, kept across retries so a send whose response was lost is
+  /// answered with the original message instead of a duplicate or a 409, and
+  /// cleared once the send succeeds.
+  String? _clientMessageId;
+
+  /// What [_clientMessageId] was minted for: the body and the exact pending
+  /// photos. If the sender edits either after a failed send, it is a different
+  /// message — the server 409s a key reused for different content — so it
+  /// gets a fresh key.
+  ({String body, List<_PendingAttachment> photos})? _keyedDraft;
+
+  bool _draftUnchangedSinceKeyed(String body) {
+    final keyed = _keyedDraft;
+    if (_clientMessageId == null || keyed == null || keyed.body != body) {
+      return false;
+    }
+    if (keyed.photos.length != _pending.length) return false;
+    for (var i = 0; i < _pending.length; i++) {
+      if (!identical(keyed.photos[i], _pending[i])) return false;
+    }
+    return true;
+  }
+
+  String _keyFor(String body) {
+    if (!_draftUnchangedSinceKeyed(body)) {
+      _clientMessageId = _uuid.v4();
+      _keyedDraft = (body: body, photos: List.of(_pending));
+    }
+    return _clientMessageId!;
+  }
+
   @override
   void dispose() {
     _bodyCtrl.dispose();
@@ -125,6 +160,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
       _sending = true;
       _composerError = null;
     });
+    final clientMessageId = _keyFor(body);
 
     // Upload whatever has not made it yet. On failure nothing is sent, and the
     // draft — words and photos — stays exactly where the sender left it.
@@ -153,6 +189,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
           .sendMessage(
             body,
             attachmentPhotoIds: [for (final a in _pending) a.photoId!],
+            clientMessageId: clientMessageId,
           );
     } catch (e) {
       if (!mounted) return;
@@ -169,6 +206,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     setState(() {
       _pending.clear();
       _sending = false;
+      // Sent: the next message is a new one and gets its own key.
+      _clientMessageId = null;
+      _keyedDraft = null;
     });
     ref.invalidate(messagesProvider);
   }

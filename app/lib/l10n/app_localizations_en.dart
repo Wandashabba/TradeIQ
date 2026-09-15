@@ -1017,4 +1017,139 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get s9Saved => 'Task queued for sync';
+
+  @override
+  String get errorSessionExpired =>
+      'Your session has expired. Please sign in again.';
+
+  @override
+  String get errorUnreachable =>
+      'Could not reach the server. Check your connection and try again.';
+
+  @override
+  String get errorGeneric => 'Something went wrong. Please try again.';
+
+  @override
+  String get checkInLocationPermissionDenied => 'Location permission denied';
+
+  @override
+  String get checkInLocationServicesDisabled =>
+      'Location services are disabled';
+
+  @override
+  String get checkInLocationTimedOut =>
+      'Timed out waiting for your location. Check that location is switched on for TradeIQ, then try again.';
+
+  @override
+  String checkInLocationFailed(String error) {
+    return 'Failed to get current location: $error';
+  }
+
+  @override
+  String get progressConfirmedAtCheckIn => 'Confirmed at check-in';
+
+  @override
+  String progressSkusOfTotal(int items, int total) {
+    return '$items of $total SKUs';
+  }
+
+  @override
+  String progressStockCounted(int items) {
+    return '$items SKUs counted';
+  }
+
+  @override
+  String progressStockOutOfStock(int items, int outOfStock) {
+    return '$items SKUs · $outOfStock out of stock';
+  }
+
+  @override
+  String progressSkusPriced(int items) {
+    return '$items SKUs priced';
+  }
+
+  @override
+  String get progressNoCompetitors => 'None on shelf';
+
+  @override
+  String progressCompetitors(int items) {
+    return '$items competitor(s)';
+  }
+
+  @override
+  String get progressCaptured => 'Captured';
+
+  @override
+  String get progressNoRisks => 'None raised';
+
+  @override
+  String progressRisksRaised(int items) {
+    return '$items raised';
+  }
+
+  @override
+  String taskStockoutTitle(String sku) {
+    return '$sku is out of stock';
+  }
+
+  @override
+  String get taskStockoutTitleUnnamed => 'This SKU is out of stock';
+
+  @override
+  String get taskStockoutReason => 'You counted zero on shelf';
+
+  @override
+  String taskRiskTitle(String flagType) {
+    return '$flagType flagged';
+  }
+
+  @override
+  String get taskRiskTitleUntyped => 'Risk flagged';
+
+  @override
+  String taskRiskReason(String flagType) {
+    return 'Risk you raised · $flagType';
+  }
+
+  @override
+  String get taskRiskReasonUntyped => 'Risk you raised · flagged';
+
+  @override
+  String get taskActionPlanTitleUntitled => 'Action you asked for';
+
+  @override
+  String get taskActionPlanReason => 'Action plan you wrote';
+
+  @override
+  String reviewSkusCounted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count SKUs counted',
+      one: '1 SKU counted',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reviewCompetitors(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count competitors',
+      one: '1 competitor',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reviewPhotos(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos',
+      one: '1 photo',
+    );
+    return '$_temp0';
+  }
 }
