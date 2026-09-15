@@ -22,23 +22,30 @@ export interface TestUser {
   /**
    * The address the user was created with.
    *
-   * `User` has no display-name column, so email is what the app shows for a
-   * person and what `resolveAgent` matches a typed name against. A test
-   * exercising name resolution needs the value, and re-querying for it in each
-   * suite is how two suites end up disagreeing about the format.
+   * `resolveAgent` falls back to matching a typed name against this when the
+   * user has no display name. A test exercising name resolution needs the
+   * value, and re-querying for it in each suite is how two suites end up
+   * disagreeing about the format.
    */
   email: string;
 }
 
-/** Creates a user in an existing tenant and returns a usable bearer token. */
+/**
+ * Creates a user in an existing tenant and returns a usable bearer token.
+ *
+ * `displayName` is left null unless given, matching accounts that predate the
+ * column (#280) — the case every display fallback has to survive.
+ */
 export async function userIn(
   clientId: string,
   role: Role = 'manager',
+  options: { displayName?: string } = {},
 ): Promise<TestUser> {
   counter += 1;
   const user = await prisma.user.create({
     data: {
       email: `test-${role}-${counter}-${Date.now()}@example.test`,
+      displayName: options.displayName ?? null,
       passwordHash: 'not-a-real-hash',
       role,
       clientId,

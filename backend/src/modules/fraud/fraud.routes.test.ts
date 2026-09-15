@@ -57,6 +57,10 @@ describe('fraud routes', () => {
   let suspiciousVisitId: string;
   let slowVisitId: string;
   let timelineVisitId: string;
+  // #245 fixtures: one outlet's repeat visit, the run-of-two before it, a draft.
+  type RepeatOutlet = { outletId: string; runOfTwoId: string; repeatId: string; draftId: string };
+  let repeatOutlet: RepeatOutlet;
+  let repeatOutlet2: RepeatOutlet;
   let clientBVisitId: string;
 
   beforeAll(async () => {
@@ -100,11 +104,14 @@ describe('fraud routes', () => {
       },
     });
 
-    // Common stock-row payload (a "section row"); createdAt drives dwell time.
-    const stockData = (visitId: string, createdAt: Date) => ({
+    // Common stock-row payload (a "section row"). Each outlet-A visit below
+    // takes its own count: they share one outlet and SKU, so identical counts
+    // across three of them would be a repeating_stock_counts run (#245) and
+    // leak into scores these tests pin for other reasons.
+    const stockData = (visitId: string, createdAt: Date, unitsAvailable = 12) => ({
       visitId,
       skuId: sku.id,
-      unitsAvailable: 12,
+      unitsAvailable,
       lastStockinDate: createdAt,
       daysOutOfStock: 0,
       velocityAvg: 1.5,
@@ -165,7 +172,7 @@ describe('fraud routes', () => {
     suspiciousVisitId = suspiciousVisit.id;
     await prisma.visitStock.create({
       // Same instant as check-in → ~0s dwell.
-      data: stockData(suspiciousVisitId, SUS_CHECKIN),
+      data: stockData(suspiciousVisitId, SUS_CHECKIN, 4),
     });
     await prisma.photo.create({
       data: {
@@ -236,7 +243,7 @@ describe('fraud routes', () => {
     });
     slowVisitId = slowVisit.id;
     await prisma.visitStock.create({
-      data: stockData(slowVisitId, new Date(SLOW_CHECKIN.getTime() + 10 * 60 * 1000)),
+      data: stockData(slowVisitId, new Date(SLOW_CHECKIN.getTime() + 10 * 60 * 1000), 9),
     });
 
     // ── Capture-timeline visit (#246): a 20-minute visit on the device clock,
@@ -261,7 +268,7 @@ describe('fraud routes', () => {
     timelineVisitId = timelineVisit.id;
     await prisma.visitStock.create({
       // The server row landed hours later (an offline sync) — irrelevant here.
-      data: stockData(timelineVisitId, timelineAt(6 * 60)),
+      data: stockData(timelineVisitId, timelineAt(6 * 60), 7),
     });
     await prisma.photo.createMany({
       data: [
@@ -288,6 +295,90 @@ describe('fraud routes', () => {
         },
       ],
     });
+
+    // ── Repeating stock counts (#245). Two outlets with the same shape, so the
+    // flagged scan has more than one outlet's history to load (the N+1 test).
+    //
+    // Per outlet, newest last:
+    //   start-21d  A=15 B=9   no velocity yet
+    //   start-14d  A=10 B=6
+    //   start- 7d  A=6  B=3   first row of the run: velocity A 1.0, B 0.5/day
+    //   start- 5d  (submitted, no stock — skipped, not a break)
+    //   start- 3d  A=6  B=3   a run of 2: silent
+    //   start      A=6  B=3   a run of 3 across 7 days: A should have sold ~7,
+    //                         B ~3.5 → the whole basket, weight 15
+    //   start+ 3d  A=6  B=3   a DRAFT: never history, never scored
+    //
+    // Stock rows are stamped with a server createdAt in REVERSE order (a week's
+    // outbox flushed newest-first): the run must follow device checkinTs.
+    const repeatSkuA = await prisma.sku.create({
+      data: { clientId, name: 'FRAUD-REPEAT-SKU-A', category: 'beverages', minFacingsStandard: 4, rrp: 9.99 },
+    });
+    const repeatSkuB = await prisma.sku.create({
+      data: { clientId, name: 'FRAUD-REPEAT-SKU-B', category: 'snacks', minFacingsStandard: 2, rrp: 4.99 },
+    });
+    const seedRepeatOutlet = async (code: string, startDaysAgo: number) => {
+      const outlet = await prisma.outlet.create({
+        data: {
+          name: `FRAUD-${code}`,
+          code: `FRAUD-${code}`,
+          channelType: 'spaza',
+          lat: OUTLET_LAT,
+          lng: OUTLET_LNG,
+          territoryId: 'territory-1',
+          clientId,
+        },
+      });
+      const at = (offsetDays: number) => daysAgo(startDaysAgo - offsetDays);
+      const syncedAt = new Date();
+      const plan: Array<{
+        offsetDays: number;
+        status: 'submitted' | 'in_progress';
+        counts: Array<[string, number, number]>;
+      }> = [
+        { offsetDays: -21, status: 'submitted', counts: [[repeatSkuA.id, 15, 0], [repeatSkuB.id, 9, 0]] },
+        { offsetDays: -14, status: 'submitted', counts: [[repeatSkuA.id, 10, 0.7], [repeatSkuB.id, 6, 0.4]] },
+        { offsetDays: -7, status: 'submitted', counts: [[repeatSkuA.id, 6, 1.0], [repeatSkuB.id, 3, 0.5]] },
+        { offsetDays: -5, status: 'submitted', counts: [] },
+        { offsetDays: -3, status: 'submitted', counts: [[repeatSkuA.id, 6, 0.4], [repeatSkuB.id, 3, 0.2]] },
+        { offsetDays: 0, status: 'submitted', counts: [[repeatSkuA.id, 6, 0.1], [repeatSkuB.id, 3, 0.1]] },
+        { offsetDays: 3, status: 'in_progress', counts: [[repeatSkuA.id, 6, 0.1], [repeatSkuB.id, 3, 0.1]] },
+      ];
+      const ids: string[] = [];
+      for (const [i, step] of plan.entries()) {
+        const v = await prisma.visit.create({
+          data: {
+            outletId: outlet.id,
+            agentId,
+            clientId,
+            checkinTs: at(step.offsetDays),
+            checkinLat: OUTLET_LAT,
+            checkinLng: OUTLET_LNG,
+            geofencePass: true,
+            checkinDistanceM: 5,
+            status: step.status,
+          },
+        });
+        ids.push(v.id);
+        for (const [skuId, unitsAvailable, velocityAvg] of step.counts) {
+          await prisma.visitStock.create({
+            data: {
+              visitId: v.id,
+              skuId,
+              unitsAvailable,
+              lastStockinDate: at(step.offsetDays),
+              daysOutOfStock: 0,
+              velocityAvg,
+              coverageDaysPredicted: 8,
+              createdAt: new Date(syncedAt.getTime() - i * 60_000),
+            },
+          });
+        }
+      }
+      return { outletId: outlet.id, runOfTwoId: ids[4], repeatId: ids[5], draftId: ids[6] };
+    };
+    repeatOutlet = await seedRepeatOutlet('REPEAT-1', 8);
+    repeatOutlet2 = await seedRepeatOutlet('REPEAT-2', 9);
 
     // A second tenant whose visit must 404 for client A's manager.
     const clientB = await prisma.client.create({
@@ -434,6 +525,58 @@ describe('fraud routes', () => {
       try {
         const res = await request(app)
           .get(`/fraud/visits/${timelineVisitId}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.signals).toEqual([]);
+        expect(res.body.riskScore).toBe(0);
+      } finally {
+        await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: {} } });
+      }
+    });
+
+    it('reports a basket copied across three visits as repeating_stock_counts (#245)', async () => {
+      const res = await request(app)
+        .get(`/fraud/visits/${repeatOutlet.repeatId}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      // The route must load earlier SUBMITTED stock visits to the outlet in device
+      // check-in order (the server rows were synced in reverse), skip the
+      // no-stock visit, and read the run's first-row velocity.
+      expect(res.body.signals).toEqual([
+        {
+          code: 'repeating_stock_counts',
+          detail:
+            'Whole basket unchanged: all 2 SKU counts identical across the last 3 submitted ' +
+            'visits to this outlet, 2 of them selling fast enough by their own velocity that the ' +
+            'count should have moved (longest run 3 visits, by device check-in)',
+          weight: 15,
+        },
+      ]);
+      expect(res.body.riskScore).toBe(15);
+    });
+
+    it('is silent on a run of two, and on a draft with the same counts', async () => {
+      for (const id of [repeatOutlet.runOfTwoId, repeatOutlet.draftId]) {
+        const res = await request(app)
+          .get(`/fraud/visits/${id}`)
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.signals).toEqual([]);
+        expect(res.body.riskScore).toBe(0);
+      }
+    });
+
+    it("applies the tenant's own repeatingStockRunLength, read from the database", async () => {
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { kpiThresholds: { repeatingStockRunLength: 4 } },
+      });
+      try {
+        const res = await request(app)
+          .get(`/fraud/visits/${repeatOutlet.repeatId}`)
           .set('Authorization', `Bearer ${managerToken}`);
 
         expect(res.status).toBe(200);
@@ -594,6 +737,66 @@ describe('fraud routes', () => {
       expect(flagged.riskScore).toBe(85);
       expect(flagged.outletId).toBe(outletId);
       expect(flagged.agentId).toBe(agentId);
+    });
+
+    it('never flags a repeating basket alone, but lists it with the same signal as the visit endpoint', async () => {
+      const byDefault = await request(app)
+        .get('/fraud/flagged')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(byDefault.status).toBe(200);
+      const defaultIds = byDefault.body.data.map((v: { visitId: string }) => v.visitId);
+      expect(defaultIds).not.toContain(repeatOutlet.repeatId);
+
+      const [listed, single] = await Promise.all([
+        request(app).get('/fraud/flagged?minScore=15').set('Authorization', `Bearer ${managerToken}`),
+        request(app)
+          .get(`/fraud/visits/${repeatOutlet.repeatId}`)
+          .set('Authorization', `Bearer ${managerToken}`),
+      ]);
+      expect(listed.status).toBe(200);
+      const row = listed.body.data.find((v: { visitId: string }) => v.visitId === repeatOutlet.repeatId);
+      // The scan builds each visit's history from the scanned visits plus one
+      // read of what precedes them; it must agree with the per-visit route.
+      expect(row).toBeDefined();
+      expect(row.signals).toEqual(single.body.signals);
+      expect(row.riskScore).toBe(15);
+      const listedIds = listed.body.data.map((v: { visitId: string }) => v.visitId);
+      expect(listedIds).not.toContain(repeatOutlet.runOfTwoId);
+      expect(listedIds).not.toContain(repeatOutlet.draftId);
+    });
+
+    it('reads the history before the scan window, rather than starting each run inside it', async () => {
+      // 9.5 days back: each repeat visit is inside, the two copies before it are not.
+      const from = new Date(Date.now() - 9.5 * DAY_MS).toISOString();
+      const res = await request(app)
+        .get(`/fraud/flagged?minScore=15&from=${from}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+      const ids = res.body.data.map((v: { visitId: string }) => v.visitId);
+      expect(ids).toEqual(expect.arrayContaining([repeatOutlet.repeatId, repeatOutlet2.repeatId]));
+      expect(ids).not.toContain(repeatOutlet.runOfTwoId);
+    });
+
+    it('loads stock history in one query per scan, however many outlets it covers (no N+1)', async () => {
+      const queryRaw = jest.spyOn(prisma, '$queryRaw');
+      try {
+        const res = await request(app)
+          .get('/fraud/flagged?minScore=15')
+          .set('Authorization', `Bearer ${managerToken}`);
+
+        expect(res.status).toBe(200);
+        const repeating = res.body.data
+          .filter((v: { signals: Array<{ code: string }> }) =>
+            v.signals.some((s) => s.code === 'repeating_stock_counts'),
+          )
+          .map((v: { visitId: string }) => v.visitId);
+        expect(repeating).toEqual(expect.arrayContaining([repeatOutlet.repeatId, repeatOutlet2.repeatId]));
+        // Three outlets and a dozen visits scanned: still exactly one history read.
+        expect(queryRaw).toHaveBeenCalledTimes(1);
+      } finally {
+        queryRaw.mockRestore();
+      }
     });
 
     it('honours a custom minScore that excludes every visit', async () => {

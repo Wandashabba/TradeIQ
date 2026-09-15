@@ -12,6 +12,7 @@ import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 
 class _FixedSessionController extends SessionController {
@@ -400,6 +401,55 @@ void main() {
       expect(find.text('Visit review'), findsNothing);
     },
   );
+
+  testWidgets(
+    'a field_agent navigating to report schedules is bounced to their route',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
+          reportSchedulesListProvider.overrideWith((ref) async => const []),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/reports/schedules');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Report schedules'), findsNothing);
+    },
+  );
+
+  testWidgets('a manager can open report schedules', (tester) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(const SessionState(role: 'manager')),
+        ),
+        reportSchedulesListProvider.overrideWith((ref) async => const []),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    container.read(routerProvider).go('/reports/schedules');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Report schedules'), findsOneWidget);
+    expect(find.text('No report schedules'), findsOneWidget);
+  });
 
   testWidgets('a manager can open a template preview and see its form', (
     tester,

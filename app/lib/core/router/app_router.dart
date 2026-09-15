@@ -22,6 +22,7 @@ import '../../features/orders/presentation/orders_screen.dart';
 import '../../features/beatplans/presentation/beatplans_screen.dart';
 import '../../features/gamification/presentation/leaderboard_screen.dart';
 import '../../features/fraud/presentation/fraud_screen.dart';
+import '../../features/reports/presentation/report_schedules_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/collaboration/presentation/messages_screen.dart';
 import '../../features/users/presentation/users_screen.dart';
@@ -81,6 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/agents/activity',
         '/fraud',
         '/reports',
+        '/reports/schedules',
         '/users',
         '/incentives',
         '/webhooks',
@@ -224,6 +226,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reports',
         pageBuilder: (context, state) => managerPage(const ReportsScreen()),
+      ),
+      // Reached from the Reports top bar. A sibling route, not a menu
+      // destination: the rail keeps Reports selected under /reports/.
+      GoRoute(
+        path: '/reports/schedules',
+        pageBuilder: (context, state) =>
+            managerPage(const ReportSchedulesScreen()),
       ),
       GoRoute(
         path: '/messages',

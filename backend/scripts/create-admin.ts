@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/modules/auth/auth.service';
+import { DISPLAY_NAME_MAX_LENGTH, parseDisplayName } from '../src/lib/personName';
 
 const prisma = new PrismaClient();
 
@@ -16,9 +17,12 @@ const prisma = new PrismaClient();
  * shell on the box and the database URL. Someone who has those can already do
  * anything.
  *
- *   ADMIN_PASSWORD='…' npm run create-admin -- --email you@co.com --client <clientId>
+ *   ADMIN_PASSWORD='…' npm run create-admin -- --email you@co.com --client <clientId> \
+ *     --name "Thandi Mokoena"
  *
- * Omit --client to be shown the clients that exist.
+ * Omit --client to be shown the clients that exist. --name is optional; it is
+ * what the console shows for this person and what the assistant matches when
+ * someone asks about them by name (#280). Without it the email is shown.
  */
 async function main() {
   const args = process.argv.slice(2);
@@ -33,6 +37,11 @@ async function main() {
 
   if (!email) {
     throw new Error('--email is required');
+  }
+
+  const name = parseDisplayName(flag('name'));
+  if (!name.ok) {
+    throw new Error(`--name must be at most ${DISPLAY_NAME_MAX_LENGTH} characters.`);
   }
 
   if (!password) {
@@ -77,13 +86,15 @@ async function main() {
   const admin = await prisma.user.create({
     data: {
       email,
+      displayName: name.value ?? null,
       passwordHash: await hashPassword(password),
       role: 'admin',
       clientId: client.id,
     },
   });
 
-  console.log(`Created admin ${admin.email} for client ${client.name} (${client.id}).`);
+  const who = admin.displayName ? `${admin.displayName} <${admin.email}>` : admin.email;
+  console.log(`Created admin ${who} for client ${client.name} (${client.id}).`);
 }
 
 main()

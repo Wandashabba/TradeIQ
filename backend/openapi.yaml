@@ -721,7 +721,16 @@ paths:
       summary: Outlets + assigned agents for a territory
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: Coverage }, '404': { description: Not found } }
+      responses:
+        '200':
+          description: Coverage. Each assigned agent is a SafeUser (including displayName).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents: { type: array, items: { $ref: '#/components/schemas/SafeUser' } }
+        '404': { description: Not found }
   /campaigns:
     get:
       summary: List campaigns (with outlet counts)
@@ -887,13 +896,37 @@ paths:
     post:
       summary: Rank agents for an outlet (nearest + in-territory) — manager/admin
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: 'Ranked candidates + recommended' }, '400': { description: Missing outletId }, '404': { description: Outlet not found } }
+      responses:
+        '200':
+          description: 'Ranked candidates + recommended'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  outletId: { type: string }
+                  candidates: { type: array, items: { $ref: '#/components/schemas/DispatchCandidate' } }
+                  recommended:
+                    allOf: [{ $ref: '#/components/schemas/DispatchCandidate' }]
+                    nullable: true
+        '400': { description: Missing outletId }
+        '404': { description: Outlet not found }
   /dispatch/agents:
     get:
       summary: Ranked agent candidates for an outlet — manager/admin
       security: [{ bearerAuth: [] }]
       parameters: [{ name: outletId, in: query, required: true, schema: { type: string } }]
-      responses: { '200': { description: Candidates }, '400': { description: Missing outletId } }
+      responses:
+        '200':
+          description: Candidates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  outletId: { type: string }
+                  candidates: { type: array, items: { $ref: '#/components/schemas/DispatchCandidate' } }
+        '400': { description: Missing outletId }
   /forecast:
     get:
       summary: Exponential-smoothing demand forecast for a SKU — manager/admin
@@ -953,8 +986,25 @@ paths:
   /webhooks:
     get:
       summary: List webhook subscriptions — manager/admin
+      description: >
+        Each webhook carries its delivery health: `consecutiveFailures`
+        (deliveries that gave up since the last success), `lastDeliveryStatus`
+        and `lastDeliveryAt`, and a derived `health` of healthy | failing |
+        unhealthy.
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Webhooks } }
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Webhook' } }
+                  nextCursor: { type: string, nullable: true }
     post:
       summary: Create a webhook subscription — manager/admin
       security: [{ bearerAuth: [] }]
@@ -970,6 +1020,52 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '204': { description: Deleted }, '404': { description: Not found } }
+  /webhooks/{id}/deliveries:
+    get:
+      summary: Recent deliveries to a webhook, newest first — manager/admin
+      description: >
+        Every event fanned out to a webhook is a delivery. The first attempt is
+        made immediately; failures (non-2xx, network error or timeout) retry
+        after 1m, 5m, 25m, 2h and 6h, then give up. Each attempt carries
+        `X-TradeIQ-Delivery` (stable across retries — de-duplicate on it) and
+        `X-TradeIQ-Delivery-Attempt`, and is re-signed with a fresh
+        `X-TradeIQ-Timestamp`; the body is identical on every attempt.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/WebhookDelivery' } }
+                  nextCursor: { type: string, nullable: true }
+        '400': { description: Invalid limit }
+        '403': { description: Forbidden }
+        '404': { description: Not found (or another client's webhook) }
+  /webhook-deliveries/{id}/redeliver:
+    post:
+      summary: Re-queue a failed delivery and attempt it now — manager/admin
+      description: >
+        Allowed for `gave_up` and `failed_retrying` deliveries. The attempt
+        count is kept, so a redelivered give-up that fails again gives up again
+        rather than starting a fresh retry schedule.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '202':
+          description: Re-queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebhookDelivery' }
+        '403': { description: Forbidden }
+        '404': { description: Not found (or another client's delivery) }
+        '409': { description: Delivery already succeeded or is already queued }
   /gamification/leaderboard:
     get:
       summary: Field-agent leaderboard (points from scorecards/tasks/visits)
@@ -977,12 +1073,23 @@ paths:
       parameters:
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
-      responses: { '200': { description: Leaderboard }, '400': { description: Invalid dates } }
+      responses:
+        '200':
+          description: Leaderboard
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/LeaderboardEntry' } }
+        '400': { description: Invalid dates }
   /gamification/me:
     get:
       summary: The caller's own leaderboard entry + rank
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Entry } }
+      responses:
+        '200':
+          description: Entry
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaderboardEntry' }
   /reports:
     get:
       summary: List saved report definitions — manager/admin
@@ -1020,17 +1127,76 @@ paths:
     get:
       summary: List client users — manager/admin
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Users } }
+      responses:
+        '200':
+          description: Users, alphabetical by email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/SafeUser' } }
+                  nextCursor: { type: string, nullable: true }
     post:
       summary: Provision a user — admin
       security: [{ bearerAuth: [] }]
-      responses: { '201': { description: Created }, '400': { description: Invalid }, '403': { description: Forbidden }, '409': { description: Duplicate email } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, role]
+              properties:
+                email: { type: string }
+                password: { type: string, minLength: 8 }
+                role: { type: string, enum: [field_agent, manager, admin] }
+                displayName:
+                  type: string
+                  nullable: true
+                  maxLength: 120
+                  description: >
+                    Optional. Trimmed; a blank string or null stores no name.
+                    Longer than 120 characters after trimming is a 400.
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SafeUser' }
+        '400': { description: 'Invalid email/password/role, or invalid displayName' }
+        '403': { description: Forbidden }
+        '409': { description: Duplicate email }
   /users/{id}:
     patch:
-      summary: Update a user (active/role) — admin
+      summary: Update a user (active/role/displayName) — admin
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: Updated }, '400': { description: Invalid }, '404': { description: Not found } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: At least one of active, role or displayName is required.
+              properties:
+                active: { type: boolean }
+                role: { type: string, enum: [field_agent, manager, admin] }
+                displayName:
+                  type: string
+                  nullable: true
+                  maxLength: 120
+                  description: >
+                    Trimmed. null or a blank string clears the name; omit the
+                    key to leave it unchanged.
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SafeUser' }
+        '400': { description: Invalid }
+        '404': { description: Not found }
   /incentives:
     get:
       summary: List incentive schemes
@@ -1044,7 +1210,24 @@ paths:
     get:
       summary: Agents who met active scheme thresholds + reward points
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Earned incentives } }
+      responses:
+        '200':
+          description: Earned incentives, one row per (active scheme, qualifying agent)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    schemeId: { type: string }
+                    schemeName: { type: string }
+                    metric: { type: string, enum: [scorecard, tasks_closed, visits] }
+                    agentId: { type: string }
+                    email: { type: string }
+                    displayName: { $ref: '#/components/schemas/DisplayName' }
+                    metricValue: { type: number }
+                    rewardPoints: { type: number }
   /incentives/{id}:
     patch:
       summary: Update an incentive scheme — manager/admin
@@ -1083,8 +1266,89 @@ paths:
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: 'Generated (delivery is Phase 4)' }, '404': { description: Not found } }
 components:
+  schemas:
+    DisplayName:
+      type: string
+      nullable: true
+      maxLength: 120
+      description: >
+        What people call this person ("Sipho Ndlovu"). null when none was ever
+        set — accounts that predate the field are not given one guessed from
+        the email. Clients should show the email when this is null.
+    SafeUser:
+      type: object
+      description: A user as it may appear on the wire. Never carries passwordHash, clientId or GPS.
+      properties:
+        id: { type: string }
+        email: { type: string }
+        displayName: { $ref: '#/components/schemas/DisplayName' }
+        role: { type: string, enum: [field_agent, manager, admin] }
+        active: { type: boolean }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+    DispatchCandidate:
+      type: object
+      properties:
+        agentId: { type: string }
+        email: { type: string }
+        displayName: { $ref: '#/components/schemas/DisplayName' }
+        distanceM: { type: number, nullable: true }
+        inTerritory: { type: boolean }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+    LeaderboardEntry:
+      type: object
+      properties:
+        agentId: { type: string }
+        email: { type: string }
+        displayName: { $ref: '#/components/schemas/DisplayName' }
+        visitsSubmitted: { type: integer }
+        tasksClosed: { type: integer }
+        avgScorecard: { type: number }
+        points: { type: number }
+        rank: { type: integer }
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    Webhook:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        url: { type: string }
+        event: { type: string }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        consecutiveFailures:
+          type: integer
+          description: Deliveries that gave up since the last successful one.
+        lastDeliveryStatus:
+          type: string
+          nullable: true
+          enum: [pending, succeeded, failed_retrying, gave_up]
+        lastDeliveryAt: { type: string, format: date-time, nullable: true }
+        health:
+          type: string
+          enum: [healthy, failing, unhealthy]
+          description: >
+            unhealthy while consecutiveFailures > 0; failing when the latest
+            delivery is waiting on a retry; healthy otherwise.
+    WebhookDelivery:
+      type: object
+      properties:
+        id: { type: string }
+        webhookId: { type: string }
+        clientId: { type: string }
+        event: { type: string }
+        payload:
+          type: object
+          description: The exact `{ event, payload, timestamp }` body sent on every attempt.
+        status: { type: string, enum: [pending, succeeded, failed_retrying, gave_up] }
+        attempts: { type: integer }
+        lastStatusCode: { type: integer, nullable: true }
+        lastError: { type: string, nullable: true }
+        nextAttemptAt: { type: string, format: date-time, nullable: true }
+        lastAttemptAt: { type: string, format: date-time, nullable: true }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }

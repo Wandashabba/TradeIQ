@@ -1712,7 +1712,8 @@ class _AgentRowState extends State<_AgentRow> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // `name` is an email — one unbroken token — and outlet
+                      // `name` falls back to an email — one unbroken token —
+                      // when the agent has no display name, and outlet
                       // names run long, so both lines must ellipsize rather
                       // than paint past their bound; the age column stays
                       // unbounded since it must never be the thing that

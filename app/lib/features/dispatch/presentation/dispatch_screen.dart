@@ -107,8 +107,9 @@ class _Candidates extends ConsumerWidget {
             children: [
               for (final c in data.candidates)
                 WorklistRow(
+                  // Keyed by email, which is unique; the title is the name.
                   key: ValueKey('candidate-${c.email}'),
-                  title: c.email,
+                  title: c.label,
                   meta: Row(
                     children: [
                       Text(
@@ -128,7 +129,7 @@ class _Candidates extends ConsumerWidget {
                     ],
                   ),
                   level: c.inTerritory ? StatusLevel.good : StatusLevel.neutral,
-                  statusLabel: data.recommended?.email == c.email
+                  statusLabel: data.recommended?.agentId == c.agentId
                       ? 'Recommended'
                       : c.inTerritory
                           ? 'In territory'

@@ -91,7 +91,13 @@ describe('listAgentActivity', () => {
     otherClientId = other.id;
 
     const agent = await prisma.user.create({
-      data: { email: 'AGT-agent@example.com', passwordHash: 'x', role: 'field_agent', clientId },
+      data: {
+        email: 'AGT-agent@example.com',
+        displayName: 'Bongani Zulu',
+        passwordHash: 'x',
+        role: 'field_agent',
+        clientId,
+      },
     });
     agentId = agent.id;
 
@@ -176,6 +182,22 @@ describe('listAgentActivity', () => {
     expect(mine!.stops[0].outletName).toBe('Sandton Spar');
     expect(mine!.state).toBe('in_transit');
     expect(mine!.lastSeenAt).toEqual(new Date('2026-07-22T08:00:00Z'));
+  });
+
+  it('names an agent by display name, falling back to email when none is set (#280)', async () => {
+    const result = await listAgentActivity({ clientId, from: FROM, to: TO });
+    const named = result.data.find((a) => a.agentId === agentId);
+    const unnamed = result.data.find((a) => a.agentId === agentId2);
+    expect(named).toMatchObject({
+      name: 'Bongani Zulu',
+      displayName: 'Bongani Zulu',
+      email: 'AGT-agent@example.com',
+    });
+    expect(unnamed).toMatchObject({
+      name: 'AGT-agent2@example.com',
+      displayName: null,
+      email: 'AGT-agent2@example.com',
+    });
   });
 
   it('never returns another tenant\'s agents', async () => {

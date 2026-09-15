@@ -33,5 +33,18 @@ void main() {
     expect(entry.rank, 0);
     expect(entry.avgScorecard, 0);
     expect(entry.points, 0);
+    expect(entry.displayName, isNull);
+    expect(entry.label, 'other@example.com');
+  });
+
+  test('LeaderboardEntry.fromJson parses displayName, and label prefers it', () {
+    final entry = LeaderboardEntry.fromJson(const {
+      'agentId': 'a-3',
+      'email': 'agent3@example.com',
+      'displayName': 'Chantal Adams',
+    });
+
+    expect(entry.displayName, 'Chantal Adams');
+    expect(entry.label, 'Chantal Adams');
   });
 }
