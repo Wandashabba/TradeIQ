@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/location/location_service.dart';
+import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/lumen_glass.dart';
 import 'package:tradeiq_app/core/theme/lumen_palette.dart';
@@ -242,4 +244,74 @@ void main() {
       expect(calls, 0);
     });
   });
+
+  group('PhotoCaptureField geotags audit evidence (#310)', () {
+    final shutter = DateTime.utc(2026, 9, 15, 10, 4, 5);
+
+    Widget geoApp({
+      required bool geotag,
+      required ValueChanged<CapturedPhoto> onPhoto,
+    }) => ProviderScope(
+      overrides: [
+        photoCaptureServiceProvider.overrideWithValue(
+          PhotoCaptureService(
+            gateway: _FakeGateway(file: _xfile(Uint8List.fromList([1, 2]))),
+            geotagger: PhotoGeotagger(
+              location: _GrantedLocation(),
+            ),
+            clock: () => shutter,
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: PhotoCaptureField(
+            label: 'Shelf photo',
+            geotag: geotag,
+            onPhotoCaptured: onPhoto,
+          ),
+        ),
+      ),
+    );
+
+    Future<void> shoot(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey('photo-add')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-capture')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('geotag: true hands on the whole capture, tagged at the '
+        'shutter', (tester) async {
+      CapturedPhoto? photo;
+      await tester.pumpWidget(geoApp(geotag: true, onPhoto: (p) => photo = p));
+      await tester.pumpAndSettle();
+
+      await shoot(tester);
+
+      expect(find.byKey(const ValueKey('photo-preview')), findsOneWidget);
+      expect(photo!.dataUrl, startsWith('data:image/jpeg;base64,'));
+      expect(photo!.gpsTag, {'lat': -26.2041, 'lng': 28.0473});
+      expect(photo!.capturedAt, shutter);
+    });
+
+    testWidgets('by default the field does not geotag (task closures stay '
+        'untagged)', (tester) async {
+      CapturedPhoto? photo;
+      await tester.pumpWidget(geoApp(geotag: false, onPhoto: (p) => photo = p));
+      await tester.pumpAndSettle();
+
+      await shoot(tester);
+
+      expect(photo, isNotNull);
+      expect(photo!.gpsTag, isEmpty);
+    });
+  });
+}
+
+class _GrantedLocation extends LocationService {
+  @override
+  Future<LocationResult> getPositionIfPermitted() async =>
+      LocationGranted(-26.2041, 28.0473);
 }

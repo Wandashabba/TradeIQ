@@ -2,9 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/location/location_service.dart';
+import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_service.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
@@ -233,6 +236,103 @@ void main() {
       final queued = await db.select(db.syncQueueItems).get();
       expect(queued, hasLength(1));
       expect(queued.single.synced, isFalse);
+    });
+
+    group('geotag and capture time (#310)', () {
+      final shutter = DateTime.utc(2026, 9, 15, 10, 4, 5);
+
+      Future<(LocalDb, DriftQueuedPhotosRepository)> setUpQueue() async {
+        final db = LocalDb(NativeDatabase.memory());
+        addTearDown(db.close);
+        await db
+            .into(db.visitDrafts)
+            .insert(
+              VisitDraftsCompanion.insert(
+                id: 'local-v1',
+                outletId: 'o1',
+                checkinTs: DateTime(2026, 9, 15),
+                checkinLat: 0,
+                checkinLng: 0,
+                geofencePass: true,
+                remoteId: const Value('remote-v1'),
+              ),
+            );
+        final repo = DriftQueuedPhotosRepository(
+          db: db,
+          syncService: SyncService(db: db, flusher: _RecordingFlusher()),
+        );
+        return (db, repo);
+      }
+
+      /// Sends the one queued row the way the outbox does, hours "later", and
+      /// returns the POST /photos body.
+      Future<Map<String, dynamic>> sendQueued(LocalDb db) async {
+        final row = (await db.select(db.syncQueueItems).get()).single;
+        final adapter = _ThumbAdapter();
+        final dio = Dio(BaseOptions(baseUrl: 'http://localhost:4000'))
+          ..httpClientAdapter = adapter;
+        await HttpQueueFlusher(db: db, dio: dio).flush(row);
+        expect(adapter.requests.single.path, '/photos');
+        return adapter.requests.single.data as Map<String, dynamic>;
+      }
+
+      test('the gpsTag and shutter time survive the outbox to POST /photos', () async {
+        final (db, repo) = await setUpQueue();
+        final tag = gpsTagFor(
+          LocationGranted(-26.2041, 28.0473, accuracy: 9, fixedAt: shutter),
+        );
+
+        await repo.queuePhoto(
+          visitDraftId: 'local-v1',
+          section: 'stock',
+          dataUrl: 'data:image/jpeg;base64,AQID',
+          gpsTag: tag,
+          // Handed over in the device zone; stored and sent as UTC.
+          capturedAt: shutter.toLocal(),
+        );
+
+        final body = await sendQueued(db);
+        expect(body['visitId'], 'remote-v1');
+        expect(body['section'], 'stock');
+        // The shape fraud.service.ts readCoords takes: numeric lat/lng.
+        expect(body['gpsTag'], {
+          'lat': -26.2041,
+          'lng': 28.0473,
+          'accuracy': 9.0,
+          'fixedAt': '2026-09-15T10:04:05.000Z',
+        });
+        expect(body['timestamp'], '2026-09-15T10:04:05.000Z');
+      });
+
+      test('a photo taken with location refused still uploads, with an empty '
+          'gpsTag object', () async {
+        final (db, repo) = await setUpQueue();
+
+        await repo.queuePhoto(
+          visitDraftId: 'local-v1',
+          section: 'visibility',
+          dataUrl: 'data:image/jpeg;base64,AQID',
+          capturedAt: shutter,
+        );
+
+        final body = await sendQueued(db);
+        // POST /photos requires gpsTag to be an object; empty is "no evidence".
+        expect(body['gpsTag'], <String, dynamic>{});
+        expect(body['timestamp'], '2026-09-15T10:04:05.000Z');
+      });
+
+      test('with no capture time given, the timestamp is still UTC-marked', () async {
+        final (db, repo) = await setUpQueue();
+
+        await repo.queuePhoto(
+          visitDraftId: 'local-v1',
+          section: 'pricing',
+          dataUrl: 'data:image/jpeg;base64,AQID',
+        );
+
+        final body = await sendQueued(db);
+        expect(body['timestamp'] as String, endsWith('Z'));
+      });
     });
   });
 }

@@ -8,9 +8,16 @@ import 'geolocator_gateway.dart';
 sealed class LocationResult {}
 
 class LocationGranted extends LocationResult {
-  LocationGranted(this.lat, this.lng);
+  LocationGranted(this.lat, this.lng, {this.accuracy, this.fixedAt});
   final double lat;
   final double lng;
+
+  /// The platform's horizontal accuracy estimate, in metres, when it gave one.
+  final double? accuracy;
+
+  /// When the platform took this fix. A cached last-known fix can be minutes
+  /// old, so this is what lets a reader judge staleness.
+  final DateTime? fixedAt;
 }
 
 class LocationDenied extends LocationResult {}
@@ -47,15 +54,33 @@ class LocationService {
   /// status remains `notDetermined`. Unbounded, either one leaves the check-in
   /// screen on its locating radar forever — the app looking like it is still
   /// working when it has, in fact, stopped.
-  Future<LocationResult> getCurrentPosition() async {
+  Future<LocationResult> getCurrentPosition() => _resolve(askPermission: true);
+
+  /// Like [getCurrentPosition], but never raises the permission prompt: if
+  /// location is not already granted this is simply [LocationDenied].
+  ///
+  /// For background readings (a photo's geotag, #310) where the agent did not
+  /// ask to be located. They decided about location at check-in; a system
+  /// dialog popping over the camera is not the place to ask again.
+  Future<LocationResult> getPositionIfPermitted() =>
+      _resolve(askPermission: false);
+
+  Future<LocationResult> _resolve({required bool askPermission}) async {
     try {
       var permission =
           await _gateway.checkPermission().timeout(permissionTimeout);
-      if (permission == LocationPermission.denied) {
+      if (askPermission && permission == LocationPermission.denied) {
         permission =
             await _gateway.requestPermission().timeout(permissionTimeout);
       }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return LocationDenied();
+      }
+      // Some browsers cannot say whether location is allowed, and asking for a
+      // fix is then what raises their prompt — so the no-prompt path stops here.
+      if (!askPermission &&
+          permission == LocationPermission.unableToDetermine) {
         return LocationDenied();
       }
 
@@ -64,7 +89,12 @@ class LocationService {
       }
 
       final position = await _gateway.getCurrentPosition().timeout(fixTimeout);
-      return LocationGranted(position.latitude, position.longitude);
+      return LocationGranted(
+        position.latitude,
+        position.longitude,
+        accuracy: position.accuracy,
+        fixedAt: position.timestamp,
+      );
     } on TimeoutException {
       return LocationError(
         'Timed out waiting for your location. Check that location is switched '
