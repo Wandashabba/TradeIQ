@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../theme/status_pill_colors.dart';
 import '../theme/tiq_colors.dart';
 import '../theme/lumen_glass.dart';
@@ -398,6 +399,7 @@ class CountStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     final v = value;
     final finding = v == 0 && zeroIsFinding;
     // From "not counted", - means "there are none": an explicit zero, which is
@@ -419,7 +421,7 @@ class CountStepper extends StatelessWidget {
           _GlassStep(
             icon: Icons.remove,
             onTap: decrement,
-            semantic: 'One fewer',
+            semantic: l10n.kitStepperFewer,
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -463,7 +465,7 @@ class CountStepper extends StatelessWidget {
           _GlassStep(
             icon: Icons.add,
             onTap: increment,
-            semantic: 'One more',
+            semantic: l10n.kitStepperMore,
             accent: true,
           ),
         ],
@@ -486,7 +488,11 @@ class CountStepper extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _Step(icon: Icons.remove, onTap: decrement, semantic: 'One fewer'),
+          _Step(
+            icon: Icons.remove,
+            onTap: decrement,
+            semantic: l10n.kitStepperFewer,
+          ),
           Expanded(
             child: Material(
               color: Colors.transparent,
@@ -513,7 +519,11 @@ class CountStepper extends StatelessWidget {
               ),
             ),
           ),
-          _Step(icon: Icons.add, onTap: increment, semantic: 'One more'),
+          _Step(
+            icon: Icons.add,
+            onTap: increment,
+            semantic: l10n.kitStepperMore,
+          ),
         ],
       ),
     );
@@ -1035,10 +1045,14 @@ class AgentField extends StatelessWidget {
 
 /// "2h ago" — a field agent does not want a timestamp, they want to know
 /// whether it was recent.
-String formatAgo(DateTime when) {
+///
+/// Pass the active [l10n] (`context.l10n`) on agent screens; without it the
+/// English copy is used (the manager console is not localised yet).
+String formatAgo(DateTime when, [AppLocalizations? l10n]) {
+  final l = l10n ?? englishLocalizations;
   final d = DateTime.now().difference(when);
-  if (d.inSeconds < 60) return 'just now';
-  if (d.inMinutes < 60) return '${d.inMinutes} min ago';
-  if (d.inHours < 24) return '${d.inHours}h ago';
-  return '${d.inDays}d ago';
+  if (d.inSeconds < 60) return l.agoJustNow;
+  if (d.inMinutes < 60) return l.agoMinutes(d.inMinutes);
+  if (d.inHours < 24) return l.agoHours(d.inHours);
+  return l.agoDays(d.inDays);
 }

@@ -1,9 +1,15 @@
 import { Prisma, VisitStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
-import { haversineDistanceMeters } from '../../lib/geofence';
+import { GEOFENCE_RADIUS_M, haversineDistanceMeters } from '../../lib/geofence';
 import { kpiThreshold } from '../../lib/kpiThresholds';
 import { NotFoundError } from '../../middleware/errorHandler';
+import {
+  MAX_NEAR_DUPLICATE_DISTANCE,
+  PERCEPTUAL_HASH_BITS,
+  perceptualHashBands,
+  perceptualHashProbeKeys,
+} from '../photos/photoHash';
 
 // ── Heuristic thresholds & weights ────────────────────────────────────────
 // A borderline check-in that sits inside the 50m geofence but hugs its edge.
@@ -150,6 +156,145 @@ const WEIGHT_NO_CAPTURE = 30;
 const WEIGHT_REPEATING_STOCK_COUNTS_BASKET = 15;
 const WEIGHT_REPEATING_STOCK_COUNTS_PARTIAL = 5;
 
+// ── Duplicate photo reuse (#244) ───────────────────────────────────────────
+// The same shelf photo submitted again — on a visit to a different outlet, or
+// on a later visit to the same one — is a ghost-visit pattern: the agent did not
+// photograph the shelf this time, they re-used a picture they already had.
+//
+// Photos are base64 in `url` (ADR 0007), which cannot be compared or indexed
+// (btree caps at ~2704 bytes). Upload stores two small hashes instead (see
+// photos/photoHash.ts), and only those are compared:
+//
+//   * exact: SHA-256 of the decoded bytes. Two captures never produce the same
+//     file (sensor noise, EXIF capture time), so this is the same file twice.
+//   * near: dHash Hamming distance within the client's threshold. Catches the
+//     copy that went through a chat app (re-encoded, resized) on its way back.
+//
+// "Reuse" is directional. The match must belong to an EARLIER visit of the same
+// client, by device checkinTs (ties by id, the #245 ordering): the first use of
+// a photo is where it was taken, and must not be accused for being copied later.
+// Photos without hashes (pre-#244 rows not yet backfilled) are simply not seen.
+//
+// A task-closure photo is not an audit capture — it is attached to the
+// originating visit days later, by design (#246) — so it neither triggers the
+// signal nor counts as the photo that was reused.
+//
+// The threshold is per client. Why bits and not a similarity %: it is what the
+// index reasons in. Default 6: a re-encode moves ~1 bit and a half-size copy ~3,
+// while unrelated shelf frames sit at 25+ (measured, photoHash.test.ts). It stays
+// below 7 on purpose — the same planogram photographed in two stores of one chain
+// is the false positive a near match risks, and the tighter bound keeps it rarer.
+// Above 7 the band index cannot promise to return the match, so it clamps there.
+export const DUPLICATE_PHOTO_MAX_DISTANCE_KEY = 'duplicatePhotoMaxDistance';
+export const DEFAULT_DUPLICATE_PHOTO_MAX_DISTANCE = 6;
+
+// Weights, flat — neither scales with how many photos were reused or how often:
+// one reused photo already says the shelf was not photographed this time.
+//
+// A different outlet is the strong case: the photo contradicts where the agent
+// claims to have been. Byte-identical, 35: it cannot be two captures, but alone
+// it still stays under the review threshold (50), because one visit's evidence
+// can be the wrong photo picked from the gallery. It is NOT folded into
+// photo_gps_divergence the way capture_timeline_gap is: the GPS tag is metadata
+// the device supplies (and can strip), while this is the image content itself,
+// so the two agreeing is corroboration, not one fact counted twice.
+const WEIGHT_DUPLICATE_PHOTO_OTHER_OUTLET_EXACT = 35;
+// Near, 25: a re-encoded copy is reuse just the same, but at 64 bits two stores
+// of one chain with the same planogram, shot from the same angle, can hash close.
+const WEIGHT_DUPLICATE_PHOTO_OTHER_OUTLET_NEAR = 25;
+// A previous visit to the SAME outlet is weaker: the agent may well have been
+// there and skipped only the photo. Byte-identical, 15 — level with the other
+// "not captured this time" signals (capture_timeline_gap, repeating_stock_counts).
+const WEIGHT_DUPLICATE_PHOTO_SAME_OUTLET_EXACT = 15;
+// Near, only 5: the same shelf photographed from the same spot a week later
+// honestly looks alike, and an unchanged planogram is exactly what an audit
+// hopes to see. Reported so a reviewer can look; corroboration only.
+const WEIGHT_DUPLICATE_PHOTO_SAME_OUTLET_NEAR = 5;
+
+// ── Stock counted outside its assigned outlet (#248) ───────────────────────
+// "Stock recorded against outlet A while the capture happened somewhere that is
+// not outlet A." The issue asks for "outside" to be pinned down first. It has
+// two readings, and only one of them is implemented, on purpose:
+//
+// 1. WEAK — the stock was captured outside A's own fence. NOT IMPLEMENTED: there
+//    is no evidence for it that some existing signal does not already score.
+//      * The check-in position is inside A's fence by construction: a visit
+//        only exists once POST /visits/checkin passed the fence. How close it
+//        came to the edge is geofence_distance.
+//      * A stock row carries no position at all, and nothing on the device
+//        records one when a count is keyed in.
+//      * A photo's gpsTag outside the fence is photo_gps_divergence (the
+//        photo -> location join the issue says is not this question); a lower
+//        line measured from the outlet instead of the check-in would score the
+//        same field of the same photo a second time.
+//      * Rejected check-in attempts from outside the fence are failed_attempts.
+//    A weak reading would re-weigh one of those facts under a new name, so it is
+//    left out rather than double-counted.
+//
+// 2. STRONG — the capture position sits inside the fence of a DIFFERENT outlet
+//    of the same client, and clear of A's. That is new evidence none of the
+//    other signals can see: the agent was standing in a real store this client
+//    audits, and the counts were attributed to another one.
+//
+// What places the capture. A stock count has no position, but it can only be
+// keyed in while the visit is open on the device (check-in -> submittedAtClient,
+// the #246 window). So a visit photo whose DEVICE timestamp falls inside that
+// window, widened by the client's captureTimelineToleranceMinutes, was taken in
+// the sitting where the counts were entered, and its gpsTag is where that
+// sitting happened. Photos outside the window, without a timestamp or
+// coordinates, and task-closure photos place nothing. No submittedAtClient → no
+// window → silent, the #101 one-clock rule.
+//
+// Rejected CheckInAttempt rows for this (agent, outlet) in the failed_attempts
+// window are the negative-signal dataset: each carries the device position the
+// agent tried to check in from. On their own they never fire this signal (an
+// agent standing in store B who taps outlet A by mistake, then drives to A, is
+// the benign case). When one sits inside the SAME other outlet a photo places
+// the capture in, it is a second, independent device reading of where the agent
+// was — see WEIGHT_STOCK_OUTSIDE_OUTLET_SAME_PHOTO.
+//
+// Why not the check-in position: it is inside A's fence by construction. It can
+// also be inside B's when the two fences overlap (two stores in one mall), and
+// that is ambiguous, not evidence.
+//
+// The fence is GEOFENCE_RADIUS_M, the same one check-in enforces. Inside B means
+// within that radius of B. Clear of A needs the radius PLUS a per-client
+// tolerance, because phone GPS indoors drifts by tens of metres: a count at the
+// back of a big store must not read as "in the store next door".
+export const STOCK_OUTSIDE_OUTLET_TOLERANCE_METERS_KEY = 'stockOutsideOutletToleranceMeters';
+// 25m: a typical indoor / urban-canyon smartphone fix error. Two outlets closer
+// than radius + tolerance (75m) apart can never trip it, which is the intent —
+// neighbouring stores in one centre are exactly where a fix is ambiguous.
+export const DEFAULT_STOCK_OUTSIDE_OUTLET_TOLERANCE_METERS = 25;
+// Moderate-to-high, flat, and below the review threshold (50) alone. A photo from
+// the counting sitting geotagged inside another of the client's stores is the
+// most specific location evidence the engine has, and it is checkable (the
+// reviewer knows which store). It still does not flag alone: a stale fix the
+// camera reused, or the wrong photo picked from the gallery, do the same. It does
+// not scale with distance or with how many photos agree.
+const WEIGHT_STOCK_OUTSIDE_OUTLET = 30;
+// When every placing photo is ALSO one photo_gps_divergence already scored (the
+// two outlets are far apart), the position is one fact seen twice: divergence
+// has said "far from the check-in" (25), and this adds only "and that spot is
+// your store B". So 20, and the pair is 45: one more independent signal is needed
+// to reach review. A photo between nearby stores (divergence is blind under
+// 150m) scores the full 30 — more evidence never scores lower than less. A
+// rejected check-in attempt from inside that same outlet B is independent of the
+// photo (a different request, a different fix), so it restores the full 30.
+const WEIGHT_STOCK_OUTSIDE_OUTLET_SAME_PHOTO = 20;
+// The outlet lookup is a bounding box around each capture position, then exact
+// haversine in JS. The box is widened by this factor so a true candidate is
+// never lost to the flat-earth approximation or float rounding; the haversine
+// check discards the corners. The box does not wrap the antimeridian (±180°).
+const OUTLET_LOOKUP_BOX_MARGIN = 1.1;
+// Fewest metres per degree of latitude (at the equator) and metres per degree of
+// longitude at the equator. Dividing by them errs toward a bigger box.
+const MIN_METRES_PER_DEGREE_LAT = 110_574;
+const METRES_PER_DEGREE_LNG_AT_EQUATOR = 111_320;
+// Near the poles cos(lat) → 0 and the longitude span explodes. Floor it: no
+// outlet is audited there, and a wider box is only a bigger superset.
+const MIN_COS_LAT = 0.01;
+
 const MS_PER_MINUTE = 60_000;
 const MS_PER_DAY = 24 * 60 * MS_PER_MINUTE;
 
@@ -207,13 +352,53 @@ export interface FraudRelatedInput {
   sectionCreatedAts: Date[];
   // Failed CheckInAttempt rows for this visit's (agentId, outletId). The 6h
   // window is applied inside computeFraudSignals so it owns the whole heuristic.
-  failedAttempts: Array<{ createdAt: Date }>;
+  // lat/lng, where present, are the position the agent tried to check in from
+  // (#248 corroboration).
+  failedAttempts: FraudFailedAttempt[];
   // This visit's own stock counts (#245). Absent → no repeating_stock_counts.
   stockCounts?: FraudStockCount[];
   // Earlier SUBMITTED visits to the same outlet that recorded stock, newest
   // first by device checkinTs (ties by id) — see loadPriorStockVisits(). Only
   // the first repeatingStockLookbackVisits() are read. Absent or empty → silent.
   priorStockVisits?: FraudStockVisit[];
+  // Hash matches for this visit's photos against the client's other photos
+  // (#244) — see loadDuplicatePhotoMatches(). Absent or empty → no duplicate_photo.
+  photoMatches?: FraudPhotoMatch[];
+  // The visit's own outlet plus the client's outlets near its capture positions
+  // (#248) — see loadNearbyOutlets(). Absent, or without the visit's own outlet
+  // → no stock_outside_outlet.
+  nearbyOutlets?: FraudOutletLocation[];
+}
+
+/** One rejected check-in attempt, as the heuristics see it. */
+export interface FraudFailedAttempt {
+  createdAt: Date;
+  lat?: number;
+  lng?: number;
+}
+
+/** One outlet's fence centre, as stock_outside_outlet sees it (#248). */
+export interface FraudOutletLocation {
+  outletId: string;
+  code: string;
+  lat: number;
+  lng: number;
+}
+
+/** One of this visit's photos matching a photo on another visit (#244). */
+export interface FraudPhotoMatch {
+  /** This visit's photo. */
+  photoId: string;
+  section: string;
+  /** Byte-identical: the SHA-256 of the decoded bytes is equal. */
+  exact: boolean;
+  /** dHash Hamming distance in bits; null when either photo has no comparable hash. */
+  distance: number | null;
+  matchVisitId: string;
+  matchOutletId: string;
+  /** The matched visit's DEVICE check-in, which decides which use came first. */
+  matchCheckinTs: Date;
+  matchSection: string;
 }
 
 /** One VisitStock row, as repeating_stock_counts sees it. */
@@ -442,6 +627,253 @@ function repeatingStockCounts(
       };
 }
 
+/** The near-duplicate threshold, in dHash bits, for one client. See #244 above. */
+export function duplicatePhotoMaxDistance(kpiThresholds: unknown): number {
+  const raw = Math.floor(
+    kpiThreshold(kpiThresholds, DUPLICATE_PHOTO_MAX_DISTANCE_KEY, DEFAULT_DUPLICATE_PHOTO_MAX_DISTANCE),
+  );
+  // 0 is a policy (identical perceptual hashes only); negative is a typo, and
+  // falls back. Above the ceiling clamps: the lookup could not return those
+  // matches, so honouring it would only pretend to look.
+  if (raw < 0) {
+    return DEFAULT_DUPLICATE_PHOTO_MAX_DISTANCE;
+  }
+  return Math.min(raw, MAX_NEAR_DUPLICATE_DISTANCE);
+}
+
+/** The weight of one qualifying match. See the WEIGHT_DUPLICATE_PHOTO_* notes. */
+function duplicatePhotoWeight(exact: boolean, otherOutlet: boolean): number {
+  if (otherOutlet) {
+    return exact ? WEIGHT_DUPLICATE_PHOTO_OTHER_OUTLET_EXACT : WEIGHT_DUPLICATE_PHOTO_OTHER_OUTLET_NEAR;
+  }
+  return exact ? WEIGHT_DUPLICATE_PHOTO_SAME_OUTLET_EXACT : WEIGHT_DUPLICATE_PHOTO_SAME_OUTLET_NEAR;
+}
+
+/**
+ * duplicate_photo (#244), or null. Pure; see the DUPLICATE_PHOTO notes at the
+ * top. The loader has already narrowed the candidates, but every rule is applied
+ * again here so the heuristic is whole and testable on its own:
+ *
+ *   - neither photo is a task-closure photo;
+ *   - the match is on a different visit, strictly EARLIER on
+ *     (device checkinTs, id) — ids compared bytewise, as the loader's SQL does;
+ *   - it is byte-identical, or has a perceptual distance within the threshold.
+ *
+ * One signal per visit, at the strongest qualifying match; the detail counts how
+ * many of this visit's photos matched.
+ */
+function duplicatePhoto(
+  visit: FraudVisitInput,
+  related: FraudRelatedInput,
+  kpiThresholds: unknown,
+): FraudSignal | null {
+  const matches = related.photoMatches ?? [];
+  if (matches.length === 0) {
+    return null;
+  }
+  const maxDistance = duplicatePhotoMaxDistance(kpiThresholds);
+  const checkinMs = visit.checkinTs.getTime();
+
+  const matchedPhotos = new Set<string>();
+  let best: { match: FraudPhotoMatch; weight: number; otherOutlet: boolean } | null = null;
+  for (const match of matches) {
+    if (
+      match.section === TASK_CLOSURE_PHOTO_SECTION ||
+      match.matchSection === TASK_CLOSURE_PHOTO_SECTION ||
+      match.matchVisitId === visit.id
+    ) {
+      continue;
+    }
+    const matchMs = match.matchCheckinTs.getTime();
+    const earlier = matchMs < checkinMs || (matchMs === checkinMs && match.matchVisitId < visit.id);
+    const near = match.distance !== null && match.distance <= maxDistance;
+    if (!earlier || !(match.exact || near)) {
+      continue;
+    }
+    matchedPhotos.add(match.photoId);
+    const otherOutlet = match.matchOutletId !== visit.outletId;
+    const weight = duplicatePhotoWeight(match.exact, otherOutlet);
+    const closer =
+      best !== null &&
+      weight === best.weight &&
+      !match.exact &&
+      (match.distance ?? Infinity) < (best.match.distance ?? Infinity);
+    if (best === null || weight > best.weight || closer) {
+      best = { match, weight, otherOutlet };
+    }
+  }
+  if (best === null) {
+    return null;
+  }
+
+  const { match, weight, otherOutlet } = best;
+  const kind = match.exact
+    ? 'byte-identical to'
+    : `a near-duplicate (${match.distance} of ${PERCEPTUAL_HASH_BITS} bits differ, threshold ${maxDistance}) of`;
+  const date = match.matchCheckinTs.toISOString().slice(0, 10);
+  return {
+    code: 'duplicate_photo',
+    detail:
+      `${matchedPhotos.size} photo(s) on this visit match a photo from an earlier visit by this client; ` +
+      `the strongest is ${kind} a photo from a visit to ${otherOutlet ? 'a different outlet' : 'this outlet'} ` +
+      `on ${date} (device check-in)` +
+      (!otherOutlet && !match.exact ? '; the same shelf photographed from the same spot also looks alike' : ''),
+    weight,
+  };
+}
+
+/** The #248 tolerance beyond the visit's own fence, in metres, for one client. */
+export function stockOutsideOutletToleranceMeters(kpiThresholds: unknown): number {
+  const metres = kpiThreshold(
+    kpiThresholds,
+    STOCK_OUTSIDE_OUTLET_TOLERANCE_METERS_KEY,
+    DEFAULT_STOCK_OUTSIDE_OUTLET_TOLERANCE_METERS,
+  );
+  // 0 is a policy (clear of the fence is enough); negative would put "clear of
+  // A" inside A's own fence, which is a typo, and falls back.
+  return metres >= 0 ? metres : DEFAULT_STOCK_OUTSIDE_OUTLET_TOLERANCE_METERS;
+}
+
+/** Failed attempts inside the failed_attempts window: the 6h before check-in. */
+function recentFailedAttempts<T extends FraudFailedAttempt>(visit: FraudVisitInput, attempts: T[]): T[] {
+  const checkinMs = visit.checkinTs.getTime();
+  const windowStart = checkinMs - FAILED_ATTEMPT_WINDOW_MS;
+  return attempts.filter((attempt) => {
+    const at = attempt.createdAt.getTime();
+    return at >= windowStart && at <= checkinMs;
+  });
+}
+
+function attemptCoords(attempt: FraudFailedAttempt): { lat: number; lng: number } | null {
+  const { lat, lng } = attempt;
+  return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng)
+    ? { lat, lng }
+    : null;
+}
+
+/**
+ * The visit's photos that place the counting sitting (#248): audit photos whose
+ * DEVICE timestamp is inside check-in -> submittedAtClient, widened by the
+ * capture-timeline tolerance, and that carry coordinates. Empty for anything
+ * but a submitted visit with an ordered device window.
+ */
+function captureSittingPhotos<P extends FraudPhotoInput>(
+  visit: FraudVisitInput,
+  photos: P[],
+  kpiThresholds: unknown,
+): Array<{ photo: P; coords: { lat: number; lng: number } }> {
+  if (visit.status !== 'submitted' || !visit.submittedAtClient) {
+    return [];
+  }
+  const checkinMs = visit.checkinTs.getTime();
+  const submitMs = visit.submittedAtClient.getTime();
+  if (submitMs < checkinMs) {
+    return []; // the device clock moved; the window means nothing (#101)
+  }
+  const toleranceMs = captureTimelineToleranceMs(kpiThresholds);
+  const placed: Array<{ photo: P; coords: { lat: number; lng: number } }> = [];
+  for (const photo of photos) {
+    if (photo.section === TASK_CLOSURE_PHOTO_SECTION || !photo.timestamp) {
+      continue;
+    }
+    const takenMs = photo.timestamp.getTime();
+    if (!Number.isFinite(takenMs) || takenMs < checkinMs - toleranceMs || takenMs > submitMs + toleranceMs) {
+      continue;
+    }
+    const coords = readCoords(photo.gpsTag);
+    if (coords) {
+      placed.push({ photo, coords });
+    }
+  }
+  return placed;
+}
+
+/**
+ * stock_outside_outlet (#248), or null — the STRONG reading only; see the notes
+ * at the top for why the weak one is not scored. Pure: the loader has narrowed
+ * the outlets to the ones near each position, and every rule is applied again
+ * here with exact haversine.
+ *
+ * A position is placed in another outlet B when it is more than
+ * GEOFENCE_RADIUS_M + tolerance from the visit's own outlet AND within
+ * GEOFENCE_RADIUS_M of B (the nearest such B). Overlapping fences, positions near
+ * A, and single-outlet tenants are therefore silent by construction.
+ */
+function stockOutsideOutlet(
+  visit: FraudVisitInput,
+  related: FraudRelatedInput,
+  kpiThresholds: unknown,
+  divergentPhotos: Set<FraudPhotoInput>,
+): FraudSignal | null {
+  // Stock recorded against this outlet is the claim under test; drafts are not final.
+  if (visit.status !== 'submitted' || (related.stockCounts ?? []).length === 0) {
+    return null;
+  }
+  const outlets = related.nearbyOutlets ?? [];
+  const own = outlets.find((o) => o.outletId === visit.outletId);
+  const others = outlets.filter((o) => o.outletId !== visit.outletId);
+  if (!own || others.length === 0) {
+    return null;
+  }
+  const toleranceM = stockOutsideOutletToleranceMeters(kpiThresholds);
+  const clearOfOwnM = GEOFENCE_RADIUS_M + toleranceM;
+
+  const placeInOther = (coords: { lat: number; lng: number }) => {
+    const ownM = haversineDistanceMeters(own, coords);
+    if (ownM <= clearOfOwnM) {
+      return null;
+    }
+    let nearest: { outlet: FraudOutletLocation; otherM: number } | null = null;
+    for (const outlet of others) {
+      const otherM = haversineDistanceMeters(outlet, coords);
+      if (otherM <= GEOFENCE_RADIUS_M && (nearest === null || otherM < nearest.otherM)) {
+        nearest = { outlet, otherM };
+      }
+    }
+    return nearest ? { ...nearest, ownM } : null;
+  };
+
+  const placements = captureSittingPhotos(visit, related.photos, kpiThresholds).flatMap(({ photo, coords }) => {
+    const placed = placeInOther(coords);
+    return placed ? [{ photo, ...placed }] : [];
+  });
+  if (placements.length === 0) {
+    return null; // attempts alone never fire: the wrong-outlet tap is benign
+  }
+
+  const corroborated = new Set<string>();
+  for (const attempt of recentFailedAttempts(visit, related.failedAttempts)) {
+    const coords = attemptCoords(attempt);
+    const placed = coords ? placeInOther(coords) : null;
+    if (placed && placements.some((p) => p.outlet.outletId === placed.outlet.outletId)) {
+      corroborated.add(placed.outlet.outletId);
+    }
+  }
+
+  // Report a corroborated outlet first, then the nearest fix.
+  const best = placements.reduce((a, b) => {
+    const aC = corroborated.has(a.outlet.outletId);
+    const bC = corroborated.has(b.outlet.outletId);
+    if (aC !== bC) {
+      return aC ? a : b;
+    }
+    return b.otherM < a.otherM ? b : a;
+  });
+  const sameAsGps = placements.every((p) => divergentPhotos.has(p.photo));
+  const isCorroborated = corroborated.has(best.outlet.outletId);
+  return {
+    code: 'stock_outside_outlet',
+    detail:
+      `${placements.length} photo(s) taken while this visit's stock was being captured (device clock) are ` +
+      `geotagged inside another of this client's outlets; the nearest is ${Math.round(best.otherM)}m from ` +
+      `outlet ${best.outlet.code} (inside its ${GEOFENCE_RADIUS_M}m fence) and ${Math.round(best.ownM)}m from ` +
+      `this visit's outlet (beyond its fence plus the ${toleranceM}m tolerance)` +
+      (sameAsGps ? '; the same photo(s) as the GPS divergence' : '') +
+      (isCorroborated ? `; a rejected check-in attempt for this outlet was also made from inside ${best.outlet.code}` : ''),
+    weight: sameAsGps && !isCorroborated ? WEIGHT_STOCK_OUTSIDE_OUTLET_SAME_PHOTO : WEIGHT_STOCK_OUTSIDE_OUTLET,
+  };
+}
+
 /**
  * Score a single visit against the fraud/ghost-visit heuristics. Pure: every
  * input it needs is passed in, so it is trivially unit-testable and reused by
@@ -470,12 +902,8 @@ export function computeFraudSignals(
 
   // 2. Failed check-in attempts for this (agent, outlet) in the 6h before
   //    check-in — a hallmark of retrying until the GPS finally "passes".
-  const windowStart = visit.checkinTs.getTime() - FAILED_ATTEMPT_WINDOW_MS;
   const checkinMs = visit.checkinTs.getTime();
-  const recentFailures = related.failedAttempts.filter((attempt) => {
-    const at = attempt.createdAt.getTime();
-    return at >= windowStart && at <= checkinMs;
-  }).length;
+  const recentFailures = recentFailedAttempts(visit, related.failedAttempts).length;
   if (recentFailures >= 1) {
     signals.push({
       code: 'failed_attempts',
@@ -630,6 +1058,22 @@ export function computeFraudSignals(
     }
   }
 
+  // 8. Duplicate photo (#244) — this visit's photo already appeared on an
+  //    earlier visit of the same client. Any status, like photo_gps_divergence:
+  //    an uploaded photo is evidence whether or not the visit was submitted.
+  const duplicate = duplicatePhoto(visit, related, kpiThresholds);
+  if (duplicate) {
+    signals.push(duplicate);
+  }
+
+  // 9. Stock outside its outlet (#248) — a photo from the counting sitting is
+  //    geotagged inside another of the client's outlets. Submitted visits with
+  //    stock only; see the STOCK_OUTSIDE_OUTLET notes at the top.
+  const outside = stockOutsideOutlet(visit, related, kpiThresholds, divergentPhotos);
+  if (outside) {
+    signals.push(outside);
+  }
+
   const rawScore = signals.reduce((sum, signal) => sum + signal.weight, 0);
   const riskScore = Math.max(RISK_MIN, Math.min(RISK_MAX, rawScore));
 
@@ -644,10 +1088,21 @@ export const fraudVisitInclude = {
   competitive: true,
   capability: true,
   // Fraud inspects each photo's gpsTag, device timestamp and section (see
-  // FraudRelatedInput). Selecting the base64 `url` too meant listFlagged
-  // detoasted every stored image — MBs per row — only to discard them. Select
-  // only the fields we read.
-  photos: { select: { gpsTag: true, timestamp: true, section: true } },
+  // FraudRelatedInput), and its id and two hashes to look duplicates up (#244).
+  // Selecting the base64 `url` too meant listFlagged detoasted every stored
+  // image — MBs per row — only to discard them. Select only the fields we read:
+  // a 64-char and a 16-char string, never the bytes (and not the band array,
+  // which the lookup rebuilds from perceptualHash).
+  photos: {
+    select: {
+      id: true,
+      gpsTag: true,
+      timestamp: true,
+      section: true,
+      contentHash: true,
+      perceptualHash: true,
+    },
+  },
 } as const satisfies Prisma.VisitInclude;
 
 type FraudVisitPayload = Prisma.VisitGetPayload<{ include: typeof fraudVisitInclude }>;
@@ -782,6 +1237,265 @@ export async function loadPriorStockVisits(
   return byOutlet;
 }
 
+/** One photo to look duplicates up for: a scored visit's own, with its hashes. */
+export interface DuplicatePhotoSource {
+  photoId: string;
+  section: string;
+  visitId: string;
+  outletId: string;
+  checkinTs: Date;
+  contentHash: string | null;
+  perceptualHash: string | null;
+}
+
+interface DuplicatePhotoRow {
+  photo_id: string;
+  match_visit_id: string;
+  match_outlet_id: string;
+  match_checkin_ts: Date;
+  match_section: string;
+  exact: boolean;
+  distance: number | null;
+}
+
+/** A scored visit's photos worth looking up: audit captures that carry a hash. */
+function duplicatePhotoSources(visit: FraudVisitPayload): DuplicatePhotoSource[] {
+  return visit.photos
+    .filter((photo) => photo.section !== TASK_CLOSURE_PHOTO_SECTION && photo.contentHash !== null)
+    .map((photo) => ({
+      photoId: photo.id,
+      section: photo.section,
+      visitId: visit.id,
+      outletId: visit.outletId,
+      checkinTs: visit.checkinTs,
+      contentHash: photo.contentHash,
+      perceptualHash: photo.perceptualHash,
+    }));
+}
+
+/**
+ * Duplicate-photo matches for many photos, in ONE round trip (#244).
+ *
+ * For each source photo, the strongest photo on an EARLIER visit (device
+ * checkinTs, ties by id) of the same client that is byte-identical or within
+ * `maxDistance` dHash bits — ranked as computeFraudSignals weighs them: another
+ * outlet first, then exact, then closest. One row per source photo at most, so
+ * a photo reused a hundred times (or a placeholder image every visit carries)
+ * costs one row, not a hundred.
+ *
+ * Never touches `url`. Candidates come from two indexed branches:
+ *   - exact: `content_hash` equality (btree);
+ *   - near: `perceptual_hash_bands && probe keys` (GIN), the probe built by
+ *     perceptualHashProbeKeys() — the pigeonhole scheme in photos/photoHash.ts
+ *     that guarantees every hash within 7 bits shares a key. Candidates are a
+ *     superset; the real distance is then measured on the 64-bit hashes.
+ * A degenerate or malformed hash has no bands, so it is never compared as near,
+ * on either side; exact matching still applies to it.
+ *
+ * Tenant scope is the join to visits: another client's identical photo is
+ * found by the index and dropped by `client_id`, never returned.
+ */
+export async function loadDuplicatePhotoMatches(
+  clientId: string,
+  sources: DuplicatePhotoSource[],
+  maxDistance: number,
+): Promise<Map<string, FraudPhotoMatch[]>> {
+  const byVisit = new Map<string, FraudPhotoMatch[]>();
+  const hashed = sources.filter((s) => s.contentHash !== null && s.section !== TASK_CLOSURE_PHOTO_SECTION);
+  if (hashed.length === 0) {
+    return byVisit;
+  }
+
+  // Only a hash with bands is comparable as near; the rest go in as null.
+  const comparable = hashed.map((s) => (perceptualHashBands(s.perceptualHash).length > 0 ? s.perceptualHash : null));
+  const probeIds: string[] = [];
+  const probeKeys: number[] = [];
+  hashed.forEach((s, i) => {
+    for (const key of perceptualHashProbeKeys(comparable[i], maxDistance)) {
+      probeIds.push(s.photoId);
+      probeKeys.push(key);
+    }
+  });
+
+  const rows = await prisma.$queryRaw<DuplicatePhotoRow[]>(
+    Prisma.sql`
+      WITH src AS (
+        SELECT * FROM unnest(
+          ${hashed.map((s) => s.photoId)}::text[],
+          ${hashed.map((s) => s.visitId)}::text[],
+          ${hashed.map((s) => s.outletId)}::text[],
+          ${hashed.map((s) => s.checkinTs.toISOString())}::timestamp[],
+          ${hashed.map((s) => s.contentHash)}::text[],
+          ${comparable}::text[]
+        ) AS s(photo_id, visit_id, outlet_id, checkin_ts, content_hash, perceptual_hash)
+      ),
+      probe AS (
+        SELECT k.photo_id, array_agg(k.band_key) AS band_keys
+        FROM unnest(${probeIds}::text[], ${probeKeys}::int[]) AS k(photo_id, band_key)
+        GROUP BY k.photo_id
+      ),
+      candidate AS (
+        SELECT s.photo_id, p.id AS match_id
+        FROM src s
+        JOIN photos p ON p.content_hash = s.content_hash
+        UNION
+        SELECT pr.photo_id, p.id AS match_id
+        FROM probe pr
+        JOIN photos p ON p.perceptual_hash_bands && pr.band_keys
+      ),
+      scored AS (
+        SELECT s.photo_id, s.outlet_id AS source_outlet_id,
+          p.visit_id AS match_visit_id, v.outlet_id AS match_outlet_id,
+          v.checkin_ts AS match_checkin_ts, p.section AS match_section,
+          COALESCE(p.content_hash = s.content_hash, false) AS exact,
+          -- Popcount of the XOR, spelled portably (bit_count() is Postgres 14+).
+          CASE WHEN s.perceptual_hash IS NOT NULL AND cardinality(p.perceptual_hash_bands) > 0
+            THEN length(replace(
+              (('x' || p.perceptual_hash)::bit(64) # ('x' || s.perceptual_hash)::bit(64))::text, '0', ''
+            ))
+          END AS distance
+        FROM candidate c
+        JOIN src s ON s.photo_id = c.photo_id
+        JOIN photos p ON p.id = c.match_id
+        JOIN visits v ON v.id = p.visit_id
+        WHERE v.client_id = ${clientId}
+          AND p.visit_id <> s.visit_id
+          AND p.section <> ${TASK_CLOSURE_PHOTO_SECTION}
+          -- Bytewise id order, as computeFraudSignals compares ids in JS.
+          AND (v.checkin_ts, v.id COLLATE "C") < (s.checkin_ts, s.visit_id COLLATE "C")
+      )
+      SELECT DISTINCT ON (photo_id)
+        photo_id, match_visit_id, match_outlet_id, match_checkin_ts, match_section, exact, distance
+      FROM scored
+      WHERE exact OR distance <= ${maxDistance}
+      ORDER BY photo_id,
+        (match_outlet_id <> source_outlet_id) DESC,
+        exact DESC,
+        distance ASC NULLS LAST,
+        match_checkin_ts DESC,
+        match_visit_id DESC
+    `,
+  );
+
+  const sourceById = new Map(hashed.map((s) => [s.photoId, s]));
+  for (const row of rows) {
+    const source = sourceById.get(row.photo_id);
+    if (!source) {
+      continue;
+    }
+    const list = byVisit.get(source.visitId) ?? [];
+    list.push({
+      photoId: row.photo_id,
+      section: source.section,
+      exact: row.exact,
+      distance: row.distance === null ? null : Number(row.distance),
+      matchVisitId: row.match_visit_id,
+      matchOutletId: row.match_outlet_id,
+      matchCheckinTs: row.match_checkin_ts,
+      matchSection: row.match_section,
+    });
+    byVisit.set(source.visitId, list);
+  }
+  return byVisit;
+}
+
+/** One device position to look nearby outlets up for (#248). */
+export interface OutletLookupPosition {
+  visitId: string;
+  /** The visit's own outlet, always returned so "clear of A" can be measured. */
+  outletId: string;
+  lat: number;
+  lng: number;
+}
+
+interface NearbyOutletRow {
+  visit_id: string;
+  outlet_id: string;
+  code: string;
+  lat: number;
+  lng: number;
+}
+
+/**
+ * The positions a scored visit needs outlets for (#248): its counting-sitting
+ * photos, plus its rejected attempts' positions when there is at least one such
+ * photo (attempts alone never fire, so they never cost a lookup). Empty for a
+ * visit without stock.
+ */
+function stockOutsideOutletPositions(
+  visit: FraudVisitPayload,
+  failedAttempts: FraudFailedAttempt[],
+  kpiThresholds: unknown,
+): OutletLookupPosition[] {
+  if (visit.stock.length === 0) {
+    return [];
+  }
+  const input = toFraudVisitInput(visit);
+  const photos = captureSittingPhotos(input, visit.photos, kpiThresholds);
+  if (photos.length === 0) {
+    return [];
+  }
+  const coords = [
+    ...photos.map((p) => p.coords),
+    ...recentFailedAttempts(input, failedAttempts).flatMap((a) => attemptCoords(a) ?? []),
+  ];
+  return coords.map((c) => ({ visitId: visit.id, outletId: visit.outletId, lat: c.lat, lng: c.lng }));
+}
+
+/**
+ * Outlets near many capture positions, in ONE round trip (#248).
+ *
+ * For each visit: its own outlet, plus every outlet of the same client whose
+ * centre falls in a bounding box of GEOFENCE_RADIUS_M (widened) around any of the
+ * visit's positions. The box is a cheap prefilter; computeFraudSignals applies
+ * exact haversine to what comes back. Tenant scope is `client_id` on the outlet:
+ * another client's store at the same spot is never returned.
+ *
+ * At today's scale the box filter runs over the client's outlets through the
+ * `client_id` index and returns a handful of rows per visit. A spatial index is
+ * where this belongs if the outlet count grows — #63 (PostGIS: ST_DWithin on a
+ * GiST-indexed geography column replaces both the box and the haversine).
+ */
+export async function loadNearbyOutlets(
+  clientId: string,
+  positions: OutletLookupPosition[],
+): Promise<Map<string, FraudOutletLocation[]>> {
+  const byVisit = new Map<string, FraudOutletLocation[]>();
+  if (positions.length === 0) {
+    return byVisit;
+  }
+  const halfM = GEOFENCE_RADIUS_M * OUTLET_LOOKUP_BOX_MARGIN;
+  const dLat = halfM / MIN_METRES_PER_DEGREE_LAT;
+  const dLng = (lat: number) =>
+    halfM / (METRES_PER_DEGREE_LNG_AT_EQUATOR * Math.max(MIN_COS_LAT, Math.cos((lat * Math.PI) / 180)));
+
+  const rows = await prisma.$queryRaw<NearbyOutletRow[]>(
+    Prisma.sql`
+      SELECT DISTINCT p.visit_id, o.id AS outlet_id, o.code, o.lat, o.lng
+      FROM unnest(
+        ${positions.map((p) => p.visitId)}::text[],
+        ${positions.map((p) => p.outletId)}::text[],
+        ${positions.map((p) => p.lat - dLat)}::float8[],
+        ${positions.map((p) => p.lat + dLat)}::float8[],
+        ${positions.map((p) => p.lng - dLng(p.lat))}::float8[],
+        ${positions.map((p) => p.lng + dLng(p.lat))}::float8[]
+      ) AS p(visit_id, own_outlet_id, lat_min, lat_max, lng_min, lng_max)
+      JOIN outlets o ON o.client_id = ${clientId}
+        AND (
+          o.id = p.own_outlet_id
+          OR (o.lat BETWEEN p.lat_min AND p.lat_max AND o.lng BETWEEN p.lng_min AND p.lng_max)
+        )
+      ORDER BY p.visit_id, o.id
+    `,
+  );
+  for (const row of rows) {
+    const list = byVisit.get(row.visit_id) ?? [];
+    list.push({ outletId: row.outlet_id, code: row.code, lat: Number(row.lat), lng: Number(row.lng) });
+    byVisit.set(row.visit_id, list);
+  }
+  return byVisit;
+}
+
 /** GET /fraud/visits/:visitId — score one tenant-scoped visit. */
 export async function getVisitFraud(visitId: string, clientId: string): Promise<FraudResult> {
   const visit = await prisma.visit.findFirst({
@@ -800,17 +1514,28 @@ export async function getVisitFraud(visitId: string, clientId: string): Promise<
   ]);
 
   // Only a submitted visit with counts can repeat anything; skip the history
-  // read for everything else.
-  const priorStockVisits =
+  // read for everything else. The photo lookup skips itself when no photo has a
+  // hash.
+  const [priorStockVisits, photoMatches, nearbyOutlets] = await Promise.all([
     visit.status === 'submitted' && visit.stock.length > 0
-      ? ((
-          await loadPriorStockVisits(
-            clientId,
-            [{ outletId: visit.outletId, checkinTs: visit.checkinTs, visitId: visit.id }],
-            repeatingStockLookbackVisits(client?.kpiThresholds),
-          )
-        ).get(visit.outletId) ?? [])
-      : [];
+      ? loadPriorStockVisits(
+          clientId,
+          [{ outletId: visit.outletId, checkinTs: visit.checkinTs, visitId: visit.id }],
+          repeatingStockLookbackVisits(client?.kpiThresholds),
+        ).then((byOutlet) => byOutlet.get(visit.outletId) ?? [])
+      : Promise.resolve([]),
+    loadDuplicatePhotoMatches(
+      clientId,
+      duplicatePhotoSources(visit),
+      duplicatePhotoMaxDistance(client?.kpiThresholds),
+    ).then((byVisit) => byVisit.get(visit.id) ?? []),
+    // #248: skips itself unless a submitted visit with stock has a geotagged
+    // photo from its counting sitting.
+    loadNearbyOutlets(
+      clientId,
+      stockOutsideOutletPositions(visit, failedAttempts, client?.kpiThresholds),
+    ).then((byVisit) => byVisit.get(visit.id) ?? []),
+  ]);
 
   return computeFraudSignals(
     toFraudVisitInput(visit),
@@ -820,6 +1545,8 @@ export async function getVisitFraud(visitId: string, clientId: string): Promise<
       failedAttempts,
       stockCounts: toStockCounts(visit),
       priorStockVisits,
+      photoMatches,
+      nearbyOutlets,
     },
     client?.kpiThresholds,
   );
@@ -959,7 +1686,29 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
       visitId: visit.id,
     });
   }
-  const earlier = await loadPriorStockVisits(clientId, [...oldestByOutlet.values()], lookback);
+  const attemptsByVisit = new Map(
+    visits.map((visit) => [
+      visit.id,
+      failedAttempts.filter((attempt) => attempt.agentId === visit.agentId && attempt.outletId === visit.outletId),
+    ]),
+  );
+  // Duplicate photos (#244): every hashed photo in the scan is looked up in the
+  // same single query, alongside the stock history read — never per visit. So
+  // are the outlets near every capture position (#248).
+  const [earlier, photoMatchesByVisit, nearbyOutletsByVisit] = await Promise.all([
+    loadPriorStockVisits(clientId, [...oldestByOutlet.values()], lookback),
+    loadDuplicatePhotoMatches(
+      clientId,
+      visits.flatMap(duplicatePhotoSources),
+      duplicatePhotoMaxDistance(client?.kpiThresholds),
+    ),
+    loadNearbyOutlets(
+      clientId,
+      visits.flatMap((visit) =>
+        stockOutsideOutletPositions(visit, attemptsByVisit.get(visit.id) ?? [], client?.kpiThresholds),
+      ),
+    ),
+  ]);
   const timelineByOutlet = new Map<string, FraudStockVisit[]>();
   const positionInTimeline = new Map<string, number>();
   for (const visit of visits) {
@@ -977,9 +1726,7 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
 
   const flagged: FlaggedVisit[] = [];
   for (const visit of visits) {
-    const attemptsForVisit = failedAttempts.filter(
-      (attempt) => attempt.agentId === visit.agentId && attempt.outletId === visit.outletId,
-    );
+    const attemptsForVisit = attemptsByVisit.get(visit.id) ?? [];
     const position = positionInTimeline.get(visit.id);
     const priorStockVisits =
       position === undefined
@@ -993,6 +1740,8 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
         failedAttempts: attemptsForVisit,
         stockCounts: toStockCounts(visit),
         priorStockVisits,
+        photoMatches: photoMatchesByVisit.get(visit.id) ?? [],
+        nearbyOutlets: nearbyOutletsByVisit.get(visit.id) ?? [],
       },
       client?.kpiThresholds,
     );

@@ -337,11 +337,11 @@ class _AlertList extends StatelessWidget {
 
 /// One alert as a worklist card.
 ///
-/// No `View visit` action, deliberately (2026-07-25 ruling): the manager
-/// console has no visit-detail destination — the agent trail screen takes a
-/// day/agent context, not a visit id — and a link with nowhere real to go is
-/// exactly the dishonest chrome the spec bans. Acknowledge is the only row
-/// action until a visit-detail screen exists.
+/// `View visit` opens the visit the rule fired on (`/visits/:id`, #208). It
+/// was dropped by the 2026-07-25 ruling because the console then had no
+/// visit-detail destination, and a link with nowhere real to go is dishonest
+/// chrome. The destination now exists, so the action is back, and only on rows
+/// that actually carry a `visitId`: an alert with no visit gets no link.
 ///
 /// Acknowledging collapses the row closed IMMEDIATELY (optimistic,
 /// [Motion.base] SizeTransition — "a row settling"; instant under reduced
@@ -492,6 +492,14 @@ class _AlertRowState extends ConsumerState<_AlertRow>
         // double-faded here.
         resolved: alert.acknowledged,
         actions: [
+          if (alert.visitId != null)
+            RowAction(
+              key: ValueKey<String>('view-visit-${alert.id}'),
+              label: 'View visit',
+              // push, not go: the back chip returns to this worklist with its
+              // tab and filter intact.
+              onPressed: () => context.push('/visits/${alert.visitId}'),
+            ),
           if (!alert.acknowledged)
             RowAction(
               key: ValueKey<String>('ack-${alert.id}'),

@@ -18,11 +18,14 @@ const CACHE_MAX_ENTRIES = 50;
 // raw pixels. 32MP comfortably covers any real phone camera while keeping the
 // worst-case decode allocation bounded; past it, sharp throws and the read
 // path answers 422.
-const MAX_INPUT_PIXELS = 32 * 1024 * 1024;
+// Shared with photoHash.ts, which decodes the same bytes at upload.
+export const MAX_INPUT_PIXELS = 32 * 1024 * 1024;
 
 // data:image/<subtype>;base64,<payload> — anchored so a random string (or a
 // non-image data URL) is rejected before we hand bytes to sharp.
-const IMAGE_DATA_URL_RE = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i;
+export const IMAGE_DATA_URL_RE = /^data:image\/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=]+)$/i;
+
+const IMAGE_DATA_URL_WITH_TYPE_RE = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i;
 
 /**
  * The mime type and raw bytes of a stored image data URL, or a
@@ -31,7 +34,7 @@ const IMAGE_DATA_URL_RE = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$
  * an image.
  */
 export function decodeImageDataUrl(dataUrl: string): { contentType: string; bytes: Buffer } {
-  const match = IMAGE_DATA_URL_RE.exec(dataUrl);
+  const match = IMAGE_DATA_URL_WITH_TYPE_RE.exec(dataUrl);
   if (!match) {
     throw new ThumbnailSourceError('Stored photo is not a base64 image data URL');
   }

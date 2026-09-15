@@ -11,6 +11,7 @@ import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../l10n/l10n.dart';
 
 /// "Your work" — everything the agent has captured, and whether the server has
 /// it yet.
@@ -26,17 +27,18 @@ class MyWorkScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(syncStatusProvider);
+    final l10n = context.l10n;
 
     return AgentScaffold(
-      title: 'Your work',
-      subtitle: 'What is on this phone, and what is sent',
+      title: l10n.myWorkTitle,
+      subtitle: l10n.myWorkSubtitle,
       onBack: () => context.pop(),
       // The chip lives in the app bar everywhere else; on the screen it opens,
       // it would just be a link to itself.
       showSyncChip: false,
       bottomAction: AgentButton(
         key: const ValueKey('sync-now'),
-        label: 'Try sending now',
+        label: l10n.myWorkSyncNow,
         icon: Icons.refresh,
         secondary: true,
         onPressed: () => ref.read(syncNowProvider)(),
@@ -47,7 +49,7 @@ class MyWorkScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: StatusBanner(
             level: BannerLevel.bad,
-            title: 'Could not read your work',
+            title: l10n.myWorkLoadErrorTitle,
             subtitle: humanErrorMessage(err),
           ),
         ),
@@ -56,15 +58,15 @@ class MyWorkScreen extends ConsumerWidget {
           children: [
             _Summary(status: s),
             if (s.needsAttention.isNotEmpty) ...[
-              const _Heading('Needs you'),
+              _Heading(l10n.myWorkNeedsYouHeading),
               _Group(items: s.needsAttention, showError: true),
             ],
             if (s.pending.where((i) => !i.needsAttention).isNotEmpty) ...[
-              const _Heading('Waiting to send'),
+              _Heading(l10n.myWorkWaitingHeading),
               _Group(items: s.pending.where((i) => !i.needsAttention).toList()),
             ],
             if (s.sent.isNotEmpty) ...[
-              const _Heading('Sent'),
+              _Heading(l10n.myWorkSentHeading),
               _Group(items: s.sent.take(20).toList()),
             ],
             if (s.pending.isEmpty && s.sent.isEmpty)
@@ -72,15 +74,14 @@ class MyWorkScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: 48),
                 child: Center(
                   child: Text(
-                    'Nothing captured yet',
+                    l10n.myWorkEmpty,
                     style: TextStyle(fontSize: 14, color: context.colors.ink3),
                   ),
                 ),
               ),
             const SizedBox(height: 12),
             Text(
-              'Captures send themselves when you have signal — you never have to '
-              'remember to do it. Nothing here is ever lost.',
+              l10n.myWorkFooter,
               style: TextStyle(
                 fontSize: 12.5,
                 color: context.colors.ink3,
@@ -102,27 +103,28 @@ class _Summary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final syncing = ref.watch(syncingProvider);
+    final l10n = context.l10n;
     if (syncing && status.pending.isNotEmpty) {
       final n = status.pendingCount;
       return StatusBanner(
         key: const ValueKey('work-summary'),
         level: BannerLevel.info,
-        title: 'Sending $n ${n == 1 ? 'item' : 'items'}…',
-        subtitle: 'You don’t have to wait for this',
+        title: l10n.myWorkSendingTitle(n),
+        subtitle: l10n.myWorkSendingSubtitle,
         pulsing: true,
       );
     }
-    return _summaryFor(status);
+    return _summaryFor(status, l10n);
   }
 
-  static Widget _summaryFor(SyncStatus status) {
+  static Widget _summaryFor(SyncStatus status, AppLocalizations l10n) {
     if (status.needsAttention.isNotEmpty) {
       final n = status.needsAttention.length;
       return StatusBanner(
         key: const ValueKey('work-summary'),
         level: BannerLevel.bad,
-        title: '$n ${n == 1 ? 'item' : 'items'} will not send',
-        subtitle: 'Everything else is safe',
+        title: l10n.myWorkFailedTitle(n),
+        subtitle: l10n.myWorkFailedSubtitle,
       );
     }
     if (status.pending.isNotEmpty) {
@@ -130,19 +132,19 @@ class _Summary extends ConsumerWidget {
       return StatusBanner(
         key: const ValueKey('work-summary'),
         level: BannerLevel.warn,
-        title: '$n ${n == 1 ? 'item' : 'items'} held on this phone',
+        title: l10n.myWorkHeldTitle(n),
         subtitle: status.lastSentAt == null
-            ? 'They will send themselves'
-            : 'Last sent ${formatAgo(status.lastSentAt!)}',
+            ? l10n.myWorkHeldSubtitle
+            : l10n.syncLastSent(formatAgo(status.lastSentAt!, l10n)),
       );
     }
     return StatusBanner(
       key: const ValueKey('work-summary'),
       level: BannerLevel.good,
-      title: 'Everything is sent',
+      title: l10n.syncAllSentTitle,
       subtitle: status.lastSentAt == null
-          ? 'Nothing waiting'
-          : 'Last sent ${formatAgo(status.lastSentAt!)}',
+          ? l10n.syncNothingWaiting
+          : l10n.syncLastSent(formatAgo(status.lastSentAt!, l10n)),
     );
   }
 }
@@ -216,16 +218,21 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     // Coloured status TEXT must clear 4.5:1 on the surface1 card, so the failed
     // state takes critText (raw crit fails AA in dark) — the recurring lesson.
     final (icon, color, state) = switch (item) {
-      SyncItem(synced: true) => (Icons.check, colors.good, 'Sent'),
+      SyncItem(synced: true) => (
+        Icons.check,
+        colors.good,
+        l10n.myWorkStateSent,
+      ),
       SyncItem(needsAttention: true) => (
         Icons.warning_amber_outlined,
         colors.critText,
-        'Failed',
+        l10n.myWorkStateFailed,
       ),
-      _ => (Icons.schedule, colors.warn, 'Waiting'),
+      _ => (Icons.schedule, colors.warn, l10n.myWorkStateWaiting),
     };
 
     return Container(
@@ -253,7 +260,7 @@ class _Row extends StatelessWidget {
                   // on the ones that don't.
                   showError && item.lastError != null
                       ? item.lastError!
-                      : formatAgo(item.queuedAt),
+                      : formatAgo(item.queuedAt, l10n),
                   style: TextStyle(
                     fontSize: 12,
                     // The failure reason is coloured status text → critText.

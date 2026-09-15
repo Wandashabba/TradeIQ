@@ -365,9 +365,26 @@ model Photo {
   timestamp         DateTime
   createdAt         DateTime           @default(now()) @map("created_at")
   messageAttachment MessageAttachment?
+  /// SHA-256 (hex) of the decoded image bytes, computed at upload (#244).
+  /// Null for rows written before it existed until backfilled
+  /// (scripts/backfill-photo-hashes.ts), and for payloads that are not a base64
+  /// image data URL. Duplicate detection compares THIS, never `url`: a btree
+  /// cannot index a multi-MB base64 string (~2704-byte cap).
+  contentHash         String? @map("content_hash")
+  /// 64-bit difference hash (dHash) as 16 hex chars, computed at upload (#244).
+  /// Survives re-encoding and light cropping, unlike contentHash. Null when the
+  /// bytes do not decode as an image.
+  perceptualHash      String? @map("perceptual_hash")
+  /// The dHash split into four position-tagged 16-bit bands
+  /// (band index << 16 | band value), GIN-indexed so a near-duplicate lookup
+  /// probes the index instead of comparing every photo. Empty when there is no
+  /// hash or the hash is degenerate (a blank frame) — see photos/photoHash.ts.
+  perceptualHashBands Int[]   @default([]) @map("perceptual_hash_bands")
 
   @@index([visitId])
   @@index([clientId])
+  @@index([contentHash])
+  @@index([perceptualHashBands], type: Gin)
   @@map("photos")
 }
 

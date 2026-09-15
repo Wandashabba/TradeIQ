@@ -12,6 +12,7 @@ import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/console.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/lumen_kit.dart';
+import '../../../l10n/l10n.dart';
 import '../../outlets/data/outlets_repository.dart';
 import '../data/visit_progress.dart';
 import '../data/visits_repository.dart';
@@ -122,7 +123,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     Navigator.of(context).push(
       agentSectionRoute<void>(
         _SectionScreen(
-          title: section.label,
+          title: sectionLabel(context.l10n, section),
           child: _sectionBody(section, visitDraftId),
         ),
       ),
@@ -165,25 +166,26 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   @override
   Widget build(BuildContext context) {
     final outletsAsync = ref.watch(outletsListProvider);
+    final l10n = context.l10n;
 
     return outletsAsync.when(
-      loading: () => const AgentScaffold(
-        title: 'Starting visit',
+      loading: () => AgentScaffold(
+        title: l10n.visitStartingTitle,
         showSyncChip: false,
-        body: Center(child: CircularProgressIndicator()),
+        body: const Center(child: CircularProgressIndicator()),
       ),
       error: (err, _) => AgentScaffold(
-        title: 'Visit',
+        title: l10n.visitTitle,
         showSyncChip: false,
-        body: Center(child: Text('Failed to load outlet: $err')),
+        body: Center(child: Text(l10n.visitOutletLoadFailed('$err'))),
       ),
       data: (outlets) {
         final outlet = _findOutlet(outlets);
         if (outlet == null) {
-          return const AgentScaffold(
-            title: 'Visit',
+          return AgentScaffold(
+            title: l10n.visitTitle,
             showSyncChip: false,
-            body: Center(child: Text('Outlet not found')),
+            body: Center(child: Text(l10n.visitOutletNotFound)),
           );
         }
 
@@ -234,7 +236,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       children: [
         _GlassProgress(progress: progress),
         const SizedBox(height: 20),
-        const Kicker('The audit'),
+        Kicker(context.l10n.visitAuditHeading),
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, box) {
@@ -265,8 +267,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
         ),
         const SizedBox(height: 14),
         Text(
-          'Do the sections in any order — the store will not always let you '
-          'follow one. Everything saves as you go, even with no signal.',
+          context.l10n.visitAnyOrderHint,
           style: TextStyle(
             fontSize: 12.5,
             color: context.lumen.inkMuted,
@@ -286,6 +287,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       )),
     );
 
+    final l10n = context.l10n;
     return progressAsync.when(
       loading: () => AgentScaffold(
         title: outlet.name,
@@ -293,7 +295,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       ),
       error: (err, _) => AgentScaffold(
         title: outlet.name,
-        body: Center(child: Text('Could not read this visit: $err')),
+        body: Center(child: Text(l10n.visitReadFailed('$err'))),
       ),
       data: (progress) {
         final colors = context.colors;
@@ -301,9 +303,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
 
         return AgentScaffold(
           title: outlet.name,
-          subtitle: _checkinTs == null
-              ? null
-              : 'In store ${formatAgo(_checkinTs!).replaceAll(' ago', '')}',
+          subtitle: _checkinTs == null ? null : _inStore(l10n, _checkinTs!),
           bottomAction: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -311,11 +311,15 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
               // phone call to the manager.
               if (blocking.isNotEmpty)
                 BarNote(
-                  'Finish ${blocking.map((s) => s.label).join(' and ')} to submit',
+                  l10n.visitFinishToSubmit(
+                    blocking
+                        .map((s) => sectionLabel(l10n, s))
+                        .reduce((a, b) => l10n.visitSectionsAnd(a, b)),
+                  ),
                 ),
               AgentButton(
                 key: const ValueKey('submit-visit'),
-                label: 'Submit visit',
+                label: l10n.visitSubmitButton,
                 onPressed: progress.canSubmit
                     ? () => _openSubmitGate(outlet)
                     : null,
@@ -329,7 +333,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
             children: [
               _Progress(progress: progress),
               const SizedBox(height: 18),
-              const _Heading('The audit'),
+              _Heading(l10n.visitAuditHeading),
               DecoratedBox(
                 decoration: BoxDecoration(
                   color: colors.surface1,
@@ -358,8 +362,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
               ),
               const SizedBox(height: 14),
               Text(
-                'Do the sections in any order — the store will not always let you '
-                'follow one. Everything saves as you go, even with no signal.',
+                l10n.visitAnyOrderHint,
                 style: TextStyle(
                   fontSize: 12.5,
                   color: colors.ink3,
@@ -383,12 +386,13 @@ class _SectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AgentScaffold(
       title: title,
-      subtitle: 'Saves as you go',
+      subtitle: l10n.visitSectionSavesAsYouGo,
       onBack: () => Navigator.of(context).pop(),
       bottomAction: AgentButton(
-        label: 'Done · back to visit',
+        label: l10n.visitSectionDoneBack,
         onPressed: () => Navigator.of(context).pop(),
       ),
       body: SingleChildScrollView(
@@ -447,7 +451,7 @@ class _Progress extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 3),
                         child: Text(
-                          ' of $total sections',
+                          context.l10n.visitProgressOfSections(total),
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 14,
@@ -462,7 +466,9 @@ class _Progress extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _StatusPill(
-                label: ready ? 'Ready to submit' : '$blocking still required',
+                label: ready
+                    ? context.l10n.visitReadyToSubmit
+                    : context.l10n.visitStillRequired(blocking),
                 ready: ready,
               ),
             ],
@@ -605,17 +611,17 @@ class _SectionRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        section.label,
+                        sectionLabel(context.l10n, section),
                         style: TextStyle(fontSize: 15, color: colors.ink1),
                       ),
                       const SizedBox(height: 1),
                       Text(
                         isScore
-                            ? 'Calculated when you submit'
+                            ? context.l10n.visitScoreCalculatedOnSubmit
                             : detail ??
                                   (section.required
-                                      ? 'Not started'
-                                      : 'Optional'),
+                                      ? context.l10n.visitSectionNotStarted
+                                      : context.l10n.visitSectionOptional),
                         style: TextStyle(fontSize: 12, color: colors.ink3),
                       ),
                       if (section.required && state != SectionState.done)
@@ -635,7 +641,7 @@ class _SectionRow extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              'REQUIRED TO SUBMIT',
+                              context.l10n.visitRequiredToSubmitBadge,
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
@@ -732,7 +738,7 @@ class _CheckingIn extends StatelessWidget {
                   : const _LocatingRadar(),
               const SizedBox(height: 22),
               Text(
-                'Finding you…',
+                context.l10n.visitCheckInFinding,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -741,8 +747,7 @@ class _CheckingIn extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'You must be within 50 m of the store to check in. '
-                'This is what proves the visit happened.',
+                context.l10n.visitCheckInWithinHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13.5,
@@ -777,6 +782,7 @@ class _TooFar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     return AgentScaffold(
       title: outlet.name,
       subtitle: outlet.code,
@@ -786,12 +792,12 @@ class _TooFar extends StatelessWidget {
         children: [
           AgentButton(
             key: const ValueKey('checkin-retry'),
-            label: 'Try again',
+            label: l10n.visitRetry,
             onPressed: onRetry,
           ),
           const SizedBox(height: 8),
           AgentButton(
-            label: 'Back to route',
+            label: l10n.visitBackToRoute,
             secondary: true,
             onPressed: () => context.go('/audit'),
           ),
@@ -817,7 +823,7 @@ class _TooFar extends StatelessWidget {
                 : Icon(Icons.location_off_outlined, size: 52, color: colors.crit),
             const SizedBox(height: 20),
             Text(
-              'You’re too far away',
+              l10n.visitTooFarTitle,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -826,8 +832,7 @@ class _TooFar extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Move closer to the store and try again. Nothing is lost — the '
-              'visit hasn’t started.',
+              l10n.visitTooFarBody,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13.5, color: colors.ink2, height: 1.5),
             ),
@@ -853,7 +858,7 @@ class _TooFar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(colors.radiusControl),
               ),
               child: Text(
-                '${distanceMeters.round()} m away · need 50 m or closer',
+                l10n.visitTooFarDistance(distanceMeters.round()),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -865,9 +870,7 @@ class _TooFar extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              'This attempt is recorded. Retrying from far away is itself a '
-              'fraud signal, so it is better to walk closer than to keep '
-              'tapping.',
+              l10n.visitTooFarFraudNote,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.5),
             ),
@@ -899,7 +902,7 @@ class _NoLocation extends StatelessWidget {
       showSyncChip: false,
       bottomAction: AgentButton(
         key: const ValueKey('checkin-retry'),
-        label: 'Try again',
+        label: context.l10n.visitRetry,
         onPressed: onRetry,
       ),
       body: Padding(
@@ -910,7 +913,7 @@ class _NoLocation extends StatelessWidget {
             Icon(Icons.gps_off_outlined, size: 52, color: colors.warn),
             const SizedBox(height: 20),
             Text(
-              'Can’t find your location',
+              context.l10n.visitNoLocationTitle,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -950,6 +953,7 @@ class _CheckInFailed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     return AgentScaffold(
       title: outlet.name,
       subtitle: outlet.code,
@@ -959,12 +963,12 @@ class _CheckInFailed extends StatelessWidget {
         children: [
           AgentButton(
             key: const ValueKey('checkin-retry'),
-            label: 'Try again',
+            label: l10n.visitRetry,
             onPressed: onRetry,
           ),
           const SizedBox(height: 8),
           AgentButton(
-            label: 'Back to route',
+            label: l10n.visitBackToRoute,
             secondary: true,
             onPressed: () => context.go('/audit'),
           ),
@@ -978,7 +982,7 @@ class _CheckInFailed extends StatelessWidget {
             Icon(Icons.error_outline, size: 52, color: colors.crit),
             const SizedBox(height: 20),
             Text(
-              'Could not start the visit',
+              l10n.visitCheckInFailedTitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 20,
@@ -996,7 +1000,7 @@ class _CheckInFailed extends StatelessWidget {
             // Nothing was captured yet, so nothing can have been lost. Saying
             // so is the difference between retrying and giving up on the shop.
             Text(
-              'Nothing has been lost — the visit had not started yet.',
+              l10n.visitCheckInFailedNothingLost,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.5),
             ),
@@ -1136,10 +1140,13 @@ class _GlassProgress extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Flexible(
+                    Flexible(
                       child: Padding(
-                        padding: EdgeInsets.only(bottom: 7),
-                        child: Kicker('Sections captured', size: 9.5),
+                        padding: const EdgeInsets.only(bottom: 7),
+                        child: Kicker(
+                          context.l10n.visitSectionsCaptured,
+                          size: 9.5,
+                        ),
                       ),
                     ),
                   ],
@@ -1147,7 +1154,9 @@ class _GlassProgress extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _StatusPill(
-                label: ready ? 'Ready to submit' : '$blocking still required',
+                label: ready
+                    ? context.l10n.visitReadyToSubmit
+                    : context.l10n.visitStillRequired(blocking),
                 ready: ready,
               ),
             ],
@@ -1236,7 +1245,7 @@ class _SectionTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    section.label,
+                    sectionLabel(context.l10n, section),
                     style: TextStyle(
                       fontSize: 13.5,
                       height: 1.25,
@@ -1247,9 +1256,11 @@ class _SectionTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     isScore
-                        ? 'Calculated when you submit'
+                        ? context.l10n.visitScoreCalculatedOnSubmit
                         : detail ??
-                              (section.required ? 'Not started' : 'Optional'),
+                              (section.required
+                                  ? context.l10n.visitSectionNotStarted
+                                  : context.l10n.visitSectionOptional),
                     style: TextStyle(
                       fontSize: 10.5,
                       height: 1.35,
@@ -1276,7 +1287,7 @@ class _ReqPill extends StatelessWidget {
     final colors = context.colors;
     final crit = LumenStatus.crit.swatchOf(colors);
     return Semantics(
-      label: 'Required to submit',
+      label: context.l10n.visitRequiredToSubmit,
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -1286,7 +1297,7 @@ class _ReqPill extends StatelessWidget {
           border: Border.all(color: crit.rim),
         ),
         child: Text(
-          'REQ',
+          context.l10n.visitRequiredShort,
           style: TextStyle(
             fontFamily: LumenGlass.mono,
             fontSize: 8.5,
@@ -1331,3 +1342,27 @@ class _GlassBeacon extends StatelessWidget {
   }
 }
 
+/// A section's name in the active language. [AuditSection.label] stays the
+/// data layer's English identifier.
+String sectionLabel(AppLocalizations l10n, AuditSection section) =>
+    switch (section) {
+      AuditSection.outletInfo => l10n.visitSectionOutletInfo,
+      AuditSection.stock => l10n.visitSectionStock,
+      AuditSection.visibility => l10n.visitSectionVisibility,
+      AuditSection.pricing => l10n.visitSectionPricing,
+      AuditSection.competitive => l10n.visitSectionCompetitive,
+      AuditSection.capability => l10n.visitSectionCapability,
+      AuditSection.risks => l10n.visitSectionRisks,
+      AuditSection.actionPlan => l10n.visitSectionActionPlan,
+      AuditSection.score => l10n.visitSectionScore,
+    };
+
+/// "In store 12 min" — how long since check-in, on the same scale as
+/// [formatAgo] (just now / min / h / d).
+String _inStore(AppLocalizations l10n, DateTime checkinTs) {
+  final d = DateTime.now().difference(checkinTs);
+  if (d.inSeconds < 60) return l10n.visitInStoreJustNow;
+  if (d.inMinutes < 60) return l10n.visitInStoreMinutes(d.inMinutes);
+  if (d.inHours < 24) return l10n.visitInStoreHours(d.inHours);
+  return l10n.visitInStoreDays(d.inDays);
+}

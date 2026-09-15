@@ -7,6 +7,7 @@ import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
 import '../../../../core/widgets/glass.dart';
+import '../../../../l10n/l10n.dart';
 import '../../data/skus_repository.dart';
 import '../../data/stock_repository.dart';
 
@@ -27,7 +28,8 @@ class S2StockScreen extends ConsumerWidget {
     final skus = ref.watch(skusListProvider(outletId));
     return skus.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text('Failed to load SKUs: $err')),
+      error: (err, _) =>
+          Center(child: Text(context.l10n.s2LoadFailed('$err'))),
       data: (list) => _StockForm(visitDraftId: visitDraftId, skus: list),
     );
   }
@@ -92,21 +94,25 @@ class _StockFormState extends ConsumerState<_StockForm> {
 
   /// "selling ~4/day · 12 days cover" — read-only server context, not agent
   /// input (#112: an agent standing at a shelf cannot observe either number).
-  String _contextLine(Sku sku) {
-    final velocity = sku.velocityAvg > 0
-        ? 'Selling ~${sku.velocityAvg.toStringAsFixed(1)}/day'
-        : 'No sales history yet';
-    final oos = sku.daysOutOfStock > 0
-        ? ' · out of stock ${sku.daysOutOfStock}d'
-        : '';
-    return '$velocity$oos';
+  String _contextLine(AppLocalizations l10n, Sku sku) {
+    final velocity = sku.velocityAvg.toStringAsFixed(1);
+    final days = sku.daysOutOfStock;
+    if (sku.velocityAvg > 0) {
+      return days > 0
+          ? l10n.s2ContextSellingOutOfStock(velocity, days)
+          : l10n.s2ContextSelling(velocity);
+    }
+    return days > 0
+        ? l10n.s2ContextNoHistoryOutOfStock(days)
+        : l10n.s2ContextNoHistory;
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     if (widget.skus.isEmpty) {
-      return const Center(child: Text('No SKUs configured for this client.'));
+      return Center(child: Text(l10n.s2NoSkus));
     }
     // No section header here — the shared section wrapper already titles this
     // "Stock & availability".
@@ -136,14 +142,14 @@ class _StockFormState extends ConsumerState<_StockForm> {
                         ),
                       ),
                       Text(
-                        'RRP ${sku.rrp.toStringAsFixed(2)}',
+                        l10n.s2Rrp(sku.rrp.toStringAsFixed(2)),
                         style: TextStyle(fontSize: 12, color: colors.ink3),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _contextLine(sku),
+                    _contextLine(l10n, sku),
                     key: ValueKey('context-${sku.id}'),
                     style: TextStyle(fontSize: 12, color: colors.ink3),
                   ),
@@ -174,7 +180,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
                           const SizedBox(width: 7),
                           Expanded(
                             child: Text(
-                              'Out of stock — this raises a task for the manager',
+                              l10n.s2OutOfStockRaisesTask,
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
@@ -192,12 +198,12 @@ class _StockFormState extends ConsumerState<_StockForm> {
         const SizedBox(height: 12),
         // The inline save is the ONLY thing that persists this section — the
         // wrapper's "Done" button just pops back to the hub. It must stay.
-        AgentButton(label: 'Save stock', onPressed: _save),
+        AgentButton(label: l10n.s2SaveStock, onPressed: _save),
         if (_saved)
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(
-              'Stock saved — queued for sync',
+              l10n.s2StockSaved,
               style: TextStyle(fontSize: 13, color: colors.ink2),
             ),
           ),
@@ -260,7 +266,7 @@ class _CountInputDialogState extends State<_CountInputDialog> {
               keyboardType: TextInputType.number,
               style: TextStyle(fontSize: 16, color: colors.ink1),
               decoration: InputDecoration(
-                labelText: 'Units on shelf',
+                labelText: context.l10n.s2UnitsOnShelf,
                 labelStyle: TextStyle(color: colors.ink3),
                 isDense: true,
                 filled: true,
@@ -280,7 +286,7 @@ class _CountInputDialogState extends State<_CountInputDialog> {
               children: [
                 Expanded(
                   child: AgentButton(
-                    label: 'Cancel',
+                    label: context.l10n.s2Cancel,
                     secondary: true,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -289,7 +295,7 @@ class _CountInputDialogState extends State<_CountInputDialog> {
                 Expanded(
                   child: AgentButton(
                     key: ValueKey('units-confirm-${widget.sku.id}'),
-                    label: 'Set',
+                    label: context.l10n.s2Set,
                     onPressed: () => Navigator.of(
                       context,
                     ).pop(int.tryParse(_controller.text.trim())),
@@ -361,7 +367,7 @@ class _OutOfStockNote extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Out of stock — this raises a task for the manager',
+                  context.l10n.s2OutOfStockRaisesTask,
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -370,7 +376,7 @@ class _OutOfStockNote extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '70% of shoppers switch brand when the product is missing.',
+                  context.l10n.s2ShoppersSwitch,
                   style: TextStyle(fontSize: 11, height: 1.45, color: crit.ink),
                 ),
               ],

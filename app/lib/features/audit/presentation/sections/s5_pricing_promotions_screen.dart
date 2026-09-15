@@ -8,6 +8,7 @@ import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
 import '../../../../core/widgets/glass.dart';
 import '../../../../core/widgets/photo_capture_field.dart';
+import '../../../../l10n/l10n.dart';
 import '../../data/photos_repository.dart';
 import '../../data/pricing_repository.dart';
 import '../../data/skus_repository.dart';
@@ -30,7 +31,8 @@ class S5PricingPromotionsScreen extends ConsumerWidget {
     final skus = ref.watch(skusListProvider(outletId));
     return skus.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text('Failed to load SKUs: $err')),
+      error: (err, _) =>
+          Center(child: Text(context.l10n.s5LoadError('$err'))),
       data: (list) => _PricingForm(visitDraftId: visitDraftId, skus: list),
     );
   }
@@ -125,8 +127,9 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     if (widget.skus.isEmpty) {
-      return const Center(child: Text('No SKUs configured for this client.'));
+      return Center(child: Text(l10n.s5NoSkus));
     }
     // No section header here — the shared section wrapper already titles this
     // "Pricing & promotions".
@@ -142,19 +145,19 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _numField(
-                    'Actual price',
+                    l10n.s5ActualPriceLabel,
                     ValueKey('price-${sku.id}'),
                     _price[sku.id]!,
                   ),
                   AgentToggle(
                     key: ValueKey('promo-${sku.id}'),
-                    label: 'Promotion active',
+                    label: l10n.s5PromoActiveLabel,
                     value: _promo[sku.id] ?? false,
                     onChanged: (v) => setState(() => _promo[sku.id] = v),
                   ),
                   const SizedBox(height: 12),
                   _numField(
-                    'Comms rating (1-5)',
+                    l10n.s5CommsRatingLabel,
                     ValueKey('comms-${sku.id}'),
                     _comms[sku.id]!,
                   ),
@@ -164,19 +167,17 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
           ),
         const SizedBox(height: 16),
         PhotoCaptureField(
-          label: 'Shelf-price photo',
-          helperText:
-              'Optional. Prices are still entered by hand — this is '
-              'evidence, and the training data for automated price reading.',
+          label: l10n.s5PhotoLabel,
+          helperText: l10n.s5PhotoHelper,
           onCaptured: (dataUrl) => setState(() => _photoDataUrl = dataUrl),
         ),
         const SizedBox(height: 12),
-        AgentButton(label: 'Save pricing', onPressed: _save),
+        AgentButton(label: l10n.s5SaveButton, onPressed: _save),
         if (_saved)
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(
-              'Pricing saved — queued for sync',
+              l10n.s5Saved,
               style: TextStyle(fontSize: 13, color: colors.ink2),
             ),
           ),

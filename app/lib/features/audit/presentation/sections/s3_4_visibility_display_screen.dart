@@ -7,6 +7,7 @@ import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
 import '../../../../core/widgets/glass.dart';
 import '../../../../core/widgets/photo_capture_field.dart';
+import '../../../../l10n/l10n.dart';
 import '../../data/photos_repository.dart';
 import '../../data/visibility_repository.dart';
 
@@ -23,13 +24,9 @@ class S3S4VisibilityDisplayScreen extends ConsumerStatefulWidget {
 }
 
 class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
-  static const _brandingOptions = {
-    'poster': 'Poster',
-    'shelfStrip': 'Shelf strip',
-    'wobbler': 'Wobbler',
-  };
+  static const _brandingKeys = ['poster', 'shelfStrip', 'wobbler'];
 
-  final _branding = {for (final key in _brandingOptions.keys) key: false};
+  final _branding = {for (final key in _brandingKeys) key: false};
   final _planogram = TextEditingController();
   final _facings = TextEditingController();
   final _cleanliness = TextEditingController();
@@ -87,10 +84,16 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
+    final brandingOptions = {
+      'poster': l10n.s34BrandingPoster,
+      'shelfStrip': l10n.s34BrandingShelfStrip,
+      'wobbler': l10n.s34BrandingWobbler,
+    };
     final branding = <Widget>[
-      SectionLabel('Branding elements present'),
+      SectionLabel(l10n.s34BrandingLabel),
       const SizedBox(height: 4),
-      for (final entry in _brandingOptions.entries)
+      for (final entry in brandingOptions.entries)
         AgentCheck(
           key: ValueKey('branding-${entry.key}'),
           label: entry.value,
@@ -100,7 +103,7 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
     ];
     final measures = <Widget>[
       AgentField(
-        label: 'Planogram compliance %',
+        label: l10n.s34PlanogramLabel,
         child: TextField(
           key: const ValueKey('planogram'),
           controller: _planogram,
@@ -109,7 +112,7 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
         ),
       ),
       AgentField(
-        label: 'Facings count',
+        label: l10n.s34FacingsLabel,
         child: TextField(
           key: const ValueKey('facings'),
           controller: _facings,
@@ -118,7 +121,7 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
         ),
       ),
       AgentField(
-        label: 'Cleanliness score',
+        label: l10n.s34CleanlinessLabel,
         child: TextField(
           key: const ValueKey('cleanliness'),
           controller: _cleanliness,
@@ -129,7 +132,7 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
     ];
     final traffic = AgentToggle(
       key: const ValueKey('high-traffic'),
-      label: 'High-traffic location',
+      label: l10n.s34HighTrafficLabel,
       value: _highTraffic,
       onChanged: (v) => setState(() => _highTraffic = v),
     );
@@ -162,19 +165,17 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
           ),
         const SizedBox(height: 16),
         PhotoCaptureField(
-          label: 'Shelf photo',
-          helperText:
-              'Optional. Stored as evidence for this section and as '
-              'training data for automated planogram scoring.',
+          label: l10n.s34PhotoLabel,
+          helperText: l10n.s34PhotoHelper,
           onCaptured: (dataUrl) => setState(() => _photoDataUrl = dataUrl),
         ),
         const SizedBox(height: 12),
-        AgentButton(label: 'Save visibility', onPressed: _save),
+        AgentButton(label: l10n.s34SaveButton, onPressed: _save),
         if (_saved)
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(
-              'Visibility saved — queued for sync',
+              l10n.s34Saved,
               style: TextStyle(fontSize: 13, color: colors.ink2),
             ),
           ),

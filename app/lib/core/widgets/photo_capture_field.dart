@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/l10n.dart';
 import '../camera/photo_capture_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/lumen_glass.dart';
@@ -52,8 +53,7 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
     // otherwise a sensible default derived from the label.
     final hint =
         widget.helperText ??
-        'Frame the ${widget.label.toLowerCase()} '
-            'inside the guides, edge to edge.';
+        context.l10n.photoFieldDefaultHint(widget.label.toLowerCase());
     try {
       final dataUrl = await Navigator.of(context).push<String>(
         agentSectionRoute(GuidedCaptureScreen(label: widget.label, hint: hint)),
@@ -70,13 +70,16 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
     } catch (e) {
       // The guided screen surfaces capture errors itself; this only guards the
       // handoff, so a permission-denied still reads as an explanation here.
-      if (mounted) setState(() => _error = 'Could not capture a photo: $e');
+      if (mounted) {
+        setState(() => _error = context.l10n.captureError('$e'));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     final radius = colors.glass
         ? LumenGlass.radiusControl
         : AppColors.radiusControl;
@@ -91,7 +94,7 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
             Icon(Icons.add_a_photo_outlined, size: 18, color: colors.brand),
             const SizedBox(width: 10),
             Text(
-              'Add photo',
+              l10n.photoFieldAdd,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -153,7 +156,10 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const StatusChip(label: 'Error', level: StatusLevel.critical),
+              StatusChip(
+                label: l10n.captureErrorChip,
+                level: StatusLevel.critical,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -243,12 +249,15 @@ class _Preview extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const StatusChip(label: 'Captured', level: StatusLevel.good),
+            StatusChip(
+              label: context.l10n.photoFieldCaptured,
+              level: StatusLevel.good,
+            ),
             const SizedBox(height: 6),
             OutlinedButton(
               key: const ValueKey('photo-remove'),
               onPressed: onRetake,
-              child: const Text('Retake'),
+              child: Text(context.l10n.photoFieldRetake),
             ),
           ],
         ),

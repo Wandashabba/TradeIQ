@@ -1,0 +1,1235 @@
+{
+  "@@locale": "en",
+  "languageMenuTooltip": "Language",
+  "@languageMenuTooltip": {
+    "description": "Tooltip on the agent app bar's language menu button."
+  },
+  "languageSystem": "System",
+  "@languageSystem": {
+    "description": "Language menu option: follow the device language."
+  },
+  "languageEnglish": "English",
+  "@languageEnglish": {
+    "description": "Language menu option. Always shown as the language's own name."
+  },
+  "languageAfrikaans": "Afrikaans",
+  "@languageAfrikaans": {
+    "description": "Language menu option. Always shown as the language's own name."
+  },
+  "agentBackTooltip": "Back",
+  "@agentBackTooltip": {
+    "description": "Tooltip on the agent app bar's back button."
+  },
+  "agentThemeTooltip": "Theme",
+  "@agentThemeTooltip": {
+    "description": "Tooltip on the agent app bar's light/dark toggle."
+  },
+  "agentLogOutTooltip": "Log out",
+  "@agentLogOutTooltip": {
+    "description": "Tooltip on the agent app bar's log-out button."
+  },
+  "agoJustNow": "just now",
+  "@agoJustNow": {
+    "description": "Relative time for something under a minute old. Lower case: it is embedded in sentences such as 'Last sent just now'."
+  },
+  "agoMinutes": "{minutes} min ago",
+  "@agoMinutes": {
+    "description": "Relative time, under an hour.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "agoHours": "{hours}h ago",
+  "@agoHours": {
+    "description": "Relative time, under a day.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "agoDays": "{days}d ago",
+  "@agoDays": {
+    "description": "Relative time, a day or more.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "syncSendingTitle": "{count, plural, =1{Sending 1 capture…} other{Sending {count} captures…}}",
+  "@syncSendingTitle": {
+    "description": "Sync chip while uploading.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncSendingSubtitle": "Keep going — you don’t have to wait",
+  "@syncSendingSubtitle": {
+    "description": "Sync chip subtitle while uploading."
+  },
+  "syncAttentionTitle": "{count, plural, =1{1 item needs your attention} other{{count} items need your attention}}",
+  "@syncAttentionTitle": {
+    "description": "Sync chip when captures failed and need the agent.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncAttentionSubtitle": "They will not send on their own — tap to see",
+  "@syncAttentionSubtitle": {},
+  "syncHeldTitle": "{count, plural, =1{1 capture held on this phone} other{{count} captures held on this phone}}",
+  "@syncHeldTitle": {
+    "description": "Sync chip when work is queued offline.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncHeldSubtitle": "They will send themselves · nothing is lost",
+  "@syncHeldSubtitle": {},
+  "syncAllSentTitle": "Everything is sent",
+  "@syncAllSentTitle": {},
+  "syncNothingWaiting": "Nothing waiting",
+  "@syncNothingWaiting": {},
+  "syncLastSent": "Last sent {ago}",
+  "@syncLastSent": {
+    "description": "'ago' is a relative time from agoJustNow/agoMinutes/agoHours/agoDays.",
+    "placeholders": {
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "kitStepperFewer": "One fewer",
+  "@kitStepperFewer": {
+    "description": "Screen-reader label on a count stepper's minus key."
+  },
+  "kitStepperMore": "One more",
+  "@kitStepperMore": {
+    "description": "Screen-reader label on a count stepper's plus key."
+  },
+  "captureCancelTooltip": "Cancel",
+  "@captureCancelTooltip": {
+    "description": "Tooltip on the guided photo screen's close button."
+  },
+  "captureErrorChip": "Error",
+  "@captureErrorChip": {
+    "description": "Status chip beside a photo capture error."
+  },
+  "captureError": "Could not capture a photo: {error}",
+  "@captureError": {
+    "description": "Shown when the camera/gallery fails. 'error' is the technical error text.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "captureButton": "Capture",
+  "@captureButton": {
+    "description": "Guided photo screen: button that opens the camera."
+  },
+  "captureGalleryButton": "Choose from gallery",
+  "@captureGalleryButton": {
+    "description": "Guided photo screen: button that opens the photo gallery."
+  },
+  "photoFieldDefaultHint": "Frame the {label} inside the guides, edge to edge.",
+  "@photoFieldDefaultHint": {
+    "description": "Default framing hint on the guided photo screen. 'label' is the photo field's label, already lower-cased.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "photoFieldAdd": "Add photo",
+  "@photoFieldAdd": {
+    "description": "Tile that opens the guided photo screen."
+  },
+  "photoFieldCaptured": "Captured",
+  "@photoFieldCaptured": {
+    "description": "Status chip beside a captured photo preview."
+  },
+  "photoFieldRetake": "Retake",
+  "@photoFieldRetake": {
+    "description": "Button to re-take a captured photo."
+  },
+  "loginInvalidCredentials": "Invalid credentials",
+  "@loginInvalidCredentials": {
+    "description": "Sign-in error on a 401 (wrong email or password)."
+  },
+  "loginBackTooltip": "Back to welcome",
+  "@loginBackTooltip": {
+    "description": "Tooltip on the sign-in screen's back button (to the splash)."
+  },
+  "loginKicker": "WELCOME BACK",
+  "@loginKicker": {
+    "description": "Small uppercase kicker above the sign-in title."
+  },
+  "loginSignIn": "Sign in",
+  "@loginSignIn": {
+    "description": "Sign-in screen title and submit button."
+  },
+  "loginSubtitle": "Use your TradeIQ work account.",
+  "@loginSubtitle": {
+    "description": "Sign-in screen subtitle."
+  },
+  "loginEmailLabel": "Email",
+  "@loginEmailLabel": {
+    "description": "Sign-in email field label."
+  },
+  "loginEmailHint": "you@company.com",
+  "@loginEmailHint": {
+    "description": "Sign-in email field placeholder."
+  },
+  "loginEmailRequired": "Email is required",
+  "@loginEmailRequired": {
+    "description": "Validation message when the email is empty."
+  },
+  "loginPasswordLabel": "Password",
+  "@loginPasswordLabel": {
+    "description": "Sign-in password field label."
+  },
+  "loginPasswordHint": "Enter your password",
+  "@loginPasswordHint": {
+    "description": "Sign-in password field placeholder."
+  },
+  "loginShowPassword": "Show password",
+  "@loginShowPassword": {
+    "description": "Tooltip on the password visibility toggle."
+  },
+  "loginHidePassword": "Hide password",
+  "@loginHidePassword": {
+    "description": "Tooltip on the password visibility toggle."
+  },
+  "loginPasswordRequired": "Password is required",
+  "@loginPasswordRequired": {
+    "description": "Validation message when the password is empty."
+  },
+  "loginRememberMe": "Remember me",
+  "@loginRememberMe": {
+    "description": "Sign-in 'keep me signed in' checkbox label."
+  },
+  "loginForgotPassword": "Forgot password?",
+  "@loginForgotPassword": {
+    "description": "Sign-in forgot-password link."
+  },
+  "loginPasswordResetUnavailable": "Password reset is not available yet.",
+  "@loginPasswordResetUnavailable": {
+    "description": "Snackbar after tapping 'Forgot password?'."
+  },
+  "todayTitle": "Today",
+  "@todayTitle": {
+    "description": "Title of the agent’s day screen."
+  },
+  "todayLoadErrorTitle": "Could not load your route",
+  "@todayLoadErrorTitle": {},
+  "todayLoadErrorDetail": "You can still start a visit yourself.",
+  "@todayLoadErrorDetail": {},
+  "todayNoRouteTitle": "No route planned for today",
+  "@todayNoRouteTitle": {},
+  "todayNoPlanDetail": "Your manager has not built a beat plan for today. You can still visit a store — pick it yourself.",
+  "@todayNoPlanDetail": {
+    "description": "Shown when no beat plan exists for today."
+  },
+  "todayEmptyPlanDetail": "Today’s beat plan has no stops on it yet.",
+  "@todayEmptyPlanDetail": {},
+  "todayYourRouteHeading": "Your route",
+  "@todayYourRouteHeading": {
+    "description": "Section heading above the stops; shown upper-cased."
+  },
+  "todayVisitAnotherStore": "Visit a store not on my route",
+  "@todayVisitAnotherStore": {},
+  "todayStoresOfTotal": "{total, plural, =1{ of 1 store} other{ of {total} stores}}",
+  "@todayStoresOfTotal": {
+    "description": "Follows the big done-count number, e.g. \"3\" + \" of 8 stores\". Keep the leading space.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "todayStoresLeft": "{count} left",
+  "@todayStoresLeft": {
+    "description": "Pill: stores still to visit today.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayRouteDone": "Route done",
+  "@todayRouteDone": {
+    "description": "Pill when every stop is visited."
+  },
+  "todayDistancesOff": "Distances are off — this phone will not say where it is.",
+  "@todayDistancesOff": {
+    "description": "Location permission off / no GPS fix. Not an error."
+  },
+  "todayStopDoneTag": "DONE",
+  "@todayStopDoneTag": {
+    "description": "Small upper-case tag on a visited stop."
+  },
+  "todayStopNextTag": "NEXT",
+  "@todayStopNextTag": {
+    "description": "Small upper-case tag on the next stop."
+  },
+  "todayPickStore": "Pick a store to visit",
+  "@todayPickStore": {},
+  "todayNextUpHeading": "Next up",
+  "@todayNextUpHeading": {
+    "description": "Heading above the next-stop card; shown upper-cased."
+  },
+  "todayRestOfDayHeading": "The rest of the day",
+  "@todayRestOfDayHeading": {
+    "description": "Heading above remaining stops; shown upper-cased."
+  },
+  "todayStoresRingLabel": "Stores",
+  "@todayStoresRingLabel": {
+    "description": "Tiny label under \"done/total\" in the progress ring; shown upper-cased."
+  },
+  "todayStopNumber": "Stop {number}",
+  "@todayStopNumber": {
+    "description": "Sequence of the stop on the route, zero-padded, e.g. \"Stop 03\".",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "todayCheckInHere": "Check in here",
+  "@todayCheckInHere": {},
+  "pickerTitle": "Select an Outlet",
+  "@pickerTitle": {},
+  "pickerSubtitle": "Tap a store to start a visit",
+  "@pickerSubtitle": {},
+  "pickerAddStore": "Add a store",
+  "@pickerAddStore": {},
+  "pickerScopeMine": "My territories",
+  "@pickerScopeMine": {
+    "description": "Scope segment: only stores in the agent’s territories."
+  },
+  "pickerScopeAll": "All stores",
+  "@pickerScopeAll": {
+    "description": "Scope segment: every store for the client."
+  },
+  "pickerScopeMineSummary": "{count} in your territories · tap All stores to see every shop",
+  "@pickerScopeMineSummary": {
+    "description": "Mentions the pickerScopeAll segment label by name.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pickerScopeAllSummary": "All {count} stores across this client",
+  "@pickerScopeAllSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pickerLoadErrorTitle": "Could not load your stores",
+  "@pickerLoadErrorTitle": {},
+  "pickerRetry": "Try again",
+  "@pickerRetry": {},
+  "myWorkTitle": "Your work",
+  "@myWorkTitle": {},
+  "myWorkSubtitle": "What is on this phone, and what is sent",
+  "@myWorkSubtitle": {},
+  "myWorkSyncNow": "Try sending now",
+  "@myWorkSyncNow": {},
+  "myWorkLoadErrorTitle": "Could not read your work",
+  "@myWorkLoadErrorTitle": {},
+  "myWorkNeedsYouHeading": "Needs you",
+  "@myWorkNeedsYouHeading": {
+    "description": "Group heading for failed captures; shown upper-cased."
+  },
+  "myWorkWaitingHeading": "Waiting to send",
+  "@myWorkWaitingHeading": {
+    "description": "Group heading; shown upper-cased."
+  },
+  "myWorkSentHeading": "Sent",
+  "@myWorkSentHeading": {
+    "description": "Group heading; shown upper-cased."
+  },
+  "myWorkEmpty": "Nothing captured yet",
+  "@myWorkEmpty": {},
+  "myWorkFooter": "Captures send themselves when you have signal — you never have to remember to do it. Nothing here is ever lost.",
+  "@myWorkFooter": {},
+  "myWorkSendingTitle": "{count, plural, =1{Sending 1 item…} other{Sending {count} items…}}",
+  "@myWorkSendingTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkSendingSubtitle": "You don’t have to wait for this",
+  "@myWorkSendingSubtitle": {},
+  "myWorkFailedTitle": "{count, plural, =1{1 item will not send} other{{count} items will not send}}",
+  "@myWorkFailedTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkFailedSubtitle": "Everything else is safe",
+  "@myWorkFailedSubtitle": {},
+  "myWorkHeldTitle": "{count, plural, =1{1 item held on this phone} other{{count} items held on this phone}}",
+  "@myWorkHeldTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkHeldSubtitle": "They will send themselves",
+  "@myWorkHeldSubtitle": {},
+  "myWorkStateSent": "Sent",
+  "@myWorkStateSent": {
+    "description": "Row state word; shown upper-cased."
+  },
+  "myWorkStateFailed": "Failed",
+  "@myWorkStateFailed": {
+    "description": "Row state word; shown upper-cased."
+  },
+  "myWorkStateWaiting": "Waiting",
+  "@myWorkStateWaiting": {
+    "description": "Row state word; shown upper-cased."
+  },
+  "visitStartingTitle": "Starting visit",
+  "@visitStartingTitle": {
+    "description": "App bar title while the outlet list loads before check-in."
+  },
+  "visitTitle": "Visit",
+  "@visitTitle": {
+    "description": "App bar title on the visit screen when there is no outlet name to show."
+  },
+  "visitOutletLoadFailed": "Failed to load outlet: {error}",
+  "@visitOutletLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "visitOutletNotFound": "Outlet not found",
+  "@visitOutletNotFound": {},
+  "visitReadFailed": "Could not read this visit: {error}",
+  "@visitReadFailed": {
+    "description": "Shown on the visit hub and the submit gate when the visit's local data cannot be read.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "visitInStoreJustNow": "In store just now",
+  "@visitInStoreJustNow": {
+    "description": "Visit hub subtitle: checked in less than a minute ago."
+  },
+  "visitInStoreMinutes": "In store {minutes} min",
+  "@visitInStoreMinutes": {
+    "description": "Visit hub subtitle: how long the agent has been in the store, under an hour.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "visitInStoreHours": "In store {hours}h",
+  "@visitInStoreHours": {
+    "description": "Visit hub subtitle: how long the agent has been in the store, under a day.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "visitInStoreDays": "In store {days}d",
+  "@visitInStoreDays": {
+    "description": "Visit hub subtitle: how long the agent has been in the store, a day or more.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "visitAuditHeading": "The audit",
+  "@visitAuditHeading": {
+    "description": "Heading above the list of audit sections on the visit hub."
+  },
+  "visitAnyOrderHint": "Do the sections in any order — the store will not always let you follow one. Everything saves as you go, even with no signal.",
+  "@visitAnyOrderHint": {},
+  "visitFinishToSubmit": "Finish {sections} to submit",
+  "@visitFinishToSubmit": {
+    "description": "Note above the disabled submit button. 'sections' is a list of section names joined with visitSectionsAnd.",
+    "placeholders": {
+      "sections": {
+        "type": "String"
+      }
+    }
+  },
+  "visitSectionsAnd": "{first} and {second}",
+  "@visitSectionsAnd": {
+    "description": "Joins section names in a list: 'Stock & availability and Team capability'. Applied repeatedly for longer lists.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "visitSubmitButton": "Submit visit",
+  "@visitSubmitButton": {
+    "description": "Button that submits the visit (hub and submit gate)."
+  },
+  "visitSectionSavesAsYouGo": "Saves as you go",
+  "@visitSectionSavesAsYouGo": {
+    "description": "Subtitle on an open audit section."
+  },
+  "visitSectionDoneBack": "Done · back to visit",
+  "@visitSectionDoneBack": {
+    "description": "Bottom button on an open audit section; returns to the hub."
+  },
+  "visitProgressOfSections": " of {total} sections",
+  "@visitProgressOfSections": {
+    "description": "Follows a big animated count: '3 of 8 sections'. Note the leading space.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "visitReadyToSubmit": "Ready to submit",
+  "@visitReadyToSubmit": {},
+  "visitStillRequired": "{count} still required",
+  "@visitStillRequired": {
+    "description": "Pill: number of required sections not yet done.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "visitSectionsCaptured": "Sections captured",
+  "@visitSectionsCaptured": {
+    "description": "Small caption next to 'n/8' on the glass hub."
+  },
+  "visitScoreCalculatedOnSubmit": "Calculated when you submit",
+  "@visitScoreCalculatedOnSubmit": {
+    "description": "Detail line under the Score section."
+  },
+  "visitSectionNotStarted": "Not started",
+  "@visitSectionNotStarted": {},
+  "visitSectionOptional": "Optional",
+  "@visitSectionOptional": {},
+  "visitRequiredToSubmitBadge": "REQUIRED TO SUBMIT",
+  "@visitRequiredToSubmitBadge": {
+    "description": "Small uppercase badge on a required section that is not done."
+  },
+  "visitRequiredToSubmit": "Required to submit",
+  "@visitRequiredToSubmit": {
+    "description": "Screen-reader label for the short REQ pill."
+  },
+  "visitRequiredShort": "REQ",
+  "@visitRequiredShort": {
+    "description": "Very short uppercase pill (tiny monospace) on a required section tile. Keep to 3-5 letters."
+  },
+  "visitSectionOutletInfo": "Outlet info",
+  "@visitSectionOutletInfo": {
+    "description": "Audit section S1 name."
+  },
+  "visitSectionStock": "Stock & availability",
+  "@visitSectionStock": {
+    "description": "Audit section S2 name."
+  },
+  "visitSectionVisibility": "Visibility & display",
+  "@visitSectionVisibility": {
+    "description": "Audit sections S3/S4 name."
+  },
+  "visitSectionPricing": "Pricing & promotions",
+  "@visitSectionPricing": {
+    "description": "Audit section S5 name."
+  },
+  "visitSectionCompetitive": "Competitive",
+  "@visitSectionCompetitive": {
+    "description": "Audit section S6 name."
+  },
+  "visitSectionCapability": "Team capability",
+  "@visitSectionCapability": {
+    "description": "Audit section S7 name."
+  },
+  "visitSectionRisks": "Risks",
+  "@visitSectionRisks": {
+    "description": "Audit section S8 name."
+  },
+  "visitSectionActionPlan": "Action plan",
+  "@visitSectionActionPlan": {
+    "description": "Audit section S9 name."
+  },
+  "visitSectionScore": "Score",
+  "@visitSectionScore": {
+    "description": "Audit section S10 name."
+  },
+  "visitCheckInFinding": "Finding you…",
+  "@visitCheckInFinding": {
+    "description": "Title while waiting for a GPS fix to check in."
+  },
+  "visitCheckInWithinHint": "You must be within 50 m of the store to check in. This is what proves the visit happened.",
+  "@visitCheckInWithinHint": {},
+  "visitRetry": "Try again",
+  "@visitRetry": {},
+  "visitBackToRoute": "Back to route",
+  "@visitBackToRoute": {},
+  "visitTooFarTitle": "You’re too far away",
+  "@visitTooFarTitle": {},
+  "visitTooFarBody": "Move closer to the store and try again. Nothing is lost — the visit hasn’t started.",
+  "@visitTooFarBody": {},
+  "visitTooFarDistance": "{meters} m away · need 50 m or closer",
+  "@visitTooFarDistance": {
+    "description": "Measured distance from the store against the 50 m check-in fence.",
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "visitTooFarFraudNote": "This attempt is recorded. Retrying from far away is itself a fraud signal, so it is better to walk closer than to keep tapping.",
+  "@visitTooFarFraudNote": {},
+  "visitNoLocationTitle": "Can’t find your location",
+  "@visitNoLocationTitle": {},
+  "visitCheckInFailedTitle": "Could not start the visit",
+  "@visitCheckInFailedTitle": {},
+  "visitCheckInFailedNothingLost": "Nothing has been lost — the visit had not started yet.",
+  "@visitCheckInFailedNothingLost": {},
+  "submitSubtitleInStore": "{outlet} · {minutes} min in store",
+  "@submitSubtitleInStore": {
+    "description": "Submit gate subtitle: outlet name and minutes since check-in.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "submitOfflineNote": "No signal? Submitting still works — it saves on the phone and sends itself.",
+  "@submitOfflineNote": {},
+  "submitIntro": "Check this over before it goes to your manager. After submitting you cannot change it.",
+  "@submitIntro": {},
+  "submitWillRaiseHeading": "This will raise",
+  "@submitWillRaiseHeading": {
+    "description": "Heading above the list of tasks the submission will raise for the manager."
+  },
+  "submitAccusation": "{count, plural, =1{You are telling the manager one thing is wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.} other{You are telling the manager {count} things are wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.}}",
+  "@submitAccusation": {
+    "description": "Note under the tasks the visit will raise. count is at least 1.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "submitSectionsComplete": "{done} of {total} sections complete",
+  "@submitSectionsComplete": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "submitTaskForManager": "Task for the manager · {priority}",
+  "@submitTaskForManager": {
+    "description": "Line under a task the visit will raise. 'priority' comes from submitPriority.",
+    "placeholders": {
+      "priority": {
+        "type": "String"
+      }
+    }
+  },
+  "submitPriority": "{priority, select, critical{critical} high{high} normal{normal} low{low} other{{priority}}}",
+  "@submitPriority": {
+    "description": "A task priority word, lower case. The select values are the server's priority codes.",
+    "placeholders": {
+      "priority": {
+        "type": "String"
+      }
+    }
+  },
+  "submitNothingToRaise": "Nothing to raise. You found no stockouts and flagged no risks — this store is in good shape.",
+  "@submitNothingToRaise": {},
+  "outcomeTitle": "Visit submitted",
+  "@outcomeTitle": {
+    "description": "App bar title on the screen shown after a visit is submitted."
+  },
+  "outcomeNextStore": "Next store",
+  "@outcomeNextStore": {
+    "description": "Bottom button: go back to Today for the next store."
+  },
+  "outcomeSending": "Sending your visit…",
+  "@outcomeSending": {
+    "description": "Shown while the visit is being sent and scored."
+  },
+  "outcomeHeldTitle": "Your visit is safe on this phone",
+  "@outcomeHeldTitle": {
+    "description": "Heading when the visit is submitted but still queued on the phone."
+  },
+  "outcomeHeldBodyUnreachable": "Could not reach the server just now — it will send itself the moment you have signal. You can close the app.",
+  "@outcomeHeldBodyUnreachable": {
+    "description": "Body when the visit is held on the phone because reading the score from the server failed."
+  },
+  "outcomeHeldBodyNoSignal": "No signal right now — it will send itself the moment you have signal. You can close the app.",
+  "@outcomeHeldBodyNoSignal": {
+    "description": "Body when the visit is held on the phone because there is no signal."
+  },
+  "outcomeScoredWhenSends": "Scored when it sends",
+  "@outcomeScoredWhenSends": {
+    "description": "Banner title: the score is only worked out once the visit is sent."
+  },
+  "outcomeScoredOnServer": "Your score is worked out on the server, not on the phone",
+  "@outcomeScoredOnServer": {
+    "description": "Banner subtitle under outcomeScoredWhenSends."
+  },
+  "outcomeNoGuess": "We are not guessing at a score here. You will see the real one — the same one your manager sees — as soon as this reaches the server.",
+  "@outcomeNoGuess": {
+    "description": "Explains why no score is shown while the visit is still on the phone."
+  },
+  "outcomeRatingBand": "{band, select, green{Green} amber{Amber} other{Red}}",
+  "@outcomeRatingBand": {
+    "description": "The scorecard's rating band spelled out beside its coloured dot. 'band' is the wire value green/amber/red.",
+    "placeholders": {
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "outcomeDeltaSame": "Same as your last visit here ({previous}).",
+  "@outcomeDeltaSame": {
+    "description": "Score is unchanged since the agent's last visit to this store. 'previous' is that visit's score.",
+    "placeholders": {
+      "previous": {
+        "type": "int"
+      }
+    }
+  },
+  "outcomeDeltaUp": "{count, plural, =1{Up 1 point} other{Up {count} points}}",
+  "@outcomeDeltaUp": {
+    "description": "Bold first half of the score change line; followed by outcomeDeltaFromLast in a lighter style.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outcomeDeltaDown": "{count, plural, =1{Down 1 point} other{Down {count} points}}",
+  "@outcomeDeltaDown": {
+    "description": "Bold first half of the score change line; followed by outcomeDeltaFromLast in a lighter style.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outcomeDeltaFromLast": "from your last visit here ({previous}).",
+  "@outcomeDeltaFromLast": {
+    "description": "Second half of the score change line, after outcomeDeltaUp/outcomeDeltaDown (a space is added in code). 'previous' is the last visit's score.",
+    "placeholders": {
+      "previous": {
+        "type": "int"
+      }
+    }
+  },
+  "outcomeHowScored": "How it was scored",
+  "@outcomeHowScored": {
+    "description": "Heading above the per-dimension score list (shown upper-cased)."
+  },
+  "outcomePerfectStoreScore": "Perfect-store score",
+  "@outcomePerfectStoreScore": {
+    "description": "Kicker above the big score figure (shown upper-cased)."
+  },
+  "outcomeDimensionAvailability": "Availability",
+  "@outcomeDimensionAvailability": {
+    "description": "Scorecard dimension name."
+  },
+  "outcomeDimensionVisibility": "Visibility",
+  "@outcomeDimensionVisibility": {
+    "description": "Scorecard dimension name."
+  },
+  "outcomeDimensionDisplay": "Display",
+  "@outcomeDimensionDisplay": {
+    "description": "Scorecard dimension name."
+  },
+  "outcomeDimensionPricing": "Pricing",
+  "@outcomeDimensionPricing": {
+    "description": "Scorecard dimension name."
+  },
+  "outcomeDimensionCompetitive": "Share of shelf",
+  "@outcomeDimensionCompetitive": {
+    "description": "Scorecard dimension name (the 'competitive' dimension)."
+  },
+  "outcomeDimensionSalesCapability": "Team capability",
+  "@outcomeDimensionSalesCapability": {
+    "description": "Scorecard dimension name (the 'salesCapability' dimension)."
+  },
+  "outcomeUnmeasurableCompetitive": "No competitor on shelf to measure against — not counted against you.",
+  "@outcomeUnmeasurableCompetitive": {
+    "description": "Why the share-of-shelf dimension has no score."
+  },
+  "outcomeUnmeasurableSalesCapability": "No staff on shift to assess — not counted against you.",
+  "@outcomeUnmeasurableSalesCapability": {
+    "description": "Why the team-capability dimension has no score."
+  },
+  "s1Title": "Outlet check-in",
+  "@s1Title": {
+    "description": "Card title on the outlet info section."
+  },
+  "s1ConfirmedAtCheckin": "Confirmed at check-in",
+  "@s1ConfirmedAtCheckin": {
+    "description": "Explains the values below come from check-in, not agent input."
+  },
+  "s1CheckedIn": "Checked in",
+  "@s1CheckedIn": {
+    "description": "Label for the check-in timestamp."
+  },
+  "s1NotRecorded": "Not recorded",
+  "@s1NotRecorded": {
+    "description": "Shown instead of a timestamp when no check-in time was recorded."
+  },
+  "s1Geofence": "Geofence",
+  "@s1Geofence": {
+    "description": "Label for the geofence check result."
+  },
+  "s1Passed": "Passed",
+  "@s1Passed": {
+    "description": "Geofence check result."
+  },
+  "s2LoadFailed": "Failed to load SKUs: {error}",
+  "@s2LoadFailed": {
+    "description": "Shown when the SKU list fails to load. 'error' is the technical error text.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "s2NoSkus": "No SKUs configured for this client.",
+  "@s2NoSkus": {},
+  "s2ContextSelling": "Selling ~{velocity}/day",
+  "@s2ContextSelling": {
+    "description": "Read-only sales context under a SKU. 'velocity' is average units per day, one decimal.",
+    "placeholders": {
+      "velocity": {
+        "type": "String"
+      }
+    }
+  },
+  "s2ContextSellingOutOfStock": "Selling ~{velocity}/day · out of stock {days}d",
+  "@s2ContextSellingOutOfStock": {
+    "description": "Read-only sales context under a SKU. 'velocity' is average units per day; 'days' is days out of stock ('d' = days).",
+    "placeholders": {
+      "velocity": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "s2ContextNoHistory": "No sales history yet",
+  "@s2ContextNoHistory": {
+    "description": "Read-only sales context under a SKU with no velocity yet."
+  },
+  "s2ContextNoHistoryOutOfStock": "No sales history yet · out of stock {days}d",
+  "@s2ContextNoHistoryOutOfStock": {
+    "description": "Read-only sales context under a SKU. 'days' is days out of stock ('d' = days).",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "s2Rrp": "RRP {price}",
+  "@s2Rrp": {
+    "description": "Recommended retail price beside a SKU name. 'price' is formatted with two decimals.",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "s2OutOfStockRaisesTask": "Out of stock — this raises a task for the manager",
+  "@s2OutOfStockRaisesTask": {
+    "description": "Warning when a SKU is counted as zero."
+  },
+  "s2ShoppersSwitch": "70% of shoppers switch brand when the product is missing.",
+  "@s2ShoppersSwitch": {
+    "description": "Why an out-of-stock matters."
+  },
+  "s2SaveStock": "Save stock",
+  "@s2SaveStock": {
+    "description": "Button that saves the stock section."
+  },
+  "s2StockSaved": "Stock saved — queued for sync",
+  "@s2StockSaved": {
+    "description": "Confirmation after saving stock."
+  },
+  "s2UnitsOnShelf": "Units on shelf",
+  "@s2UnitsOnShelf": {
+    "description": "Label of the field for typing a SKU's shelf count."
+  },
+  "s2Cancel": "Cancel",
+  "@s2Cancel": {
+    "description": "Count dialog: cancel."
+  },
+  "s2Set": "Set",
+  "@s2Set": {
+    "description": "Count dialog: apply the typed count."
+  },
+  "s10ComputeFailed": "Could not compute the scorecard. Try refreshing.",
+  "@s10ComputeFailed": {},
+  "s10DimensionScores": "Dimension scores",
+  "@s10DimensionScores": {
+    "description": "Card title above the per-dimension scores."
+  },
+  "s10WeightedTotal": "Weighted total",
+  "@s10WeightedTotal": {
+    "description": "Label above the weighted total score."
+  },
+  "s10Finalize": "Finalize scorecard",
+  "@s10Finalize": {
+    "description": "Button that queues the scorecard for the server."
+  },
+  "s10Refresh": "Refresh",
+  "@s10Refresh": {
+    "description": "Button that recomputes the on-device scorecard."
+  },
+  "s10Queued": "Scorecard queued for sync",
+  "@s10Queued": {
+    "description": "Confirmation after finalizing the scorecard."
+  },
+  "s10DimensionAvailability": "Availability",
+  "@s10DimensionAvailability": {
+    "description": "On-device scorecard dimension name."
+  },
+  "s10DimensionVisibility": "Visibility",
+  "@s10DimensionVisibility": {
+    "description": "On-device scorecard dimension name."
+  },
+  "s10DimensionDisplay": "Display",
+  "@s10DimensionDisplay": {
+    "description": "On-device scorecard dimension name."
+  },
+  "s10DimensionPricing": "Pricing",
+  "@s10DimensionPricing": {
+    "description": "On-device scorecard dimension name."
+  },
+  "s10DimensionCompetitive": "Competitive",
+  "@s10DimensionCompetitive": {
+    "description": "On-device scorecard dimension name."
+  },
+  "s10DimensionSalesCapability": "Sales Capability",
+  "@s10DimensionSalesCapability": {
+    "description": "On-device scorecard dimension name."
+  },
+  "s34BrandingPoster": "Poster",
+  "@s34BrandingPoster": {
+    "description": "S3–S4 branding checklist option."
+  },
+  "s34BrandingShelfStrip": "Shelf strip",
+  "@s34BrandingShelfStrip": {
+    "description": "S3–S4 branding checklist option."
+  },
+  "s34BrandingWobbler": "Wobbler",
+  "@s34BrandingWobbler": {
+    "description": "S3–S4 branding checklist option (a POS wobbler sign)."
+  },
+  "s34BrandingLabel": "Branding elements present",
+  "@s34BrandingLabel": {
+    "description": "S3–S4 label above the branding checklist."
+  },
+  "s34PlanogramLabel": "Planogram compliance %",
+  "@s34PlanogramLabel": {
+    "description": "S3–S4 field label."
+  },
+  "s34FacingsLabel": "Facings count",
+  "@s34FacingsLabel": {
+    "description": "S3–S4 field label."
+  },
+  "s34CleanlinessLabel": "Cleanliness score",
+  "@s34CleanlinessLabel": {
+    "description": "S3–S4 field label."
+  },
+  "s34HighTrafficLabel": "High-traffic location",
+  "@s34HighTrafficLabel": {
+    "description": "S3–S4 toggle label."
+  },
+  "s34PhotoLabel": "Shelf photo",
+  "@s34PhotoLabel": {
+    "description": "S3–S4 photo capture label."
+  },
+  "s34PhotoHelper": "Optional. Stored as evidence for this section and as training data for automated planogram scoring.",
+  "@s34PhotoHelper": {
+    "description": "S3–S4 photo capture helper text."
+  },
+  "s34SaveButton": "Save visibility",
+  "@s34SaveButton": {
+    "description": "S3–S4 save button."
+  },
+  "s34Saved": "Visibility saved — queued for sync",
+  "@s34Saved": {
+    "description": "S3–S4 confirmation after saving."
+  },
+  "s5LoadError": "Failed to load SKUs: {error}",
+  "@s5LoadError": {
+    "description": "S5 error when the SKU list fails to load.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "s5NoSkus": "No SKUs configured for this client.",
+  "@s5NoSkus": {
+    "description": "S5 empty state."
+  },
+  "s5ActualPriceLabel": "Actual price",
+  "@s5ActualPriceLabel": {
+    "description": "S5 per-SKU field label."
+  },
+  "s5PromoActiveLabel": "Promotion active",
+  "@s5PromoActiveLabel": {
+    "description": "S5 per-SKU toggle label."
+  },
+  "s5CommsRatingLabel": "Comms rating (1-5)",
+  "@s5CommsRatingLabel": {
+    "description": "S5 per-SKU field label."
+  },
+  "s5PhotoLabel": "Shelf-price photo",
+  "@s5PhotoLabel": {
+    "description": "S5 photo capture label."
+  },
+  "s5PhotoHelper": "Optional. Prices are still entered by hand — this is evidence, and the training data for automated price reading.",
+  "@s5PhotoHelper": {
+    "description": "S5 photo capture helper text."
+  },
+  "s5SaveButton": "Save pricing",
+  "@s5SaveButton": {
+    "description": "S5 save button."
+  },
+  "s5Saved": "Pricing saved — queued for sync",
+  "@s5Saved": {
+    "description": "S5 confirmation after saving."
+  },
+  "s6CompetitorTitle": "Competitor {number}",
+  "@s6CompetitorTitle": {
+    "description": "S6 card title; number is the 1-based row number.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "s6SkuLabel": "Competitor SKU",
+  "@s6SkuLabel": {
+    "description": "S6 field label."
+  },
+  "s6SkuHint": "What the rival is selling",
+  "@s6SkuHint": {
+    "description": "S6 field hint."
+  },
+  "s6PriceLabel": "Competitor price",
+  "@s6PriceLabel": {
+    "description": "S6 field label."
+  },
+  "s6PosmLabel": "POSM type",
+  "@s6PosmLabel": {
+    "description": "S6 field label (point-of-sale materials)."
+  },
+  "s6PosmHint": "Poster, wobbler, gondola…",
+  "@s6PosmHint": {
+    "description": "S6 field hint."
+  },
+  "s6FacingsLabel": "Facings on shelf",
+  "@s6FacingsLabel": {
+    "description": "S6 field label."
+  },
+  "s6FacingsHelp": "How much shelf this competitor holds",
+  "@s6FacingsHelp": {
+    "description": "S6 field help text."
+  },
+  "s6PromoterLabel": "Promoter present",
+  "@s6PromoterLabel": {
+    "description": "S6 toggle label."
+  },
+  "s6AddButton": "Add competitor",
+  "@s6AddButton": {
+    "description": "S6 add-row button."
+  },
+  "s6SaveButton": "Save competitive",
+  "@s6SaveButton": {
+    "description": "S6 save button."
+  },
+  "s6Saved": "Competitive intel saved — queued for sync",
+  "@s6Saved": {
+    "description": "S6 confirmation after saving."
+  },
+  "s7TrainingProductKnowledge": "Product knowledge",
+  "@s7TrainingProductKnowledge": {
+    "description": "S7 training checklist option."
+  },
+  "s7TrainingMerchandising": "Merchandising",
+  "@s7TrainingMerchandising": {
+    "description": "S7 training checklist option."
+  },
+  "s7TrainingPosSystems": "POS systems",
+  "@s7TrainingPosSystems": {
+    "description": "S7 training checklist option."
+  },
+  "s7HeadcountLabel": "Staff headcount confirmed",
+  "@s7HeadcountLabel": {
+    "description": "S7 field label."
+  },
+  "s7HeadcountHint": "Reps on the floor",
+  "@s7HeadcountHint": {
+    "description": "S7 field hint."
+  },
+  "s7TrainingLabel": "Rep training completed",
+  "@s7TrainingLabel": {
+    "description": "S7 label above the training checklist."
+  },
+  "s7QuizLabel": "Quiz score (0-100)",
+  "@s7QuizLabel": {
+    "description": "S7 field label."
+  },
+  "s7SaveButton": "Save capability",
+  "@s7SaveButton": {
+    "description": "S7 save button."
+  },
+  "s7Saved": "Capability saved — queued for sync",
+  "@s7Saved": {
+    "description": "S7 confirmation after saving."
+  },
+  "s8SeverityCritical": "Critical",
+  "@s8SeverityCritical": {
+    "description": "S8 severity choice."
+  },
+  "s8SeverityHigh": "High",
+  "@s8SeverityHigh": {
+    "description": "S8 severity choice."
+  },
+  "s8SeverityNormal": "Normal",
+  "@s8SeverityNormal": {
+    "description": "S8 severity choice."
+  },
+  "s8RiskTitle": "Risk {number}",
+  "@s8RiskTitle": {
+    "description": "S8 card title; number is the 1-based row number.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "s8FlagTypeLabel": "Flag type",
+  "@s8FlagTypeLabel": {
+    "description": "S8 field label."
+  },
+  "s8FlagTypeHint": "What was flagged",
+  "@s8FlagTypeHint": {
+    "description": "S8 field hint."
+  },
+  "s8SeverityLabel": "Severity",
+  "@s8SeverityLabel": {
+    "description": "S8 label above the severity choices."
+  },
+  "s8NoteLabel": "Note",
+  "@s8NoteLabel": {
+    "description": "S8 field label."
+  },
+  "s8NoteHint": "Optional detail",
+  "@s8NoteHint": {
+    "description": "S8 field hint."
+  },
+  "s8AddButton": "Flag a risk",
+  "@s8AddButton": {
+    "description": "S8 add-row button."
+  },
+  "s8SaveButton": "Save risks",
+  "@s8SaveButton": {
+    "description": "S8 save button."
+  },
+  "s8Saved": "Risks saved — queued for sync; follow-up tasks will be auto-created",
+  "@s8Saved": {
+    "description": "S8 confirmation after saving."
+  },
+  "s8SeverityNote": "{severity, select, critical{Critical risk — saving it raises a follow-up task} other{High risk — saving it raises a follow-up task}}",
+  "@s8SeverityNote": {
+    "description": "S8 glass note on a critical or high risk card. severity is the wire value 'critical' or 'high'.",
+    "placeholders": {
+      "severity": {
+        "type": "String"
+      }
+    }
+  },
+  "s9PriorityCritical": "Critical",
+  "@s9PriorityCritical": {
+    "description": "S9 task priority choice."
+  },
+  "s9PriorityHigh": "High",
+  "@s9PriorityHigh": {
+    "description": "S9 task priority choice."
+  },
+  "s9PriorityNormal": "Normal",
+  "@s9PriorityNormal": {
+    "description": "S9 task priority choice."
+  },
+  "s9Intro": "Risks flagged in S8 auto-create tasks with an SLA server-side. Add any extra manual tasks below.",
+  "@s9Intro": {
+    "description": "S9 intro text."
+  },
+  "s9FindingTypeLabel": "Finding type",
+  "@s9FindingTypeLabel": {
+    "description": "S9 field label."
+  },
+  "s9FindingTypeHint": "What needs fixing",
+  "@s9FindingTypeHint": {
+    "description": "S9 field hint."
+  },
+  "s9RequiredFixLabel": "Required fix",
+  "@s9RequiredFixLabel": {
+    "description": "S9 field label."
+  },
+  "s9RequiredFixHint": "The corrective action",
+  "@s9RequiredFixHint": {
+    "description": "S9 field hint."
+  },
+  "s9PriorityLabel": "Priority",
+  "@s9PriorityLabel": {
+    "description": "S9 label above the priority choices."
+  },
+  "s9AddButton": "Add task",
+  "@s9AddButton": {
+    "description": "S9 add-task button."
+  },
+  "s9Saved": "Task queued for sync",
+  "@s9Saved": {
+    "description": "S9 confirmation after adding a task."
+  }
+}

@@ -375,6 +375,34 @@ void main() {
   );
 
   testWidgets(
+    'a field_agent navigating to a visit review is bounced to their route',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+          todayRouteProvider.overrideWith((ref) async => null),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/visits/v1');
+      await tester.pumpAndSettle();
+
+      // /visits/:id is supervisory (#208): its API is manager/admin-only.
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('Visit review'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'a field_agent navigating to report schedules is bounced to their route',
     (tester) async {
       await tester.pumpWidget(

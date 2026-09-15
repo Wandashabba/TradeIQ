@@ -5,6 +5,13 @@ interface Coordinates {
 
 const EARTH_RADIUS_METERS = 6371000;
 
+/**
+ * The check-in fence around every outlet, in metres. POST /visits/checkin
+ * rejects anything further out; the fraud engine reasons in the same fence
+ * (stock_outside_outlet, #248), so both read it from here.
+ */
+export const GEOFENCE_RADIUS_M = 50;
+
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
@@ -25,7 +32,7 @@ export function haversineDistanceMeters(a: Coordinates, b: Coordinates): number 
 export function isWithinGeofence(
   outlet: Coordinates,
   checkin: Coordinates,
-  radiusMeters = 50,
+  radiusMeters = GEOFENCE_RADIUS_M,
 ): boolean {
   return haversineDistanceMeters(outlet, checkin) <= radiusMeters;
 }
