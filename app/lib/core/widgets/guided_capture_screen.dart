@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/l10n.dart';
 import '../camera/photo_capture_service.dart';
 import '../theme/lumen_glass.dart';
 import '../theme/lumen_palette.dart';
@@ -71,7 +72,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
       // button is broken will stop filing evidence.
       if (mounted) {
         setState(() {
-          _error = 'Could not capture a photo: $e';
+          _error = context.l10n.captureError('$e');
           _busy = false;
         });
       }
@@ -81,6 +82,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     final glass = colors.glass;
     final brackets = CustomPaint(
       key: const ValueKey('framing-brackets'),
@@ -115,7 +117,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
                   ),
                 )
               : const Icon(Icons.close, size: 22),
-          tooltip: 'Cancel',
+          tooltip: l10n.captureCancelTooltip,
           // Backing out returns null — the caller keeps whatever it had.
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -164,8 +166,8 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const StatusChip(
-                      label: 'Error',
+                    StatusChip(
+                      label: l10n.captureErrorChip,
                       level: StatusLevel.critical,
                     ),
                     const SizedBox(width: 8),
@@ -182,7 +184,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
               const SizedBox(height: 16),
               AgentButton(
                 key: const ValueKey('guided-capture'),
-                label: 'Capture',
+                label: l10n.captureButton,
                 icon: Icons.photo_camera_outlined,
                 onPressed: _busy ? null : () => _capture(PhotoSource.camera),
               ),
@@ -191,7 +193,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
               // still has to be able to file evidence.
               AgentButton(
                 key: const ValueKey('guided-gallery'),
-                label: 'Choose from gallery',
+                label: l10n.captureGalleryButton,
                 icon: Icons.photo_library_outlined,
                 secondary: true,
                 onPressed: _busy ? null : () => _capture(PhotoSource.gallery),

@@ -7,6 +7,7 @@ import '../../../../core/theme/tiq_colors.dart';
 import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
 import '../../../../core/widgets/lumen_kit.dart';
+import '../../../../l10n/l10n.dart';
 import '../../data/scorecard_service.dart';
 
 /// S10 — Execution Scorecard: the offline scorecard computed on-device from
@@ -23,14 +24,24 @@ class S10ScorecardScreen extends ConsumerStatefulWidget {
 }
 
 class _S10State extends ConsumerState<S10ScorecardScreen> {
-  static const _dimensionLabels = {
-    'availability': 'Availability',
-    'visibility': 'Visibility',
-    'display': 'Display',
-    'pricing': 'Pricing',
-    'competitive': 'Competitive',
-    'salesCapability': 'Sales Capability',
-  };
+  static const _dimensionKeys = [
+    'availability',
+    'visibility',
+    'display',
+    'pricing',
+    'competitive',
+    'salesCapability',
+  ];
+
+  static String _dimensionLabel(AppLocalizations l10n, String key) =>
+      switch (key) {
+        'availability' => l10n.s10DimensionAvailability,
+        'visibility' => l10n.s10DimensionVisibility,
+        'display' => l10n.s10DimensionDisplay,
+        'pricing' => l10n.s10DimensionPricing,
+        'competitive' => l10n.s10DimensionCompetitive,
+        _ => l10n.s10DimensionSalesCapability,
+      };
 
   late Future<LocalScorecard> _scorecard;
   bool _finalized = false;
@@ -61,6 +72,7 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     return FutureBuilder<LocalScorecard>(
       future: _scorecard,
       builder: (context, snapshot) {
@@ -68,7 +80,7 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
           return Padding(
             padding: const EdgeInsets.all(14),
             child: Text(
-              'Could not compute the scorecard. Try refreshing.',
+              l10n.s10ComputeFailed,
               style: TextStyle(fontSize: 13, color: colors.crit),
             ),
           );
@@ -96,24 +108,24 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
             // No inline screen header: the shared section wrapper already
             // titles this "Score" (matches the other seven sections).
             PanelCard(
-              title: 'Dimension scores',
+              title: l10n.s10DimensionScores,
               padded: false,
               child: Column(
                 children: [
-                  for (final (i, entry) in _dimensionLabels.entries.indexed)
+                  for (final (i, key) in _dimensionKeys.indexed)
                     _DimensionRow(
-                      dimensionKey: entry.key,
-                      label: entry.value,
-                      score: scorecard.dimensionScores[entry.key],
+                      dimensionKey: key,
+                      label: _dimensionLabel(l10n, key),
+                      score: scorecard.dimensionScores[key],
                       // An absent dimension is UNKNOWN, not zero — e.g.
                       // competitive in an outlet where no competitor was on
                       // shelf to measure against. Printing 0 would read as
                       // "you scored nothing".
-                      value: scorecard.dimensionScores.containsKey(entry.key)
-                          ? scorecard.dimensionScores[entry.key]!
+                      value: scorecard.dimensionScores.containsKey(key)
+                          ? scorecard.dimensionScores[key]!
                                 .toStringAsFixed(0)
                           : '—',
-                      isLast: i == _dimensionLabels.length - 1,
+                      isLast: i == _dimensionKeys.length - 1,
                     ),
                 ],
               ),
@@ -138,14 +150,14 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
                                 runSpacing: 4,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  const SectionLabel('Weighted total'),
+                                  SectionLabel(l10n.s10WeightedTotal),
                                   LumenStatusPill(
                                     status: _bandStatus(scorecard.ratingBand),
                                   ),
                                 ],
                               )
                             else
-                              const SectionLabel('Weighted total'),
+                              SectionLabel(l10n.s10WeightedTotal),
                             const SizedBox(height: 6),
                             total,
                           ],
@@ -170,10 +182,10 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            AgentButton(label: 'Finalize scorecard', onPressed: _finalize),
+            AgentButton(label: l10n.s10Finalize, onPressed: _finalize),
             const SizedBox(height: 10),
             AgentButton(
-              label: 'Refresh',
+              label: l10n.s10Refresh,
               icon: Icons.refresh,
               secondary: true,
               onPressed: _refresh,
@@ -182,7 +194,7 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(
-                  'Scorecard queued for sync',
+                  l10n.s10Queued,
                   style: TextStyle(fontSize: 13, color: colors.ink2),
                 ),
               ),
@@ -327,11 +339,13 @@ class _BandReadout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    if (colors.glass) return _glass(colors);
-    final (dot, text, word) = switch (band) {
-      'green' => (colors.good, colors.good, 'Green'),
-      'amber' => (colors.warn, colors.warn, 'Amber'),
-      _ => (colors.crit, colors.critText, 'Red'),
+    // The band word is shared with the visit outcome screen's readout.
+    final word = context.l10n.outcomeRatingBand(band);
+    if (colors.glass) return _glass(colors, word);
+    final (dot, text) = switch (band) {
+      'green' => (colors.good, colors.good),
+      'amber' => (colors.warn, colors.warn),
+      _ => (colors.crit, colors.critText),
     };
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -359,13 +373,8 @@ class _BandReadout extends StatelessWidget {
 
   /// Glass: the dot and word on an OPAQUE status wash, the word in the
   /// swatch's ink — which clears AA on that wash by itself.
-  Widget _glass(TiqColors colors) {
+  Widget _glass(TiqColors colors, String word) {
     final sw = _bandStatus(band).swatchOf(colors);
-    final word = switch (band) {
-      'green' => 'Green',
-      'amber' => 'Amber',
-      _ => 'Red',
-    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(

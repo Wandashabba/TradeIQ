@@ -12,6 +12,7 @@ import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/worklist.dart';
+import '../../../l10n/l10n.dart';
 import '../data/today_route.dart';
 import '../../../core/theme/lumen_palette.dart';
 
@@ -27,57 +28,30 @@ class TodayScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final routeAsync = ref.watch(todayRouteProvider);
+    final l10n = context.l10n;
 
     return AgentScaffold(
-      title: 'Today',
-      subtitle: _weekday(DateTime.now()),
+      title: l10n.todayTitle,
+      subtitle: formatDayHeading(context, DateTime.now()),
       body: routeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => _NoRoute(
-          title: 'Could not load your route',
-          detail: 'You can still start a visit yourself.',
+          title: l10n.todayLoadErrorTitle,
+          detail: l10n.todayLoadErrorDetail,
         ),
         data: (route) {
           if (route == null || route.stops.isEmpty) {
             return _NoRoute(
-              title: 'No route planned for today',
+              title: l10n.todayNoRouteTitle,
               detail: route == null
-                  ? 'Your manager has not built a beat plan for today. You can '
-                        'still visit a store — pick it yourself.'
-                  : 'Today’s beat plan has no stops on it yet.',
+                  ? l10n.todayNoPlanDetail
+                  : l10n.todayEmptyPlanDetail,
             );
           }
           return _Route(route: route);
         },
       ),
     );
-  }
-
-  static String _weekday(DateTime date) {
-    const days = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]}';
   }
 }
 
@@ -98,7 +72,7 @@ class _Route extends ConsumerWidget {
         children: [
           _Header(route: route),
           const SizedBox(height: 18),
-          const _Heading('Your route'),
+          _Heading(context.l10n.todayYourRouteHeading),
           // Each stop is now its own worklist card (surface1 ground, hairline,
           // state-coloured left edge) rather than a row in one bordered box —
           // the console's worklist language.
@@ -117,7 +91,7 @@ class _Route extends ConsumerWidget {
           // tap away, not a thing the agent has to fight the app for.
           AgentButton(
             key: const ValueKey('visit-another'),
-            label: 'Visit a store not on my route',
+            label: context.l10n.todayVisitAnotherStore,
             secondary: true,
             onPressed: () => context.go('/audit'),
           ),
@@ -169,14 +143,14 @@ class _Header extends StatelessWidget {
                 ),
               ),
               Text(
-                ' of ${route.total} ${route.total == 1 ? 'store' : 'stores'}',
+                context.l10n.todayStoresOfTotal(route.total),
                 style: TextStyle(fontSize: 14, color: colors.ink2),
               ),
               const Spacer(),
               _StatusPill(
                 label: route.isComplete
-                    ? 'Route done'
-                    : '${route.remaining} left',
+                    ? context.l10n.todayRouteDone
+                    : context.l10n.todayStoresLeft(route.remaining),
                 complete: route.isComplete,
               ),
             ],
@@ -192,7 +166,7 @@ class _Header extends StatelessWidget {
             Text(
               // Not "location error". The agent turned it off, or the phone
               // cannot see the sky. Either way the route still works.
-              'Distances are off — this phone will not say where it is.',
+              context.l10n.todayDistancesOff,
               style: TextStyle(fontSize: 11.5, color: colors.ink3),
             ),
           ],
@@ -401,12 +375,12 @@ class _StopCard extends StatelessWidget {
                         // solid brand) — both AA-clear, theme-constant.
                         child: done
                             ? _StateTag(
-                                label: 'DONE',
+                                label: context.l10n.todayStopDoneTag,
                                 bg: _goodPill.bg,
                                 fg: _goodPill.fg,
                               )
                             : _StateTag(
-                                label: 'NEXT',
+                                label: context.l10n.todayStopNextTag,
                                 bg: colors.brand,
                                 fg: Colors.white,
                               ),
@@ -535,7 +509,7 @@ class _NoRoute extends StatelessWidget {
             const SizedBox(height: 20),
             AgentButton(
               key: const ValueKey('pick-a-store'),
-              label: 'Pick a store to visit',
+              label: context.l10n.todayPickStore,
               onPressed: () => context.go('/audit'),
             ),
           ],
@@ -595,7 +569,7 @@ class _GlassRoute extends ConsumerWidget {
           _DayCard(route: route),
           if (next != null) ...[
             const SizedBox(height: 22),
-            const Kicker('Next up'),
+            Kicker(context.l10n.todayNextUpHeading),
             const SizedBox(height: 10),
             _NextCard(
               stop: next,
@@ -604,7 +578,11 @@ class _GlassRoute extends ConsumerWidget {
           ],
           if (rest.isNotEmpty) ...[
             const SizedBox(height: 22),
-            Kicker(next == null ? 'Your route' : 'The rest of the day'),
+            Kicker(
+              next == null
+                  ? context.l10n.todayYourRouteHeading
+                  : context.l10n.todayRestOfDayHeading,
+            ),
             const SizedBox(height: 10),
             for (final (i, stop) in rest.indexed)
               Reveal(
@@ -619,7 +597,7 @@ class _GlassRoute extends ConsumerWidget {
           // The plan is a plan, not a cage.
           AgentButton(
             key: const ValueKey('visit-another'),
-            label: 'Visit a store not on my route',
+            label: context.l10n.todayVisitAnotherStore,
             secondary: true,
             onPressed: () => context.go('/audit'),
           ),
@@ -682,7 +660,7 @@ class _DayCard extends StatelessWidget {
                         ),
                         Flexible(
                           child: Text(
-                            ' of $total ${total == 1 ? 'store' : 'stores'}',
+                            context.l10n.todayStoresOfTotal(total),
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 13.5,
@@ -695,16 +673,16 @@ class _DayCard extends StatelessWidget {
                     const SizedBox(height: 12),
                     _DayPill(
                       label: route.isComplete
-                          ? 'Route done'
-                          : '${route.remaining} left',
+                          ? context.l10n.todayRouteDone
+                          : context.l10n.todayStoresLeft(route.remaining),
                       complete: route.isComplete,
                     ),
                     if (!route.hasLocation) ...[
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         // Not "location error" — the route still works.
-                        'Distances are off — this phone will not say where it is.',
-                        style: TextStyle(
+                        context.l10n.todayDistancesOff,
+                        style: const TextStyle(
                           fontSize: 11.5,
                           color: LumenGlass.onDarkMuted,
                         ),
@@ -759,7 +737,11 @@ class _DayRing extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 5),
-              const Kicker('Stores', color: LumenGlass.onDarkMuted, size: 8.5),
+              Kicker(
+                context.l10n.todayStoresRingLabel,
+                color: LumenGlass.onDarkMuted,
+                size: 8.5,
+              ),
             ],
           ),
         ],
@@ -845,7 +827,7 @@ class _NextCard extends StatelessWidget {
           Row(
             children: [
               _StopTag(
-                label: 'NEXT',
+                label: context.l10n.todayStopNextTag,
                 bg: Color.alphaBlend(
                   LumenStatus.current.swatchOf(colors).tint,
                   colors.surface1,
@@ -860,7 +842,12 @@ class _NextCard extends StatelessWidget {
                 ),
               ],
               const Spacer(),
-              Kicker('Stop ${stop.sequence.toString().padLeft(2, '0')}', size: 9.5),
+              Kicker(
+                context.l10n.todayStopNumber(
+                  stop.sequence.toString().padLeft(2, '0'),
+                ),
+                size: 9.5,
+              ),
             ],
           ),
           const SizedBox(height: 13),
@@ -873,7 +860,7 @@ class _NextCard extends StatelessWidget {
           const SizedBox(height: 17),
           GlassPrimaryButton(
             key: const ValueKey('check-in-next'),
-            label: 'Check in here',
+            label: context.l10n.todayCheckInHere,
             trailingIcon: Icons.chevron_right,
             height: 50,
             onPressed: onTap,
@@ -958,7 +945,7 @@ class _GlassStopRow extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: _StopTag(
-                        label: 'DONE',
+                        label: context.l10n.todayStopDoneTag,
                         bg: Color.alphaBlend(good.tint, colors.surface1),
                         fg: good.ink,
                       ),

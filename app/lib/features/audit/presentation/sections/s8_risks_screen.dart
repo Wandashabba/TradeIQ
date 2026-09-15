@@ -8,6 +8,7 @@ import '../../../../core/widgets/agent_kit.dart';
 import '../../../../core/widgets/console.dart';
 import '../../../../core/widgets/glass.dart';
 import '../../../../core/widgets/lumen_kit.dart';
+import '../../../../l10n/l10n.dart';
 import '../../data/risks_repository.dart';
 
 /// S8 — Opportunities & Risks capture: a dynamic list of flagged risks
@@ -23,12 +24,6 @@ class S8RisksScreen extends ConsumerStatefulWidget {
 }
 
 class _S8State extends ConsumerState<S8RisksScreen> {
-  static const _severityOptions = <({String value, String label})>[
-    (value: 'critical', label: 'Critical'),
-    (value: 'high', label: 'High'),
-    (value: 'normal', label: 'Normal'),
-  ];
-
   final _flagTypes = <TextEditingController>[];
   final _notes = <TextEditingController>[];
   final _severitiesSelected = <String>[];
@@ -71,6 +66,12 @@ class _S8State extends ConsumerState<S8RisksScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
+    final severityOptions = <({String value, String label})>[
+      (value: 'critical', label: l10n.s8SeverityCritical),
+      (value: 'high', label: l10n.s8SeverityHigh),
+      (value: 'normal', label: l10n.s8SeverityNormal),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -84,17 +85,17 @@ class _S8State extends ConsumerState<S8RisksScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AgentField(
-                    label: 'Flag type',
+                    label: l10n.s8FlagTypeLabel,
                     child: TextField(
                       key: ValueKey('risk-type-$i'),
                       controller: _flagTypes[i],
-                      decoration: const InputDecoration(
-                        hintText: 'What was flagged',
+                      decoration: InputDecoration(
+                        hintText: l10n.s8FlagTypeHint,
                       ),
                     ),
                   ),
                   Text(
-                    'Severity',
+                    l10n.s8SeverityLabel,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -103,19 +104,19 @@ class _S8State extends ConsumerState<S8RisksScreen> {
                   ),
                   const SizedBox(height: 7),
                   ChoiceRow<String>(
-                    options: _severityOptions,
+                    options: severityOptions,
                     selected: _severitiesSelected[i],
                     onChanged: (v) =>
                         setState(() => _severitiesSelected[i] = v),
                   ),
                   const SizedBox(height: 16),
                   AgentField(
-                    label: 'Note',
+                    label: l10n.s8NoteLabel,
                     child: TextField(
                       key: ValueKey('risk-note-$i'),
                       controller: _notes[i],
-                      decoration: const InputDecoration(
-                        hintText: 'Optional detail',
+                      decoration: InputDecoration(
+                        hintText: l10n.s8NoteHint,
                       ),
                     ),
                   ),
@@ -125,18 +126,18 @@ class _S8State extends ConsumerState<S8RisksScreen> {
           ),
         AgentButton(
           key: const ValueKey('add-risk'),
-          label: 'Flag a risk',
+          label: l10n.s8AddButton,
           icon: Icons.add,
           secondary: true,
           onPressed: _addRisk,
         ),
         const SizedBox(height: 12),
-        AgentButton(label: 'Save risks', onPressed: _save),
+        AgentButton(label: l10n.s8SaveButton, onPressed: _save),
         if (_saved)
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(
-              'Risks saved — queued for sync; follow-up tasks will be auto-created',
+              l10n.s8Saved,
               style: TextStyle(color: colors.ink2),
             ),
           ),
@@ -170,7 +171,7 @@ class _RiskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final title = 'Risk ${index + 1}';
+    final title = context.l10n.s8RiskTitle(index + 1);
     if (!colors.glass) return PanelCard(title: title, child: child);
     final status = _statusOf(severity);
     return GlassPane(
@@ -207,10 +208,7 @@ class _RiskCard extends StatelessWidget {
           if (status != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 15),
-              child: _SeverityNote(
-                status: status,
-                word: severity == 'critical' ? 'Critical' : 'High',
-              ),
+              child: _SeverityNote(status: status, severity: severity),
             ),
         ],
       ),
@@ -221,10 +219,12 @@ class _RiskCard extends StatelessWidget {
 /// The severity in words on an OPAQUE status wash, so the words clear AA on
 /// their own rather than on whatever the glass lets through.
 class _SeverityNote extends StatelessWidget {
-  const _SeverityNote({required this.status, required this.word});
+  const _SeverityNote({required this.status, required this.severity});
 
   final LumenStatus status;
-  final String word;
+
+  /// `critical` or `high` — the note is never shown for a normal risk.
+  final String severity;
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +248,7 @@ class _SeverityNote extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$word risk — saving it raises a follow-up task',
+              context.l10n.s8SeverityNote(severity),
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,

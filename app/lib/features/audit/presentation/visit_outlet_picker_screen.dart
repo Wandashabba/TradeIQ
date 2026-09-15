@@ -11,6 +11,7 @@ import '../../../core/widgets/console.dart' show StatusLevel;
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/pill_segment.dart';
 import '../../../core/widgets/worklist.dart';
+import '../../../l10n/l10n.dart';
 import '../../outlets/data/outlets_repository.dart';
 
 class VisitOutletPickerScreen extends ConsumerWidget {
@@ -20,12 +21,13 @@ class VisitOutletPickerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final onlyMine = ref.watch(onlyMyTerritoriesProvider);
     final outlets = ref.watch(assignedOutletsProvider);
+    final l10n = context.l10n;
     return AgentScaffold(
-      title: 'Select an Outlet',
-      subtitle: 'Tap a store to start a visit',
+      title: l10n.pickerTitle,
+      subtitle: l10n.pickerSubtitle,
       // The primary action lives in the thumb zone, not floating over the list.
       bottomAction: AgentButton(
-        label: 'Add a store',
+        label: l10n.pickerAddStore,
         icon: Icons.add_location_alt_outlined,
         secondary: true,
         onPressed: () async {
@@ -107,6 +109,7 @@ class _ScopeControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = context.l10n;
     final control = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -114,7 +117,7 @@ class _ScopeControl extends StatelessWidget {
           children: [
             PillSegment(
               key: const ValueKey<String>('scope-mine'),
-              label: 'My territories',
+              label: l10n.pickerScopeMine,
               selected: onlyMine,
               onTap: () => onChanged(true),
               expand: true,
@@ -123,7 +126,7 @@ class _ScopeControl extends StatelessWidget {
             const SizedBox(width: 8),
             PillSegment(
               key: const ValueKey<String>('scope-all'),
-              label: 'All stores',
+              label: l10n.pickerScopeAll,
               selected: !onlyMine,
               onTap: () => onChanged(false),
               expand: true,
@@ -136,8 +139,8 @@ class _ScopeControl extends StatelessWidget {
         // and where the rest are.
         Text(
           onlyMine
-              ? '$count in your territories · tap All stores to see every shop'
-              : 'All $count stores across this client',
+              ? l10n.pickerScopeMineSummary(count)
+              : l10n.pickerScopeAllSummary(count),
           style: TextStyle(fontSize: 12, color: colors.ink3),
         ),
       ],
@@ -173,7 +176,7 @@ class _LoadError extends StatelessWidget {
         Icon(Icons.storefront_outlined, size: 34, color: colors.ink3),
         const SizedBox(height: 14),
         Text(
-          'Could not load your stores',
+          context.l10n.pickerLoadErrorTitle,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 16,
@@ -190,7 +193,7 @@ class _LoadError extends StatelessWidget {
         const SizedBox(height: 20),
         AgentButton(
           key: const ValueKey('retry-outlets'),
-          label: 'Try again',
+          label: context.l10n.pickerRetry,
           onPressed: onRetry,
         ),
       ],

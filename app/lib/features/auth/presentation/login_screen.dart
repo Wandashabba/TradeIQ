@@ -17,6 +17,7 @@ import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/trade_iq_logo.dart';
 import '../../../core/theme/lumen_palette.dart';
+import '../../../l10n/l10n.dart';
 
 /// Maps a login failure to a user-facing message. A 401 here means bad
 /// credentials — the one place in the app where it does. Everywhere else a 401
@@ -25,9 +26,12 @@ import '../../../core/theme/lumen_palette.dart';
 /// login screen would tell the user the wrong story. Everything that is not a
 /// 401 — connectivity, timeouts, server errors — is delegated so login and the
 /// rest of the app speak with the same voice.
-String loginErrorMessage(Object error) {
+///
+/// Pass the active [l10n] (`context.l10n`); without it the English copy is
+/// used.
+String loginErrorMessage(Object error, [AppLocalizations? l10n]) {
   if (error is DioException && error.response?.statusCode == 401) {
-    return 'Invalid credentials';
+    return (l10n ?? englishLocalizations).loginInvalidCredentials;
   }
   return humanErrorMessage(error);
 }
@@ -105,10 +109,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _showUnavailableMessage(String feature) {
+  void _showUnavailableMessage(String message) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('$feature is not available yet.')));
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -156,7 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Row(
                       children: [
                         GlassBackChip(
-                          tooltip: 'Back to welcome',
+                          tooltip: context.l10n.loginBackTooltip,
                           onTap: () => context.go('/'),
                         ),
                         const Expanded(
@@ -207,7 +211,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Row(
                         children: [
                           IconButton(
-                            tooltip: 'Back to welcome',
+                            tooltip: context.l10n.loginBackTooltip,
                             onPressed: () => context.go('/'),
                             icon: const Icon(
                               Icons.arrow_back,
@@ -265,6 +269,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _form(BuildContext context, {required bool glass}) {
     final session = ref.watch(sessionControllerProvider);
     final colors = context.colors;
+    final l10n = context.l10n;
     final labelColor = glass ? colors.ink2 : AppColors.textSecondary;
 
     return Form(
@@ -273,42 +278,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (glass) ...[
-            const Kicker('WELCOME BACK'),
+            Kicker(l10n.loginKicker),
             const SizedBox(height: 8),
             Text(
-              'Sign in',
+              l10n.loginSignIn,
               style: LumenGlass.title(color: context.lumen.ink, size: 28),
             ),
             const SizedBox(height: 6),
             Text(
-              'Use your TradeIQ work account.',
+              l10n.loginSubtitle,
               style: TextStyle(fontSize: 13.5, color: colors.ink3),
             ),
             const SizedBox(height: 24),
           ] else ...[
-            const Text(
-              'Sign in',
-              style: TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
+            Text(
+              l10n.loginSignIn,
+              style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 29),
           ],
-          _FieldLabel('Email', color: labelColor),
+          _FieldLabel(l10n.loginEmailLabel, color: labelColor),
           const SizedBox(height: 8),
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.username, AutofillHints.email],
-            decoration: const InputDecoration(
-              hintText: 'you@company.com',
-              prefixIcon: Icon(Icons.mail_outline, size: 20),
+            decoration: InputDecoration(
+              hintText: l10n.loginEmailHint,
+              prefixIcon: const Icon(Icons.mail_outline, size: 20),
             ),
             validator: (value) => (value == null || value.trim().isEmpty)
-                ? 'Email is required'
+                ? l10n.loginEmailRequired
                 : null,
           ),
           const SizedBox(height: 19),
-          _FieldLabel('Password', color: labelColor),
+          _FieldLabel(l10n.loginPasswordLabel, color: labelColor),
           const SizedBox(height: 8),
           TextFormField(
             controller: _passwordController,
@@ -317,10 +322,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             autofillHints: const [AutofillHints.password],
             onFieldSubmitted: (_) => _submit(),
             decoration: InputDecoration(
-              hintText: 'Enter your password',
+              hintText: l10n.loginPasswordHint,
               prefixIcon: const Icon(Icons.lock_outline, size: 20),
               suffixIcon: IconButton(
-                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                tooltip: _obscurePassword
+                    ? l10n.loginShowPassword
+                    : l10n.loginHidePassword,
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
                 icon: Icon(
@@ -332,7 +339,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             validator: (value) => (value == null || value.isEmpty)
-                ? 'Password is required'
+                ? l10n.loginPasswordRequired
                 : null,
           ),
           const SizedBox(height: 11),
@@ -351,23 +358,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // before the row overflows.
               Expanded(
                 child: Text(
-                  'Remember me',
+                  l10n.loginRememberMe,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: labelColor, fontSize: 14),
                 ),
               ),
               TextButton(
-                onPressed: () => _showUnavailableMessage('Password reset'),
+                onPressed: () =>
+                    _showUnavailableMessage(l10n.loginPasswordResetUnavailable),
                 style: TextButton.styleFrom(
                   foregroundColor: glass
                       ? context.lumen.accentInk
                       : AppColors.blueLight,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                 ),
-                child: const Text(
-                  'Forgot password?',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                child: Text(
+                  l10n.loginForgotPassword,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -375,7 +383,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SizedBox(height: 14),
           if (session.hasError) ...[
             glass
-                ? _GlassError(loginErrorMessage(session.error!))
+                ? _GlassError(loginErrorMessage(session.error!, l10n))
                 : Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -384,7 +392,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       border: Border.all(color: const Color(0x66FF6B7A)),
                     ),
                     child: Text(
-                      loginErrorMessage(session.error!),
+                      loginErrorMessage(session.error!, l10n),
                       style: const TextStyle(
                         color: Color(0xFFFFB3BA),
                         fontSize: 13,
@@ -395,14 +403,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
           if (glass)
             GlassPrimaryButton(
-              label: 'Sign in',
+              label: l10n.loginSignIn,
               trailingIcon: Icons.arrow_forward,
               onPressed: _submit,
               busy: _isSubmitting,
             )
           else
             PrimaryActionButton(
-              label: 'Sign in',
+              label: l10n.loginSignIn,
               onPressed: _submit,
               isLoading: _isSubmitting,
             ),

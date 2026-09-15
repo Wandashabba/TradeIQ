@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/l10n.dart';
 import '../auth/session_controller.dart';
+import '../l10n/app_language_controller.dart';
 import '../sync/sync_status.dart';
 import '../theme/lumen_glass.dart';
 import '../theme/theme_mode_controller.dart';
@@ -64,6 +66,8 @@ class AgentScaffold extends ConsumerWidget {
     final colors = context.colors;
     final glass = colors.glass;
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final language = ref.watch(appLanguageProvider);
+    final l10n = context.l10n;
     void goBack() => (onBack ?? () => context.go('/today'))();
 
     final content = Column(
@@ -99,7 +103,7 @@ class AgentScaffold extends ConsumerWidget {
               )
             : IconButton(
                 icon: const Icon(Icons.arrow_back, size: 22),
-                tooltip: 'Back',
+                tooltip: l10n.agentBackTooltip,
                 onPressed: goBack,
               ),
         title: Column(
@@ -131,17 +135,40 @@ class AgentScaffold extends ConsumerWidget {
         ),
         actions: [
           ...?actions,
+          // Language override (#40): System follows the device; English and
+          // Afrikaans pin the UI. Persisted like the theme choice beside it.
+          PopupMenuButton<AppLanguage>(
+            key: const ValueKey('agent-language-menu'),
+            icon: const Icon(Icons.translate, size: 20),
+            tooltip: l10n.languageMenuTooltip,
+            initialValue: language,
+            onSelected: (choice) =>
+                ref.read(appLanguageProvider.notifier).select(choice),
+            itemBuilder: (context) => [
+              for (final option in AppLanguage.values)
+                CheckedPopupMenuItem<AppLanguage>(
+                  key: ValueKey('agent-language-${option.storageValue}'),
+                  value: option,
+                  checked: option == language,
+                  child: Text(switch (option) {
+                    AppLanguage.system => l10n.languageSystem,
+                    AppLanguage.english => l10n.languageEnglish,
+                    AppLanguage.afrikaans => l10n.languageAfrikaans,
+                  }),
+                ),
+            ],
+          ),
           // The agent carries the same light/dark toggle as the console — the
           // moon offers dark, the sun offers light, always the destination.
           IconButton(
             key: const ValueKey('agent-theme-toggle'),
             icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, size: 20),
-            tooltip: 'Theme',
+            tooltip: l10n.agentThemeTooltip,
             onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
           ),
           IconButton(
             icon: const Icon(Icons.logout, size: 20),
-            tooltip: 'Log out',
+            tooltip: l10n.agentLogOutTooltip,
             onPressed: () =>
                 ref.read(sessionControllerProvider.notifier).logout(),
           ),
@@ -224,7 +251,7 @@ class SyncChip extends ConsumerWidget {
 
     return status.maybeWhen(
       data: (s) {
-        final (level, title, sub) = _describe(s, syncing);
+        final (level, title, sub) = _describe(context.l10n, s, syncing);
         return PressFeedback(
           onTap: () => context.push('/my-work'),
           child: StatusBanner(
@@ -250,37 +277,38 @@ class SyncChip extends ConsumerWidget {
     );
   }
 
-  static (BannerLevel, String, String) _describe(SyncStatus s, bool syncing) {
+  static (BannerLevel, String, String) _describe(
+    AppLocalizations l10n,
+    SyncStatus s,
+    bool syncing,
+  ) {
     if (syncing && s.pending.isNotEmpty) {
-      final n = s.pendingCount;
       return (
         BannerLevel.info,
-        'Sending $n ${n == 1 ? 'capture' : 'captures'}…',
-        'Keep going — you don’t have to wait',
+        l10n.syncSendingTitle(s.pendingCount),
+        l10n.syncSendingSubtitle,
       );
     }
     if (s.needsAttention.isNotEmpty) {
-      final n = s.needsAttention.length;
       return (
         BannerLevel.bad,
-        '$n ${n == 1 ? 'item needs' : 'items need'} your attention',
-        'They will not send on their own — tap to see',
+        l10n.syncAttentionTitle(s.needsAttention.length),
+        l10n.syncAttentionSubtitle,
       );
     }
     if (s.pending.isNotEmpty) {
-      final n = s.pendingCount;
       return (
         BannerLevel.warn,
-        '$n ${n == 1 ? 'capture' : 'captures'} held on this phone',
-        'They will send themselves · nothing is lost',
+        l10n.syncHeldTitle(s.pendingCount),
+        l10n.syncHeldSubtitle,
       );
     }
     return (
       BannerLevel.good,
-      'Everything is sent',
+      l10n.syncAllSentTitle,
       s.lastSentAt == null
-          ? 'Nothing waiting'
-          : 'Last sent ${formatAgo(s.lastSentAt!)}',
+          ? l10n.syncNothingWaiting
+          : l10n.syncLastSent(formatAgo(s.lastSentAt!, l10n)),
     );
   }
 }
