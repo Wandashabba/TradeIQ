@@ -1622,5 +1622,65 @@
   "locationStopCancel": "Keep sharing",
   "@locationStopCancel": {
     "description": "Confirmation dialog: keep sharing location."
+  },
+  "agentNotificationsTooltip": "Notifications",
+  "@agentNotificationsTooltip": {
+    "description": "Tooltip on the agent app bar's bell button, which opens the notification settings (#67)."
+  },
+  "notificationsTitle": "Notifications",
+  "@notificationsTitle": {
+    "description": "Title of the agent's push notification settings screen (#67)."
+  },
+  "notificationsSubtitle": "Choose what reaches this phone",
+  "@notificationsSubtitle": {
+    "description": "Subtitle under the notification settings title."
+  },
+  "notificationsTasksLabel": "Tasks assigned to you",
+  "@notificationsTasksLabel": {
+    "description": "Toggle: push when someone assigns the agent a task."
+  },
+  "notificationsTasksHelp": "When your manager gives you a task",
+  "@notificationsTasksHelp": {
+    "description": "Help line under notificationsTasksLabel."
+  },
+  "notificationsMessagesLabel": "Messages and announcements",
+  "@notificationsMessagesLabel": {
+    "description": "Toggle: push for new messages, team messages and announcements."
+  },
+  "notificationsMessagesHelp": "Messages to you or the team, and announcements",
+  "@notificationsMessagesHelp": {
+    "description": "Help line under notificationsMessagesLabel."
+  },
+  "notificationsSlaLabel": "Overdue tasks",
+  "@notificationsSlaLabel": {
+    "description": "Toggle: push when one of the agent's tasks passes its SLA deadline."
+  },
+  "notificationsSlaHelp": "When one of your tasks passes its deadline",
+  "@notificationsSlaHelp": {
+    "description": "Help line under notificationsSlaLabel."
+  },
+  "notificationsNotSetUpTitle": "Notifications aren’t switched on yet",
+  "@notificationsNotSetUpTitle": {
+    "description": "Banner when push is not configured in this build of the app. Not an error."
+  },
+  "notificationsNotSetUpBody": "Your choices are saved and apply as soon as they are.",
+  "@notificationsNotSetUpBody": {
+    "description": "Under notificationsNotSetUpTitle."
+  },
+  "notificationsLoadErrorTitle": "Couldn’t load your notification settings",
+  "@notificationsLoadErrorTitle": {
+    "description": "Shown when the settings could not be fetched."
+  },
+  "notificationsRetry": "Try again",
+  "@notificationsRetry": {
+    "description": "Button to fetch the notification settings again."
+  },
+  "notificationsSaveFailed": "Couldn’t save that. Check your connection and try again.",
+  "@notificationsSaveFailed": {
+    "description": "Snackbar when a toggle could not be saved; the toggle flips back."
+  },
+  "notificationsFooter": "You can also turn off notifications for TradeIQ in your phone’s settings.",
+  "@notificationsFooter": {
+    "description": "Footnote under the notification toggles."
   }
 }

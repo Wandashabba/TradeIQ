@@ -4,6 +4,8 @@ import { assertJwtSecretUsable } from './modules/auth/auth.service';
 import { locationPruneEnabled, startLocationPruneWorker } from './modules/locations/locationPrune.worker';
 import { startReportScheduleWorker } from './modules/reportschedules/reportschedules.worker';
 import { startWebhookDeliveryWorker } from './modules/webhooks/webhooks.worker';
+import { settleInFlightPushes } from './modules/push/push.notify';
+import { slaBreachSweepEnabled, startSlaBreachWorker } from './modules/push/slaBreach.worker';
 
 // Fail fast and loudly: a published or weak JWT_SECRET must stop the process
 // here, not surface later as unexplainable 401s.
@@ -22,6 +24,9 @@ const webhookWorker = startWebhookDeliveryWorker();
 const reportScheduleWorker = startReportScheduleWorker();
 // Daily location-ping retention (#178). LOCATION_PRUNE_ENABLED=false opts out.
 const locationPruneWorker = locationPruneEnabled() ? startLocationPruneWorker() : null;
+// SLA-breach pushes (#67). Idle while FIREBASE_SERVICE_ACCOUNT is unset;
+// SLA_BREACH_SWEEP_ENABLED=false opts out.
+const slaBreachWorker = slaBreachSweepEnabled() ? startSlaBreachWorker() : null;
 
 let shuttingDown = false;
 function shutdown(signal: string): void {
@@ -40,6 +45,10 @@ function shutdown(signal: string): void {
     .catch((err) => console.error('Webhook worker did not stop cleanly:', err))
     .then(() => locationPruneWorker?.stop())
     .catch((err) => console.error('Location prune worker did not stop cleanly:', err))
+    .then(() => slaBreachWorker?.stop())
+    .catch((err) => console.error('SLA breach worker did not stop cleanly:', err))
+    // Pushes already on their way to FCM are let finish, not cut off.
+    .then(() => settleInFlightPushes())
     .finally(() => server.close(() => process.exit(0)));
 }
 

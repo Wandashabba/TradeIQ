@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '../../middleware/errorHandler';
 import { buildPage } from '../../lib/pagination';
 import { MESSAGE_ATTACHMENT_SECTION, photoLinks } from '../photos/photos.service';
+import { pushAnnouncement, pushMessageSent } from '../push/push.triggers';
 
 /**
  * The most images one message may carry (#125). Attachments are images only,
@@ -223,6 +224,15 @@ async function insertMessage(input: CreateMessageInput, photoIds: string[]) {
     },
     include: messageInclude,
   });
+  // #67: only a message that was just created raises a push — a replayed
+  // send returns before reaching here, so a retry never notifies twice.
+  pushMessageSent({
+    clientId: row.clientId,
+    senderId: row.senderId,
+    recipientId: row.recipientId,
+    body: row.body,
+    attachmentCount: row.attachments.length,
+  });
   return toMessageResponse(row);
 }
 
@@ -291,7 +301,7 @@ export interface CreateAnnouncementInput {
 }
 
 export async function createAnnouncement(input: CreateAnnouncementInput) {
-  return prisma.announcement.create({
+  const announcement = await prisma.announcement.create({
     data: {
       clientId: input.clientId,
       authorId: input.authorId,
@@ -299,6 +309,9 @@ export async function createAnnouncement(input: CreateAnnouncementInput) {
       body: input.body,
     },
   });
+  // #67: to the whole team but the author. Fire-and-forget.
+  pushAnnouncement(announcement);
+  return announcement;
 }
 
 export interface ListAnnouncementsInput {

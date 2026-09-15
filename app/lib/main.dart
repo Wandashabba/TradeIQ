@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/l10n/app_language_controller.dart';
+import 'core/push/push_registration.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_controller.dart';
@@ -16,6 +17,10 @@ class TradeIqApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Push (#67): registers this install's token for whoever signs in and
+    // removes it on sign-out. Listened, not watched — a registration must not
+    // rebuild the whole app. Inert while push is unconfigured.
+    ref.listen(pushRegistrationProvider, (_, _) {});
     return MaterialApp.router(
       title: 'TradeIQ',
       theme: AppTheme.light(),

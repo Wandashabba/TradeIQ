@@ -43,6 +43,7 @@ import { locationsRouter } from './modules/locations/locations.routes';
 import { incentivesRouter } from './modules/incentives/incentives.routes';
 import { reportSchedulesRouter } from './modules/reportschedules/reportschedules.routes';
 import { assistantRouter } from './modules/assistant/assistant.routes';
+import { pushRouter } from './modules/push/push.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -136,6 +137,7 @@ app.use('/reports', reportsRouter);
 app.use('/clients', clientsRouter);
 app.use('/users', usersRouter);
 app.use('/locations', locationsRouter);
+app.use('/push', pushRouter);
 app.use('/incentives', incentivesRouter);
 app.use('/report-schedules', reportSchedulesRouter);
 // Every route below /assistant is gated on the per-client rollout flag, which
