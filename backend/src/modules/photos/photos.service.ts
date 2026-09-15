@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
+import { computePhotoHashes } from './photoHash';
 import { getThumbnailForPhoto } from './thumbnails';
 
 export interface CreatePhotoInput {
@@ -23,6 +24,11 @@ export async function createPhoto(input: CreatePhotoInput) {
     throw new NotFoundError('Visit not found');
   }
 
+  // Hashed once, here, so duplicate_photo (#244) never re-reads stored bytes.
+  // Never throws: a payload that is not a decodable image is stored unhashed,
+  // exactly as before, and the signal ignores it.
+  const hashes = await computePhotoHashes(input.dataUrl);
+
   // Phase-1 lean-infra choice: we store the base64 data URL string directly in
   // Photo.url — there is no object store yet. Real object storage (e.g. S3 with
   // signed URLs) is a later phase; url will then hold the object URL instead.
@@ -33,6 +39,7 @@ export async function createPhoto(input: CreatePhotoInput) {
       url: input.dataUrl,
       gpsTag: input.gpsTag,
       timestamp: new Date(input.timestamp),
+      ...hashes,
     },
   });
 }

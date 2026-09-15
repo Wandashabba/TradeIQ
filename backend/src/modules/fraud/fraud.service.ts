@@ -4,6 +4,12 @@ import { buildPage } from '../../lib/pagination';
 import { haversineDistanceMeters } from '../../lib/geofence';
 import { kpiThreshold } from '../../lib/kpiThresholds';
 import { NotFoundError } from '../../middleware/errorHandler';
+import {
+  MAX_NEAR_DUPLICATE_DISTANCE,
+  PERCEPTUAL_HASH_BITS,
+  perceptualHashBands,
+  perceptualHashProbeKeys,
+} from '../photos/photoHash';
 
 // ── Heuristic thresholds & weights ────────────────────────────────────────
 // A borderline check-in that sits inside the 50m geofence but hugs its edge.
@@ -150,6 +156,61 @@ const WEIGHT_NO_CAPTURE = 30;
 const WEIGHT_REPEATING_STOCK_COUNTS_BASKET = 15;
 const WEIGHT_REPEATING_STOCK_COUNTS_PARTIAL = 5;
 
+// ── Duplicate photo reuse (#244) ───────────────────────────────────────────
+// The same shelf photo submitted again — on a visit to a different outlet, or
+// on a later visit to the same one — is a ghost-visit pattern: the agent did not
+// photograph the shelf this time, they re-used a picture they already had.
+//
+// Photos are base64 in `url` (ADR 0007), which cannot be compared or indexed
+// (btree caps at ~2704 bytes). Upload stores two small hashes instead (see
+// photos/photoHash.ts), and only those are compared:
+//
+//   * exact: SHA-256 of the decoded bytes. Two captures never produce the same
+//     file (sensor noise, EXIF capture time), so this is the same file twice.
+//   * near: dHash Hamming distance within the client's threshold. Catches the
+//     copy that went through a chat app (re-encoded, resized) on its way back.
+//
+// "Reuse" is directional. The match must belong to an EARLIER visit of the same
+// client, by device checkinTs (ties by id, the #245 ordering): the first use of
+// a photo is where it was taken, and must not be accused for being copied later.
+// Photos without hashes (pre-#244 rows not yet backfilled) are simply not seen.
+//
+// A task-closure photo is not an audit capture — it is attached to the
+// originating visit days later, by design (#246) — so it neither triggers the
+// signal nor counts as the photo that was reused.
+//
+// The threshold is per client. Why bits and not a similarity %: it is what the
+// index reasons in. Default 6: a re-encode moves ~1 bit and a half-size copy ~3,
+// while unrelated shelf frames sit at 25+ (measured, photoHash.test.ts). It stays
+// below 7 on purpose — the same planogram photographed in two stores of one chain
+// is the false positive a near match risks, and the tighter bound keeps it rarer.
+// Above 7 the band index cannot promise to return the match, so it clamps there.
+export const DUPLICATE_PHOTO_MAX_DISTANCE_KEY = 'duplicatePhotoMaxDistance';
+export const DEFAULT_DUPLICATE_PHOTO_MAX_DISTANCE = 6;
+
+// Weights, flat — neither scales with how many photos were reused or how often:
+// one reused photo already says the shelf was not photographed this time.
+//
+// A different outlet is the strong case: the photo contradicts where the agent
+// claims to have been. Byte-identical, 35: it cannot be two captures, but alone
+// it still stays under the review threshold (50), because one visit's evidence
+// can be the wrong photo picked from the gallery. It is NOT folded into
+// photo_gps_divergence the way capture_timeline_gap is: the GPS tag is metadata
+// the device supplies (and can strip), while this is the image content itself,
+// so the two agreeing is corroboration, not one fact counted twice.
+const WEIGHT_DUPLICATE_PHOTO_OTHER_OUTLET_EXACT = 35;
+// Near, 25: a re-encoded copy is reuse just the same, but at 64 bits two stores
+// of one chain with the same planogram, shot from the same angle, can hash close.
+const WEIGHT_DUPLICATE_PHOTO_OTHER_OUTLET_NEAR = 25;
+// A previous visit to the SAME outlet is weaker: the agent may well have been
+// there and skipped only the photo. Byte-identical, 15 — level with the other
+// "not captured this time" signals (capture_timeline_gap, repeating_stock_counts).
+const WEIGHT_DUPLICATE_PHOTO_SAME_OUTLET_EXACT = 15;
+// Near, only 5: the same shelf photographed from the same spot a week later
+// honestly looks alike, and an unchanged planogram is exactly what an audit
+// hopes to see. Reported so a reviewer can look; corroboration only.
+const WEIGHT_DUPLICATE_PHOTO_SAME_OUTLET_NEAR = 5;
+
 const MS_PER_MINUTE = 60_000;
 const MS_PER_DAY = 24 * 60 * MS_PER_MINUTE;
 
@@ -214,6 +275,25 @@ export interface FraudRelatedInput {
   // first by device checkinTs (ties by id) — see loadPriorStockVisits(). Only
   // the first repeatingStockLookbackVisits() are read. Absent or empty → silent.
   priorStockVisits?: FraudStockVisit[];
+  // Hash matches for this visit's photos against the client's other photos
+  // (#244) — see loadDuplicatePhotoMatches(). Absent or empty → no duplicate_photo.
+  photoMatches?: FraudPhotoMatch[];
+}
+
+/** One of this visit's photos matching a photo on another visit (#244). */
+export interface FraudPhotoMatch {
+  /** This visit's photo. */
+  photoId: string;
+  section: string;
+  /** Byte-identical: the SHA-256 of the decoded bytes is equal. */
+  exact: boolean;
+  /** dHash Hamming distance in bits; null when either photo has no comparable hash. */
+  distance: number | null;
+  matchVisitId: string;
+  matchOutletId: string;
+  /** The matched visit's DEVICE check-in, which decides which use came first. */
+  matchCheckinTs: Date;
+  matchSection: string;
 }
 
 /** One VisitStock row, as repeating_stock_counts sees it. */
@@ -442,6 +522,101 @@ function repeatingStockCounts(
       };
 }
 
+/** The near-duplicate threshold, in dHash bits, for one client. See #244 above. */
+export function duplicatePhotoMaxDistance(kpiThresholds: unknown): number {
+  const raw = Math.floor(
+    kpiThreshold(kpiThresholds, DUPLICATE_PHOTO_MAX_DISTANCE_KEY, DEFAULT_DUPLICATE_PHOTO_MAX_DISTANCE),
+  );
+  // 0 is a policy (identical perceptual hashes only); negative is a typo, and
+  // falls back. Above the ceiling clamps: the lookup could not return those
+  // matches, so honouring it would only pretend to look.
+  if (raw < 0) {
+    return DEFAULT_DUPLICATE_PHOTO_MAX_DISTANCE;
+  }
+  return Math.min(raw, MAX_NEAR_DUPLICATE_DISTANCE);
+}
+
+/** The weight of one qualifying match. See the WEIGHT_DUPLICATE_PHOTO_* notes. */
+function duplicatePhotoWeight(exact: boolean, otherOutlet: boolean): number {
+  if (otherOutlet) {
+    return exact ? WEIGHT_DUPLICATE_PHOTO_OTHER_OUTLET_EXACT : WEIGHT_DUPLICATE_PHOTO_OTHER_OUTLET_NEAR;
+  }
+  return exact ? WEIGHT_DUPLICATE_PHOTO_SAME_OUTLET_EXACT : WEIGHT_DUPLICATE_PHOTO_SAME_OUTLET_NEAR;
+}
+
+/**
+ * duplicate_photo (#244), or null. Pure; see the DUPLICATE_PHOTO notes at the
+ * top. The loader has already narrowed the candidates, but every rule is applied
+ * again here so the heuristic is whole and testable on its own:
+ *
+ *   - neither photo is a task-closure photo;
+ *   - the match is on a different visit, strictly EARLIER on
+ *     (device checkinTs, id) — ids compared bytewise, as the loader's SQL does;
+ *   - it is byte-identical, or has a perceptual distance within the threshold.
+ *
+ * One signal per visit, at the strongest qualifying match; the detail counts how
+ * many of this visit's photos matched.
+ */
+function duplicatePhoto(
+  visit: FraudVisitInput,
+  related: FraudRelatedInput,
+  kpiThresholds: unknown,
+): FraudSignal | null {
+  const matches = related.photoMatches ?? [];
+  if (matches.length === 0) {
+    return null;
+  }
+  const maxDistance = duplicatePhotoMaxDistance(kpiThresholds);
+  const checkinMs = visit.checkinTs.getTime();
+
+  const matchedPhotos = new Set<string>();
+  let best: { match: FraudPhotoMatch; weight: number; otherOutlet: boolean } | null = null;
+  for (const match of matches) {
+    if (
+      match.section === TASK_CLOSURE_PHOTO_SECTION ||
+      match.matchSection === TASK_CLOSURE_PHOTO_SECTION ||
+      match.matchVisitId === visit.id
+    ) {
+      continue;
+    }
+    const matchMs = match.matchCheckinTs.getTime();
+    const earlier = matchMs < checkinMs || (matchMs === checkinMs && match.matchVisitId < visit.id);
+    const near = match.distance !== null && match.distance <= maxDistance;
+    if (!earlier || !(match.exact || near)) {
+      continue;
+    }
+    matchedPhotos.add(match.photoId);
+    const otherOutlet = match.matchOutletId !== visit.outletId;
+    const weight = duplicatePhotoWeight(match.exact, otherOutlet);
+    const closer =
+      best !== null &&
+      weight === best.weight &&
+      !match.exact &&
+      (match.distance ?? Infinity) < (best.match.distance ?? Infinity);
+    if (best === null || weight > best.weight || closer) {
+      best = { match, weight, otherOutlet };
+    }
+  }
+  if (best === null) {
+    return null;
+  }
+
+  const { match, weight, otherOutlet } = best;
+  const kind = match.exact
+    ? 'byte-identical to'
+    : `a near-duplicate (${match.distance} of ${PERCEPTUAL_HASH_BITS} bits differ, threshold ${maxDistance}) of`;
+  const date = match.matchCheckinTs.toISOString().slice(0, 10);
+  return {
+    code: 'duplicate_photo',
+    detail:
+      `${matchedPhotos.size} photo(s) on this visit match a photo from an earlier visit by this client; ` +
+      `the strongest is ${kind} a photo from a visit to ${otherOutlet ? 'a different outlet' : 'this outlet'} ` +
+      `on ${date} (device check-in)` +
+      (!otherOutlet && !match.exact ? '; the same shelf photographed from the same spot also looks alike' : ''),
+    weight,
+  };
+}
+
 /**
  * Score a single visit against the fraud/ghost-visit heuristics. Pure: every
  * input it needs is passed in, so it is trivially unit-testable and reused by
@@ -630,6 +805,14 @@ export function computeFraudSignals(
     }
   }
 
+  // 8. Duplicate photo (#244) — this visit's photo already appeared on an
+  //    earlier visit of the same client. Any status, like photo_gps_divergence:
+  //    an uploaded photo is evidence whether or not the visit was submitted.
+  const duplicate = duplicatePhoto(visit, related, kpiThresholds);
+  if (duplicate) {
+    signals.push(duplicate);
+  }
+
   const rawScore = signals.reduce((sum, signal) => sum + signal.weight, 0);
   const riskScore = Math.max(RISK_MIN, Math.min(RISK_MAX, rawScore));
 
@@ -644,10 +827,21 @@ export const fraudVisitInclude = {
   competitive: true,
   capability: true,
   // Fraud inspects each photo's gpsTag, device timestamp and section (see
-  // FraudRelatedInput). Selecting the base64 `url` too meant listFlagged
-  // detoasted every stored image — MBs per row — only to discard them. Select
-  // only the fields we read.
-  photos: { select: { gpsTag: true, timestamp: true, section: true } },
+  // FraudRelatedInput), and its id and two hashes to look duplicates up (#244).
+  // Selecting the base64 `url` too meant listFlagged detoasted every stored
+  // image — MBs per row — only to discard them. Select only the fields we read:
+  // a 64-char and a 16-char string, never the bytes (and not the band array,
+  // which the lookup rebuilds from perceptualHash).
+  photos: {
+    select: {
+      id: true,
+      gpsTag: true,
+      timestamp: true,
+      section: true,
+      contentHash: true,
+      perceptualHash: true,
+    },
+  },
 } as const satisfies Prisma.VisitInclude;
 
 type FraudVisitPayload = Prisma.VisitGetPayload<{ include: typeof fraudVisitInclude }>;
@@ -782,6 +976,168 @@ export async function loadPriorStockVisits(
   return byOutlet;
 }
 
+/** One photo to look duplicates up for: a scored visit's own, with its hashes. */
+export interface DuplicatePhotoSource {
+  photoId: string;
+  section: string;
+  visitId: string;
+  outletId: string;
+  checkinTs: Date;
+  contentHash: string | null;
+  perceptualHash: string | null;
+}
+
+interface DuplicatePhotoRow {
+  photo_id: string;
+  match_visit_id: string;
+  match_outlet_id: string;
+  match_checkin_ts: Date;
+  match_section: string;
+  exact: boolean;
+  distance: number | null;
+}
+
+/** A scored visit's photos worth looking up: audit captures that carry a hash. */
+function duplicatePhotoSources(visit: FraudVisitPayload): DuplicatePhotoSource[] {
+  return visit.photos
+    .filter((photo) => photo.section !== TASK_CLOSURE_PHOTO_SECTION && photo.contentHash !== null)
+    .map((photo) => ({
+      photoId: photo.id,
+      section: photo.section,
+      visitId: visit.id,
+      outletId: visit.outletId,
+      checkinTs: visit.checkinTs,
+      contentHash: photo.contentHash,
+      perceptualHash: photo.perceptualHash,
+    }));
+}
+
+/**
+ * Duplicate-photo matches for many photos, in ONE round trip (#244).
+ *
+ * For each source photo, the strongest photo on an EARLIER visit (device
+ * checkinTs, ties by id) of the same client that is byte-identical or within
+ * `maxDistance` dHash bits — ranked as computeFraudSignals weighs them: another
+ * outlet first, then exact, then closest. One row per source photo at most, so
+ * a photo reused a hundred times (or a placeholder image every visit carries)
+ * costs one row, not a hundred.
+ *
+ * Never touches `url`. Candidates come from two indexed branches:
+ *   - exact: `content_hash` equality (btree);
+ *   - near: `perceptual_hash_bands && probe keys` (GIN), the probe built by
+ *     perceptualHashProbeKeys() — the pigeonhole scheme in photos/photoHash.ts
+ *     that guarantees every hash within 7 bits shares a key. Candidates are a
+ *     superset; the real distance is then measured on the 64-bit hashes.
+ * A degenerate or malformed hash has no bands, so it is never compared as near,
+ * on either side; exact matching still applies to it.
+ *
+ * Tenant scope is the join to visits: another client's identical photo is
+ * found by the index and dropped by `client_id`, never returned.
+ */
+export async function loadDuplicatePhotoMatches(
+  clientId: string,
+  sources: DuplicatePhotoSource[],
+  maxDistance: number,
+): Promise<Map<string, FraudPhotoMatch[]>> {
+  const byVisit = new Map<string, FraudPhotoMatch[]>();
+  const hashed = sources.filter((s) => s.contentHash !== null && s.section !== TASK_CLOSURE_PHOTO_SECTION);
+  if (hashed.length === 0) {
+    return byVisit;
+  }
+
+  // Only a hash with bands is comparable as near; the rest go in as null.
+  const comparable = hashed.map((s) => (perceptualHashBands(s.perceptualHash).length > 0 ? s.perceptualHash : null));
+  const probeIds: string[] = [];
+  const probeKeys: number[] = [];
+  hashed.forEach((s, i) => {
+    for (const key of perceptualHashProbeKeys(comparable[i], maxDistance)) {
+      probeIds.push(s.photoId);
+      probeKeys.push(key);
+    }
+  });
+
+  const rows = await prisma.$queryRaw<DuplicatePhotoRow[]>(
+    Prisma.sql`
+      WITH src AS (
+        SELECT * FROM unnest(
+          ${hashed.map((s) => s.photoId)}::text[],
+          ${hashed.map((s) => s.visitId)}::text[],
+          ${hashed.map((s) => s.outletId)}::text[],
+          ${hashed.map((s) => s.checkinTs.toISOString())}::timestamp[],
+          ${hashed.map((s) => s.contentHash)}::text[],
+          ${comparable}::text[]
+        ) AS s(photo_id, visit_id, outlet_id, checkin_ts, content_hash, perceptual_hash)
+      ),
+      probe AS (
+        SELECT k.photo_id, array_agg(k.band_key) AS band_keys
+        FROM unnest(${probeIds}::text[], ${probeKeys}::int[]) AS k(photo_id, band_key)
+        GROUP BY k.photo_id
+      ),
+      candidate AS (
+        SELECT s.photo_id, p.id AS match_id
+        FROM src s
+        JOIN photos p ON p.content_hash = s.content_hash
+        UNION
+        SELECT pr.photo_id, p.id AS match_id
+        FROM probe pr
+        JOIN photos p ON p.perceptual_hash_bands && pr.band_keys
+      ),
+      scored AS (
+        SELECT s.photo_id, s.outlet_id AS source_outlet_id,
+          p.visit_id AS match_visit_id, v.outlet_id AS match_outlet_id,
+          v.checkin_ts AS match_checkin_ts, p.section AS match_section,
+          COALESCE(p.content_hash = s.content_hash, false) AS exact,
+          -- Popcount of the XOR, spelled portably (bit_count() is Postgres 14+).
+          CASE WHEN s.perceptual_hash IS NOT NULL AND cardinality(p.perceptual_hash_bands) > 0
+            THEN length(replace(
+              (('x' || p.perceptual_hash)::bit(64) # ('x' || s.perceptual_hash)::bit(64))::text, '0', ''
+            ))
+          END AS distance
+        FROM candidate c
+        JOIN src s ON s.photo_id = c.photo_id
+        JOIN photos p ON p.id = c.match_id
+        JOIN visits v ON v.id = p.visit_id
+        WHERE v.client_id = ${clientId}
+          AND p.visit_id <> s.visit_id
+          AND p.section <> ${TASK_CLOSURE_PHOTO_SECTION}
+          -- Bytewise id order, as computeFraudSignals compares ids in JS.
+          AND (v.checkin_ts, v.id COLLATE "C") < (s.checkin_ts, s.visit_id COLLATE "C")
+      )
+      SELECT DISTINCT ON (photo_id)
+        photo_id, match_visit_id, match_outlet_id, match_checkin_ts, match_section, exact, distance
+      FROM scored
+      WHERE exact OR distance <= ${maxDistance}
+      ORDER BY photo_id,
+        (match_outlet_id <> source_outlet_id) DESC,
+        exact DESC,
+        distance ASC NULLS LAST,
+        match_checkin_ts DESC,
+        match_visit_id DESC
+    `,
+  );
+
+  const sourceById = new Map(hashed.map((s) => [s.photoId, s]));
+  for (const row of rows) {
+    const source = sourceById.get(row.photo_id);
+    if (!source) {
+      continue;
+    }
+    const list = byVisit.get(source.visitId) ?? [];
+    list.push({
+      photoId: row.photo_id,
+      section: source.section,
+      exact: row.exact,
+      distance: row.distance === null ? null : Number(row.distance),
+      matchVisitId: row.match_visit_id,
+      matchOutletId: row.match_outlet_id,
+      matchCheckinTs: row.match_checkin_ts,
+      matchSection: row.match_section,
+    });
+    byVisit.set(source.visitId, list);
+  }
+  return byVisit;
+}
+
 /** GET /fraud/visits/:visitId — score one tenant-scoped visit. */
 export async function getVisitFraud(visitId: string, clientId: string): Promise<FraudResult> {
   const visit = await prisma.visit.findFirst({
@@ -800,17 +1156,22 @@ export async function getVisitFraud(visitId: string, clientId: string): Promise<
   ]);
 
   // Only a submitted visit with counts can repeat anything; skip the history
-  // read for everything else.
-  const priorStockVisits =
+  // read for everything else. The photo lookup skips itself when no photo has a
+  // hash.
+  const [priorStockVisits, photoMatches] = await Promise.all([
     visit.status === 'submitted' && visit.stock.length > 0
-      ? ((
-          await loadPriorStockVisits(
-            clientId,
-            [{ outletId: visit.outletId, checkinTs: visit.checkinTs, visitId: visit.id }],
-            repeatingStockLookbackVisits(client?.kpiThresholds),
-          )
-        ).get(visit.outletId) ?? [])
-      : [];
+      ? loadPriorStockVisits(
+          clientId,
+          [{ outletId: visit.outletId, checkinTs: visit.checkinTs, visitId: visit.id }],
+          repeatingStockLookbackVisits(client?.kpiThresholds),
+        ).then((byOutlet) => byOutlet.get(visit.outletId) ?? [])
+      : Promise.resolve([]),
+    loadDuplicatePhotoMatches(
+      clientId,
+      duplicatePhotoSources(visit),
+      duplicatePhotoMaxDistance(client?.kpiThresholds),
+    ).then((byVisit) => byVisit.get(visit.id) ?? []),
+  ]);
 
   return computeFraudSignals(
     toFraudVisitInput(visit),
@@ -820,6 +1181,7 @@ export async function getVisitFraud(visitId: string, clientId: string): Promise<
       failedAttempts,
       stockCounts: toStockCounts(visit),
       priorStockVisits,
+      photoMatches,
     },
     client?.kpiThresholds,
   );
@@ -959,7 +1321,16 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
       visitId: visit.id,
     });
   }
-  const earlier = await loadPriorStockVisits(clientId, [...oldestByOutlet.values()], lookback);
+  // Duplicate photos (#244): every hashed photo in the scan is looked up in the
+  // same single query, alongside the stock history read — never per visit.
+  const [earlier, photoMatchesByVisit] = await Promise.all([
+    loadPriorStockVisits(clientId, [...oldestByOutlet.values()], lookback),
+    loadDuplicatePhotoMatches(
+      clientId,
+      visits.flatMap(duplicatePhotoSources),
+      duplicatePhotoMaxDistance(client?.kpiThresholds),
+    ),
+  ]);
   const timelineByOutlet = new Map<string, FraudStockVisit[]>();
   const positionInTimeline = new Map<string, number>();
   for (const visit of visits) {
@@ -993,6 +1364,7 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
         failedAttempts: attemptsForVisit,
         stockCounts: toStockCounts(visit),
         priorStockVisits,
+        photoMatches: photoMatchesByVisit.get(visit.id) ?? [],
       },
       client?.kpiThresholds,
     );

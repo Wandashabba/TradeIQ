@@ -48,6 +48,26 @@ computes a `riskScore` (0-100) from weighted signals:
   10 visits per outlet. `GET /fraud/flagged` uses the scanned visits themselves
   as each outlet's recent history, and loads only what precedes each outlet's
   oldest scanned visit
+- `duplicate_photo` — the same shelf photo submitted again (#244). `POST /photos`
+  stores two small hashes per photo, computed once with `sharp`: `contentHash`
+  (SHA-256 of the decoded bytes) and `perceptualHash` (a 64-bit dHash), plus the
+  dHash split into four position-tagged 16-bit bands in a GIN-indexed `int[]`.
+  The base64 `url` is never compared or indexed. A visit's photo matches when a
+  photo on an **earlier** visit of the **same client** (device `checkinTs`, ties
+  by id) is byte-identical, or within
+  `kpiThresholds.duplicatePhotoMaxDistance` bits of dHash (default 6; negative
+  falls back, above 7 clamps — the band index guarantees recall only up to 7).
+  The first use of a photo is never accused. Flat weights, strongest match wins:
+  another outlet 35 exact / 25 near; an earlier visit to the same outlet 15
+  exact / 5 near (the same shelf shot from the same spot honestly looks alike).
+  Never flags alone. Excludes `task_closure` photos on either side, and photos
+  without hashes. The hashes are omitted from every photo response
+  (`lib/prisma.ts`). Lookups are one query per call: an exact branch on the
+  btree `content_hash` index and a near branch probing the band index, keeping
+  only the strongest match per photo, so `GET /fraud/flagged` does not N+1.
+  Photos uploaded before #244 are hashed by `npm run backfill-photo-hashes`
+  (batched, idempotent, resumable; `--batch`, `--limit`, `--client`), never by
+  the migration
 
 `GET /fraud/visits/:visitId`, `GET /fraud/attempts`, `GET /fraud/flagged`.
 Fed by the new `CheckInAttempt` table (every attempt, incl. rejected ones — #44)

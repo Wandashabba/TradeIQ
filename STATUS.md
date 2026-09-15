@@ -803,11 +803,17 @@ Independent of the assistant. The chatbot can only report signals the backend
 computes, so these are **backend** work items.
 
 **Fraud signals described in the field but not implemented** (existing:
-`capture_timeline_gap`, `failed_attempts`, `fast_completion`,
-`geofence_distance`, `no_capture`, `photo_gps_divergence`,
+`capture_timeline_gap`, `duplicate_photo`, `failed_attempts`,
+`fast_completion`, `geofence_distance`, `no_capture`, `photo_gps_divergence`,
 `repeating_stock_counts`, `slow_completion`):
 
-- [ ] #244 — Duplicate photo reuse across outlets / visits
+- [x] #244 — Duplicate photo reuse across outlets / visits → `duplicate_photo`.
+      Upload stores a SHA-256 content hash and a 64-bit dHash (never compares
+      the base64 `url`). A photo matching one on an earlier visit of the same
+      client, exactly or within `kpiThresholds.duplicatePhotoMaxDistance` bits
+      (default 6, ceiling 7): 35/25 (exact/near) at another outlet, 15/5 at the
+      same outlet. Excludes `task_closure` and unhashed photos. One lookup query
+      per call. Older photos: `npm run backfill-photo-hashes`
 - [x] #245 — Flat or repeating stock figures across periods (*"2-1, 2-1"*) →
       `repeating_stock_counts`. Identical counts for an (outlet, SKU) across
       `kpiThresholds.repeatingStockRunLength` consecutive submitted visits

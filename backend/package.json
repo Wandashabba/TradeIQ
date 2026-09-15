@@ -16,7 +16,8 @@
     "prisma:generate": "prisma generate",
     "seed": "ts-node scripts/seed.ts",
     "create-admin": "ts-node scripts/create-admin.ts",
-    "enable-assistant": "ts-node scripts/enable-assistant.ts"
+    "enable-assistant": "ts-node scripts/enable-assistant.ts",
+    "backfill-photo-hashes": "ts-node scripts/backfill-photo-hashes.ts"
   },
   "keywords": [],
   "author": "",
