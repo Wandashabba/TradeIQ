@@ -195,6 +195,26 @@ model Visit {
   /// would rather report nothing than a number we know to be wrong.
   submittedAtClient DateTime?   @map("submitted_at_client")
 
+  /// The fraud engine's result for this visit, stored so GET /fraud/flagged can
+  /// filter and sort on a column and paginate like every other list (#236).
+  ///
+  /// A SNAPSHOT, not a live value. It is computed when the visit is submitted
+  /// (and by `npm run rescore-fraud`), and several signals read history that can
+  /// change afterwards: earlier visits' stock and photos, rejected check-in
+  /// attempts, and the client's `kpiThresholds`. `fraudScoredAt` says when it
+  /// was taken. GET /fraud/visits/:id always recomputes live; only the flagged
+  /// list reads these columns. A client that changes a fraud threshold rescores
+  /// with `npm run rescore-fraud -- --client <id> --all`.
+  ///
+  /// Nullable: visits recorded before #236 have no score until backfilled, and
+  /// the flagged list reports how many of those are in range rather than hiding
+  /// them silently.
+  riskScore     Int?      @map("risk_score")
+  /// The FraudSignal[] ({code, detail, weight}) behind `riskScore`.
+  fraudSignals  Json?     @map("fraud_signals")
+  /// When the stored score's inputs were read.
+  fraudScoredAt DateTime? @map("fraud_scored_at")
+
   stock       VisitStock[]
   visibility  VisitVisibility?
   pricing     VisitPricing[]
@@ -210,6 +230,11 @@ model Visit {
 
   @@index([clientId, status])
   @@index([clientId, checkinTs])
+  // GET /fraud/flagged (#236): `client_id = ? AND status = 'submitted' AND
+  // risk_score >= ?` ordered `risk_score DESC, id DESC` — the equality columns,
+  // then exactly the keyset's sort, so a page is an index range read in order
+  // with no sort step. Also serves the `risk_score IS NULL` unscored count.
+  @@index([clientId, status, riskScore(sort: Desc), id(sort: Desc)])
   @@index([outletId])
   @@index([agentId])
   @@map("visits")

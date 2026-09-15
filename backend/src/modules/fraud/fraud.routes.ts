@@ -62,7 +62,9 @@ fraudRouter.get('/attempts', async (req: AuthedRequest, res) => {
   res.status(200).json(page);
 });
 
-// GET /fraud/flagged — submitted visits scoring >= minScore (default 50).
+// GET /fraud/flagged — submitted visits whose stored score is >= minScore
+// (default 50), highest risk first, as a standard keyset page:
+// { data, nextCursor, unscored, from, to }. See listFlagged (#236).
 fraudRouter.get('/flagged', async (req: AuthedRequest, res) => {
   const { minScore } = req.query as { minScore?: unknown };
 
@@ -75,9 +77,8 @@ fraudRouter.get('/flagged', async (req: AuthedRequest, res) => {
     min = Number(minScore);
   }
 
-  // The scan window. Rejected rather than coerced when malformed: a silently
-  // ignored `from` would quietly widen the scan back to everything, which is
-  // the exact behaviour this endpoint was changed to stop doing.
+  // The review window. Rejected rather than coerced when malformed: a silently
+  // ignored `from` would quietly answer a different question than the one asked.
   const window: { from?: Date; to?: Date } = {};
   for (const key of ['from', 'to'] as const) {
     const raw = (req.query as Record<string, unknown>)[key];
@@ -89,6 +90,7 @@ fraudRouter.get('/flagged', async (req: AuthedRequest, res) => {
     window[key] = new Date(raw);
   }
 
-  const page = await listFlagged({ clientId: req.user!.clientId, minScore: min, ...window });
+  const { limit, cursor } = parsePagination(req);
+  const page = await listFlagged({ clientId: req.user!.clientId, minScore: min, ...window, limit, cursor });
   res.status(200).json(page);
 });

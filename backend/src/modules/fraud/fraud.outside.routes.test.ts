@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { TestUser, userIn } from '../../test-utils/tenants';
+import { rescoreFraudScores } from './fraudRescore';
 
 /**
  * #248 end to end: stock_outside_outlet on GET /fraud/visits/:id and
@@ -258,6 +259,11 @@ describe('stock_outside_outlet routes (#248)', () => {
   });
 
   describe('GET /fraud/flagged', () => {
+    // The list reads the stored score (#236); fixtures were written directly.
+    beforeAll(async () => {
+      await rescoreFraudScores({ clientId });
+    });
+
     it('flags only the corroborated visit by default, and lists the rest with the same signals as the visit endpoint', async () => {
       const byDefault = await request(app).get('/fraud/flagged').set('Authorization', `Bearer ${manager.token}`);
       expect(byDefault.status).toBe(200);
@@ -273,16 +279,17 @@ describe('stock_outside_outlet routes (#248)', () => {
       }
     });
 
-    it('looks the outlets near every capture position up in one query, however many visits (no N+1)', async () => {
+    it('looks the outlets near every capture position up in one query per scoring batch (no N+1)', async () => {
       const queryRaw = jest.spyOn(prisma, '$queryRaw');
       const outletFindMany = jest.spyOn(prisma.outlet, 'findMany');
       const outletFindFirst = jest.spyOn(prisma.outlet, 'findFirst');
       const outletFindUnique = jest.spyOn(prisma.outlet, 'findUnique');
       try {
+        const result = await rescoreFraudScores({ clientId, all: true });
+        // Seven submitted visits of this client scored in one batch (the draft is not).
+        expect(result.scanned).toBe(7);
         const res = await request(app).get('/fraud/flagged?minScore=1').set('Authorization', `Bearer ${manager.token}`);
         expect(res.status).toBe(200);
-        // Seven submitted visits of this client scanned (the draft is not).
-        expect(res.body.scanned).toBe(7);
         expect(res.body.data).toHaveLength(3);
 
         const sqlOf = (call: unknown[]) => (call[0] as { sql: string }).sql;

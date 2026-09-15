@@ -4,6 +4,7 @@ import { httpServer as app } from '../../testHttpServer';
 import { reencodedCopy, shelfJpeg, toDataUrl } from '../../test-utils/shelfImage';
 import { TestUser, userIn } from '../../test-utils/tenants';
 import { perceptualHashBands } from '../photos/photoHash';
+import { rescoreFraudScores } from './fraudRescore';
 
 /**
  * #244 end to end: photos go in through POST /photos (which hashes them), and
@@ -293,6 +294,11 @@ describe('duplicate_photo routes (#244)', () => {
   });
 
   describe('GET /fraud/flagged', () => {
+    // The list reads the stored score (#236); fixtures were written directly.
+    beforeAll(async () => {
+      await rescoreFraudScores({ clientId });
+    });
+
     it('never flags reuse alone, but lists it with the same signals as the visit endpoint', async () => {
       const byDefault = await request(app).get('/fraud/flagged').set('Authorization', `Bearer ${manager.token}`);
       expect(byDefault.status).toBe(200);
@@ -310,24 +316,28 @@ describe('duplicate_photo routes (#244)', () => {
       }
     });
 
-    it('looks every scanned photo up in one query, however many visits and outlets (no N+1)', async () => {
+    it('looks every photo in a scoring batch up in one query, however many visits and outlets (no N+1)', async () => {
       const queryRaw = jest.spyOn(prisma, '$queryRaw');
       const photoFindMany = jest.spyOn(prisma.photo, 'findMany');
       const photoFindFirst = jest.spyOn(prisma.photo, 'findFirst');
       try {
+        const result = await rescoreFraudScores({ clientId, all: true });
+        expect(result.scanned).toBe(16);
         const res = await request(app)
           .get('/fraud/flagged?minScore=1')
           .set('Authorization', `Bearer ${manager.token}`);
         expect(res.status).toBe(200);
-        expect(res.body.scanned).toBe(16);
         expect(res.body.data).toHaveLength(4);
 
         const sqlOf = (call: unknown[]) => (call[0] as { sql: string }).sql;
         const photoLookups = queryRaw.mock.calls.filter((call) => sqlOf(call).includes('perceptual_hash_bands'));
-        // One photo lookup for 16 visits across 3 outlets, plus #245's one stock
-        // history read, and no per-photo or per-visit query of any kind.
+        // One photo lookup for 16 visits across 3 outlets, and no per-photo or
+        // per-visit query of any kind. These fixtures record no stock, so the
+        // batched scorer skips #245's history read entirely (#236), and the
+        // flagged list itself reads only stored columns.
         expect(photoLookups).toHaveLength(1);
-        expect(queryRaw).toHaveBeenCalledTimes(2);
+        expect(queryRaw.mock.calls.filter((call) => sqlOf(call).includes('visit_stock'))).toHaveLength(0);
+        expect(queryRaw).toHaveBeenCalledTimes(1);
         expect(photoFindMany).not.toHaveBeenCalled();
         expect(photoFindFirst).not.toHaveBeenCalled();
       } finally {

@@ -1,10 +1,12 @@
 import { createServer } from 'http';
 import express from 'express';
 import request from 'supertest';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { errorHandler } from '../../middleware/errorHandler';
 import { issueToken } from '../auth/auth.service';
 import { fraudRouter } from './fraud.routes';
+import { rescoreFraudScores } from './fraudRescore';
 import { userIn } from '../../test-utils/tenants';
 
 // The fraud router is mounted on a local app here rather than the shared
@@ -27,13 +29,13 @@ const FAR_PHOTO_LAT = -26.2086;
 
 // Anchored to the run day, NOT pinned to a calendar date.
 //
-// `GET /fraud/flagged` always bounds its scan, defaulting to the last
+// `GET /fraud/flagged` defaults to a window of the last
 // DEFAULT_FRAUD_WINDOW_DAYS (#236). A fixture pinned to an absolute date
 // therefore slides out of that window as the calendar moves, and the suite
 // starts failing on a day nobody touched the code. That is exactly what
 // happened: these were `2026-07-01` and `2026-07-05`, which sat inside the
-// 30-day window when #236 landed on 2026-07-30 and fell outside it on
-// 2026-08-04. `GET /fraud/flagged` then scanned nothing and returned [].
+// 30-day window when the window landed on 2026-07-30 and fell outside it on
+// 2026-08-04. `GET /fraud/flagged` then found nothing and returned [].
 //
 // Keep every date here relative to `now`, and keep the offsets well inside
 // DEFAULT_FRAUD_WINDOW_DAYS. The demo seed anchors to its run day for the same
@@ -418,6 +420,11 @@ describe('fraud routes', () => {
       },
     });
     clientBVisitId = clientBVisit.id;
+
+    // The fixtures are written straight to the table, never through submit, so
+    // nothing has a stored score yet. GET /fraud/flagged reads only the stored
+    // column (#236): score client A the way a backfill would.
+    await rescoreFraudScores({ clientId });
   });
 
   afterAll(async () => {
@@ -683,41 +690,45 @@ describe('fraud routes', () => {
   });
 
   describe('GET /fraud/flagged', () => {
-    it('bounds the scan and says so, rather than silently truncating (#236)', async () => {
-      // The endpoint scores visits in memory, so it cannot key a cursor on the
-      // result. What it CAN do is refuse to scan without limit — and admit it
-      // when the limit bit. A flagged list that quietly stops short is worse
-      // than one that says it stopped: a manager who cannot see a suspicious
-      // visit concludes there wasn't one.
-      const res = await request(app)
-        .get('/fraud/flagged')
-        .set('Authorization', `Bearer ${managerToken}`);
+    type Row = { visitId: string; riskScore: number; signals: Array<{ code: string }>; scoredAt: string | null };
+    const flagged = (query = '') =>
+      request(app).get(`/fraud/flagged${query}`).set('Authorization', `Bearer ${managerToken}`);
+
+    it('returns the standard page envelope, plus how many visits in the window are unscored (#236)', async () => {
+      // The score is a stored column now, so the list pages like every other
+      // one. The old {scanned, truncated} described an in-memory scan that no
+      // longer happens; `nextCursor` is how a page says there is more.
+      const res = await flagged();
 
       expect(res.status).toBe(200);
+      expect(Object.keys(res.body).sort()).toEqual(['data', 'from', 'nextCursor', 'to', 'unscored']);
       expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body).toHaveProperty('scanned');
-      expect(res.body).toHaveProperty('truncated');
-      expect(res.body.truncated).toBe(false);
+      expect(res.body.nextCursor).toBeNull();
+      expect(res.body.unscored).toBe(0);
     });
 
-    it('rejects a scan window that is not a date with 400', async () => {
-      const res = await request(app)
-        .get('/fraud/flagged?from=not-a-date')
-        .set('Authorization', `Bearer ${managerToken}`);
+    it('rejects a window that is not a date with 400', async () => {
+      const res = await flagged('?from=not-a-date');
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects a non-positive limit with 400', async () => {
+      const res = await flagged('?limit=0');
 
       expect(res.status).toBe(400);
     });
 
     it('honours an explicit from/to window', async () => {
       // A window in the distant past must find nothing, proving the window is
-      // applied to the scan rather than ignored.
-      const res = await request(app)
-        .get('/fraud/flagged?from=2020-01-01T00:00:00.000Z&to=2020-01-02T00:00:00.000Z')
-        .set('Authorization', `Bearer ${managerToken}`);
+      // applied rather than ignored, and it reports the window it applied.
+      const res = await flagged('?minScore=0&from=2020-01-01T00:00:00.000Z&to=2020-01-02T00:00:00.000Z');
 
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(0);
-      expect(res.body.scanned).toBe(0);
+      expect(res.body.unscored).toBe(0);
+      expect(res.body.from).toBe('2020-01-01T00:00:00.000Z');
+      expect(res.body.to).toBe('2020-01-02T00:00:00.000Z');
     });
 
     it('returns the suspicious visit and excludes the clean one', async () => {
@@ -733,30 +744,29 @@ describe('fraud routes', () => {
       expect(ids).not.toContain(slowVisitId);
       // So is one photo out of the visit's window (#246).
       expect(ids).not.toContain(timelineVisitId);
-      const flagged = res.body.data.find((v: { visitId: string }) => v.visitId === suspiciousVisitId);
-      expect(flagged.riskScore).toBe(85);
-      expect(flagged.outletId).toBe(outletId);
-      expect(flagged.agentId).toBe(agentId);
+      const row = res.body.data.find((v: { visitId: string }) => v.visitId === suspiciousVisitId);
+      expect(row.riskScore).toBe(85);
+      expect(row.outletId).toBe(outletId);
+      expect(row.agentId).toBe(agentId);
+      // The snapshot says when it was taken.
+      expect(Number.isNaN(Date.parse(row.scoredAt))).toBe(false);
     });
 
     it('never flags a repeating basket alone, but lists it with the same signal as the visit endpoint', async () => {
-      const byDefault = await request(app)
-        .get('/fraud/flagged')
-        .set('Authorization', `Bearer ${managerToken}`);
+      const byDefault = await flagged();
       expect(byDefault.status).toBe(200);
       const defaultIds = byDefault.body.data.map((v: { visitId: string }) => v.visitId);
       expect(defaultIds).not.toContain(repeatOutlet.repeatId);
 
       const [listed, single] = await Promise.all([
-        request(app).get('/fraud/flagged?minScore=15').set('Authorization', `Bearer ${managerToken}`),
+        flagged('?minScore=15'),
         request(app)
           .get(`/fraud/visits/${repeatOutlet.repeatId}`)
           .set('Authorization', `Bearer ${managerToken}`),
       ]);
       expect(listed.status).toBe(200);
       const row = listed.body.data.find((v: { visitId: string }) => v.visitId === repeatOutlet.repeatId);
-      // The scan builds each visit's history from the scanned visits plus one
-      // read of what precedes them; it must agree with the per-visit route.
+      // Stored by the batched rescore, it must agree with the live per-visit route.
       expect(row).toBeDefined();
       expect(row.signals).toEqual(single.body.signals);
       expect(row.riskScore).toBe(15);
@@ -765,34 +775,127 @@ describe('fraud routes', () => {
       expect(listedIds).not.toContain(repeatOutlet.draftId);
     });
 
-    it('reads the history before the scan window, rather than starting each run inside it', async () => {
-      // 9.5 days back: each repeat visit is inside, the two copies before it are not.
-      const from = new Date(Date.now() - 9.5 * DAY_MS).toISOString();
-      const res = await request(app)
-        .get(`/fraud/flagged?minScore=15&from=${from}`)
-        .set('Authorization', `Bearer ${managerToken}`);
+    it('scores each visit against its own history, even when that history was in another batch', async () => {
+      // One visit per batch: no repeat visit shares a batch with the copies before it.
+      await rescoreFraudScores({ clientId, all: true, batchSize: 1 });
 
+      const res = await flagged('?minScore=15');
       expect(res.status).toBe(200);
-      const ids = res.body.data.map((v: { visitId: string }) => v.visitId);
+      const rows = res.body.data as Row[];
+      const ids = rows.map((v) => v.visitId);
       expect(ids).toEqual(expect.arrayContaining([repeatOutlet.repeatId, repeatOutlet2.repeatId]));
       expect(ids).not.toContain(repeatOutlet.runOfTwoId);
+      for (const id of [repeatOutlet.repeatId, repeatOutlet2.repeatId]) {
+        const single = await request(app).get(`/fraud/visits/${id}`).set('Authorization', `Bearer ${managerToken}`);
+        expect(rows.find((v) => v.visitId === id)!.signals).toEqual(single.body.signals);
+      }
     });
 
-    it('loads stock history in one query per scan, however many outlets it covers (no N+1)', async () => {
-      const queryRaw = jest.spyOn(prisma, '$queryRaw');
+    it('orders by stored score, highest first, and pages on the cursor without repeating or dropping a visit', async () => {
+      // An explicit window: the oldest REPEAT-2 visit is checked in exactly
+      // DEFAULT_FRAUD_WINDOW_DAYS ago, so the default window drops it by the
+      // milliseconds between writing the fixture and reading it.
+      const window = `&from=${daysAgo(60).toISOString()}`;
+      const all = await flagged(`?minScore=0&limit=200${window}`);
+      expect(all.status).toBe(200);
+      const rows = all.body.data as Row[];
+      // Every submitted visit of client A, scored: 4 + 6 per repeat outlet.
+      expect(rows).toHaveLength(16);
+      const scores = rows.map((v) => v.riskScore);
+      expect(scores).toEqual([...scores].sort((a, b) => b - a));
+
+      const paged: string[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 20; page += 1) {
+        const res = await flagged(`?minScore=0&limit=3${window}${cursor ? `&cursor=${cursor}` : ''}`);
+        expect(res.status).toBe(200);
+        expect(res.body.data.length).toBeLessThanOrEqual(3);
+        paged.push(...(res.body.data as Row[]).map((v) => v.visitId));
+        cursor = res.body.nextCursor;
+        if (!cursor) {
+          break;
+        }
+      }
+      expect(cursor).toBeNull();
+      expect(paged).toEqual(rows.map((v) => v.visitId));
+    });
+
+    it('treats a fractional minScore as the next whole score', async () => {
+      const res = await flagged('?minScore=84.5');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((v: Row) => v.visitId)).toEqual([suspiciousVisitId]);
+    });
+
+    it('excludes a visit without a stored score, and counts it as unscored in its window', async () => {
+      await prisma.visit.update({
+        where: { id: suspiciousVisitId },
+        data: { riskScore: null, fraudSignals: Prisma.DbNull, fraudScoredAt: null },
+      });
       try {
-        const res = await request(app)
-          .get('/fraud/flagged?minScore=15')
-          .set('Authorization', `Bearer ${managerToken}`);
+        const res = await flagged('?minScore=0&limit=200');
+        expect(res.status).toBe(200);
+        expect(res.body.data.map((v: Row) => v.visitId)).not.toContain(suspiciousVisitId);
+        expect(res.body.unscored).toBe(1);
+
+        // A window that does not contain it does not count it.
+        const earlier = await flagged(`?minScore=0&to=${daysAgo(3).toISOString()}`);
+        expect(earlier.body.unscored).toBe(0);
+      } finally {
+        await rescoreFraudScores({ clientId });
+      }
+    });
+
+    it('reads the stored snapshot while the visit endpoint stays live, until the client rescores', async () => {
+      // Loosen the slow band past the 90-minute visit: the live score drops to 0,
+      // but the list still shows the score stored under the old band.
+      await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: { slowCompletionMinutes: 120 } } });
+      try {
+        const live = await request(app).get(`/fraud/visits/${slowVisitId}`).set('Authorization', `Bearer ${managerToken}`);
+        expect(live.body.riskScore).toBe(0);
+        const stale = await flagged('?minScore=10');
+        const staleRow = (stale.body.data as Row[]).find((v) => v.visitId === slowVisitId);
+        expect(staleRow).toEqual(expect.objectContaining({ riskScore: 10 }));
+
+        const rescored = await rescoreFraudScores({ clientId, all: true });
+        expect(rescored.written).toBe(16);
+        const fresh = await flagged('?minScore=10');
+        expect(fresh.body.data.map((v: Row) => v.visitId)).not.toContain(slowVisitId);
+        const stored = await prisma.visit.findUniqueOrThrow({
+          where: { id: slowVisitId },
+          select: { riskScore: true, fraudScoredAt: true },
+        });
+        expect(stored.riskScore).toBe(0);
+        expect(stored.fraudScoredAt!.getTime()).toBeGreaterThan(Date.parse(staleRow!.scoredAt!));
+      } finally {
+        await prisma.client.update({ where: { id: clientId }, data: { kpiThresholds: {} } });
+        await rescoreFraudScores({ clientId, all: true });
+      }
+    });
+
+    it('never scores on read: no history, photo, outlet or attempt lookups', async () => {
+      const queryRaw = jest.spyOn(prisma, '$queryRaw');
+      const attempts = jest.spyOn(prisma.checkInAttempt, 'findMany');
+      try {
+        const res = await flagged('?minScore=0');
 
         expect(res.status).toBe(200);
-        const repeating = res.body.data
-          .filter((v: { signals: Array<{ code: string }> }) =>
-            v.signals.some((s) => s.code === 'repeating_stock_counts'),
-          )
-          .map((v: { visitId: string }) => v.visitId);
-        expect(repeating).toEqual(expect.arrayContaining([repeatOutlet.repeatId, repeatOutlet2.repeatId]));
-        // Three outlets and a dozen visits scanned: still exactly one history read.
+        expect(res.body.data.length).toBeGreaterThan(0);
+        expect(queryRaw).not.toHaveBeenCalled();
+        expect(attempts).not.toHaveBeenCalled();
+      } finally {
+        queryRaw.mockRestore();
+        attempts.mockRestore();
+      }
+    });
+
+    it('scores a whole batch with one stock-history query, however many outlets it covers (no N+1)', async () => {
+      const queryRaw = jest.spyOn(prisma, '$queryRaw');
+      try {
+        const result = await rescoreFraudScores({ clientId, all: true });
+
+        expect(result.scanned).toBe(16);
+        // Three outlets and sixteen visits in one batch: exactly one history read.
         // (#248's outlet lookup also runs, once, for the geotagged photos.)
         const sqlOf = (call: unknown[]) => (call[0] as { sql: string }).sql;
         expect(queryRaw.mock.calls.filter((call) => sqlOf(call).includes('visit_stock'))).toHaveLength(1);
@@ -804,9 +907,7 @@ describe('fraud routes', () => {
     });
 
     it('honours a custom minScore that excludes every visit', async () => {
-      const res = await request(app)
-        .get('/fraud/flagged?minScore=90')
-        .set('Authorization', `Bearer ${managerToken}`);
+      const res = await flagged('?minScore=90');
 
       expect(res.status).toBe(200);
       const ids = res.body.data.map((v: { visitId: string }) => v.visitId);
