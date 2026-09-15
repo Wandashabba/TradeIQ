@@ -17,7 +17,8 @@
     "seed": "ts-node scripts/seed.ts",
     "create-admin": "ts-node scripts/create-admin.ts",
     "enable-assistant": "ts-node scripts/enable-assistant.ts",
-    "backfill-photo-hashes": "ts-node scripts/backfill-photo-hashes.ts"
+    "backfill-photo-hashes": "ts-node scripts/backfill-photo-hashes.ts",
+    "backfill-points-ledger": "ts-node scripts/backfill-points-ledger.ts"
   },
   "keywords": [],
   "author": "",

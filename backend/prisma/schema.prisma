@@ -62,6 +62,7 @@ model Client {
   reportSchedules    ReportSchedule[]
   assistantArtifacts AssistantArtifact[]
   assistantActions   AssistantAction[]
+  pointsLedger       PointsLedgerEntry[]
 
   @@map("clients")
 }
@@ -93,6 +94,7 @@ model User {
   messagesSent     Message[]        @relation("MessageSender")
   messagesReceived Message[]        @relation("MessageRecipient")
   announcements    Announcement[]
+  pointsLedger     PointsLedgerEntry[]
 
   @@index([clientId, role])
   @@map("users")
@@ -752,6 +754,52 @@ model IncentiveScheme {
 
   @@index([clientId, active])
   @@map("incentive_schemes")
+}
+
+/// One points-earning event for one agent (#124). The leaderboard is a sum over
+/// these rows in its window, so every point on it can be traced back to the
+/// visit, task or scorecard that earned it — and audited, disputed or explained.
+///
+/// `reason` says what was rewarded; `sourceType` + `sourceId` say which record
+/// did it. The source is polymorphic on purpose (no FK): a ledger row outlives
+/// nothing it points at being edited, and one table serves every reason.
+///
+/// Reasons in use (see src/modules/gamification/pointsLedger.ts):
+/// - `visit_submitted` (+2, source `visit`, occurredAt = checkinTs)
+/// - `task_closed`     (+5, source `task`,  occurredAt = when it was closed)
+/// - `scorecard`       (0 points, source `scorecard`, `score` = weightedTotal,
+///                      occurredAt = scorecard createdAt). The formula adds the
+///                      *mean* score in the window, which no per-event sum can
+///                      express, so the entry carries the score it contributes
+///                      to that mean rather than pretending to a fixed amount.
+///
+/// `points` may be negative, for later manual adjustments.
+///
+/// Unique on (sourceType, sourceId, reason): writing an event twice is a no-op,
+/// so the write hooks and the backfill can both run any number of times.
+///
+/// Cascades from Client/User: users are deactivated, not deleted, in practice;
+/// the cascade only stops a tenant/user teardown being blocked by derived rows.
+model PointsLedgerEntry {
+  id         String   @id @default(uuid())
+  clientId   String   @map("client_id")
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agentId    String   @map("agent_id")
+  agent      User     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  points     Int
+  reason     String
+  sourceType String   @map("source_type")
+  sourceId   String   @map("source_id")
+  /// The value a non-additive reason contributes (the scorecard's
+  /// weightedTotal). Null for reasons that are a plain points amount.
+  score      Float?
+  occurredAt DateTime @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([sourceType, sourceId, reason])
+  @@index([clientId, agentId, occurredAt])
+  @@index([clientId, occurredAt])
+  @@map("points_ledger_entries")
 }
 
 /// A recurring delivery of a saved report (Phase 3 #39). The scheduler that

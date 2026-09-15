@@ -3,6 +3,11 @@ import { NotFoundError } from '../../middleware/errorHandler';
 import { computeSlaDueAt, TaskPriority } from '../../lib/slaClock';
 import { buildPage } from '../../lib/pagination';
 import { attachEvidencePhotoIds } from '../photos/photos.service';
+import {
+  recordPointsBestEffort,
+  recordTaskClosed,
+  voidTaskClosed,
+} from '../gamification/pointsLedger';
 
 export type TaskStatusInput = 'open' | 'in_progress' | 'closed';
 
@@ -127,7 +132,7 @@ export interface UpdateTaskInput {
 
 export async function updateTask(taskId: string, input: UpdateTaskInput) {
   // Prisma treats undefined fields as "leave unchanged".
-  return prisma.task.update({
+  const updated = await prisma.task.update({
     where: { id: taskId },
     data: {
       status: input.status,
@@ -135,4 +140,15 @@ export async function updateTask(taskId: string, input: UpdateTaskInput) {
       closureVerified: input.closureVerified,
     },
   });
+
+  // Issue #124: a closure earns its owner points; a reopen takes them back
+  // (the leaderboard only ever rewarded closures that stand). Best-effort, like
+  // submitVisit's hooks — the task change is already persisted.
+  if (input.status === 'closed') {
+    await recordPointsBestEffort(`task ${updated.id} closure`, () => recordTaskClosed(updated.id));
+  } else if (input.status !== undefined) {
+    await recordPointsBestEffort(`task ${updated.id} reopen`, () => voidTaskClosed(updated.id));
+  }
+
+  return updated;
 }

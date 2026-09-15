@@ -27,7 +27,10 @@ export async function resetDemoData(prisma: PrismaClient, clientId: string): Pro
   await prisma.visitVisibility.deleteMany({ where: { visit: { clientId } } });
   await prisma.visitStock.deleteMany({ where: { visit: { clientId } } });
 
-  // Rows that reference visits and/or outlets.
+  // Rows that reference visits and/or outlets. Ledger entries point at visits,
+  // tasks and scorecards without a foreign key, so they would otherwise outlive
+  // them and inflate the leaderboard after a reseed.
+  await prisma.pointsLedgerEntry.deleteMany({ where: { clientId } });
   await prisma.task.deleteMany({ where: { outlet: { clientId } } });
   await prisma.order.deleteMany({ where: { clientId } });
   await prisma.alert.deleteMany({ where: { clientId } });
