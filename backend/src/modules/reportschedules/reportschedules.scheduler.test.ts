@@ -6,7 +6,7 @@ import { settleInFlightDeliveries } from '../webhooks/webhooks.service';
 import { DAY_MS } from './reportschedules.cadence';
 import {
   deliverReport,
-  emailDeliveryChannelStub,
+  emailDeliveryChannel,
   EMAIL_NOT_CONFIGURED,
   REPORT_GENERATED_EVENT,
   ReportDeliveryContext,
@@ -34,13 +34,23 @@ jest.mock('../../lib/urlGuard', () => ({
 
 const fetchMock = fetch as unknown as jest.Mock;
 
+// Email and signed links stay off here, whatever the shell has set: this suite
+// pins the unconfigured behaviour. reportschedules.email.test.ts covers them on.
+const DELIVERY_ENV = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'REPORT_LINK_SECRET'];
+const EMAIL_OFF = `${EMAIL_NOT_CONFIGURED}: SMTP_HOST and SMTP_FROM are not set`;
+
 describe('report schedule worker (#66)', () => {
   let clientId: string;
   let otherClientId: string;
   let definitionId: string;
   let otherDefinitionId: string;
+  const savedEnv: Record<string, string | undefined> = {};
 
   beforeAll(async () => {
+    for (const key of DELIVERY_ENV) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
     const client = await prisma.client.create({
       data: { name: 'RSW-Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
     });
@@ -113,6 +123,10 @@ describe('report schedule worker (#66)', () => {
     await prisma.user.deleteMany({ where: { clientId: clients } });
     await prisma.client.deleteMany({ where: { id: clients } });
     await prisma.$disconnect();
+    for (const key of DELIVERY_ENV) {
+      if (savedEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = savedEnv[key];
+    }
   });
 
   async function makeSchedule(
@@ -192,6 +206,9 @@ describe('report schedule worker (#66)', () => {
       rowCount: 2,
       csvPath: `/report-schedules/${schedule.id}/runs/${run.id}/csv`,
       csvUrl: null,
+      // Additive (#66): null while signed links are not configured.
+      csvDownloadUrl: null,
+      csvDownloadExpiresAt: null,
     });
     // A pointer, never the rows: the body stays small whatever the report size.
     expect(JSON.stringify(delivery.payload).length).toBeLessThan(1024);
@@ -210,9 +227,10 @@ describe('report schedule worker (#66)', () => {
         channel: 'email',
         status: 'not_configured',
         targets: ['ops@example.com'],
-        detail: EMAIL_NOT_CONFIGURED,
+        detail: EMAIL_OFF,
       },
     ]);
+    expect(await prisma.reportEmailDelivery.count({ where: { clientId } })).toBe(0);
 
     const after = await prisma.reportSchedule.findUniqueOrThrow({ where: { id: schedule.id } });
     expect(after.nextRunAt).toEqual(new Date(due.getTime() + DAY_MS));
@@ -416,16 +434,18 @@ describe('report schedule worker (#66)', () => {
         rowCount: 0,
         csvPath: '/report-schedules/s/runs/run/csv',
         csvUrl: null,
+        csvDownloadUrl: null,
+        csvDownloadExpiresAt: null,
       },
     };
 
-    it('the email stub sends nothing and records that email is not configured', async () => {
-      expect(await deliverReport(context, [emailDeliveryChannelStub])).toEqual([
+    it('with SMTP unset, email sends nothing and records why', async () => {
+      expect(await deliverReport(context, [emailDeliveryChannel])).toEqual([
         {
           channel: 'email',
           status: 'not_configured',
           targets: ['ops@example.com', 'lead@example.com'],
-          detail: 'Email delivery not configured',
+          detail: 'Email delivery not configured: SMTP_HOST and SMTP_FROM are not set',
         },
       ]);
     });
@@ -434,7 +454,7 @@ describe('report schedule worker (#66)', () => {
       jest.spyOn(console, 'error').mockImplementation(() => undefined);
       const outcomes = await deliverReport(context, [
         { name: 'broken', deliver: () => Promise.reject(new Error('smtp down')) },
-        emailDeliveryChannelStub,
+        emailDeliveryChannel,
       ]);
       expect(outcomes).toEqual([
         { channel: 'broken', status: 'failed', targets: [], detail: 'smtp down' },

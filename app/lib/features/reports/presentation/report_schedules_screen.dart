@@ -11,23 +11,29 @@ import 'report_schedule_form_screen.dart';
 
 /// The standing note on this screen, worded from what the backend does (#66):
 /// active schedules fire on their cadence and go to the client's webhooks
-/// subscribed to `report.generated`; email is not built, so recipients are
-/// kept but nobody is emailed.
+/// subscribed to `report.generated`, and are emailed to the recipients once
+/// the server has email (SMTP) set up.
 const scheduleDeliveryNote =
     'Active schedules run automatically on their cadence and are sent to '
-    'your webhooks subscribed to $reportGeneratedEvent. Email is not set up '
-    'yet: recipients are kept on file but not emailed.';
+    'your webhooks subscribed to $reportGeneratedEvent. Recipients are '
+    'emailed when email is set up on the server.';
 
 /// What a successful Run now is reported as, from what the API says happened:
 /// how many rows, how many webhooks a delivery was queued for (or that none
-/// listens), and that email was not sent.
+/// listens), and what the email channel did.
 String runNowMessage(ScheduleRunResult result) {
   final parts = <String>[
     'Generated ${result.rowCount} ${result.rowCount == 1 ? 'row' : 'rows'}.',
   ];
 
-  final queued = result.deliveredTo.length;
+  // Counted from the webhook outcome: `deliveredTo` also lists the email
+  // addresses queued to.
   final webhook = result.outcomeFor('webhook');
+  final queued = webhook == null
+      ? result.deliveredTo.length
+      : webhook.status == 'queued'
+          ? webhook.targets.length
+          : 0;
   if (queued > 0) {
     parts.add('Queued for $queued ${queued == 1 ? 'webhook' : 'webhooks'}.');
   } else if (webhook?.status == 'failed') {
@@ -36,8 +42,17 @@ String runNowMessage(ScheduleRunResult result) {
     parts.add('Not sent: no webhook is subscribed to $reportGeneratedEvent.');
   }
 
-  if (result.outcomeFor('email')?.status == 'not_configured') {
-    parts.add('Email is not set up yet.');
+  final email = result.outcomeFor('email');
+  switch (email?.status) {
+    case 'queued':
+      final n = email!.targets.length;
+      parts.add('Emailing $n ${n == 1 ? 'recipient' : 'recipients'}.');
+    case 'not_configured':
+      parts.add('Email is not set up on the server.');
+    case 'no_subscribers':
+      parts.add('Not emailed: no valid email recipients.');
+    case 'failed':
+      parts.add('Email delivery failed.');
   }
   return parts.join(' ');
 }

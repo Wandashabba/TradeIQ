@@ -91,6 +91,28 @@ function wallClock(instant: Date, timeZone: string): WallClock {
   };
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * `instant` as a person in `timeZone` reads the date: `15 Sep 2026`.
+ *
+ * Built from the wall-clock parts rather than a locale format, so the text is
+ * the same on every runtime and ICU build — it lands in emails (#66) and in
+ * their tests, and a locale-dependent comma or month spelling would make both
+ * flaky.
+ */
+export function formatLocalDate(instant: Date, timeZone: string): string {
+  const { year, month, day } = wallClock(instant, timeZone);
+  return `${day} ${MONTHS[month - 1]} ${year}`;
+}
+
+/** `instant` as a date and 24-hour time in `timeZone`: `15 Sep 2026 08:05`. */
+export function formatLocalDateTime(instant: Date, timeZone: string): string {
+  const { hour, minute } = wallClock(instant, timeZone);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${formatLocalDate(instant, timeZone)} ${pad(hour)}:${pad(minute)}`;
+}
+
 /** The calendar date `instant` falls on in `timeZone`, as UTC midnight of that date. */
 export function localCalendarDate(instant: Date, timeZone: string): Date {
   const { year, month, day } = wallClock(instant, timeZone);
