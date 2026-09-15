@@ -2,6 +2,12 @@ import { prisma } from '../../lib/prisma';
 import { facingsTotal, mean, pct, round2 } from '../../lib/kpiMath';
 import { kpiThreshold } from '../../lib/kpiThresholds';
 import { DEFAULT_GREEN_THRESHOLD } from '../scorecards/scorecards.service';
+import {
+  DEFAULT_CLIENT_TIME_ZONE,
+  localCalendarDate,
+  mondayOfCalendarWeek,
+} from '../../lib/clientTime';
+import { getClientTimeZone } from '../clients/clients.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -30,7 +36,11 @@ export interface TrendFilters {
 }
 
 export interface TrendPoint {
-  /** ISO-8601 timestamp of the bucket start (UTC midnight; Monday for weeks). */
+  /**
+   * The bucket's first calendar date in the client's timezone (Monday for
+   * weeks), encoded as UTC midnight of that date — the `scheduledDate`
+   * convention. A label for a day, not the instant the local day began.
+   */
   period: string;
   value: number;
   count: number;
@@ -42,19 +52,23 @@ export interface TrendSeries {
 }
 
 /**
- * Truncate a timestamp to the start of its bucket in UTC. For 'day' this is
- * 00:00 of the same date; for 'week' it is the Monday 00:00 of the row's week.
+ * The bucket a timestamp belongs to, in the client's timezone (#309). For 'day'
+ * that is the row's local calendar date; for 'week', the Monday of its local
+ * week. Returned as UTC midnight of that date (see {@link TrendPoint.period}).
+ *
+ * Bucketed on the local calendar date, not by truncating the instant: a
+ * Johannesburg visit at 00:30 on a Monday is that Monday's, although it is
+ * 22:30Z on Sunday. Week arithmetic runs on calendar dates, so a DST change
+ * inside a week (America/New_York) cannot shift a boundary by an hour.
+ *
+ * `timeZone` is required rather than defaulted: a caller that forgets it would
+ * silently bucket in UTC, which is the bug this parameter exists to remove.
  */
 // Exported so the demo seed's calendar can assert week-boundary parity against
 // the real bucketing rule rather than reimplementing it.
-export function bucketStart(date: Date, interval: TrendInterval): Date {
-  const dayStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-  if (interval === 'day') {
-    return new Date(dayStart);
-  }
-  // getUTCDay: 0=Sun..6=Sat. Days since Monday: Mon->0 .. Sun->6.
-  const daysSinceMonday = (new Date(dayStart).getUTCDay() + 6) % 7;
-  return new Date(dayStart - daysSinceMonday * DAY_MS);
+export function bucketStart(date: Date, interval: TrendInterval, timeZone: string): Date {
+  const day = localCalendarDate(date, timeZone);
+  return interval === 'day' ? day : mondayOfCalendarWeek(day);
 }
 
 interface DateWindow {
@@ -85,12 +99,13 @@ function resolveWindow(from?: Date, to?: Date): DateWindow | undefined {
 function buildSeries<T>(
   rows: T[],
   interval: TrendInterval,
+  timeZone: string,
   getDate: (row: T) => Date,
   reduce: (bucketRows: T[]) => number,
 ): TrendSeries {
   const groups = new Map<string, T[]>();
   for (const row of rows) {
-    const key = bucketStart(getDate(row), interval).toISOString();
+    const key = bucketStart(getDate(row), interval, timeZone).toISOString();
     const existing = groups.get(key);
     if (existing) {
       existing.push(row);
@@ -117,6 +132,8 @@ interface Scope {
   to?: Date;
   /** Already resolved to `Territory.code` — never a `Territory.id`. */
   territoryCode?: string;
+  /** The client's IANA zone; day and week buckets are its calendar (#309). */
+  timeZone: string;
 }
 
 /**
@@ -140,11 +157,16 @@ async function resolveTerritoryCode(
 }
 
 async function scopeFor(filters: TrendFilters): Promise<Scope> {
+  const [territoryCode, timeZone] = await Promise.all([
+    resolveTerritoryCode(filters.clientId, filters.territoryId),
+    getClientTimeZone(filters.clientId),
+  ]);
   return {
     clientId: filters.clientId,
     from: filters.from,
     to: filters.to,
-    territoryCode: await resolveTerritoryCode(filters.clientId, filters.territoryId),
+    territoryCode,
+    timeZone,
   };
 }
 
@@ -182,12 +204,14 @@ interface MetricDef<T> {
   territoryCode: (row: T) => string;
   reduce: (rows: T[]) => number;
   hasSample?: (row: T) => boolean;
+  /** The client's IANA zone, carried so every split buckets in the same calendar. */
+  timeZone: string;
 }
 
 function metricRows<T>(rows: T[], def: MetricDef<T>): MetricRows {
   return {
     count: rows.length,
-    series: (interval) => buildSeries(rows, interval, def.at, def.reduce),
+    series: (interval) => buildSeries(rows, interval, def.timeZone, def.at, def.reduce),
     average: () => (rows.length > 0 ? round2(def.reduce(rows)) : null),
     byTerritoryCode: () => {
       const groups = new Map<string, T[]>();
@@ -230,6 +254,7 @@ const scorecardBase = {
 async function loadScorecards(scope: Scope): Promise<MetricRows> {
   return metricRows(await loadScorecardRows(scope), {
     ...scorecardBase,
+    timeZone: scope.timeZone,
     reduce: (rows) => mean(rows.map((row) => row.weightedTotal)),
   });
 }
@@ -238,6 +263,7 @@ async function loadScorecards(scope: Scope): Promise<MetricRows> {
 async function loadPerfectStore(scope: Scope): Promise<MetricRows> {
   return metricRows(await loadScorecardRows(scope), {
     ...scorecardBase,
+    timeZone: scope.timeZone,
     reduce: (rows) => pct(rows.filter((row) => row.ratingBand === 'green').length, rows.length),
   });
 }
@@ -250,6 +276,7 @@ async function loadAvailability(scope: Scope): Promise<MetricRows> {
     select: { unitsAvailable: true, createdAt: true, ...outletCodeSelect },
   });
   return metricRows(rows, {
+    timeZone: scope.timeZone,
     at: (row) => row.createdAt,
     territoryCode: (row) => row.visit.outlet.territoryId,
     reduce: (bucket) => pct(bucket.filter((row) => row.unitsAvailable > 0).length, bucket.length),
@@ -281,6 +308,7 @@ async function loadShareOfShelf(scope: Scope): Promise<MetricRows> {
   const own = (visit: Row) => (visit.visibility ? facingsTotal(visit.visibility.facingsCount) : 0);
   const competitor = (visit: Row) => visit.competitive.reduce((n, row) => n + row.facingsCount, 0);
   return metricRows(visits, {
+    timeZone: scope.timeZone,
     at: (visit) => visit.checkinTs,
     territoryCode: (visit) => visit.outlet.territoryId,
     reduce: (bucket) => {
@@ -397,24 +425,28 @@ function toBenchmarkSeries(rows: MetricRows, interval: TrendInterval): Benchmark
  * Cross-territory benchmark within one client: each territory's series and
  * period average against the client-wide series as the reference line.
  *
- * Query count is fixed — territories, the metric's rows (Prisma batches the
- * outlet join as `IN` lookups) and, for scorecards, the client's thresholds —
- * however many territories or buckets there are. Grouping happens in JS with
- * the same reducers as the single-series endpoints, so a territory's numbers
- * and the client line can never drift from `/trends/*`.
+ * Query count is fixed — the client (timezone and thresholds), territories and
+ * the metric's rows (Prisma batches the outlet join as `IN` lookups) — however
+ * many territories or buckets there are. Grouping happens in JS with the same
+ * reducers and the same client-timezone buckets as the single-series
+ * endpoints, so a territory's numbers and the client line can never drift from
+ * `/trends/*`.
  */
 export async function getTerritoryBenchmark(filters: BenchmarkFilters): Promise<BenchmarkReport> {
   const { clientId, metric, interval } = filters;
-  const [territories, client, loaded] = await Promise.all([
+  // First, because every loader buckets in the client's calendar (#309).
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { kpiThresholds: true, timezone: true },
+  });
+  const timeZone = client?.timezone ?? DEFAULT_CLIENT_TIME_ZONE;
+  const [territories, loaded] = await Promise.all([
     prisma.territory.findMany({
       where: { clientId },
       select: { id: true, name: true, code: true },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     }),
-    metric === 'scorecards'
-      ? prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } })
-      : Promise.resolve(null),
-    LOADERS[metric]({ clientId, from: filters.from, to: filters.to }),
+    LOADERS[metric]({ clientId, from: filters.from, to: filters.to, timeZone }),
   ]);
 
   const rows = loaded.sampled();
@@ -467,7 +499,7 @@ export async function getTerritoryBenchmark(filters: BenchmarkFilters): Promise<
     metric,
     interval,
     unit: metric === 'scorecards' ? 'score' : 'percent',
-    target: client
+    target: metric === 'scorecards' && client
       ? {
           value: kpiThreshold(client.kpiThresholds, 'green', DEFAULT_GREEN_THRESHOLD),
           label: 'Green threshold',

@@ -41,6 +41,11 @@ model Client {
   /// without a deliberate opt-in. Off is a true kill switch — Phases 0-2 mutate
   /// nothing, so degrading to today's dashboard loses no data.
   assistantEnabled   Boolean             @default(false) @map("assistant_enabled")
+  /// IANA zone the client's field team works in (#309). Every calendar-day
+  /// rule reads it: which beat plan a check-in belongs to, trend day/week
+  /// buckets, and the assistant's "today"/"last week". Validated against the
+  /// runtime's IANA list on write; editable by managers and admins.
+  timezone           String              @default("Africa/Johannesburg")
   users              User[]
   outlets            Outlet[]
   skus               Sku[]

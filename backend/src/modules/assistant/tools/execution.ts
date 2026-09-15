@@ -6,6 +6,7 @@ import {
   getAgentPerformance,
   resolveAgent,
 } from '../../scorecards/scorecards.service';
+import { getClientTimeZone } from '../../clients/clients.service';
 import { periodSchema, resolvePeriod } from '../period';
 import {
   eraseToolTypes,
@@ -34,6 +35,19 @@ export interface ToolContext {
   now: Date;
 }
 
+/**
+ * The caller's client timezone, looked up at most once per tool roster (#309).
+ *
+ * Every period resolves in the client's calendar. Looked up lazily rather than
+ * carried on `ToolContext`, so a roster that never resolves a period costs no
+ * query, and so no constructor of a context (route, artifact re-run, eval
+ * harness) can forget it and silently fall back to UTC days.
+ */
+export function clientTimeZoneOf(ctx: ToolContext): () => Promise<string> {
+  let pending: Promise<string> | undefined;
+  return () => (pending ??= getClientTimeZone(ctx.user.clientId));
+}
+
 const agentScorecardArgs = z.object({
   // Was `agentId`, and requiring an id is what broke the exit demo: managers
   // say names, ids only come from tool results, and nothing bridged the two —
@@ -51,6 +65,7 @@ const agentScorecardArgs = z.object({
 
 export function buildExecutionTools(ctx: ToolContext): AnyAssistantTool[] {
   const { user, now } = ctx;
+  const timeZone = clientTimeZoneOf(ctx);
 
   const getAgentScorecard: AssistantTool<z.infer<typeof agentScorecardArgs>, unknown> = {
     name: 'getAgentScorecard',
@@ -73,7 +88,7 @@ export function buildExecutionTools(ctx: ToolContext): AnyAssistantTool[] {
       'Use getVisitHistory instead if they want the raw list of visits rather than a judgement.',
     args: agentScorecardArgs,
     run: async (args) => {
-      const { from, to } = resolvePeriod(args.period, now);
+      const { from, to } = resolvePeriod(args.period, now, await timeZone());
       // Both of these are tenant-scoped by `user.clientId`, so a name from
       // another client resolves to nothing rather than to somebody else.
       //

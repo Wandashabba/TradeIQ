@@ -40,4 +40,22 @@ void main() {
     expect(config.scorecardWeights, isEmpty);
     expect(config.kpiThresholds, isEmpty);
   });
+
+  test('ClientConfig.fromJson reads the client timezone (#309)', () {
+    final config = ClientConfig.fromJson(const {
+      'id': 'c3',
+      'name': 'NY Co',
+      'timezone': 'America/New_York',
+    });
+
+    expect(config.timezone, 'America/New_York');
+  });
+
+  test('ClientConfig.fromJson assumes Johannesburg from a server that sends no '
+      'timezone', () {
+    final config = ClientConfig.fromJson(const {'id': 'c4', 'name': 'Old Co'});
+
+    expect(config.timezone, 'Africa/Johannesburg');
+    expect(config.timezone, defaultClientTimeZone);
+  });
 }

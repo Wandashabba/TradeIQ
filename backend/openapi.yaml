@@ -279,9 +279,12 @@ paths:
         After the visit is persisted, submit also (best-effort — none of these
         can fail a submission that has already been saved): marks the agent's
         beat-plan stops for this outlet visited (#52), on plans of the same
-        client and agent that are not completed and whose scheduledDate falls on
-        the UTC calendar day of the visit's device check-in time (checkinTs) —
-        idempotent, so a re-submit or duplicate sync changes nothing; fires the
+        client and agent that are not completed and whose scheduledDate is the
+        calendar date of the visit's device check-in time (checkinTs) in the
+        client's timezone (Client.timezone, #309) — so a 00:30 SAST check-in
+        counts toward that day's plan, not the previous one. scheduledDate is a
+        calendar date stored as UTC midnight, and is compared as a date, not
+        an instant. Idempotent, so a re-submit or duplicate sync changes nothing; fires the
         visit.submitted webhook; and evaluates the client's active alert rules.
       security: [{ bearerAuth: [] }]
       parameters:
@@ -1355,13 +1358,58 @@ paths:
   # ── Follow-ups (Phase 1/3) ────────────────────────────────────────────────
   /clients/me:
     get:
-      summary: The caller's client config (scorecard weights / KPI thresholds)
+      summary: The caller's client config (scorecard weights / KPI thresholds / timezone)
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Config } }
+      responses:
+        '200':
+          description: Config
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, industry, scorecardWeights, kpiThresholds, assistantEnabled, timezone]
+                properties:
+                  id: { type: string }
+                  name: { type: string }
+                  industry: { type: string }
+                  scorecardWeights: { type: object, additionalProperties: { type: number } }
+                  kpiThresholds: { type: object, additionalProperties: { type: number } }
+                  assistantEnabled: { type: boolean, description: 'Read-only rollout flag' }
+                  timezone:
+                    type: string
+                    example: Africa/Johannesburg
+                    description: >-
+                      IANA zone the client's calendar days are counted in (#309):
+                      beat-plan route-stop matching, trend day/week buckets and the
+                      assistant's periods. Defaults to Africa/Johannesburg.
     patch:
-      summary: Update scorecard weights / KPI thresholds — admin
+      summary: Update scoring config (admin) and/or timezone (manager/admin)
+      description: >-
+        scorecardWeights and kpiThresholds are admin-only — a manager sending
+        either gets 403, even alongside timezone, and nothing is changed. A
+        manager may send timezone on its own.
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Updated }, '400': { description: Invalid }, '403': { description: Forbidden } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: At least one of scorecardWeights, kpiThresholds or timezone is required.
+              properties:
+                scorecardWeights: { type: object, additionalProperties: { type: number, minimum: 0 } }
+                kpiThresholds: { type: object, additionalProperties: { type: number } }
+                timezone:
+                  type: string
+                  example: America/New_York
+                  description: >-
+                    A canonical IANA zone name as listed by the runtime's
+                    Intl.supportedValuesOf('timeZone'), or UTC. Case-sensitive;
+                    offsets (+02:00), abbreviations (SAST) and aliases are a 400.
+      responses:
+        '200': { description: 'Updated config (same shape as GET)' }
+        '400': { description: 'Empty body, invalid weights/thresholds, or not an IANA timezone' }
+        '403': { description: 'Field agent; or a manager sending scorecardWeights/kpiThresholds' }
   /users:
     get:
       summary: List client users — manager/admin
@@ -1659,7 +1707,14 @@ components:
       type: object
       required: [period, value, count]
       properties:
-        period: { type: string, format: date-time, description: 'Bucket start (UTC midnight; Monday for weeks)' }
+        period:
+          type: string
+          format: date-time
+          description: >-
+            The bucket's first calendar date in the client's timezone
+            (Client.timezone, #309; Monday for weeks), encoded as UTC midnight of
+            that date — the same convention as a beat plan's scheduledDate. It
+            labels a local day; it is not the instant that day began.
         value: { type: number }
         count: { type: integer }
     BenchmarkSeries:
