@@ -1231,5 +1231,196 @@
   "s9Saved": "Task queued for sync",
   "@s9Saved": {
     "description": "S9 confirmation after adding a task."
+  },
+  "errorSessionExpired": "Your session has expired. Please sign in again.",
+  "@errorSessionExpired": {
+    "description": "Shared error copy: an authenticated request was refused because the sign-in expired."
+  },
+  "errorUnreachable": "Could not reach the server. Check your connection and try again.",
+  "@errorUnreachable": {
+    "description": "Shared error copy: no connection, or the request timed out. Often shown after a prefix such as 'Failed to load photo.'"
+  },
+  "errorGeneric": "Something went wrong. Please try again.",
+  "@errorGeneric": {
+    "description": "Shared error copy for any other failure (server error, bug). Never shows technical detail."
+  },
+  "checkInLocationPermissionDenied": "Location permission denied",
+  "@checkInLocationPermissionDenied": {
+    "description": "Check-in: the agent (or the phone) refused the app access to location. Shown under 'Can’t find your location'."
+  },
+  "checkInLocationServicesDisabled": "Location services are disabled",
+  "@checkInLocationServicesDisabled": {
+    "description": "Check-in: the phone's location (GPS) is switched off. Shown under 'Can’t find your location'."
+  },
+  "checkInLocationTimedOut": "Timed out waiting for your location. Check that location is switched on for TradeIQ, then try again.",
+  "@checkInLocationTimedOut": {
+    "description": "Check-in: no GPS fix arrived in time. Shown under 'Can’t find your location'."
+  },
+  "checkInLocationFailed": "Failed to get current location: {error}",
+  "@checkInLocationFailed": {
+    "description": "Check-in: the location lookup failed with an unexpected error.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "PlatformException(...)"
+      }
+    }
+  },
+  "progressConfirmedAtCheckIn": "Confirmed at check-in",
+  "@progressConfirmedAtCheckIn": {
+    "description": "Visit hub, outlet info tile: nothing to capture, it was confirmed by checking in."
+  },
+  "progressSkusOfTotal": "{items} of {total} SKUs",
+  "@progressSkusOfTotal": {
+    "description": "Visit hub, stock or pricing tile part-way through: SKUs captured out of the store's SKU list.",
+    "placeholders": {
+      "items": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "progressStockCounted": "{items} SKUs counted",
+  "@progressStockCounted": {
+    "description": "Visit hub, stock tile: every SKU counted, none out of stock.",
+    "placeholders": {
+      "items": {
+        "type": "int"
+      }
+    }
+  },
+  "progressStockOutOfStock": "{items} SKUs · {outOfStock} out of stock",
+  "@progressStockOutOfStock": {
+    "description": "Visit hub, stock tile: SKUs counted, and how many were at zero.",
+    "placeholders": {
+      "items": {
+        "type": "int"
+      },
+      "outOfStock": {
+        "type": "int"
+      }
+    }
+  },
+  "progressSkusPriced": "{items} SKUs priced",
+  "@progressSkusPriced": {
+    "description": "Visit hub, pricing tile.",
+    "placeholders": {
+      "items": {
+        "type": "int"
+      }
+    }
+  },
+  "progressNoCompetitors": "None on shelf",
+  "@progressNoCompetitors": {
+    "description": "Visit hub, competitive tile: saved with no competitor products on the shelf."
+  },
+  "progressCompetitors": "{items} competitor(s)",
+  "@progressCompetitors": {
+    "description": "Visit hub, competitive tile: number of competitor products recorded (at least 1).",
+    "placeholders": {
+      "items": {
+        "type": "int"
+      }
+    }
+  },
+  "progressCaptured": "Captured",
+  "@progressCaptured": {
+    "description": "Visit hub tile for a section that has been saved (visibility, capability, action plan)."
+  },
+  "progressNoRisks": "None raised",
+  "@progressNoRisks": {
+    "description": "Visit hub, risks tile: saved with no risks flagged."
+  },
+  "progressRisksRaised": "{items} raised",
+  "@progressRisksRaised": {
+    "description": "Visit hub, risks tile: number of risks flagged (at least 1).",
+    "placeholders": {
+      "items": {
+        "type": "int"
+      }
+    }
+  },
+  "taskStockoutTitle": "{sku} is out of stock",
+  "@taskStockoutTitle": {
+    "description": "Submit gate: a task the visit will raise because a SKU was counted at zero.",
+    "placeholders": {
+      "sku": {
+        "type": "String",
+        "example": "Fanta Orange 2L"
+      }
+    }
+  },
+  "taskStockoutTitleUnnamed": "This SKU is out of stock",
+  "@taskStockoutTitleUnnamed": {
+    "description": "Submit gate: as taskStockoutTitle, when the SKU's name is not known."
+  },
+  "taskStockoutReason": "You counted zero on shelf",
+  "@taskStockoutReason": {
+    "description": "Why a stock-out task is raised."
+  },
+  "taskRiskTitle": "{flagType} flagged",
+  "@taskRiskTitle": {
+    "description": "Submit gate: title of a task raised for a risk with no note; flagType is what the agent typed as the kind of flag.",
+    "placeholders": {
+      "flagType": {
+        "type": "String",
+        "example": "expiry"
+      }
+    }
+  },
+  "taskRiskTitleUntyped": "Risk flagged",
+  "@taskRiskTitleUntyped": {
+    "description": "Submit gate: title of a task raised for a risk with no note and no flag type."
+  },
+  "taskRiskReason": "Risk you raised · {flagType}",
+  "@taskRiskReason": {
+    "description": "Why a risk task is raised, with the kind of flag the agent typed.",
+    "placeholders": {
+      "flagType": {
+        "type": "String",
+        "example": "expiry"
+      }
+    }
+  },
+  "taskRiskReasonUntyped": "Risk you raised · flagged",
+  "@taskRiskReasonUntyped": {
+    "description": "Why a risk task is raised, when the agent gave no flag type."
+  },
+  "taskActionPlanTitleUntitled": "Action you asked for",
+  "@taskActionPlanTitleUntitled": {
+    "description": "Submit gate: title of an action-plan task the agent left without a required fix."
+  },
+  "taskActionPlanReason": "Action plan you wrote",
+  "@taskActionPlanReason": {
+    "description": "Why an action-plan task is raised."
+  },
+  "reviewSkusCounted": "{count, plural, =1{1 SKU counted} other{{count} SKUs counted}}",
+  "@reviewSkusCounted": {
+    "description": "Submit gate summary line, first part. Parts are separated by ' · '.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewCompetitors": "{count, plural, =1{1 competitor} other{{count} competitors}}",
+  "@reviewCompetitors": {
+    "description": "Submit gate summary line part: competitor products recorded.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewPhotos": "{count, plural, =1{1 photo} other{{count} photos}}",
+  "@reviewPhotos": {
+    "description": "Submit gate summary line part: photos taken.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

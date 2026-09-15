@@ -1,6 +1,10 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/human_error.dart';
+import 'package:tradeiq_app/core/widgets/worklist.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 DioException _dio({
   DioExceptionType type = DioExceptionType.unknown,
@@ -82,5 +86,90 @@ void main() {
       expect(message, isNot(contains('SocketException')));
       expect(message, isNot(contains('api.tradeiq.internal')));
     });
+  });
+
+  group('HumanError codes', () {
+    final af = lookupAppLocalizations(const Locale('af'));
+
+    test('each failure maps to its code', () {
+      expect(
+        HumanError.of(_dio(type: DioExceptionType.badResponse, statusCode: 401)),
+        HumanError.sessionExpired,
+      );
+      expect(
+        HumanError.of(_dio(type: DioExceptionType.receiveTimeout)),
+        HumanError.unreachable,
+      );
+      expect(
+        HumanError.of(_dio(type: DioExceptionType.badResponse, statusCode: 500)),
+        HumanError.generic,
+      );
+      expect(HumanError.of(StateError('bug')), HumanError.generic);
+    });
+
+    test('each code maps to its English and Afrikaans copy', () {
+      expect(
+        HumanError.sessionExpired.message(),
+        'Your session has expired. Please sign in again.',
+      );
+      expect(
+        HumanError.sessionExpired.message(af),
+        'Jou sessie het verval. Teken asseblief weer in.',
+      );
+      expect(
+        HumanError.unreachable.message(englishLocalizations),
+        'Could not reach the server. Check your connection and try again.',
+      );
+      expect(
+        HumanError.unreachable.message(af),
+        'Kon nie die bediener bereik nie. Kyk of jy verbinding het en probeer '
+        'weer.',
+      );
+      expect(
+        HumanError.generic.message(af),
+        'Iets het fout gegaan. Probeer asseblief weer.',
+      );
+      expect(
+        humanErrorMessage(_dio(type: DioExceptionType.connectionError), af),
+        HumanError.unreachable.message(af),
+      );
+    });
+
+    testWidgets(
+      'the manager console stays English on an Afrikaans device',
+      (tester) async {
+        // AsyncSection is the console's shared error surface. It calls the
+        // helper without an AppLocalizations, so it keeps the English copy the
+        // console has always had even when the device language is Afrikaans.
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('af'),
+            supportedLocales: appSupportedLocales,
+            localizationsDelegates: appLocalizationsDelegates,
+            home: Scaffold(
+              body: AsyncSection<List<int>>(
+                value: AsyncValue.error(
+                  _dio(type: DioExceptionType.connectionError),
+                  StackTrace.current,
+                ),
+                label: 'alerts',
+                onRetry: () {},
+                builder: (_) => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            'Failed to load alerts. Could not reach the server. '
+            'Check your connection and try again.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Kon nie die bediener'), findsNothing);
+      },
+    );
   });
 }

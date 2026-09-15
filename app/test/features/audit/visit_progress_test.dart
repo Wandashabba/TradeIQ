@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 class _FakeSkusRepository implements SkusRepository {
   _FakeSkusRepository(this.count);
@@ -211,5 +213,83 @@ void main() {
     // Competitive, risks and the action plan are still untouched — optional
     // means optional.
     expect(p.doneCount, 4);
+  });
+
+  group('section detail codes', () {
+    final af = lookupAppLocalizations(const Locale('af'));
+
+    test('the provider carries codes alongside the English lines', () async {
+      await _enqueue(db, 'pricing', {
+        'visitDraftId': 'v1',
+        'items': [
+          {'skuId': 's0'},
+          {'skuId': 's1'},
+        ],
+      });
+      await db.enqueue(
+        entityType: 'risk',
+        entityId: 'risk-1',
+        payloadJson: jsonEncode({'visitDraftId': 'v1', 'risks': []}),
+      );
+
+      final p = await progress();
+
+      expect(
+        p.detailCodes[AuditSection.outletInfo],
+        const SectionDetail.confirmedAtCheckIn(),
+      );
+      expect(
+        p.detailCodes[AuditSection.pricing],
+        const SectionDetail.skusOfTotal(2, 4),
+      );
+      expect(p.detailCodes[AuditSection.risks], const SectionDetail.risks(0));
+      // The English map and the codes say the same thing.
+      for (final MapEntry(:key, :value) in p.detailCodes.entries) {
+        expect(p.details[key], value.text(englishLocalizations), reason: '$key');
+      }
+      expect(
+        p.detailIn(AuditSection.outletInfo, af),
+        'Bevestig by aanmelding',
+      );
+      expect(p.detailIn(AuditSection.pricing, af), '2 van 4 SKU’s');
+      expect(p.detailIn(AuditSection.risks, af), 'Geen gemerk nie');
+    });
+
+    test('each code maps to its English and Afrikaans line', () {
+      final cases = <(SectionDetail, String, String)>[
+        (
+          const SectionDetail.confirmedAtCheckIn(),
+          'Confirmed at check-in',
+          'Bevestig by aanmelding',
+        ),
+        (const SectionDetail.skusOfTotal(7, 12), '7 of 12 SKUs', '7 van 12 SKU’s'),
+        (const SectionDetail.stock(12, 0), '12 SKUs counted', '12 SKU’s getel'),
+        (
+          const SectionDetail.stock(12, 2),
+          '12 SKUs · 2 out of stock',
+          '12 SKU’s · 2 uit voorraad',
+        ),
+        (const SectionDetail.skusPriced(12), '12 SKUs priced', '12 SKU’s geprys'),
+        (const SectionDetail.competitors(0), 'None on shelf', 'Geen op die rak nie'),
+        (const SectionDetail.competitors(1), '1 competitor(s)', '1 mededinger'),
+        (const SectionDetail.competitors(3), '3 competitor(s)', '3 mededingers'),
+        (const SectionDetail.captured(), 'Captured', 'Vasgelê'),
+        (const SectionDetail.risks(0), 'None raised', 'Geen gemerk nie'),
+        (const SectionDetail.risks(2), '2 raised', '2 gemerk'),
+      ];
+      for (final (detail, english, afrikaans) in cases) {
+        expect(detail.text(englishLocalizations), english);
+        expect(detail.text(af), afrikaans);
+      }
+    });
+
+    test('a hand-built progress with no codes falls back to its lines', () {
+      const p = VisitProgress(
+        states: {},
+        details: {AuditSection.stock: 'as given'},
+      );
+      expect(p.detailIn(AuditSection.stock, af), 'as given');
+      expect(p.detailIn(AuditSection.pricing, af), isNull);
+    });
   });
 }

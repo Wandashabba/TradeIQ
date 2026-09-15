@@ -22,6 +22,7 @@ import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:dio/dio.dart';
 
 import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
 import '../../helpers/routed_app.dart';
@@ -663,4 +664,102 @@ void main() {
     ).allMatches(src).map((m) => m.group(0)).toSet().toList();
     expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
   });
+
+  group('Afrikaans', () {
+    testWidgets('a check-in failure renders in Afrikaans', (tester) async {
+      await tester.pumpWidget(
+        routedApp(
+          const AuditShellScreen(outletId: 'o1'),
+          overrides: _overrides(_ServicesDisabledVisitsRepository(), _testDb()),
+          locale: const Locale('af'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kan nie jou ligging kry nie'), findsOneWidget);
+      expect(find.text('Liggingdienste is afgeskakel'), findsOneWidget);
+      expect(find.text('Location services are disabled'), findsNothing);
+    });
+
+    testWidgets('an error message renders in Afrikaans', (tester) async {
+      await tester.pumpWidget(
+        routedApp(
+          const AuditShellScreen(outletId: 'o1'),
+          overrides: _overrides(_OfflineThrowingVisitsRepository(), _testDb()),
+          locale: const Locale('af'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kon nie die besoek begin nie'), findsOneWidget);
+      expect(
+        find.text(
+          'Kon nie die bediener bereik nie. Kyk of jy verbinding het en '
+          'probeer weer.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Could not reach the server'), findsNothing);
+    });
+
+    testWidgets('a visit-progress detail renders in Afrikaans', (tester) async {
+      await tester.pumpWidget(
+        routedApp(
+          const AuditShellScreen(outletId: 'o1'),
+          overrides: _overrides(
+            _SucceedingVisitsRepository(),
+            _testDb(),
+            progress: const VisitProgress(
+              states: {
+                AuditSection.pricing: SectionState.partial,
+                AuditSection.risks: SectionState.done,
+              },
+              // No English lines: the tiles must word the codes themselves.
+              details: {},
+              detailCodes: {
+                AuditSection.pricing: SectionDetail.skusOfTotal(2, 4),
+                AuditSection.risks: SectionDetail.risks(0),
+              },
+            ),
+          ),
+          locale: const Locale('af'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 van 4 SKU’s'), findsOneWidget);
+      expect(find.text('Geen gemerk nie'), findsOneWidget);
+    });
+  });
+}
+
+class _ServicesDisabledVisitsRepository implements VisitsRepository {
+  @override
+  Future<CheckInResult> checkIn({
+    required String outletId,
+    required double outletLat,
+    required double outletLng,
+  }) async => CheckInLocationUnavailable.because(
+    CheckInLocationProblem.servicesDisabled,
+  );
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
+}
+
+/// A check-in that throws a network failure — the shell words it through the
+/// shared error codes.
+class _OfflineThrowingVisitsRepository implements VisitsRepository {
+  @override
+  Future<CheckInResult> checkIn({
+    required String outletId,
+    required double outletLat,
+    required double outletLng,
+  }) async => throw DioException(
+    requestOptions: RequestOptions(path: '/visits'),
+    type: DioExceptionType.connectionError,
+  );
+
+  @override
+  Future<void> submitVisit(String visitDraftId) async {}
 }

@@ -102,7 +102,7 @@ class SubmitGateScreen extends ConsumerWidget {
                 child: _CapturedCard(
                   sectionsDone: progress?.doneCount ?? 0,
                   sectionsTotal: progress?.captureCount ?? 0,
-                  line: review.capturedLine,
+                  line: review.capturedLineIn(l10n),
                 ),
               ),
               if (review.willRaise.isNotEmpty) ...[
@@ -304,7 +304,7 @@ class _TaskRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  task.title,
+                  task.titleIn(context.l10n),
                   style: TextStyle(
                     fontSize: 14,
                     color: colors.ink1,
@@ -359,7 +359,7 @@ class _TaskRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  task.title,
+                  task.titleIn(context.l10n),
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.35,

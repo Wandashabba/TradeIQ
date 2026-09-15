@@ -1723,6 +1723,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Task queued for sync'**
   String get s9Saved;
+
+  /// Shared error copy: an authenticated request was refused because the sign-in expired.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Please sign in again.'**
+  String get errorSessionExpired;
+
+  /// Shared error copy: no connection, or the request timed out. Often shown after a prefix such as 'Failed to load photo.'
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the server. Check your connection and try again.'**
+  String get errorUnreachable;
+
+  /// Shared error copy for any other failure (server error, bug). Never shows technical detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get errorGeneric;
+
+  /// Check-in: the agent (or the phone) refused the app access to location. Shown under 'Can’t find your location'.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission denied'**
+  String get checkInLocationPermissionDenied;
+
+  /// Check-in: the phone's location (GPS) is switched off. Shown under 'Can’t find your location'.
+  ///
+  /// In en, this message translates to:
+  /// **'Location services are disabled'**
+  String get checkInLocationServicesDisabled;
+
+  /// Check-in: no GPS fix arrived in time. Shown under 'Can’t find your location'.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed out waiting for your location. Check that location is switched on for TradeIQ, then try again.'**
+  String get checkInLocationTimedOut;
+
+  /// Check-in: the location lookup failed with an unexpected error.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to get current location: {error}'**
+  String checkInLocationFailed(String error);
+
+  /// Visit hub, outlet info tile: nothing to capture, it was confirmed by checking in.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed at check-in'**
+  String get progressConfirmedAtCheckIn;
+
+  /// Visit hub, stock or pricing tile part-way through: SKUs captured out of the store's SKU list.
+  ///
+  /// In en, this message translates to:
+  /// **'{items} of {total} SKUs'**
+  String progressSkusOfTotal(int items, int total);
+
+  /// Visit hub, stock tile: every SKU counted, none out of stock.
+  ///
+  /// In en, this message translates to:
+  /// **'{items} SKUs counted'**
+  String progressStockCounted(int items);
+
+  /// Visit hub, stock tile: SKUs counted, and how many were at zero.
+  ///
+  /// In en, this message translates to:
+  /// **'{items} SKUs · {outOfStock} out of stock'**
+  String progressStockOutOfStock(int items, int outOfStock);
+
+  /// Visit hub, pricing tile.
+  ///
+  /// In en, this message translates to:
+  /// **'{items} SKUs priced'**
+  String progressSkusPriced(int items);
+
+  /// Visit hub, competitive tile: saved with no competitor products on the shelf.
+  ///
+  /// In en, this message translates to:
+  /// **'None on shelf'**
+  String get progressNoCompetitors;
+
+  /// Visit hub, competitive tile: number of competitor products recorded (at least 1).
+  ///
+  /// In en, this message translates to:
+  /// **'{items} competitor(s)'**
+  String progressCompetitors(int items);
+
+  /// Visit hub tile for a section that has been saved (visibility, capability, action plan).
+  ///
+  /// In en, this message translates to:
+  /// **'Captured'**
+  String get progressCaptured;
+
+  /// Visit hub, risks tile: saved with no risks flagged.
+  ///
+  /// In en, this message translates to:
+  /// **'None raised'**
+  String get progressNoRisks;
+
+  /// Visit hub, risks tile: number of risks flagged (at least 1).
+  ///
+  /// In en, this message translates to:
+  /// **'{items} raised'**
+  String progressRisksRaised(int items);
+
+  /// Submit gate: a task the visit will raise because a SKU was counted at zero.
+  ///
+  /// In en, this message translates to:
+  /// **'{sku} is out of stock'**
+  String taskStockoutTitle(String sku);
+
+  /// Submit gate: as taskStockoutTitle, when the SKU's name is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'This SKU is out of stock'**
+  String get taskStockoutTitleUnnamed;
+
+  /// Why a stock-out task is raised.
+  ///
+  /// In en, this message translates to:
+  /// **'You counted zero on shelf'**
+  String get taskStockoutReason;
+
+  /// Submit gate: title of a task raised for a risk with no note; flagType is what the agent typed as the kind of flag.
+  ///
+  /// In en, this message translates to:
+  /// **'{flagType} flagged'**
+  String taskRiskTitle(String flagType);
+
+  /// Submit gate: title of a task raised for a risk with no note and no flag type.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk flagged'**
+  String get taskRiskTitleUntyped;
+
+  /// Why a risk task is raised, with the kind of flag the agent typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk you raised · {flagType}'**
+  String taskRiskReason(String flagType);
+
+  /// Why a risk task is raised, when the agent gave no flag type.
+  ///
+  /// In en, this message translates to:
+  /// **'Risk you raised · flagged'**
+  String get taskRiskReasonUntyped;
+
+  /// Submit gate: title of an action-plan task the agent left without a required fix.
+  ///
+  /// In en, this message translates to:
+  /// **'Action you asked for'**
+  String get taskActionPlanTitleUntitled;
+
+  /// Why an action-plan task is raised.
+  ///
+  /// In en, this message translates to:
+  /// **'Action plan you wrote'**
+  String get taskActionPlanReason;
+
+  /// Submit gate summary line, first part. Parts are separated by ' · '.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 SKU counted} other{{count} SKUs counted}}'**
+  String reviewSkusCounted(int count);
+
+  /// Submit gate summary line part: competitor products recorded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 competitor} other{{count} competitors}}'**
+  String reviewCompetitors(int count);
+
+  /// Submit gate summary line part: photos taken.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 photo} other{{count} photos}}'**
+  String reviewPhotos(int count);
 }
 
 class _AppLocalizationsDelegate
