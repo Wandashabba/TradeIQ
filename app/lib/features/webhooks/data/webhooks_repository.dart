@@ -2,6 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
 
+/// The events the backend emits — `WEBHOOK_EVENTS` in webhooks.service.ts, in
+/// its order. The API still accepts any event name; one not on this list simply
+/// never fires, so the create form offers these as the hint.
+const webhookEvents = <String>[
+  'visit.submitted',
+  'alert.raised',
+  'order.created',
+  // A report schedule ran (#66): carries the run and a link to its CSV.
+  'report.generated',
+];
+
 /// Whether a webhook is actually receiving (#100), as the backend derives it.
 enum WebhookHealth {
   /// Nothing has failed since the last success (or it has never fired).
