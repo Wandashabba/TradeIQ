@@ -1,5 +1,7 @@
+import { createHash } from 'crypto';
 import request from 'supertest';
 import sharp from 'sharp';
+import { shelfJpeg, toDataUrl } from '../../test-utils/shelfImage';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { issueToken } from '../auth/auth.service';
@@ -101,6 +103,53 @@ describe('photos routes', () => {
     expect(res.body.url).toBe('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD');
     expect(res.body.section).toBe('visibility');
     expect(res.body.createdAt).toBeDefined();
+  });
+
+  it('hashes the photo at upload for duplicate detection, and never returns the hashes (#244)', async () => {
+    const jpeg = await shelfJpeg(41);
+    const res = await request(app)
+      .post('/photos')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send({ ...validBody(), dataUrl: toDataUrl(jpeg) });
+
+    expect(res.status).toBe(201);
+    // Fraud-engine internals: telling the field app what is compared would
+    // tell it how to dodge the comparison.
+    expect(res.body).not.toHaveProperty('contentHash');
+    expect(res.body).not.toHaveProperty('perceptualHash');
+    expect(res.body).not.toHaveProperty('perceptualHashBands');
+
+    const stored = await prisma.photo.findUniqueOrThrow({
+      where: { id: res.body.id },
+      select: { contentHash: true, perceptualHash: true, perceptualHashBands: true },
+    });
+    expect(stored.contentHash).toBe(createHash('sha256').update(jpeg).digest('hex'));
+    expect(stored.perceptualHash).toMatch(/^[0-9a-f]{16}$/);
+    expect(stored.perceptualHashBands).toHaveLength(4);
+
+    const listed = await request(app)
+      .get('/photos')
+      .query({ visitId })
+      .set('Authorization', `Bearer ${agentToken}`);
+    const row = listed.body.data.find((p: { id: string }) => p.id === res.body.id);
+    expect(row).toBeDefined();
+    expect(row).not.toHaveProperty('contentHash');
+  });
+
+  it('still stores a payload it cannot decode, with a content hash and no perceptual hash', async () => {
+    const res = await request(app)
+      .post('/photos')
+      .set('Authorization', `Bearer ${agentToken}`)
+      .send(validBody());
+
+    expect(res.status).toBe(201);
+    const stored = await prisma.photo.findUniqueOrThrow({
+      where: { id: res.body.id },
+      select: { contentHash: true, perceptualHash: true, perceptualHashBands: true },
+    });
+    expect(stored.contentHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(stored.perceptualHash).toBeNull();
+    expect(stored.perceptualHashBands).toEqual([]);
   });
 
   it("forbids an agent from uploading a photo onto another agent's visit (404)", async () => {

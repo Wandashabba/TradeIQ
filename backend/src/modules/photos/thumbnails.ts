@@ -18,11 +18,12 @@ const CACHE_MAX_ENTRIES = 50;
 // raw pixels. 32MP comfortably covers any real phone camera while keeping the
 // worst-case decode allocation bounded; past it, sharp throws and the read
 // path answers 422.
-const MAX_INPUT_PIXELS = 32 * 1024 * 1024;
+// Shared with photoHash.ts, which decodes the same bytes at upload.
+export const MAX_INPUT_PIXELS = 32 * 1024 * 1024;
 
 // data:image/<subtype>;base64,<payload> — anchored so a random string (or a
 // non-image data URL) is rejected before we hand bytes to sharp.
-const IMAGE_DATA_URL_RE = /^data:image\/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=]+)$/i;
+export const IMAGE_DATA_URL_RE = /^data:image\/[a-z0-9.+-]+;base64,([A-Za-z0-9+/=]+)$/i;
 
 // Phase-1 in-memory LRU: a Map iterates in insertion order, so the first key
 // is the least recently used entry — a hit re-inserts its key to refresh
