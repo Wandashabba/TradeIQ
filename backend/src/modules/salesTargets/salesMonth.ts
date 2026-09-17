@@ -64,6 +64,50 @@ export function monthWindow(month: Date, timeZone: string): MonthWindow {
   };
 }
 
+/**
+ * How many months a single window is allowed to span before it is refused.
+ *
+ * Ten years. A reporting period longer than that is a typo or a probe, not a
+ * question, and the loop below needs a stop that does not depend on the caller
+ * having passed a sane `to`.
+ */
+const MAX_WHOLE_MONTHS = 120;
+
+/**
+ * The whole calendar months `[from, to)` covers **exactly**, or `null` when it
+ * covers none (#337).
+ *
+ * A target is set per month, so a figure may only be measured against one when
+ * the window is one or more complete months of the client's own calendar. This
+ * is the test for that, and it is deliberately all-or-nothing: `from` must be
+ * the instant the 1st begins locally, and `to` must be the instant some later
+ * 1st begins. Month-to-date, last week and a custom range ending mid-month all
+ * return `null`, and their callers report units with no target rather than
+ * prorating one — a prorated target is a number nobody set, and it would be
+ * quoted in a meeting as though somebody had.
+ *
+ * Boundaries are compared as instants because that is what the caller resolved
+ * them to; a Johannesburg September is `[31 Aug 22:00Z, 30 Sep 22:00Z)` and
+ * nothing an hour either side of those is September.
+ */
+export function wholeMonthsIn(from: Date, to: Date, timeZone: string): Date[] | null {
+  if (!(to > from)) return null;
+
+  const first = localMonthOf(from, timeZone);
+  if (startOfLocalDay(first, timeZone).getTime() !== from.getTime()) return null;
+
+  const months: Date[] = [];
+  let month = first;
+  while (months.length < MAX_WHOLE_MONTHS) {
+    months.push(month);
+    const boundary = startOfLocalDay(nextMonth(month), timeZone);
+    if (boundary.getTime() === to.getTime()) return months;
+    if (boundary.getTime() > to.getTime()) return null;
+    month = nextMonth(month);
+  }
+  return null;
+}
+
 /** The month the local calendar date of `instant` falls in. */
 export function localMonthOf(instant: Date, timeZone: string): Date {
   const day = localCalendarDate(instant, timeZone);

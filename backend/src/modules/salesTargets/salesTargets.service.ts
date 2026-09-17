@@ -6,7 +6,14 @@ import { round2 } from '../../lib/kpiMath';
 import { NotFoundError, ValidationError } from '../../middleware/errorHandler';
 import { getClientTimeZone } from '../clients/clients.service';
 import { CsvSyntaxError, normaliseHeader, parseCsv } from './csv';
-import { MonthWindow, localMonthOf, monthKey, monthWindow, parseMonth } from './salesMonth';
+import {
+  MonthWindow,
+  localMonthOf,
+  monthKey,
+  monthWindow,
+  parseMonth,
+  wholeMonthsIn,
+} from './salesMonth';
 
 /**
  * Monthly sell-in targets per SKU, and actual-vs-target attainment (#119).
@@ -542,15 +549,32 @@ interface SellInRow {
   units: bigint | number;
 }
 
+/** A half-open instant range — the shape both readers below filter on. */
+export interface SellInRange {
+  from: Date;
+  to: Date;
+}
+
 /**
- * Sell-in units for the month, per SKU per outlet, with each outlet's
- * territory code (`Outlet.territoryId` stores `Territory.code`, never its id —
- * see `dashboard.service.ts`). One grouped query; the rollups happen in memory.
+ * Sell-in units over any half-open `[from, to)` window, per SKU per outlet,
+ * with each outlet's territory code (`Outlet.territoryId` stores
+ * `Territory.code`, never its id — see `dashboard.service.ts`). One grouped
+ * query; the rollups happen in memory.
  *
  * Dated by `captured_at` (#338), so an order taken offline on the last day of
  * the month counts toward that month rather than the next one.
+ *
+ * The window is an arbitrary range rather than a {@link MonthWindow} because
+ * the assistant asks over the manager's period vocabulary — today, last week,
+ * month-to-date — and those are not months (#337). It is the **one** query
+ * either caller uses: a second hand-written sell-in query is how two surfaces
+ * come to disagree about what a month contained.
  */
-async function sellInForMonth(clientId: string, window: MonthWindow, skuId?: string): Promise<SellInRow[]> {
+async function sellInRows(
+  clientId: string,
+  range: SellInRange,
+  filter: { skuId?: string; territoryCode?: string } = {},
+): Promise<SellInRow[]> {
   return prisma.$queryRaw<SellInRow[]>`
     SELECT ol."sku_id", o."outlet_id", ou."territory_id" AS "territory_code",
       SUM(ol."quantity")::bigint AS "units"
@@ -559,11 +583,17 @@ async function sellInForMonth(clientId: string, window: MonthWindow, skuId?: str
     JOIN "outlets" ou ON ou."id" = o."outlet_id"
     WHERE o."client_id" = ${clientId}
       AND o."status" <> 'cancelled'
-      AND o."captured_at" >= ${window.from.toISOString()}::timestamp
-      AND o."captured_at" < ${window.to.toISOString()}::timestamp
-      ${skuId ? Prisma.sql`AND ol."sku_id" = ${skuId}` : Prisma.empty}
+      AND o."captured_at" >= ${range.from.toISOString()}::timestamp
+      AND o."captured_at" < ${range.to.toISOString()}::timestamp
+      ${filter.skuId ? Prisma.sql`AND ol."sku_id" = ${filter.skuId}` : Prisma.empty}
+      ${filter.territoryCode ? Prisma.sql`AND ou."territory_id" = ${filter.territoryCode}` : Prisma.empty}
     GROUP BY ol."sku_id", o."outlet_id", ou."territory_id"
   `;
+}
+
+/** The month's sell-in — {@link sellInRows} over the month's local days. */
+async function sellInForMonth(clientId: string, window: MonthWindow, skuId?: string): Promise<SellInRow[]> {
+  return sellInRows(clientId, window, skuId ? { skuId } : {});
 }
 
 export interface AttainmentFigures {
@@ -740,5 +770,196 @@ export async function getSalesAttainment(input: {
     skus,
     summary,
     truncated: skuRows.length > MAX_ATTAINMENT_SKUS,
+  };
+}
+
+// ── Sell-in over an arbitrary window (#337) ─────────────────────────────────
+
+/**
+ * What an unresolvable territory filters by, so a scoped question matches
+ * **nothing** rather than everything. Getting this backwards is how a narrowed
+ * question silently returns the whole tenant — which reads as a working answer.
+ * Same sentinel, same reasoning, as `assistant/pillars.service.ts`.
+ */
+const NO_SUCH_TERRITORY = '__no-such-territory__';
+
+/**
+ * What these figures are and what they are not, in one sentence, carried in
+ * every result.
+ *
+ * It rides in the payload rather than only in a tool description because the
+ * description is read once, at the top of a turn, while the numbers are read
+ * again in every later round. A number labelled "sales" and nothing else gets
+ * reported as sales.
+ */
+export const SELL_IN_BASIS =
+  'Sell-in: units ordered through TradeIQ by outlets on non-cancelled orders, dated by ' +
+  'when the agent captured the order on the device. This is what the trade ordered from ' +
+  'us. It is NOT consumer sell-out — there is no till or POS feed — so never describe ' +
+  'these units as what shoppers bought.';
+
+export interface SellInPerformance {
+  metric: typeof SELL_IN_METRIC;
+  metricLabel: typeof SELL_IN_LABEL;
+  /** @see SELL_IN_BASIS */
+  basis: string;
+  timeZone: string;
+  /** The window actually measured, `[from, to)`. */
+  from: Date;
+  to: Date;
+  /** Every unit ordered in the window, targeted or not. The headline figure. */
+  sellInUnits: number;
+  /**
+   * The sell-in of only the SKUs that have a target — the numerator of
+   * `attainmentPct`, and null wherever `targetUnits` is.
+   *
+   * It is lower than `sellInUnits` whenever something sold that nobody set a
+   * target for, which is the normal case. Attainment has to compare like with
+   * like or a month reads as ahead of a target that never covered most of what
+   * was ordered.
+   */
+  targetedSellInUnits: number | null;
+  outletsOrdering: number;
+  skusOrdered: number;
+  /** The whole calendar months the window covers, `YYYY-MM`. Empty when it covers none. */
+  months: string[];
+  /**
+   * The month's target, or **null** — when no target is set for this scope, and
+   * when the window is not whole months. Never a stand-in zero: "0% of nothing"
+   * reads as a miss the team did not have.
+   */
+  targetUnits: number | null;
+  attainmentPct: number | null;
+  /** Why the target reads the way it does. Always present, always specific. */
+  targetBasis: string;
+}
+
+/**
+ * Sell-in over any window, against the target of the months it covers.
+ *
+ * ## The period problem, and what this does about it (#337)
+ *
+ * Targets are **monthly** — one row per SKU, month and scope — but the
+ * assistant's period vocabulary is the manager's: today, yesterday, last week,
+ * month-to-date, year-to-date, a custom range. Most of those are not months.
+ *
+ * So: **attainment is reported only for whole calendar months.** When
+ * `[from, to)` is exactly one or more complete months of the client's own
+ * calendar ({@link wholeMonthsIn}), the target is the sum of the manager-set
+ * targets for those months and `attainmentPct` is the division. For every other
+ * window — month-to-date included — `targetUnits` and `attainmentPct` are
+ * `null`, `targetBasis` says why, and the sell-in units are still returned.
+ *
+ * The rejected alternative was prorating: 15 days into a month, quote 15/30ths
+ * of the target. It is arithmetically tidy and dishonest — sell-in is lumpy
+ * (order days cluster around a delivery schedule, not evenly across a month),
+ * nobody set the prorated number, and a manager quoting "we are at 47% of
+ * target" in a meeting cannot tell that the denominator was invented here. A
+ * missing target is information; a fabricated one is not.
+ *
+ * A window with no target set gets the same nulls with different wording, for
+ * the same reason: a target of zero would report every unit sold as a triumph
+ * and every quiet month as a pass.
+ *
+ * ## Scope
+ *
+ * Without a territory, the target is the **client-wide** targets for those
+ * months. With one, it is that territory's territory-scoped targets, and the
+ * sell-in is the sell-in of the outlets in it. Levels are never mixed: a
+ * client-wide target and a territory target count some of the same orders, so
+ * adding them would double-count (the same rule `getSalesAttainment` follows).
+ */
+export async function getSellInPerformance(input: {
+  clientId: string;
+  from: Date;
+  to: Date;
+  /** A `Territory.id` — the client-facing contract. Resolved inside the tenant. */
+  territoryId?: string;
+}): Promise<SellInPerformance> {
+  const timeZone = await getClientTimeZone(input.clientId);
+
+  // `Outlet.territoryId` holds the territory CODE (the #97 postmortem) while
+  // `SalesTarget.territoryId` holds the real id, so both are needed — and both
+  // are resolved from one lookup confined to this client. Another tenant's
+  // territory id resolves to nothing, exactly as a typo would.
+  const territory = input.territoryId
+    ? await prisma.territory.findFirst({
+        where: { id: input.territoryId, clientId: input.clientId },
+        select: { id: true, code: true },
+      })
+    : null;
+  const territoryCode = input.territoryId
+    ? (territory?.code ?? NO_SUCH_TERRITORY)
+    : undefined;
+
+  const months = wholeMonthsIn(input.from, input.to, timeZone);
+
+  const [sellIn, targets] = await Promise.all([
+    sellInRows(input.clientId, input, territoryCode ? { territoryCode } : {}),
+    months
+      ? prisma.salesTarget.findMany({
+          where: {
+            clientId: input.clientId,
+            month: { in: months },
+            ...(input.territoryId
+              ? { territoryId: territory?.id ?? NO_SUCH_TERRITORY, outletId: null }
+              : { territoryId: null, outletId: null }),
+          },
+          select: { skuId: true, targetUnits: true },
+        })
+      : [],
+  ]);
+
+  const sellInUnits = sellIn.reduce((sum, row) => sum + Number(row.units), 0);
+  // `targets.length`, not the sum: a manager who set a target of 0 has said
+  // something, and a manager who set nothing has not. Only the second is null.
+  const targetUnits =
+    months && targets.length > 0 ? targets.reduce((sum, t) => sum + t.targetUnits, 0) : null;
+
+  // The attainment numerator is the sell-in of the TARGETED SKUs only, which is
+  // what `getSalesAttainment`'s summary reports — so the assistant and the
+  // console cannot quote different attainment for the same month. Dividing
+  // total sell-in by the targets of a few SKUs would report a month as ahead of
+  // a target that never covered most of what was ordered.
+  const unitsBySku = new Map<string, number>();
+  for (const row of sellIn) {
+    unitsBySku.set(row.sku_id, (unitsBySku.get(row.sku_id) ?? 0) + Number(row.units));
+  }
+  const targetedSellInUnits =
+    targetUnits === null
+      ? null
+      : [...new Set(targets.map((t) => t.skuId))].reduce(
+          (sum, skuId) => sum + (unitsBySku.get(skuId) ?? 0),
+          0,
+        );
+  const monthKeys = (months ?? []).map(monthKey);
+  const scope = input.territoryId ? 'this territory' : 'the whole business';
+
+  return {
+    metric: SELL_IN_METRIC,
+    metricLabel: SELL_IN_LABEL,
+    basis: SELL_IN_BASIS,
+    timeZone,
+    from: input.from,
+    to: input.to,
+    sellInUnits,
+    targetedSellInUnits,
+    outletsOrdering: new Set(sellIn.map((row) => row.outlet_id)).size,
+    skusOrdered: new Set(sellIn.map((row) => row.sku_id)).size,
+    months: monthKeys,
+    targetUnits,
+    attainmentPct: attainmentPct(targetedSellInUnits ?? 0, targetUnits),
+    targetBasis: !months
+      ? 'Targets are set per calendar month, and this period is not a whole calendar ' +
+        'month, so no target or attainment is reported — only the sell-in units above. ' +
+        'Do not scale a monthly target to fit this period. Ask about a whole month to ' +
+        'see attainment.'
+      : targetUnits === null
+        ? `No sell-in target is set for ${monthKeys.join(', ')} for ${scope}, so there is ` +
+          'no attainment to report. No target is not a target of zero — say that none is set.'
+        : `Target is the sum of the manager-set monthly sell-in targets for ` +
+          `${monthKeys.join(', ')}, for ${scope}. Attainment divides ` +
+          'targetedSellInUnits — the sell-in of the SKUs that have a target — by it, ' +
+          'not total sellInUnits, so the two sides compare like with like.',
   };
 }
