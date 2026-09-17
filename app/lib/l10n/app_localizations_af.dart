@@ -1290,7 +1290,7 @@ class AppLocalizationsAf extends AppLocalizations {
       other: 'elke $minutes minute',
       one: 'elke minuut',
     );
-    return 'Terwyl TradeIQ oop is en jy ingeteken is, stuur dit $_temp0 jou foon se ligging na jou bestuurder, sodat hulle kan sien by watter winkel jy is. Dit stop wanneer jy TradeIQ toemaak of uitteken, en niks word in die agtergrond gestuur nie.';
+    return 'Jou bestuurder kan sien by watter winkel jy is.\n\nTerwyl TradeIQ oop is en jy ingeteken is, stuur dit $_temp0 jou ligging. As jy TradeIQ toemaak of uitteken, stop dit. Niks word in die agtergrond gestuur nie.';
   }
 
   @override
@@ -1342,7 +1342,7 @@ class AppLocalizationsAf extends AppLocalizations {
       other: 'elke $minutes minute',
       one: 'elke minuut',
     );
-    return 'Dit is apart van die deel van jou ligging terwyl TradeIQ oop is, en jy mag nee sê. As jy dit aanskakel, teken TradeIQ $_temp0 aan waar jy is — selfs wanneer TradeIQ toe is — sodat jou bestuurder jou roete tussen winkels kan sien. Dit loop net op ’n werksdag tussen $start en $end, nooit snags nie en nooit oor naweke nie. Terwyl dit aan is, bly ’n kennisgewing op jou foon sodat jy altyd kan sien. Jy kan dit enige tyd afskakel, en om dit af te skakel stop nie die deel waartoe jy reeds ingestem het nie.';
+    return 'Apart van die deel terwyl TradeIQ oop is, en jy mag nee sê.\n\nTradeIQ teken $_temp0 aan waar jy is, selfs wanneer dit toe is, sodat jou bestuurder jou roete tussen winkels kan sien. Net op werksdae $start–$end — nooit snags of oor naweke nie. ’n Kennisgewing bly die hele tyd op jou foon. Jy kan dit enige tyd afskakel; dit stop nie die deel waartoe jy reeds ingestem het nie.';
   }
 
   @override
@@ -1381,7 +1381,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get backgroundLocationPermissionBody =>
-      'Om jou roete aan te teken wanneer TradeIQ toe is, moet jy “Laat altyd toe” vir ligging op TradeIQ se instellingsblad kies. Alles anders in TradeIQ werk steeds as jy liewer nie wil nie.';
+      'Kies “Laat altyd toe” vir ligging op TradeIQ se instellingsblad.\n\nDit laat TradeIQ jou roete aanteken wanneer dit toe is. Alles anders werk steeds as jy liewer nie wil nie.';
 
   @override
   String get backgroundLocationPermissionOpenSettings =>
@@ -1395,7 +1395,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get backgroundLocationStopBody =>
-      'Jou bestuurder sal nie meer jou roete tussen winkels sien nie. Die deel van jou ligging terwyl TradeIQ oop is, word nie geraak nie — dit bly presies soos dit is.';
+      'Jou bestuurder sal nie meer jou roete tussen winkels sien nie.\n\nDie deel van jou ligging terwyl TradeIQ oop is, word nie geraak nie.';
 
   @override
   String get backgroundLocationStopConfirm => 'Stop roete-aantekening';

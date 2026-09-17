@@ -2093,7 +2093,7 @@ abstract class AppLocalizations {
   /// Body of the one-time location notice: what is shared, with whom, how often, and when it stops.
   ///
   /// In en, this message translates to:
-  /// **'While TradeIQ is open and you are signed in, it sends your phone’s location to your manager {minutes, plural, =1{every minute} other{every {minutes} minutes}}, so they can see which store you are at. It stops when you close TradeIQ or log out, and nothing is sent in the background.'**
+  /// **'Your manager can see which store you are at.\n\nWhile TradeIQ is open and you are signed in, it sends your location {minutes, plural, =1{every minute} other{every {minutes} minutes}}. Closing TradeIQ or signing out stops it. Nothing is sent in the background.'**
   String locationNoticeBody(int minutes);
 
   /// Location notice: the agent agrees to share their location while the app is open.
@@ -2171,7 +2171,7 @@ abstract class AppLocalizations {
   /// Body of the background-tracking notice: what is recorded, how often, when it runs, that it runs with the app closed, that a notification is always shown, and how to stop it.
   ///
   /// In en, this message translates to:
-  /// **'This is separate from sharing your location while TradeIQ is open, and you can say no to it. If you turn it on, TradeIQ records where you are {minutes, plural, =1{every minute} other{every {minutes} minutes}} — even when TradeIQ is closed — so your manager can see your route between stores. It runs only on a working day between {start} and {end}, never at night and never at a weekend. While it is on, a notification stays on your phone so you can always tell. You can turn it off at any time, and turning it off does not stop the sharing you already agreed to.'**
+  /// **'Separate from sharing while TradeIQ is open, and you can say no.\n\nTradeIQ records where you are {minutes, plural, =1{every minute} other{every {minutes} minutes}}, even when it is closed, so your manager can see your route between stores. Working days {start}–{end} only — never at night or at a weekend. A notification stays on your phone the whole time. You can turn it off whenever you like; that does not stop the sharing you already agreed to.'**
   String backgroundLocationNoticeBody(int minutes, String start, String end);
 
   /// Background notice: the agent agrees. Only after this does the app ask Android for background location.
@@ -2231,7 +2231,7 @@ abstract class AppLocalizations {
   /// Explains Android's two-step background-location flow, and that refusing costs nothing else.
   ///
   /// In en, this message translates to:
-  /// **'To record your route when TradeIQ is closed, Android needs you to choose “Allow all the time” for location on TradeIQ’s settings page. Everything else in TradeIQ keeps working if you would rather not.'**
+  /// **'Choose “Allow all the time” for location on TradeIQ’s settings page.\n\nThat lets TradeIQ record your route when it is closed. Everything else keeps working if you would rather not.'**
   String get backgroundLocationPermissionBody;
 
   /// Opens the Android app settings page, the only place 'Allow all the time' can be chosen from Android 11 on.
@@ -2255,7 +2255,7 @@ abstract class AppLocalizations {
   /// Confirmation dialog body. Says plainly that stopping background tracking leaves foreground sharing alone.
   ///
   /// In en, this message translates to:
-  /// **'Your manager will no longer see your route between stores. Sharing your location while TradeIQ is open is not affected — that stays exactly as it is.'**
+  /// **'Your manager will no longer see your route between stores.\n\nSharing your location while TradeIQ is open is not affected.'**
   String get backgroundLocationStopBody;
 
   /// Confirmation dialog: stop background tracking.

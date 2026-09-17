@@ -81,7 +81,7 @@ void main() {
     expect(find.byKey(indicator), findsNothing);
     expect(find.text('Your location is shared with your manager'), findsOneWidget);
     expect(find.textContaining('every 2 minutes'), findsOneWidget);
-    expect(find.textContaining('nothing is sent in the background'), findsOneWidget);
+    expect(find.textContaining('Nothing is sent in the background'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('location-notice-acknowledge')));
     await tester.pumpAndSettle();
