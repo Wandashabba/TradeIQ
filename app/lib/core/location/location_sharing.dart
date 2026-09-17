@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -61,12 +62,191 @@ class LocationDecision {
   }
 }
 
+/// The client's working-hours window, as `GET /locations/settings` reports it
+/// (#153 T2). Background tracking runs inside this and nowhere else.
+@immutable
+class WorkingHours {
+  const WorkingHours({
+    required this.start,
+    required this.end,
+    required this.days,
+    required this.timezone,
+  });
+
+  /// `HH:MM`, inclusive.
+  final String start;
+
+  /// `HH:MM`, exclusive.
+  final String end;
+
+  /// ISO weekdays: 1 = Monday … 7 = Sunday.
+  final List<int> days;
+
+  /// The IANA zone the two times are read on. The app never does arithmetic in
+  /// it — the server resolves the window's edges into instants for exactly that
+  /// reason — but it is shown to the agent so the hours are not ambiguous.
+  final String timezone;
+
+  static const fallback = WorkingHours(
+    start: '07:00',
+    end: '17:00',
+    days: [1, 2, 3, 4, 5],
+    timezone: 'Africa/Johannesburg',
+  );
+
+  factory WorkingHours.fromJson(Object? json) {
+    if (json is! Map<String, dynamic>) return fallback;
+    return WorkingHours(
+      start: json['start'] as String? ?? fallback.start,
+      end: json['end'] as String? ?? fallback.end,
+      days:
+          (json['days'] as List<dynamic>?)
+              ?.map((d) => (d as num).toInt())
+              .toList() ??
+          fallback.days,
+      timezone: json['timezone'] as String? ?? fallback.timezone,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'start': start,
+    'end': end,
+    'days': days,
+    'timezone': timezone,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is WorkingHours &&
+      other.start == start &&
+      other.end == end &&
+      other.timezone == timezone &&
+      listEquals(other.days, days);
+
+  @override
+  int get hashCode => Object.hash(start, end, timezone, Object.hashAll(days));
+}
+
+/// The shortest background interval the app will run, whatever it is told —
+/// the same kind of clamp as [minPingInterval], for the same reason. Background
+/// tracking runs unattended, so a bad server value would be felt as a flat
+/// battery halfway through a shift and nothing else (#153 risk 5).
+const minBackgroundInterval = Duration(minutes: 5);
+
+/// The `background` block of `GET /locations/settings` (#153 T2).
+///
+/// Everything here is reported independently of the foreground fields: the
+/// notice, the answer, and the window. Nothing in this object ever speaks for
+/// the heartbeat.
+@immutable
+class BackgroundSettings {
+  const BackgroundSettings({
+    required this.intervalSeconds,
+    required this.noticeVersion,
+    required this.workingHours,
+    required this.withinWorkingHours,
+    this.decision,
+    this.windowOpensAt,
+    this.windowClosesAt,
+  });
+
+  final int intervalSeconds;
+  final String noticeVersion;
+  final WorkingHours workingHours;
+
+  /// Whether the window was open when the server answered.
+  final bool withinWorkingHours;
+
+  /// The agent's answer to THIS background notice version; null when unanswered.
+  final LocationDecision? decision;
+
+  /// The instants the window opens and closes, resolved by the server in the
+  /// client's own timezone. Exactly one of them is set: a shut window knows
+  /// when it opens, an open one knows when it closes.
+  final DateTime? windowOpensAt;
+  final DateTime? windowClosesAt;
+
+  Duration get interval {
+    final d = Duration(seconds: intervalSeconds);
+    return d < minBackgroundInterval ? minBackgroundInterval : d;
+  }
+
+  /// The floor between two queued background pings. Android may deliver a fix
+  /// early when it has one cheaply to hand; taking it is free accuracy on a
+  /// moving agent, but not at the cost of several hundred rows a day.
+  Duration get minimumGap => interval ~/ 2;
+
+  BackgroundSettings withDecision(LocationDecision? next) => BackgroundSettings(
+    intervalSeconds: intervalSeconds,
+    noticeVersion: noticeVersion,
+    workingHours: workingHours,
+    withinWorkingHours: withinWorkingHours,
+    decision: next,
+    windowOpensAt: windowOpensAt,
+    windowClosesAt: windowClosesAt,
+  );
+
+  static BackgroundSettings? fromJson(Object? json) {
+    // A server that predates T2 sends no block at all, and the app must then
+    // offer nothing rather than guess — the notice text quotes the interval and
+    // the hours, so there is no honest wording without them.
+    if (json is! Map<String, dynamic>) return null;
+    final version = json['noticeVersion'] as String?;
+    if (version == null) return null;
+    final decision = LocationDecision.fromJson(json['consent']);
+    return BackgroundSettings(
+      intervalSeconds: (json['intervalSeconds'] as num?)?.round() ?? 600,
+      noticeVersion: version,
+      workingHours: WorkingHours.fromJson(json['workingHours']),
+      withinWorkingHours: json['withinWorkingHours'] as bool? ?? false,
+      decision: decision?.noticeVersion == version ? decision : null,
+      windowOpensAt: DateTime.tryParse('${json['windowOpensAt']}'),
+      windowClosesAt: DateTime.tryParse('${json['windowClosesAt']}'),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'intervalSeconds': intervalSeconds,
+    'noticeVersion': noticeVersion,
+    'workingHours': workingHours.toJson(),
+    'withinWorkingHours': withinWorkingHours,
+    'consent': decision?.toJson(),
+    'windowOpensAt': windowOpensAt?.toUtc().toIso8601String(),
+    'windowClosesAt': windowClosesAt?.toUtc().toIso8601String(),
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is BackgroundSettings &&
+      other.intervalSeconds == intervalSeconds &&
+      other.noticeVersion == noticeVersion &&
+      other.workingHours == workingHours &&
+      other.withinWorkingHours == withinWorkingHours &&
+      other.decision?.consent == decision?.consent &&
+      other.decision?.decidedAt == decision?.decidedAt &&
+      other.windowOpensAt == windowOpensAt &&
+      other.windowClosesAt == windowClosesAt;
+
+  @override
+  int get hashCode => Object.hash(
+    intervalSeconds,
+    noticeVersion,
+    workingHours,
+    withinWorkingHours,
+    decision?.consent,
+    decision?.decidedAt,
+    windowOpensAt,
+    windowClosesAt,
+  );
+}
+
 /// GET /locations/settings, as the app uses it.
 class LocationSettings {
   const LocationSettings({
     required this.intervalSeconds,
     required this.noticeVersion,
     this.decision,
+    this.background,
   });
 
   final int intervalSeconds;
@@ -75,11 +255,26 @@ class LocationSettings {
   /// The agent's answer to THIS notice version; null when unanswered.
   final LocationDecision? decision;
 
+  /// Background tracking (#153 T2), or null against a server that predates it.
+  final BackgroundSettings? background;
+
   LocationSettings withDecision(LocationDecision? next) => LocationSettings(
     intervalSeconds: intervalSeconds,
     noticeVersion: noticeVersion,
     decision: next,
+    background: background,
   );
+
+  /// The same, for the BACKGROUND notice — and note what it does not touch:
+  /// [decision] is carried through untouched, because answering one notice must
+  /// never move the other (#153 T2).
+  LocationSettings withBackgroundDecision(LocationDecision? next) =>
+      LocationSettings(
+        intervalSeconds: intervalSeconds,
+        noticeVersion: noticeVersion,
+        decision: decision,
+        background: background?.withDecision(next),
+      );
 
   factory LocationSettings.fromJson(Map<String, dynamic> json) {
     final version = json['noticeVersion'] as String;
@@ -88,6 +283,7 @@ class LocationSettings {
       intervalSeconds: (json['intervalSeconds'] as num).round(),
       noticeVersion: version,
       decision: decision?.noticeVersion == version ? decision : null,
+      background: BackgroundSettings.fromJson(json['background']),
     );
   }
 
@@ -95,6 +291,7 @@ class LocationSettings {
     'intervalSeconds': intervalSeconds,
     'noticeVersion': noticeVersion,
     'consent': decision?.toJson(),
+    'background': background?.toJson(),
   };
 }
 
@@ -308,17 +505,39 @@ class LocationSharingController extends Notifier<LocationSharingState> {
     }
   }
 
+  /// Re-reads the settings from the server.
+  ///
+  /// Public because background tracking (#153 T2) has edges this controller
+  /// knows nothing about — the working window opening or closing — and the
+  /// server is the authority on where those edges are. Rather than reason about
+  /// a timezone on the phone, the background controller simply asks again.
+  Future<void> refresh() => _load(_generation);
+
   /// The server's settings, except that an answer made on this phone which the
   /// server has not heard yet (it is still in the outbox) is not overwritten by
-  /// the server's older view.
+  /// the server's older view. Both notices, each judged on its own.
   LocationSettings _merge(LocationSettings remote, LocationSettings? local) {
+    var merged = remote;
+
     final mine = local?.decision;
     final theirs = remote.decision;
-    final keepMine =
-        mine != null &&
+    if (mine != null &&
         mine.noticeVersion == remote.noticeVersion &&
-        (theirs == null || mine.decidedAt.isAfter(theirs.decidedAt));
-    return keepMine ? remote.withDecision(mine) : remote;
+        (theirs == null || mine.decidedAt.isAfter(theirs.decidedAt))) {
+      merged = merged.withDecision(mine);
+    }
+
+    final myBackground = local?.background?.decision;
+    final theirBackground = remote.background?.decision;
+    if (myBackground != null &&
+        remote.background != null &&
+        myBackground.noticeVersion == remote.background!.noticeVersion &&
+        (theirBackground == null ||
+            myBackground.decidedAt.isAfter(theirBackground.decidedAt))) {
+      merged = merged.withBackgroundDecision(myBackground);
+    }
+
+    return merged;
   }
 
   void _apply(LocationSettings settings) {
@@ -479,6 +698,66 @@ class LocationSharingController extends Notifier<LocationSharingState> {
     final next = settings.withDecision(decision);
     state = state.copyWith(settings: next, reconsidering: false, noFix: false);
     _reconcile();
+    await ref.read(locationSharingStoreProvider).write(userId, next);
+    unawaited(_flush());
+  }
+
+  /// "Turn on route tracking" — the agent's answer to the BACKGROUND notice
+  /// (#153 T2). Driven by `BackgroundLocationController`, which owns the
+  /// service; this owns the settings object and the outbox, so the answer is
+  /// recorded here.
+  Future<void> acceptBackground() =>
+      _decideBackground(LocationConsent.acknowledged);
+
+  /// "Stop route tracking", or a decline of the notice.
+  ///
+  /// **This leaves foreground sharing exactly as it was.** A background decline
+  /// writes a background row, drops only the background ping queue, and never
+  /// touches [decline] or the heartbeat — which is the whole reason the two
+  /// notices are separate.
+  Future<void> declineBackground() =>
+      _decideBackground(LocationConsent.declined);
+
+  Future<void> _decideBackground(LocationConsent consent) async {
+    final settings = state.settings;
+    final background = settings?.background;
+    final userId = _userId;
+    if (settings == null ||
+        background == null ||
+        userId == null ||
+        currentLocalUserId != userId) {
+      return;
+    }
+    final generation = _generation;
+    final decision = LocationDecision(
+      consent: consent,
+      noticeVersion: background.noticeVersion,
+      decidedAt: ref.read(locationClockProvider)(),
+    );
+    final db = ref.read(localDbProvider);
+    if (consent == LocationConsent.declined) {
+      // Only the BACKGROUND lane. Route points still waiting to send were taken
+      // while they had agreed, but they have just said stop, so they never
+      // leave the phone — while foreground pings queued behind them are still
+      // covered by an agreement the agent has not withdrawn.
+      await (db.delete(db.syncQueueItems)..where(
+            (t) =>
+                t.entityType.equals(locationBackgroundPingEntity) &
+                t.synced.equals(false) &
+                t.userId.equals(userId),
+          ))
+          .go();
+    }
+    await db.enqueue(
+      entityType: locationConsentEntity,
+      // The foreground answer may be queued at the same instant, and the outbox
+      // key is per entity type and id — so the kind is part of the id.
+      entityId: 'background:${decision.decidedAt.toUtc().toIso8601String()}',
+      payloadJson: jsonEncode({...decision.toJson(), 'kind': 'background'}),
+    );
+    if (!_alive(generation)) return;
+    final next = settings.withBackgroundDecision(decision);
+    state = state.copyWith(settings: next);
     await ref.read(locationSharingStoreProvider).write(userId, next);
     unawaited(_flush());
   }

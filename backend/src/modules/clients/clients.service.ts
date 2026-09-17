@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
+import { WorkingHours, workingHoursOf } from '../../lib/workingHours';
 
 // The runtime scorecard configuration exposed to (and editable by) a client.
 // Only the config-relevant columns are surfaced; secrets/relations stay hidden.
@@ -21,6 +22,12 @@ const CLIENT_CONFIG_SELECT = {
   // IANA zone every calendar-day rule reads (#309). Editable by managers and
   // admins — it is a fact about where the team works, not a scoring policy.
   timezone: true,
+  // When the team works, on the wall clock of `timezone` (#153 T2). Editable by
+  // managers and admins for the same reason, and read by exactly one thing:
+  // the window background location tracking is allowed to run in.
+  workHoursStart: true,
+  workHoursEnd: true,
+  workDays: true,
 } satisfies Prisma.ClientSelect;
 
 export type ClientConfig = Prisma.ClientGetPayload<{ select: typeof CLIENT_CONFIG_SELECT }>;
@@ -52,11 +59,31 @@ export async function getClientTimeZone(clientId: string): Promise<string> {
   return client?.timezone ?? DEFAULT_CLIENT_TIME_ZONE;
 }
 
+/**
+ * The client's working-hours window (#153 T2), normalised.
+ *
+ * Falls back to the Mon–Fri 07:00–17:00 default for a client that does not
+ * resolve or whose columns hold something unusable — same reasoning as
+ * `getClientTimeZone`, and the conservative direction: a broken row narrows
+ * tracking to the default day rather than widening it.
+ */
+export async function getClientWorkingHours(clientId: string): Promise<WorkingHours> {
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { workHoursStart: true, workHoursEnd: true, workDays: true },
+  });
+  return workingHoursOf(client);
+}
+
 export interface UpdateClientConfigInput {
   scorecardWeights?: Prisma.InputJsonValue;
   kpiThresholds?: Prisma.InputJsonValue;
   /** Already validated with `isValidTimeZone`. */
   timezone?: string;
+  /** All three already validated together with `validateWorkingHours`. */
+  workHoursStart?: string;
+  workHoursEnd?: string;
+  workDays?: number[];
 }
 
 export async function updateClientConfig(

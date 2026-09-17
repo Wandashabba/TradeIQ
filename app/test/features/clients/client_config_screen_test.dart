@@ -30,9 +30,13 @@ class _FakeClientsRepository implements ClientsRepository {
   Map<String, double>? savedWeights;
   Map<String, double>? savedThresholds;
   String? savedTimezone;
+  ({String start, String end, List<int> days})? savedWorkingHours;
 
   /// What the server currently holds; a save moves it, so a re-read shows it.
   String timezone;
+  String workHoursStart = defaultWorkHoursStart;
+  String workHoursEnd = defaultWorkHoursEnd;
+  List<int> workDays = defaultWorkDays;
 
   @override
   Future<ClientConfig> getConfig() async => ClientConfig(
@@ -40,7 +44,23 @@ class _FakeClientsRepository implements ClientsRepository {
         scorecardWeights: _config.scorecardWeights,
         kpiThresholds: _config.kpiThresholds,
         timezone: timezone,
+        workHoursStart: workHoursStart,
+        workHoursEnd: workHoursEnd,
+        workDays: workDays,
       );
+
+  @override
+  Future<ClientConfig> updateWorkingHours({
+    required String start,
+    required String end,
+    required List<int> days,
+  }) async {
+    savedWorkingHours = (start: start, end: end, days: days);
+    workHoursStart = start;
+    workHoursEnd = end;
+    workDays = days;
+    return getConfig();
+  }
 
   @override
   Future<ClientConfig> updateTimezone(String timezone) async {
@@ -93,6 +113,19 @@ class _RejectingClientsRepository implements ClientsRepository {
   @override
   Future<ClientConfig> updateTimezone(String timezone) async =>
       throw Exception('boom');
+
+  @override
+  Future<ClientConfig> updateWorkingHours({
+    required String start,
+    required String end,
+    required List<int> days,
+  }) async => throw DioException(
+    requestOptions: RequestOptions(path: '/clients/me'),
+    response: Response<dynamic>(
+      requestOptions: RequestOptions(path: '/clients/me'),
+      statusCode: 403,
+    ),
+  );
 }
 
 /// Loads fine; every timezone save fails with [error].
@@ -120,6 +153,13 @@ class _ThrowingClientsRepository implements ClientsRepository {
   @override
   Future<ClientConfig> updateTimezone(String timezone) async =>
       throw Exception('boom');
+
+  @override
+  Future<ClientConfig> updateWorkingHours({
+    required String start,
+    required String end,
+    required List<int> days,
+  }) async => throw Exception('boom');
 }
 
 class _FixedSessionController extends SessionController {

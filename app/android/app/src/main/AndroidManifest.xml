@@ -6,6 +6,29 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Background location tracking between stores (#153 T2). ANDROID ONLY:
+         there is no iOS counterpart, and that is a decision rather than an
+         oversight — see ios/Runner/Info.plist, which says so in place.
+
+         ACCESS_BACKGROUND_LOCATION is requested ONLY after the agent has
+         accepted the separate background-tracking notice, and Android's own
+         two-step flow is followed: the while-in-use prompt first, then the
+         "Allow all the time" choice, which from Android 11 the system will only
+         accept from its own Settings screen. Declaring it here does not grant
+         it; refusing it leaves every other part of the app working.
+
+         FOREGROUND_SERVICE + FOREGROUND_SERVICE_LOCATION (required from Android
+         14) are what let geolocator run its GeolocatorLocationService with a
+         permanent, non-dismissable notification while tracking is on. Android
+         requires the notification, and it is also the honest thing to show: an
+         agent must always be able to see that their route is being recorded.
+
+         WAKE_LOCK keeps the ten-minute timer honest while the phone dozes. See
+         docs/operations/background-location.md. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- Declared for the closure and S3-S4/S5 section photo capture (#41).
          image_picker delegates to the system camera app, so this is belt-and-
          braces rather than strictly required — but it is declared deliberately

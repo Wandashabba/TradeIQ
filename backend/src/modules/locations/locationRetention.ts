@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { addCalendarDays, localCalendarDate, startOfLocalDay } from '../../lib/clientTime';
 import { getClientTimeZone } from '../clients/clients.service';
-import { RAW_PING_RETENTION_DAYS, confirmsStore } from './locationPolicy';
+import { PingSource, RAW_PING_RETENTION_DAYS, confirmsStorePresence } from './locationPolicy';
 import { FenceOutlet, containingOutlet, outletsNear } from './outletFence';
 
 /**
@@ -65,6 +65,8 @@ interface PingForFold {
   lng: number;
   accuracyM: number | null;
   recordedAt: Date;
+  /** `foreground` or `background`; absent is read as `foreground`. */
+  source?: string | null;
 }
 
 /**
@@ -73,21 +75,29 @@ interface PingForFold {
  * leaving a store and coming back is two stops — which is what happened.
  * `leftAt` is the last ping seen inside, not an exit time we never observed.
  *
- * **Only pings accurate enough to confirm a store count** (`confirmsStore`, the
- * same rule that separates `at_store` from `near_store` on the live map). A
- * ping with poor or unknown accuracy is skipped entirely: it neither opens,
- * extends nor ends a stop. It cannot confirm the agent was in a store, and it
- * cannot confirm they left one either — poor fixes are mostly indoor fixes, so
- * letting them end a stop would split one long visit into several. They still
- * count towards the day's `pingCount`, `firstPingAt` and `lastPingAt`, because
- * those describe sharing, not stores.
+ * **Only pings that can confirm a store count** (`confirmsStorePresence`, the
+ * same rule that separates `at_store` from `near_store` on the live map, so the
+ * two never disagree about what counted as being at a store). That excludes:
+ *
+ * - a ping with poor or unknown accuracy;
+ * - **every background ping** (#153 T2) — taken by a service on a timer with
+ *   the phone in a pocket, which is not evidence that anyone was in the shop.
+ *
+ * Such a ping is skipped entirely: it neither opens, extends nor ends a stop.
+ * It cannot confirm the agent was in a store, and it cannot confirm they left
+ * one either — poor fixes are mostly indoor fixes, and a background fix taken
+ * mid-visit says nothing about leaving — so letting either end a stop would
+ * split one long visit into several. They still count towards the day's
+ * `pingCount`, `firstPingAt` and `lastPingAt`, because those describe sharing,
+ * not stores.
  */
 export function foldStops(pings: PingForFold[], outlets: FenceOutlet[]): StopSummary[] {
   const sorted = [...pings].sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
   const stops: StopSummary[] = [];
   let open: StopSummary | null = null;
   for (const ping of sorted) {
-    if (!confirmsStore(ping.accuracyM)) continue;
+    const source: PingSource = ping.source === 'background' ? 'background' : 'foreground';
+    if (!confirmsStorePresence(source, ping.accuracyM)) continue;
     const outlet = containingOutlet(ping, outlets);
     if (!outlet) {
       open = null;
@@ -130,7 +140,17 @@ export async function summariseAgentDay(agentId: string, day: Date, timeZone: st
       const pings = await tx.agentLocationPing.findMany({
         where: { agentId, recordedAt: { gte: from, lt: to } },
         orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
-        select: { id: true, clientId: true, lat: true, lng: true, accuracyM: true, recordedAt: true },
+        // `source` because a background ping counts towards the day's totals
+        // but can never open a stop — see foldStops.
+        select: {
+          id: true,
+          clientId: true,
+          lat: true,
+          lng: true,
+          accuracyM: true,
+          recordedAt: true,
+          source: true,
+        },
       });
       if (pings.length === 0) return 0;
 

@@ -1627,6 +1627,109 @@
   "@locationStopCancel": {
     "description": "Confirmation dialog: keep sharing location."
   },
+  "backgroundLocationNoticeTitle": "Recording your route between stores",
+  "@backgroundLocationNoticeTitle": {
+    "description": "Title of the SEPARATE background-tracking notice (#153 T2, POPIA). Android only. Distinct from the foreground notice: accepting that one does not accept this one."
+  },
+  "backgroundLocationNoticeBody": "This is separate from sharing your location while TradeIQ is open, and you can say no to it. If you turn it on, TradeIQ records where you are {minutes, plural, =1{every minute} other{every {minutes} minutes}} — even when TradeIQ is closed — so your manager can see your route between stores. It runs only on a working day between {start} and {end}, never at night and never at a weekend. While it is on, a notification stays on your phone so you can always tell. You can turn it off at any time, and turning it off does not stop the sharing you already agreed to.",
+  "@backgroundLocationNoticeBody": {
+    "description": "Body of the background-tracking notice: what is recorded, how often, when it runs, that it runs with the app closed, that a notification is always shown, and how to stop it.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "start": {
+        "type": "String",
+        "example": "07:00"
+      },
+      "end": {
+        "type": "String",
+        "example": "17:00"
+      }
+    }
+  },
+  "backgroundLocationNoticeAccept": "Turn on route tracking",
+  "@backgroundLocationNoticeAccept": {
+    "description": "Background notice: the agent agrees. Only after this does the app ask Android for background location."
+  },
+  "backgroundLocationNoticeDecline": "No, don’t record my route",
+  "@backgroundLocationNoticeDecline": {
+    "description": "Background notice: the agent declines. Nothing is recorded, and foreground sharing is unaffected."
+  },
+  "backgroundLocationOfferTitle": "Route tracking is off",
+  "@backgroundLocationOfferTitle": {
+    "description": "Quiet one-line offer on agent screens when background tracking is not on. Never the full notice unasked."
+  },
+  "backgroundLocationOfferSubtitle": "Tap to see what it does",
+  "@backgroundLocationOfferSubtitle": {
+    "description": "Under 'Route tracking is off'; tapping opens the background notice."
+  },
+  "backgroundLocationActiveTitle": "Recording your route between stores",
+  "@backgroundLocationActiveTitle": {
+    "description": "Non-dismissable indicator on agent screens while the background service is running."
+  },
+  "backgroundLocationActiveSubtitle": "Working hours only · tap to stop",
+  "@backgroundLocationActiveSubtitle": {
+    "description": "Under the route-tracking indicator."
+  },
+  "backgroundLocationOutsideHoursTitle": "Route tracking is paused",
+  "@backgroundLocationOutsideHoursTitle": {
+    "description": "Shown when background tracking is on but the client's working-hours window is shut — evening, night or a weekend."
+  },
+  "backgroundLocationOutsideHoursSubtitle": "It starts again on a working day at {start}",
+  "@backgroundLocationOutsideHoursSubtitle": {
+    "description": "Under 'Route tracking is paused'. The time the client's working day begins.",
+    "placeholders": {
+      "start": {
+        "type": "String",
+        "example": "07:00"
+      }
+    }
+  },
+  "backgroundLocationPermissionTitle": "Android needs one more permission",
+  "@backgroundLocationPermissionTitle": {
+    "description": "Shown after the agent accepts the background notice but Android has not granted 'Allow all the time'."
+  },
+  "backgroundLocationPermissionBody": "To record your route when TradeIQ is closed, Android needs you to choose “Allow all the time” for location on TradeIQ’s settings page. Everything else in TradeIQ keeps working if you would rather not.",
+  "@backgroundLocationPermissionBody": {
+    "description": "Explains Android's two-step background-location flow, and that refusing costs nothing else."
+  },
+  "backgroundLocationPermissionOpenSettings": "Open TradeIQ’s settings",
+  "@backgroundLocationPermissionOpenSettings": {
+    "description": "Opens the Android app settings page, the only place 'Allow all the time' can be chosen from Android 11 on."
+  },
+  "backgroundLocationPermissionNotNow": "Not now",
+  "@backgroundLocationPermissionNotNow": {
+    "description": "Declines the permission step. Route tracking stays off; nothing else changes."
+  },
+  "backgroundLocationStopTitle": "Stop recording your route?",
+  "@backgroundLocationStopTitle": {
+    "description": "Confirmation dialog title after tapping the route-tracking indicator."
+  },
+  "backgroundLocationStopBody": "Your manager will no longer see your route between stores. Sharing your location while TradeIQ is open is not affected — that stays exactly as it is.",
+  "@backgroundLocationStopBody": {
+    "description": "Confirmation dialog body. Says plainly that stopping background tracking leaves foreground sharing alone."
+  },
+  "backgroundLocationStopConfirm": "Stop route tracking",
+  "@backgroundLocationStopConfirm": {
+    "description": "Confirmation dialog: stop background tracking."
+  },
+  "backgroundLocationStopCancel": "Keep recording",
+  "@backgroundLocationStopCancel": {
+    "description": "Confirmation dialog: keep background tracking on."
+  },
+  "backgroundLocationNotificationTitle": "TradeIQ is recording your route",
+  "@backgroundLocationNotificationTitle": {
+    "description": "Title of the permanent, non-dismissable Android notification shown the whole time the background service runs. Android requires it; it is also the honest thing to show."
+  },
+  "backgroundLocationNotificationBody": "Working hours only. Turn it off in TradeIQ.",
+  "@backgroundLocationNotificationBody": {
+    "description": "Body of the permanent Android notification."
+  },
+  "backgroundLocationNotificationChannel": "Route tracking",
+  "@backgroundLocationNotificationChannel": {
+    "description": "Name of the Android notification channel, as it appears in the phone's system settings."
+  },
   "contestsTitle": "Contests",
   "@contestsTitle": {
     "description": "Agent Contests screen title (#124). A contest ranks agents by the points they earn between two dates, for a prize."

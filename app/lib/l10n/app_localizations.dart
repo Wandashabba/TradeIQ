@@ -2162,6 +2162,132 @@ abstract class AppLocalizations {
   /// **'Keep sharing'**
   String get locationStopCancel;
 
+  /// Title of the SEPARATE background-tracking notice (#153 T2, POPIA). Android only. Distinct from the foreground notice: accepting that one does not accept this one.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording your route between stores'**
+  String get backgroundLocationNoticeTitle;
+
+  /// Body of the background-tracking notice: what is recorded, how often, when it runs, that it runs with the app closed, that a notification is always shown, and how to stop it.
+  ///
+  /// In en, this message translates to:
+  /// **'This is separate from sharing your location while TradeIQ is open, and you can say no to it. If you turn it on, TradeIQ records where you are {minutes, plural, =1{every minute} other{every {minutes} minutes}} — even when TradeIQ is closed — so your manager can see your route between stores. It runs only on a working day between {start} and {end}, never at night and never at a weekend. While it is on, a notification stays on your phone so you can always tell. You can turn it off at any time, and turning it off does not stop the sharing you already agreed to.'**
+  String backgroundLocationNoticeBody(int minutes, String start, String end);
+
+  /// Background notice: the agent agrees. Only after this does the app ask Android for background location.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on route tracking'**
+  String get backgroundLocationNoticeAccept;
+
+  /// Background notice: the agent declines. Nothing is recorded, and foreground sharing is unaffected.
+  ///
+  /// In en, this message translates to:
+  /// **'No, don’t record my route'**
+  String get backgroundLocationNoticeDecline;
+
+  /// Quiet one-line offer on agent screens when background tracking is not on. Never the full notice unasked.
+  ///
+  /// In en, this message translates to:
+  /// **'Route tracking is off'**
+  String get backgroundLocationOfferTitle;
+
+  /// Under 'Route tracking is off'; tapping opens the background notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to see what it does'**
+  String get backgroundLocationOfferSubtitle;
+
+  /// Non-dismissable indicator on agent screens while the background service is running.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording your route between stores'**
+  String get backgroundLocationActiveTitle;
+
+  /// Under the route-tracking indicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Working hours only · tap to stop'**
+  String get backgroundLocationActiveSubtitle;
+
+  /// Shown when background tracking is on but the client's working-hours window is shut — evening, night or a weekend.
+  ///
+  /// In en, this message translates to:
+  /// **'Route tracking is paused'**
+  String get backgroundLocationOutsideHoursTitle;
+
+  /// Under 'Route tracking is paused'. The time the client's working day begins.
+  ///
+  /// In en, this message translates to:
+  /// **'It starts again on a working day at {start}'**
+  String backgroundLocationOutsideHoursSubtitle(String start);
+
+  /// Shown after the agent accepts the background notice but Android has not granted 'Allow all the time'.
+  ///
+  /// In en, this message translates to:
+  /// **'Android needs one more permission'**
+  String get backgroundLocationPermissionTitle;
+
+  /// Explains Android's two-step background-location flow, and that refusing costs nothing else.
+  ///
+  /// In en, this message translates to:
+  /// **'To record your route when TradeIQ is closed, Android needs you to choose “Allow all the time” for location on TradeIQ’s settings page. Everything else in TradeIQ keeps working if you would rather not.'**
+  String get backgroundLocationPermissionBody;
+
+  /// Opens the Android app settings page, the only place 'Allow all the time' can be chosen from Android 11 on.
+  ///
+  /// In en, this message translates to:
+  /// **'Open TradeIQ’s settings'**
+  String get backgroundLocationPermissionOpenSettings;
+
+  /// Declines the permission step. Route tracking stays off; nothing else changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get backgroundLocationPermissionNotNow;
+
+  /// Confirmation dialog title after tapping the route-tracking indicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording your route?'**
+  String get backgroundLocationStopTitle;
+
+  /// Confirmation dialog body. Says plainly that stopping background tracking leaves foreground sharing alone.
+  ///
+  /// In en, this message translates to:
+  /// **'Your manager will no longer see your route between stores. Sharing your location while TradeIQ is open is not affected — that stays exactly as it is.'**
+  String get backgroundLocationStopBody;
+
+  /// Confirmation dialog: stop background tracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop route tracking'**
+  String get backgroundLocationStopConfirm;
+
+  /// Confirmation dialog: keep background tracking on.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep recording'**
+  String get backgroundLocationStopCancel;
+
+  /// Title of the permanent, non-dismissable Android notification shown the whole time the background service runs. Android requires it; it is also the honest thing to show.
+  ///
+  /// In en, this message translates to:
+  /// **'TradeIQ is recording your route'**
+  String get backgroundLocationNotificationTitle;
+
+  /// Body of the permanent Android notification.
+  ///
+  /// In en, this message translates to:
+  /// **'Working hours only. Turn it off in TradeIQ.'**
+  String get backgroundLocationNotificationBody;
+
+  /// Name of the Android notification channel, as it appears in the phone's system settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Route tracking'**
+  String get backgroundLocationNotificationChannel;
+
   /// Agent Contests screen title (#124). A contest ranks agents by the points they earn between two dates, for a prize.
   ///
   /// In en, this message translates to:
