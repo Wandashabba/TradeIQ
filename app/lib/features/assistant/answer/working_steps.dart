@@ -14,7 +14,7 @@ import 'answer_motion.dart';
 /// to its function name.
 const Map<String, String> toolStepLabels = {
   'getSalesPerformance': 'Sell-in',
-  'getRateOfSale': 'Rate of sale',
+  'getRateOfSale': 'Sell-in',
   'getSkuMovement': 'SKU movement',
   'getStockLevels': 'Stock on shelf',
   'getStockOnShelf': 'Stock on shelf',
