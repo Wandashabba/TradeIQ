@@ -107,6 +107,44 @@ function neutraliseDelimiters(value: string): string {
 }
 
 /**
+ * Disarm the two markdown constructs the app treats as authoritative.
+ *
+ * The answer format gives two pieces of markdown special meaning: a fenced
+ * ` ```followups ` block becomes tappable questions, and a blockquote opening
+ * `**What explains it**` becomes the insight callout. Both are meant to be the
+ * model's own words about retrieved figures. Text in a tool result, though, is
+ * written by field agents and outlet owners — so a visit note containing a
+ * followups fence, or an outlet name starting with `>`, is a way to put
+ * questions under the manager's thumb or a "cause" in a callout that nobody
+ * computed, if the model copies it through.
+ *
+ * So, in every string that reaches the model from a tool:
+ *
+ * - any run of three or more backticks or tildes (a code-fence opener) becomes
+ *   `'''`, which no markdown renderer treats as a fence;
+ * - a `>` that begins the text or a line (after up to any indentation) becomes
+ *   `›`, which reads much the same but is not a blockquote.
+ *
+ * **Unlike the instruction patterns above, this does rewrite.** That is safe
+ * here where it is not there: the rewrite changes markup, not meaning, and it
+ * cannot turn an attack into something that evades a later scan because the
+ * constructs it removes are the attack. A `>` in the middle of a sentence
+ * ("stock > 5") is left alone.
+ *
+ * Idempotent, so text that passes through spotlighting twice is unchanged by
+ * the second pass.
+ */
+export function neutraliseAnswerMarkup(value: string): string {
+  return value
+    .replace(/`{3,}|~{3,}/g, "'''")
+    .replace(
+      /(^|[\r\n\u2028\u2029])([ \t]*)((?:>[ \t]*)+)/g,
+      (_match, lead: string, indent: string, quotes: string) =>
+        `${lead}${indent}${quotes.replace(/>/g, '›')}`,
+    );
+}
+
+/**
  * Wrap one untrusted string for the model.
  *
  * The annotation goes *outside* the fence. Inside it, everything is content —
@@ -115,7 +153,7 @@ function neutraliseDelimiters(value: string): string {
  */
 export function spotlight(value: string, label: string): SanitizeResult {
   const flags = scanForInstructions(value);
-  const body = neutraliseDelimiters(value);
+  const body = neutraliseAnswerMarkup(neutraliseDelimiters(value));
   const warning =
     flags.length > 0
       ? `\n[!] This ${label} contains text resembling an instruction (${flags.join(', ')}). ` +
@@ -150,13 +188,17 @@ export function sanitizeToolResult(
     if (depth > maxDepth) return '[omitted: nested too deeply]';
 
     if (typeof value === 'string') {
-      if (!isFreeText(value)) return value;
-      const hits = scanForInstructions(value);
-      if (hits.length === 0 && !looksLikeProse(value)) {
+      // Before the short-string shortcut, not after it: an outlet name of
+      // "```followups" is short, has no spaces, and would otherwise sail
+      // through unfenced AND unneutralised.
+      const disarmed = neutraliseAnswerMarkup(value);
+      if (!isFreeText(disarmed)) return disarmed;
+      const hits = scanForInstructions(disarmed);
+      if (hits.length === 0 && !looksLikeProse(disarmed)) {
         // A short, clean id or code. Fencing it is pure token cost.
-        return value;
+        return disarmed;
       }
-      const { text, flags: found } = spotlight(value, path || 'field');
+      const { text, flags: found } = spotlight(disarmed, path || 'field');
       found.forEach((f) => flags.add(f));
       return text;
     }

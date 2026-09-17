@@ -8,6 +8,14 @@ import {
   type Comparison,
   type CompareTo,
 } from '../compare';
+import {
+  competitorFigures,
+  salesFigures,
+  shareOfShelfFigures,
+  stockFigures,
+  visibilityComplianceFigures,
+  type FigureWindows,
+} from '../figures';
 import { periodSchema, resolvePeriod } from '../period';
 import {
   getCompetitorActivity,
@@ -17,7 +25,11 @@ import {
   getStockLevels,
   getVisibilityCompliance,
   getVisitSummary,
+  type CompetitorActivity,
+  type SalesPerformance,
+  type ShareOfShelf,
   type StockLevels,
+  type VisibilityCompliance,
 } from '../pillars.service';
 import { eraseToolTypes, type AnyAssistantTool } from '../types';
 import { clientTimeZoneOf, type ToolContext } from './execution';
@@ -124,6 +136,31 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
     };
   };
 
+  /**
+   * The windows a comparable tool measured, for its figure artifacts.
+   *
+   * Recomputed from the args with the same functions `scope` and
+   * `comparisonScope` used, against the timezone the run already looked up —
+   * so no query, and no chance of a tile labelling a different window from the
+   * one its numbers came from.
+   */
+  const windowsFor = async (
+    args: z.infer<typeof comparableWindowArgs>,
+  ): Promise<FigureWindows> => {
+    const tz = await timeZone();
+    return {
+      timeZone: tz,
+      current: resolvePeriod(args.period, now, tz),
+      ...(args.compareTo
+        ? {
+            comparison: {
+              range: comparisonWindow(args.period, args.compareTo, now, tz),
+              basis: args.compareTo,
+            },
+          }
+        : {}),
+    };
+  };
 
   /**
    * The view every comparable pillar tool draws.
@@ -167,6 +204,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getSalesPerformance(w)),
       view: pillarView('sales'),
+      figures: async (args, result) =>
+        salesFigures(result as SalesPerformance, await windowsFor(args)),
     }),
 
     eraseToolTypes({
@@ -202,6 +241,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
         if (outlets.length === 0) return null;
         return { type: 'outlet_map', params: { outletIds: outlets.map((o) => o.outletId) } };
       },
+      figures: async (args, result) => stockFigures(result as StockLevels, await windowsFor(args)),
     }),
 
     // ── Visibility ───────────────────────────────────────────────────────
@@ -214,6 +254,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getShareOfShelf(w)),
       view: pillarView('visibility'),
+      figures: async (args, result) =>
+        shareOfShelfFigures(result as ShareOfShelf, await windowsFor(args)),
     }),
 
     eraseToolTypes({
@@ -225,6 +267,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getVisibilityCompliance(w)),
       view: pillarView('visibility'),
+      figures: async (args, result) =>
+        visibilityComplianceFigures(result as VisibilityCompliance, await windowsFor(args)),
     }),
 
     // ── Competition ──────────────────────────────────────────────────────
@@ -237,6 +281,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getCompetitorActivity(w)),
       view: pillarView('competition'),
+      figures: async (args, result) =>
+        competitorFigures(result as CompetitorActivity, await windowsFor(args)),
     }),
 
     // ── Execution ────────────────────────────────────────────────────────
