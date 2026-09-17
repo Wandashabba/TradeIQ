@@ -6,7 +6,11 @@ import {
   assistantTenantRateLimiter,
   assistantUserRateLimiter,
 } from '../../middleware/rateLimit';
-import { isAssistantWebSearchEnabled, requireAssistantEnabled } from './featureFlag';
+import {
+  isAssistantExternalContextEnabled,
+  isAssistantWebSearchEnabled,
+  requireAssistantEnabled,
+} from './featureFlag';
 import { runTurn, type WireEvent } from './orchestrator';
 import { providerFor } from './providers';
 import type { Message } from './providers/types';
@@ -132,8 +136,14 @@ assistantRouter.post(
     // Identity is bound once, here. Nothing below takes a tenant argument.
     const now = new Date();
     // Gated tools (toolGates.ts) are declared only when this client's gate is
-    // open. Resolving never throws: a failure leaves the gate closed.
-    const tools = buildTools({ user, now, gates: await resolveToolGates(user.clientId) });
+    // open. Resolving never throws: a failure leaves the gate closed. The
+    // outside-context switch works the same way for the calendar, weather and
+    // economy tools.
+    const [gates, externalContext] = await Promise.all([
+      resolveToolGates(user.clientId),
+      isAssistantExternalContextEnabled(user.clientId),
+    ]);
+    const tools = buildTools({ user, now, gates, externalContext });
     const owner = { userId: user.userId, clientId: user.clientId };
     const conversationId = parsed.data.conversationId ?? randomUUID();
 

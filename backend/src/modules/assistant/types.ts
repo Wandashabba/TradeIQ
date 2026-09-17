@@ -10,8 +10,11 @@ import type { RawWebSource } from './providers/types';
  * feeding to the business."* Tools are grouped by pillar rather than by REST
  * endpoint because a manager asks "how's my visibility in Western Cape", not
  * "GET /visibility?territory=".
+ *
+ * `context` is not a pillar of the business: it is OUTSIDE context — the
+ * calendar, the weather and the economy — that explains a pillar's movement.
  */
-export type Pillar = 'sales' | 'stock' | 'visibility' | 'competition' | 'execution';
+export type Pillar = 'sales' | 'stock' | 'visibility' | 'competition' | 'execution' | 'context';
 
 /** Business arguments only. Validated by the tool's own Zod schema. */
 export type ToolArgs = Record<string, unknown>;
@@ -68,10 +71,11 @@ export interface AssistantTool<A extends ToolArgs = ToolArgs, R = unknown> {
    */
   readonly figures?: (args: A, result: R) => Promise<FigureArtifact[]> | FigureArtifact[];
   /**
-   * Outside pages this result's figures came from, cited alongside web search
+   * Outside sources this result's figures came from, cited alongside web search
    * results on the turn's `sources` event. Only for tools that report OUTSIDE
-   * data (getCompetitorShelfPrices); internal tools cite nothing. Validated by
-   * `sources.ts` like any web source.
+   * data (getCompetitorShelfPrices; the calendar, weather and economic context
+   * tools); internal tools cite nothing. Validated by `sources.ts` like any web
+   * source. Built from the result only; never a query.
    */
   readonly sources?: (args: A, result: R) => RawWebSource[];
 }

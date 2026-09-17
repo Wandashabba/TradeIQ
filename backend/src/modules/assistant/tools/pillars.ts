@@ -351,7 +351,10 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       pillar: 'competition' as const,
       description:
         'Call this when the user asks what competitors are doing — their pricing, their ' +
-        'facings, their promoters, or which competitor brands are showing up in outlets.',
+        'facings, their promoters, or which competitor brands are showing up in outlets. This is ' +
+        'the default for any general question about competitor prices ("what are competitors ' +
+        'pricing at?"): it reports the prices our agents captured in outlets. Use ' +
+        'getCompetitorShelfPrices only when the user asks about a retailer\'s website or online prices.',
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getCompetitorActivity(w)),
       view: pillarView('competition'),

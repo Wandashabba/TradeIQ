@@ -6,6 +6,7 @@ import { errorHandler } from '../../middleware/errorHandler';
 import type { AuthedRequest } from '../../middleware/auth';
 import {
   isAssistantEnabled,
+  isAssistantExternalContextEnabled,
   isAssistantWebSearchEnabled,
   requireAssistantEnabled,
 } from './featureFlag';
@@ -91,6 +92,26 @@ describe('assistant feature flag', () => {
         .mockRejectedValueOnce(new Error('connection lost'));
       const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
       await expect(isAssistantWebSearchEnabled(onClientId)).resolves.toBe(false);
+      spy.mockRestore();
+      logged.mockRestore();
+    });
+  });
+
+  describe('isAssistantExternalContextEnabled', () => {
+    it('is on by default', () => {
+      return expect(isAssistantExternalContextEnabled(onClientId)).resolves.toBe(true);
+    });
+
+    it('is off once switched off', async () => {
+      await prisma.client.update({ where: { id: offClientId }, data: { assistantExternalContextEnabled: false } });
+      await expect(isAssistantExternalContextEnabled(offClientId)).resolves.toBe(false);
+    });
+
+    it('fails closed for an unknown client or an unreachable database', async () => {
+      await expect(isAssistantExternalContextEnabled('no-such-client')).resolves.toBe(false);
+      const spy = jest.spyOn(prisma.client, 'findUnique').mockRejectedValueOnce(new Error('connection lost'));
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(isAssistantExternalContextEnabled(onClientId)).resolves.toBe(false);
       spy.mockRestore();
       logged.mockRestore();
     });

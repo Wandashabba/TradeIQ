@@ -39,7 +39,8 @@ export function buildCompetitorPriceTools(ctx: ToolContext): AnyAssistantTool[] 
         'retailer-website prices. Returns, for each competitor SKU an admin has mapped, the latest ' +
         'shelf and promo price per retailer, the trend, and the gap to our own price. This is ' +
         'OUTSIDE, PUBLIC data: quote every figure with its retailer and retrieved date, say it comes ' +
-        'from retailer websites, and never call a price marked stale current. Do NOT use it for ' +
+        'from retailer websites, and never call a price marked stale current. Do NOT use it for a ' +
+        'general "what are competitors pricing at" with no website or retailer named, or for ' +
         'competitor prices, brands or promoters our agents saw in outlets (use getCompetitorActivity) ' +
         'or for our own shelf prices against RRP (use getPriceCompliance).',
       args: z.object({

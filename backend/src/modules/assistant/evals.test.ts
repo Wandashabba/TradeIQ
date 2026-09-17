@@ -86,9 +86,9 @@ describe('the golden question set', () => {
     expect(Object.keys(GATED_TOOLS)).toEqual(['getCompetitorShelfPrices']);
   });
 
-  it('covers all four pillars plus execution', () => {
+  it('covers all four pillars plus execution and outside context', () => {
     const prefixes = new Set(GOLDEN_QUESTIONS.map((q) => q.id.split('-')[0]));
-    expect(prefixes).toEqual(new Set(['exec', 'sales', 'stock', 'vis', 'comp', 'refuse']));
+    expect(prefixes).toEqual(new Set(['exec', 'sales', 'stock', 'vis', 'comp', 'ctx', 'refuse']));
   });
 
   it('includes refusal cases', () => {

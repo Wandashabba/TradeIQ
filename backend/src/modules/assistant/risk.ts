@@ -69,6 +69,10 @@ export const RISK_TIERS = {
   getTaskSummary: 'read',
   getAlerts: 'read',
   findTerritories: 'read',
+  // Outside context
+  getCalendarContext: 'read',
+  getWeatherContext: 'read',
+  getEconomicContext: 'read',
 } as const satisfies Record<ToolName, RiskTier>;
 
 /**

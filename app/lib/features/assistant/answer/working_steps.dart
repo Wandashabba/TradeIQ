@@ -37,6 +37,9 @@ const Map<String, String> toolStepLabels = {
   'getAlerts': 'Alerts',
   'findTerritories': 'Finding the territory',
   'webSearch': 'Searching the web',
+  'getCalendarContext': 'Holidays & paydays',
+  'getWeatherContext': 'Weather',
+  'getEconomicContext': 'Economy',
 };
 
 String stepLabel(ToolActivity tool) =>
@@ -48,6 +51,7 @@ String stepLabel(ToolActivity tool) =>
       'competition' => 'Checking competitors',
       'execution' => 'Checking field execution',
       'web' => 'Searching the web',
+      'context' => 'Checking outside context',
       _ => 'Looking that up',
     };
 

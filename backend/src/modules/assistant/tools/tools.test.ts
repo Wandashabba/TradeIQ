@@ -46,6 +46,15 @@ describe('buildTools', () => {
     expect(buildTools(ctx()).map((t) => t.name)).toEqual(rosterOrder);
   });
 
+  it('leaves out the outside-context tools for a client that switched them off', () => {
+    const names = buildTools({ ...ctx(), externalContext: false }).map((t) => t.name);
+    expect(names).not.toContain('getCalendarContext');
+    expect(names).not.toContain('getWeatherContext');
+    expect(names).not.toContain('getEconomicContext');
+    expect(names).toContain('getRateOfSale');
+    expect(unimplementedTools({ ...ctx(), externalContext: false })).toEqual([]);
+  });
+
   it('is deterministic across calls', () => {
     expect(buildTools(ctx()).map((t) => t.name)).toEqual(buildTools(ctx()).map((t) => t.name));
   });
@@ -56,10 +65,11 @@ describe('buildTools', () => {
     expect(buildTools(ctx()).length).toBeLessThanOrEqual(30);
   });
 
-  it('covers all five pillars', () => {
+  it('covers all five pillars, plus outside context', () => {
     const pillars = new Set(buildTools(ctx()).map((t) => t.pillar));
     expect([...pillars].sort()).toEqual([
       'competition',
+      'context',
       'execution',
       'sales',
       'stock',

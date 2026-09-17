@@ -41,6 +41,11 @@ export const TOOL_REGISTRY = {
   getAlerts: 'execution',
   // Resolves a place name to the territoryId the tools above take (#362).
   findTerritories: 'execution',
+  // Outside context: calendar, weather, economy. Public data, never tenant
+  // figures — and switchable off per client (`assistantExternalContextEnabled`).
+  getCalendarContext: 'context',
+  getWeatherContext: 'context',
+  getEconomicContext: 'context',
 } as const satisfies Record<string, Pillar>;
 
 export type ToolName = keyof typeof TOOL_REGISTRY;
@@ -102,6 +107,9 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
     'getTaskSummary',
     'getAlerts',
     'findTerritories',
+    'getCalendarContext',
+    'getWeatherContext',
+    'getEconomicContext',
   ],
 
   // Written out rather than spread from `manager`. Identical today; the point
@@ -127,6 +135,9 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
     'getTaskSummary',
     'getAlerts',
     'findTerritories',
+    'getCalendarContext',
+    'getWeatherContext',
+    'getEconomicContext',
   ],
 };
 
@@ -147,8 +158,25 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
  * as data even when the type says otherwise. Returning "no tools" for an
  * unrecognised role is the only safe direction to be wrong in.
  */
-export function rosterFor(role: Role): ReadonlySet<string> {
-  return new Set<string>(ROSTERS[role] ?? []);
+export function rosterFor(role: Role, options: RosterOptions = {}): ReadonlySet<string> {
+  const tools = ROSTERS[role] ?? [];
+  return new Set<string>(
+    options.externalContext === false ? tools.filter((name) => !EXTERNAL_CONTEXT_TOOLS.has(name)) : tools,
+  );
+}
+
+/** The outside-context tools, which a client can switch off as a group. */
+export const EXTERNAL_CONTEXT_TOOLS: ReadonlySet<ToolName> = new Set(
+  ALL_TOOL_NAMES.filter((name) => TOOL_REGISTRY[name] === 'context'),
+);
+
+export interface RosterOptions {
+  /**
+   * The client's `assistantExternalContextEnabled`. `false` removes the
+   * outside-context tools from the roster, so they are never declared to the
+   * model at all. Omitted means the column default, on.
+   */
+  externalContext?: boolean;
 }
 
 /** The pillar a tool belongs to, for the `tool_start` affordance. */

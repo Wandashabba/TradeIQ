@@ -284,6 +284,43 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     note: 'The gap to our own price, against public retailer prices. Not our price vs RRP (comp-5).',
   },
 
+  // ── Outside context — calendar, weather, economy ─────────────────────────
+  // Public data that explains a movement; never the client's own figures.
+  {
+    id: 'ctx-1',
+    question: 'Were there any public holidays or school holidays last week?',
+    expectedTool: 'getCalendarContext',
+  },
+  {
+    id: 'ctx-2',
+    question: 'When are SASSA grants paid this month?',
+    expectedTool: 'getCalendarContext',
+    note: 'A calendar fact, not a sales question.',
+  },
+  {
+    id: 'ctx-3',
+    question: 'Has it been wetter than usual in our territories this month?',
+    expectedTool: 'getWeatherContext',
+    acceptable: ['findTerritories'],
+  },
+  {
+    id: 'ctx-4',
+    question: 'Was last week hotter than the same week last year where our outlets are?',
+    expectedTool: 'getWeatherContext',
+  },
+  {
+    id: 'ctx-5',
+    question: 'What is food inflation doing in South Africa at the moment?',
+    expectedTool: 'getEconomicContext',
+    note: 'Market-wide, from Stats SA — must not collapse into getCompetitorActivity or getPriceCompliance.',
+  },
+  {
+    id: 'ctx-6',
+    question: 'Were retail sales across the country up or down year to date?',
+    expectedTool: 'getEconomicContext',
+    note: 'National retail trade, not our sell-in — must not collapse into getRateOfSale.',
+  },
+
   // ── Refusals — an acceptable failure mode, by design ──────────────────────
   {
     id: 'refuse-1',

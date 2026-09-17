@@ -47,6 +47,12 @@ model Client {
   /// is cited and labelled as outside information; off removes the search tool
   /// from the request entirely rather than asking the model not to use it.
   assistantWebSearchEnabled           Boolean                           @default(true) @map("assistant_web_search_enabled")
+  /// Whether Ask TradeIQ may reach for OUTSIDE context tools — public holidays,
+  /// school terms, paydays, weather and Stats SA / fuel figures. Defaults true:
+  /// the data is public and cited, and the only tenant-derived value that leaves
+  /// is a territory's outlet-centroid coordinate, sent to the weather API.
+  /// Off removes those tools from the declared roster for this client.
+  assistantExternalContextEnabled     Boolean                           @default(true) @map("assistant_external_context_enabled")
   /// IANA zone the client's field team works in (#309). Every calendar-day
   /// rule reads it: which beat plan a check-in belongs to, trend day/week
   /// buckets, and the assistant's "today"/"last week". Validated against the
@@ -1500,4 +1506,49 @@ model CompetitorPriceCollectionAudit {
 
   @@index([clientId, createdAt])
   @@map("competitor_price_collection_audit")
+}
+
+/// One figure from a public economic series (#external-context): Stats SA
+/// retail trade and CPI, and the monthly fuel price adjustment.
+///
+/// **Global, not tenant data** — there is no client_id, and nothing here is ever
+/// joined to a client's own figures. Rows are written only by the refresh job
+/// (`externalContext/economic.refresh.ts`), never on a user's turn, so a slow
+/// statistics site cannot slow an answer down.
+///
+/// Every row carries its provenance: who published it, where, when they
+/// released it, and when we fetched it.
+model EconomicObservation {
+  id          String    @id @default(uuid())
+  /// Series key, e.g. `retail_trade_yoy`, `cpi_headline_yoy`, `fuel_petrol95_inland_cpl`.
+  series      String
+  /// The month the figure is ABOUT, as `YYYY-MM` (for fuel, the month it took effect).
+  period      String
+  value       Float
+  /// `pct`, `c_per_litre`, …
+  unit        String
+  sourceName  String    @map("source_name")
+  sourceUrl   String    @map("source_url")
+  /// When the publisher released it. Null when the source does not say.
+  releasedAt  DateTime? @map("released_at") @db.Date
+  retrievedAt DateTime  @map("retrieved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([series, period])
+  @@map("economic_observations")
+}
+
+/// The last attempt and last success per economic source, so a stale feed is
+/// visible in the tool result ("last refreshed 40 days ago") instead of silently
+/// answering from old figures.
+model EconomicSourceRefresh {
+  source        String    @id
+  lastAttemptAt DateTime  @map("last_attempt_at")
+  lastSuccessAt DateTime? @map("last_success_at")
+  /// A short, credential-free reason. Never a raw response body.
+  lastError     String?   @map("last_error")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("economic_source_refreshes")
 }

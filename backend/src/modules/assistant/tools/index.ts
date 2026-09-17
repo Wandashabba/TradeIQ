@@ -1,6 +1,7 @@
 import { rosterFor, type ToolName } from '../roster';
 import { isToolDeclared } from '../toolGates';
 import type { AnyAssistantTool } from '../types';
+import { buildContextTools } from './context';
 import { buildCompetitorPriceTools } from './competitorPrices';
 import { buildExecutionTools, type ToolContext } from './execution';
 import { buildOperationTools } from './operations';
@@ -33,9 +34,10 @@ export function buildTools(ctx: ToolContext): AnyAssistantTool[] {
     ...buildPillarTools(ctx),
     ...buildTrendTools(ctx),
     ...buildOperationTools(ctx),
+    ...buildContextTools(ctx),
     ...buildCompetitorPriceTools(ctx),
   ];
-  const allowed = rosterFor(ctx.user.role);
+  const allowed = rosterFor(ctx.user.role, { externalContext: ctx.externalContext });
 
   // Ordering is the roster's, not the implementation files'. Tool declarations
   // sit inside the cached prompt prefix, so a reordering is a cache miss with
@@ -65,10 +67,11 @@ export function unimplementedTools(ctx: ToolContext): ToolName[] {
       ...buildPillarTools(ctx),
       ...buildTrendTools(ctx),
       ...buildOperationTools(ctx),
+      ...buildContextTools(ctx),
       ...buildCompetitorPriceTools(ctx),
     ].map(
       (tool) => tool.name,
     ),
   );
-  return [...rosterFor(ctx.user.role)].filter((name) => !implemented.has(name)) as ToolName[];
+  return [...rosterFor(ctx.user.role, { externalContext: ctx.externalContext })].filter((name) => !implemented.has(name)) as ToolName[];
 }

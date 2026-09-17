@@ -52,7 +52,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(wrap(WebSources(sources: sources), theme: theme));
 
-      expect(find.text('Web sources'), findsOneWidget);
+      expect(find.text('Sources'), findsOneWidget);
       expect(find.text('iol.co.za'), findsOneWidget);
       expect(find.text('Shoprite launches new stores in Gauteng'), findsOneWidget);
       expect(find.text('news24.com'), findsOneWidget);
@@ -65,7 +65,7 @@ void main() {
 
   testWidgets('renders on a bare theme with no Lumen extension', (tester) async {
     await tester.pumpWidget(wrap(WebSources(sources: sources), theme: ThemeData()));
-    expect(find.text('Web sources'), findsOneWidget);
+    expect(find.text('Sources'), findsOneWidget);
   });
 
   testWidgets('titles are ellipsised to one line', (tester) async {
@@ -116,7 +116,7 @@ void main() {
 
   testWidgets('renders nothing for an empty list', (tester) async {
     await tester.pumpWidget(wrap(const WebSources(sources: [])));
-    expect(find.text('Web sources'), findsNothing);
+    expect(find.text('Sources'), findsNothing);
     expect(find.byKey(const ValueKey('web-sources')), findsNothing);
   });
 

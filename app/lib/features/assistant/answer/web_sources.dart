@@ -41,7 +41,9 @@ class WebSources extends StatelessWidget {
   final List<WebSource> sources;
   final WebSourceLauncher launcher;
 
-  static const label = 'Web sources';
+  /// "Sources", not "Web sources": the outside-context tools (Stats SA, the
+  /// school calendar, Open-Meteo) cite their publishers in the same list.
+  static const label = 'Sources';
 
   @override
   Widget build(BuildContext context) {
