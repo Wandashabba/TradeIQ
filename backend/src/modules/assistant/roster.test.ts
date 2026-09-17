@@ -1,5 +1,12 @@
 import { ROLES, type Role } from '../auth/auth.service';
-import { ALL_TOOL_NAMES, TOOL_REGISTRY, pillarOf, rosterFor, type ToolName } from './roster';
+import {
+  ALL_TOOL_NAMES,
+  EXTERNAL_CONTEXT_TOOLS,
+  TOOL_REGISTRY,
+  pillarOf,
+  rosterFor,
+  type ToolName,
+} from './roster';
 
 /**
  * The full (role × tool) matrix, written out rather than computed.
@@ -29,6 +36,9 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
     getTaskSummary: false,
     getAlerts: false,
     findTerritories: false,
+    getCalendarContext: false,
+    getWeatherContext: false,
+    getEconomicContext: false,
   },
   manager: {
     getRateOfSale: true,
@@ -49,6 +59,9 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
     getTaskSummary: true,
     getAlerts: true,
     findTerritories: true,
+    getCalendarContext: true,
+    getWeatherContext: true,
+    getEconomicContext: true,
   },
   admin: {
     getRateOfSale: true,
@@ -69,6 +82,9 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
     getTaskSummary: true,
     getAlerts: true,
     findTerritories: true,
+    getCalendarContext: true,
+    getWeatherContext: true,
+    getEconomicContext: true,
   },
 };
 
@@ -138,7 +154,7 @@ describe('assistant roster — the security boundary', () => {
     });
 
     it('every registered tool has a pillar', () => {
-      const pillars = new Set(['sales', 'stock', 'visibility', 'competition', 'execution']);
+      const pillars = new Set(['sales', 'stock', 'visibility', 'competition', 'execution', 'context']);
       for (const tool of ALL_TOOL_NAMES) {
         expect(pillars.has(pillarOf(tool))).toBe(true);
       }
@@ -150,6 +166,28 @@ describe('assistant roster — the security boundary', () => {
       // resolves however it likes.
       const folded = ALL_TOOL_NAMES.map((n) => n.toLowerCase());
       expect(new Set(folded).size).toBe(ALL_TOOL_NAMES.length);
+    });
+  });
+
+  describe('the per-client outside-context switch', () => {
+    const outside = ['getCalendarContext', 'getWeatherContext', 'getEconomicContext'];
+
+    it('is on by default, matching the column default', () => {
+      for (const tool of outside) expect(rosterFor('manager').has(tool)).toBe(true);
+      expect(rosterFor('manager', { externalContext: true })).toEqual(rosterFor('manager'));
+    });
+
+    it('removes exactly the outside-context tools when off', () => {
+      for (const role of ['manager', 'admin'] as const) {
+        const on = rosterFor(role);
+        const off = rosterFor(role, { externalContext: false });
+        expect([...on].filter((tool) => !off.has(tool)).sort()).toEqual([...outside].sort());
+        expect(EXTERNAL_CONTEXT_TOOLS).toEqual(new Set(outside));
+      }
+    });
+
+    it('never widens a role: a field agent still gets nothing', () => {
+      expect(rosterFor('field_agent', { externalContext: true }).size).toBe(0);
     });
   });
 

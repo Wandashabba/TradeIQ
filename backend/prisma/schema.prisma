@@ -31,21 +31,26 @@ enum TaskStatus {
 }
 
 model Client {
-  id                 String                   @id @default(uuid())
-  name               String
-  industry           String
-  scorecardWeights   Json                     @map("scorecard_weights")
-  kpiThresholds      Json                     @map("kpi_thresholds")
+  id                              String                   @id @default(uuid())
+  name                            String
+  industry                        String
+  scorecardWeights                Json                     @map("scorecard_weights")
+  kpiThresholds                   Json                     @map("kpi_thresholds")
   /// Conversational assistant rollout flag. Defaults false: the assistant ships
   /// alongside the existing console, never in place of it, and no client gets it
   /// without a deliberate opt-in. Off is a true kill switch — Phases 0-2 mutate
   /// nothing, so degrading to today's dashboard loses no data.
-  assistantEnabled   Boolean                  @default(false) @map("assistant_enabled")
+  assistantEnabled                Boolean                  @default(false) @map("assistant_enabled")
+  /// Whether Ask TradeIQ may reach for OUTSIDE context — public holidays,
+  /// school terms, paydays, weather and Stats SA / fuel figures. Defaults true:
+  /// it is public data, carries no tenant information out, and only adds tools.
+  /// Off removes those tools from the declared roster for this client.
+  assistantExternalContextEnabled Boolean                  @default(true) @map("assistant_external_context_enabled")
   /// IANA zone the client's field team works in (#309). Every calendar-day
   /// rule reads it: which beat plan a check-in belongs to, trend day/week
   /// buckets, and the assistant's "today"/"last week". Validated against the
   /// runtime's IANA list on write; editable by managers and admins.
-  timezone           String                   @default("Africa/Johannesburg")
+  timezone                        String                   @default("Africa/Johannesburg")
   /// When the client's field team works, on the wall clock of `timezone`
   /// (#153 T2). `HH:MM`, 24-hour, half-open `[start, end)`.
   ///
@@ -54,41 +59,41 @@ model Client {
   /// Nothing else reads it — it is not a shift model, and it is not attendance.
   /// Editable by managers and admins, like `timezone`: it is a fact about when
   /// the team works, not a scoring policy. See `lib/workingHours.ts`.
-  workHoursStart     String                   @default("07:00") @map("work_hours_start")
-  workHoursEnd       String                   @default("17:00") @map("work_hours_end")
+  workHoursStart                  String                   @default("07:00") @map("work_hours_start")
+  workHoursEnd                    String                   @default("17:00") @map("work_hours_end")
   /// The days that window applies to, as ISO weekdays: 1 = Monday … 7 = Sunday.
   /// Defaults to Monday–Friday, so a weekend collects nothing.
-  workDays           Int[]                    @default([1, 2, 3, 4, 5]) @map("work_days")
-  users              User[]
-  outlets            Outlet[]
-  skus               Sku[]
-  promoCalendar      PromoCalendar[]
-  visits             Visit[]
-  territories        Territory[]
-  campaigns          Campaign[]
-  beatPlans          BeatPlan[]
-  alertRules         AlertRule[]
-  alerts             Alert[]
-  auditTemplates     AuditTemplate[]          @relation("ClientAuditTemplates")
-  checkInAttempts    CheckInAttempt[]
-  orders             Order[]
-  messages           Message[]
-  announcements      Announcement[]
-  webhooks           Webhook[]
-  reportDefinitions  ReportDefinition[]
-  incentiveSchemes   IncentiveScheme[]
-  reportSchedules    ReportSchedule[]
-  assistantArtifacts AssistantArtifact[]
-  assistantActions   AssistantAction[]
-  photos             Photo[]
-  pointsLedger       PointsLedgerEntry[]
-  locationPings      AgentLocationPing[]
-  agentDaySummaries  AgentDaySummary[]
-  locationConsents   LocationConsent[]
-  contests           Contest[]
-  deviceTokens       DeviceToken[]
-  notificationPrefs  NotificationPreference[]
-  salesTargets       SalesTarget[]
+  workDays                        Int[]                    @default([1, 2, 3, 4, 5]) @map("work_days")
+  users                           User[]
+  outlets                         Outlet[]
+  skus                            Sku[]
+  promoCalendar                   PromoCalendar[]
+  visits                          Visit[]
+  territories                     Territory[]
+  campaigns                       Campaign[]
+  beatPlans                       BeatPlan[]
+  alertRules                      AlertRule[]
+  alerts                          Alert[]
+  auditTemplates                  AuditTemplate[]          @relation("ClientAuditTemplates")
+  checkInAttempts                 CheckInAttempt[]
+  orders                          Order[]
+  messages                        Message[]
+  announcements                   Announcement[]
+  webhooks                        Webhook[]
+  reportDefinitions               ReportDefinition[]
+  incentiveSchemes                IncentiveScheme[]
+  reportSchedules                 ReportSchedule[]
+  assistantArtifacts              AssistantArtifact[]
+  assistantActions                AssistantAction[]
+  photos                          Photo[]
+  pointsLedger                    PointsLedgerEntry[]
+  locationPings                   AgentLocationPing[]
+  agentDaySummaries               AgentDaySummary[]
+  locationConsents                LocationConsent[]
+  contests                        Contest[]
+  deviceTokens                    DeviceToken[]
+  notificationPrefs               NotificationPreference[]
+  salesTargets                    SalesTarget[]
 
   /// The audit template whose questions field agents answer on every visit, as
   /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
@@ -708,12 +713,12 @@ model Order {
   /// outlet was in an active campaign's window. Nullable and never back-filled:
   /// an order placed outside any campaign genuinely belongs to none, and
   /// re-attributing later would silently rewrite a campaign's measured return.
-  campaignId String?     @map("campaign_id")
-  campaign   Campaign?   @relation(fields: [campaignId], references: [id])
-  visit      Visit?      @relation(fields: [visitId], references: [id])
-  status     String      @default("submitted") // submitted | confirmed | cancelled
-  total      Float       @default(0)
-  createdAt  DateTime    @default(now()) @map("created_at")
+  campaignId String?   @map("campaign_id")
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  visit      Visit?    @relation(fields: [visitId], references: [id])
+  status     String    @default("submitted") // submitted | confirmed | cancelled
+  total      Float     @default(0)
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   /// When the DEVICE took the order, as opposed to `createdAt`, which is when
   /// the server received it (#338). An order captured offline at 23:30 on 30
@@ -994,17 +999,17 @@ model ReportSchedule {
 /// even if two workers ever raced for it. Manual runs have no due time, and
 /// Postgres treats NULLs as distinct, so they never collide.
 model ReportScheduleRun {
-  id          String         @id @default(uuid())
-  scheduleId  String         @map("schedule_id")
-  schedule    ReportSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  id              String                @id @default(uuid())
+  scheduleId      String                @map("schedule_id")
+  schedule        ReportSchedule        @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   /// Denormalised from the schedule so the download endpoint scopes by tenant
   /// without a join.
-  clientId    String         @map("client_id")
-  trigger     String // scheduled | manual
+  clientId        String                @map("client_id")
+  trigger         String // scheduled | manual
   /// The due time a scheduled run fired for; null for a manual run.
-  dueAt       DateTime?      @map("due_at")
-  generatedAt DateTime       @map("generated_at")
-  rowCount    Int            @map("row_count")
+  dueAt           DateTime?             @map("due_at")
+  generatedAt     DateTime              @map("generated_at")
+  rowCount        Int                   @map("row_count")
   /// Per-channel outcomes (ReportDeliveryOutcome[]): webhook deliveries queued,
   /// email not configured, and so on.
   deliveries      Json
@@ -1368,4 +1373,49 @@ model SalesTarget {
   @@index([clientId, month])
   @@index([skuId])
   @@map("sales_targets")
+}
+
+/// One figure from a public economic series (#external-context): Stats SA
+/// retail trade and CPI, and the monthly fuel price adjustment.
+///
+/// **Global, not tenant data** — there is no client_id, and nothing here is ever
+/// joined to a client's own figures. Rows are written only by the refresh job
+/// (`externalContext/economic.refresh.ts`), never on a user's turn, so a slow
+/// statistics site cannot slow an answer down.
+///
+/// Every row carries its provenance: who published it, where, when they
+/// released it, and when we fetched it.
+model EconomicObservation {
+  id          String    @id @default(uuid())
+  /// Series key, e.g. `retail_trade_yoy`, `cpi_headline_yoy`, `fuel_petrol95_inland_cpl`.
+  series      String
+  /// The month the figure is ABOUT, as `YYYY-MM` (for fuel, the month it took effect).
+  period      String
+  value       Float
+  /// `pct`, `c_per_litre`, …
+  unit        String
+  sourceName  String    @map("source_name")
+  sourceUrl   String    @map("source_url")
+  /// When the publisher released it. Null when the source does not say.
+  releasedAt  DateTime? @map("released_at") @db.Date
+  retrievedAt DateTime  @map("retrieved_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([series, period])
+  @@map("economic_observations")
+}
+
+/// The last attempt and last success per economic source, so a stale feed is
+/// visible in the tool result ("last refreshed 40 days ago") instead of silently
+/// answering from old figures.
+model EconomicSourceRefresh {
+  source        String    @id
+  lastAttemptAt DateTime  @map("last_attempt_at")
+  lastSuccessAt DateTime? @map("last_success_at")
+  /// A short, credential-free reason. Never a raw response body.
+  lastError     String?   @map("last_error")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("economic_source_refreshes")
 }

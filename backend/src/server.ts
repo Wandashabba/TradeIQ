@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { app } from './app';
 import { assertJwtSecretUsable } from './modules/auth/auth.service';
 import { locationPruneEnabled, startLocationPruneWorker } from './modules/locations/locationPrune.worker';
+import { economicRefreshEnabled, startEconomicRefreshWorker } from './modules/externalContext/economic.worker';
 import { logReportEmailConfig } from './modules/reportschedules/reportschedules.email';
 import { startReportEmailWorker } from './modules/reportschedules/reportschedules.email.worker';
 import { startReportScheduleWorker } from './modules/reportschedules/reportschedules.worker';
@@ -35,6 +36,9 @@ const locationPruneWorker = locationPruneEnabled() ? startLocationPruneWorker() 
 // SLA-breach pushes (#67). Idle while FIREBASE_SERVICE_ACCOUNT is unset;
 // SLA_BREACH_SWEEP_ENABLED=false opts out.
 const slaBreachWorker = slaBreachSweepEnabled() ? startSlaBreachWorker() : null;
+// Ask TradeIQ's outside economic context: Stats SA and fuel prices, daily.
+// ECONOMIC_REFRESH_ENABLED=false opts out.
+const economicRefreshWorker = economicRefreshEnabled() ? startEconomicRefreshWorker() : null;
 
 let shuttingDown = false;
 function shutdown(signal: string): void {
@@ -57,6 +61,8 @@ function shutdown(signal: string): void {
     .catch((err) => console.error('Location prune worker did not stop cleanly:', err))
     .then(() => slaBreachWorker?.stop())
     .catch((err) => console.error('SLA breach worker did not stop cleanly:', err))
+    .then(() => economicRefreshWorker?.stop())
+    .catch((err) => console.error('Economic refresh worker did not stop cleanly:', err))
     // Pushes already on their way to FCM are let finish, not cut off.
     .then(() => settleInFlightPushes())
     .finally(() => server.close(() => process.exit(0)));

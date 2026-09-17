@@ -35,6 +35,12 @@ import {
 export interface ToolContext {
   user: AuthTokenPayload;
   now: Date;
+  /**
+   * The client's `assistantExternalContextEnabled`. `false` leaves the
+   * calendar, weather and economy tools out of the roster. The chat route
+   * reads it per turn; omitted means the column default, on.
+   */
+  externalContext?: boolean;
 }
 
 /**
