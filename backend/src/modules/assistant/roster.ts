@@ -19,6 +19,8 @@ export const TOOL_REGISTRY = {
   getRateOfSale: 'sales',
   getSkuMovement: 'sales',
   getTerritoryRanking: 'sales',
+  getCampaignPerformance: 'sales',
+  getSellInForecast: 'sales',
   // Stock
   getStockLevels: 'stock',
   // Visibility
@@ -26,11 +28,17 @@ export const TOOL_REGISTRY = {
   getVisibilityCompliance: 'visibility',
   // Competition
   getCompetitorActivity: 'competition',
+  getPriceCompliance: 'competition',
   // Execution
   getAgentScorecard: 'execution',
   getVisitHistory: 'execution',
   getFraudFlags: 'execution',
   getMetricTrend: 'execution',
+  getContestStandings: 'execution',
+  getTaskSummary: 'execution',
+  getAlerts: 'execution',
+  // Resolves a place name to the territoryId the tools above take (#362).
+  findTerritories: 'execution',
 } as const satisfies Record<string, Pillar>;
 
 export type ToolName = keyof typeof TOOL_REGISTRY;
@@ -75,14 +83,21 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
     'getRateOfSale',
     'getSkuMovement',
     'getTerritoryRanking',
+    'getCampaignPerformance',
+    'getSellInForecast',
     'getStockLevels',
     'getShareOfShelf',
     'getVisibilityCompliance',
     'getCompetitorActivity',
+    'getPriceCompliance',
     'getAgentScorecard',
     'getVisitHistory',
     'getFraudFlags',
     'getMetricTrend',
+    'getContestStandings',
+    'getTaskSummary',
+    'getAlerts',
+    'findTerritories',
   ],
 
   // Written out rather than spread from `manager`. Identical today; the point
@@ -91,14 +106,21 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
     'getRateOfSale',
     'getSkuMovement',
     'getTerritoryRanking',
+    'getCampaignPerformance',
+    'getSellInForecast',
     'getStockLevels',
     'getShareOfShelf',
     'getVisibilityCompliance',
     'getCompetitorActivity',
+    'getPriceCompliance',
     'getAgentScorecard',
     'getVisitHistory',
     'getFraudFlags',
     'getMetricTrend',
+    'getContestStandings',
+    'getTaskSummary',
+    'getAlerts',
+    'findTerritories',
   ],
 };
 

@@ -88,6 +88,53 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     expectedTool: 'getMetricTrend',
     expectedSpec: 'trend_chart',
   },
+  // The operational tools (#362) are registered under execution too.
+  {
+    id: 'exec-10',
+    question: 'Who is leading the September Visit Sprint?',
+    expectedTool: 'getContestStandings',
+    note: 'A contest leaderboard, not an agent scorecard.',
+  },
+  {
+    id: 'exec-11',
+    question: 'Who won the August Execution Cup?',
+    expectedTool: 'getContestStandings',
+  },
+  {
+    id: 'exec-12',
+    question: 'How many overdue tasks does Kagiso have?',
+    expectedTool: 'getTaskSummary',
+    note: 'Names an agent, but asks about tasks — must not collapse into getAgentScorecard.',
+  },
+  {
+    id: 'exec-13',
+    question: 'Which territories have the most overdue tasks?',
+    expectedTool: 'getTaskSummary',
+    note: 'Ranks territories, but by tasks — must not collapse into getTerritoryRanking.',
+  },
+  {
+    id: 'exec-14',
+    question: 'Which alerts are still unacknowledged?',
+    expectedTool: 'getAlerts',
+  },
+  {
+    id: 'exec-15',
+    question: 'How many price alerts were raised last week?',
+    expectedTool: 'getAlerts',
+    note: 'About the alerts, not the prices — must not collapse into getPriceCompliance.',
+  },
+  {
+    id: 'exec-16',
+    question: 'What territories do we have?',
+    expectedTool: 'findTerritories',
+  },
+  {
+    id: 'exec-17',
+    question: 'How is Nelson Mandela Bay doing on stock this month?',
+    expectedTool: 'findTerritories',
+    acceptable: ['getStockLevels'],
+    note: 'The planted gap from #362: a territory named, no id. Resolve it before scoping.',
+  },
 
   // ── Sales ────────────────────────────────────────────────────────────────
   {
@@ -100,6 +147,9 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     id: 'sales-2',
     question: 'Are we hitting target in Gauteng?',
     expectedTool: 'getRateOfSale',
+    // A named place is resolved to its id first (#362); the eval scores the
+    // first tool reached, and the lookup is the correct first reach.
+    acceptable: ['findTerritories'],
   },
   {
     id: 'sales-3',
@@ -123,6 +173,27 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     question: 'Which territories are driving the drop in sell-in this month?',
     expectedTool: 'getTerritoryRanking',
     note: 'Ranks territories against each other by sell-in change. Must not collapse into getRateOfSale, which gives a total or a single territory.',
+  },
+  {
+    id: 'sales-7',
+    question: 'Did the Winter Warmer campaign work? Execution looked great.',
+    expectedTool: 'getCampaignPerformance',
+    note: 'The planted flop: strong execution, negative lift.',
+  },
+  {
+    id: 'sales-8',
+    question: 'Which of our campaigns delivered a return?',
+    expectedTool: 'getCampaignPerformance',
+  },
+  {
+    id: 'sales-9',
+    question: 'How much Cola 2L are outlets likely to order per day over the coming days?',
+    expectedTool: 'getSellInForecast',
+  },
+  {
+    id: 'sales-10',
+    question: 'Give me a demand forecast for Kalahari Cola 1L.',
+    expectedTool: 'getSellInForecast',
   },
 
   // ── Stock ────────────────────────────────────────────────────────────────
@@ -153,6 +224,7 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     id: 'vis-1',
     question: 'What is our share of shelf in Western Cape?',
     expectedTool: 'getShareOfShelf',
+    acceptable: ['findTerritories'],
   },
   {
     id: 'vis-2',
@@ -185,6 +257,17 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     id: 'comp-3',
     question: 'Which competitor brands are showing up most?',
     expectedTool: 'getCompetitorActivity',
+  },
+  {
+    id: 'comp-4',
+    question: 'Are any retailers overpricing our products?',
+    expectedTool: 'getPriceCompliance',
+    note: 'Our shelf prices against RRP — not competitor prices (comp-1).',
+  },
+  {
+    id: 'comp-5',
+    question: 'What is QuickSave charging for Cola 2L compared with RRP?',
+    expectedTool: 'getPriceCompliance',
   },
 
   // ── Refusals — an acceptable failure mode, by design ──────────────────────

@@ -49,6 +49,8 @@ export const RISK_TIERS = {
   getRateOfSale: 'read',
   getSkuMovement: 'read',
   getTerritoryRanking: 'read',
+  getCampaignPerformance: 'read',
+  getSellInForecast: 'read',
   // Stock
   getStockLevels: 'read',
   // Visibility
@@ -56,11 +58,16 @@ export const RISK_TIERS = {
   getVisibilityCompliance: 'read',
   // Competition
   getCompetitorActivity: 'read',
+  getPriceCompliance: 'read',
   // Execution
   getAgentScorecard: 'read',
   getVisitHistory: 'read',
   getFraudFlags: 'read',
   getMetricTrend: 'read',
+  getContestStandings: 'read',
+  getTaskSummary: 'read',
+  getAlerts: 'read',
+  findTerritories: 'read',
 } as const satisfies Record<ToolName, RiskTier>;
 
 /**
