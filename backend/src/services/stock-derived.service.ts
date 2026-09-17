@@ -18,11 +18,25 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * forever"). This is a visit-cadence approximation: exact for daily beats,
  * coarser for weekly ones — a week-cadence outlet reads "7 days out" even if
  * it ran out only 2 days before the visit.
+ *
+ * `lastInStockTs` is when this outlet last counted the SKU with stock on hand,
+ * over its WHOLE history (see {@link fetchLastInStockForOutlet}). Pass it
+ * whenever it is known. `history` is only the last five counts, so without it a
+ * shelf that has been empty for longer than five visits finds no in-stock row
+ * and reads 0 days — hiding exactly the chronic stock-outs a manager most needs
+ * to see (#360). `null` means the SKU has never been counted in stock here.
  */
-export function computeDaysOutOfStock(history: StockHistoryRow[], asOfCheckinTs: Date): number {
-  const lastInStock = history.find((row) => row.unitsAvailable > 0);
-  if (!lastInStock) return 0;
-  const days = (asOfCheckinTs.getTime() - lastInStock.visitCheckinTs.getTime()) / MS_PER_DAY;
+export function computeDaysOutOfStock(
+  history: StockHistoryRow[],
+  asOfCheckinTs: Date,
+  lastInStockTs?: Date | null,
+): number {
+  const anchor =
+    lastInStockTs !== undefined
+      ? lastInStockTs
+      : (history.find((row) => row.unitsAvailable > 0)?.visitCheckinTs ?? null);
+  if (!anchor) return 0;
+  const days = (asOfCheckinTs.getTime() - anchor.getTime()) / MS_PER_DAY;
   return days > 0 ? Math.round(days) : 0;
 }
 
@@ -92,4 +106,36 @@ export async function fetchStockHistoryForOutlet(
     bySku.set(row.sku_id, list);
   }
   return bySku;
+}
+
+interface LastInStockRow {
+  sku_id: string;
+  last_in_stock_ts: Date;
+}
+
+/**
+ * When each SKU was last counted with stock on hand at this outlet, over the
+ * outlet's entire history — the start of any out-of-stock run still going.
+ *
+ * Separate from {@link fetchStockHistoryForOutlet} on purpose: velocity needs
+ * the last few adjacent counts and nothing older, while days-out-of-stock needs
+ * one timestamp that may be any distance back (#360). One grouped query, so it
+ * stays a single round trip however long the run has lasted. A SKU absent from
+ * the map has never been in stock here.
+ */
+export async function fetchLastInStockForOutlet(
+  outletId: string,
+  clientId: string,
+): Promise<Map<string, Date>> {
+  const rows = await prisma.$queryRaw<LastInStockRow[]>(
+    Prisma.sql`
+      SELECT vs.sku_id, MAX(v.checkin_ts) AS last_in_stock_ts
+      FROM visit_stock vs
+      JOIN visits v ON v.id = vs.visit_id
+      WHERE v.outlet_id = ${outletId} AND v.client_id = ${clientId}
+        AND vs.units_available > 0
+      GROUP BY vs.sku_id
+    `,
+  );
+  return new Map(rows.map((row) => [row.sku_id, row.last_in_stock_ts]));
 }

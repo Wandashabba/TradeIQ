@@ -35,6 +35,14 @@ export interface LlmProvider {
 
   /** Vendor usage payload → our shape. Hides the cache-field naming split. */
   normaliseUsage(raw: unknown): Usage;
+
+  /**
+   * Set only on a fallback wrapper, and only once the fallback actually
+   * answered: the provider the turn was meant to run on. Read by tracing so a
+   * turn served by the secondary is attributable rather than invisible — see
+   * `providers/fallback.ts`.
+   */
+  readonly fallbackFrom?: ProviderName;
 }
 
 export type ProviderName = 'anthropic' | 'gemini';
@@ -64,6 +72,15 @@ export interface TurnInput {
    * — `providers/index.ts` is the only place a model string is chosen.
    */
   model?: 'orchestrator' | 'quarantine';
+  /**
+   * Offer the model the vendor's live web search for this turn.
+   *
+   * A request, not a guarantee: an adapter whose vendor or configured model
+   * cannot combine search with function calling ignores it, and the frozen
+   * prompt tells the model to say so when it has no search. Never honoured on
+   * the quarantine tier — a tool-less pass must stay tool-less.
+   */
+  webSearch?: boolean;
 }
 
 export type Role = 'user' | 'assistant';
@@ -81,6 +98,17 @@ export interface TextMessage {
   role: Role;
   content: string;
   toolCalls?: readonly ToolCallRecord[];
+  /**
+   * The vendor's own rendering of this assistant turn, replayed verbatim by the
+   * adapter that produced it and ignored by every other.
+   *
+   * Exists because a turn that used a *server-side* tool (live web search)
+   * carries blocks we never see as tool calls — encrypted search results,
+   * signed thinking — and both vendors refuse a follow-up request that drops
+   * them. Opaque above the adapter, exactly like
+   * {@link ToolCallRecord.providerSignature}, and never persisted beyond the turn.
+   */
+  providerReplay?: { provider: ProviderName; content: unknown };
 }
 
 /** One tool call the model asked for, as replayed back to it in history. */
@@ -185,6 +213,38 @@ export type TurnEvent =
    */
   | { type: 'tool_call'; id: string; name: string; args: unknown; signature?: string }
   | { type: 'usage'; usage: Usage }
+  /**
+   * The model ran the vendor's server-side web search. No arguments and no
+   * result: the vendor executed it, and the only thing above the adapter needs
+   * is that it happened (a working step, a trace span).
+   */
+  | { type: 'web_search' }
+  /**
+   * Web pages the answer cited, un-validated. The orchestrator owns turning
+   * these into something safe to publish — see `sources.ts`.
+   */
+  | { type: 'sources'; sources: RawWebSource[] }
+  /**
+   * The vendor's rendering of this round's assistant turn, for
+   * {@link TextMessage.providerReplay}. Emitted only by a round that asked for
+   * tools, since only those rounds are replayed.
+   */
+  | { type: 'replay'; content: unknown }
   /** Terminal. `message` must be user-safe — never a stack trace or a raw vendor error. */
   | { type: 'error'; code: string; message: string }
   | { type: 'done' };
+
+/**
+ * One cited web page as a vendor reported it — before any validation.
+ *
+ * Everything here is untrusted: the title and snippet are written by whoever
+ * owns the page, and the url is whatever the search index holds.
+ */
+export interface RawWebSource {
+  url: string;
+  title?: string | null;
+  /** The cited passage, when the vendor exposes one. */
+  snippet?: string | null;
+  /** Free text from the vendor ("3 days ago", "April 30, 2025"), when known. */
+  pageAge?: string | null;
+}

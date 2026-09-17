@@ -4,7 +4,11 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { errorHandler } from '../../middleware/errorHandler';
 import type { AuthedRequest } from '../../middleware/auth';
-import { isAssistantEnabled, requireAssistantEnabled } from './featureFlag';
+import {
+  isAssistantEnabled,
+  isAssistantWebSearchEnabled,
+  requireAssistantEnabled,
+} from './featureFlag';
 
 // A stand-in for requireAuth so these tests exercise the flag rather than the
 // JWT path. `user` is mutated per test to move the caller between tenants.
@@ -64,6 +68,31 @@ describe('assistant feature flag', () => {
 
     it('is false for a client that does not exist', () => {
       return expect(isAssistantEnabled('no-such-client')).resolves.toBe(false);
+    });
+  });
+
+  describe('isAssistantWebSearchEnabled', () => {
+    it('is on by default', () => {
+      return expect(isAssistantWebSearchEnabled(onClientId)).resolves.toBe(true);
+    });
+
+    it('is off once switched off', async () => {
+      await prisma.client.update({ where: { id: offClientId }, data: { assistantWebSearchEnabled: false } });
+      await expect(isAssistantWebSearchEnabled(offClientId)).resolves.toBe(false);
+    });
+
+    it('is off for a client that does not exist', () => {
+      return expect(isAssistantWebSearchEnabled('no-such-client')).resolves.toBe(false);
+    });
+
+    it('fails closed, without throwing, when the database is unreachable', async () => {
+      const spy = jest
+        .spyOn(prisma.client, 'findUnique')
+        .mockRejectedValueOnce(new Error('connection lost'));
+      const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(isAssistantWebSearchEnabled(onClientId)).resolves.toBe(false);
+      spy.mockRestore();
+      logged.mockRestore();
     });
   });
 

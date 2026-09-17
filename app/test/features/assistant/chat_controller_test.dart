@@ -389,6 +389,39 @@ void main() {
       });
     });
 
+    test('a sources event lands on the current assistant message', () async {
+      final source = WebSource(
+        title: 'Shoprite launches new stores',
+        url: Uri.parse('https://www.iol.co.za/business/shoprite'),
+        domain: 'iol.co.za',
+        retrievedAt: DateTime.utc(2026, 9, 17, 10, 12),
+      );
+      final repository = StubRepository([
+        const ToolStartEvent(name: 'webSearch', pillar: 'web'),
+        const ToolEndEvent(name: 'webSearch', ok: true),
+        const TokenEvent('Shoprite opened three stores.'),
+        SourcesEvent([source]),
+        const UsageEvent(
+          inputTokens: 1,
+          outputTokens: 1,
+          cacheReadTokens: 0,
+          costCents: 0,
+        ),
+        const DoneEvent(),
+      ]);
+      final container = containerWith(repository);
+
+      await container.read(chatControllerProvider.notifier).send('news?');
+
+      final messages = container.read(chatControllerProvider).messages;
+      expect(messages.first.sources, isEmpty);
+      final answer = messages.last;
+      expect(answer.sources, [source]);
+      expect(answer.text, 'Shoprite opened three stores.');
+      expect(answer.tools.single.name, 'webSearch');
+      expect(answer.streaming, isFalse);
+    });
+
     test('clear() empties the transcript', () async {
       final repository = StubRepository([const DoneEvent()]);
       final container = containerWith(repository);

@@ -17,6 +17,27 @@ export async function isAssistantEnabled(clientId: string): Promise<boolean> {
 }
 
 /**
+ * May the assistant run live web search for this tenant?
+ *
+ * Read per turn rather than cached, so an operator switching it off takes
+ * effect on the next question. **Fails closed**: a tenant that cannot be read,
+ * or a read that throws, gets no search — the assistant still answers from
+ * internal data, which is the product; outside context is the extra.
+ */
+export async function isAssistantWebSearchEnabled(clientId: string): Promise<boolean> {
+  try {
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { assistantWebSearchEnabled: true },
+    });
+    return client?.assistantWebSearchEnabled ?? false;
+  } catch (err) {
+    console.error('[assistant] could not read the web search switch; search is off for this turn', err);
+    return false;
+  }
+}
+
+/**
  * Gate every assistant route on the tenant's rollout flag.
  *
  * **Responds 404, not 403.** A 403 concedes that the feature exists and that
