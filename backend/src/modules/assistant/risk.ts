@@ -48,6 +48,7 @@ export const RISK_TIERS = {
   // Sales
   getRateOfSale: 'read',
   getSkuMovement: 'read',
+  getTerritoryRanking: 'read',
   // Stock
   getStockLevels: 'read',
   // Visibility

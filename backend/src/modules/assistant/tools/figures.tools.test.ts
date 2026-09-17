@@ -21,6 +21,7 @@ jest.mock('../../clients/clients.service', () => ({
 jest.mock('../pillars.service', () => ({
   getSalesPerformance: jest.fn(),
   getStockLevels: jest.fn(),
+  getTerritorySellInChange: jest.fn(),
   getShareOfShelf: jest.fn(),
   getVisibilityCompliance: jest.fn(),
   getCompetitorActivity: jest.fn(),
@@ -147,6 +148,7 @@ describe('tools without figures', () => {
     'getVisibilityCompliance',
     'getCompetitorActivity',
     'getAgentScorecard',
+    'getTerritoryRanking',
   ])('%s declares figures', (name) => {
     expect(tool(name).figures).toEqual(expect.any(Function));
   });
@@ -193,5 +195,74 @@ describe('getMetricTrend comparison series', () => {
       },
     });
     expect(trends.getAvailabilityTrend).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('getTerritoryRanking', () => {
+  const change = {
+    totalSellInUnits: 476,
+    comparisonTotalSellInUnits: 475,
+    territories: [
+      { territoryName: 'Soweto', changePct: -31 },
+      { territoryName: 'Pretoria East', changePct: 7 },
+    ],
+    excludedNoComparison: [],
+  };
+
+  it('resolves both windows in the client calendar and defaults to the previous period', async () => {
+    pillars.getTerritorySellInChange.mockResolvedValueOnce(change);
+    const { figures } = await runWithFigures('getTerritoryRanking', { period: AUGUST });
+
+    const call = pillars.getTerritorySellInChange.mock.calls[0][0];
+    expect(call).toMatchObject({
+      clientId: 'c1',
+      timeZone: 'Africa/Johannesburg',
+      current: { from: new Date('2026-07-31T22:00:00.000Z'), to: new Date('2026-08-31T22:00:00.000Z') },
+      comparison: { from: new Date('2026-06-30T22:00:00.000Z'), to: new Date('2026-07-31T22:00:00.000Z') },
+    });
+    expect(call).not.toHaveProperty('region');
+    expect(pillars.getTerritorySellInChange).toHaveBeenCalledTimes(1);
+
+    expect(figures.find((f) => f.type === 'ranked_bars')?.data).toEqual({
+      title: 'Change by territory',
+      comparedTo: "vs Jul '26",
+      unit: 'pct',
+      items: [
+        { label: 'Soweto', value: -31 },
+        { label: 'Pretoria East', value: 7 },
+      ],
+    });
+  });
+
+  it('measures against last year when asked, and passes a region through', async () => {
+    pillars.getTerritorySellInChange.mockResolvedValueOnce(change);
+    const { figures } = await runWithFigures('getTerritoryRanking', {
+      period: AUGUST,
+      compareTo: { kind: 'same_period_last_year' },
+      region: 'Gauteng',
+    });
+    expect(pillars.getTerritorySellInChange.mock.calls[0][0]).toMatchObject({
+      region: 'Gauteng',
+      comparison: { from: new Date('2025-07-31T22:00:00.000Z') },
+    });
+    expect(figures.find((f) => f.type === 'ranked_bars')?.data).toMatchObject({ comparedTo: "vs Aug '25" });
+  });
+
+  it('refuses a territory comparison basis, which a ranking across territories cannot honour', () => {
+    const parsed = tool('getTerritoryRanking').args.safeParse({
+      period: AUGUST,
+      compareTo: { kind: 'territory', id: 't1' },
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it('states its narrow trigger, the sell-in basis, and the hand-off to getRateOfSale', () => {
+    const { description } = tool('getTerritoryRanking');
+    expect(description).toMatch(/^Call this when the user wants territories ranked or compared/);
+    expect(description).toMatch(/Only for comparisons ACROSS territories\./);
+    expect(description).toMatch(/SELL-IN/);
+    expect(description).toMatch(/never consumer sell-out/);
+    expect(description).toMatch(/No targets or attainment/);
+    expect(description).toMatch(/Use getRateOfSale instead/);
   });
 });

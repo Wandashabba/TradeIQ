@@ -5,6 +5,7 @@ import {
   comparisonWindow,
   describeComparison,
   numericDeltas,
+  periodCompareToSchema,
   type Comparison,
   type CompareTo,
 } from '../compare';
@@ -13,6 +14,7 @@ import {
   salesFigures,
   shareOfShelfFigures,
   stockFigures,
+  territoryRankingFigures,
   visibilityComplianceFigures,
   type FigureWindows,
 } from '../figures';
@@ -23,12 +25,14 @@ import {
   getShareOfShelf,
   getSkuMovement,
   getStockLevels,
+  getTerritorySellInChange,
   getVisibilityCompliance,
   getVisitSummary,
   type CompetitorActivity,
   type SalesPerformance,
   type ShareOfShelf,
   type StockLevels,
+  type TerritorySellInChange,
   type VisibilityCompliance,
 } from '../pillars.service';
 import { eraseToolTypes, type AnyAssistantTool } from '../types';
@@ -206,6 +210,61 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       view: pillarView('sales'),
       figures: async (args, result) =>
         salesFigures(result as SalesPerformance, await windowsFor(args)),
+    }),
+
+    eraseToolTypes({
+      name: 'getTerritoryRanking',
+      pillar: 'sales' as const,
+      // Narrow on purpose. Every other sales question — a total, a target,
+      // attainment, one territory's figure — belongs to getRateOfSale, and a
+      // broad description here would steal those selections. The trigger is
+      // the RANKING or COMPARISON ACROSS territories, and the description says
+      // so in both directions.
+      description:
+        'Call this when the user wants territories ranked or compared against each other ' +
+        'by how their sell-in changed — which territories grew or declined, which area is ' +
+        'driving a drop, or the change by territory against an earlier period. Only for ' +
+        'comparisons ACROSS territories. ' +
+        'Returns each territory\'s SELL-IN (units ordered through TradeIQ — never consumer ' +
+        'sell-out) and its % change against the comparison window, worst first. No targets ' +
+        'or attainment. Use getRateOfSale instead for a total, a single territory\'s figure, ' +
+        'or anything about target.',
+      args: z.object({
+        period: periodSchema,
+        compareTo: periodCompareToSchema
+          .default({ kind: 'previous_period' })
+          .describe(
+            'What to measure the change against. previous_period unless the user says ' +
+              'last year.',
+          ),
+        region: z
+          .string()
+          .min(1)
+          .max(80)
+          .optional()
+          .describe('Optional region name to narrow to, e.g. "Gauteng". Omit for all territories.'),
+      }),
+      run: async (args) => {
+        const tz = await timeZone();
+        return getTerritorySellInChange({
+          clientId: user.clientId,
+          timeZone: tz,
+          current: resolvePeriod(args.period, now, tz),
+          comparison: comparisonWindow(args.period, args.compareTo, now, tz),
+          ...(args.region ? { region: args.region } : {}),
+        });
+      },
+      figures: async (args, result) => {
+        const tz = await timeZone();
+        return territoryRankingFigures(result as TerritorySellInChange, {
+          timeZone: tz,
+          current: resolvePeriod(args.period, now, tz),
+          comparison: {
+            range: comparisonWindow(args.period, args.compareTo, now, tz),
+            basis: args.compareTo,
+          },
+        });
+      },
     }),
 
     eraseToolTypes({

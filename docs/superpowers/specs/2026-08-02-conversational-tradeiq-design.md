@@ -255,6 +255,7 @@ tool's own view artifact, and precede the next `tool_start` or `token`.
 | `getVisibilityCompliance` | tiles: planogram compliance, high-traffic placement |
 | `getCompetitorActivity` | tiles: competitor promoter presence, competitor SKUs seen; bars: competitor facings by SKU |
 | `getAgentScorecard` | tiles: execution score (Δ vs team), visits, outlets visited |
+| `getTerritoryRanking` | tile: combined sell-in units of the territories in scope (Δ% vs comparison); bars: "Change by territory" — signed sell-in % change per territory, worst first, ties by name. Territories with no comparison-window sell-in are left out of the bars (listed in the result's `excludedNoComparison`) |
 
 Sentiment comes from the `SENTIMENT` table in `figures.ts`, never from the
 model. A figure with no observations behind it is omitted rather than shown as

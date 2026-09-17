@@ -18,6 +18,7 @@ export const TOOL_REGISTRY = {
   // Sales
   getRateOfSale: 'sales',
   getSkuMovement: 'sales',
+  getTerritoryRanking: 'sales',
   // Stock
   getStockLevels: 'stock',
   // Visibility
@@ -73,6 +74,7 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
   manager: [
     'getRateOfSale',
     'getSkuMovement',
+    'getTerritoryRanking',
     'getStockLevels',
     'getShareOfShelf',
     'getVisibilityCompliance',
@@ -88,6 +90,7 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
   admin: [
     'getRateOfSale',
     'getSkuMovement',
+    'getTerritoryRanking',
     'getStockLevels',
     'getShareOfShelf',
     'getVisibilityCompliance',

@@ -8,6 +8,7 @@ import type {
   SalesPerformance,
   ShareOfShelf,
   StockLevels,
+  TerritorySellInChange,
   VisibilityCompliance,
 } from './pillars.service';
 
@@ -604,4 +605,45 @@ export function scorecardFigures(result: AgentPerformance, windows: FigureWindow
   );
 
   return tiles(out);
+}
+
+/**
+ * Territory ranking (`getTerritoryRanking`): diverging bars of signed
+ * sell-in change, worst first, plus a headline tile for the territories'
+ * combined sell-in — a sum the tool already computed, so no extra query.
+ *
+ * Territories with no comparison-window sell-in are already excluded by the
+ * service; they never appear as a bar.
+ */
+export function territoryRankingFigures(
+  result: TerritorySellInChange,
+  windows: FigureWindows,
+): FigureArtifact[] {
+  const against = comparisonLabel(windows);
+  const out: FigureArtifact[] = [];
+
+  if (result.totalSellInUnits > 0 || result.comparisonTotalSellInUnits > 0) {
+    out.push(
+      ...tiles([
+        buildTile({
+          metric: 'sell_in_units',
+          label: 'Sell-in, units',
+          value: result.totalSellInUnits,
+          unit: 'units',
+          baseline: result.comparisonTotalSellInUnits,
+          baselineLabel: against,
+        }),
+      ]),
+    );
+  }
+
+  const ranking = rankedBars({
+    metric: 'sell_in_change',
+    title: 'Change by territory',
+    comparedTo: against ? `vs ${against}` : formatPeriodLabel(windows.current, windows.timeZone),
+    unit: 'pct',
+    items: result.territories.map((t) => ({ label: t.territoryName, value: t.changePct })),
+    limit: 12,
+  });
+  return [...out, ...bars(ranking)];
 }

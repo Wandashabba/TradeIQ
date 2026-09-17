@@ -13,6 +13,7 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
   field_agent: {
     getRateOfSale: false,
     getSkuMovement: false,
+    getTerritoryRanking: false,
     getStockLevels: false,
     getShareOfShelf: false,
     getVisibilityCompliance: false,
@@ -25,6 +26,7 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
   manager: {
     getRateOfSale: true,
     getSkuMovement: true,
+    getTerritoryRanking: true,
     getStockLevels: true,
     getShareOfShelf: true,
     getVisibilityCompliance: true,
@@ -37,6 +39,7 @@ const EXPECTED: Readonly<Record<Role, Readonly<Record<ToolName, boolean>>>> = {
   admin: {
     getRateOfSale: true,
     getSkuMovement: true,
+    getTerritoryRanking: true,
     getStockLevels: true,
     getShareOfShelf: true,
     getVisibilityCompliance: true,

@@ -2,7 +2,14 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { mean, pct, round2 } from '../../lib/kpiMath';
 import { personLabel } from '../../lib/personName';
-import { getSellInPerformance, type SellInPerformance } from '../salesTargets/salesTargets.service';
+import {
+  getSellInPerformance,
+  SELL_IN_BASIS,
+  SELL_IN_LABEL,
+  SELL_IN_METRIC,
+  sellInUnitsByTerritoryCode,
+  type SellInPerformance,
+} from '../salesTargets/salesTargets.service';
 
 /**
  * The assistant's semantic layer — one read-only aggregate per pillar.
@@ -115,6 +122,136 @@ export async function getSalesPerformance(input: PillarWindow): Promise<SalesPer
     to: input.to,
     ...(input.territoryId ? { territoryId: input.territoryId } : {}),
   });
+}
+
+export interface TerritorySellInRow {
+  territoryId: string;
+  territoryName: string;
+  region: string | null;
+  sellInUnits: number;
+  comparisonSellInUnits: number;
+  /** Signed, one decimal. Never computed against a zero baseline — see below. */
+  changePct: number;
+}
+
+export interface TerritorySellInChange {
+  metric: typeof SELL_IN_METRIC;
+  metricLabel: typeof SELL_IN_LABEL;
+  basis: string;
+  timeZone: string;
+  from: Date;
+  to: Date;
+  comparisonFrom: Date;
+  comparisonTo: Date;
+  /** The region filter applied, or null for every territory. */
+  region: string | null;
+  /** Sum over the territories in scope, current and comparison windows. */
+  totalSellInUnits: number;
+  comparisonTotalSellInUnits: number;
+  /** Worst first: most negative change leads; ties by name. */
+  territories: TerritorySellInRow[];
+  /**
+   * Territories left out because the comparison window had no sell-in, so a
+   * percentage change does not exist. Listed rather than dropped silently, so
+   * "Tembisa is missing" has an answer.
+   */
+  excludedNoComparison: { territoryId: string; territoryName: string; sellInUnits: number }[];
+  note: string;
+}
+
+/**
+ * Sales — sell-in change per territory, current window against a comparison
+ * window. The one per-territory sell-in figure the assistant has.
+ *
+ * Both windows read {@link sellInUnitsByTerritoryCode}, i.e. the same grouped
+ * order query as {@link getSalesPerformance} and the console's attainment
+ * report, dated by `Order.capturedAt` (#338). Totals here therefore agree with
+ * `getRateOfSale` for the same window.
+ *
+ * **No target, no attainment.** This compares two windows of sell-in; it does
+ * not claim anything against a target, so rule 9 has nothing to gate.
+ *
+ * A territory with **no sell-in in the comparison window** has no percentage
+ * change — "up from nothing" is not +100% or +∞ — so it is excluded from the
+ * ranking and listed in `excludedNoComparison` instead. A territory that sold
+ * before and nothing now is a real −100% and stays in.
+ *
+ * Tenant scoping: territories come from this client only, and the order query
+ * filters on the client too — a code another tenant also uses resolves to
+ * nothing here.
+ */
+export async function getTerritorySellInChange(input: {
+  clientId: string;
+  timeZone: string;
+  current: { from: Date; to: Date };
+  comparison: { from: Date; to: Date };
+  region?: string;
+}): Promise<TerritorySellInChange> {
+  const territories = await prisma.territory.findMany({
+    where: {
+      clientId: input.clientId,
+      ...(input.region ? { region: { equals: input.region, mode: 'insensitive' as const } } : {}),
+    },
+    select: { id: true, name: true, code: true, region: true },
+    orderBy: { name: 'asc' },
+  });
+
+  // Sequential, like the pillar tools' comparisons: the same indexed query
+  // twice, not a fan-out against a database also serving the console.
+  const now = await sellInUnitsByTerritoryCode(input.clientId, input.current);
+  const before = await sellInUnitsByTerritoryCode(input.clientId, input.comparison);
+
+  const ranked: TerritorySellInRow[] = [];
+  const excluded: TerritorySellInChange['excludedNoComparison'] = [];
+  let total = 0;
+  let comparisonTotal = 0;
+
+  for (const territory of territories) {
+    const sellInUnits = now.get(territory.code) ?? 0;
+    const comparisonSellInUnits = before.get(territory.code) ?? 0;
+    total += sellInUnits;
+    comparisonTotal += comparisonSellInUnits;
+
+    if (comparisonSellInUnits <= 0) {
+      excluded.push({ territoryId: territory.id, territoryName: territory.name, sellInUnits });
+      continue;
+    }
+    const change = Math.round(((sellInUnits - comparisonSellInUnits) / comparisonSellInUnits) * 1000) / 10;
+    ranked.push({
+      territoryId: territory.id,
+      territoryName: territory.name,
+      region: territory.region,
+      sellInUnits,
+      comparisonSellInUnits,
+      changePct: Object.is(change, -0) ? 0 : change,
+    });
+  }
+
+  ranked.sort((a, b) =>
+    a.changePct === b.changePct
+      ? a.territoryName.localeCompare(b.territoryName)
+      : a.changePct - b.changePct,
+  );
+
+  return {
+    metric: SELL_IN_METRIC,
+    metricLabel: SELL_IN_LABEL,
+    basis: SELL_IN_BASIS,
+    timeZone: input.timeZone,
+    from: input.current.from,
+    to: input.current.to,
+    comparisonFrom: input.comparison.from,
+    comparisonTo: input.comparison.to,
+    region: input.region ?? null,
+    totalSellInUnits: total,
+    comparisonTotalSellInUnits: comparisonTotal,
+    territories: ranked,
+    excludedNoComparison: excluded,
+    note:
+      'changePct is the change in sell-in units against the comparison window. Territories ' +
+      'with no sell-in in the comparison window have no percentage change and are listed in ' +
+      'excludedNoComparison instead of being ranked. No targets are involved.',
+  };
 }
 
 export interface SkuMovementRow {
