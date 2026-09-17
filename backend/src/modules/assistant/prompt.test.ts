@@ -56,7 +56,7 @@ describe('system prompt', () => {
     ['rule 1 exception', 'outside information\n   from a cited web search result in this turn'],
     ['internal first', 'Your tools come first for the client\'s own business.'],
     ['search scope', 'Use web search only for outside context'],
-    ['no search', 'If\n    you have no web search tool, say you cannot check outside sources right now.'],
+    ['no search', 'When a question needs outside context and you have no web search tool, say\n    you cannot check outside sources right now.'],
     ['cited outside figure', 'An outside figure must come from a cited web search result in this\n    turn'],
     ['labelled', 'label it as outside or public information'],
     ['never mixed', 'Never add\n    outside numbers into internal totals'],
