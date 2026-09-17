@@ -1065,7 +1065,7 @@
   "@s34PhotoLabel": {
     "description": "S3–S4 photo capture label."
   },
-  "s34PhotoHelper": "Optional. Evidence for this section.",
+  "s34PhotoHelper": "Optional. Evidence for this section, and training data for automatic planogram scoring.",
   "@s34PhotoHelper": {
     "description": "S3–S4 photo capture helper text."
   },
@@ -1106,7 +1106,7 @@
   "@s5PhotoLabel": {
     "description": "S5 photo capture label."
   },
-  "s5PhotoHelper": "Optional. Evidence for the prices you typed.",
+  "s5PhotoHelper": "Optional. Evidence for the prices you typed, and training data for automatic price reading.",
   "@s5PhotoHelper": {
     "description": "S5 photo capture helper text."
   },
