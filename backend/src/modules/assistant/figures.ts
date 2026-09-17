@@ -159,6 +159,17 @@ export const SENTIMENT = {
   visits: { up: 'good', down: 'warn' },
   outlets_visited: { up: 'good', down: 'warn' },
   sell_in_change: { up: 'good', down: 'bad' },
+  // Operations (#362).
+  price_deviation: { up: 'bad', down: 'good' },
+  price_breach_lines: { up: 'bad', down: 'good' },
+  campaign_lift: { up: 'good', down: 'bad' },
+  campaign_roi: { up: 'good', down: 'bad' },
+  open_tasks: { up: 'bad', down: 'good' },
+  overdue_tasks: { up: 'bad', down: 'good' },
+  alerts_raised: { up: 'warn', down: 'good' },
+  unacknowledged_alerts: { up: 'bad', down: 'good' },
+  forecast_units: { up: 'neutral', down: 'neutral' },
+  days_of_cover: { up: 'good', down: 'warn' },
 } as const satisfies Record<string, { up: Sentiment; down: Sentiment }>;
 
 export type FigureMetric = keyof typeof SENTIMENT;

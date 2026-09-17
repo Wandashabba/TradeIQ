@@ -58,7 +58,10 @@ const windowArgs = z.object({
     .string()
     .min(1)
     .optional()
-    .describe('Optional territory id to narrow to. Omit for the whole business.'),
+    .describe(
+      'Optional territory id to narrow to, from findTerritories — never a territory name. ' +
+        'Omit for the whole business.',
+    ),
 });
 
 /**

@@ -167,6 +167,28 @@ void main() {
       expect(stepLabel(const ToolActivity(name: 'getNew', pillar: 'x')),
           'Looking that up');
     });
+
+    test('labels the operational tools in manager words, never by name', () {
+      const tools = {
+        'getPriceCompliance': 'competition',
+        'getCampaignPerformance': 'sales',
+        'getSellInForecast': 'sales',
+        'getContestStandings': 'execution',
+        'getTaskSummary': 'execution',
+        'getAlerts': 'execution',
+        'findTerritories': 'execution',
+      };
+      for (final entry in tools.entries) {
+        final label =
+            stepLabel(ToolActivity(name: entry.key, pillar: entry.value));
+        expect(toolStepLabels[entry.key], label);
+        expect(label, isNot(contains('get')));
+      }
+      expect(
+          stepLabel(const ToolActivity(
+              name: 'getPriceCompliance', pillar: 'competition')),
+          'Shelf prices vs RRP');
+    });
   });
 
   group('streaming text', () {

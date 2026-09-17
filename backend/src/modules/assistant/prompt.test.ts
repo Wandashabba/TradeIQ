@@ -52,8 +52,8 @@ describe('system prompt', () => {
     );
   });
 
-  it('bumps the version for the answer-shape change', () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe('v3-2026-09-17');
+  it('bumps the version for the operational tools', () => {
+    expect(SYSTEM_PROMPT_VERSION).toBe('v4-2026-09-17');
   });
 
   it('contains no invented example figure in the headline guidance', () => {

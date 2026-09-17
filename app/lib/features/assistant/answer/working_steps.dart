@@ -26,6 +26,13 @@ const Map<String, String> toolStepLabels = {
   'getAgentScorecard': 'Agent scorecard',
   'getMetricTrend': 'Trend over time',
   'getTerritoryRanking': 'Territory ranking',
+  'getPriceCompliance': 'Shelf prices vs RRP',
+  'getCampaignPerformance': 'Campaign results',
+  'getSellInForecast': 'Sell-in forecast',
+  'getContestStandings': 'Contest standings',
+  'getTaskSummary': 'Tasks',
+  'getAlerts': 'Alerts',
+  'findTerritories': 'Finding the territory',
 };
 
 String stepLabel(ToolActivity tool) =>
