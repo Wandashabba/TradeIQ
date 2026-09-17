@@ -120,6 +120,8 @@ class OutletMapCard extends StatelessWidget {
                 children: [
                   const TiqTileLayer(),
                   const TiqNavyTint(),
+                  // Place names ride above the tint so the wash cannot mute them.
+                  const TiqBasemapLabels(),
                   MarkerLayer(
                     markers: [
                       for (final outlet in outlets)

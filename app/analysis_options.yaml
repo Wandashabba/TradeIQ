@@ -3,7 +3,7 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     # Generated build output, not our source. Xcode drops third-party Swift
-    # package checkouts in here when it resolves dependencies - notably
+    # package checkouts in here when it resolves dependencies — notably
     # firebase_messaging's own bundled example app, whose unmet imports the
     # analyzer would otherwise report as errors in this project. Deleting
     # them is whack-a-mole: they return on the next iOS or macOS build.

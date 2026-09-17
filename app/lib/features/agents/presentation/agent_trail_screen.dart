@@ -398,6 +398,8 @@ class _TrailMapState extends State<_TrailMap> {
             // the ground reads as the deep-blue Tide Guide world while the
             // pins, labels and lines above keep full brightness.
             const TiqNavyTint(),
+            // Place names ride above the tint so the wash cannot mute them.
+            const TiqBasemapLabels(),
             PolylineLayer(
               polylines: [
                 for (final a in withStops)
