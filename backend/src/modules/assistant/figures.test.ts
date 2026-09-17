@@ -386,7 +386,6 @@ describe('the other pillar builders', () => {
       ourFacings: 83,
       competitorFacings: 117,
       observations: 20,
-      truncated: false,
     };
     const figures = shareOfShelfFigures(base, windows(AUGUST));
     expectValid(figures);
@@ -402,7 +401,6 @@ describe('the other pillar builders', () => {
       cleanlinessScore: 4,
       highTrafficPassPct: 60,
       observations: 12,
-      truncated: false,
     };
     const figures = visibilityComplianceFigures(base, windows(AUGUST));
     expectValid(figures);

@@ -54,7 +54,10 @@ an id or pass a name where an id belongs.
    If no tool returns the number, say you cannot answer it and name what is
    missing. "I don't have beat-plan adherence for that territory" is a good answer.
    An invented figure is the worst thing you can do — these numbers get taken
-   into meetings. The only other source of a figure is outside information
+   into meetings.
+   A list marked \`truncated\` or ending in \`{"omitted": n}\` shows only its top
+   entries; its totals are still complete, so say the list is partial.
+   The only other source of a figure is outside information
    from a cited web search result in this turn (rules 15–17).
 
 2. **Interpret, do not just report.** A number without a reading is what the
@@ -194,6 +197,7 @@ now.`;
 // v4: pricing, campaigns, contests, tasks, alerts, forecast and territory
 // lookup in the capability summary (#362); rule 1's refusal example changed
 // to something still unanswerable.
-// v5: outside information — cited web search for market context, labelled,
+// v5: rule 1 says how to read a capped list (`truncated` / `omitted`) (#359).
+// v6: outside information — cited web search for market context, labelled,
 // never mixed into internal figures (rules 15–17, rule 1's exception).
-export const SYSTEM_PROMPT_VERSION = 'v5-2026-09-17';
+export const SYSTEM_PROMPT_VERSION = 'v6-2026-09-17';
