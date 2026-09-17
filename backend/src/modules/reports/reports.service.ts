@@ -131,7 +131,8 @@ function dateRange(filters: ReportFilters, asOf?: Date): { gte?: Date; lte?: Dat
 
 export interface GenerateReportOptions {
   /**
-   * Only rows whose report date (checkinTs for visits, createdAt otherwise) is
+   * Only rows whose report date (checkinTs for visits, capturedAt for orders,
+   * createdAt otherwise) is
    * at or before this instant. A scheduled run's CSV is regenerated with its
    * `generatedAt` here (#66), so records added after the run stay out of it.
    */
@@ -172,14 +173,20 @@ export async function generateReport(
       })) as unknown as ReportRow[];
       break;
     case 'orders':
+      // Dated by capture, like visits are dated by checkinTs rather than the
+      // row's createdAt (#338). "Orders between the 1st and the 30th" is a
+      // question about when the outlets ordered, so an order taken on the 30th
+      // and synced on the 1st belongs in the earlier report — the same rule the
+      // attainment and forecast reads follow, so a manager reconciling a CSV
+      // against the attainment screen sees the same orders in the same month.
       rows = (await prisma.order.findMany({
         where: {
           clientId,
           ...(filters.outletId ? { outletId: filters.outletId } : {}),
           ...(filters.status ? { status: filters.status } : {}),
-          ...(range ? { createdAt: range } : {}),
+          ...(range ? { capturedAt: range } : {}),
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { capturedAt: 'desc' },
       })) as unknown as ReportRow[];
       break;
     case 'visits':

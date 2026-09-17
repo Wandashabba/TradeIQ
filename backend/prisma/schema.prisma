@@ -701,6 +701,22 @@ model Order {
   status     String      @default("submitted") // submitted | confirmed | cancelled
   total      Float       @default(0)
   createdAt  DateTime    @default(now()) @map("created_at")
+
+  /// When the DEVICE took the order, as opposed to `createdAt`, which is when
+  /// the server received it (#338). An order captured offline at 23:30 on 30
+  /// September and synced on 1 October has a `createdAt` in October and a
+  /// `capturedAt` in September; September is when it was sold, so this is the
+  /// timestamp every "which day/month is this order in" rule reads — sell-in
+  /// months and attainment, the forecast's day buckets, and campaign
+  /// attribution. `createdAt` stays what it always was and still dates the
+  /// things that genuinely mean "when we received it".
+  ///
+  /// NOT NULL: the migration backfills every existing row from `created_at`,
+  /// and the route always supplies a value — the device's when it sent a
+  /// usable one, the received time otherwise (see `captureTime.ts`). So no
+  /// query needs a COALESCE and no reader has to decide what a null means.
+  /// The `now()` default is only a floor for a direct database insert.
+  capturedAt DateTime    @default(now()) @map("captured_at")
   lines      OrderLine[]
 
   @@index([clientId])

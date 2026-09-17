@@ -42,7 +42,12 @@ describe('sales targets routes (#119)', () => {
         agentId: options.agentId ?? agent.userId,
         status: options.status ?? 'submitted',
         total: quantity,
+        // Both, and the same instant: these orders stand for ones placed
+        // online, where the device's capture time and the server's receipt are
+        // effectively the same moment. Sell-in is dated by `capturedAt` (#338);
+        // the offline case, where the two differ, is its own test below.
         createdAt: new Date(createdAt),
+        capturedAt: new Date(createdAt),
         lines: { create: [{ skuId, quantity, unitPrice: 1 }] },
       },
     });
@@ -422,6 +427,39 @@ describe('sales targets routes (#119)', () => {
       } finally {
         await prisma.client.update({ where: { id: clientId }, data: { timezone: 'Africa/Johannesburg' } });
       }
+    });
+
+    it('counts an order by when the device took it, not when it synced (#338)', async () => {
+      // The bug this fixes: an agent takes an order at 23:30 on 30 September
+      // standing in a shop with no signal, and the phone only reaches a tower
+      // the next morning. Dated by arrival it was October sell-in, against an
+      // October target, and September's attainment was short by it.
+      const captured = '2025-09-30T21:30:00.000Z'; // 23:30 on 30 Sep in Johannesburg
+      const received = '2025-10-01T06:00:00.000Z'; // 08:00 on 1 Oct, when it synced
+      await prisma.order.create({
+        data: {
+          clientId,
+          outletId: o1Id,
+          agentId: agent.userId,
+          status: 'submitted',
+          total: 9,
+          createdAt: new Date(received),
+          capturedAt: new Date(captured),
+          lines: { create: [{ skuId: edgeId, quantity: 9, unitPrice: 1 }] },
+        },
+      });
+
+      const units = async (month: string) => {
+        const res = await request(app)
+          .get('/sales-targets/attainment')
+          .set(auth(manager))
+          .query({ month, skuId: edgeId });
+        expect(res.status).toBe(200);
+        return res.body.skus[0].actualUnits;
+      };
+
+      expect(await units('2025-09')).toBe(9);
+      expect(await units('2025-10')).toBe(0);
     });
 
     it('requires a month', async () => {

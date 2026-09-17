@@ -436,6 +436,9 @@ class AppLocalizationsAf extends AppLocalizations {
   String get syncItemPhoto => 'Foto';
 
   @override
+  String get syncItemOrder => 'Bestelling';
+
+  @override
   String get visitStartingTitle => 'Besoek begin';
 
   @override

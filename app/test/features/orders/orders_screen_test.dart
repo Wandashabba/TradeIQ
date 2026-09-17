@@ -33,11 +33,10 @@ class _FakeOrdersRepository implements OrdersRepository {
       const PaginatedResponse(data: [_orderA, _orderB], nextCursor: null);
 
   @override
-  Future<OrderItem> createOrder({
+  Future<void> createOrder({
     required String outletId,
     required List<OrderLine> lines,
-  }) async =>
-      _orderA;
+  }) async {}
 }
 
 class _FailingOrdersRepository implements OrdersRepository {
@@ -49,7 +48,7 @@ class _FailingOrdersRepository implements OrdersRepository {
       throw Exception('boom');
 
   @override
-  Future<OrderItem> createOrder({
+  Future<void> createOrder({
     required String outletId,
     required List<OrderLine> lines,
   }) async =>

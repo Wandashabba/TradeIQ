@@ -135,6 +135,114 @@ describe('orders routes', () => {
     expect(res.body.lines).toHaveLength(2);
   });
 
+  describe('device capture time (#338)', () => {
+    /** The stored order behind a successful POST /orders. */
+    async function created(body: object) {
+      const res = await request(app)
+        .post('/orders')
+        .set('Authorization', `Bearer ${agent1Token}`)
+        .send(body);
+      expect(res.status).toBe(201);
+      return prisma.order.findUniqueOrThrow({ where: { id: res.body.id } });
+    }
+
+    /**
+     * The order was dated by its arrival rather than by what the device said.
+     *
+     * Deliberately not `toEqual(createdAt)`: `createdAt` is the database's own
+     * clock at INSERT, while the fallback is the instant the request was
+     * handled a few milliseconds earlier. Both are "when we received it", and
+     * pinning them to the same millisecond would be testing the gap between
+     * two clocks rather than the fallback.
+     */
+    function expectDatedByArrival(order: { capturedAt: Date; createdAt: Date }) {
+      expect(Math.abs(order.capturedAt.getTime() - order.createdAt.getTime())).toBeLessThan(5_000);
+    }
+
+    it("stores the device's capture time, so an offline order keeps its own date", async () => {
+      // Taken a day and a half ago and only syncing now — a phone that spent
+      // yesterday out of signal. Expressed relative to now on purpose: a
+      // hard-coded date would eventually age past the 90-day window and this
+      // test would start failing for a reason that has nothing to do with it.
+      const capturedAt = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString();
+      const order = await created({ ...validBody(), capturedAt });
+
+      expect(order.capturedAt.toISOString()).toBe(capturedAt);
+      // createdAt is still the arrival, and the two now genuinely differ.
+      expect(order.createdAt.getTime()).toBeGreaterThan(order.capturedAt.getTime());
+      // And it comes back on the wire, for anything reading orders.
+      const read = await request(app)
+        .get(`/orders/${order.id}`)
+        .set('Authorization', `Bearer ${agent1Token}`);
+      expect(read.status).toBe(200);
+      expect(read.body.capturedAt).toBe(capturedAt);
+    });
+
+    it('falls back to the received time when the payload carries none', async () => {
+      // An outbox payload written by a build that predates the field. It must
+      // still be accepted — the order is real.
+      const order = await created(validBody());
+      expectDatedByArrival(order);
+    });
+
+    it('falls back and records the fallback for a capture time in the future', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const order = await created({ ...validBody(), capturedAt: '2031-01-01T00:00:00.000Z' });
+        // A fast device clock must not book this order into a month nobody
+        // has set a target for.
+        expectDatedByArrival(order);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('future'));
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('falls back and records the fallback for an absurdly old capture time', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const order = await created({ ...validBody(), capturedAt: '1970-01-01T00:00:00.000Z' });
+        // A phone reset to its epoch must not drop an order into a month a
+        // manager has already been measured on.
+        expectDatedByArrival(order);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('too_old'));
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('falls back for anything that is not a full ISO-8601 instant', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        // A naive datetime included: honouring it would mean guessing a zone.
+        for (const junk of ['2025-09-30T23:30:00', 'yesterday', 12345]) {
+          const order = await created({ ...validBody(), capturedAt: junk });
+          expectDatedByArrival(order);
+        }
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('unparseable'));
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('never refuses the order over its capture time', async () => {
+      // The trade this makes explicit: an agent cannot fix their phone's clock
+      // from the shop floor, and losing the sale to protect a date is worse.
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        for (const capturedAt of ['2031-01-01T00:00:00.000Z', 'nonsense', null]) {
+          const res = await request(app)
+            .post('/orders')
+            .set('Authorization', `Bearer ${agent1Token}`)
+            .send({ ...validBody(), capturedAt });
+          expect(res.status).toBe(201);
+        }
+      } finally {
+        warn.mockRestore();
+      }
+    });
+  });
+
   it('returns 404 for an outlet belonging to another client', async () => {
     const res = await request(app)
       .post('/orders')

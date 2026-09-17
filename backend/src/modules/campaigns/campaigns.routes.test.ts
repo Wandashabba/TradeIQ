@@ -431,6 +431,7 @@ describe('campaigns routes', () => {
           status: 'submitted',
           total: 2000,
           createdAt: new Date('2026-05-15T00:00:00.000Z'),
+          capturedAt: new Date('2026-05-15T00:00:00.000Z'),
         },
       });
 
@@ -444,6 +445,7 @@ describe('campaigns routes', () => {
           status: 'submitted',
           total: 5000,
           createdAt: new Date('2026-06-15T00:00:00.000Z'),
+          capturedAt: new Date('2026-06-15T00:00:00.000Z'),
         },
       });
 
@@ -457,6 +459,7 @@ describe('campaigns routes', () => {
           status: 'cancelled',
           total: 9999,
           createdAt: new Date('2026-06-20T00:00:00.000Z'),
+          capturedAt: new Date('2026-06-20T00:00:00.000Z'),
         },
       });
     });
@@ -593,7 +596,14 @@ describe('campaigns routes', () => {
       return outlet.id;
     }
 
-    async function orderAt(tenantId: string, byAgent: string, outlet: string, iso: string, total: number) {
+    async function orderAt(
+      tenantId: string,
+      byAgent: string,
+      outlet: string,
+      iso: string,
+      total: number,
+      options: { receivedAt?: string } = {},
+    ) {
       await prisma.order.create({
         data: {
           clientId: tenantId,
@@ -601,7 +611,11 @@ describe('campaigns routes', () => {
           agentId: byAgent,
           status: 'submitted',
           total,
-          createdAt: new Date(iso),
+          // `iso` is when the order was TAKEN. The baseline window counts by
+          // `capturedAt` (#338), so an order that reached the server later —
+          // `receivedAt` — still lands in the window it was captured in.
+          createdAt: new Date(options.receivedAt ?? iso),
+          capturedAt: new Date(iso),
         },
       });
     }
@@ -642,6 +656,12 @@ describe('campaigns routes', () => {
         await orderAt(clientId, agentId, w1, '2024-08-31T22:30:00.000Z', 700); // 00:30 1 Sep: out
         await orderAt(clientId, agentId, w1, '2024-08-01T21:30:00.000Z', 20); // 23:30 1 Aug: out
         await orderAt(clientId, agentId, w1, '2024-08-01T22:30:00.000Z', 5); // 00:30 2 Aug: in
+        // Captured well inside the baseline, but the phone only synced it days
+        // later, after the campaign had already started (#338). Dated by
+        // arrival it would desert the baseline and understate the lift.
+        await orderAt(clientId, agentId, w1, '2024-08-15T10:00:00.000Z', 100, {
+          receivedAt: '2024-09-05T08:00:00.000Z',
+        });
       });
 
       it('counts visits on the start and end dates and none either side', async () => {
@@ -670,8 +690,10 @@ describe('campaigns routes', () => {
           from: '2024-08-01T22:00:00.000Z',
           to: '2024-08-31T22:00:00.000Z',
         });
-        expect(res.body.orderCount.baseline).toBe(2);
-        expect(res.body.baselineRevenue).toBe(305);
+        // Three: the two captured at the window's edges, and the one captured
+        // inside it that only reached the server in September.
+        expect(res.body.orderCount.baseline).toBe(3);
+        expect(res.body.baselineRevenue).toBe(405);
       });
     });
 

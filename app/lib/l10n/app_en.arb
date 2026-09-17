@@ -484,6 +484,10 @@
   "@syncItemPhoto": {
     "description": "Your work row label for a queued section photo."
   },
+  "syncItemOrder": "Order",
+  "@syncItemOrder": {
+    "description": "Your work row label for a queued in-store order (#36)."
+  },
   "visitStartingTitle": "Starting visit",
   "@visitStartingTitle": {
     "description": "App bar title while the outlet list loads before check-in."
