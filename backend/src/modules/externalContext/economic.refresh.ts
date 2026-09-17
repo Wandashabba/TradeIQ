@@ -10,9 +10,8 @@ import { readZip } from './zip';
  *
  * ## Stats SA (retail trade P6242.1, CPI P0141)
  *
- * Stats SA's HTML pages sit behind a bot filter, but the time-series data files
- * do not, and their URLs follow a fixed pattern with the reference month in the
- * name. Only the newest month's file is hosted — last month's returns 404 once
+ * The time-series data files' URLs follow a fixed pattern with the reference
+ * month in the name. Only the newest month's file is hosted — last month's returns 404 once
  * the next release is up — so the job tries the most recent plausible month and
  * steps back. It downloads the ASCII zip, parses it, and derives year-on-year
  * rates from the published levels/indices (the files carry no percentages).
@@ -23,6 +22,14 @@ import { readZip } from './zip';
  *
  * `releasedAt` is the file's HTTP `Last-Modified` date, which is the release
  * day; the cited URL is that release's PDF, which a person can open.
+ *
+ * **Bot protection.** Stats SA's Imperva filter can answer the data files with
+ * a JavaScript challenge page instead of the zip (it does from some networks).
+ * That is reported as blocked and not worked around: a person downloads the
+ * file in a browser and imports it with
+ * `npm run refresh-economic-context -- --file <downloaded zip>`, which goes
+ * through the same parsing and checks. A manual import has no `Last-Modified`,
+ * so its release date is left unknown rather than guessed.
  *
  * ## Fuel prices
  *
@@ -194,20 +201,62 @@ export interface SourceResult {
   detail: string;
 }
 
+export type StatsSaSource = 'statssa_retail' | 'statssa_cpi';
+
+/** A Stats SA release file a person downloaded in a browser. */
+export interface ManualStatsSaFile {
+  body: Buffer;
+  /** The reference month, `YYYY-MM`, as the file name carries it. */
+  month: string;
+}
+
+export const BLOCKED_DETAIL =
+  'Stats SA answered with a web page instead of the data file (its bot protection blocks ' +
+  'automated downloads from here). Download the zip in a browser and run: ' +
+  'npm run refresh-economic-context -- --file <downloaded zip>';
+
+/**
+ * Which source and month a downloaded file holds, from its name — the names the
+ * time-series page serves (`…P6242.1 Retail trade sales…_202607.zip`,
+ * `P0141 - CPI(COICOP) from Jan 2008 (202607).zip`). Browsers may swap spaces
+ * for underscores or append ` (1)`, so only the publication code and the
+ * six-digit month are relied on. Null when the name is neither.
+ */
+export function identifyStatsSaFile(fileName: string): { source: StatsSaSource; month: string } | null {
+  const source: StatsSaSource | null = /P6242\.1/i.test(fileName)
+    ? 'statssa_retail'
+    : /P0141/i.test(fileName)
+      ? 'statssa_cpi'
+      : null;
+  const month = /(20\d{2})(0[1-9]|1[0-2])\)?(?:\s*\(\d+\))?\.zip$/i.exec(fileName);
+  if (!source || !month) return null;
+  return { source, month: `${month[1]}-${month[2]}` };
+}
+
+/** A zip starts with the local file header signature `PK\x03\x04`. */
+const isZip = (body: Buffer) => body.length >= 4 && body.readUInt32LE(0) === 0x04034b50;
+
 async function fetchStatsSa(
-  source: 'statssa_retail' | 'statssa_cpi',
+  source: StatsSaSource,
   now: Date,
   download: Downloader,
+  manual?: ManualStatsSaFile,
 ): Promise<{ observations: Observation[]; detail: string }> {
   const isRetail = source === 'statssa_retail';
   const urlFor = isRetail ? STATSSA_RETAIL_URL : STATSSA_CPI_URL;
   const since = `${now.getUTCFullYear() - YEARS_KEPT}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 
   // Retail is published ~7 weeks after the month, CPI ~3 weeks: four months back covers both with room.
-  for (const month of monthsBack(now, 4)) {
-    const result = await download(urlFor(month));
+  const attempts = manual ? [manual.month] : monthsBack(now, 4);
+  for (const month of attempts) {
+    const result = manual
+      ? ({ status: 'ok', body: manual.body, lastModified: null } as const)
+      : await download(urlFor(month));
     if (result.status === 'not_found') continue;
     if (result.status === 'error') throw new Error(`download failed (${result.reason})`);
+    if (!isZip(result.body)) {
+      throw new Error(manual ? 'the file is not a zip archive' : BLOCKED_DETAIL);
+    }
 
     const entry = readZip(result.body, (name) => /\.txt$/i.test(name))[0];
     if (!entry) throw new Error('the archive has no ASCII file');
@@ -230,7 +279,7 @@ async function fetchStatsSa(
     }
     return {
       observations,
-      detail: `release ${month}${missing.length ? `; missing ${missing.join(', ')}` : ''}`,
+      detail: `release ${month}${manual ? ' (imported file)' : ''}${missing.length ? `; missing ${missing.join(', ')}` : ''}`,
     };
   }
   throw new Error('no release file found for the last four months');
@@ -260,7 +309,13 @@ async function store(source: EconomicSource, observations: Observation[], retrie
 
 /** Refresh every source. One source failing never stops the others. */
 export async function refreshEconomicData(
-  options: { now?: Date; download?: Downloader; sources?: EconomicSource[] } = {},
+  options: {
+    now?: Date;
+    download?: Downloader;
+    sources?: EconomicSource[];
+    /** Import these downloaded files instead of fetching those sources. */
+    files?: Partial<Record<StatsSaSource, ManualStatsSaFile>>;
+  } = {},
 ): Promise<SourceResult[]> {
   const now = options.now ?? new Date();
   const download = options.download ?? httpDownloader;
@@ -273,12 +328,12 @@ export async function refreshEconomicData(
       const { observations, detail } =
         source === 'fuel_prices'
           ? { observations: fuelObservations(), detail: `table ${FUEL_PRICE_ADJUSTMENTS.version}` }
-          : await fetchStatsSa(source, now, download);
+          : await fetchStatsSa(source, now, download, options.files?.[source]);
       const written = await store(source, observations, now);
       result = { source, ok: true, written, detail };
     } catch (err) {
       // The reason only — never a response body, which could be anything.
-      const reason = err instanceof Error ? err.message.slice(0, 200) : 'unknown error';
+      const reason = err instanceof Error ? err.message.slice(0, 300) : 'unknown error';
       result = { source, ok: false, written: 0, detail: reason };
     }
     await prisma.economicSourceRefresh.upsert({

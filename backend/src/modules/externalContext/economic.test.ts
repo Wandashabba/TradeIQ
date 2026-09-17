@@ -3,7 +3,9 @@ import { join } from 'path';
 import { prisma } from '../../lib/prisma';
 import { FUEL_PRICE_ADJUSTMENTS } from './data/fuelPriceAdjustments';
 import {
+  BLOCKED_DETAIL,
   fuelObservations,
+  identifyStatsSaFile,
   refreshEconomicData,
   releasePdfUrl,
   STATSSA_CPI_URL,
@@ -43,6 +45,22 @@ async function reset() {
   await prisma.economicObservation.deleteMany();
   await prisma.economicSourceRefresh.deleteMany();
 }
+
+describe('identifyStatsSaFile', () => {
+  it.each([
+    ['P6242.1 Retail trade sales (New time series) from January 2002_202607.zip', 'statssa_retail', '2026-07'],
+    ['P6242.1_Retail_trade_sales_(New_time_series)_from_January_2002_202607 (1).zip', 'statssa_retail', '2026-07'],
+    ['P0141 - CPI(COICOP) from Jan 2008 (202608).zip', 'statssa_cpi', '2026-08'],
+    ['P0141_-_CPI(COICOP)_from_Jan_2008_(202512).zip', 'statssa_cpi', '2025-12'],
+  ])('reads %s', (name, source, month) => {
+    expect(identifyStatsSaFile(name)).toEqual({ source, month });
+  });
+
+  it.each(['P0141 - CPI(COICOP) from Jan 2008.zip', 'retail_202607.zip', 'P6242.1_202613.zip'])(
+    'refuses %s',
+    (name) => expect(identifyStatsSaFile(name)).toBeNull(),
+  );
+});
 
 describe('refreshEconomicData', () => {
   beforeEach(reset);
@@ -107,7 +125,41 @@ describe('refreshEconomicData', () => {
 
     const row = await prisma.economicSourceRefresh.findUnique({ where: { source: 'statssa_retail' } });
     expect(row?.lastSuccessAt).toBeNull();
-    expect(row?.lastError).toBe('Not a zip archive.');
+    // The Imperva challenge page is named as a block, with the way round it.
+    expect(row?.lastError).toBe(BLOCKED_DETAIL);
+  });
+
+  it('imports a release zip a person downloaded, without touching the network', async () => {
+    const offline: Downloader = async () => {
+      throw new Error('a manual import must not download');
+    };
+    const results = await refreshEconomicData({
+      now: NOW,
+      download: offline,
+      sources: ['statssa_retail', 'statssa_cpi'],
+      files: {
+        statssa_retail: { body: fixture('P62421_retail_ascii_202607.zip'), month: '2026-07' },
+        statssa_cpi: { body: fixture('P0141_CPI_ascii_202607_subset.zip'), month: '2026-07' },
+      },
+    });
+    expect(results.map((r) => [r.source, r.ok, r.detail])).toEqual([
+      ['statssa_retail', true, 'release 2026-07 (imported file)'],
+      ['statssa_cpi', true, 'release 2026-07 (imported file)'],
+    ]);
+    const retail = await prisma.economicObservation.findUnique({
+      where: { series_period: { series: 'retail_trade_yoy', period: '2026-07' } },
+    });
+    // Same official figure as a download; the release day is unknown, not guessed.
+    expect(retail).toMatchObject({ value: 3.4, releasedAt: null });
+  });
+
+  it('refuses an imported file that is not a zip', async () => {
+    const [result] = await refreshEconomicData({
+      now: NOW,
+      sources: ['statssa_cpi'],
+      files: { statssa_cpi: { body: Buffer.from('<html></html>'), month: '2026-07' } },
+    });
+    expect(result).toMatchObject({ ok: false, detail: 'the file is not a zip archive' });
   });
 
   it('reports a network failure and a release that cannot be found', async () => {
