@@ -159,8 +159,8 @@ void main() {
       await tester.tap(find.byKey(indicator));
       await tester.pumpAndSettle();
       expect(find.text('Hou op om jou ligging te deel?'), findsOneWidget);
-      expect(find.text('Hou op om te deel'), findsOneWidget);
-      expect(find.text('Hou aan om te deel'), findsOneWidget);
+      expect(find.text('Hou op deel'), findsOneWidget);
+      expect(find.text('Bly deel'), findsOneWidget);
     });
 
     testWidgets('a one-minute interval uses the singular', (tester) async {

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { mean, pct, round2 } from '../../lib/kpiMath';
 import { personLabel } from '../../lib/personName';
+import { getSellInPerformance, type SellInPerformance } from '../salesTargets/salesTargets.service';
 
 /**
  * The assistant's semantic layer — one read-only aggregate per pillar.
@@ -75,37 +76,45 @@ async function visitScope(input: PillarWindow): Promise<Prisma.VisitWhereInput> 
  */
 export const MAX_SCAN = 5_000;
 
-export interface SalesPerformance {
-  actual: number;
-  target: number;
-  attainmentPct: number;
-  linesCaptured: number;
-  outletsCovered: number;
-  truncated: boolean;
-}
+/**
+ * The sales pillar's figures are {@link SellInPerformance} — sell-in from
+ * orders, against manager-set monthly targets (#119).
+ *
+ * Re-exported under the pillar's own name so the tool layer keeps importing one
+ * semantic-layer type, and aliased rather than redefined so the two cannot
+ * drift into disagreeing about a field.
+ */
+export type SalesPerformance = SellInPerformance;
 
-/** Sales — how the territory sold against target over the window. */
+/**
+ * Sales — sell-in over the window, against the month's target (#337).
+ *
+ * **What changed, and why.** This used to sum `VisitStock.salesActual` and
+ * `salesTarget`: two numbers an agent typed at the shelf. The S2 form stopped
+ * asking for them in #112 — an agent standing in a store has no way to know
+ * what the store sold — so the columns thinned to nothing and the assistant's
+ * sales answers went with them. Nobody noticed, because an empty sum is `0`
+ * and `0` reads as a real, bad month.
+ *
+ * The figures now come from the same place the console's attainment report
+ * does: {@link getSellInPerformance} in `modules/salesTargets`, one grouped
+ * query over non-cancelled order lines dated by `Order.capturedAt` (#338). The
+ * assistant and the console therefore cannot quote different numbers for the
+ * same month, which is the whole reason this delegates instead of querying.
+ *
+ * **Sell-in, and labelled as such.** These are units outlets *ordered through
+ * TradeIQ*, never consumer sell-out — there is no POS feed in this product.
+ * The result carries that statement in `basis` and the tool repeats it in its
+ * description, because a model with an unlabelled "sales" number will call it
+ * sales.
+ */
 export async function getSalesPerformance(input: PillarWindow): Promise<SalesPerformance> {
-  const rows = await prisma.visitStock.findMany({
-    where: { visit: await visitScope(input) },
-    select: { salesActual: true, salesTarget: true, visit: { select: { outletId: true } } },
-    take: MAX_SCAN + 1,
+  return getSellInPerformance({
+    clientId: input.clientId,
+    from: input.from,
+    to: input.to,
+    ...(input.territoryId ? { territoryId: input.territoryId } : {}),
   });
-
-  const scanned = rows.slice(0, MAX_SCAN);
-  // Null is "not captured", not zero. Coercing it would drag attainment down
-  // for every SKU an agent simply did not record sales against.
-  const actual = scanned.reduce((sum, r) => sum + (r.salesActual ?? 0), 0);
-  const target = scanned.reduce((sum, r) => sum + (r.salesTarget ?? 0), 0);
-
-  return {
-    actual: round2(actual),
-    target: round2(target),
-    attainmentPct: pct(actual, target),
-    linesCaptured: scanned.length,
-    outletsCovered: new Set(scanned.map((r) => r.visit.outletId)).size,
-    truncated: rows.length > MAX_SCAN,
-  };
 }
 
 export interface SkuMovementRow {
