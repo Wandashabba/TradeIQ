@@ -6,7 +6,11 @@ import {
   assistantTenantRateLimiter,
   assistantUserRateLimiter,
 } from '../../middleware/rateLimit';
-import { isAssistantWebSearchEnabled, requireAssistantEnabled } from './featureFlag';
+import {
+  isAssistantExternalContextEnabled,
+  isAssistantWebSearchEnabled,
+  requireAssistantEnabled,
+} from './featureFlag';
 import { runTurn, type WireEvent } from './orchestrator';
 import { providerFor } from './providers';
 import type { Message } from './providers/types';
@@ -130,7 +134,10 @@ assistantRouter.post(
 
     // Identity is bound once, here. Nothing below takes a tenant argument.
     const now = new Date();
-    const tools = buildTools({ user, now });
+    // The tenant's switch for outside context. Off leaves the calendar, weather
+    // and economy tools out of the roster, so they are never declared.
+    const externalContext = await isAssistantExternalContextEnabled(user.clientId);
+    const tools = buildTools({ user, now, externalContext });
     const owner = { userId: user.userId, clientId: user.clientId };
     const conversationId = parsed.data.conversationId ?? randomUUID();
 

@@ -1361,6 +1361,49 @@ describe('orchestrator', () => {
       expect(published.data.sources[0]).toMatchObject({ domain: 'a.example.com', retrievedAt: expect.any(String) });
     });
 
+    it("publishes an outside-context tool's cited publishers with the web sources, validated the same way", async () => {
+      const provider = scriptedProvider([
+        [
+          { type: 'sources', sources: [source('https://news.example.com/a')] },
+          { type: 'tool_call', id: 'c0', name: 'getAgentScorecard', args: { agentId: 'a' } },
+          { type: 'done' },
+        ],
+        say('Answer.'),
+      ]);
+      const tool = testTool({
+        sources: () => [
+          { url: 'https://www.statssa.gov.za/publications/P0141/P0141July2026.pdf', title: 'Stats SA CPI', pageAge: 'Released 19 Aug 2026' },
+          { url: 'javascript:alert(1)', title: 'bad' },
+        ],
+      });
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const events = await collect(
+        runTurn({ provider, tools: [tool], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+      warn.mockRestore();
+
+      const published = events.find((e) => e.event === 'sources') as Extract<WireEvent, { event: 'sources' }>;
+      expect(published.data.sources.map((s) => [s.domain, s.pageAge])).toEqual([
+        ['news.example.com', null],
+        ['statssa.gov.za', 'Released 19 Aug 2026'],
+      ]);
+    });
+
+    it('keeps the turn when a tool\'s source builder throws', async () => {
+      const provider = scriptedProvider([callTool('getAgentScorecard', { agentId: 'a' }), say('Answer.')]);
+      const tool = testTool({
+        sources: () => {
+          throw new Error('bad builder');
+        },
+      });
+      const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const events = await collect(
+        runTurn({ provider, tools: [tool], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+      error.mockRestore();
+      expect(names(events).slice(-3)).toEqual(['token', 'usage', 'done']);
+    });
+
     it('emits no sources event when nothing was cited', async () => {
       const provider = scriptedProvider([[{ type: 'sources', sources: [source('data:text/html,x')] }, { type: 'token', text: 'a' }, { type: 'done' }]]);
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});

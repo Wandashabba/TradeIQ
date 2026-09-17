@@ -1038,6 +1038,35 @@ describe('POST /assistant/chat', () => {
     });
   });
 
+  describe('outside-context switch', () => {
+    const outside = ['getCalendarContext', 'getWeatherContext', 'getEconomicContext'];
+    const declared = () => script.calls[0].tools.map((t: { name: string }) => t.name);
+    const turn = () =>
+      request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'Was there a public holiday last week?' })
+        .expect(200);
+
+    afterEach(async () => {
+      await prisma.client.update({ where: { id: clientId }, data: { assistantExternalContextEnabled: true } });
+    });
+
+    it('declares the calendar, weather and economy tools by default', async () => {
+      script.rounds = [[{ type: 'token', text: 'ok' }, { type: 'done' }]];
+      await turn();
+      expect(declared()).toEqual(expect.arrayContaining(outside));
+    });
+
+    it('does not declare them to a tenant that has switched them off', async () => {
+      await prisma.client.update({ where: { id: clientId }, data: { assistantExternalContextEnabled: false } });
+      script.rounds = [[{ type: 'token', text: 'ok' }, { type: 'done' }]];
+      await turn();
+      for (const name of outside) expect(declared()).not.toContain(name);
+      expect(declared()).toContain('getRateOfSale');
+    });
+  });
+
   describe('live web search switch', () => {
     const turn = () =>
       request(app)

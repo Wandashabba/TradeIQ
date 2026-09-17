@@ -511,6 +511,10 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         artifactIndex += 1;
       }
 
+      // Outside-context tools cite their publishers; those join the web
+      // sources and are validated and published with them at the end.
+      rawSources.push(...safeToolSources(tool, plan.args, result));
+
       messages.push({
         role: 'tool',
         callId: call.id,
@@ -764,6 +768,22 @@ async function safeFigures(
     else console.error(`[assistant] ${tool.name} produced an invalid figure: ${checked.reason}`);
   }
   return valid;
+}
+
+/**
+ * A tool's cited sources. Same degradation rule as {@link safeFigures}: a
+ * builder that throws costs the citations, never the turn. Validation happens
+ * later, in `normaliseSources`, together with the web search's.
+ */
+function safeToolSources(tool: AnyAssistantTool, args: unknown, result: unknown): RawWebSource[] {
+  if (!tool.sources) return [];
+  try {
+    const candidates = tool.sources(args as never, result);
+    return Array.isArray(candidates) ? candidates : [];
+  } catch (err) {
+    console.error(`[assistant] sources for ${tool.name} threw`, err);
+    return [];
+  }
 }
 
 export function pillarFor(name: string): string {

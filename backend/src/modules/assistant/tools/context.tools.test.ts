@@ -2,7 +2,7 @@ import type { AuthTokenPayload } from '../../auth/auth.service';
 import * as economicService from '../../externalContext/economic.service';
 import * as weatherService from '../../externalContext/weather.service';
 import { ToolFacingError, type AnyAssistantTool } from '../types';
-import { periodDays } from './context';
+import { periodDays, provenanceSources } from './context';
 import { buildTools } from './index';
 
 /**
@@ -117,6 +117,36 @@ describe('getEconomicContext', () => {
   it('translates a refusal', async () => {
     economic.getEconomicContext.mockRejectedValueOnce(new economicService.EconomicContextError('too long'));
     await expect(run('getEconomicContext', { period: AUGUST })).rejects.toThrow(ToolFacingError);
+  });
+});
+
+describe('cited sources', () => {
+  it('turns provenance into the shared sources shape, release date in the page-age slot', () => {
+    expect(
+      provenanceSources([
+        { sourceName: 'Stats SA CPI', url: 'https://x.example/a.pdf', publishedAt: '2026-08-19', retrievedAt: '2026-09-17' },
+        { sourceName: 'Open-Meteo', url: 'https://open-meteo.com/en/docs', publishedAt: null, retrievedAt: '2026-09-17' },
+      ]),
+    ).toEqual([
+      { url: 'https://x.example/a.pdf', title: 'Stats SA CPI', pageAge: 'Released 19 Aug 2026', snippet: null },
+      { url: 'https://open-meteo.com/en/docs', title: 'Open-Meteo', pageAge: null, snippet: null },
+    ]);
+  });
+
+  it('cites the calendar tables a calendar answer used', async () => {
+    const t = tool('getCalendarContext');
+    const args = t.args.parse({ period: { kind: 'custom', from: '2026-11-01', to: '2026-11-07' } });
+    const cited = t.sources!(args, await t.run(args)).map((s) => s.url);
+    expect(cited).toContain('https://www.gov.za/news/media-statements/president-cyril-ramaphosa-declares-election-day');
+  });
+
+  it('cites each economic figure\'s release', () => {
+    const t = tool('getEconomicContext');
+    const provenance = { sourceName: 'Stats SA', url: 'https://s.example/r.pdf', publishedAt: '2026-09-16', retrievedAt: 'x' };
+    const cited = t.sources!({}, {
+      series: [{ inPeriod: [{ provenance }], latest: { provenance: { ...provenance, url: 'https://s.example/l.pdf' } } }],
+    });
+    expect(cited.map((s) => s.url)).toEqual(['https://s.example/r.pdf', 'https://s.example/l.pdf']);
   });
 });
 

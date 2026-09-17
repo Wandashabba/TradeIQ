@@ -208,6 +208,31 @@ void main() {
       );
     });
 
+    test('labels the outside-context tools, by name and by their pillar', () {
+      expect(
+        stepLabel(
+          const ToolActivity(name: 'getCalendarContext', pillar: 'context'),
+        ),
+        'Holidays & paydays',
+      );
+      expect(
+        stepLabel(
+          const ToolActivity(name: 'getWeatherContext', pillar: 'context'),
+        ),
+        'Weather',
+      );
+      expect(
+        stepLabel(
+          const ToolActivity(name: 'getEconomicContext', pillar: 'context'),
+        ),
+        'Economy',
+      );
+      expect(
+        stepLabel(const ToolActivity(name: 'getNewContext', pillar: 'context')),
+        'Checking outside context',
+      );
+    });
+
     test('labels the web search, by name and by its pillar', () {
       expect(
         stepLabel(const ToolActivity(name: 'webSearch', pillar: 'web')),
@@ -246,9 +271,42 @@ void main() {
       await repo.close();
       await tester.pumpAndSettle();
 
-      expect(find.text('Web sources'), findsOneWidget);
+      expect(find.text('Sources'), findsOneWidget);
       expect(find.text('iol.co.za'), findsOneWidget);
       expect(find.text('Shoprite launches new stores'), findsOneWidget);
+    });
+
+    testWidgets('outside-context figures cite their publisher and release', (
+      tester,
+    ) async {
+      final (repo, _) = await pumpLive(tester);
+      repo.emit(
+        const ToolStartEvent(name: 'getEconomicContext', pillar: 'context'),
+      );
+      await tester.pump();
+      expect(find.text('Economy'), findsOneWidget);
+      repo.emit(const ToolEndEvent(name: 'getEconomicContext', ok: true));
+      repo.emit(const TokenEvent('Food inflation eased to 0.9%.'));
+      repo.emit(
+        SourcesEvent([
+          WebSource(
+            title: 'Stats SA, Consumer Price Index (P0141), time series',
+            url: Uri.parse(
+              'https://www.statssa.gov.za/publications/P0141/P0141July2026.pdf',
+            ),
+            domain: 'statssa.gov.za',
+            pageAge: 'Released 19 Aug 2026',
+            retrievedAt: DateTime.utc(2026, 9, 17, 10, 12),
+          ),
+        ]),
+      );
+      repo.emit(const DoneEvent());
+      await repo.close();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sources'), findsOneWidget);
+      expect(find.text('statssa.gov.za'), findsOneWidget);
+      expect(find.textContaining('Released 19 Aug 2026'), findsOneWidget);
     });
   });
 

@@ -38,6 +38,27 @@ export async function isAssistantWebSearchEnabled(clientId: string): Promise<boo
 }
 
 /**
+ * May the assistant use the outside-context tools (calendar, weather, economy)
+ * for this tenant?
+ *
+ * Same shape as the web search switch: read per turn, and **fails closed** — a
+ * read that fails leaves those tools out of the roster for the turn, and the
+ * assistant still answers from internal data.
+ */
+export async function isAssistantExternalContextEnabled(clientId: string): Promise<boolean> {
+  try {
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { assistantExternalContextEnabled: true },
+    });
+    return client?.assistantExternalContextEnabled ?? false;
+  } catch (err) {
+    console.error('[assistant] could not read the outside-context switch; those tools are off for this turn', err);
+    return false;
+  }
+}
+
+/**
  * Gate every assistant route on the tenant's rollout flag.
  *
  * **Responds 404, not 403.** A 403 concedes that the feature exists and that

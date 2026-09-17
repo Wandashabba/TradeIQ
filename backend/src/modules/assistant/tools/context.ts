@@ -6,7 +6,8 @@ import {
   PROVINCES,
 } from '../../externalContext/calendar.service';
 import { EconomicContextError, getEconomicContext } from '../../externalContext/economic.service';
-import { isoDay } from '../../externalContext/provenance';
+import { isoDay, type Provenance } from '../../externalContext/provenance';
+import type { RawWebSource } from '../providers/types';
 import { getWeatherContext, WeatherContextError } from '../../externalContext/weather.service';
 import { periodSchema, resolvePeriod, type Period } from '../period';
 import { eraseToolTypes, ToolFacingError, type AnyAssistantTool } from '../types';
@@ -35,6 +36,32 @@ export async function periodDays(period: Period, now: Date, timeZone: string) {
     // Half-open: the last included day is the one before `to`.
     to: isoDay(addCalendarDays(localCalendarDate(range.to, timeZone), -1)),
   };
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Provenance → the shared sources shape. The page-age slot carries the
+ * publisher's release date ("Released 19 Aug 2026"), which is what a manager
+ * needs to judge how current an outside figure is.
+ */
+export function provenanceSources(provenance: readonly Provenance[]): RawWebSource[] {
+  return provenance.map((p) => ({
+    url: p.url,
+    title: p.sourceName,
+    pageAge: p.publishedAt
+      ? `Released ${Number(p.publishedAt.slice(8, 10))} ${MONTHS[Number(p.publishedAt.slice(5, 7)) - 1]} ${p.publishedAt.slice(0, 4)}`
+      : null,
+    snippet: null,
+  }));
+}
+
+/** Every provenance an economic result carries, newest figure first per series. */
+function economicProvenance(result: { series?: Array<{ inPeriod: Array<{ provenance: Provenance }>; latest: { provenance: Provenance } | null }> }) {
+  return (result.series ?? []).flatMap((s) => [
+    ...s.inPeriod.map((f) => f.provenance).reverse(),
+    ...(s.latest ? [s.latest.provenance] : []),
+  ]);
 }
 
 const facing = <T>(run: () => Promise<T>) =>
@@ -77,6 +104,7 @@ export function buildContextTools(ctx: ToolContext): AnyAssistantTool[] {
         facing(async () =>
           getCalendarContext({ ...(await periodDays(args.period, now, await timeZone())), province: args.province }),
         ),
+      sources: (_args, result) => provenanceSources((result as { sources?: Provenance[] }).sources ?? []),
     }),
 
     eraseToolTypes({
@@ -109,6 +137,7 @@ export function buildContextTools(ctx: ToolContext): AnyAssistantTool[] {
             territoryId: args.territoryId,
           });
         }),
+      sources: (_args, result) => provenanceSources((result as { sources?: Provenance[] }).sources ?? []),
     }),
 
     eraseToolTypes({
@@ -121,10 +150,11 @@ export function buildContextTools(ctx: ToolContext): AnyAssistantTool[] {
         'retail trade sales and CPI (year-on-year) and the monthly fuel price adjustments for the ' +
         'period\'s months, each with its release date and source. Market-wide figures only — never ' +
         'the client\'s own sales (use getRateOfSale) or competitor prices (getCompetitorActivity), ' +
-        'and not for forecasts or news, which this cannot answer.',
+        'and not for forecasts or news, which this cannot answer (news is for web search).',
       args: z.object({ period: periodSchema }),
       run: async (args) =>
         facing(async () => getEconomicContext({ ...(await periodDays(args.period, now, await timeZone())), now })),
+      sources: (_args, result) => provenanceSources(economicProvenance(result as Parameters<typeof economicProvenance>[0])),
     }),
   ] as AnyAssistantTool[];
 }
