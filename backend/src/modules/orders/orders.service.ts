@@ -5,6 +5,7 @@ import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
 import { buildPage } from '../../lib/pagination';
 import { getClientTimeZone } from '../clients/clients.service';
 import { campaignRunningAt } from '../campaigns/campaignWindow';
+import { captureFallbackLog, resolveCapturedAt } from './captureTime';
 
 export type OrderStatus = 'submitted' | 'confirmed' | 'cancelled';
 
@@ -22,6 +23,16 @@ export interface CreateOrderInput {
   outletId: string;
   visitId?: string;
   lines: OrderLineInput[];
+  /**
+   * The DEVICE's capture time (ISO 8601 instant) — when the agent actually
+   * took the order, which offline is not when the server hears about it (#338).
+   *
+   * Deliberately `unknown`: it arrives straight off the request body, and a
+   * payload queued by an older build has no such field at all. Everything the
+   * value has to survive is `resolveCapturedAt`'s job, and its answer is always
+   * a usable instant, so nothing downstream branches on this again.
+   */
+  capturedAt?: unknown;
 }
 
 // Sum of quantity*unitPrice, rounded to 2dp so the stored Float mirrors a
@@ -63,6 +74,10 @@ function computeTotal(lines: OrderLineInput[]): number {
  * client's `timeZone`, is within `[startDate, endDate]` inclusive (#324) — so an
  * order at 15:00 on the end date counts, and one at 00:30 the next day does not.
  * See `campaignWindow.ts` for how stored dates are read.
+ *
+ * `at` is the order's CAPTURE time, not the moment the server received it
+ * (#338): an order taken in-store on the campaign's last day belongs to that
+ * campaign even if the phone only finds signal the following morning.
  */
 export async function attributeToCampaign(
   tx: Prisma.TransactionClient,
@@ -114,13 +129,31 @@ export async function createOrder(input: CreateOrderInput) {
     throw new NotFoundError(`SKU not found: ${unknown}`);
   }
 
+  // When the agent took this order, not when we heard about it (#338). Read
+  // once, so the attribution, the stored column and the clamp's reference
+  // "now" are all the same instant.
+  const receivedAt = new Date();
+  const capture = resolveCapturedAt(input.capturedAt, receivedAt);
+  const fallbackLog = captureFallbackLog(capture, {
+    clientId: input.clientId,
+    agentId: input.agentId,
+    raw: input.capturedAt,
+  });
+  // A device clock we could not believe. Logged rather than rejected — see
+  // `captureTime.ts` — so a fleet drifting out of time is visible.
+  if (fallbackLog) console.warn(fallbackLog);
+
   // Campaign attribution and the write share one transaction, so an order can
   // never exist with an attribution decided against a campaign that changed
-  // underneath it. The zone is read first: which local day "now" is does not
-  // depend on the campaign rows the transaction guards.
+  // underneath it. The zone is read first: which local day the order falls on
+  // does not depend on the campaign rows the transaction guards.
+  //
+  // Attribution runs against the CAPTURE time, so an order taken on a
+  // campaign's last day still belongs to that campaign when it syncs the
+  // morning after it ended (#324).
   const timeZone = await getClientTimeZone(input.clientId);
   const campaignId = await prisma.$transaction((tx) =>
-    attributeToCampaign(tx, input.clientId, input.outletId, new Date(), timeZone),
+    attributeToCampaign(tx, input.clientId, input.outletId, capture.capturedAt, timeZone),
   );
 
   // Nested create runs the order + its lines in a single implicit transaction.
@@ -131,6 +164,7 @@ export async function createOrder(input: CreateOrderInput) {
       agentId: input.agentId,
       visitId: input.visitId,
       campaignId,
+      capturedAt: capture.capturedAt,
       status: 'submitted',
       total: computeTotal(input.lines),
       lines: {
@@ -176,6 +210,16 @@ export async function listOrders(input: ListOrdersInput) {
     },
     // `id` is the unique tiebreaker that makes the cursor deterministic when
     // two orders share a createdAt — same reasoning as alerts.service.ts.
+    //
+    // Deliberately still `createdAt`, not `capturedAt` (#338). This is the
+    // paging order, and a cursor only works over a sequence that does not
+    // reshuffle underneath it: `createdAt` only ever grows, so a new order
+    // lands at the front and the pages behind the cursor are untouched. An
+    // order captured offline days ago and synced now would insert itself into
+    // the MIDDLE of a `capturedAt` ordering — a page the reader has already
+    // scrolled past — so they would never see it. The list is "orders as they
+    // arrived", which is also what the reader of a live list wants; dating an
+    // order for measurement is a different question, answered by `capturedAt`.
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: input.limit + 1,
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),

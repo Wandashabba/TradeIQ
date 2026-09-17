@@ -770,6 +770,12 @@ abstract class AppLocalizations {
   /// **'Photo'**
   String get syncItemPhoto;
 
+  /// Your work row label for a queued in-store order (#36).
+  ///
+  /// In en, this message translates to:
+  /// **'Order'**
+  String get syncItemOrder;
+
   /// App bar title while the outlet list loads before check-in.
   ///
   /// In en, this message translates to:

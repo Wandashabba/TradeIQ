@@ -21,8 +21,10 @@ import { MonthWindow, localMonthOf, monthKey, monthWindow, parseMonth } from './
  * relabel it as consumer sales. `VisitStock.salesActual` / `salesTarget` are a
  * different, retired idea (#112) and are not read here.
  *
- * An order's moment is `Order.createdAt` — when the server accepted it — the
- * only timestamp an order carries.
+ * An order's moment is `Order.capturedAt` — when the agent took it on the
+ * device — not `createdAt`, which is when the server received it (#338). An
+ * order captured at 23:30 on 30 September and synced on 1 October is September
+ * sell-in, because September is when the outlet ordered.
  */
 export const SELL_IN_METRIC = 'sell_in_units' as const;
 export const SELL_IN_LABEL = 'Sell-in (orders)';
@@ -544,6 +546,9 @@ interface SellInRow {
  * Sell-in units for the month, per SKU per outlet, with each outlet's
  * territory code (`Outlet.territoryId` stores `Territory.code`, never its id —
  * see `dashboard.service.ts`). One grouped query; the rollups happen in memory.
+ *
+ * Dated by `captured_at` (#338), so an order taken offline on the last day of
+ * the month counts toward that month rather than the next one.
  */
 async function sellInForMonth(clientId: string, window: MonthWindow, skuId?: string): Promise<SellInRow[]> {
   return prisma.$queryRaw<SellInRow[]>`
@@ -554,8 +559,8 @@ async function sellInForMonth(clientId: string, window: MonthWindow, skuId?: str
     JOIN "outlets" ou ON ou."id" = o."outlet_id"
     WHERE o."client_id" = ${clientId}
       AND o."status" <> 'cancelled'
-      AND o."created_at" >= ${window.from.toISOString()}::timestamp
-      AND o."created_at" < ${window.to.toISOString()}::timestamp
+      AND o."captured_at" >= ${window.from.toISOString()}::timestamp
+      AND o."captured_at" < ${window.to.toISOString()}::timestamp
       ${skuId ? Prisma.sql`AND ol."sku_id" = ${skuId}` : Prisma.empty}
     GROUP BY ol."sku_id", o."outlet_id", ou."territory_id"
   `;

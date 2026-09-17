@@ -68,7 +68,7 @@ class _FakeOrdersRepository implements OrdersRepository {
   }) async => const PaginatedResponse(data: [], nextCursor: null);
 
   @override
-  Future<OrderItem> createOrder({
+  Future<void> createOrder({
     required String outletId,
     required List<OrderLine> lines,
   }) => throw UnimplementedError();

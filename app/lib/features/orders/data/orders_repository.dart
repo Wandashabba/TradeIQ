@@ -1,6 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../../core/network/api_client.dart';
 import '../../../core/network/paginated_response.dart';
+import '../../../core/storage/local_db.dart';
+import '../../../core/sync/sync_service.dart';
 
 /// One order returned by GET /orders. A field_agent sees their own orders;
 /// a manager sees the client's.
@@ -49,14 +55,45 @@ class OrderLine {
 abstract class OrdersRepository {
   Future<PaginatedResponse<OrderItem>> listOrders({String? status, String? outletId});
 
-  /// POST /orders (field_agent/manager). [lines] must be non-empty.
-  Future<OrderItem> createOrder({
+  /// Queues an order for POST /orders (field_agent/manager) and tries to send
+  /// it now. [lines] must be non-empty.
+  ///
+  /// Returns once the order is safely on the phone — not once the server has
+  /// it. An order taken in a shop with no signal is still an order, and the
+  /// agent should not have to stand at the counter waiting for a bar of
+  /// reception to find out whether their capture survived.
+  Future<void> createOrder({
     required String outletId,
     required List<OrderLine> lines,
   });
 }
 
+/// Reads orders over HTTP; writes them through the offline outbox.
+///
+/// The split is the point. A list is only worth showing when it is current, so
+/// it is fetched live. A capture must never depend on connectivity, so it is
+/// queued locally and flushed by [SyncService] — the same path every visit
+/// capture takes.
 class DioOrdersRepository implements OrdersRepository {
+  DioOrdersRepository({
+    required this.db,
+    required this.syncService,
+    this.flushTimeout = _defaultFlushTimeout,
+  });
+
+  final LocalDb db;
+  final SyncService syncService;
+
+  /// How long a create will wait for the outbox to drain before carrying on
+  /// without it. Same reasoning as `DriftVisitsRepository.flushTimeout`: the
+  /// order is already queued before the flush starts, so this bounds only the
+  /// waiting, not the safety.
+  final Duration flushTimeout;
+
+  static const _defaultFlushTimeout = Duration(seconds: 10);
+
+  static const _uuid = Uuid();
+
   @override
   Future<PaginatedResponse<OrderItem>> listOrders({
     String? status,
@@ -73,20 +110,40 @@ class DioOrdersRepository implements OrdersRepository {
   }
 
   @override
-  Future<OrderItem> createOrder({
+  Future<void> createOrder({
     required String outletId,
     required List<OrderLine> lines,
   }) async {
-    final response = await dio.post('/orders', data: {
-      'outletId': outletId,
-      'lines': lines.map((line) => line.toJson()).toList(),
-    });
-    return OrderItem.fromJson(response.data as Map<String, dynamic>);
+    await db.enqueue(
+      entityType: orderEntity,
+      entityId: _uuid.v4(),
+      payloadJson: jsonEncode({
+        'outletId': outletId,
+        'lines': [for (final line in lines) line.toJson()],
+        // Stamped NOW, on the device — the moment the agent took the order,
+        // not whenever the outbox happens to reach a tower (#338). Without it
+        // an order taken offline on the 30th is dated the 1st by the server
+        // and counts toward the wrong month's sell-in target.
+        'capturedAt': DateTime.now().toUtc().toIso8601String(),
+      }),
+    );
+
+    // Best-effort: the order is already on disk and queued, so a failed or
+    // slow flush just leaves it for the next attempt.
+    try {
+      await syncService.flushPending().timeout(flushTimeout);
+    } catch (_) {
+      // Deliberately swallowed — see above.
+    }
   }
 }
 
-final ordersRepositoryProvider =
-    Provider<OrdersRepository>((ref) => DioOrdersRepository());
+final ordersRepositoryProvider = Provider<OrdersRepository>(
+  (ref) => DioOrdersRepository(
+    db: ref.read(localDbProvider),
+    syncService: ref.read(syncServiceProvider),
+  ),
+);
 
 // The provider exposes the FIRST PAGE as a plain list: the orders screen
 // wants the most recent orders, not the whole history, and "load more" UI is

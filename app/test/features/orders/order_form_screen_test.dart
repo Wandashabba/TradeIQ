@@ -22,14 +22,12 @@ class _RecordingOrdersRepository implements OrdersRepository {
       const PaginatedResponse(data: [], nextCursor: null);
 
   @override
-  Future<OrderItem> createOrder({
+  Future<void> createOrder({
     required String outletId,
     required List<OrderLine> lines,
   }) async {
     this.outletId = outletId;
     this.lines = lines;
-    return const OrderItem(
-        id: 'o1', outletId: 'ou1', status: 'draft', total: 0, lineCount: 0);
   }
 }
 

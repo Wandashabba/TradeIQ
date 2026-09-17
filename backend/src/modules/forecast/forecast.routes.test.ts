@@ -38,7 +38,11 @@ describe('forecast routes', () => {
         outletId: outlet,
         agentId: options.agentId ?? agent.userId,
         status: options.status ?? 'submitted',
+        // An order placed online: captured and received in the same moment.
+        // The forecast buckets by `capturedAt` (#338) — the offline case,
+        // where they differ, is its own test below.
         createdAt,
+        capturedAt: createdAt,
         lines: { create: [{ skuId: sku, quantity, unitPrice: 1 }] },
       },
     });
@@ -150,6 +154,37 @@ describe('forecast routes', () => {
       forecastCoverageDays: forecastCoverageDays({ unitsAvailable: 60, salesHistory: series }),
     });
     expect(res.body.forecastNextPeriod).toBeGreaterThan(0);
+  });
+
+  it('buckets an order on the day it was captured, not the day it synced (#338)', async () => {
+    // Captured late yesterday with no signal, received today. Dated by arrival
+    // it would land on today — which the forecast excludes as still filling up
+    // — so the day it was actually ordered would read as a zero.
+    const offlineSku = await prisma.sku.create({
+      data: { clientId, name: 'FCAST-Offline', category: 'Beverages', minFacingsStandard: 4, rrp: 19.99 },
+    });
+    const yesterday = dates[27];
+    const capturedAt = new Date(startOfLocalDay(yesterday, ZONE).getTime() + 23.5 * HOUR_MS);
+
+    await prisma.order.create({
+      data: {
+        clientId,
+        outletId,
+        agentId: agent.userId,
+        status: 'submitted',
+        createdAt: new Date(), // received now
+        capturedAt,
+        lines: { create: [{ skuId: offlineSku.id, quantity: 12, unitPrice: 1 }] },
+      },
+    });
+
+    const res = await request(app)
+      .get('/forecast')
+      .set('Authorization', `Bearer ${manager.token}`)
+      .query({ skuId: offlineSku.id });
+
+    expect(res.status).toBe(200);
+    expect(res.body.historyPoints).toEqual(expectedSeries(12, 0));
   });
 
   it('narrows the series to one outlet', async () => {

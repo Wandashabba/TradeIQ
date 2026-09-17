@@ -33,10 +33,11 @@ function isValidLine(line: unknown): line is OrderLineInput {
 }
 
 ordersRouter.post('/', requireRole('field_agent', 'manager'), async (req: AuthedRequest, res) => {
-  const { outletId, visitId, lines } = req.body as {
+  const { outletId, visitId, lines, capturedAt } = req.body as {
     outletId?: unknown;
     visitId?: unknown;
     lines?: unknown;
+    capturedAt?: unknown;
   };
 
   if (
@@ -59,6 +60,12 @@ ordersRouter.post('/', requireRole('field_agent', 'manager'), async (req: Authed
     outletId,
     visitId,
     lines,
+    // Deliberately NOT validated here (#338). An outbox payload written by an
+    // older build carries no capture time at all, and a phone with a wrong
+    // clock carries a bad one — neither is a reason to refuse an order that
+    // has already been taken in a shop. `resolveCapturedAt` falls back to the
+    // received time and logs anything it could not believe.
+    capturedAt,
   });
   res.status(201).json(order);
 });

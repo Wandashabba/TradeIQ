@@ -34,7 +34,9 @@ export interface SkuForecast {
  * The series is **sell-in from orders**: for each of the last
  * {@link FORECAST_HISTORY_DAYS} complete local calendar days in
  * `Client.timezone`, the units of this SKU on the client's non-cancelled
- * orders placed that day (optionally at one outlet), oldest first. A day with
+ * orders *captured* that day (optionally at one outlet), oldest first —
+ * `Order.capturedAt`, the device's own clock, not when the order synced
+ * (#338). A day with
  * no orders is a real 0, not a gap — every order goes through TradeIQ, so an
  * absent order is an observed absence.
  *
@@ -63,18 +65,23 @@ export async function getSkuForecast(filters: ForecastFilters, now: Date = new D
   const { dates, from, to } = trailingLocalDays(now, FORECAST_HISTORY_DAYS, timeZone);
 
   const [daily, latestStock] = await Promise.all([
-    // `created_at` is `timestamp without time zone` holding UTC: read it as UTC
-    // first, then take its date on the client's wall clock.
+    // `captured_at` is `timestamp without time zone` holding UTC: read it as
+    // UTC first, then take its date on the client's wall clock.
+    //
+    // The device's capture time, not `created_at` (#338): an order taken at
+    // 23:30 and synced the next morning belongs to the day it was taken, or
+    // every phone that spends the evening out of signal would shift a day's
+    // demand onto the following morning and skew the smoothing.
     prisma.$queryRaw<Array<{ day: Date; units: bigint | number }>>`
-      SELECT ((o."created_at" AT TIME ZONE 'UTC') AT TIME ZONE ${timeZone})::date AS "day",
+      SELECT ((o."captured_at" AT TIME ZONE 'UTC') AT TIME ZONE ${timeZone})::date AS "day",
         SUM(ol."quantity")::bigint AS "units"
       FROM "order_lines" ol
       JOIN "orders" o ON o."id" = ol."order_id"
       WHERE o."client_id" = ${filters.clientId}
         AND ol."sku_id" = ${filters.skuId}
         AND o."status" <> 'cancelled'
-        AND o."created_at" >= ${from.toISOString()}::timestamp
-        AND o."created_at" < ${to.toISOString()}::timestamp
+        AND o."captured_at" >= ${from.toISOString()}::timestamp
+        AND o."captured_at" < ${to.toISOString()}::timestamp
         ${filters.outletId ? Prisma.sql`AND o."outlet_id" = ${filters.outletId}` : Prisma.empty}
       GROUP BY 1
     `,

@@ -74,6 +74,7 @@ class SyncItem {
       'task' => l.syncItemActionPlan,
       'scorecard' => l.syncItemScore,
       'photo' => l.syncItemPhoto,
+      orderEntity => l.syncItemOrder,
       _ => entityType,
     };
   }

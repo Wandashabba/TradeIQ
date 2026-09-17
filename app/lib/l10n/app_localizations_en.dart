@@ -429,6 +429,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncItemPhoto => 'Photo';
 
   @override
+  String get syncItemOrder => 'Order';
+
+  @override
   String get visitStartingTitle => 'Starting visit';
 
   @override

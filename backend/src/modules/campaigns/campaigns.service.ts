@@ -194,7 +194,11 @@ export interface CampaignRoi extends Roi {
  * - **Baseline** is the same outlets over an equal-length, contiguous window
  *   immediately before the campaign, counted by date rather than attribution
  *   (there was no campaign then to attribute to). Both windows are whole local
- *   calendar days in the client's timezone (#324, see `campaignWindow.ts`).
+ *   calendar days in the client's timezone (#324, see `campaignWindow.ts`), and
+ *   the date counted is the order's `capturedAt` — when the agent took it —
+ *   rather than when it synced (#338). Attribution on the other side of the
+ *   comparison is stamped against the same capture time, so a phone that syncs
+ *   late cannot move an order from the baseline into the campaign or back.
  * - **Cancelled orders are excluded from both sides.** A cancelled order is not
  *   revenue, and leaving it in the baseline while excluding it from the campaign
  *   period would understate the lift.
@@ -230,7 +234,7 @@ export async function getCampaignRoi(id: string, clientId: string): Promise<Camp
             clientId,
             outletId: { in: outletIds },
             status: { not: 'cancelled' },
-            createdAt: { gte: base.from, lt: base.to },
+            capturedAt: { gte: base.from, lt: base.to },
           },
           _sum: { total: true },
           _count: true,

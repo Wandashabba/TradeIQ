@@ -112,6 +112,7 @@
   "syncItemActionPlan": "Aksieplan",
   "syncItemScore": "Telling",
   "syncItemPhoto": "Foto",
+  "syncItemOrder": "Bestelling",
   "visitStartingTitle": "Besoek begin",
   "visitTitle": "Besoek",
   "visitOutletLoadFailed": "Kon nie die winkel laai nie: {error}",

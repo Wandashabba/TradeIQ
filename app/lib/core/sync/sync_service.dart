@@ -21,6 +21,11 @@ const locationPingEntity = 'location_ping';
 /// The agent's answer to the location notice (#153 T1).
 const locationConsentEntity = 'location_consent';
 
+/// An in-store order capture (#36). Unlike every other non-visit entity it
+/// belongs to no visit: an agent can take an order without running an audit,
+/// so it names its outlet directly and never waits on a visit to sync.
+const orderEntity = 'order';
+
 /// Outbox rows that are not the agent's work. They never appear in "Your
 /// work" or the sync chip: a heartbeat queueing every two minutes would
 /// otherwise keep telling an agent in a dead zone that "work" is waiting.
@@ -142,6 +147,15 @@ class HttpQueueFlusher implements QueueFlusher {
         final remoteId = await _remoteVisitId(payload['visitDraftId'] as String);
         final fields = Map<String, dynamic>.from(payload)..remove('visitDraftId');
         await _dio.post('/photos', data: {'visitId': remoteId, ...fields});
+        return;
+      case orderEntity:
+        // Posted as queued. The payload already carries `capturedAt` — the
+        // device's own capture time (#338) — and it must travel untouched:
+        // re-stamping it here would date every offline order by the moment it
+        // finally found signal, which is the bug the field exists to fix. A
+        // payload queued by an older build simply has no such key, and the
+        // server falls back to the time it received it.
+        await _dio.post('/orders', data: jsonDecode(item.payloadJson));
         return;
       case locationConsentEntity:
         await _dio.post('/locations/consent', data: jsonDecode(item.payloadJson));

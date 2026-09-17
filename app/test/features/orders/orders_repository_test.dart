@@ -1,10 +1,20 @@
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/network/api_client.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/storage/local_db.dart';
+import 'package:tradeiq_app/core/sync/sync_service.dart';
 import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
+
+/// Reads go over HTTP; writes go through the outbox, so the repository needs a
+/// local database even to list. See `order_outbox_test.dart` for the writes.
+DioOrdersRepository _repository(LocalDb db) => DioOrdersRepository(
+      db: db,
+      syncService: SyncService(db: db, flusher: HttpQueueFlusher(db: db)),
+    );
 
 /// A fake HTTP layer that returns a canned body, following the pattern in
 /// `test/features/agents/agents_repository_test.dart`.
@@ -75,13 +85,16 @@ void main() {
 
   group('DioOrdersRepository.listOrders', () {
     late HttpClientAdapter originalAdapter;
+    late LocalDb db;
 
     setUp(() {
       originalAdapter = dio.httpClientAdapter;
+      db = LocalDb(NativeDatabase.memory());
     });
 
-    tearDown(() {
+    tearDown(() async {
       dio.httpClientAdapter = originalAdapter;
+      await db.close();
     });
 
     test('parses the {data, nextCursor} envelope into a PaginatedResponse',
@@ -92,7 +105,7 @@ void main() {
         '"nextCursor": "cursor-1"}',
       );
 
-      final page = await DioOrdersRepository().listOrders();
+      final page = await _repository(db).listOrders();
 
       expect(page, isA<PaginatedResponse<OrderItem>>());
       expect(page.data, hasLength(1));
