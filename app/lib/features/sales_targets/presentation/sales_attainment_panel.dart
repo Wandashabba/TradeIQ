@@ -118,17 +118,25 @@ class _LevelFigure extends StatelessWidget {
   }
 }
 
-/// The dashboard's sell-in panel: this month's attainment by scope level, with
-/// a way through to the targets themselves.
+/// The dashboard's sell-in panel: the current month's attainment by scope
+/// level, with a way through to the targets themselves.
+///
+/// *Which* month is current is the server's answer, not this device's (#339).
+/// The panel names the month it was given, so a console sitting an hour either
+/// side of midnight on the 1st never shows a figure for a month nobody chose.
 class SalesAttainmentPanel extends ConsumerWidget {
   const SalesAttainmentPanel({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final report = ref.watch(currentMonthAttainmentProvider);
+    final month = report.value?.month;
     return PanelCard(
       title: 'Sell-in vs target',
-      subtitle: '$sellInLabel this month — not consumer sales',
+      subtitle:
+          '$sellInLabel · '
+          '${month == null ? 'this month' : salesMonthLabelFromKey(month)}'
+          ' — not consumer sales',
       trailing: TextButton(
         key: const ValueKey<String>('dashboard-sales-targets-link'),
         onPressed: () => context.go('/sales-targets'),
@@ -140,8 +148,10 @@ class SalesAttainmentPanel extends ConsumerWidget {
         onRetry: () => ref.invalidate(currentMonthAttainmentProvider),
         builder: (data) => data.hasTargets
             ? AttainmentLevels(report: data)
-            : const EmptyState(
-                message: 'No sales targets this month',
+            : EmptyState(
+                message:
+                    'No sales targets for '
+                    '${salesMonthLabelFromKey(data.month)}',
                 hint:
                     'Set monthly SKU targets under Sales targets to track '
                     'sell-in against them.',
