@@ -407,7 +407,7 @@ abstract class AppLocalizations {
   /// Shown when no beat plan exists for today.
   ///
   /// In en, this message translates to:
-  /// **'Your manager has not built a beat plan for today. You can still visit a store — pick it yourself.'**
+  /// **'No beat plan for today. You can still pick a store yourself.'**
   String get todayNoPlanDetail;
 
   /// No description provided for @todayEmptyPlanDetail.
@@ -605,7 +605,7 @@ abstract class AppLocalizations {
   /// No description provided for @myWorkFooter.
   ///
   /// In en, this message translates to:
-  /// **'Captures send themselves when you have signal — you never have to remember to do it. Nothing here is ever lost.'**
+  /// **'Captures send themselves when you have signal. Nothing is lost.'**
   String get myWorkFooter;
 
   /// No description provided for @myWorkSendingTitle.
@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// No description provided for @visitAnyOrderHint.
   ///
   /// In en, this message translates to:
-  /// **'Do the sections in any order — the store will not always let you follow one. Everything saves as you go, even with no signal.'**
+  /// **'Any order. Everything saves as you go, even with no signal.'**
   String get visitAnyOrderHint;
 
   /// Note above the disabled submit button. 'sections' is a list of section names joined with visitSectionsAnd.
@@ -995,7 +995,7 @@ abstract class AppLocalizations {
   /// No description provided for @visitCheckInWithinHint.
   ///
   /// In en, this message translates to:
-  /// **'You must be within 50 m of the store to check in. This is what proves the visit happened.'**
+  /// **'Check in within 50 m of the store. This proves the visit happened.'**
   String get visitCheckInWithinHint;
 
   /// No description provided for @visitRetry.
@@ -1019,7 +1019,7 @@ abstract class AppLocalizations {
   /// No description provided for @visitTooFarBody.
   ///
   /// In en, this message translates to:
-  /// **'Move closer to the store and try again. Nothing is lost — the visit hasn’t started.'**
+  /// **'Move closer and try again. Nothing is lost — the visit hasn’t started.'**
   String get visitTooFarBody;
 
   /// Measured distance from the store against the 50 m check-in fence.
@@ -1031,7 +1031,7 @@ abstract class AppLocalizations {
   /// No description provided for @visitTooFarFraudNote.
   ///
   /// In en, this message translates to:
-  /// **'This attempt is recorded. Retrying from far away is itself a fraud signal, so it is better to walk closer than to keep tapping.'**
+  /// **'This attempt is recorded. Retrying from far away is itself a fraud signal — walk closer instead.'**
   String get visitTooFarFraudNote;
 
   /// No description provided for @visitNoLocationTitle.
@@ -1049,7 +1049,7 @@ abstract class AppLocalizations {
   /// No description provided for @visitCheckInFailedNothingLost.
   ///
   /// In en, this message translates to:
-  /// **'Nothing has been lost — the visit had not started yet.'**
+  /// **'Nothing is lost — the visit hadn’t started.'**
   String get visitCheckInFailedNothingLost;
 
   /// Submit gate subtitle: outlet name and minutes since check-in.
@@ -1067,7 +1067,7 @@ abstract class AppLocalizations {
   /// No description provided for @submitIntro.
   ///
   /// In en, this message translates to:
-  /// **'Check this over before it goes to your manager. After submitting you cannot change it.'**
+  /// **'Check this before it goes to your manager — you cannot change it after.'**
   String get submitIntro;
 
   /// Heading above the list of tasks the submission will raise for the manager.
@@ -1079,7 +1079,7 @@ abstract class AppLocalizations {
   /// Note under the tasks the visit will raise. count is at least 1.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{You are telling the manager one thing is wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.} other{You are telling the manager {count} things are wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.}}'**
+  /// **'{count, plural, =1{You are telling the manager one thing is wrong in this store. It comes from what you captured — nothing is added. If it is already open, it is not raised twice.} other{You are telling the manager {count} things are wrong in this store. They come from what you captured — nothing is added. Anything already open is not raised twice.}}'**
   String submitAccusation(int count);
 
   /// No description provided for @submitSectionsComplete.
@@ -1103,7 +1103,7 @@ abstract class AppLocalizations {
   /// No description provided for @submitNothingToRaise.
   ///
   /// In en, this message translates to:
-  /// **'Nothing to raise. You found no stockouts and flagged no risks — this store is in good shape.'**
+  /// **'Nothing to raise. No stockouts, no risks — this store is in good shape.'**
   String get submitNothingToRaise;
 
   /// App bar title on the screen shown after a visit is submitted.
@@ -1133,13 +1133,13 @@ abstract class AppLocalizations {
   /// Body when the visit is held on the phone because reading the score from the server failed.
   ///
   /// In en, this message translates to:
-  /// **'Could not reach the server just now — it will send itself the moment you have signal. You can close the app.'**
+  /// **'Could not reach the server. It sends itself when signal returns — you can close the app.'**
   String get outcomeHeldBodyUnreachable;
 
   /// Body when the visit is held on the phone because there is no signal.
   ///
   /// In en, this message translates to:
-  /// **'No signal right now — it will send itself the moment you have signal. You can close the app.'**
+  /// **'No signal. It sends itself when signal returns — you can close the app.'**
   String get outcomeHeldBodyNoSignal;
 
   /// Banner title: the score is only worked out once the visit is sent.
@@ -1151,13 +1151,13 @@ abstract class AppLocalizations {
   /// Banner subtitle under outcomeScoredWhenSends.
   ///
   /// In en, this message translates to:
-  /// **'Your score is worked out on the server, not on the phone'**
+  /// **'Worked out on the server, not on the phone'**
   String get outcomeScoredOnServer;
 
   /// Explains why no score is shown while the visit is still on the phone.
   ///
   /// In en, this message translates to:
-  /// **'We are not guessing at a score here. You will see the real one — the same one your manager sees — as soon as this reaches the server.'**
+  /// **'Your real score — the one your manager sees — appears once this reaches the server.'**
   String get outcomeNoGuess;
 
   /// The scorecard's rating band spelled out beside its coloured dot. 'band' is the wire value green/amber/red.
@@ -1241,13 +1241,13 @@ abstract class AppLocalizations {
   /// Why the share-of-shelf dimension has no score.
   ///
   /// In en, this message translates to:
-  /// **'No competitor on shelf to measure against — not counted against you.'**
+  /// **'No competitor on shelf — not counted against you.'**
   String get outcomeUnmeasurableCompetitive;
 
   /// Why the team-capability dimension has no score.
   ///
   /// In en, this message translates to:
-  /// **'No staff on shift to assess — not counted against you.'**
+  /// **'No staff on shift — not counted against you.'**
   String get outcomeUnmeasurableSalesCapability;
 
   /// Card title on the outlet info section.
@@ -1499,7 +1499,7 @@ abstract class AppLocalizations {
   /// S3–S4 photo capture helper text.
   ///
   /// In en, this message translates to:
-  /// **'Optional. Stored as evidence for this section and as training data for automated planogram scoring.'**
+  /// **'Optional. Evidence for this section, and training data for automatic planogram scoring.'**
   String get s34PhotoHelper;
 
   /// S3–S4 save button.
@@ -1553,7 +1553,7 @@ abstract class AppLocalizations {
   /// S5 photo capture helper text.
   ///
   /// In en, this message translates to:
-  /// **'Optional. Prices are still entered by hand — this is evidence, and the training data for automated price reading.'**
+  /// **'Optional. Evidence for the prices you typed, and training data for automatic price reading.'**
   String get s5PhotoHelper;
 
   /// S5 save button.
@@ -1793,7 +1793,7 @@ abstract class AppLocalizations {
   /// S9 intro text.
   ///
   /// In en, this message translates to:
-  /// **'Risks flagged in S8 auto-create tasks with an SLA server-side. Add any extra manual tasks below.'**
+  /// **'Risks flagged in S8 auto-create tasks with an SLA. Add extra tasks below.'**
   String get s9Intro;
 
   /// S9 field label.
@@ -1871,7 +1871,7 @@ abstract class AppLocalizations {
   /// Check-in: no GPS fix arrived in time. Shown under 'Can’t find your location'.
   ///
   /// In en, this message translates to:
-  /// **'Timed out waiting for your location. Check that location is switched on for TradeIQ, then try again.'**
+  /// **'Took too long. Check location is on for TradeIQ, then try again.'**
   String get checkInLocationTimedOut;
 
   /// Check-in: the location lookup failed with an unexpected error.
@@ -2027,7 +2027,7 @@ abstract class AppLocalizations {
   /// Client-questions section: one-line intro above the questions.
   ///
   /// In en, this message translates to:
-  /// **'Extra questions this client asks on every visit. Answer the required ones before you submit.'**
+  /// **'Asked on every visit. Answer the required ones to submit.'**
   String get visitTemplateSectionIntro;
 
   /// Client-questions progress: visible questions answered out of visible questions.
@@ -2513,7 +2513,7 @@ abstract class AppLocalizations {
   /// Footnote under the notification toggles.
   ///
   /// In en, this message translates to:
-  /// **'You can also turn off notifications for TradeIQ in your phone’s settings.'**
+  /// **'You can also turn these off in your phone’s settings.'**
   String get notificationsFooter;
 }
 

@@ -73,8 +73,8 @@ void main() {
     expect(find.text('KLIËNTVRAE'), findsOneWidget);
     expect(
       find.text(
-        'Ekstra vrae wat hierdie kliënt by elke besoek vra. '
-        'Beantwoord die verpligte vrae voor jy indien.',
+        'Word by elke besoek gevra. '
+        'Beantwoord die verpligte vrae om in te dien.',
       ),
       findsOneWidget,
     );

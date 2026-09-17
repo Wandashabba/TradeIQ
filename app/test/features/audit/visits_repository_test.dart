@@ -186,10 +186,9 @@ void main() {
             (
               LocationError('late', kind: LocationErrorKind.timedOut),
               CheckInLocationProblem.timedOut,
-              'Timed out waiting for your location. Check that location is '
-                  'switched on for TradeIQ, then try again.',
-              'Dit het te lank geneem om jou ligging te kry. Maak seker dat '
-                  'ligging vir TradeIQ aangeskakel is, en probeer dan weer.',
+              'Took too long. Check location is on for TradeIQ, then try again.',
+              'Dit het te lank geneem. Maak seker ligging is aan vir TradeIQ, '
+                  'en probeer weer.',
             ),
             (
               LocationError(

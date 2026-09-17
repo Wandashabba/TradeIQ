@@ -201,7 +201,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todayNoPlanDetail =>
-      'Your manager has not built a beat plan for today. You can still visit a store — pick it yourself.';
+      'No beat plan for today. You can still pick a store yourself.';
 
   @override
   String get todayEmptyPlanDetail =>
@@ -319,7 +319,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get myWorkFooter =>
-      'Captures send themselves when you have signal — you never have to remember to do it. Nothing here is ever lost.';
+      'Captures send themselves when you have signal. Nothing is lost.';
 
   @override
   String myWorkSendingTitle(int count) {
@@ -473,7 +473,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visitAnyOrderHint =>
-      'Do the sections in any order — the store will not always let you follow one. Everything saves as you go, even with no signal.';
+      'Any order. Everything saves as you go, even with no signal.';
 
   @override
   String visitFinishToSubmit(String sections) {
@@ -560,7 +560,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visitCheckInWithinHint =>
-      'You must be within 50 m of the store to check in. This is what proves the visit happened.';
+      'Check in within 50 m of the store. This proves the visit happened.';
 
   @override
   String get visitRetry => 'Try again';
@@ -573,7 +573,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visitTooFarBody =>
-      'Move closer to the store and try again. Nothing is lost — the visit hasn’t started.';
+      'Move closer and try again. Nothing is lost — the visit hasn’t started.';
 
   @override
   String visitTooFarDistance(int meters) {
@@ -582,7 +582,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visitTooFarFraudNote =>
-      'This attempt is recorded. Retrying from far away is itself a fraud signal, so it is better to walk closer than to keep tapping.';
+      'This attempt is recorded. Retrying from far away is itself a fraud signal — walk closer instead.';
 
   @override
   String get visitNoLocationTitle => 'Can’t find your location';
@@ -592,7 +592,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visitCheckInFailedNothingLost =>
-      'Nothing has been lost — the visit had not started yet.';
+      'Nothing is lost — the visit hadn’t started.';
 
   @override
   String submitSubtitleInStore(String outlet, int minutes) {
@@ -605,7 +605,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get submitIntro =>
-      'Check this over before it goes to your manager. After submitting you cannot change it.';
+      'Check this before it goes to your manager — you cannot change it after.';
 
   @override
   String get submitWillRaiseHeading => 'This will raise';
@@ -616,9 +616,9 @@ class AppLocalizationsEn extends AppLocalizations {
       count,
       locale: localeName,
       other:
-          'You are telling the manager $count things are wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.',
+          'You are telling the manager $count things are wrong in this store. They come from what you captured — nothing is added. Anything already open is not raised twice.',
       one:
-          'You are telling the manager one thing is wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.',
+          'You are telling the manager one thing is wrong in this store. It comes from what you captured — nothing is added. If it is already open, it is not raised twice.',
     );
     return '$_temp0';
   }
@@ -647,7 +647,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get submitNothingToRaise =>
-      'Nothing to raise. You found no stockouts and flagged no risks — this store is in good shape.';
+      'Nothing to raise. No stockouts, no risks — this store is in good shape.';
 
   @override
   String get outcomeTitle => 'Visit submitted';
@@ -663,22 +663,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outcomeHeldBodyUnreachable =>
-      'Could not reach the server just now — it will send itself the moment you have signal. You can close the app.';
+      'Could not reach the server. It sends itself when signal returns — you can close the app.';
 
   @override
   String get outcomeHeldBodyNoSignal =>
-      'No signal right now — it will send itself the moment you have signal. You can close the app.';
+      'No signal. It sends itself when signal returns — you can close the app.';
 
   @override
   String get outcomeScoredWhenSends => 'Scored when it sends';
 
   @override
   String get outcomeScoredOnServer =>
-      'Your score is worked out on the server, not on the phone';
+      'Worked out on the server, not on the phone';
 
   @override
   String get outcomeNoGuess =>
-      'We are not guessing at a score here. You will see the real one — the same one your manager sees — as soon as this reaches the server.';
+      'Your real score — the one your manager sees — appears once this reaches the server.';
 
   @override
   String outcomeRatingBand(String band) {
@@ -748,11 +748,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outcomeUnmeasurableCompetitive =>
-      'No competitor on shelf to measure against — not counted against you.';
+      'No competitor on shelf — not counted against you.';
 
   @override
   String get outcomeUnmeasurableSalesCapability =>
-      'No staff on shift to assess — not counted against you.';
+      'No staff on shift — not counted against you.';
 
   @override
   String get s1Title => 'Outlet check-in';
@@ -892,7 +892,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get s34PhotoHelper =>
-      'Optional. Stored as evidence for this section and as training data for automated planogram scoring.';
+      'Optional. Evidence for this section, and training data for automatic planogram scoring.';
 
   @override
   String get s34SaveButton => 'Save visibility';
@@ -922,7 +922,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get s5PhotoHelper =>
-      'Optional. Prices are still entered by hand — this is evidence, and the training data for automated price reading.';
+      'Optional. Evidence for the prices you typed, and training data for automatic price reading.';
 
   @override
   String get s5SaveButton => 'Save pricing';
@@ -1054,7 +1054,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get s9Intro =>
-      'Risks flagged in S8 auto-create tasks with an SLA server-side. Add any extra manual tasks below.';
+      'Risks flagged in S8 auto-create tasks with an SLA. Add extra tasks below.';
 
   @override
   String get s9FindingTypeLabel => 'Finding type';
@@ -1097,7 +1097,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get checkInLocationTimedOut =>
-      'Timed out waiting for your location. Check that location is switched on for TradeIQ, then try again.';
+      'Took too long. Check location is on for TradeIQ, then try again.';
 
   @override
   String checkInLocationFailed(String error) {
@@ -1222,7 +1222,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get visitTemplateSectionIntro =>
-      'Extra questions this client asks on every visit. Answer the required ones before you submit.';
+      'Asked on every visit. Answer the required ones to submit.';
 
   @override
   String visitTemplateProgressAnswered(int answered, int total) {
@@ -1539,5 +1539,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationsFooter =>
-      'You can also turn off notifications for TradeIQ in your phone’s settings.';
+      'You can also turn these off in your phone’s settings.';
 }

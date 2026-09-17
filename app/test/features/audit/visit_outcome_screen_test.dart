@@ -406,8 +406,8 @@ void main() {
       );
       expect(
         find.text(
-          'We are not guessing at a score here. You will see the real one — the '
-          'same one your manager sees — as soon as this reaches the server.',
+          'Your real score — the one your manager sees — appears once this '
+          'reaches the server.',
         ),
         findsOneWidget,
         reason: '$name no-guess copy verbatim',
