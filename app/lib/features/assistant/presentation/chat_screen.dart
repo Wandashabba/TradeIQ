@@ -6,6 +6,10 @@ import '../../../core/theme/lumen_palette.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/manager_scaffold.dart';
+import '../answer/answer_markdown.dart';
+import '../answer/answer_motion.dart';
+import '../answer/answer_view.dart';
+import '../answer/working_steps.dart';
 import '../data/chat_controller.dart';
 import '../view_specs/view_spec_registry.dart';
 
@@ -203,58 +207,128 @@ class _MessageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    if (colors.glass) return _glass(context.lumen);
+    if (message.role == ChatRole.user) {
+      return colors.glass ? _glassUser(context.lumen) : _flatUser(colors);
+    }
 
-    final isUser = message.role == ChatRole.user;
+    // Parsed on every build: tokens arrive many times a second, and the parse
+    // is a single linear pass over one answer's worth of text.
+    final parsed = parseAnswer(message.text, streaming: message.streaming);
+    // Blocks slide in only while the turn is live. A finished answer rebuilt
+    // by scrolling it back into view is simply there.
+    final animate = message.streaming;
 
-    if (isUser) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 520),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: colors.surface2,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            message.text,
-            style: TextStyle(fontSize: 13.5, height: 1.4, color: colors.ink1),
-          ),
+    final steps = message.tools.isEmpty
+        ? null
+        : ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: RichAnswer.maxProseWidth),
+            child: WorkingSteps(
+              tools: message.tools,
+              streaming: message.streaming,
+              animate: animate,
+            ),
+          );
+
+    final artifacts = [
+      for (final artifact in arrangeAnswerArtifacts(message.artifacts))
+        Arrive(
+          key: ValueKey('artifact-${artifact.id}'),
+          enabled: animate,
+          // Expandable here and only here: the inline card is deliberately
+          // impoverished, and Expand is how the filter controls and the table
+          // twin are reached without putting a date picker in every chat
+          // bubble.
+          child: ArtifactView(artifact: artifact, expandable: true),
         ),
+    ];
+
+    // **A reply that used none of the answer conventions renders exactly as
+    // replies always have**: one selectable run of text, then its artifacts.
+    // Only a reply that wrote markdown or follow-ups takes the rich layout.
+    final rich = message.error == null &&
+        (parsed.hasMarkdown || parsed.followUps.isNotEmpty);
+
+    final Widget body;
+    if (rich) {
+      body = RichAnswer(
+        parsed: parsed,
+        streaming: message.streaming,
+        artifacts: artifacts,
+        animate: animate,
       );
+    } else {
+      body = colors.glass
+          ? _glassPlain(context.lumen, artifacts)
+          : _flatPlain(colors, artifacts);
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Running tools, above the answer: it is the "checking stock levels…"
-        // affordance, and its whole job is to explain a pause before there is
-        // any text to show.
-        for (final tool in message.tools) _ToolChip(tool: tool),
-        if (message.tools.isNotEmpty) const SizedBox(height: 8),
+        // The steps sit above the answer: their whole job is to explain a
+        // pause before there is any text to show, and afterwards to say what
+        // the answer was built from.
+        if (steps != null) ...[steps, const SizedBox(height: 10)],
+        body,
+      ],
+    );
+  }
 
+  Widget _flatUser(TiqColors colors) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 520),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.surface2,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          message.text,
+          style: TextStyle(fontSize: 13.5, height: 1.4, color: colors.ink1),
+        ),
+      ),
+    );
+  }
+
+  /// A plain reply's text. Selectable once it is finished; while it streams,
+  /// the same text and style carry the caret at their end.
+  Widget _plainText(TextStyle style) {
+    if (!message.streaming) return SelectableText(message.text, style: style);
+    return SelectionArea(
+      child: Text.rich(
+        TextSpan(children: [
+          TextSpan(text: message.text),
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: StreamingCaret(),
+          ),
+        ]),
+        style: style,
+      ),
+    );
+  }
+
+  Widget _flatPlain(TiqColors colors, List<Widget> artifacts) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         if (message.error != null)
           _ErrorNote(message: message.error!)
         else ...[
           if (message.text.isNotEmpty)
-            SelectableText(
-              message.text,
-              style: TextStyle(fontSize: 13.5, height: 1.5, color: colors.ink1),
+            _plainText(
+              TextStyle(fontSize: 13.5, height: 1.5, color: colors.ink1),
             ),
           // A turn that has called a tool but produced no text yet: without
           // this the screen looks frozen between tool_end and the first token.
           if (message.text.isEmpty && message.streaming)
             const _ThinkingDots(),
         ],
-
-        for (final artifact in message.artifacts) ...[
+        for (final artifact in artifacts) ...[
           const SizedBox(height: 10),
-          // Expandable here and only here: the inline card is deliberately
-          // impoverished, and Expand is how the filter controls and the table
-          // twin are reached without putting a date picker in every chat
-          // bubble.
-          ArtifactView(artifact: artifact, expandable: true),
+          artifact,
         ],
       ],
     );
@@ -263,38 +337,37 @@ class _MessageView extends StatelessWidget {
   /// Lumen Glass: the manager's turn is the action glass in its own ink; the
   /// assistant's is a tile — a list item, so unblurred. Anything the turn drew
   /// lands below its bubble as its own panel, never a pane inside a pane.
-  Widget _glass(LumenPalette lumen) {
-    if (message.role == ChatRole.user) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: GlassPane(
-            kind: GlassKind.action,
-            radius: LumenGlass.radiusCard,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Text(
-              message.text,
-              style: TextStyle(
-                fontSize: 13.5,
-                height: 1.4,
-                color: lumen.actionInk,
-              ),
+  Widget _glassUser(LumenPalette lumen) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: GlassPane(
+          kind: GlassKind.action,
+          radius: LumenGlass.radiusCard,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Text(
+            message.text,
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.4,
+              color: lumen.actionInk,
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  Widget _glassPlain(LumenPalette lumen, List<Widget> artifacts) {
     final thinking = message.text.isEmpty && message.streaming;
     final answer = message.error != null || message.text.isNotEmpty || thinking;
-    // A turn that is only an artifact gets no empty bubble above it.
-    final bubble = message.tools.isNotEmpty || answer;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (bubble)
+        // A turn that is only an artifact gets no empty bubble above it.
+        if (answer)
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 680),
             child: GlassPane(
@@ -306,20 +379,12 @@ class _MessageView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final tool in message.tools) _ToolChip(tool: tool),
-                  if (message.tools.isNotEmpty && answer)
-                    const SizedBox(height: 6),
                   if (message.error != null)
                     _ErrorNote(message: message.error!)
                   else ...[
                     if (message.text.isNotEmpty)
-                      SelectableText(
-                        message.text,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          height: 1.5,
-                          color: lumen.ink,
-                        ),
+                      _plainText(
+                        TextStyle(fontSize: 13.5, height: 1.5, color: lumen.ink),
                       ),
                     if (thinking) const _ThinkingDots(),
                   ],
@@ -327,67 +392,11 @@ class _MessageView extends StatelessWidget {
               ),
             ),
           ),
-        for (final artifact in message.artifacts) ...[
+        for (final artifact in artifacts) ...[
           const SizedBox(height: 10),
-          ArtifactView(artifact: artifact, expandable: true),
+          artifact,
         ],
       ],
-    );
-  }
-}
-
-class _ToolChip extends StatelessWidget {
-  const _ToolChip({required this.tool});
-
-  final ToolActivity tool;
-
-  /// The pillar, not the tool name. `getShareOfShelf` is our vocabulary;
-  /// "visibility" is the manager's.
-  static String _label(ToolActivity tool) => switch (tool.pillar) {
-        'sales' => 'Checking sales',
-        'stock' => 'Checking stock',
-        'visibility' => 'Checking visibility',
-        'competition' => 'Checking competitors',
-        'execution' => 'Checking field execution',
-        _ => 'Looking that up',
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final done = tool.ok != null;
-    final failed = tool.ok == false;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: done
-                ? Icon(
-                    failed ? Icons.remove_circle_outline : Icons.check,
-                    size: 12,
-                    color: failed ? colors.ink4 : colors.ink3,
-                  )
-                : CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    // Null keeps the theme's own spinner colour off glass.
-                    color: colors.glass ? context.lumen.accentSolid : null,
-                  ),
-          ),
-          const SizedBox(width: 7),
-          Text(
-            failed ? '${_label(tool)} — unavailable' : _label(tool),
-            style: TextStyle(
-              fontSize: 11.5,
-              color: colors.glass ? context.lumen.inkMuted : colors.ink3,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

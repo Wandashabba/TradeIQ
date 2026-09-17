@@ -197,4 +197,78 @@ void main() {
 
     expect(first, equals(second));
   });
+
+  test('stat_tiles and ranked_bars export as vector tables, without crashing',
+      () async {
+    // The answer design's two new cards. Their report is the same table the
+    // expanded view shows — every cell pre-formatted with its unit and sign —
+    // under the card captured as the picture.
+    const tiles = ArtifactDetail(
+      id: '3c4f0d0e-1f2a-4c3b-9d4e-5f6a7b8c9d0e',
+      type: 'stat_tiles',
+      toolName: 'getSalesPerformance',
+      params: {},
+      data: {
+        'tiles': [
+          {
+            'label': 'Sell-in, units',
+            'value': 48210,
+            'unit': 'units',
+            'delta': {'value': 12.4, 'unit': 'pct', 'direction': 'down', 'sentiment': 'bad'},
+            'comparedTo': "vs 55,034 · Aug '25",
+          },
+          {'label': 'Target attainment', 'value': 81, 'unit': 'pct', 'meter': 81},
+        ],
+      },
+      canUndo: false,
+    );
+    const bars = ArtifactDetail(
+      id: '4d4f0d0e-1f2a-4c3b-9d4e-5f6a7b8c9d0e',
+      type: 'ranked_bars',
+      toolName: 'getTerritoryRanking',
+      params: {},
+      data: {
+        'title': 'Change by territory',
+        'comparedTo': "vs Aug '25",
+        'unit': 'pct',
+        'items': [
+          {'label': 'Soweto', 'value': -31},
+          {'label': 'Pretoria East', 'value': 7},
+        ],
+      },
+      canUndo: false,
+    );
+
+    final tileTable = artifactTableFor(tiles)!;
+    expect(tileTable.columns, ['Figure', 'Value', 'Change', 'Compared with']);
+    expect(tileTable.rows.first.cells,
+        ['Sell-in, units', '48,210', '▼ 12.4%', "vs 55,034 · Aug '25"]);
+    expect(tileTable.rows.last.cells, ['Target attainment', '81%', '—', '—']);
+
+    final barTable = artifactTableFor(bars)!;
+    expect(barTable.rows.map((r) => r.cells),
+        [['Soweto', '\u221231%'], ['Pretoria East', '+7%']]);
+
+    final fonts = await _fonts();
+    for (final (detail, table) in [(tiles, tileTable), (bars, barTable)]) {
+      final bytes = await buildArtifactPdf(ArtifactPdfRequest(
+        title: detail.type,
+        filters: 'Month to date.',
+        tenant: 'Demo FMCG',
+        generatedAt: DateTime.utc(2026, 9, 1),
+        table: table,
+        fonts: fonts,
+        compress: false,
+      ));
+      final raw = String.fromCharCodes(bytes);
+      expect(raw.substring(0, 5), '%PDF-');
+      expect(raw.trimRight().endsWith('%%EOF'), isTrue);
+    }
+
+    // Malformed data still yields a (possibly empty) table, never a throw.
+    const junk = ArtifactDetail(
+      id: 'x', type: 'ranked_bars', toolName: 't', params: {}, data: 'nope', canUndo: false,
+    );
+    expect(artifactTableFor(junk)!.isEmpty, isTrue);
+  });
 }

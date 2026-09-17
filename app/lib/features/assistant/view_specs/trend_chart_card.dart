@@ -94,9 +94,15 @@ class TrendChartCard extends StatelessWidget {
     final title = _metricLabels[metric] ?? metric ?? 'Trend';
     final interval = _string('interval');
     final comparisonLabel = _comparisonLabel;
+    final comparison = _points(_comparison['points']);
     final subtitle = [
       if (interval != null) 'By $interval',
-      if (comparisonLabel != null) 'vs $comparisonLabel',
+      // A comparison was asked for but the earlier window had no data: say
+      // so quietly, rather than naming a line that is not on the chart.
+      if (comparisonLabel != null)
+        comparison.isEmpty
+            ? 'no data for $comparisonLabel'
+            : 'vs $comparisonLabel',
     ].join(' · ');
 
     return PanelCard(
@@ -109,8 +115,12 @@ class TrendChartCard extends StatelessWidget {
         points: _points(_data['points']),
         // The comparison IS drawn inline: two lines is what the question asked
         // for, and it is the same chart either way.
-        comparison: _points(_comparison['points']),
+        comparison: comparison,
         comparisonName: comparisonLabel ?? '',
+        // Dashed and muted, under the main line: the approved answer design's
+        // "same month last year" reference. Absent a comparison nothing
+        // changes — an empty series draws no stroke and no legend.
+        dashedComparison: true,
         seriesName: title,
         valueSuffix: metric != null && _percentMetrics.contains(metric) ? '%' : '',
       ),

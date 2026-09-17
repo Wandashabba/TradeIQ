@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-
+import type { FigureArtifact } from './figures';
 
 /**
  * The four pillars a manager actually thinks in, plus execution quality.
@@ -52,6 +52,20 @@ export interface AssistantTool<A extends ToolArgs = ToolArgs, R = unknown> {
    * to draw, and a blank card would be worse than prose.
    */
   readonly view?: (args: A, result: R) => { type: string; params: unknown } | null;
+  /**
+   * Stat tiles and ranked bars built from this tool's result.
+   *
+   * **Deterministic, and never model-authored.** A tool computes these from the
+   * exact result it returned, with the pure builders in `figures.ts` — so a
+   * number on a tile is the number the model read, and the model has no path
+   * by which to put a figure on one. Async only because a builder may need the
+   * client's timezone, which the tool has already resolved and cached; it must
+   * never issue a new query to fill a card.
+   *
+   * An empty array is normal: a result with nothing honest to show draws
+   * nothing rather than a card of zeros.
+   */
+  readonly figures?: (args: A, result: R) => Promise<FigureArtifact[]> | FigureArtifact[];
 }
 
 /** A tool of unknown arg/return shape — what a roster or a provider handles. */
@@ -106,6 +120,9 @@ export function eraseToolTypes<A extends ToolArgs, R>(tool: AssistantTool<A, R>)
     run: (args: ToolArgs) => tool.run(args as A),
     ...(tool.view
       ? { view: (args: ToolArgs, result: unknown) => tool.view!(args as A, result as R) }
+      : {}),
+    ...(tool.figures
+      ? { figures: (args: ToolArgs, result: unknown) => tool.figures!(args as A, result as R) }
       : {}),
   };
 }
