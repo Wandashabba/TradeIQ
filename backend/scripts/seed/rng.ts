@@ -40,3 +40,15 @@ export function pick<T>(rng: () => number, items: readonly T[]): T {
 export function jitter(rng: () => number, magnitude: number): number {
   return (rng() * 2 - 1) * magnitude;
 }
+
+/** Standard normal noise (Box-Muller), from the same deterministic stream. */
+export function gaussian(rng: () => number): number {
+  const u = Math.max(rng(), Number.EPSILON);
+  const v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/** True with probability `p`. */
+export function chance(rng: () => number, p: number): boolean {
+  return rng() < p;
+}
