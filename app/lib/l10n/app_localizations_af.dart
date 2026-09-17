@@ -207,7 +207,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get todayNoPlanDetail =>
-      'Jou bestuurder het nog nie ’n roeteplan vir vandag opgestel nie. Jy kan steeds ’n winkel besoek — kies dit self.';
+      'Geen roeteplan vir vandag nie. Jy kan steeds self ’n winkel kies.';
 
   @override
   String get todayEmptyPlanDetail =>
@@ -326,7 +326,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get myWorkFooter =>
-      'Vasleggings stuur vanself wanneer jy sein het — jy hoef nooit te onthou om dit te doen nie. Niks hier raak ooit verlore nie.';
+      'Vasleggings stuur vanself wanneer jy sein het. Niks gaan verlore nie.';
 
   @override
   String myWorkSendingTitle(int count) {
@@ -480,7 +480,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get visitAnyOrderHint =>
-      'Doen die afdelings in enige volgorde — die winkel laat jou nie altyd toe om een te volg nie. Alles stoor soos jy gaan, selfs sonder sein.';
+      'Enige volgorde. Alles stoor soos jy gaan, selfs sonder sein.';
 
   @override
   String visitFinishToSubmit(String sections) {
@@ -567,7 +567,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get visitCheckInWithinHint =>
-      'Jy moet binne 50 m van die winkel wees om aan te meld. Dit is wat bewys dat die besoek plaasgevind het.';
+      'Meld aan binne 50 m van die winkel. Dit bewys die besoek het plaasgevind.';
 
   @override
   String get visitRetry => 'Probeer weer';
@@ -580,7 +580,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get visitTooFarBody =>
-      'Gaan nader aan die winkel en probeer weer. Niks is verlore nie — die besoek het nog nie begin nie.';
+      'Gaan nader en probeer weer. Niks is verlore nie — die besoek het nog nie begin nie.';
 
   @override
   String visitTooFarDistance(int meters) {
@@ -589,7 +589,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get visitTooFarFraudNote =>
-      'Hierdie poging word aangeteken. Om van ver af weer te probeer is self ’n bedrogsein, so dit is beter om nader te stap as om aan te hou tik.';
+      'Hierdie poging word aangeteken. Om van ver af weer te probeer is self ’n bedrogsein — stap eerder nader.';
 
   @override
   String get visitNoLocationTitle => 'Kan nie jou ligging kry nie';
@@ -612,7 +612,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get submitIntro =>
-      'Kyk dit na voordat dit na jou bestuurder gaan. Nadat jy dit ingedien het, kan jy dit nie meer verander nie.';
+      'Kyk dit na voordat dit na jou bestuurder gaan — jy kan dit daarna nie verander nie.';
 
   @override
   String get submitWillRaiseHeading => 'Dit skep hierdie take';
@@ -623,9 +623,9 @@ class AppLocalizationsAf extends AppLocalizations {
       count,
       locale: localeName,
       other:
-          'Jy sê vir die bestuurder $count dinge is verkeerd in hierdie winkel. Dit kom almal uit wat jy vasgelê het — niks word agterna bygevoeg nie. As die bestuurder een hiervan reeds oop het, word dit nie twee keer geskep nie.',
+          'Jy sê vir die bestuurder $count dinge is verkeerd in hierdie winkel. Dit kom uit wat jy vasgelê het — niks word bygevoeg nie. Enigiets wat reeds oop is, word nie twee keer geskep nie.',
       one:
-          'Jy sê vir die bestuurder een ding is verkeerd in hierdie winkel. Dit kom uit wat jy vasgelê het — niks word agterna bygevoeg nie. As die bestuurder dit reeds oop het, word dit nie twee keer geskep nie.',
+          'Jy sê vir die bestuurder een ding is verkeerd in hierdie winkel. Dit kom uit wat jy vasgelê het — niks word bygevoeg nie. As dit reeds oop is, word dit nie twee keer geskep nie.',
     );
     return '$_temp0';
   }
@@ -654,7 +654,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get submitNothingToRaise =>
-      'Niks om te skep nie. Niks was uit voorraad nie en jy het geen risiko’s gemerk nie — hierdie winkel is in goeie toestand.';
+      'Niks om te skep nie. Niks uit voorraad, geen risiko’s nie — hierdie winkel is in goeie toestand.';
 
   @override
   String get outcomeTitle => 'Besoek ingedien';
@@ -670,22 +670,22 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get outcomeHeldBodyUnreachable =>
-      'Kon nie nou die bediener bereik nie — dit sal vanself stuur sodra jy sein het. Jy kan die app toemaak.';
+      'Kon nie die bediener bereik nie. Dit stuur vanself sodra jy weer sein het — jy kan die app toemaak.';
 
   @override
   String get outcomeHeldBodyNoSignal =>
-      'Daar is nou geen sein nie — dit sal vanself stuur sodra jy sein het. Jy kan die app toemaak.';
+      'Geen sein nie. Dit stuur vanself sodra jy weer sein het — jy kan die app toemaak.';
 
   @override
   String get outcomeScoredWhenSends => 'Word getel sodra dit stuur';
 
   @override
   String get outcomeScoredOnServer =>
-      'Jou telling word op die bediener uitgewerk, nie op die foon nie';
+      'Word op die bediener uitgewerk, nie op die foon nie';
 
   @override
   String get outcomeNoGuess =>
-      'Ons raai nie hier ’n telling nie. Jy sien die regte een — dieselfde een wat jou bestuurder sien — sodra dit die bediener bereik.';
+      'Jou regte telling — die een wat jou bestuurder sien — verskyn sodra dit die bediener bereik.';
 
   @override
   String outcomeRatingBand(String band) {
@@ -755,11 +755,11 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get outcomeUnmeasurableCompetitive =>
-      'Geen mededinger op die rak om teen te meet nie — dit tel nie teen jou nie.';
+      'Geen mededinger op die rak nie — dit tel nie teen jou nie.';
 
   @override
   String get outcomeUnmeasurableSalesCapability =>
-      'Geen personeel aan diens om te beoordeel nie — dit tel nie teen jou nie.';
+      'Geen personeel aan diens nie — dit tel nie teen jou nie.';
 
   @override
   String get s1Title => 'Winkel-aanmelding';
@@ -899,7 +899,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get s34PhotoHelper =>
-      'Opsioneel. Word gestoor as bewys vir hierdie afdeling en as opleidingsdata vir outomatiese planogram-telling.';
+      'Opsioneel. Bewys vir hierdie afdeling, en oefendata vir outomatiese uitstaltelling.';
 
   @override
   String get s34SaveButton => 'Stoor sigbaarheid';
@@ -929,7 +929,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get s5PhotoHelper =>
-      'Opsioneel. Pryse word steeds met die hand ingevoer — dit is bewys, en die opleidingsdata vir outomatiese pryslees.';
+      'Opsioneel. Bewys vir die pryse wat jy ingevoer het, en oefendata vir outomatiese pryslees.';
 
   @override
   String get s5SaveButton => 'Stoor pryse';
@@ -1062,7 +1062,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get s9Intro =>
-      'Risiko’s wat in S8 gemerk is, skep outomaties take met ’n SLA op die bediener. Voeg enige ekstra take hieronder by.';
+      'Risiko’s wat in S8 gemerk is, skep outomaties take met ’n SLA. Voeg ekstra take hieronder by.';
 
   @override
   String get s9FindingTypeLabel => 'Soort bevinding';
@@ -1105,7 +1105,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get checkInLocationTimedOut =>
-      'Dit het te lank geneem om jou ligging te kry. Maak seker dat ligging vir TradeIQ aangeskakel is, en probeer dan weer.';
+      'Dit het te lank geneem. Maak seker ligging is aan vir TradeIQ, en probeer weer.';
 
   @override
   String checkInLocationFailed(String error) {
@@ -1236,7 +1236,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get visitTemplateSectionIntro =>
-      'Ekstra vrae wat hierdie kliënt by elke besoek vra. Beantwoord die verpligte vrae voor jy indien.';
+      'Word by elke besoek gevra. Beantwoord die verpligte vrae om in te dien.';
 
   @override
   String visitTemplateProgressAnswered(int answered, int total) {
@@ -1558,5 +1558,5 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get notificationsFooter =>
-      'Jy kan ook kennisgewings vir TradeIQ in jou foon se instellings afskakel.';
+      'Jy kan dit ook in jou foon se instellings afskakel.';
 }

@@ -93,7 +93,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('CLIENT QUESTIONS'), findsOneWidget);
-    expect(find.textContaining('Extra questions this client asks'), findsOneWidget);
+    expect(find.textContaining('Asked on every visit'), findsOneWidget);
     expect(find.text('Is the promo stand up?'), findsOneWidget);
     expect(find.text('Promo facings'), findsOneWidget);
     expect(find.text('Required'), findsOneWidget);
