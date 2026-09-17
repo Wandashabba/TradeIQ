@@ -125,12 +125,23 @@ describe('tool declarations reach the provider intact', () => {
   it('accepts a period on every tool that takes one', () => {
     // The period vocabulary is the practitioner's, and a tool that cannot
     // express it forces the model to guess a date range.
+    //
+    // Three tools have no date range to express, and are named rather than
+    // skipped by a rule, so a new tool without a period still fails here:
+    // the territory lookup, contest standings (a contest carries its own
+    // dates), and the forecast (always the last 28 complete days).
+    const undated = new Set(['findTerritories', 'getContestStandings', 'getSellInForecast']);
     const periodic = buildTools(ctx()).filter((tool) => {
       const shape = z.toJSONSchema(tool.args, { io: 'input' }) as {
         properties?: Record<string, unknown>;
       };
       return shape.properties?.period !== undefined;
     });
-    expect(periodic.length).toBe(buildTools(ctx()).length);
+    expect(periodic.map((t) => t.name).sort()).toEqual(
+      buildTools(ctx())
+        .map((t) => t.name)
+        .filter((name) => !undated.has(name))
+        .sort(),
+    );
   });
 });

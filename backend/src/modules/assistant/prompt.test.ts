@@ -73,7 +73,7 @@ describe('system prompt', () => {
   });
 
   it('bumps the version for the outside-information change', () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe('v4-2026-09-17');
+    expect(SYSTEM_PROMPT_VERSION).toBe('v5-2026-09-17');
   });
 
   it('contains no invented example figure in the headline guidance', () => {
