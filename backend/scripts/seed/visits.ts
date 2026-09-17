@@ -1,45 +1,109 @@
-import { addDays, addHours, HISTORY_WEEKS, weekStarts } from './calendar';
+import { computeDaysOutOfStock, computeVelocityAvg, StockHistoryRow } from '../../src/services/stock-derived.service';
+import { haversineDistanceMeters } from '../../src/lib/geofence';
+import { predictCoverageDays } from '../../src/services/forecast.service';
+import { addDays } from './calendar';
+import { CHANNEL_SIZE, Channel, OutletSeed, PRICE_BREACH_CHAIN, SKUS, SKU_BASE_UNITS, SkuSeed } from './catalog';
+import { chance, gaussian, intBetween, pick } from './rng';
 import {
-  OutletSeed,
-  PROBLEM_OUTLET_CODES,
-  SkuSeed,
-  TERRITORY_CODE_BY_ID,
-  UserSeed,
-} from './catalog';
-import { intBetween, jitter, makeRng, pick } from './rng';
+  AgentProfile,
+  CampaignSeed,
+  PRICE_BREACH_LINE_PROBABILITY,
+  PRICE_BREACH_MONTHS,
+  baseScore,
+  competitorPromoterRate,
+  isChronicOos,
+  CHRONIC_OOS_ENTER_PROBABILITY,
+  CHRONIC_OOS_STAY_PROBABILITY,
+  ourFacingsFactor,
+  territoryScoreShift,
+} from './scenario';
 
 /**
- * Generates the 12-week visit history and the improving execution-score curve.
+ * One visit's S1–S10 capture: stock, pricing, competition, visibility,
+ * capability and the scorecard they add up to.
  *
- * Pure by design: it returns plain objects with explicit `createdAt` values and
- * never touches Prisma, so the curve can be asserted without a database.
+ * Pure by design: plain rows with explicit ids and `createdAt`, so the whole
+ * history can be asserted without a database. Every section row's `createdAt`
+ * equals its visit's `checkinTs` — `/trends` buckets on each row's own
+ * `createdAt`, and leaving it to `@default(now())` put every row in the
+ * insert-time bucket (#204).
  *
- * Every Scorecard and VisitStock row carries an explicit `createdAt` equal to
- * its visit's `checkinTs`. That is the actual fix for #204 — `/trends` buckets
- * on each row's own `createdAt`, and leaving it to `@default(now())` put every
- * row in the insert-time bucket no matter how the visits were dated.
+ * Stock derived fields are computed exactly the way capture computes them
+ * (`stock.service.ts` over `stock-derived.service.ts`): days out of stock and
+ * velocity come from the outlet's own prior counts, not from a random number.
  */
 
-const SCORE_START = 62;
-const SCORE_END = 78;
+/** The client's scorecard weights — the same object index.ts writes on the client. */
+export const SCORECARD_WEIGHTS = {
+  availability: 0.3,
+  visibility: 0.25,
+  display: 0.15,
+  pricing: 0.1,
+  salesCapability: 0.1,
+  competitive: 0.1,
+} as const;
+
 const SCORE_FLOOR = 25;
 const SCORE_CEILING = 98;
-const PROBLEM_OUTLET_PENALTY = 24;
-const VISITS_PER_AGENT_PER_WEEK = 5;
+const PROBLEM_OUTLET_PENALTY = 22;
+
+/** Counted on every visit: the carbonates core, where availability is judged. */
+export const CORE_STOCK_SKU_IDS = ['demo-sku-1', 'demo-sku-2', 'demo-sku-4'] as const;
+const ROTATING_STOCK_SKUS = SKUS.filter((s) => !(CORE_STOCK_SKU_IDS as readonly string[]).includes(s.id));
+const ROTATING_PER_VISIT = 3;
+/** Priced on every visit, plus one rotating line. */
+const CORE_PRICE_SKU_IDS = ['demo-sku-1', 'demo-sku-2'];
+
+const SKU_BY_ID = new Map(SKUS.map((s) => [s.id, s]));
+
+const OOS_BASE: Readonly<Record<Channel, number>> = {
+  hypermarket: 0.02,
+  wholesaler: 0.02,
+  supermarket: 0.035,
+  convenience: 0.05,
+  forecourt: 0.05,
+  spaza: 0.07,
+};
+const PROBLEM_OUTLET_OOS = 0.25;
+
+const COMPETITORS = [
+  { sku: 'RivalCola 2L', ref: 33.99 },
+  { sku: 'RivalCola 1L', ref: 23.99 },
+  { sku: 'Storm Energy 440ml', ref: 19.99 },
+  { sku: 'Pure Springs Water 500ml', ref: 9.49 },
+  { sku: 'Golden Valley Juice 1L', ref: 27.99 },
+  { sku: 'Crunchy Chips 125g', ref: 15.99 },
+] as const;
+const POSM_TYPES = ['shelf_strip', 'wobbler', 'poster', 'end_cap', 'floor_stand'];
+
+export interface VisitRow {
+  id: string;
+  outletId: string;
+  agentId: string;
+  checkinTs: Date;
+  checkinLat: number;
+  checkinLng: number;
+  checkinDistanceM: number;
+  geofencePass: boolean;
+  status: 'submitted';
+  submittedAtClient: Date;
+}
 
 export interface StockRow {
+  id: string;
+  visitId: string;
   skuId: string;
   unitsAvailable: number;
   lastStockinDate: Date;
   daysOutOfStock: number;
   velocityAvg: number;
   coverageDaysPredicted: number;
-  salesActual: number;
-  salesTarget: number;
   createdAt: Date;
 }
 
 export interface PricingRow {
+  id: string;
+  visitId: string;
   skuId: string;
   priceActual: number;
   priceMaster: number;
@@ -51,6 +115,8 @@ export interface PricingRow {
 }
 
 export interface CompetitiveRow {
+  id: string;
+  visitId: string;
   competitorSku: string;
   competitorPrice: number;
   competitorPosmType: string;
@@ -60,47 +126,49 @@ export interface CompetitiveRow {
   createdAt: Date;
 }
 
-export interface GeneratedVisit {
+export interface VisibilityRow {
   id: string;
-  outletId: string;
-  outletCode: string;
-  agentId: string;
-  checkinTs: Date;
-  checkinLat: number;
-  checkinLng: number;
-  checkinDistanceM: number;
-  geofencePass: boolean;
-  isProblemOutlet: boolean;
+  visitId: string;
+  brandingElements: Record<string, boolean>;
+  planogramCompliancePct: number;
+  facingsCount: { total: number; byZone: { eye: number; reach: number; stoop: number } };
+  highTrafficPass: boolean;
+  cleanlinessScore: number;
+  createdAt: Date;
+}
+
+export interface CapabilityRow {
+  id: string;
+  visitId: string;
+  staffHeadcountConfirmed: number;
+  repTrainingStatus: Record<string, boolean>;
+  quizScore: number;
+  createdAt: Date;
+}
+
+export interface ScorecardRow {
+  id: string;
+  visitId: string;
+  dimensionScores: Record<string, number>;
+  weightedTotal: number;
+  ratingBand: string;
+  createdAt: Date;
+}
+
+export interface CapturedVisit {
+  visit: VisitRow;
   stock: StockRow[];
   pricing: PricingRow[];
   competitive: CompetitiveRow[];
-  visibility: {
-    brandingElements: Record<string, boolean>;
-    planogramCompliancePct: number;
-    facingsCount: { total: number; byZone: { eye: number; reach: number; stoop: number } };
-    highTrafficPass: boolean;
-    cleanlinessScore: number;
-    createdAt: Date;
-  };
-  capability: {
-    staffHeadcountConfirmed: number;
-    repTrainingStatus: Record<string, boolean>;
-    quizScore: number;
-    createdAt: Date;
-  };
-  scorecard: {
-    dimensionScores: Record<string, number>;
-    weightedTotal: number;
-    ratingBand: string;
-    createdAt: Date;
-  };
+  visibility: VisibilityRow;
+  capability: CapabilityRow;
+  scorecard: ScorecardRow;
 }
 
-export interface BuildVisitHistoryInput {
-  anchor: Date;
-  outlets: OutletSeed[];
-  agents: UserSeed[];
-  skus: SkuSeed[];
+/** As stock.service.ts stores it: Infinity (no measured velocity) becomes 0. */
+function coverageFor(unitsAvailable: number, velocityAvg: number): number {
+  const coverage = predictCoverageDays({ unitsAvailable, velocityAvg });
+  return Number.isFinite(coverage) ? coverage : 0;
 }
 
 /** Matches the client's kpiThresholds: green >= 80, amber >= 60, else red. */
@@ -110,164 +178,341 @@ export function ratingBandFor(weightedTotal: number): string {
   return 'red';
 }
 
-function clampScore(value: number): number {
-  return Math.round(Math.min(SCORE_CEILING, Math.max(SCORE_FLOOR, value)) * 10) / 10;
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
-const COMPETITORS = ['RivalCola 500ml', 'RivalCola 2L', 'Storm Energy 440ml', 'Pure Springs 1L'];
-const POSM_TYPES = ['shelf_strip', 'wobbler', 'poster', 'end_cap'];
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
 
-export function buildVisitHistory(input: BuildVisitHistoryInput): GeneratedVisit[] {
-  const { anchor, outlets, agents, skus } = input;
-  const rng = makeRng(987654321);
-  const weeks = weekStarts(anchor, HISTORY_WEEKS);
-  const problemCodes = new Set<string>(PROBLEM_OUTLET_CODES);
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
-  // A fixed offset per outlet so outlets rank consistently week to week rather
-  // than shuffling — a demo where the worst store changes every week reads as
-  // noise, not as a business.
-  const outletOffset = new Map<string, number>();
-  for (const outlet of outlets) {
-    outletOffset.set(outlet.id, jitter(rng, 8));
+/**
+ * The running memory capture reads: each outlet's recent counts per SKU
+ * (newest first, capped like the service's window), and how many times each
+ * outlet has been visited — which rotates the SKUs counted.
+ */
+export class StockMemory {
+  private readonly history = new Map<string, StockHistoryRow[]>();
+  private readonly restocked = new Map<string, Date>();
+  private readonly visitsByOutlet = new Map<string, number>();
+
+  historyFor(outletId: string, skuId: string): StockHistoryRow[] {
+    return this.history.get(`${outletId}|${skuId}`) ?? [];
   }
 
-  const visits: GeneratedVisit[] = [];
-  let counter = 0;
+  record(outletId: string, skuId: string, row: StockHistoryRow): void {
+    const key = `${outletId}|${skuId}`;
+    const list = [row, ...(this.history.get(key) ?? [])].slice(0, 5);
+    this.history.set(key, list);
+  }
 
-  weeks.forEach((weekStart, weekIndex) => {
-    const trend = SCORE_START + ((SCORE_END - SCORE_START) * weekIndex) / (HISTORY_WEEKS - 1);
+  lastRestock(outletId: string, skuId: string): Date | undefined {
+    return this.restocked.get(`${outletId}|${skuId}`);
+  }
 
-    for (const agent of agents) {
-      // `agent.territoryId` is a territory ID (it becomes a UserTerritory FK);
-      // `outlet.territoryId` is a territory CODE. Comparing them directly
-      // matched nothing and silently produced zero visits — the whole history
-      // vanished with no error, which is what this lookup exists to prevent.
-      const agentTerritoryCode = agent.territoryId
-        ? TERRITORY_CODE_BY_ID[agent.territoryId]
-        : undefined;
-      const agentOutlets = outlets.filter((o) => o.territoryId === agentTerritoryCode);
-      if (agentOutlets.length === 0) continue;
+  setRestock(outletId: string, skuId: string, at: Date): void {
+    this.restocked.set(`${outletId}|${skuId}`, at);
+  }
 
-      for (let n = 0; n < VISITS_PER_AGENT_PER_WEEK; n += 1) {
-        // Mon-Fri only; a visit on the anchor day itself is fine, but nothing
-        // beyond it — a demo must never show a visit from the future.
-        const dayOffset = n % 5;
-        const checkinTs = addHours(addDays(weekStart, dayOffset), 8 + intBetween(rng, 0, 8));
-        if (checkinTs.getTime() > anchor.getTime() + 24 * 60 * 60 * 1000) continue;
+  nextVisitIndex(outletId: string): number {
+    const n = this.visitsByOutlet.get(outletId) ?? 0;
+    this.visitsByOutlet.set(outletId, n + 1);
+    return n;
+  }
+}
 
-        const outlet = agentOutlets[(weekIndex + n) % agentOutlets.length]!;
-        const isProblem = problemCodes.has(outlet.code);
+export interface CaptureInput {
+  id: string;
+  outlet: OutletSeed;
+  agentId: string;
+  day: Date;
+  checkinTs: Date;
+  submittedAtClient: Date;
+  monthsAgo: number;
+  profile: AgentProfile;
+  outletOffset: number;
+  isProblemOutlet: boolean;
+  campaign: CampaignSeed | null;
+  /** The ghost-visit agent inside the fraud window. */
+  fraud: boolean;
+}
 
-        const total = clampScore(
-          trend + (outletOffset.get(outlet.id) ?? 0) + jitter(rng, 4)
-            - (isProblem ? PROBLEM_OUTLET_PENALTY : 0),
-        );
+/** A point `metres` from `origin` on a random bearing. */
+export function offsetPoint(
+  rng: () => number,
+  origin: { lat: number; lng: number },
+  metres: number,
+): { lat: number; lng: number } {
+  const bearing = rng() * 2 * Math.PI;
+  const dLat = (metres * Math.cos(bearing)) / 111_320;
+  const dLng = (metres * Math.sin(bearing)) / (111_320 * Math.cos((origin.lat * Math.PI) / 180));
+  return {
+    lat: Math.round((origin.lat + dLat) * 1e7) / 1e7,
+    lng: Math.round((origin.lng + dLng) * 1e7) / 1e7,
+  };
+}
 
-        counter += 1;
-        const id = `demo-visit-${String(counter).padStart(4, '0')}`;
+function outletSize(outlet: OutletSeed): number {
+  return outlet.acvWeight || CHANNEL_SIZE[outlet.channelType as Channel] || 1;
+}
 
-        // Dimensions vary around the total so the scorecard breakdown does not
-        // read as six identical numbers.
-        const dimension = (): number => clampScore(total + jitter(rng, 6));
-        const stockSkus = skus.slice(0, 6);
+export function captureVisit(rng: () => number, memory: StockMemory, input: CaptureInput): CapturedVisit {
+  const { id, outlet, checkinTs, campaign, monthsAgo, fraud } = input;
+  const channel = outlet.channelType as Channel;
+  const size = outletSize(outlet);
+  const territory = outlet.territoryId;
+  const visitIndex = memory.nextVisitIndex(outlet.id);
 
-        visits.push({
-          id,
-          outletId: outlet.id,
-          outletCode: outlet.code,
-          agentId: agent.id,
-          checkinTs,
-          checkinLat: outlet.lat + jitter(rng, 0.0002),
-          checkinLng: outlet.lng + jitter(rng, 0.0002),
-          checkinDistanceM: Math.round(intBetween(rng, 3, 45)),
-          geofencePass: true,
-          isProblemOutlet: isProblem,
-          stock: stockSkus.map((sku) => {
-            // A low score means empty shelves — the two must agree or the demo
-            // contradicts itself when a manager drills in.
-            const stockedOut = isProblem && rng() < 0.4;
-            return {
-              skuId: sku.id,
-              unitsAvailable: stockedOut ? 0 : intBetween(rng, 8, 90),
-              lastStockinDate: addDays(checkinTs, -intBetween(rng, 1, 9)),
-              daysOutOfStock: stockedOut ? intBetween(rng, 1, 5) : 0,
-              velocityAvg: intBetween(rng, 30, 220) / 10,
-              coverageDaysPredicted: intBetween(rng, 5, 90) / 10,
-              salesActual: intBetween(rng, 600, 1400),
-              salesTarget: 1200,
-              createdAt: checkinTs,
-            };
-          }),
-          pricing: skus.slice(0, 4).map((sku) => {
-            const deviation = isProblem && rng() < 0.5
-              ? intBetween(rng, 110, 240) / 10
-              : intBetween(rng, 0, 40) / 10;
-            const priceActual = Math.round(sku.rrp * (1 + deviation / 100) * 100) / 100;
-            return {
-              skuId: sku.id,
-              priceActual,
-              priceMaster: sku.rrp,
-              deviationPct: Math.round(deviation * 100) / 100,
-              promoActive: rng() < 0.35,
-              promoMaterialsDetected: { poster: rng() < 0.6, shelfStrip: rng() < 0.5 },
-              commsRating: intBetween(rng, 2, 5),
-              createdAt: checkinTs,
-            };
-          }),
-          competitive: [
-            {
-              competitorSku: pick(rng, COMPETITORS),
-              competitorPrice: intBetween(rng, 1500, 3600) / 100,
-              competitorPosmType: pick(rng, POSM_TYPES),
-              competitorPromoterPresent: rng() < 0.25,
-              facingsCount: intBetween(rng, 2, 9),
-              geotag: { lat: outlet.lat, lng: outlet.lng },
-              createdAt: checkinTs,
-            },
-          ],
-          visibility: {
-            brandingElements: {
-              poster: rng() < 0.8,
-              shelfStrip: rng() < 0.7,
-              wobbler: rng() < 0.5,
-              endCap: rng() < 0.4,
-            },
-            planogramCompliancePct: dimension(),
-            facingsCount: {
-              total: intBetween(rng, 12, 30),
-              byZone: { eye: intBetween(rng, 4, 14), reach: intBetween(rng, 3, 9), stoop: intBetween(rng, 1, 6) },
-            },
-            highTrafficPass: !isProblem || rng() < 0.3,
-            cleanlinessScore: intBetween(rng, isProblem ? 1 : 3, 5),
-            createdAt: checkinTs,
-          },
-          capability: {
-            staffHeadcountConfirmed: intBetween(rng, 2, 8),
-            repTrainingStatus: {
-              onboarded: true,
-              planogramCertified: rng() < 0.7,
-              promoBriefed: rng() < 0.6,
-            },
-            quizScore: Math.round(dimension()),
-            createdAt: checkinTs,
-          },
-          scorecard: {
-            dimensionScores: {
-              availability: dimension(),
-              visibility: dimension(),
-              display: dimension(),
-              pricing: dimension(),
-              competitive: dimension(),
-              salesCapability: dimension(),
-            },
-            weightedTotal: total,
-            ratingBand: ratingBandFor(total),
-            createdAt: checkinTs,
-          },
-        });
-      }
+  // ── Check-in position ────────────────────────────────────────────────────
+  // Inside the 50 m fence by construction: a visit only exists once check-in
+  // passed. Honest agents stand in the store; a few hug the fence edge. The
+  // ghost-visit agent is always at the edge — a spoofed fix set just inside.
+  const targetDistance = fraud
+    ? 44 + rng() * 5
+    : chance(rng, 0.05)
+      ? 41 + rng() * 8
+      : 2 + rng() * 36;
+  const checkin = offsetPoint(rng, outlet, targetDistance);
+  const checkinDistanceM = Math.round(haversineDistanceMeters(outlet, checkin) * 10) / 10;
+
+  // ── Latent execution quality ─────────────────────────────────────────────
+  let campaignShift = 0;
+  if (campaign?.execution === 'excellent') campaignShift = 6;
+  if (campaign?.execution === 'poor') campaignShift = -10;
+  const quality = clamp(
+    baseScore(monthsAgo, input.day) +
+      input.profile.skill +
+      input.outletOffset +
+      territoryScoreShift(territory, monthsAgo) +
+      campaignShift -
+      (input.isProblemOutlet ? PROBLEM_OUTLET_PENALTY : 0) +
+      gaussian(rng) * 5,
+    SCORE_FLOOR,
+    SCORE_CEILING,
+  );
+
+  // ── S2 stock ─────────────────────────────────────────────────────────────
+  const rotating = Array.from(
+    { length: ROTATING_PER_VISIT },
+    (_, k) => ROTATING_STOCK_SKUS[(visitIndex * ROTATING_PER_VISIT + k) % ROTATING_STOCK_SKUS.length]!,
+  );
+  const stockSkus: SkuSeed[] = [...CORE_STOCK_SKU_IDS.map((sid) => SKU_BY_ID.get(sid)!), ...rotating];
+  const qualityMultiplier = quality < 55 ? 1.8 : quality > 82 ? 0.6 : 1;
+
+  const stock: StockRow[] = stockSkus.map((sku, index) => {
+    const prior = memory.historyFor(outlet.id, sku.id);
+    const par = Math.max(4, Math.round((SKU_BASE_UNITS[sku.id] ?? 10) * size * 1.6));
+    const lastUnits = prior[0]?.unitsAvailable;
+    let pOos = OOS_BASE[channel] * qualityMultiplier;
+    if (input.isProblemOutlet) pOos = PROBLEM_OUTLET_OOS;
+    if (isChronicOos(territory, sku.id, monthsAgo)) {
+      pOos = lastUnits === 0 ? CHRONIC_OOS_STAY_PROBABILITY : CHRONIC_OOS_ENTER_PROBABILITY;
     }
+
+    let units: number;
+    if (fraud && lastUnits !== undefined && lastUnits > 0 && index < CORE_STOCK_SKU_IDS.length) {
+      // Copied from the last visit rather than counted (#245).
+      units = lastUnits;
+    } else if (chance(rng, pOos)) {
+      units = 0;
+    } else {
+      units = Math.max(1, Math.round(par * (0.15 + 0.85 * rng())));
+    }
+
+    // Exactly what stock capture stores (stock.service.ts, #112): both derived
+    // fields come from the outlet's PRIOR five counts of the SKU, not from this
+    // one. That window has consequences worth knowing when reading the data —
+    // days out of stock is "days since the last of those five showed stock", so
+    // a shelf empty for more than five visits reads 0 — and the seed keeps them
+    // rather than storing numbers capture never would.
+    const current: StockHistoryRow = { visitCheckinTs: checkinTs, unitsAvailable: units };
+    const daysOutOfStock = computeDaysOutOfStock(prior, checkinTs);
+    const velocityAvg = computeVelocityAvg(prior);
+
+    if (lastUnits === undefined || units > lastUnits) {
+      memory.setRestock(outlet.id, sku.id, addDays(checkinTs, -(rng() * 2)));
+    }
+    memory.record(outlet.id, sku.id, current);
+    const lastStockinDate =
+      memory.lastRestock(outlet.id, sku.id) ?? addDays(checkinTs, -intBetween(rng, 3, 9));
+
+    return {
+      id: `${id}-s${index + 1}`,
+      visitId: id,
+      skuId: sku.id,
+      unitsAvailable: units,
+      lastStockinDate,
+      daysOutOfStock,
+      velocityAvg,
+      coverageDaysPredicted: coverageFor(units, velocityAvg),
+      createdAt: checkinTs,
+    };
   });
 
-  return visits;
+  // ── S5 pricing ───────────────────────────────────────────────────────────
+  const priceSkus = [
+    ...CORE_PRICE_SKU_IDS.map((sid) => SKU_BY_ID.get(sid)!),
+    ROTATING_STOCK_SKUS[visitIndex % ROTATING_STOCK_SKUS.length]!,
+  ];
+  const chainBreach = outlet.name.startsWith(`${PRICE_BREACH_CHAIN} `) && monthsAgo < PRICE_BREACH_MONTHS;
+  const promoLiveRate = !campaign
+    ? 0.08
+    : campaign.execution === 'excellent'
+      ? 0.96
+      : campaign.execution === 'poor'
+        ? 0.3
+        : 0.72;
+
+  const pricing: PricingRow[] = priceSkus.map((sku, index) => {
+    const onPromo = campaign !== null && campaign.skuIds.includes(sku.id);
+    let deviation: number;
+    if (chainBreach && chance(rng, PRICE_BREACH_LINE_PROBABILITY)) {
+      deviation = 11 + rng() * 11;
+    } else if (onPromo) {
+      deviation = -campaign!.discount * 100 + gaussian(rng);
+    } else if (chance(rng, 0.015)) {
+      deviation = 10.5 + rng() * 5.5;
+    } else {
+      deviation = clamp(0.8 + gaussian(rng) * 2.2, -6, 8);
+    }
+    deviation = round2(deviation);
+    const promoActive = chance(rng, promoLiveRate);
+    const posmRate = campaign ? promoLiveRate : 0.5;
+    return {
+      id: `${id}-p${index + 1}`,
+      visitId: id,
+      skuId: sku.id,
+      priceActual: round2(sku.rrp * (1 + deviation / 100)),
+      priceMaster: sku.rrp,
+      deviationPct: deviation,
+      promoActive,
+      promoMaterialsDetected: {
+        poster: chance(rng, posmRate),
+        shelfStrip: chance(rng, posmRate),
+        wobbler: chance(rng, posmRate * 0.8),
+      },
+      commsRating: clamp(Math.round(quality / 20 + gaussian(rng) * 0.8), 1, 5),
+      createdAt: checkinTs,
+    };
+  });
+
+  // ── S6 competition ───────────────────────────────────────────────────────
+  const promoterRate = competitorPromoterRate(territory, monthsAgo);
+  const shelfLoss = 1 - ourFacingsFactor(territory, monthsAgo); // 0 .. 0.4
+  const competitiveCount = chance(rng, 0.45) ? 2 : 1;
+  const competitive: CompetitiveRow[] = Array.from({ length: competitiveCount }, (_, index) => {
+    // Where the rival is pushing, it is the rival cola that turns up first.
+    const competitor = index === 0 && shelfLoss > 0 ? COMPETITORS[0] : pick(rng, COMPETITORS);
+    const aggressive = competitor.sku.startsWith('RivalCola') ? shelfLoss * 0.3 : 0;
+    return {
+      id: `${id}-c${index + 1}`,
+      visitId: id,
+      competitorSku: competitor.sku,
+      competitorPrice: round2(competitor.ref * (0.9 + rng() * 0.14) * (1 - aggressive)),
+      competitorPosmType: pick(rng, POSM_TYPES),
+      competitorPromoterPresent: chance(rng, promoterRate),
+      facingsCount: intBetween(rng, 2, 9) + Math.round(shelfLoss * 20 * (index === 0 ? 1 : 0)),
+      geotag: { lat: outlet.lat, lng: outlet.lng },
+      createdAt: checkinTs,
+    };
+  });
+
+  // ── S3/S4 visibility and display ─────────────────────────────────────────
+  let planogram = clamp(quality + gaussian(rng) * 6, 20, 99);
+  if (campaign?.execution === 'excellent') planogram = Math.max(planogram, 90 + rng() * 8);
+  if (campaign?.execution === 'poor') planogram = Math.min(planogram, 45 + rng() * 15);
+  planogram = round1(planogram);
+  const ourFacings = Math.max(
+    3,
+    Math.round(Math.sqrt(size) * (14 + rng() * 16) * ourFacingsFactor(territory, monthsAgo)),
+  );
+  const eye = Math.round(ourFacings * 0.45);
+  const reach = Math.round(ourFacings * 0.35);
+  const brandingRate = quality / 100;
+  const allPosm = campaign?.execution === 'excellent';
+  const visibility: VisibilityRow = {
+    id: `${id}-vis`,
+    visitId: id,
+    brandingElements: {
+      poster: allPosm || chance(rng, brandingRate + 0.1),
+      shelfStrip: allPosm || chance(rng, brandingRate),
+      wobbler: allPosm || chance(rng, brandingRate - 0.2),
+      endCap: allPosm || chance(rng, brandingRate - 0.3),
+    },
+    planogramCompliancePct: planogram,
+    facingsCount: { total: ourFacings, byZone: { eye, reach, stoop: ourFacings - eye - reach } },
+    highTrafficPass: chance(rng, brandingRate),
+    cleanlinessScore: clamp(Math.round(quality / 20 + gaussian(rng) * 0.7), 1, 5),
+    createdAt: checkinTs,
+  };
+
+  // ── S8 sales capability ──────────────────────────────────────────────────
+  const quizScore = clamp(Math.round(quality + gaussian(rng) * 8), 10, 100);
+  const capability: CapabilityRow = {
+    id: `${id}-cap`,
+    visitId: id,
+    staffHeadcountConfirmed: Math.max(1, Math.round(size * 2 + intBetween(rng, 0, 3))),
+    repTrainingStatus: {
+      onboarded: true,
+      planogramCertified: chance(rng, 0.5 + quality / 200),
+      promoBriefed: chance(rng, brandingRate),
+    },
+    quizScore,
+    createdAt: checkinTs,
+  };
+
+  // ── Scorecard: dimensions from what was captured, weighted as the client says
+  const oosLines = stock.filter((row) => row.unitsAvailable === 0).length;
+  const osaPct = (100 * (stock.length - oosLines)) / stock.length;
+  // Promo prices sit below RRP on purpose; only overpricing costs points.
+  const worstOverprice = Math.max(0, ...pricing.map((row) => row.deviationPct - 2));
+  const competitorFacings = competitive.reduce((sum, row) => sum + row.facingsCount, 0);
+  const shareOfShelf = ourFacings / (ourFacings + competitorFacings);
+
+  const dimensionScores = {
+    availability: round1(clamp(0.55 * osaPct + 0.45 * quality, 0, 100)),
+    visibility: round1(clamp(planogram + gaussian(rng) * 3, 0, 100)),
+    display: round1(clamp(quality + gaussian(rng) * 5, 0, 100)),
+    pricing: round1(clamp(100 - 3.5 * worstOverprice, 0, 100)),
+    competitive: round1(clamp(shareOfShelf * 80 + 20, 0, 100)),
+    salesCapability: quizScore,
+  };
+  const weightedTotal = round1(
+    Object.entries(SCORECARD_WEIGHTS).reduce(
+      (sum, [dimension, weight]) => sum + weight * dimensionScores[dimension as keyof typeof dimensionScores],
+      0,
+    ),
+  );
+
+  return {
+    visit: {
+      id,
+      outletId: outlet.id,
+      agentId: input.agentId,
+      checkinTs,
+      checkinLat: checkin.lat,
+      checkinLng: checkin.lng,
+      checkinDistanceM,
+      geofencePass: true,
+      status: 'submitted',
+      submittedAtClient: input.submittedAtClient,
+    },
+    stock,
+    pricing,
+    competitive,
+    visibility,
+    capability,
+    scorecard: {
+      id: `${id}-sc`,
+      visitId: id,
+      dimensionScores,
+      weightedTotal,
+      ratingBand: ratingBandFor(weightedTotal),
+      createdAt: checkinTs,
+    },
+  };
 }

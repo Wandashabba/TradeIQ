@@ -1,5 +1,6 @@
 import { getThumbnailForPhoto } from '../../src/modules/photos/thumbnails';
-import { demoPhotoDataUrl, SECTION_TINTS } from './photos';
+import { computePhotoHashes, hammingDistance } from '../../src/modules/photos/photoHash';
+import { demoPhotoDataUrl, SECTION_TINTS, shelfPhotoDataUrl } from './photos';
 
 describe('demoPhotoDataUrl', () => {
   it('produces a base64 jpeg data URL', async () => {
@@ -43,6 +44,31 @@ describe('SECTION_TINTS', () => {
     for (const tint of Object.values(SECTION_TINTS)) {
       const url = await demoPhotoDataUrl(tint);
       expect(url.startsWith('data:image/jpeg;base64,')).toBe(true);
+    }
+  });
+});
+
+describe('shelfPhotoDataUrl', () => {
+  it('is deterministic per seed and decodable by the thumbnail pipeline', async () => {
+    const a = await shelfPhotoDataUrl(42);
+    expect(await shelfPhotoDataUrl(42)).toBe(a);
+    const thumb = await getThumbnailForPhoto(`seed-shelf-${Date.now()}`, async () => a);
+    expect(thumb[0]).toBe(0xff);
+  });
+
+  it('stays small — a few kilobytes of base64', async () => {
+    expect((await shelfPhotoDataUrl(7)).length).toBeLessThan(12_000);
+  });
+
+  // Honest visits must not look like photo reuse to the fraud engine (#244):
+  // different seeds differ by content hash AND sit far apart perceptually.
+  it('gives different seeds different content and distant perceptual hashes', async () => {
+    const hashes = await Promise.all([1, 2, 3, 4, 5, 6].map(async (seed) => computePhotoHashes(await shelfPhotoDataUrl(seed))));
+    for (let i = 0; i < hashes.length; i += 1) {
+      for (let j = i + 1; j < hashes.length; j += 1) {
+        expect(hashes[i]!.contentHash).not.toBe(hashes[j]!.contentHash);
+        expect(hammingDistance(hashes[i]!.perceptualHash!, hashes[j]!.perceptualHash!)).toBeGreaterThan(10);
+      }
     }
   });
 });

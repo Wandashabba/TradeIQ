@@ -6,19 +6,20 @@ import {
   getAvailabilityTrend,
   getScorecardsTrend,
 } from '../../src/modules/trends/trends.service';
-import { addDays, HISTORY_WEEKS } from './calendar';
+import { addDays } from './calendar';
 import { DEMO_CLIENT_ID } from './catalog';
 import { seedDemoData } from './index';
 import { resetDemoData } from './reset';
 
 const prisma = new PrismaClient();
 
-// Seeding writes several thousand rows; the default 20s timeout is not enough.
-jest.setTimeout(180_000);
+// The `test` profile is the full world cut to three months and a sixth of the
+// outlets — still tens of thousands of rows, so the default 20s is not enough.
+jest.setTimeout(300_000);
 
 describe('seedDemoData (end to end)', () => {
   beforeAll(async () => {
-    await seedDemoData(prisma);
+    await seedDemoData(prisma, { profile: 'test' });
   });
 
   afterAll(async () => {
@@ -44,15 +45,26 @@ describe('seedDemoData (end to end)', () => {
     expect(availability.points.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('trends climb from the first bucket to the last', async () => {
-    const scorecards = await getScorecardsTrend({
-      clientId: DEMO_CLIENT_ID,
-      interval: 'week',
+  it('fills the tables the Ask TradeIQ questions read', async () => {
+    expect(await prisma.salesTarget.count({ where: { clientId: DEMO_CLIENT_ID } })).toBeGreaterThan(0);
+    expect(await prisma.contest.count({ where: { clientId: DEMO_CLIENT_ID } })).toBeGreaterThan(0);
+    expect(await prisma.campaign.count({ where: { clientId: DEMO_CLIENT_ID } })).toBeGreaterThan(1);
+    expect(await prisma.orderLine.count({ where: { order: { clientId: DEMO_CLIENT_ID } } })).toBeGreaterThan(0);
+    expect(await prisma.pointsLedgerEntry.count({ where: { clientId: DEMO_CLIENT_ID } })).toBeGreaterThan(0);
+  });
+
+  // #236 via #244: the ghost-visit agent reuses photos, and the stored scores see it.
+  it('flags the planted fraud pattern with a stored duplicate-photo signal', async () => {
+    const flagged = await prisma.visit.findMany({
+      where: { clientId: DEMO_CLIENT_ID, riskScore: { gte: 50 } },
+      select: { agentId: true, fraudSignals: true },
     });
-    const points = scorecards.points;
-    const first = points[0]!.value;
-    const last = points[points.length - 1]!.value;
-    expect(last).toBeGreaterThan(first);
+    expect(flagged.length).toBeGreaterThan(0);
+    const ghost = flagged.filter((v) => v.agentId === 'demo-user-agent-14').length;
+    expect(ghost / flagged.length).toBeGreaterThan(0.9);
+    const codes = new Set(flagged.flatMap((v) => (v.fraudSignals as Array<{ code: string }>).map((s) => s.code)));
+    expect(codes.has('duplicate_photo')).toBe(true);
+    expect(codes.has('fast_completion')).toBe(true);
   });
 
   // #209: seeded photos rendered as grey boxes because the stored URLs 422'd.
@@ -106,7 +118,7 @@ describe('seedDemoData (end to end)', () => {
     const page = await listFlagged({
       clientId: DEMO_CLIENT_ID,
       minScore: 0,
-      from: addDays(new Date(), -7 * (HISTORY_WEEKS + 1)),
+      from: addDays(new Date(), -120),
       limit: 200,
     });
     expect(page.unscored).toBe(0);
@@ -121,7 +133,7 @@ describe('seedDemoData (end to end)', () => {
 
   it('is safe to run twice — the second run replaces rather than duplicates', async () => {
     const before = await prisma.visit.count({ where: { clientId: DEMO_CLIENT_ID } });
-    await seedDemoData(prisma);
+    await seedDemoData(prisma, { profile: 'test' });
     const after = await prisma.visit.count({ where: { clientId: DEMO_CLIENT_ID } });
     expect(after).toBe(before);
   });

@@ -53,21 +53,26 @@ curl http://localhost:4000/health
 ```
 
 `npm run seed` builds the full demo dataset — one client (Kalahari
-Beverages), 3 territories, 9 users, 31 outlets, 20 SKUs and 12 weeks of visit
-history ending on the day you run it, plus the tasks, alerts, incentives,
-orders and messages derived from that history. It prints a summary:
+Beverages), 13 territories across seven provinces, 50 field agents, 400
+outlets, 20 SKUs and 24 months of history ending yesterday: about 140k visits
+with every audit section, sell-in orders, monthly sales targets, campaigns,
+contests, beat plans, tasks with SLAs, alerts and stored fraud scores. It
+deletes and rebuilds the demo client's data, takes several minutes, and prints
+a summary with per-phase timings.
 
-```
-Seeded Kalahari Beverages — 12 weeks of history ending today
-sign in with any of: admin@demo-fmcg.tradeiq.com, manager@demo-fmcg.tradeiq.com, ...
-password: demo-password-123
-31 outlets, 20 SKUs, 348 visits
-85 tasks (22 open), 33 alerts (27 unacknowledged)
-6 messages, 2 announcements
+The data carries deliberate, discoverable problems (a declining territory, a
+chronic out-of-stock, an overpricing chain, a ghost-visit agent and more) for
+testing Ask TradeIQ; `docs/testing/ask-tradeiq-questions.md` lists them with
+questions and expected answers.
+
+The calendar is anchored to the day you seed, so dates move with it. To
+rebuild exactly the dataset the test questions quote, pin the anchor:
+
+```bash
+SEED_ANCHOR_DATE=2026-09-17 npm run seed
 ```
 
-Counts shift slightly run to run — the calendar is anchored to the day you
-seed, so the exact number of visits that land inside the window varies.
+`SEED_PROFILE=test npm run seed` builds a small three-month version in seconds.
 
 The seed also creates a **home-base outlet** for testing a live geofenced
 check-in. It defaults to central Johannesburg; set both `DEMO_HOME_LAT` and

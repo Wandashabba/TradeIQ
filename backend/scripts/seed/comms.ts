@@ -46,6 +46,37 @@ const ANNOUNCEMENTS = [
   },
 ];
 
+const TARGETED_MESSAGES = [
+  {
+    senderId: 'demo-user-mgr-1',
+    recipientId: 'demo-user-agent-44',
+    body: 'Kagiso, you completed about half of your planned stops again last week and several tasks are past SLA. Can we meet on Monday?',
+    daysAgo: 9,
+    read: false,
+  },
+  {
+    senderId: 'demo-user-mgr-2',
+    recipientId: 'demo-user-agent-5',
+    body: 'Cola 2L is still missing across Durban. Log every gap so the distributor escalation has the evidence.',
+    daysAgo: 12,
+    read: true,
+  },
+  {
+    senderId: 'demo-user-mgr-1',
+    recipientId: 'demo-user-agent-9',
+    body: 'Naledi, another month at the top of the execution table. Please share your end-cap routine at Friday\'s huddle.',
+    daysAgo: 16,
+    read: true,
+  },
+  {
+    senderId: 'demo-user-mgr-2',
+    recipientId: 'demo-user-agent-29',
+    body: 'The RivalCola promoters are in most of our Nelson Mandela Bay stores now. Photograph their displays and send me their prices.',
+    daysAgo: 20,
+    read: true,
+  },
+];
+
 export function buildComms(input: { anchor: Date; users: UserSeed[] }): CommsBundle {
   const { anchor, users } = input;
   const rng = makeRng(31415926);
@@ -62,6 +93,20 @@ export function buildComms(input: { anchor: Date; users: UserSeed[] }): CommsBun
     readAt: index < MESSAGE_BODIES.length - 2 ? addHours(anchor, -index * 6) : null,
     createdAt: addHours(addDays(anchor, -index), -index * 3),
   }));
+
+  // A few threads that belong to the planted story, so a manager who opens an
+  // agent's messages finds the same picture the numbers paint.
+  TARGETED_MESSAGES.forEach((entry, index) => {
+    if (!users.some((u) => u.id === entry.recipientId)) return;
+    messages.push({
+      id: `demo-message-t${index + 1}`,
+      senderId: entry.senderId,
+      recipientId: entry.recipientId,
+      body: entry.body,
+      readAt: entry.read ? addHours(addDays(anchor, -entry.daysAgo), 2) : null,
+      createdAt: addHours(addDays(anchor, -entry.daysAgo), 8),
+    });
+  });
 
   const announcements: GeneratedAnnouncement[] = ANNOUNCEMENTS.map((entry, index) => ({
     id: `demo-announcement-${index + 1}`,
