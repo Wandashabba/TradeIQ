@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { mean, pct, round2 } from '../../lib/kpiMath';
+import { pct, round2 } from '../../lib/kpiMath';
 import { personLabel } from '../../lib/personName';
 import {
   getSellInPerformance,
@@ -63,25 +63,57 @@ async function territoryFilter(
   return { territoryId: territory?.code ?? '__no-such-territory__' };
 }
 
-async function visitScope(input: PillarWindow): Promise<Prisma.VisitWhereInput> {
+/**
+ * The visit-level tenant, window and territory filter every aggregate below
+ * shares, as a SQL fragment over `visits v`.
+ *
+ * It is the same predicate the Prisma relation filter used to build —
+ * `v.client_id`, a half-open `[from, to)` on `checkin_ts`, and an outlet whose
+ * `territory_id` (a code) matches — written once so no aggregate can scope
+ * differently from its neighbours. Every value is a bound parameter.
+ */
+async function visitWhere(
+  input: PillarWindow & { agentId?: string; outletId?: string },
+): Promise<Prisma.Sql> {
   const outlet = await territoryFilter(input.clientId, input.territoryId);
-  return {
-    clientId: input.clientId,
-    checkinTs: { gte: input.from, lt: input.to },
-    ...(Object.keys(outlet).length > 0 ? { outlet } : {}),
-  };
+  return Prisma.sql`v."client_id" = ${input.clientId}
+    AND v."checkin_ts" >= ${input.from.toISOString()}::timestamp
+    AND v."checkin_ts" < ${input.to.toISOString()}::timestamp
+    ${
+      outlet.territoryId !== undefined
+        ? Prisma.sql`AND v."outlet_id" IN (SELECT o."id" FROM "outlets" o WHERE o."territory_id" = ${outlet.territoryId})`
+        : Prisma.empty
+    }
+    ${input.agentId ? Prisma.sql`AND v."agent_id" = ${input.agentId}` : Prisma.empty}
+    ${input.outletId ? Prisma.sql`AND v."outlet_id" = ${input.outletId}` : Prisma.empty}`;
 }
 
 /**
- * A cap on how many rows any one of these aggregates will read.
+ * Every figure below is aggregated **in the database, over every row in
+ * scope** (#359).
  *
- * At the ~190k visits/year this schema anticipates, an unbounded read is a slow
- * request that gets slower every month — the failure the pagination sweep
- * (#141) existed to remove. Every function that hits the ceiling reports
- * `truncated: true` rather than quietly returning a partial answer, because a
- * manager who cannot see something concludes it is not there.
+ * These used to fetch at most 5,000 rows and sum them in memory. On a real
+ * tenant that cap is about four working days of stock lines, so a
+ * month-to-date or year-to-date answer was computed from an arbitrary slice
+ * and quoted as if it were whole — rule 1's "invented figure" by another route.
+ * Grouping in Postgres makes the row count irrelevant to correctness and
+ * faster besides: only the aggregates cross the wire.
+ *
+ * Lists (worst outlets, top competitors, SKU rows, recent visits) are still
+ * capped, because a model does not need 400 outlets to name the worst ten. The
+ * cap applies to the list only — totals are computed before it — and a capped
+ * list says so with `truncated: true` and the full count alongside.
  */
-export const MAX_SCAN = 5_000;
+export const WORST_OUTLETS_LIMIT = 10;
+export const TOP_COMPETITORS_LIMIT = 10;
+export const RECENT_VISITS_LIMIT = 20;
+
+/** Postgres `bigint`/`numeric` come back as BigInt/Decimal; every figure here is a JS number. */
+function num(value: unknown): number {
+  if (value === null || value === undefined) return 0;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
 
 /**
  * The sales pillar's figures are {@link SellInPerformance} — sell-in from
@@ -264,59 +296,74 @@ export interface SkuMovementRow {
   observations: number;
 }
 
+export interface SkuMovement {
+  /** Worst first: longest out of stock, then lowest stock on hand, then name. */
+  rows: SkuMovementRow[];
+  /** SKUs with any stock line in scope — `rows` is the first `limit` of these. */
+  totalCount: number;
+  /** True when `rows` is shorter than `totalCount`. Each row's figures are still whole. */
+  truncated: boolean;
+}
+
 /** Sales — per-SKU movement, worst coverage first. */
 export async function getSkuMovement(
   input: PillarWindow & { limit?: number },
-): Promise<{ rows: SkuMovementRow[]; truncated: boolean }> {
-  const rows = await prisma.visitStock.findMany({
-    where: { visit: await visitScope(input) },
-    select: {
-      skuId: true,
-      unitsAvailable: true,
-      velocityAvg: true,
-      daysOutOfStock: true,
-      sku: { select: { name: true, category: true } },
-    },
-    take: MAX_SCAN + 1,
-  });
+): Promise<SkuMovement> {
+  const limit = input.limit ?? 20;
+  const rows = await prisma.$queryRaw<
+    {
+      sku_id: string;
+      name: string;
+      category: string;
+      units: unknown;
+      velocity_sum: unknown;
+      days_out: unknown;
+      observations: unknown;
+      total_count: unknown;
+    }[]
+  >`
+    WITH per_sku AS (
+      SELECT vs."sku_id",
+        SUM(vs."units_available")::float8 AS units,
+        SUM(vs."velocity_avg")::float8 AS velocity_sum,
+        MAX(vs."days_out_of_stock") AS days_out,
+        COUNT(*)::int AS observations
+      FROM "visit_stock" vs
+      JOIN "visits" v ON v."id" = vs."visit_id"
+      WHERE ${await visitWhere(input)}
+      GROUP BY vs."sku_id"
+    )
+    SELECT p."sku_id", s."name", s."category", p.units, p.velocity_sum, p.days_out,
+      p.observations, COUNT(*) OVER ()::int AS total_count
+    FROM per_sku p
+    JOIN "skus" s ON s."id" = p."sku_id"
+    ORDER BY p.days_out DESC, p.units ASC, s."name" ASC, p."sku_id" ASC
+    LIMIT ${limit}
+  `;
 
-  const scanned = rows.slice(0, MAX_SCAN);
-  const bySku = new Map<string, SkuMovementRow>();
-
-  for (const row of scanned) {
-    const existing = bySku.get(row.skuId);
-    if (existing) {
-      existing.unitsAvailable += row.unitsAvailable;
-      existing.velocityAvg = round2(
-        (existing.velocityAvg * existing.observations + row.velocityAvg) /
-          (existing.observations + 1),
-      );
-      existing.daysOutOfStock = Math.max(existing.daysOutOfStock, row.daysOutOfStock);
-      existing.observations += 1;
-    } else {
-      bySku.set(row.skuId, {
-        skuId: row.skuId,
-        skuName: row.sku.name,
-        category: row.sku.category,
-        unitsAvailable: row.unitsAvailable,
-        velocityAvg: round2(row.velocityAvg),
-        daysOutOfStock: row.daysOutOfStock,
-        observations: 1,
-      });
-    }
-  }
-
-  // Worst first. A manager asking about movement is looking for the problem,
-  // not for an alphabetical list.
-  const sorted = [...bySku.values()].sort((a, b) => b.daysOutOfStock - a.daysOutOfStock);
-
-  return { rows: sorted.slice(0, input.limit ?? 20), truncated: rows.length > MAX_SCAN };
+  const totalCount = rows.length > 0 ? num(rows[0].total_count) : 0;
+  return {
+    // Worst first. A manager asking about movement is looking for the problem,
+    // not for an alphabetical list.
+    rows: rows.map((row) => ({
+      skuId: row.sku_id,
+      skuName: row.name,
+      category: row.category,
+      unitsAvailable: num(row.units),
+      velocityAvg: round2(num(row.velocity_sum) / Math.max(1, num(row.observations))),
+      daysOutOfStock: num(row.days_out),
+      observations: num(row.observations),
+    })),
+    totalCount,
+    truncated: totalCount > rows.length,
+  };
 }
 
 export interface StockLevels {
   onShelfAvailabilityPct: number;
   linesObserved: number;
   outOfStockLines: number;
+  /** Every outlet with a stock-out in scope; `worstOutlets` is the top of these. */
   outletsWithStockout: number;
   /**
    * Coordinates ride here so the `outlet_map` artifact can draw pins straight
@@ -330,97 +377,112 @@ export interface StockLevels {
     lat: number;
     lng: number;
   }[];
+  /** True when `worstOutlets` lists fewer outlets than `outletsWithStockout`. */
   truncated: boolean;
 }
 
 /** Stock — availability, and where it is worst. */
 export async function getStockLevels(input: PillarWindow): Promise<StockLevels> {
-  const rows = await prisma.visitStock.findMany({
-    where: { visit: await visitScope(input) },
-    select: {
-      unitsAvailable: true,
-      visit: {
-        select: { outletId: true, outlet: { select: { name: true, lat: true, lng: true } } },
-      },
-    },
-    take: MAX_SCAN + 1,
-  });
+  // One scan: per-outlet counts, with the whole-scope totals as window sums over
+  // every outlet row *before* the limit applies. Outlets are ordered by
+  // stock-outs, so any outlet with one sorts ahead of every outlet without, and
+  // dropping the zero rows after the limit cannot lose a worse outlet.
+  const rows = await prisma.$queryRaw<
+    {
+      outlet_id: string;
+      name: string;
+      lat: number;
+      lng: number;
+      oos: unknown;
+      total_lines: unknown;
+      total_oos: unknown;
+      outlets_with_stockout: unknown;
+    }[]
+  >`
+    WITH per_outlet AS (
+      SELECT v."outlet_id",
+        COUNT(*)::int AS lines,
+        COUNT(*) FILTER (WHERE vs."units_available" <= 0)::int AS oos
+      FROM "visit_stock" vs
+      JOIN "visits" v ON v."id" = vs."visit_id"
+      WHERE ${await visitWhere(input)}
+      GROUP BY v."outlet_id"
+    )
+    SELECT p."outlet_id", o."name", o."lat", o."lng", p.oos,
+      SUM(p.lines) OVER ()::float8 AS total_lines,
+      SUM(p.oos) OVER ()::float8 AS total_oos,
+      COUNT(*) FILTER (WHERE p.oos > 0) OVER ()::int AS outlets_with_stockout
+    FROM per_outlet p
+    JOIN "outlets" o ON o."id" = p."outlet_id"
+    ORDER BY p.oos DESC, o."name" ASC, p."outlet_id" ASC
+    LIMIT ${WORST_OUTLETS_LIMIT}
+  `;
 
-  const scanned = rows.slice(0, MAX_SCAN);
-  const outOfStock = scanned.filter((r) => r.unitsAvailable <= 0);
-
-  const byOutlet = new Map<string, StockLevels['worstOutlets'][number]>();
-  for (const row of outOfStock) {
-    const key = row.visit.outletId;
-    const existing = byOutlet.get(key);
-    if (existing) existing.outOfStockLines += 1;
-    else
-      byOutlet.set(key, {
-        outletId: key,
-        outletName: row.visit.outlet.name,
-        outOfStockLines: 1,
-        lat: row.visit.outlet.lat,
-        lng: row.visit.outlet.lng,
-      });
-  }
+  const lines = num(rows[0]?.total_lines);
+  const outOfStockLines = num(rows[0]?.total_oos);
+  const outletsWithStockout = num(rows[0]?.outlets_with_stockout);
+  const worst = rows.filter((row) => num(row.oos) > 0);
 
   return {
-    onShelfAvailabilityPct: pct(scanned.length - outOfStock.length, scanned.length),
-    linesObserved: scanned.length,
-    outOfStockLines: outOfStock.length,
-    outletsWithStockout: byOutlet.size,
-    worstOutlets: [...byOutlet.values()]
-      .sort((a, b) => b.outOfStockLines - a.outOfStockLines)
-      .slice(0, 10),
-    truncated: rows.length > MAX_SCAN,
+    onShelfAvailabilityPct: pct(lines - outOfStockLines, lines),
+    linesObserved: lines,
+    outOfStockLines,
+    outletsWithStockout,
+    worstOutlets: worst.map((row) => ({
+      outletId: row.outlet_id,
+      outletName: row.name,
+      outOfStockLines: num(row.oos),
+      lat: row.lat,
+      lng: row.lng,
+    })),
+    truncated: outletsWithStockout > worst.length,
   };
 }
 
-/** Safely read a facings JSON column's `.total`. Mirrors `kpiMath.facingsTotal`. */
-function facingsOf(value: unknown): number {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return 0;
-  const total = (value as Record<string, unknown>).total;
-  return typeof total === 'number' && Number.isFinite(total) ? total : 0;
-}
+/**
+ * A facings JSON column's `.total`, in SQL. Mirrors `kpiMath.facingsTotal`: a
+ * non-object column or a non-numeric total counts as 0 rather than failing.
+ */
+const OWN_FACINGS_SQL = Prisma.sql`CASE
+  WHEN jsonb_typeof(vv."facings_count") = 'object'
+    AND jsonb_typeof(vv."facings_count"->'total') = 'number'
+  THEN (vv."facings_count"->>'total')::float8
+  ELSE 0 END`;
 
 export interface ShareOfShelf {
   shareOfShelfPct: number;
   ourFacings: number;
   competitorFacings: number;
   observations: number;
-  truncated: boolean;
 }
 
 /** Visibility — our facings against the competition's. */
 export async function getShareOfShelf(input: PillarWindow): Promise<ShareOfShelf> {
-  const scope = await visitScope(input);
+  const where = await visitWhere(input);
 
-  const [ours, theirs] = await Promise.all([
-    prisma.visitVisibility.findMany({
-      where: { visit: scope },
-      select: { facingsCount: true },
-      take: MAX_SCAN + 1,
-    }),
-    prisma.visitCompetitive.findMany({
-      where: { visit: scope },
-      // Counting rows instead of this column made a competitor holding a whole
-      // shelf count the same as one holding a single can.
-      select: { facingsCount: true },
-      take: MAX_SCAN + 1,
-    }),
-  ]);
+  const [ours] = await prisma.$queryRaw<{ facings: unknown; observations: unknown }[]>`
+    SELECT COALESCE(SUM(${OWN_FACINGS_SQL}), 0)::float8 AS facings, COUNT(*)::int AS observations
+    FROM "visit_visibility" vv
+    JOIN "visits" v ON v."id" = vv."visit_id"
+    WHERE ${where}
+  `;
+  // Summing this column rather than counting rows: counting made a competitor
+  // holding a whole shelf count the same as one holding a single can.
+  const [theirs] = await prisma.$queryRaw<{ facings: unknown }[]>`
+    SELECT COALESCE(SUM(vc."facings_count"), 0)::float8 AS facings
+    FROM "visit_competitive" vc
+    JOIN "visits" v ON v."id" = vc."visit_id"
+    WHERE ${where}
+  `;
 
-  const ourFacings = ours.slice(0, MAX_SCAN).reduce((sum, r) => sum + facingsOf(r.facingsCount), 0);
-  const competitorFacings = theirs
-    .slice(0, MAX_SCAN)
-    .reduce((sum, r) => sum + r.facingsCount, 0);
+  const ourFacings = num(ours?.facings);
+  const competitorFacings = num(theirs?.facings);
 
   return {
     shareOfShelfPct: pct(ourFacings, ourFacings + competitorFacings),
     ourFacings,
     competitorFacings,
-    observations: Math.min(ours.length, MAX_SCAN),
-    truncated: ours.length > MAX_SCAN || theirs.length > MAX_SCAN,
+    observations: num(ours?.observations),
   };
 }
 
@@ -429,27 +491,33 @@ export interface VisibilityCompliance {
   cleanlinessScore: number;
   highTrafficPassPct: number;
   observations: number;
-  truncated: boolean;
 }
 
 /** Visibility — planogram compliance and shelf quality. */
 export async function getVisibilityCompliance(
   input: PillarWindow,
 ): Promise<VisibilityCompliance> {
-  const rows = await prisma.visitVisibility.findMany({
-    where: { visit: await visitScope(input) },
-    select: { planogramCompliancePct: true, cleanlinessScore: true, highTrafficPass: true },
-    take: MAX_SCAN + 1,
-  });
+  const [row] = await prisma.$queryRaw<
+    { planogram: unknown; cleanliness: unknown; high_traffic: unknown; observations: unknown }[]
+  >`
+    SELECT COALESCE(SUM(vv."planogram_compliance_pct"), 0)::float8 AS planogram,
+      COALESCE(SUM(vv."cleanliness_score"), 0)::float8 AS cleanliness,
+      COUNT(*) FILTER (WHERE vv."high_traffic_pass")::int AS high_traffic,
+      COUNT(*)::int AS observations
+    FROM "visit_visibility" vv
+    JOIN "visits" v ON v."id" = vv."visit_id"
+    WHERE ${await visitWhere(input)}
+  `;
 
-  const scanned = rows.slice(0, MAX_SCAN);
+  const observations = num(row?.observations);
+  // `mean` over an empty set is 0, so the division is guarded the same way.
+  const average = (sum: unknown) => (observations > 0 ? round2(num(sum) / observations) : 0);
 
   return {
-    planogramCompliancePct: mean(scanned.map((r) => r.planogramCompliancePct)),
-    cleanlinessScore: mean(scanned.map((r) => r.cleanlinessScore)),
-    highTrafficPassPct: pct(scanned.filter((r) => r.highTrafficPass).length, scanned.length),
-    observations: scanned.length,
-    truncated: rows.length > MAX_SCAN,
+    planogramCompliancePct: average(row?.planogram),
+    cleanlinessScore: average(row?.cleanliness),
+    highTrafficPassPct: pct(num(row?.high_traffic), observations),
+    observations,
   };
 }
 
@@ -457,56 +525,61 @@ export interface CompetitorActivity {
   observations: number;
   distinctCompetitorSkus: number;
   promoterPresencePct: number;
+  /** Most facings first; the top of `distinctCompetitorSkus`. */
   topCompetitors: {
     competitorSku: string;
     sightings: number;
     averagePrice: number;
     facings: number;
   }[];
+  /** True when `topCompetitors` lists fewer SKUs than `distinctCompetitorSkus`. */
   truncated: boolean;
 }
 
 /** Competition — who is on the shelf, at what price. */
 export async function getCompetitorActivity(input: PillarWindow): Promise<CompetitorActivity> {
-  const rows = await prisma.visitCompetitive.findMany({
-    where: { visit: await visitScope(input) },
-    select: {
-      competitorSku: true,
-      competitorPrice: true,
-      competitorPromoterPresent: true,
-      facingsCount: true,
-    },
-    take: MAX_SCAN + 1,
-  });
+  const where = await visitWhere(input);
 
-  const scanned = rows.slice(0, MAX_SCAN);
-  const bySku = new Map<string, { sightings: number; prices: number[]; facings: number }>();
+  const [totals] = await prisma.$queryRaw<
+    { observations: unknown; promoters: unknown; distinct_skus: unknown }[]
+  >`
+    SELECT COUNT(*)::int AS observations,
+      COUNT(*) FILTER (WHERE vc."competitor_promoter_present")::int AS promoters,
+      COUNT(DISTINCT vc."competitor_sku")::int AS distinct_skus
+    FROM "visit_competitive" vc
+    JOIN "visits" v ON v."id" = vc."visit_id"
+    WHERE ${where}
+  `;
 
-  for (const row of scanned) {
-    const entry = bySku.get(row.competitorSku) ?? { sightings: 0, prices: [], facings: 0 };
-    entry.sightings += 1;
-    entry.prices.push(row.competitorPrice);
-    entry.facings += row.facingsCount;
-    bySku.set(row.competitorSku, entry);
-  }
+  const top = await prisma.$queryRaw<
+    { competitor_sku: string; sightings: unknown; price_sum: unknown; facings: unknown }[]
+  >`
+    SELECT vc."competitor_sku",
+      COUNT(*)::int AS sightings,
+      SUM(vc."competitor_price")::float8 AS price_sum,
+      SUM(vc."facings_count")::float8 AS facings
+    FROM "visit_competitive" vc
+    JOIN "visits" v ON v."id" = vc."visit_id"
+    WHERE ${where}
+    GROUP BY vc."competitor_sku"
+    ORDER BY facings DESC, vc."competitor_sku" ASC
+    LIMIT ${TOP_COMPETITORS_LIMIT}
+  `;
+
+  const observations = num(totals?.observations);
+  const distinctCompetitorSkus = num(totals?.distinct_skus);
 
   return {
-    observations: scanned.length,
-    distinctCompetitorSkus: bySku.size,
-    promoterPresencePct: pct(
-      scanned.filter((r) => r.competitorPromoterPresent).length,
-      scanned.length,
-    ),
-    topCompetitors: [...bySku.entries()]
-      .map(([competitorSku, entry]) => ({
-        competitorSku,
-        sightings: entry.sightings,
-        averagePrice: mean(entry.prices),
-        facings: entry.facings,
-      }))
-      .sort((a, b) => b.facings - a.facings)
-      .slice(0, 10),
-    truncated: rows.length > MAX_SCAN,
+    observations,
+    distinctCompetitorSkus,
+    promoterPresencePct: pct(num(totals?.promoters), observations),
+    topCompetitors: top.map((row) => ({
+      competitorSku: row.competitor_sku,
+      sightings: num(row.sightings),
+      averagePrice: round2(num(row.price_sum) / Math.max(1, num(row.sightings))),
+      facings: num(row.facings),
+    })),
+    truncated: distinctCompetitorSkus > top.length,
   };
 }
 
@@ -516,6 +589,7 @@ export interface VisitSummary {
   inProgress: number;
   outletsVisited: number;
   geofenceFailures: number;
+  /** The newest visits, newest first; the top of `visits`. */
   recent: {
     visitId: string;
     outletName: string;
@@ -525,6 +599,7 @@ export interface VisitSummary {
     checkinTs: string;
     status: string;
   }[];
+  /** True when `recent` lists fewer visits than `visits`. The counts are still whole. */
   truncated: boolean;
 }
 
@@ -532,35 +607,49 @@ export interface VisitSummary {
 export async function getVisitSummary(
   input: PillarWindow & { agentId?: string; outletId?: string },
 ): Promise<VisitSummary> {
-  const scope = await visitScope(input);
-  const rows = await prisma.visit.findMany({
+  const [totals] = await prisma.$queryRaw<
+    { visits: unknown; submitted: unknown; in_progress: unknown; outlets: unknown; geofence: unknown }[]
+  >`
+    SELECT COUNT(*)::int AS visits,
+      COUNT(*) FILTER (WHERE v."status" = 'submitted')::int AS submitted,
+      COUNT(*) FILTER (WHERE v."status" = 'in_progress')::int AS in_progress,
+      COUNT(DISTINCT v."outlet_id")::int AS outlets,
+      COUNT(*) FILTER (WHERE NOT v."geofence_pass")::int AS geofence
+    FROM "visits" v
+    WHERE ${await visitWhere(input)}
+  `;
+
+  // The list is a page, not an aggregate, so it stays a Prisma read over the
+  // same scope — it needs the agent and outlet relations, and only 20 rows.
+  const outlet = await territoryFilter(input.clientId, input.territoryId);
+  const recent = await prisma.visit.findMany({
     where: {
-      ...scope,
+      clientId: input.clientId,
+      checkinTs: { gte: input.from, lt: input.to },
+      ...(Object.keys(outlet).length > 0 ? { outlet } : {}),
       ...(input.agentId ? { agentId: input.agentId } : {}),
       ...(input.outletId ? { outletId: input.outletId } : {}),
     },
     select: {
       id: true,
-      outletId: true,
       status: true,
       checkinTs: true,
-      geofencePass: true,
       outlet: { select: { name: true } },
       agent: { select: { email: true, displayName: true } },
     },
     orderBy: [{ checkinTs: 'desc' }, { id: 'desc' }],
-    take: MAX_SCAN + 1,
+    take: RECENT_VISITS_LIMIT,
   });
 
-  const scanned = rows.slice(0, MAX_SCAN);
+  const visits = num(totals?.visits);
 
   return {
-    visits: scanned.length,
-    submitted: scanned.filter((r) => r.status === 'submitted').length,
-    inProgress: scanned.filter((r) => r.status === 'in_progress').length,
-    outletsVisited: new Set(scanned.map((r) => r.outletId)).size,
-    geofenceFailures: scanned.filter((r) => !r.geofencePass).length,
-    recent: scanned.slice(0, 20).map((r) => ({
+    visits,
+    submitted: num(totals?.submitted),
+    inProgress: num(totals?.in_progress),
+    outletsVisited: num(totals?.outlets),
+    geofenceFailures: num(totals?.geofence),
+    recent: recent.map((r) => ({
       visitId: r.id,
       outletName: r.outlet.name,
       agentName: personLabel(r.agent.displayName, r.agent.email),
@@ -568,6 +657,6 @@ export async function getVisitSummary(
       checkinTs: r.checkinTs.toISOString(),
       status: r.status,
     })),
-    truncated: rows.length > MAX_SCAN,
+    truncated: visits > recent.length,
   };
 }

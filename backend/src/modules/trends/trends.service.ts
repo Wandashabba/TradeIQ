@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { facingsTotal, mean, pct, round2 } from '../../lib/kpiMath';
 import { kpiThreshold } from '../../lib/kpiThresholds';
@@ -320,12 +321,107 @@ async function loadShareOfShelf(scope: Scope): Promise<MetricRows> {
   });
 }
 
+// ── Single series, aggregated in the database (#359) ───────────────────────
+//
+// The four series endpoints below — which the assistant's `getMetricTrend`
+// also reads — used to load every row in the window into memory and bucket it
+// in JS. That was correct but scaled with the row count: at two years of data
+// the availability series read 840k stock lines and took ~24s. They now group
+// in Postgres and return one row per bucket.
+//
+// The rules are the ones above, restated in SQL: the same inclusive
+// `resolveWindow` bounds on the same column, the same tenant and territory
+// filter, and the same bucket — the row's calendar date in the client's zone
+// (Monday of it for weeks; `date_trunc('week')` is ISO, so Monday-based). The
+// reducers still run in JS, over the per-bucket sums, through the same
+// `pct`/`round2`, so a bucket cannot round differently from before.
+//
+// The benchmark keeps the in-memory loaders: it needs every territory's split
+// of the same rows, which is a larger rewrite than this change.
+
+interface BucketRow {
+  bucket: Date;
+  n: unknown;
+  a: unknown;
+  b: unknown;
+}
+
+function toNumber(value: unknown): number {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** `ts` (a UTC `timestamp`) as a bucket key in the client's calendar. */
+function bucketSql(column: Prisma.Sql, scope: Scope, interval: TrendInterval): Prisma.Sql {
+  const local = Prisma.sql`((${column} AT TIME ZONE 'UTC') AT TIME ZONE ${scope.timeZone})`;
+  return interval === 'day'
+    ? Prisma.sql`(${local})::date`
+    : Prisma.sql`(date_trunc('week', ${local}))::date`;
+}
+
+/** `resolveWindow`, as a predicate on `column`. */
+function windowSql(column: Prisma.Sql, scope: Scope): Prisma.Sql {
+  const window = resolveWindow(scope.from, scope.to);
+  return Prisma.sql`${
+    window?.gte ? Prisma.sql`AND ${column} >= ${window.gte.toISOString()}::timestamp` : Prisma.empty
+  } ${window?.lte ? Prisma.sql`AND ${column} <= ${window.lte.toISOString()}::timestamp` : Prisma.empty}`;
+}
+
+/** {@link visitScope}, as a predicate on `visits v`. */
+function visitScopeSql(scope: Scope): Prisma.Sql {
+  return Prisma.sql`v."client_id" = ${scope.clientId} ${
+    scope.territoryCode !== undefined
+      ? Prisma.sql`AND v."outlet_id" IN (SELECT o."id" FROM "outlets" o WHERE o."territory_id" = ${scope.territoryCode})`
+      : Prisma.empty
+  }`;
+}
+
+/**
+ * Bucket rows (already sorted and one per bucket) into a series. `bucket` comes
+ * back from Postgres as a `date`, which Prisma hands over as UTC midnight of
+ * that date — exactly the {@link TrendPoint.period} convention.
+ */
+function seriesFromBuckets(
+  rows: BucketRow[],
+  interval: TrendInterval,
+  value: (row: { n: number; a: number; b: number }) => number,
+): TrendSeries {
+  return {
+    interval,
+    points: rows.map((row) => {
+      const numbers = { n: toNumber(row.n), a: toNumber(row.a), b: toNumber(row.b) };
+      return {
+        period: new Date(row.bucket).toISOString(),
+        value: round2(value(numbers)),
+        count: numbers.n,
+      };
+    }),
+  };
+}
+
+/** Scorecard rows per bucket: count, sum of `weighted_total`, green count. */
+async function scorecardBuckets(scope: Scope, interval: TrendInterval): Promise<BucketRow[]> {
+  const bucket = bucketSql(Prisma.sql`sc."created_at"`, scope, interval);
+  return prisma.$queryRaw<BucketRow[]>`
+    SELECT ${bucket} AS bucket,
+      COUNT(*)::int AS n,
+      SUM(sc."weighted_total")::float8 AS a,
+      COUNT(*) FILTER (WHERE sc."rating_band" = 'green')::int AS b
+    FROM "scorecards" sc
+    JOIN "visits" v ON v."id" = sc."visit_id"
+    WHERE ${visitScopeSql(scope)} ${windowSql(Prisma.sql`sc."created_at"`, scope)}
+    GROUP BY 1
+    ORDER BY 1
+  `;
+}
+
 /**
  * Mean weighted scorecard total per bucket. `value` = mean weightedTotal,
  * `count` = number of scorecards in the bucket.
  */
 export async function getScorecardsTrend(filters: TrendFilters): Promise<TrendSeries> {
-  return (await loadScorecards(await scopeFor(filters))).series(filters.interval);
+  const rows = await scorecardBuckets(await scopeFor(filters), filters.interval);
+  return seriesFromBuckets(rows, filters.interval, ({ n, a }) => (n > 0 ? round2(a / n) : 0));
 }
 
 /**
@@ -333,7 +429,20 @@ export async function getScorecardsTrend(filters: TrendFilters): Promise<TrendSe
  * unitsAvailable > 0) / (stock rows in the bucket).
  */
 export async function getAvailabilityTrend(filters: TrendFilters): Promise<TrendSeries> {
-  return (await loadAvailability(await scopeFor(filters))).series(filters.interval);
+  const scope = await scopeFor(filters);
+  const bucket = bucketSql(Prisma.sql`vs."created_at"`, scope, filters.interval);
+  const rows = await prisma.$queryRaw<BucketRow[]>`
+    SELECT ${bucket} AS bucket,
+      COUNT(*)::int AS n,
+      COUNT(*) FILTER (WHERE vs."units_available" > 0)::int AS a,
+      0 AS b
+    FROM "visit_stock" vs
+    JOIN "visits" v ON v."id" = vs."visit_id"
+    WHERE ${visitScopeSql(scope)} ${windowSql(Prisma.sql`vs."created_at"`, scope)}
+    GROUP BY 1
+    ORDER BY 1
+  `;
+  return seriesFromBuckets(rows, filters.interval, ({ n, a }) => pct(a, n));
 }
 
 /**
@@ -341,7 +450,8 @@ export async function getAvailabilityTrend(filters: TrendFilters): Promise<Trend
  * ratingBand === 'green') / (scorecards in the bucket).
  */
 export async function getPerfectStoreTrend(filters: TrendFilters): Promise<TrendSeries> {
-  return (await loadPerfectStore(await scopeFor(filters))).series(filters.interval);
+  const rows = await scorecardBuckets(await scopeFor(filters), filters.interval);
+  return seriesFromBuckets(rows, filters.interval, ({ n, b }) => pct(b, n));
 }
 
 /**
@@ -351,7 +461,43 @@ export async function getPerfectStoreTrend(filters: TrendFilters): Promise<Trend
  * benchmark, which ranks territories against each other, drops such visits.
  */
 export async function getShareOfShelfTrend(filters: TrendFilters): Promise<TrendSeries> {
-  return (await loadShareOfShelf(await scopeFor(filters))).series(filters.interval);
+  const scope = await scopeFor(filters);
+  const bucket = bucketSql(Prisma.sql`v."checkin_ts"`, scope, filters.interval);
+  // Own facings mirror `facingsTotal`: a non-object column or a non-numeric
+  // `total` is 0. Competitor facings are summed per bucket separately so a
+  // visit with several competitor rows cannot multiply its own facings.
+  const rows = await prisma.$queryRaw<BucketRow[]>`
+    WITH scoped AS (
+      SELECT v."id", ${bucket} AS bucket
+      FROM "visits" v
+      WHERE ${visitScopeSql(scope)} ${windowSql(Prisma.sql`v."checkin_ts"`, scope)}
+    ),
+    visits_per AS (
+      SELECT s.bucket, COUNT(*)::int AS n FROM scoped s GROUP BY s.bucket
+    ),
+    own AS (
+      SELECT s.bucket, SUM(CASE
+          WHEN jsonb_typeof(vv."facings_count") = 'object'
+            AND jsonb_typeof(vv."facings_count"->'total') = 'number'
+          THEN (vv."facings_count"->>'total')::float8
+          ELSE 0 END)::float8 AS facings
+      FROM scoped s
+      JOIN "visit_visibility" vv ON vv."visit_id" = s."id"
+      GROUP BY s.bucket
+    ),
+    theirs AS (
+      SELECT s.bucket, SUM(vc."facings_count")::float8 AS facings
+      FROM scoped s
+      JOIN "visit_competitive" vc ON vc."visit_id" = s."id"
+      GROUP BY s.bucket
+    )
+    SELECT p.bucket, p.n, COALESCE(own.facings, 0) AS a, COALESCE(theirs.facings, 0) AS b
+    FROM visits_per p
+    LEFT JOIN own ON own.bucket = p.bucket
+    LEFT JOIN theirs ON theirs.bucket = p.bucket
+    ORDER BY p.bucket
+  `;
+  return seriesFromBuckets(rows, filters.interval, ({ a, b }) => pct(a, a + b));
 }
 
 // ── Territory benchmark (#123) ───────────────────────────────────────────

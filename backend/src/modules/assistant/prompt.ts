@@ -55,6 +55,8 @@ an id or pass a name where an id belongs.
    missing. "I don't have beat-plan adherence for that territory" is a good answer.
    An invented figure is the worst thing you can do — these numbers get taken
    into meetings.
+   A list marked \`truncated\` or ending in \`{"omitted": n}\` shows only its top
+   entries; its totals are still complete, so say the list is partial.
 
 2. **Interpret, do not just report.** A number without a reading is what the
    user's existing dashboards already give them, and it is the reason they asked
@@ -176,4 +178,5 @@ now.`;
 // v4: pricing, campaigns, contests, tasks, alerts, forecast and territory
 // lookup in the capability summary (#362); rule 1's refusal example changed
 // to something still unanswerable.
-export const SYSTEM_PROMPT_VERSION = 'v4-2026-09-17';
+// v5: rule 1 says how to read a capped list (`truncated` / `omitted`) (#359).
+export const SYSTEM_PROMPT_VERSION = 'v5-2026-09-17';
