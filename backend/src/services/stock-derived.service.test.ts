@@ -19,6 +19,15 @@ describe('computeDaysOutOfStock', () => {
   it('approximates at visit-cadence granularity for weekly beats', () => {
     expect(computeDaysOutOfStock([daysAgo(7, 5)], now)).toBe(7);
   });
+  it('anchors on the last in-stock count even when it is older than the history window (#360)', () => {
+    const emptyWindow = [1, 2, 3, 4, 5].map((n) => daysAgo(n, 0));
+    const lastInStock = daysAgo(31, 12).visitCheckinTs;
+    expect(computeDaysOutOfStock(emptyWindow, now)).toBe(0);
+    expect(computeDaysOutOfStock(emptyWindow, now, lastInStock)).toBe(31);
+  });
+  it('reads 0 when the SKU has never been in stock at the outlet', () => {
+    expect(computeDaysOutOfStock([daysAgo(3, 0)], now, null)).toBe(0);
+  });
 });
 
 describe('computeVelocityAvg', () => {

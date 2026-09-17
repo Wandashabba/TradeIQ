@@ -5,6 +5,7 @@ import { predictCoverageDays } from '../../services/forecast.service';
 import {
   computeDaysOutOfStock,
   computeVelocityAvg,
+  fetchLastInStockForOutlet,
   fetchStockHistoryForOutlet,
 } from '../../services/stock-derived.service';
 import { computeSlaDueAt } from '../../lib/slaClock';
@@ -99,12 +100,23 @@ export async function recordStock(input: RecordStockInput) {
   // daysOutOfStock/velocityAvg are neither observable at a shelf nor
   // trustworthy when field-agent-typed — derive both server-side from the
   // outlet's VisitStock history instead (#112).
-  const historyBySku = await fetchStockHistoryForOutlet(visit.outletId, input.clientId);
+  //
+  // Days out of stock anchors on the last in-stock count over the outlet's
+  // whole history, not the five-count velocity window, so a chronic stock-out
+  // keeps counting up instead of reading 0 (#360).
+  const [historyBySku, lastInStockBySku] = await Promise.all([
+    fetchStockHistoryForOutlet(visit.outletId, input.clientId),
+    fetchLastInStockForOutlet(visit.outletId, input.clientId),
+  ]);
 
   const rows = await prisma.$transaction(
     input.items.map((item) => {
       const history = historyBySku.get(item.skuId) ?? [];
-      const daysOutOfStock = computeDaysOutOfStock(history, visit.checkinTs);
+      const daysOutOfStock = computeDaysOutOfStock(
+        history,
+        visit.checkinTs,
+        lastInStockBySku.get(item.skuId) ?? null,
+      );
       const velocityAvg = computeVelocityAvg(history);
       return prisma.visitStock.create({
         data: {

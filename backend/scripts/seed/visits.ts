@@ -199,6 +199,8 @@ export class StockMemory {
   private readonly history = new Map<string, StockHistoryRow[]>();
   private readonly restocked = new Map<string, Date>();
   private readonly visitsByOutlet = new Map<string, number>();
+  /** Last in-stock count per outlet|SKU over the whole run, like capture reads (#360). */
+  private readonly inStockAt = new Map<string, Date>();
 
   historyFor(outletId: string, skuId: string): StockHistoryRow[] {
     return this.history.get(`${outletId}|${skuId}`) ?? [];
@@ -208,6 +210,11 @@ export class StockMemory {
     const key = `${outletId}|${skuId}`;
     const list = [row, ...(this.history.get(key) ?? [])].slice(0, 5);
     this.history.set(key, list);
+    if (row.unitsAvailable > 0) this.inStockAt.set(key, row.visitCheckinTs);
+  }
+
+  lastInStock(outletId: string, skuId: string): Date | null {
+    return this.inStockAt.get(`${outletId}|${skuId}`) ?? null;
   }
 
   lastRestock(outletId: string, skuId: string): Date | undefined {
@@ -324,13 +331,12 @@ export function captureVisit(rng: () => number, memory: StockMemory, input: Capt
     }
 
     // Exactly what stock capture stores (stock.service.ts, #112): both derived
-    // fields come from the outlet's PRIOR five counts of the SKU, not from this
-    // one. That window has consequences worth knowing when reading the data —
-    // days out of stock is "days since the last of those five showed stock", so
-    // a shelf empty for more than five visits reads 0 — and the seed keeps them
-    // rather than storing numbers capture never would.
+    // fields come from the outlet's PRIOR counts of the SKU, not from this one.
+    // Velocity reads the last five; days out of stock reads the last in-stock
+    // count however far back it was, so a chronic gap keeps counting up rather
+    // than resetting to 0 after five empty visits (#360).
     const current: StockHistoryRow = { visitCheckinTs: checkinTs, unitsAvailable: units };
-    const daysOutOfStock = computeDaysOutOfStock(prior, checkinTs);
+    const daysOutOfStock = computeDaysOutOfStock(prior, checkinTs, memory.lastInStock(outlet.id, sku.id));
     const velocityAvg = computeVelocityAvg(prior);
 
     if (lastUnits === undefined || units > lastUnits) {

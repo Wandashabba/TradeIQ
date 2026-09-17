@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { runTurn, type WireEvent } from './orchestrator';
+import { BUDGET_NOTICE, MAX_PARALLEL_TOOLS, runTurn, type WireEvent } from './orchestrator';
 import type { LlmProvider, TurnEvent, TurnInput } from './providers/types';
 import type { AssistantTracer, TurnSummary, TurnTrace } from './tracing';
 import { eraseToolTypes, ToolFacingError, type AnyAssistantTool } from './types';
@@ -624,7 +624,7 @@ describe('orchestrator', () => {
       expect(rounds[1].toolChoice).toBe('none');
     });
 
-    it('truncates an oversized tool result and says so', async () => {
+    it('shrinks an oversized tool result to valid JSON that says what it omitted', async () => {
       const provider = scriptedProvider([
         callTool('getAgentScorecard', { agentId: 'a' }),
         say('done'),
@@ -634,7 +634,9 @@ describe('orchestrator', () => {
         runTurn({
           provider,
           tools: [
-            testTool({ run: async () => ({ rows: Array(20_000).fill({ n: 123456 }) }) } as never),
+            testTool({
+              run: async () => ({ total: 20_000, rows: Array(20_000).fill({ n: 123456 }) }),
+            } as never),
           ],
           messages: [{ role: 'user', content: 'q' }],
           signal: signal(),
@@ -643,7 +645,238 @@ describe('orchestrator', () => {
 
       const history = provider.calls.filter((c) => c.model !== 'quarantine')[1].messages;
       const toolMessage = history.find((m) => m.role === 'tool') as { content: string };
-      expect(toolMessage.content).toContain('truncated');
+      const parsed = JSON.parse(toolMessage.content);
+      expect(parsed.total).toBe(20_000);
+      expect(parsed.rows[parsed.rows.length - 1]).toEqual({ omitted: 20_000 - (parsed.rows.length - 1) });
+      expect(parsed.shrunkNote).toContain('omitted');
+    });
+
+    it('allows ten tool rounds by default', async () => {
+      const rounds = Array.from({ length: 10 }, (_, i) =>
+        callTool('getAgentScorecard', { agentId: `a${i}` }, `c${i}`),
+      );
+      const provider = scriptedProvider([...rounds, say('answer')]);
+
+      const events = await collect(
+        runTurn({ provider, tools: [testTool()], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+
+      expect(events.filter((e) => e.event === 'tool_start')).toHaveLength(10);
+      const orchestratorRounds = provider.calls.filter((c) => c.model !== 'quarantine');
+      expect(orchestratorRounds).toHaveLength(11);
+      expect(orchestratorRounds[10].toolChoice).toBe('none');
+    });
+
+    it('stops at an identical repeated call instead of running it again', async () => {
+      let runs = 0;
+      const provider = scriptedProvider([
+        callTool('getAgentScorecard', { agentId: 'a' }, 'c1'),
+        callTool('getAgentScorecard', { agentId: 'a' }, 'c2'),
+        say('answer'),
+      ]);
+
+      const events = await collect(
+        runTurn({
+          provider,
+          tools: [testTool({ run: async () => ((runs += 1), { score: 1 }) } as never)],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+        }),
+      );
+
+      expect(runs).toBe(1);
+      expect(events.filter((e) => e.event === 'tool_start')).toHaveLength(1);
+      const orchestratorRounds = provider.calls.filter((c) => c.model !== 'quarantine');
+      expect(orchestratorRounds).toHaveLength(3);
+      expect(orchestratorRounds[2].toolChoice).toBe('none');
+      const last = orchestratorRounds[2].messages[orchestratorRounds[2].messages.length - 1] as {
+        content: string;
+      };
+      expect(JSON.parse(last.content).turnNote).toContain('repeated');
+      // A repeat is not a budget: the answer carries no budget notice.
+      expect(events.filter((e) => e.event === 'token').map((e) => (e.data as { text: string }).text)).toEqual([
+        'answer',
+      ]);
+    });
+
+    it('treats reordered object keys as the same call', async () => {
+      let runs = 0;
+      const provider = scriptedProvider([
+        [
+          { type: 'tool_call', id: 'c1', name: 'getAgentScorecard', args: { agentId: 'a', x: 1 } },
+          { type: 'tool_call', id: 'c2', name: 'getAgentScorecard', args: { x: 1, agentId: 'a' } },
+          { type: 'done' },
+        ],
+        say('answer'),
+      ]);
+
+      await collect(
+        runTurn({
+          provider,
+          tools: [testTool({ run: async () => ((runs += 1), { score: 1 }) } as never)],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+        }),
+      );
+
+      expect(runs).toBe(1);
+      // Every call still gets a response, which the provider requires.
+      const history = provider.calls.filter((c) => c.model !== 'quarantine')[1].messages;
+      expect(history.filter((m) => m.role === 'tool')).toHaveLength(2);
+    });
+
+    it('tells the model and the user when the round budget runs out', async () => {
+      const provider = scriptedProvider([
+        callTool('getAgentScorecard', { agentId: 'a' }, 'c1'),
+        callTool('getAgentScorecard', { agentId: 'b' }, 'c2'),
+        say('partial answer'),
+      ]);
+
+      const events = await collect(
+        runTurn({
+          provider,
+          tools: [testTool()],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          maxToolRounds: 2,
+        }),
+      );
+
+      const finalRound = provider.calls.filter((c) => c.model !== 'quarantine')[2];
+      const last = finalRound.messages[finalRound.messages.length - 1] as { content: string };
+      const wrapped = JSON.parse(last.content);
+      expect(wrapped.turnNote).toContain('Tool budget reached');
+      expect(wrapped.result).toEqual({ score: 82 });
+
+      const text = events
+        .filter((e) => e.event === 'token')
+        .map((e) => (e.data as { text: string }).text)
+        .join('');
+      expect(text).toBe(`partial answer${BUDGET_NOTICE}`);
+      expect(names(events).slice(-2)).toEqual(['usage', 'done']);
+    });
+
+    it('does not run tools a provider returns on the final round', async () => {
+      let runs = 0;
+      const provider = scriptedProvider([
+        callTool('getAgentScorecard', { agentId: 'a' }, 'c1'),
+        callTool('getAgentScorecard', { agentId: 'b' }, 'c2'),
+      ]);
+
+      const events = await collect(
+        runTurn({
+          provider,
+          tools: [testTool({ run: async () => ((runs += 1), { score: 1 }) } as never)],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          maxToolRounds: 1,
+        }),
+      );
+
+      expect(runs).toBe(1);
+      expect(names(events)).toEqual(['tool_start', 'tool_end', 'token', 'usage', 'done']);
+    });
+
+    it('withdraws tools once the cost budget is spent', async () => {
+      const provider = scriptedProvider([
+        [
+          { type: 'tool_call', id: 'c1', name: 'getAgentScorecard', args: { agentId: 'a' } },
+          { type: 'usage', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, costCents: 5 } },
+          { type: 'done' },
+        ],
+        say('answer'),
+      ]);
+
+      const events = await collect(
+        runTurn({
+          provider,
+          tools: [testTool()],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          budget: { maxCostCents: 5 },
+        }),
+      );
+
+      const rounds = provider.calls.filter((c) => c.model !== 'quarantine');
+      expect(rounds[1].toolChoice).toBe('none');
+      const last = rounds[1].messages[rounds[1].messages.length - 1] as { content: string };
+      expect(JSON.parse(last.content).turnNote).toContain('Cost budget');
+      expect(names(events)).toContain('done');
+    });
+
+    it('withdraws tools once the time budget is spent', async () => {
+      const provider = scriptedProvider([callTool('getAgentScorecard', { agentId: 'a' }), say('answer')]);
+
+      await collect(
+        runTurn({
+          provider,
+          tools: [testTool()],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          budget: { maxMs: 0 },
+        }),
+      );
+
+      expect(provider.calls.filter((c) => c.model !== 'quarantine')[1].toolChoice).toBe('none');
+    });
+  });
+
+  describe('parallel tool calls', () => {
+    const calls = (n: number): TurnEvent[] => [
+      ...Array.from({ length: n }, (_, i) => ({
+        type: 'tool_call' as const,
+        id: `c${i}`,
+        name: 'getAgentScorecard',
+        args: { agentId: `a${i}` },
+      })),
+      { type: 'done' },
+    ];
+
+    it(`runs one round's calls concurrently, at most ${MAX_PARALLEL_TOOLS} at a time`, async () => {
+      let active = 0;
+      let peak = 0;
+      const tool = testTool({
+        run: async (args: { agentId: string }) => {
+          active += 1;
+          peak = Math.max(peak, active);
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          active -= 1;
+          return { agentId: args.agentId };
+        },
+      } as never);
+      const provider = scriptedProvider([calls(7), say('answer')]);
+
+      const events = await collect(
+        runTurn({ provider, tools: [tool], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+
+      expect(peak).toBe(MAX_PARALLEL_TOOLS);
+      // Emitted, and returned to the model, in the order the model asked.
+      const history = provider.calls.filter((c) => c.model !== 'quarantine')[1].messages;
+      expect(
+        history.filter((m) => m.role === 'tool').map((m) => (m as { callId: string }).callId),
+      ).toEqual(['c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6']);
+      expect(names(events).slice(0, 4)).toEqual(['tool_start', 'tool_end', 'tool_start', 'tool_end']);
+    });
+
+    it('keeps results in call order when a later call finishes first', async () => {
+      const tool = testTool({
+        run: async (args: { agentId: string }) => {
+          await new Promise((resolve) => setTimeout(resolve, args.agentId === 'a0' ? 30 : 1));
+          return { agentId: args.agentId };
+        },
+      } as never);
+      const provider = scriptedProvider([calls(2), say('answer')]);
+
+      await collect(
+        runTurn({ provider, tools: [tool], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+
+      const history = provider.calls.filter((c) => c.model !== 'quarantine')[1].messages;
+      const results = history
+        .filter((m) => m.role === 'tool')
+        .map((m) => JSON.parse((m as { content: string }).content).agentId);
+      expect(results).toEqual(['a0', 'a1']);
     });
   });
 
