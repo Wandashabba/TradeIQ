@@ -356,10 +356,14 @@ describe('background location (#153 T2)', () => {
   };
 
   /** The most recent past instant at `hour`:00 UTC, whatever day that lands on. */
-  const recentAt = (hour: number): Date => {
+  const recentAt = (hour: number, forwardMin = 0): Date => {
     const d = new Date();
     d.setUTCHours(hour, 0, 0, 0);
-    if (d.getTime() >= Date.now() - MIN) d.setUTCDate(d.getUTCDate() - 1);
+    // forwardMin is how far a caller will push PAST this anchor. Without it a
+    // test that posts anchor+90min is future-dated whenever the suite runs
+    // inside that window, and the ingest clamps future pings before the
+    // working-hours check ever runs - so outsideWorkingHours came back 0.
+    if (d.getTime() + forwardMin * MIN >= Date.now() - MIN) d.setUTCDate(d.getUTCDate() - 1);
     return d;
   };
 
@@ -624,7 +628,7 @@ describe('background location (#153 T2)', () => {
 
   describe('working hours', () => {
     it('stores a ping inside the window with source background', async () => {
-      const inside = recentAt(10);
+      const inside = recentAt(10, 90);
       const clientId = await makeClient('BG-Inside', 'UTC', {
         start: '09:00',
         end: '11:00',
@@ -647,7 +651,7 @@ describe('background location (#153 T2)', () => {
     });
 
     it('ignores a ping before the window opens, and counts it', async () => {
-      const inside = recentAt(10);
+      const inside = recentAt(10, 90);
       const early = new Date(inside.getTime() - 4 * 60 * MIN); // 06:00 the same day
       const clientId = await makeClient('BG-Early', 'UTC', {
         start: '09:00',
@@ -670,7 +674,7 @@ describe('background location (#153 T2)', () => {
     it('keeps the inside pings of a batch that straddles the edge', async () => {
       // The case the ignore-don't-refuse decision exists for: a queue flushed
       // after the window shut, holding good pings and one late one.
-      const inside = recentAt(10);
+      const inside = recentAt(10, 90);
       const clientId = await makeClient('BG-Straddle', 'UTC', {
         start: '09:00',
         end: '11:00',

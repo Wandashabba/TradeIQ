@@ -206,12 +206,14 @@ void main() {
     await tester.pumpAndSettle();
 
     final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
-    expect(map.children, hasLength(5));
+    expect(map.children, hasLength(6));
     expect(map.children[0], isA<TiqTileLayer>());
     expect(map.children[1], isA<TiqNavyTint>());
-    expect(map.children[2], isA<PolylineLayer>());
-    expect(map.children[3], isA<MarkerLayer>());
-    expect(map.children[4], isA<TiqBasemapAttribution>());
+    // Place names ride above the wash, below the trail geometry.
+    expect(map.children[2], isA<TiqBasemapLabels>());
+    expect(map.children[3], isA<PolylineLayer>());
+    expect(map.children[4], isA<MarkerLayer>());
+    expect(map.children[5], isA<TiqBasemapAttribution>());
   });
 
   testWidgets('draws the trail in luminous blue at .8 opacity', (tester) async {
@@ -462,7 +464,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final cameraBefore =
-        MapCamera.of(tester.element(find.byType(TileLayer))).center;
+        MapCamera.of(tester.element(find.byType(TileLayer).first)).center;
     expect(cameraBefore.latitude, closeTo(-26.10, 0.5));
     expect(
       tester.widget<FlutterMap>(find.byType(FlutterMap)).key,
@@ -473,7 +475,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final cameraAfter =
-        MapCamera.of(tester.element(find.byType(TileLayer))).center;
+        MapCamera.of(tester.element(find.byType(TileLayer).first)).center;
     expect(cameraAfter.latitude, closeTo(-33.90, 0.5));
     expect(cameraAfter.latitude, isNot(closeTo(cameraBefore.latitude, 1)));
     expect(
@@ -572,7 +574,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    final before = MapCamera.of(tester.element(find.byType(TileLayer))).center;
+    final before = MapCamera.of(tester.element(find.byType(TileLayer).first)).center;
     expect(before.latitude, closeTo(-26.10, 0.5));
 
     final container = ProviderScope.containerOf(
@@ -583,7 +585,7 @@ void main() {
         );
     await tester.pumpAndSettle();
 
-    final after = MapCamera.of(tester.element(find.byType(TileLayer))).center;
+    final after = MapCamera.of(tester.element(find.byType(TileLayer).first)).center;
     expect(after.latitude, closeTo(-33.90, 0.5));
     expect(after.latitude, isNot(closeTo(before.latitude, 1)));
   });
