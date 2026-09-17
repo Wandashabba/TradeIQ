@@ -250,6 +250,21 @@ void main() {
       expect(find.text('iol.co.za'), findsOneWidget);
       expect(find.text('Shoprite launches new stores'), findsOneWidget);
     });
+
+    test('labels competitor retailer-website prices apart from our own', () {
+      const tool = ToolActivity(
+          name: 'getCompetitorShelfPrices', pillar: 'competition');
+      expect(stepLabel(tool), 'Competitor shelf prices');
+      expect(stepLabel(tool), isNot(contains('get')));
+      expect(
+          stepLabel(tool),
+          isNot(stepLabel(const ToolActivity(
+              name: 'getPriceCompliance', pillar: 'competition'))));
+      expect(
+          stepLabel(tool),
+          isNot(stepLabel(const ToolActivity(
+              name: 'getCompetitorActivity', pillar: 'competition'))));
+    });
   });
 
   group('streaming text', () {

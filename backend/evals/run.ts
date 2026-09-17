@@ -7,6 +7,7 @@ import { resolve } from 'path';
 import type { AuthTokenPayload } from '../src/modules/auth/auth.service';
 import { runTurn } from '../src/modules/assistant/orchestrator';
 import { providerFor } from '../src/modules/assistant/providers';
+import { EVAL_TOOL_GATES } from '../src/modules/assistant/toolGates';
 import { buildTools } from '../src/modules/assistant/tools';
 import {
   GOLDEN_QUESTIONS,
@@ -69,7 +70,11 @@ type Selection =
 
 async function attempt(question: string): Promise<Selection> {
   const controller = new AbortController();
-  const tools = buildTools({ user: EVAL_USER, now: new Date() });
+  // Every gate open: the sweep scores selection over the widest roster a
+  // manager can be declared, so gated tools (off by default, on for a client
+  // that has enabled them) are measured rather than silently unscored. Nothing
+  // runs — the sweep stops at the first tool call — so no gate is bypassed.
+  const tools = buildTools({ user: EVAL_USER, now: new Date(), gates: EVAL_TOOL_GATES });
 
   for await (const event of runTurn({
     provider: providerFor(),

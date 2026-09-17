@@ -814,6 +814,65 @@ describe('POST /assistant/chat', () => {
         expect(JSON.stringify(tool.args)).not.toMatch(/clientId|tenantId|userId/);
       }
     });
+
+    describe('getCompetitorShelfPrices — gated off by default', () => {
+      const previous = process.env.COMPETITOR_PRICE_COLLECTION;
+      afterEach(async () => {
+        if (previous === undefined) delete process.env.COMPETITOR_PRICE_COLLECTION;
+        else process.env.COMPETITOR_PRICE_COLLECTION = previous;
+        await prisma.client.update({
+          where: { id: clientId },
+          data: {
+            competitorPriceCollectionEnabled: false,
+            competitorPriceCollectionApprovedBy: null,
+            competitorPriceCollectionApprovedAt: null,
+          },
+        });
+      });
+
+      async function declaredNames(): Promise<string[]> {
+        script.calls = [];
+        script.rounds = [[{ type: 'done' }]];
+        await request(app)
+          .post('/assistant/chat')
+          .set('Authorization', `Bearer ${manager.token}`)
+          .send({ message: 'hi' });
+        return script.calls.find((c) => c.model !== 'quarantine')!.tools.map((t) => t.name);
+      }
+
+      it('is not declared while the kill switch is off, even for an enabled, approved client', async () => {
+        delete process.env.COMPETITOR_PRICE_COLLECTION;
+        await prisma.client.update({
+          where: { id: clientId },
+          data: {
+            competitorPriceCollectionEnabled: true,
+            competitorPriceCollectionApprovedBy: 'Counsel',
+            competitorPriceCollectionApprovedAt: new Date('2026-09-01'),
+          },
+        });
+        const names = await declaredNames();
+        expect(names).toContain('getPriceCompliance');
+        expect(names).not.toContain('getCompetitorShelfPrices');
+      });
+
+      it('is not declared for a client that has not enabled it, with the kill switch on', async () => {
+        process.env.COMPETITOR_PRICE_COLLECTION = 'on';
+        expect(await declaredNames()).not.toContain('getCompetitorShelfPrices');
+      });
+
+      it('is declared once the kill switch is on and the client is enabled and approved', async () => {
+        process.env.COMPETITOR_PRICE_COLLECTION = 'on';
+        await prisma.client.update({
+          where: { id: clientId },
+          data: {
+            competitorPriceCollectionEnabled: true,
+            competitorPriceCollectionApprovedBy: 'Counsel',
+            competitorPriceCollectionApprovedAt: new Date('2026-09-01'),
+          },
+        });
+        expect(await declaredNames()).toContain('getCompetitorShelfPrices');
+      });
+    });
   });
 
   /**

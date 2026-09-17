@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { FigureArtifact } from './figures';
+import type { RawWebSource } from './providers/types';
 
 /**
  * The four pillars a manager actually thinks in, plus execution quality.
@@ -66,6 +67,13 @@ export interface AssistantTool<A extends ToolArgs = ToolArgs, R = unknown> {
    * nothing rather than a card of zeros.
    */
   readonly figures?: (args: A, result: R) => Promise<FigureArtifact[]> | FigureArtifact[];
+  /**
+   * Outside pages this result's figures came from, cited alongside web search
+   * results on the turn's `sources` event. Only for tools that report OUTSIDE
+   * data (getCompetitorShelfPrices); internal tools cite nothing. Validated by
+   * `sources.ts` like any web source.
+   */
+  readonly sources?: (args: A, result: R) => RawWebSource[];
 }
 
 /** A tool of unknown arg/return shape — what a roster or a provider handles. */
@@ -123,6 +131,9 @@ export function eraseToolTypes<A extends ToolArgs, R>(tool: AssistantTool<A, R>)
       : {}),
     ...(tool.figures
       ? { figures: (args: ToolArgs, result: unknown) => tool.figures!(args as A, result as R) }
+      : {}),
+    ...(tool.sources
+      ? { sources: (args: ToolArgs, result: unknown) => tool.sources!(args as A, result as R) }
       : {}),
   };
 }

@@ -269,6 +269,20 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     question: 'What is QuickSave charging for Cola 2L compared with RRP?',
     expectedTool: 'getPriceCompliance',
   },
+  {
+    id: 'comp-6',
+    question: 'What are Checkers and Pick n Pay charging on their websites for Coca-Cola 2L?',
+    expectedTool: 'getCompetitorShelfPrices',
+    note:
+      'Retailer-website prices for a competitor SKU — outside data, gated off by default. ' +
+      'Not the prices agents captured in outlets (comp-1).',
+  },
+  {
+    id: 'comp-7',
+    question: 'How does our Cola 2L price compare with what competitors list online at the big retailers?',
+    expectedTool: 'getCompetitorShelfPrices',
+    note: 'The gap to our own price, against public retailer prices. Not our price vs RRP (comp-5).',
+  },
 
   // ── Refusals — an acceptable failure mode, by design ──────────────────────
   {

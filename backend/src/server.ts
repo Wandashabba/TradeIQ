@@ -1,5 +1,9 @@
 import 'dotenv/config';
 import { app } from './app';
+import {
+  competitorPriceWorkerEnabled,
+  startCompetitorPriceWorker,
+} from './modules/competitorPrices/collector.worker';
 import { assertJwtSecretUsable } from './modules/auth/auth.service';
 import { locationPruneEnabled, startLocationPruneWorker } from './modules/locations/locationPrune.worker';
 import { logReportEmailConfig } from './modules/reportschedules/reportschedules.email';
@@ -35,6 +39,10 @@ const locationPruneWorker = locationPruneEnabled() ? startLocationPruneWorker() 
 // SLA-breach pushes (#67). Idle while FIREBASE_SERVICE_ACCOUNT is unset;
 // SLA_BREACH_SWEEP_ENABLED=false opts out.
 const slaBreachWorker = slaBreachSweepEnabled() ? startSlaBreachWorker() : null;
+// Competitor shelf prices from retailer websites. Not even started unless
+// COMPETITOR_PRICE_COLLECTION=on, and then only collects for clients whose own
+// legal gate is open (docs/operations/competitor-price-collection.md).
+const competitorPriceWorker = competitorPriceWorkerEnabled() ? startCompetitorPriceWorker() : null;
 
 let shuttingDown = false;
 function shutdown(signal: string): void {
@@ -57,6 +65,8 @@ function shutdown(signal: string): void {
     .catch((err) => console.error('Location prune worker did not stop cleanly:', err))
     .then(() => slaBreachWorker?.stop())
     .catch((err) => console.error('SLA breach worker did not stop cleanly:', err))
+    .then(() => competitorPriceWorker?.stop())
+    .catch((err) => console.error('Competitor price worker did not stop cleanly:', err))
     // Pushes already on their way to FCM are let finish, not cut off.
     .then(() => settleInFlightPushes())
     .finally(() => server.close(() => process.exit(0)));

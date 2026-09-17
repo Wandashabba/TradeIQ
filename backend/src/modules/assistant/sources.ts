@@ -82,6 +82,19 @@ function cleanText(raw: unknown, max: number): string | null {
 }
 
 /**
+ * A source's own retrieval time, when it states one that is a real instant no
+ * later than this turn. Collected data is cited with the date it was READ, so a
+ * week-old price is never shown as retrieved today. A future or malformed
+ * stamp is ignored rather than trusted.
+ */
+function earlierRetrieval(raw: unknown, turn: Date): string | null {
+  if (typeof raw !== 'string') return null;
+  const at = new Date(raw);
+  if (Number.isNaN(at.getTime()) || at.getTime() > turn.getTime()) return null;
+  return at.toISOString();
+}
+
+/**
  * Raw vendor sources → the published list.
  *
  * Deduplicated by url (a page cited three times is one source, keeping the
@@ -122,7 +135,7 @@ export function normaliseSources(raw: readonly RawWebSource[], retrievedAt: Date
       url: href,
       domain,
       pageAge,
-      retrievedAt: retrievedAt.toISOString(),
+      retrievedAt: earlierRetrieval(candidate.retrievedAt, retrievedAt) ?? retrievedAt.toISOString(),
       snippet,
     };
     const checked = webSourceSchema.safeParse(source);

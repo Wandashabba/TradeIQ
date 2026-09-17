@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import type { ArtifactParamsChange } from './paramsNote';
+import { resolveToolGates } from './toolGates';
 import { buildTools, type ToolContext } from './tools';
 import type { AnyAssistantTool, ToolArgs } from './types';
 
@@ -154,7 +155,10 @@ async function runWithParams(
   toolName: string,
   params: unknown,
 ): Promise<{ params: ToolArgs; data: unknown }> {
-  const tool = toolFor(ctx, toolName);
+  // Gates are resolved per call like the roster: a gated tool switched off since
+  // the artifact was made is not found, exactly as a role that lost it is not.
+  const gated = ctx.gates ? ctx : { ...ctx, gates: await resolveToolGates(ctx.user.clientId) };
+  const tool = toolFor(gated, toolName);
   // The tool's schema, not one of ours. See the file header.
   const parsed = tool.args.safeParse(params);
   if (!parsed.success) throw new InvalidParamsError(parsed.error.issues);

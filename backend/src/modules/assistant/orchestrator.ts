@@ -455,6 +455,9 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
 
       yield { event: 'tool_end', data: { name: tool.name, ok: true } };
       const { result } = outcome;
+      // Outside data a tool cites (retailer pages behind collected prices) joins
+      // the web sources, and goes through the same validation at the end.
+      rawSources.push(...safeToolSources(tool, plan.args, result));
 
       // The artifact carries the RAW result, and the model gets the sanitized
       // one. They are different on purpose: the client renders through a
@@ -764,6 +767,18 @@ async function safeFigures(
     else console.error(`[assistant] ${tool.name} produced an invalid figure: ${checked.reason}`);
   }
   return valid;
+}
+
+/** A tool's cited outside pages. A builder that throws costs the citations, never the turn. */
+function safeToolSources(tool: AnyAssistantTool, args: unknown, result: unknown): RawWebSource[] {
+  if (!tool.sources) return [];
+  try {
+    const candidates = tool.sources(args as never, result);
+    return Array.isArray(candidates) ? candidates : [];
+  } catch (err) {
+    console.error(`[assistant] sources for ${tool.name} threw`, err);
+    return [];
+  }
 }
 
 export function pillarFor(name: string): string {

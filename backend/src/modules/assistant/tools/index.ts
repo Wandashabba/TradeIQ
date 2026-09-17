@@ -1,5 +1,7 @@
 import { rosterFor, type ToolName } from '../roster';
+import { isToolDeclared } from '../toolGates';
 import type { AnyAssistantTool } from '../types';
+import { buildCompetitorPriceTools } from './competitorPrices';
 import { buildExecutionTools, type ToolContext } from './execution';
 import { buildOperationTools } from './operations';
 import { buildPillarTools } from './pillars';
@@ -21,6 +23,9 @@ export type { ToolContext } from './execution';
  * 2. The **registry** decides what exists. A tool implemented but absent from
  *    `TOOL_REGISTRY` reaches nobody, which is the direction a mistake here
  *    should fail in — adding a file must not silently widen the boundary.
+ * 3. The **gates** decide what is switched on for this business. A gated tool
+ *    (`toolGates.ts`) whose gate is not open in `ctx.gates` is not declared at
+ *    all — the model never learns it exists.
  */
 export function buildTools(ctx: ToolContext): AnyAssistantTool[] {
   const implemented = [
@@ -28,6 +33,7 @@ export function buildTools(ctx: ToolContext): AnyAssistantTool[] {
     ...buildPillarTools(ctx),
     ...buildTrendTools(ctx),
     ...buildOperationTools(ctx),
+    ...buildCompetitorPriceTools(ctx),
   ];
   const allowed = rosterFor(ctx.user.role);
 
@@ -38,6 +44,7 @@ export function buildTools(ctx: ToolContext): AnyAssistantTool[] {
   const byName = new Map(implemented.map((tool) => [tool.name, tool]));
 
   return [...allowed]
+    .filter((name) => isToolDeclared(name, ctx.gates))
     .map((name) => byName.get(name))
     .filter((tool): tool is AnyAssistantTool => tool !== undefined);
 }
@@ -58,6 +65,7 @@ export function unimplementedTools(ctx: ToolContext): ToolName[] {
       ...buildPillarTools(ctx),
       ...buildTrendTools(ctx),
       ...buildOperationTools(ctx),
+      ...buildCompetitorPriceTools(ctx),
     ].map(
       (tool) => tool.name,
     ),

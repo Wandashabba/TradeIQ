@@ -247,4 +247,10 @@ export interface RawWebSource {
   snippet?: string | null;
   /** Free text from the vendor ("3 days ago", "April 30, 2025"), when known. */
   pageAge?: string | null;
+  /**
+   * When the page was actually read, ISO-8601, when that was BEFORE this turn —
+   * a tool citing data it collected earlier (getCompetitorShelfPrices). Omitted
+   * for a live web search, which was retrieved this turn.
+   */
+  retrievedAt?: string | null;
 }

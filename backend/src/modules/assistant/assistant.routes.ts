@@ -10,6 +10,7 @@ import { isAssistantWebSearchEnabled, requireAssistantEnabled } from './featureF
 import { runTurn, type WireEvent } from './orchestrator';
 import { providerFor } from './providers';
 import type { Message } from './providers/types';
+import { resolveToolGates } from './toolGates';
 import { buildTools, type ToolContext } from './tools';
 import {
   ArtifactNotFoundError,
@@ -130,7 +131,9 @@ assistantRouter.post(
 
     // Identity is bound once, here. Nothing below takes a tenant argument.
     const now = new Date();
-    const tools = buildTools({ user, now });
+    // Gated tools (toolGates.ts) are declared only when this client's gate is
+    // open. Resolving never throws: a failure leaves the gate closed.
+    const tools = buildTools({ user, now, gates: await resolveToolGates(user.clientId) });
     const owner = { userId: user.userId, clientId: user.clientId };
     const conversationId = parsed.data.conversationId ?? randomUUID();
 
