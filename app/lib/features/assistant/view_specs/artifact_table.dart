@@ -1,5 +1,6 @@
 import '../../../core/format/period_label.dart';
 import '../data/artifact_repository.dart';
+import 'rich_figures.dart';
 
 /// The table twin's data, derived once and rendered twice.
 ///
@@ -129,6 +130,10 @@ ArtifactTable? artifactTableFor(ArtifactDetail artifact) {
       return _trendTable(artifact);
     case 'pillar_metrics':
       return _pillarTable(artifact);
+    case 'stat_tiles':
+      return _statTilesTable(artifact);
+    case 'ranked_bars':
+      return _rankedBarsTable(artifact);
     default:
       return null;
   }
@@ -272,5 +277,42 @@ ArtifactTableRow _pillarRow(
     ],
     delta: absolute is num && absolute.isFinite ? absolute.toDouble() : null,
     deltaPct: pct is num && pct.isFinite ? pct.toDouble() : null,
+  );
+}
+
+/// The tiles as rows. Every cell is pre-formatted text — the delta carries its
+/// own unit (`%`, `pts`, a count), which the numeric Change column cannot — so
+/// the glyph and sign spell the direction on paper as they do on screen.
+ArtifactTable _statTilesTable(ArtifactDetail artifact) {
+  final tiles = StatTileData.listFrom(artifact.data);
+  return ArtifactTable(
+    columns: const ['Figure', 'Value', 'Change', 'Compared with'],
+    compared: false,
+    rows: [
+      for (final tile in tiles)
+        ArtifactTableRow(
+          cells: [
+            tile.label,
+            tile.formatted,
+            tile.delta?.text ?? '—',
+            tile.comparedTo ?? '—',
+          ],
+        ),
+    ],
+  );
+}
+
+/// The ranking in the server's own order, labelled as the card labels it.
+ArtifactTable _rankedBarsTable(ArtifactDetail artifact) {
+  final data = RankedBarsData.from(artifact.data);
+  return ArtifactTable(
+    columns: const ['Name', 'Value'],
+    compared: false,
+    rows: [
+      for (final item in data.items)
+        ArtifactTableRow(
+          cells: [item.label, data.label(item.value)],
+        ),
+    ],
   );
 }

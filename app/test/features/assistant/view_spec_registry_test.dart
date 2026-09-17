@@ -71,6 +71,33 @@ void main() {
       expect(find.text('Expand'), findsOneWidget);
     });
 
+    testWidgets('never offers Expand on stat_tiles or ranked_bars',
+        (tester) async {
+      // Neither is persisted: turn-local ids, `params: {}`, no row behind
+      // them. Not even a UUID-shaped id changes that.
+      for (final type in ['stat_tiles', 'ranked_bars']) {
+        for (final id in [
+          'getRateOfSale-$type-1',
+          '2b3f0d0e-1f2a-4c3b-9d4e-5f6a7b8c9d0e',
+        ]) {
+          await tester.pumpWidget(wrap(ArtifactView(
+            expandable: true,
+            artifact: ChatArtifact(id: id, type: type, params: const {}, data: const {
+              'tiles': [
+                {'label': 'Sell-in', 'value': 1, 'unit': 'units'},
+              ],
+              'items': [
+                {'label': 'Spar', 'value': 2},
+              ],
+            }),
+          )));
+          await tester.pumpAndSettle();
+          expect(find.text('Expand'), findsNothing, reason: '$type $id');
+          expect(find.byIcon(Icons.open_in_full), findsNothing);
+        }
+      }
+    });
+
     testWidgets('does not offer Expand where it was not asked for',
         (tester) async {
       // Expanded mode renders these same cards for the specs it has no
