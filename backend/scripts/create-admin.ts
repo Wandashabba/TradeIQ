@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/modules/auth/auth.service';
 import { DISPLAY_NAME_MAX_LENGTH, parseDisplayName } from '../src/lib/personName';
+import { normalizeEmail } from '../src/lib/email';
 
 const prisma = new PrismaClient();
 
@@ -31,13 +32,19 @@ async function main() {
     return i >= 0 ? args[i + 1] : undefined;
   };
 
-  const email = flag('email');
+  const emailArg = flag('email');
   const clientId = flag('client');
   const password = process.env.ADMIN_PASSWORD;
 
-  if (!email) {
+  if (!emailArg) {
     throw new Error('--email is required');
   }
+
+  // Stored and checked in the one canonical form (#351), so the admin this
+  // mints can log in whatever case their keyboard produces — and so the
+  // "already exists" check below cannot be walked past by re-running with a
+  // differently-capitalised spelling of the same address.
+  const email = normalizeEmail(emailArg);
 
   const name = parseDisplayName(flag('name'));
   if (!name.ok) {

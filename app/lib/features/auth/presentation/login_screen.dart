@@ -100,7 +100,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     await ref
         .read(sessionControllerProvider.notifier)
         .login(
-          _emailController.text,
+          // Trimmed and lowercased before it leaves the device (#351). An
+          // Android keyboard capitalises the first letter of the email field by
+          // default, and the backend's lookup is exact — so "Agent@…" came back
+          // as "Invalid credentials" on a perfectly correct password. The
+          // backend normalises too; this keeps the request itself honest.
+          //
+          // The password is passed through UNTOUCHED: leading or trailing
+          // spaces in a password may be deliberate, and trimming one would
+          // silently lock out whoever chose it.
+          _emailController.text.trim().toLowerCase(),
           _passwordController.text,
           rememberMe: _rememberMe,
         );
@@ -302,6 +311,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            // An email address has no capital letters to offer and nothing to
+            // correct. Android capitalises the first letter of a text field by
+            // default and would happily "fix" a domain into a dictionary word,
+            // which is how a correct password started failing to log in (#351).
+            textCapitalization: TextCapitalization.none,
+            autocorrect: false,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.username, AutofillHints.email],
             decoration: InputDecoration(

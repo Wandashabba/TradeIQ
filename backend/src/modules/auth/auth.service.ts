@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import type { UserRole } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
+import { normalizeEmail } from '../../lib/email';
 
 export interface AuthTokenPayload {
   userId: string;
@@ -137,8 +138,14 @@ export async function comparePassword(plain: string, hash: string): Promise<bool
 const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8gr5J8Xj3GVj0mLKfsYnZ5ZUq0/UZK';
 
 export async function authenticateUser(email: string, password: string) {
+  // Normalised BEFORE the lookup (#351), so that a phone keyboard's
+  // auto-capitalised "Agent@…" — or a paste that carried whitespace — finds
+  // the row it should rather than returning "Invalid credentials" on a correct
+  // password. Doing it here rather than after the lookup also leaves the timing
+  // protection above intact: an email that matches nobody, however it was
+  // typed, still falls through to the same DUMMY_HASH comparison below.
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: normalizeEmail(email) },
     omit: { passwordHash: false },
   });
   const passwordValid = await comparePassword(password, user?.passwordHash ?? DUMMY_HASH);

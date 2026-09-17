@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { hashPassword } from '../src/modules/auth/auth.service';
+import { normalizeEmail } from '../src/lib/email';
 import { USERS } from './seed/catalog';
 
 /**
@@ -30,7 +31,10 @@ import { USERS } from './seed/catalog';
  * ends every session at once; see docs/operations/deploy-hardening.md.
  */
 
-export const DEMO_EMAILS: readonly string[] = USERS.map((u) => u.email);
+// Normalised to match how the seed stores them and how login looks them up
+// (#351), so a demo account is never silently skipped as "not present" because
+// the catalog spelled its address in a different case.
+export const DEMO_EMAILS: readonly string[] = USERS.map((u) => normalizeEmail(u.email));
 
 export interface RotateDemoPasswordsArgs {
   /** Absolute path of the credentials file. Required unless dryRun. */

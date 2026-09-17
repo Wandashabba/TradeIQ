@@ -39,7 +39,12 @@ paths:
               type: object
               required: [email, password]
               properties:
-                email: { type: string }
+                email:
+                  type: string
+                  description: >
+                    Matched case-insensitively and with surrounding whitespace
+                    ignored, so "Agent@Example.com" and " agent@example.com "
+                    both reach the same account. The password is NOT trimmed.
                 password: { type: string }
       responses:
         '200':
@@ -1950,7 +1955,13 @@ paths:
               type: object
               required: [email, password, role]
               properties:
-                email: { type: string }
+                email:
+                  type: string
+                  description: >
+                    Trimmed and lower-cased before storage, so the address is
+                    held in the one form login looks up. Two addresses differing
+                    only in case or surrounding whitespace collide and the
+                    second is a 409.
                 password: { type: string, minLength: 8 }
                 role: { type: string, enum: [field_agent, manager, admin] }
                 displayName:
