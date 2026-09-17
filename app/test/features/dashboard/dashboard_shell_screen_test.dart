@@ -345,7 +345,7 @@ Future<void> _pump(WidgetTester tester, Widget app) async {
 
 class _FakeSalesTargetsRepository implements SalesTargetsRepository {
   @override
-  Future<SalesAttainmentReport> attainment(String month) async =>
+  Future<SalesAttainmentReport> attainment(String? month) async =>
       const SalesAttainmentReport(
         month: '2026-09',
         timeZone: 'Africa/Johannesburg',

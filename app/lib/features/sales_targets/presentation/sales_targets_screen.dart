@@ -18,7 +18,7 @@ import 'sales_attainment_panel.dart';
 ///
 /// "Actual" is units ordered through TradeIQ — sell-in — and the screen says so
 /// wherever a figure appears. Managers set a target account-wide, for one
-/// territory, or for one outlet; a CSV paste sets many at once after a preview.
+/// territory, or for one outlet; a CSV file sets many at once after a preview.
 class SalesTargetsScreen extends ConsumerWidget {
   const SalesTargetsScreen({super.key});
 
@@ -526,9 +526,12 @@ class _TargetDialogState extends ConsumerState<_TargetDialog> {
   }
 }
 
-/// Paste a CSV, preview what it would do (every row error included), then
-/// apply the valid rows. Apply is only offered for exactly the text that was
-/// previewed — edit the paste and it must be previewed again.
+/// Choose a `.csv` — or paste one — preview what it would do (every row error
+/// included), then apply the valid rows.
+///
+/// Apply is only ever offered for exactly the text that was previewed: pick a
+/// different file, edit the paste, or clear the file, and it must be previewed
+/// again. What gets written is always what was shown.
 class _CsvImportDialog extends ConsumerStatefulWidget {
   const _CsvImportDialog();
 
@@ -540,8 +543,13 @@ class _CsvImportDialogState extends ConsumerState<_CsvImportDialog> {
   static const _maxErrorsShown = 50;
 
   final _csvCtrl = TextEditingController();
+
+  /// The chosen file, while one is held. A file and the paste box are the two
+  /// ways in, and only one is live at a time: while a file is held the box is
+  /// hidden, so there is never a question about which of the two would upload.
+  PickedCsv? _picked;
   SalesTargetImportResult? _preview;
-  String? _previewedText;
+  String? _previewedCsv;
   String? _fileError;
   bool _busy = false;
 
@@ -551,14 +559,60 @@ class _CsvImportDialogState extends ConsumerState<_CsvImportDialog> {
     super.dispose();
   }
 
+  /// The CSV the buttons act on: the chosen file, else whatever was pasted.
+  String get _csv => _picked?.contents ?? _csvCtrl.text;
+
   bool get _canApply =>
       !_busy &&
       _preview != null &&
-      _previewedText == _csvCtrl.text &&
+      _previewedCsv == _csv &&
       _preview!.validRows > 0;
 
+  /// Any change of source retires the preview: what was shown is no longer
+  /// what would be written, so Apply goes back to being unavailable.
+  void _dropPreview() {
+    _preview = null;
+    _previewedCsv = null;
+  }
+
+  Future<void> _chooseFile() async {
+    setState(() {
+      _busy = true;
+      _fileError = null;
+    });
+    try {
+      final picked = await ref.read(csvFilePickerProvider)();
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        // Cancelling leaves everything as it was, preview included.
+        if (picked != null) {
+          _picked = picked;
+          _csvCtrl.clear();
+          _dropPreview();
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _fileError = e is CsvFileException
+            ? e.message
+            : 'Could not read that file.';
+      });
+    }
+  }
+
+  void _clearFile() {
+    setState(() {
+      _picked = null;
+      _fileError = null;
+      _dropPreview();
+    });
+  }
+
   Future<void> _runPreview() async {
-    final text = _csvCtrl.text;
+    final csv = _csv;
     setState(() {
       _busy = true;
       _fileError = null;
@@ -566,18 +620,17 @@ class _CsvImportDialogState extends ConsumerState<_CsvImportDialog> {
     try {
       final result = await ref
           .read(salesTargetsRepositoryProvider)
-          .importCsv(text, dryRun: true);
+          .importCsv(csv, dryRun: true);
       if (!mounted) return;
       setState(() {
         _preview = result;
-        _previewedText = text;
+        _previewedCsv = csv;
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _preview = null;
-        _previewedText = null;
+        _dropPreview();
         _fileError = describeSalesTargetError(e);
         _busy = false;
       });
@@ -590,7 +643,7 @@ class _CsvImportDialogState extends ConsumerState<_CsvImportDialog> {
     try {
       final result = await ref
           .read(salesTargetsRepositoryProvider)
-          .importCsv(_previewedText!, dryRun: false);
+          .importCsv(_previewedCsv!, dryRun: false);
       ref.invalidate(salesAttainmentProvider);
       ref.invalidate(currentMonthAttainmentProvider);
       if (!mounted) return;
@@ -621,6 +674,7 @@ class _CsvImportDialogState extends ConsumerState<_CsvImportDialog> {
     final muted = colors.glass ? context.lumen.inkMuted : colors.ink3;
     final crit = StatusLevel.critical.colorOf(colors);
     final preview = _preview;
+    final picked = _picked;
 
     return AlertDialog(
       title: const Text('Upload sales targets'),
@@ -632,27 +686,67 @@ class _CsvImportDialogState extends ConsumerState<_CsvImportDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Paste a CSV with a header row: month (YYYY-MM), sku (id or '
-                'name), targetUnits, and optionally territory or outlet (id or '
-                'code). Units are $sellInLabel. Existing targets for the same '
-                'SKU, month and scope are replaced.',
+                'Choose a .csv file, or paste one below. It needs a header '
+                'row: month (YYYY-MM), sku (id or name), targetUnits, and '
+                'optionally territory or outlet (id or code). Units are '
+                '$sellInLabel. Existing targets for the same SKU, month and '
+                'scope are replaced.',
                 style: TextStyle(fontSize: 12, color: muted),
               ),
               const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey<String>('csv-input'),
-                controller: _csvCtrl,
-                minLines: 5,
-                maxLines: 10,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'CSV',
-                  alignLabelWithHint: true,
-                  hintText:
-                      'month,sku,targetUnits,territory,outlet\n'
-                      '2026-09,Cola 2L,1200,,',
-                ),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    key: const ValueKey<String>('csv-choose-file'),
+                    onPressed: _busy ? null : _chooseFile,
+                    icon: const Icon(Icons.folder_open_outlined, size: 16),
+                    label: Text(
+                      picked == null ? 'Choose CSV file' : 'Choose another',
+                    ),
+                  ),
+                  if (picked != null) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        picked.name,
+                        key: const ValueKey<String>('csv-file-name'),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      key: const ValueKey<String>('csv-clear-file'),
+                      onPressed: _busy ? null : _clearFile,
+                      child: const Text('Remove'),
+                    ),
+                  ],
+                ],
               ),
+              const SizedBox(height: 12),
+              if (picked == null)
+                TextField(
+                  key: const ValueKey<String>('csv-input'),
+                  controller: _csvCtrl,
+                  minLines: 5,
+                  maxLines: 10,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'CSV',
+                    alignLabelWithHint: true,
+                    hintText:
+                        'month,sku,targetUnits,territory,outlet\n'
+                        '2026-09,Cola 2L,1200,,',
+                  ),
+                )
+              else
+                Text(
+                  'Preview to see what this file would do. Remove it to paste '
+                  'a CSV instead.',
+                  style: TextStyle(fontSize: 12, color: muted),
+                ),
               if (_fileError != null) ...[
                 const SizedBox(height: 10),
                 Text(
@@ -718,7 +812,7 @@ class _CsvImportDialogState extends ConsumerState<_CsvImportDialog> {
         ),
         OutlinedButton(
           key: const ValueKey<String>('csv-preview'),
-          onPressed: _busy || _csvCtrl.text.trim().isEmpty ? null : _runPreview,
+          onPressed: _busy || _csv.trim().isEmpty ? null : _runPreview,
           child: const Text('Preview'),
         ),
         FilledButton(

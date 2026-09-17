@@ -54,6 +54,10 @@ dependencies:
   # Camera + gallery capture for closure and section photos (#41). Works on
   # mobile and web, which matters because the same codebase serves both.
   image_picker: ^1.1.2
+  # Picking a .csv off the manager's disk for the sales-target import (#339).
+  # Federated like image_picker above, so the same call works on web (bytes,
+  # no path — the browser never hands one out), desktop and mobile.
+  file_picker: ^13.1.0
   flutter_map: ^8.3.1
   latlong2: ^0.10.1
   # On-demand PDF export of the artifact the user is looking at (Phase 2).

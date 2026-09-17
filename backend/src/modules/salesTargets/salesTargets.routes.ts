@@ -62,9 +62,15 @@ salesTargetsRouter.get('/', async (req: AuthedRequest, res) => {
 // Registered before nothing that could shadow it, but kept above the `:id`
 // route anyway so a future `GET /:id` cannot swallow the word.
 salesTargetsRouter.get('/attainment', async (req: AuthedRequest, res) => {
-  const month = parseMonth(req.query.month);
-  if (month === undefined) {
-    res.status(400).json({ error: 'month is required as YYYY-MM' });
+  // No `month` asks for the current one, and whose "current" it is matters: the
+  // service reads it off the client's own wall clock (#339), never the calling
+  // device's. The dashboard omits it for exactly that reason; the Sales targets
+  // screen, which has a month picker, always sends one. A month that *is* sent
+  // still has to be well formed — a typo should not silently become this month.
+  const monthRaw = req.query.month;
+  const month = monthRaw === undefined ? undefined : parseMonth(monthRaw);
+  if (monthRaw !== undefined && month === undefined) {
+    res.status(400).json({ error: 'month must be YYYY-MM' });
     return;
   }
   const skuId = optionalString(req.query.skuId);

@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -30,6 +33,17 @@ String salesMonthKey(DateTime month) =>
 /// "September 2026".
 String salesMonthLabel(DateTime month) =>
     '${_monthNames[month.month - 1]} ${month.year}';
+
+/// "September 2026" from the wire's `YYYY-MM`, or the key itself if it is not
+/// one. Needed because a caller that omits the month (#339) only learns which
+/// month it got from the report's own `month` field.
+String salesMonthLabelFromKey(String key) {
+  final match = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(key);
+  if (match == null) return key;
+  final month = int.parse(match.group(2)!);
+  if (month < 1 || month > 12) return key;
+  return '${_monthNames[month - 1]} ${match.group(1)}';
+}
 
 double? _optionalDouble(Object? value) => (value as num?)?.toDouble();
 int _int(Object? value) => (value as num?)?.toInt() ?? 0;
@@ -302,7 +316,11 @@ class SalesTargetImportResult {
 
 abstract class SalesTargetsRepository {
   /// GET /sales-targets/attainment?month=YYYY-MM
-  Future<SalesAttainmentReport> attainment(String month);
+  ///
+  /// A null [month] sends no month at all, which asks the server for the
+  /// account's *own* current month, read in `Client.timezone` (#339). The
+  /// report says which month it answered for either way.
+  Future<SalesAttainmentReport> attainment(String? month);
 
   /// PUT /sales-targets — creates the target for this SKU, month and scope,
   /// or replaces its units. At most one of [territoryId] / [outletId].
@@ -323,10 +341,12 @@ abstract class SalesTargetsRepository {
 
 class DioSalesTargetsRepository implements SalesTargetsRepository {
   @override
-  Future<SalesAttainmentReport> attainment(String month) async {
+  Future<SalesAttainmentReport> attainment(String? month) async {
     final response = await dio.get(
       '/sales-targets/attainment',
-      queryParameters: {'month': month},
+      // No month at all when null — an omitted month is what asks the server
+      // for the client's own current one (#339), and an empty string is a 400.
+      queryParameters: {'month': ?month},
     );
     return SalesAttainmentReport.fromJson(
       response.data as Map<String, dynamic>,
@@ -377,6 +397,79 @@ final salesTargetsRepositoryProvider = Provider<SalesTargetsRepository>(
   (ref) => DioSalesTargetsRepository(),
 );
 
+/// A `.csv` the manager chose off their own disk, already read into memory.
+///
+/// Held as text, not as a path: the import endpoint takes the file's contents,
+/// and on web there is no path to hand anyone — the browser gives bytes and a
+/// name and nothing else.
+class PickedCsv {
+  const PickedCsv({required this.name, required this.contents});
+
+  /// The file's own name, e.g. `september-targets.csv`. Shown, never sent.
+  final String name;
+
+  /// The whole file as text.
+  final String contents;
+}
+
+/// A file the console will not take, carrying the sentence to show for it.
+class CsvFileException implements Exception {
+  const CsvFileException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Opens the platform's own file chooser. Null means the manager cancelled.
+typedef CsvFilePicker = Future<PickedCsv?> Function();
+
+/// The most a target upload may weigh. The endpoint caps an import at a few
+/// thousand rows, orders of magnitude under this; the limit is here only so a
+/// mis-picked video is refused in the dialog instead of being posted.
+const _maxCsvBytes = 8 * 1024 * 1024;
+
+/// Picks one `.csv` with the platform's chooser and reads it as UTF-8 (#339).
+///
+/// `file_picker` is federated like `image_picker`, so one call covers the
+/// console everywhere it runs: on web the browser returns bytes and a name, on
+/// desktop and mobile the bytes are read off disk. A leading BOM — Excel's
+/// "CSV UTF-8" — is deliberately left in: the server's parser already drops
+/// one, and a second stripper here is just another thing to keep in step.
+Future<PickedCsv?> pickCsvFile() async {
+  final files = await FilePicker.pickFiles(
+    dialogTitle: 'Choose a CSV of sales targets',
+    type: FileType.custom,
+    allowedExtensions: const ['csv'],
+  );
+  if (files.isEmpty) return null;
+  final file = files.first;
+
+  final size = file.lengthSync() ?? await file.length();
+  if (size != null && size > _maxCsvBytes) {
+    throw const CsvFileException(
+      'That file is too large to be a list of targets. Choose a CSV under 8 MB.',
+    );
+  }
+
+  try {
+    // allowMalformed: a sheet saved as Latin-1 still reaches the preview, where
+    // the server names the rows it could not read — more use than a dialog that
+    // refuses the whole file with nothing to act on.
+    return PickedCsv(
+      name: file.name,
+      contents: utf8.decode(await file.readAsBytes(), allowMalformed: true),
+    );
+  } catch (_) {
+    throw CsvFileException('Could not read ${file.name}.');
+  }
+}
+
+/// How the sales-target dialog opens a file. Overridden in tests, which have no
+/// native chooser to open.
+final csvFilePickerProvider = Provider<CsvFilePicker>((ref) => pickCsvFile);
+
 /// The month the Sales targets screen is looking at, as the first of that
 /// month. Starts on the current month; [initial] exists for tests.
 class SalesMonthNotifier extends Notifier<DateTime> {
@@ -406,16 +499,17 @@ final salesAttainmentProvider = FutureProvider<SalesAttainmentReport>((ref) {
       .attainment(salesMonthKey(month));
 });
 
-/// The dashboard's figure: always this month, whatever month the Sales
-/// targets screen was last left on.
+/// The dashboard's figure: the month the *account* is in, whatever month the
+/// Sales targets screen was last left on.
 ///
-/// "This month" is the device's calendar month; the server still counts the
-/// month's days in the account's timezone, so only the first or last hours of
-/// a month can disagree about which month that is.
+/// No month is sent (#339). Which month it is now is a question about the
+/// client's wall clock, and the server is the only side that knows
+/// `Client.timezone` — a console open at 23:30 UTC on the last of the month
+/// would otherwise ask for September while a Johannesburg account had been in
+/// October for ninety minutes. The panel labels the figure with the month the
+/// server answered for, so it is never quietly about a month nobody picked.
 final currentMonthAttainmentProvider = FutureProvider<SalesAttainmentReport>((
   ref,
 ) {
-  return ref
-      .read(salesTargetsRepositoryProvider)
-      .attainment(salesMonthKey(DateTime.now()));
+  return ref.read(salesTargetsRepositoryProvider).attainment(null);
 });

@@ -103,13 +103,13 @@ class _FakeSalesTargetsRepository implements SalesTargetsRepository {
   final Object? upsertError;
   final Object? previewError;
 
-  final requestedMonths = <String>[];
+  final requestedMonths = <String?>[];
   final upserts = <Map<String, Object?>>[];
   final deleted = <String>[];
   final imports = <(String, bool)>[];
 
   @override
-  Future<SalesAttainmentReport> attainment(String month) async {
+  Future<SalesAttainmentReport> attainment(String? month) async {
     requestedMonths.add(month);
     return report;
   }
@@ -157,20 +157,53 @@ class _FakeSalesTargetsRepository implements SalesTargetsRepository {
 
 class _ThrowingSalesTargetsRepository extends _FakeSalesTargetsRepository {
   @override
-  Future<SalesAttainmentReport> attainment(String month) async =>
+  Future<SalesAttainmentReport> attainment(String? month) async =>
       throw Exception('boom');
 }
 
-Widget _app(SalesTargetsRepository repo, {ThemeData? theme}) => routedApp(
+/// Stands in for the platform's file chooser, which a widget test has no way
+/// to open. Returns [file], or throws [error] if one was given.
+class _FakeCsvPicker {
+  _FakeCsvPicker({this.file, this.error});
+
+  final PickedCsv? file;
+  final Object? error;
+  int calls = 0;
+
+  Future<PickedCsv?> call() async {
+    calls += 1;
+    if (error != null) throw error!;
+    return file;
+  }
+}
+
+const _pickedCsv = PickedCsv(
+  name: 'september-targets.csv',
+  contents: 'month,sku,targetUnits\n2026-09,Cola 2L,120\n2026-9,Chips 125g,10',
+);
+
+Widget _app(
+  SalesTargetsRepository repo, {
+  ThemeData? theme,
+  _FakeCsvPicker? picker,
+}) => routedApp(
   const SalesTargetsScreen(),
   theme: theme,
   overrides: [
     salesTargetsRepositoryProvider.overrideWithValue(repo),
+    if (picker != null)
+      csvFilePickerProvider.overrideWithValue(picker.call),
     salesTargetsMonthProvider.overrideWith(
       () => SalesMonthNotifier(DateTime(2026, 9, 17)),
     ),
   ],
 );
+
+/// Opens the CSV dialog from the screen's toolbar.
+Future<void> _openImport(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey<String>('sales-targets-import')));
+  await tester.pumpAndSettle();
+}
 
 Future<void> _pumpTall(WidgetTester tester, Widget app) async {
   tester.view.physicalSize = const Size(1400, 1800);
@@ -475,18 +508,150 @@ void main() {
     expect(level.blur, isFalse);
   });
 
+  testWidgets('uploads a chosen file: previews first, applies what was shown', (
+    tester,
+  ) async {
+    final repo = _FakeSalesTargetsRepository();
+    final picker = _FakeCsvPicker(file: _pickedCsv);
+    await _pumpTall(tester, _app(repo, picker: picker));
+    await _openImport(tester);
+
+    // Pasting is still there as the fallback, until a file is chosen.
+    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+    await tester.pumpAndSettle();
+
+    expect(picker.calls, 1);
+    expect(find.text('september-targets.csv'), findsOneWidget);
+    // The paste box goes away: only one of the two can be about to upload.
+    expect(find.byKey(const ValueKey<String>('csv-input')), findsNothing);
+
+    FilledButton apply() => tester.widget<FilledButton>(
+      find.byKey(const ValueKey<String>('csv-apply')),
+    );
+    expect(apply().onPressed, isNull);
+
+    await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
+    await tester.pumpAndSettle();
+
+    expect(repo.imports, [(_pickedCsv.contents, true)]);
+    expect(
+      find.text('2 ready · 1 with errors · would create 1, update 1'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Row 3 · month: "2026-9" is not a month; use YYYY-MM'),
+      findsOneWidget,
+    );
+    expect(apply().onPressed, isNotNull);
+
+    await tester.tap(find.byKey(const ValueKey<String>('csv-apply')));
+    await tester.pumpAndSettle();
+
+    // Applied exactly the text that was previewed — the file is never re-read
+    // between the preview and the apply.
+    expect(repo.imports, [
+      (_pickedCsv.contents, true),
+      (_pickedCsv.contents, false),
+    ]);
+    expect(
+      find.text('Targets saved: 1 created, 1 updated · 1 rows skipped'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('removing the file restores the paste box and retires the preview', (
+    tester,
+  ) async {
+    final repo = _FakeSalesTargetsRepository();
+    await _pumpTall(
+      tester,
+      _app(repo, picker: _FakeCsvPicker(file: _pickedCsv)),
+    );
+    await _openImport(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey<String>('csv-preview')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('csv-clear-file')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('csv-file-name')), findsNothing);
+    // Nothing can be applied any more: what was shown is no longer the source.
+    final apply = tester.widget<FilledButton>(
+      find.byKey(const ValueKey<String>('csv-apply')),
+    );
+    expect(apply.onPressed, isNull);
+    expect(repo.imports, [(_pickedCsv.contents, true)]);
+  });
+
+  testWidgets('cancelling the chooser leaves the pasted CSV alone', (
+    tester,
+  ) async {
+    final repo = _FakeSalesTargetsRepository();
+    final picker = _FakeCsvPicker();
+    await _pumpTall(tester, _app(repo, picker: picker));
+    await _openImport(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('csv-input')),
+      'month,sku,targetUnits\n2026-09,Cola 2L,1',
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+    await tester.pumpAndSettle();
+
+    expect(picker.calls, 1);
+    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('csv-file-name')), findsNothing);
+    expect(repo.imports, isEmpty);
+  });
+
+  testWidgets('says why a file could not be taken, and offers paste still', (
+    tester,
+  ) async {
+    await _pumpTall(
+      tester,
+      _app(
+        _FakeSalesTargetsRepository(),
+        picker: _FakeCsvPicker(
+          error: const CsvFileException(
+            'That file is too large to be a list of targets. '
+            'Choose a CSV under 8 MB.',
+          ),
+        ),
+      ),
+    );
+    await _openImport(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('csv-choose-file')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('csv-file-error')), findsOneWidget);
+    expect(find.textContaining('under 8 MB'), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('csv-input')), findsOneWidget);
+  });
+
   group('dashboard panel', () {
     Widget panel(SalesTargetsRepository repo) => routedApp(
       const SingleChildScrollView(child: SalesAttainmentPanel()),
       overrides: [salesTargetsRepositoryProvider.overrideWithValue(repo)],
     );
 
-    testWidgets('shows this month\'s attainment by level', (tester) async {
-      await _pumpTall(tester, panel(_FakeSalesTargetsRepository()));
+    testWidgets('sends no month and labels the figure with the one it got', (
+      tester,
+    ) async {
+      final repo = _FakeSalesTargetsRepository();
+      await _pumpTall(tester, panel(repo));
 
+      // Which month "now" is belongs to the account's timezone, so the panel
+      // asks for no month and names the one the server answered for (#339).
+      expect(repo.requestedMonths, [null]);
       expect(find.text('Sell-in vs target'), findsOneWidget);
       expect(
-        find.textContaining('Sell-in (orders) this month'),
+        find.textContaining('Sell-in (orders) · September 2026'),
         findsOneWidget,
       );
       expect(find.text('50%'), findsOneWidget);
@@ -512,7 +677,7 @@ void main() {
         ),
       );
 
-      expect(find.text('No sales targets this month'), findsOneWidget);
+      expect(find.text('No sales targets for September 2026'), findsOneWidget);
     });
   });
 
@@ -525,5 +690,10 @@ void main() {
     expect(attainmentLevel(85).name, 'warning');
     expect(attainmentLevel(40).name, 'critical');
     expect(salesMonthKey(DateTime(2026, 13)), '2027-01');
+    // The dashboard only learns its month from the wire, so the key has to
+    // read back as a label — and anything that is not a key is left alone.
+    expect(salesMonthLabelFromKey('2026-09'), 'September 2026');
+    expect(salesMonthLabelFromKey('2026-13'), '2026-13');
+    expect(salesMonthLabelFromKey(''), '');
   });
 }
