@@ -8,6 +8,7 @@ import {
   USERS,
   SKUS,
 } from './catalog';
+import { normalizeEmail } from '../../src/lib/email';
 
 describe('homeCoordinates', () => {
   it('uses the env pair when both are set', () => {
@@ -100,6 +101,17 @@ describe('reference data', () => {
   it('gives every user a unique email, which the schema requires globally', () => {
     const emails = USERS.map((u) => u.email);
     expect(new Set(emails).size).toBe(emails.length);
+  });
+
+  // Login normalises what it is given before looking the row up (#351), so a
+  // demo email spelled with a capital here would be seeded as one string and
+  // searched for as another — and rotate-demo-passwords, which matches on these
+  // exact strings, would quietly report the account "not present". Keeping the
+  // catalog canonical is what makes those three agree.
+  it('spells every demo email in the canonical form login looks up (#351)', () => {
+    for (const user of USERS) {
+      expect(user.email).toBe(normalizeEmail(user.email));
+    }
   });
 
   it('has three territories and about twenty SKUs', () => {

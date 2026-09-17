@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { NotFoundError } from '../../middleware/errorHandler';
 import { buildPage } from '../../lib/pagination';
+import { normalizeEmail } from '../../lib/email';
 import { hashPassword } from '../auth/auth.service';
 import { purgeAgentLocationPings } from '../locations/locationRetention';
 
@@ -31,13 +32,25 @@ export interface CreateUserInput {
   displayName?: string | null;
 }
 
-// Provisions a new user in the caller's client. May throw a Prisma P2002 on a
-// duplicate email — the route maps that to a 409.
+// Provisions a new user in the caller's client.
+//
+// The email is normalised on the way in (#351) so that provisioning and login
+// agree on one spelling: an admin who types `Foo@X.com` here mints an account
+// the person can actually reach by typing `foo@x.com` on a phone. Without this,
+// login's normalised lookup would never find a row stored mixed-case.
+//
+// Collision: two emails differing only in case or surrounding whitespace now
+// normalise to the same string and meet the unique index, so the second create
+// throws Prisma P2002 and the route answers the 409 a duplicate has always got
+// ("A user with this email already exists"). That is deliberate — a clear
+// refusal beats silently minting a second account that can never be logged
+// into. No existing row is affected: every user already stores a trimmed,
+// lowercase email, so nothing is orphaned by the change.
 export async function createUser(input: CreateUserInput) {
   return prisma.user.create({
     data: {
       clientId: input.clientId,
-      email: input.email,
+      email: normalizeEmail(input.email),
       displayName: input.displayName ?? null,
       passwordHash: await hashPassword(input.password),
       role: input.role,

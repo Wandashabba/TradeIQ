@@ -43,6 +43,20 @@ class FakeAuthRepository implements AuthRepository {
   }
 }
 
+/// Captures exactly what the screen handed the repository, so a test can pin
+/// the credentials that actually go on the wire (#351).
+class RecordingAuthRepository implements AuthRepository {
+  String? email;
+  String? password;
+
+  @override
+  Future<AuthResult> login(String email, String password) async {
+    this.email = email;
+    this.password = password;
+    return const AuthResult(token: 'fake-token', role: 'manager');
+  }
+}
+
 class Unauthorized401AuthRepository implements AuthRepository {
   @override
   Future<AuthResult> login(String email, String password) async {
@@ -231,5 +245,62 @@ void main() {
     expect(find.byType(LitGround), findsOneWidget);
     expect(find.byType(DimmedAisleBackdrop), findsNothing);
     expect(find.widgetWithText(GlassPrimaryButton, 'Sign in'), findsOneWidget);
+  });
+
+  group('email normalisation (#351)', () {
+    // The reported bug: an Android keyboard capitalised the first letter of the
+    // address and the login failed on a correct password.
+    testWidgets('sends a trimmed, lowercased email to the repository', (
+      tester,
+    ) async {
+      final repository = RecordingAuthRepository();
+      await tester.pumpWidget(_wrap(repository));
+
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        '  Agent@Demo-FMCG.TradeIQ.com  ',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), 'password123');
+      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      await tester.pumpAndSettle();
+
+      expect(repository.email, 'agent@demo-fmcg.tradeiq.com');
+    });
+
+    // A password is not an identifier: spaces in one may be deliberate, and
+    // trimming would lock out whoever chose it.
+    testWidgets('passes the password through untouched', (tester) async {
+      final repository = RecordingAuthRepository();
+      await tester.pumpWidget(_wrap(repository));
+
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'agent@demo-fmcg.tradeiq.com',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), ' Pass Word 1 ');
+      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      await tester.pumpAndSettle();
+
+      expect(repository.password, ' Pass Word 1 ');
+    });
+
+    // Normalising on submit fixes the symptom; this stops the keyboard from
+    // producing the wrong thing in the first place.
+    testWidgets('configures the email field not to auto-capitalise', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(FakeAuthRepository()));
+
+      final field = tester.widget<TextField>(
+        find.descendant(
+          of: find.byType(TextFormField).at(0),
+          matching: find.byType(TextField),
+        ),
+      );
+
+      expect(field.textCapitalization, TextCapitalization.none);
+      expect(field.autocorrect, isFalse);
+      expect(field.keyboardType, TextInputType.emailAddress);
+    });
   });
 }

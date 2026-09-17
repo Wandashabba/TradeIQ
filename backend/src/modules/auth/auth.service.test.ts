@@ -1,8 +1,10 @@
 import { spawnSync } from 'child_process';
 import * as path from 'path';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UserRole } from '@prisma/client';
-import { ROLES, issueToken, verifyToken } from './auth.service';
+import { prisma } from '../../lib/prisma';
+import { ROLES, authenticateUser, hashPassword, issueToken, verifyToken } from './auth.service';
 
 describe('auth.service', () => {
   const payload = { userId: 'user-1', role: 'field_agent' as const, clientId: 'client-1' };
@@ -162,5 +164,95 @@ describe('auth.service', () => {
     it('has no duplicates', () => {
       expect(new Set(ROLES).size).toBe(ROLES.length);
     });
+  });
+});
+
+/**
+ * Login is case- and whitespace-insensitive in the email (#351).
+ *
+ * Exercised at the service level rather than through POST /auth/login on
+ * purpose: the route is IP-rate-limited to 10 attempts per window, so a
+ * table of spellings belongs here, where it costs no budget. The route keeps
+ * a small end-to-end sample in auth.routes.test.ts.
+ */
+describe('authenticateUser — email normalisation (#351)', () => {
+  const email = 'auth-normalise@example.com';
+  const password = 'correct-horse-battery';
+  let clientId: string;
+
+  beforeAll(async () => {
+    const client = await prisma.client.create({
+      data: {
+        name: 'Auth Normalise Client',
+        industry: 'FMCG',
+        scorecardWeights: {},
+        kpiThresholds: {},
+      },
+    });
+    clientId = client.id;
+
+    await prisma.user.create({
+      data: {
+        email,
+        passwordHash: await hashPassword(password),
+        role: 'field_agent',
+        clientId,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({ where: { clientId } });
+    await prisma.client.delete({ where: { id: clientId } });
+    await prisma.$disconnect();
+  });
+
+  it.each([
+    ['exactly as stored', 'auth-normalise@example.com'],
+    ['capitalised, as an Android keyboard leaves it', 'Auth-normalise@example.com'],
+    ['in all caps', 'AUTH-NORMALISE@EXAMPLE.COM'],
+    ['with a leading space', '  auth-normalise@example.com'],
+    ['with a trailing space', 'auth-normalise@example.com  '],
+    ['padded and capitalised at once', '  Auth-Normalise@Example.com  '],
+  ])('authenticates when the email is typed %s', async (_label, typed) => {
+    const user = await authenticateUser(typed, password);
+    expect(user).not.toBeNull();
+    // The canonical row, not a second one: the stored spelling is unchanged.
+    expect(user!.email).toBe(email);
+  });
+
+  it('still rejects a genuinely wrong password, however the email is cased', async () => {
+    expect(await authenticateUser('AUTH-NORMALISE@example.com', 'not-the-password')).toBeNull();
+  });
+
+  it('still rejects an unknown email', async () => {
+    expect(await authenticateUser('nobody-here@example.com', password)).toBeNull();
+  });
+
+  // The timing protection must survive the fix. An unknown email has to reach
+  // the same bcrypt comparison a known one does, or response time reveals which
+  // addresses exist. Normalising BEFORE the lookup is what keeps this true —
+  // normalising afterwards would mean an early return on the unknown path.
+  it('still runs one bcrypt comparison for an unknown email (timing protection intact)', async () => {
+    const compare = jest.spyOn(bcrypt, 'compare');
+    try {
+      expect(await authenticateUser('  NoSuchUser@Example.com  ', password)).toBeNull();
+      expect(compare).toHaveBeenCalledTimes(1);
+      // Against a real bcrypt hash (the dummy), so the work is the same cost.
+      const hash = compare.mock.calls[0][1] as unknown as string;
+      expect(hash).toMatch(/^\$2[aby]\$/);
+    } finally {
+      compare.mockRestore();
+    }
+  });
+
+  it('runs exactly the same single comparison for a known email', async () => {
+    const compare = jest.spyOn(bcrypt, 'compare');
+    try {
+      await authenticateUser(email, password);
+      expect(compare).toHaveBeenCalledTimes(1);
+    } finally {
+      compare.mockRestore();
+    }
   });
 });

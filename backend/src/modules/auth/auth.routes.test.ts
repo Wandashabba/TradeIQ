@@ -42,6 +42,24 @@ describe('POST /auth/login', () => {
     expect(res.body.role).toBe('field_agent');
   });
 
+  // The reported bug, end to end (#351): these are the spellings a phone
+  // keyboard and a paste actually produce.
+  //
+  // BUDGET: POST /auth/login is IP-rate-limited to 10 attempts per window and
+  // this file now spends 8 of them. Put further normalisation cases in
+  // auth.service.test.ts, which exercises authenticateUser directly and costs
+  // nothing here.
+  it.each([
+    ['capitalised by an Android keyboard', 'Auth-route-test@example.com'],
+    ['in all caps', 'AUTH-ROUTE-TEST@EXAMPLE.COM'],
+    ['padded with whitespace', '  auth-route-test@example.com  '],
+  ])('returns 200 when the email is %s', async (_label, typed) => {
+    const res = await request(app).post('/auth/login').send({ email: typed, password });
+    expect(res.status).toBe(200);
+    expect(typeof res.body.token).toBe('string');
+    expect(res.body.role).toBe('field_agent');
+  });
+
   it('returns 401 for a wrong password', async () => {
     const res = await request(app).post('/auth/login').send({ email, password: 'wrong-password' });
     expect(res.status).toBe(401);

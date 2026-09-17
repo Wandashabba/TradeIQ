@@ -81,7 +81,9 @@ describe('users routes', () => {
       .send({ email: 'USERS-new@example.com', password: 'supersecret', role: 'manager' });
 
     expect(res.status).toBe(201);
-    expect(res.body.email).toBe('USERS-new@example.com');
+    // Stored (and echoed) in the canonical lower-case form (#351), whatever
+    // case the admin typed.
+    expect(res.body.email).toBe('users-new@example.com');
     expect(res.body.role).toBe('manager');
     expect(res.body.active).toBe(true);
     expect(res.body.passwordHash).toBeUndefined();
@@ -102,7 +104,7 @@ describe('users routes', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.displayName).toBe('Sipho Ndlovu');
-    const stored = await prisma.user.findUnique({ where: { email: 'USERS-named@example.com' } });
+    const stored = await prisma.user.findUnique({ where: { email: 'users-named@example.com' } });
     expect(stored?.displayName).toBe('Sipho Ndlovu');
   });
 
@@ -156,12 +158,64 @@ describe('users routes', () => {
   });
 
   it('rejects a duplicate email with 409', async () => {
+    const first = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: 'users-dupe@example.com', password: 'supersecret', role: 'field_agent' });
+    expect(first.status).toBe(201);
+
     const res = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'USERS-admin@example.com', password: 'supersecret', role: 'field_agent' });
+      .send({ email: 'users-dupe@example.com', password: 'supersecret', role: 'field_agent' });
 
     expect(res.status).toBe(409);
+  });
+
+  // Normalising on create (#351) means two spellings of one address can no
+  // longer become two accounts. The collision surfaces as the same clear 409 a
+  // duplicate has always produced — better than silently minting a second
+  // account that login could never reach.
+  it('treats an email differing only in case or whitespace as a duplicate (409) (#351)', async () => {
+    const first = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: 'Users-Collide@example.com', password: 'supersecret', role: 'field_agent' });
+    expect(first.status).toBe(201);
+    expect(first.body.email).toBe('users-collide@example.com');
+
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: '  USERS-COLLIDE@example.com  ', password: 'supersecret', role: 'field_agent' });
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'A user with this email already exists' });
+  });
+
+  // The whole point of normalising on create: provisioning and login agree, so
+  // an account minted from a mixed-case address is reachable by the lower-case
+  // one a phone keyboard will actually produce (#351). One login request only —
+  // POST /auth/login is IP-rate-limited at 10 per window.
+  it('stores a mixed-case email lowercased, and that user can then log in (#351)', async () => {
+    const created = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: 'Foo@X.com', password: 'supersecret', role: 'field_agent' });
+
+    expect(created.status).toBe(201);
+    expect(created.body.email).toBe('foo@x.com');
+
+    const stored = await prisma.user.findUnique({ where: { email: 'foo@x.com' } });
+    expect(stored).not.toBeNull();
+
+    const login = await request(app)
+      .post('/auth/login')
+      .send({ email: 'foo@x.com', password: 'supersecret' });
+
+    expect(login.status).toBe(200);
+    expect(typeof login.body.token).toBe('string');
+    expect(login.body.role).toBe('field_agent');
   });
 
   it('rejects an invalid role with 400', async () => {

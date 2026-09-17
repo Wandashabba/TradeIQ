@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma, TaskPriority, TaskStatus } from '@prisma/client';
 import { hashPassword } from '../../src/modules/auth/auth.service';
+import { normalizeEmail } from '../../src/lib/email';
 import { rescoreFraudScores } from '../../src/modules/fraud/fraudRescore';
 import { backfillPointsLedger } from '../../src/modules/gamification/pointsLedgerBackfill';
 import { addDays, HISTORY_WEEKS, startOfUtcDay } from './calendar';
@@ -80,7 +81,10 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   await prisma.user.createMany({
     data: USERS.map((user) => ({
       id: user.id,
-      email: user.email,
+      // The catalog's emails are already canonical and a test pins that, but
+      // the seed writes through the same normaliser login reads through (#351)
+      // so the two can never drift apart here.
+      email: normalizeEmail(user.email),
       displayName: user.name,
       passwordHash,
       role: user.role,
