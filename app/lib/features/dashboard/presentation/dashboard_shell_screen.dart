@@ -1394,6 +1394,8 @@ class _AgentMap extends StatelessWidget {
               // world as the full-screen trail map — between the tiles and
               // the markers so pins stay at full brightness.
               const TiqNavyTint(),
+              // Place names ride above the tint so the wash cannot mute them.
+              const TiqBasemapLabels(),
               MarkerLayer(
                 // Outlets first, agents last: marker paint order follows
                 // list order, so a checked-in agent standing at (or near) an
