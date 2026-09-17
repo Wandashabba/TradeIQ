@@ -1,10 +1,11 @@
 import { validateFigure, type FigureArtifact } from './figures';
 import { SYSTEM_PROMPT } from './prompt';
-import type { LlmProvider, Message, ToolCallRecord, Usage } from './providers/types';
+import type { LlmProvider, Message, RawWebSource, ToolCallRecord, Usage } from './providers/types';
 import { quarantineFreeText } from './quarantine';
 import { pillarOf, type ToolName } from './roster';
 import { neutraliseAnswerMarkup, sanitizeToolResult } from './sanitize';
 import { shrinkToolResult } from './shrink';
+import { normaliseSources, type WebSource } from './sources';
 import { tracer as processTracer, type AssistantTracer, type ToolSpan } from './tracing';
 import { ToolFacingError, type AnyAssistantTool, type ToolArgs } from './types';
 import { validateViewSpec, type ViewSpec } from './viewspec';
@@ -88,6 +89,9 @@ const FINAL_ROUND_NOTE: Record<FinalReason, string> = {
 
 type FinalReason = 'rounds' | 'time' | 'cost' | 'repeat';
 
+/** The working-step name a vendor-run web search is announced under. */
+export const WEB_SEARCH_STEP = 'webSearch';
+
 /** What the route writes to the wire. Mirrors the SSE table in the design spec. */
 export type WireEvent =
   /**
@@ -100,6 +104,12 @@ export type WireEvent =
   | { event: 'tool_start'; data: { name: string; pillar: string } }
   | { event: 'tool_end'; data: { name: string; ok: boolean } }
   | { event: 'artifact'; data: { id: string; type: string; params: unknown; data: unknown } }
+  /**
+   * Web pages the answer cited, validated by `sources.ts`. At most once per
+   * turn, after the last token and before `usage`. Clients that predate it
+   * ignore it, as they must any unknown event.
+   */
+  | { event: 'sources'; data: { sources: WebSource[] } }
   | { event: 'usage'; data: Usage }
   | { event: 'error'; data: { code: string; message: string } }
   | { event: 'done'; data: Record<string, never> };
@@ -115,6 +125,12 @@ export interface OrchestratorInput {
   maxToolRounds?: number;
   /** Overrides {@link TURN_TIME_BUDGET_MS} and {@link TURN_COST_BUDGET_CENTS}. */
   budget?: { maxMs?: number; maxCostCents?: number };
+  /**
+   * Offer the provider's live web search this turn. Off unless the caller says
+   * so — the route reads it from the tenant's switch — so every existing caller,
+   * including the eval sweep, keeps scoring internal tool choice alone.
+   */
+  webSearch?: boolean;
   /**
    * Who is asking, for tracing only.
    *
@@ -176,6 +192,8 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
   // under-reports the expensive turns by the most.
   let totalUsage = zeroUsage();
   let artifactIndex = 0;
+  // Collected across rounds and published once, at the end, deduplicated.
+  const rawSources: RawWebSource[] = [];
 
   // Tracing state. Collected as the turn runs and emitted once at the end —
   // a trace per event would multiply the request count by the number of tools
@@ -198,8 +216,11 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       (input.tracer ?? processTracer()).recordTurn(
         {
           ...trace,
+          // Read at emit time, not at the start: a fallback wrapper reports
+          // whichever vendor actually answered.
           provider: provider.name,
           model: provider.models.orchestrator,
+          ...(provider.fallbackFrom ? { fallbackFrom: provider.fallbackFrom } : {}),
         },
         {
           usage: totalUsage,
@@ -242,6 +263,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
     const lastRound = round === maxRounds || finalReason !== null;
     const calls: ToolCallRecord[] = [];
     let assistantText = '';
+    let replay: unknown;
     let failed = false;
 
     for await (const event of provider.runTurn(
@@ -250,6 +272,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         tools,
         messages,
         ...(lastRound ? { toolChoice: 'none' as const } : {}),
+        ...(input.webSearch ? { webSearch: true } : {}),
       },
       signal,
     )) {
@@ -272,6 +295,23 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
 
         case 'usage':
           totalUsage = addUsage(totalUsage, event.usage);
+          break;
+
+        // The vendor ran its own search. It is shown as a working step like
+        // any tool, but there is nothing for us to execute.
+        case 'web_search':
+          yield { event: 'tool_start', data: { name: WEB_SEARCH_STEP, pillar: 'web' } };
+          yield { event: 'tool_end', data: { name: WEB_SEARCH_STEP, ok: true } };
+          toolSpans.push({ name: WEB_SEARCH_STEP, pillar: 'web', ok: true, durationMs: 0 });
+          break;
+
+        case 'sources':
+          rawSources.push(...event.sources);
+          break;
+
+        // Opaque. Only carried back into history — see TextMessage.providerReplay.
+        case 'replay':
+          replay = event.content;
           break;
 
         case 'error':
@@ -307,12 +347,19 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         yield { event: 'token', data: { text: BUDGET_NOTICE } };
       }
       emitTrace();
+      const sources = normaliseSources(rawSources, new Date());
+      if (sources.length > 0) yield { event: 'sources', data: { sources } };
       yield { event: 'usage', data: totalUsage };
       yield { event: 'done', data: {} };
       return;
     }
 
-    messages.push({ role: 'assistant', content: assistantText, toolCalls: calls });
+    messages.push({
+      role: 'assistant',
+      content: assistantText,
+      toolCalls: calls,
+      ...(replay !== undefined ? { providerReplay: { provider: provider.name, content: replay } } : {}),
+    });
 
     // Parse and classify every call up front; the ones worth running start
     // together, bounded, and are emitted below in the order the model asked.

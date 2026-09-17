@@ -1303,4 +1303,108 @@ describe('orchestrator', () => {
       expect(artifact?.data).toMatchObject({ data: { averageScore: 82 } });
     });
   });
+  describe('web search and sources', () => {
+    const source = (url: string, title = 'A page') => ({ url, title, snippet: 'A snippet.' });
+
+    it('offers web search to the provider only when the caller asks', async () => {
+      const off = scriptedProvider([say('hi')]);
+      await collect(runTurn({ provider: off, tools: [], messages: [{ role: 'user', content: 'q' }], signal: signal() }));
+      expect(off.calls[0].webSearch).toBeUndefined();
+
+      const on = scriptedProvider([say('hi')]);
+      await collect(
+        runTurn({ provider: on, tools: [], messages: [{ role: 'user', content: 'q' }], signal: signal(), webSearch: true }),
+      );
+      expect(on.calls[0].webSearch).toBe(true);
+    });
+
+    it('shows a vendor-run search as a working step, with nothing executed', async () => {
+      const provider = scriptedProvider([[{ type: 'web_search' }, { type: 'token', text: 'News.' }, { type: 'done' }]]);
+
+      const events = await collect(
+        runTurn({ provider, tools: [], messages: [{ role: 'user', content: 'q' }], signal: signal(), webSearch: true }),
+      );
+
+      expect(names(events)).toEqual(['tool_start', 'tool_end', 'token', 'usage', 'done']);
+      expect(events[0]).toEqual({ event: 'tool_start', data: { name: 'webSearch', pillar: 'web' } });
+      expect(events[1]).toEqual({ event: 'tool_end', data: { name: 'webSearch', ok: true } });
+    });
+
+    it('publishes validated sources once, after the answer and before usage', async () => {
+      const provider = scriptedProvider([
+        [
+          { type: 'sources', sources: [source('https://a.example.com/x')] },
+          { type: 'tool_call', id: 'c0', name: 'getAgentScorecard', args: { agentId: 'a' } },
+          { type: 'done' },
+        ],
+        [
+          { type: 'token', text: 'Answer.' },
+          {
+            type: 'sources',
+            sources: [source('https://a.example.com/x'), source('javascript:alert(1)'), source('https://b.example.com/')],
+          },
+          { type: 'done' },
+        ],
+      ]);
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const events = await collect(
+        runTurn({ provider, tools: [testTool()], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+      warn.mockRestore();
+
+      const tail = names(events).slice(-3);
+      expect(tail).toEqual(['sources', 'usage', 'done']);
+      expect(names(events).filter((n) => n === 'sources')).toHaveLength(1);
+      const published = events.find((e) => e.event === 'sources') as Extract<WireEvent, { event: 'sources' }>;
+      expect(published.data.sources.map((s) => s.url)).toEqual(['https://a.example.com/x', 'https://b.example.com/']);
+      expect(published.data.sources[0]).toMatchObject({ domain: 'a.example.com', retrievedAt: expect.any(String) });
+    });
+
+    it('emits no sources event when nothing was cited', async () => {
+      const provider = scriptedProvider([[{ type: 'sources', sources: [source('data:text/html,x')] }, { type: 'token', text: 'a' }, { type: 'done' }]]);
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const events = await collect(
+        runTurn({ provider, tools: [], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+      warn.mockRestore();
+      expect(names(events)).toEqual(['token', 'usage', 'done']);
+    });
+
+    it("carries the vendor's replay into history, tagged with the provider that made it", async () => {
+      const replay = [{ type: 'server_tool_use', id: 'srv_1' }];
+      const provider = scriptedProvider([
+        [
+          { type: 'tool_call', id: 'c0', name: 'getAgentScorecard', args: { agentId: 'a' } },
+          { type: 'replay', content: replay },
+          { type: 'done' },
+        ],
+        say('done'),
+      ]);
+
+      await collect(
+        runTurn({ provider, tools: [testTool()], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+
+      const round2 = provider.calls.filter((c) => c.model !== 'quarantine')[1];
+      const assistant = round2.messages.find((m) => m.role === 'assistant');
+      expect(assistant).toMatchObject({ providerReplay: { provider: 'gemini', content: replay } });
+    });
+
+    it('traces which provider answered when a fallback stood in', async () => {
+      const provider = { ...scriptedProvider([say('hi')]), fallbackFrom: 'anthropic' as const };
+      const turns: TurnTrace[] = [];
+      await collect(
+        runTurn({
+          provider,
+          tools: [],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          trace: { traceId: 't', userId: 'u', clientId: 'c' },
+          tracer: { recordTurn: (trace) => void turns.push(trace), flush: async () => {} },
+        }),
+      );
+      expect(turns[0]).toMatchObject({ provider: 'gemini', fallbackFrom: 'anthropic' });
+    });
+  });
 });

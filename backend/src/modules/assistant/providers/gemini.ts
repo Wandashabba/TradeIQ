@@ -5,8 +5,10 @@ import {
   type FunctionDeclaration,
   type GenerateContentParameters,
   type GenerateContentResponse,
+  type GroundingMetadata,
   type Part,
   type Tool,
+  type ToolConfig,
 } from '@google/genai';
 import {
   forgetCachedPrefix,
@@ -20,6 +22,7 @@ import {
   isToolResult,
   type LlmProvider,
   type Message,
+  type RawWebSource,
   type TurnEvent,
   type TurnInput,
   type Usage,
@@ -150,6 +153,19 @@ export function toGeminiContents(messages: readonly Message[]): Content[] {
       } else {
         contents.push({ role: 'user', parts: [part] });
       }
+      continue;
+    }
+
+    // A turn that ran Google Search carries server-side toolCall/toolResponse
+    // parts with their own signatures, and Gemini refuses the next request if
+    // any of them is missing. Such a turn is replayed exactly as it streamed.
+    if (
+      message.role === 'assistant' &&
+      message.providerReplay?.provider === 'gemini' &&
+      Array.isArray(message.providerReplay.content) &&
+      message.providerReplay.content.length > 0
+    ) {
+      contents.push({ role: 'model', parts: message.providerReplay.content as Part[] });
       continue;
     }
 
@@ -298,6 +314,52 @@ export function classifyGeminiError(err: unknown): { code: string; message: stri
   return { code: 'provider_error', message: 'Something went wrong. Please try again.' };
 }
 
+/**
+ * Can this model combine Google Search grounding with function calling?
+ *
+ * Per Google's "Combine built-in tools and function calling" guide, only Gemini
+ * 3 models can, in preview, and only with `includeServerSideToolInvocations` and
+ * `VALIDATED` mode. Earlier models reject the combination, so for them search is
+ * simply not offered and the frozen prompt has the model say it cannot search.
+ */
+export function geminiSupportsSearchWithTools(model: string): boolean {
+  return /^(models\/)?gemini-3/i.test(model);
+}
+
+/** The tool config a grounded, function-calling request needs. */
+export const GROUNDED_TOOL_CONFIG: ToolConfig = {
+  functionCallingConfig: { mode: FunctionCallingConfigMode.VALIDATED },
+  includeServerSideToolInvocations: true,
+};
+
+/**
+ * Grounding metadata → raw sources.
+ *
+ * Gemini names a page by `web.uri` (a Google redirect link that resolves to the
+ * page) and `web.title` (usually the site's domain). The only "snippet" it
+ * exposes is the answer segment a chunk supports — the model's words, not the
+ * page's — so the first such segment is used, and `sources.ts` bounds it.
+ */
+export function sourcesFromGrounding(meta: GroundingMetadata | undefined): RawWebSource[] {
+  const chunks = meta?.groundingChunks ?? [];
+  const snippets = new Map<number, string>();
+  for (const support of meta?.groundingSupports ?? []) {
+    for (const index of support.groundingChunkIndices ?? []) {
+      if (!snippets.has(index) && support.segment?.text) snippets.set(index, support.segment.text);
+    }
+  }
+  const out: RawWebSource[] = [];
+  chunks.forEach((chunk, index) => {
+    if (!chunk.web?.uri) return;
+    out.push({
+      url: chunk.web.uri,
+      title: chunk.web.title ?? chunk.web.domain ?? null,
+      snippet: snippets.get(index) ?? null,
+    });
+  });
+  return out;
+}
+
 export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmProvider {
   const orchestratorModel = options.models?.orchestrator ?? GEMINI_ORCHESTRATOR_MODEL;
   const quarantineModel = options.models?.quarantine ?? GEMINI_QUARANTINE_MODEL;
@@ -349,8 +411,14 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
       const suppressTools = input.toolChoice === 'none' || input.model === 'quarantine';
       const declarations = suppressTools ? [] : toFunctionDeclarations(input.tools);
       const model = input.model === 'quarantine' ? quarantineModel : orchestratorModel;
+      // Grounding rides beside the function declarations, never alone: a
+      // search-only request would change what a tool-less round means.
+      const grounded =
+        Boolean(input.webSearch) && declarations.length > 0 && geminiSupportsSearchWithTools(model);
       const toolsForRequest: Tool[] =
-        declarations.length > 0 ? [{ functionDeclarations: declarations }] : [];
+        declarations.length > 0
+          ? [{ functionDeclarations: declarations }, ...(grounded ? [{ googleSearch: {} }] : [])]
+          : [];
 
       // Resolving the cache reaches for the client, and a missing key throws
       // from there — so this cannot sit above the try below. `runTurn` must end
@@ -370,6 +438,9 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
           model,
           input.system,
           toolsForRequest,
+          // A grounded request's tool config cannot be sent beside a cache, so
+          // it lives in the cache entry — and is part of its key.
+          grounded ? GROUNDED_TOOL_CONFIG : undefined,
         );
       } catch (err) {
         const { code, message } = classifyGeminiError(err);
@@ -402,13 +473,15 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
                 // NOT a prepended user turn. See the file header.
                 systemInstruction: input.system,
                 ...(toolsForRequest.length > 0 ? { tools: toolsForRequest } : {}),
-                toolConfig: {
-                  functionCallingConfig: {
-                    mode: suppressTools
-                      ? FunctionCallingConfigMode.NONE
-                      : FunctionCallingConfigMode.AUTO,
-                  },
-                },
+                toolConfig: grounded
+                  ? GROUNDED_TOOL_CONFIG
+                  : {
+                      functionCallingConfig: {
+                        mode: suppressTools
+                          ? FunctionCallingConfigMode.NONE
+                          : FunctionCallingConfigMode.AUTO,
+                      },
+                    },
               }),
           // ⚠️ Client-side only, per the SDK's own note: aborting stops us
           // reading the stream, it does not stop Google generating or billing
@@ -424,6 +497,10 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
       // and a uuid would make every run differ. Correlation only has to hold
       // within one turn, which an index does.
       let callIndex = 0;
+      // Only kept when the turn used a server-side tool; see toGeminiContents.
+      const replayParts: Part[] = [];
+      let usedServerTool = false;
+      let grounding: GroundingMetadata | undefined;
 
       try {
         let stream: AsyncGenerator<GenerateContentResponse>;
@@ -442,6 +519,7 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
             cachedContent: undefined,
             systemInstruction: input.system,
             ...(toolsForRequest.length > 0 ? { tools: toolsForRequest } : {}),
+            ...(grounded ? { toolConfig: GROUNDED_TOOL_CONFIG } : {}),
           };
           stream = await getClient().models.generateContentStream(params);
         }
@@ -453,6 +531,12 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
           }
 
           for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+            if (grounded) replayParts.push(part);
+            if (part.toolCall) {
+              // Google ran a search. Nothing to execute; announce it once.
+              if (!usedServerTool) yield { type: 'web_search' };
+              usedServerTool = true;
+            }
             // Thinking text is not narrative and must not be streamed to the
             // user as though it were the answer.
             if (part.thought) continue;
@@ -477,6 +561,8 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
           // Usage arrives cumulatively across chunks; the last one wins rather
           // than being summed, or a long stream reports several times its cost.
           if (chunk.usageMetadata) usage = normaliseGeminiUsage(chunk.usageMetadata);
+          const meta = chunk.candidates?.[0]?.groundingMetadata;
+          if (meta?.groundingChunks?.length) grounding = meta;
         }
       } catch (err) {
         const { code, message } = classifyGeminiError(err);
@@ -485,6 +571,12 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
         yield { type: 'error', code, message };
         return;
       }
+
+      if (usedServerTool && callIndex > 0) {
+        yield { type: 'replay', content: replayParts };
+      }
+      const sources = sourcesFromGrounding(grounding);
+      if (sources.length > 0) yield { type: 'sources', sources };
 
       // Always emitted, even when the vendor sent no usage block, so the cost
       // path has no silent hole — a missing `usage` event would read downstream

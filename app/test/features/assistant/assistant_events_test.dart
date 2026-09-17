@@ -67,6 +67,78 @@ void main() {
     test('rejects an artifact with no id or type', () {
       expect(AssistantEvent.parse('artifact', '{"data":{}}'), isNull);
     });
+
+    group('sources', () {
+      test('reads valid sources in order', () {
+        final event = AssistantEvent.parse('sources', '''{"sources":[
+          {"title":"Shoprite launches new stores","url":"https://www.iol.co.za/business/shoprite","domain":"iol.co.za","pageAge":"3 days ago","retrievedAt":"2026-09-17T10:12:00.000Z","snippet":"Shoprite said on Monday ..."},
+          {"title":"Retail slows","url":"http://example.com/a","domain":"example.com","pageAge":null,"retrievedAt":"2026-09-17T10:12:00.000Z","snippet":null}
+        ]}''');
+        final sources = (event! as SourcesEvent).sources;
+        expect(sources, hasLength(2));
+        final first = sources.first;
+        expect(first.title, 'Shoprite launches new stores');
+        expect(first.url, Uri.parse('https://www.iol.co.za/business/shoprite'));
+        expect(first.domain, 'iol.co.za');
+        expect(first.pageAge, '3 days ago');
+        expect(first.retrievedAt, DateTime.utc(2026, 9, 17, 10, 12));
+        expect(first.snippet, 'Shoprite said on Monday ...');
+        expect(sources[1].url.scheme, 'http');
+        expect(sources[1].pageAge, isNull);
+        expect(sources[1].snippet, isNull);
+      });
+
+      test('drops anything that is not http or https', () {
+        final event = AssistantEvent.parse('sources', '''{"sources":[
+          {"title":"a","url":"javascript:alert(1)","domain":"x"},
+          {"title":"b","url":"data:text/html,<b>hi</b>","domain":"x"},
+          {"title":"c","url":"ftp://files.example.com/x","domain":"x"},
+          {"title":"d","url":"JAVASCRIPT:alert(1)","domain":"x"},
+          {"title":"e","url":"/relative/path","domain":"x"},
+          {"title":"f","url":"https://ok.example.com/","domain":"ok.example.com"}
+        ]}''');
+        final sources = (event! as SourcesEvent).sources;
+        expect(sources.map((s) => s.title), ['f']);
+      });
+
+      test('skips malformed entries rather than failing the frame', () {
+        final event = AssistantEvent.parse('sources', '''{"sources":[
+          "not an object",
+          null,
+          {"url":"https://no-title.example.com/"},
+          {"title":"","url":"https://empty-title.example.com/"},
+          {"title":"no url"},
+          {"title":7,"url":"https://wrong-type.example.com/"},
+          {"title":"Kept","url":"https://www.kept.example.com/a"}
+        ]}''');
+        final sources = (event! as SourcesEvent).sources;
+        expect(sources, hasLength(1));
+        // Missing optional fields are fine; domain falls back to the host.
+        expect(sources.single.domain, 'kept.example.com');
+        expect(sources.single.pageAge, isNull);
+        expect(sources.single.retrievedAt, isNull);
+        expect(sources.single.snippet, isNull);
+      });
+
+      test('a missing or wrong-typed list is an empty event', () {
+        expect((AssistantEvent.parse('sources', '{}')! as SourcesEvent).sources,
+            isEmpty);
+        expect(
+            (AssistantEvent.parse('sources', '{"sources":"x"}')! as SourcesEvent)
+                .sources,
+            isEmpty);
+      });
+
+      test('caps at ten', () {
+        final entries = List.generate(
+          14,
+          (i) => '{"title":"t$i","url":"https://e.com/$i","domain":"e.com"}',
+        ).join(',');
+        final event =
+            AssistantEvent.parse('sources', '{"sources":[$entries]}');
+        expect((event! as SourcesEvent).sources, hasLength(10));
+      });
+    });
   });
 
   group('SseParser', () {

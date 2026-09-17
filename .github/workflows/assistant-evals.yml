@@ -45,17 +45,23 @@ jobs:
       # per-provider gate degrades into "whichever failed first".
       fail-fast: false
       matrix:
-        provider: [gemini]
-        # Anthropic joins this list when its adapter and key land. Adding it
-        # here early would fail every night against a provider we have not
-        # built, training people to ignore a red cross.
+        provider: [gemini, anthropic]
+        # Anthropic's adapter has landed; its key has not. Until the
+        # ANTHROPIC_API_KEY secret exists, its leg SKIPS with a notice (see the
+        # key check below) rather than failing — a red cross every night for a
+        # secret nobody has added yet would train people to ignore this job.
     defaults:
       run:
         working-directory: backend
     env:
       LLM_PROVIDER: ${{ matrix.provider }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Each leg gets only its own provider's key. The Anthropic adapter falls
+      # back to Gemini on an outage whenever a Gemini key is present, and a
+      # per-provider gate that is quietly part-scored by the other vendor is not
+      # a per-provider gate. LLM_FALLBACK=off says the same thing twice.
+      GEMINI_API_KEY: ${{ matrix.provider == 'gemini' && secrets.GEMINI_API_KEY || '' }}
+      ANTHROPIC_API_KEY: ${{ matrix.provider == 'anthropic' && secrets.ANTHROPIC_API_KEY || '' }}
+      LLM_FALLBACK: 'off'
       LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
       LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
       # Cheap slice on a PR; the whole set nightly and on demand.
@@ -86,7 +92,18 @@ jobs:
       - name: Check the provider key is present
         id: key
         run: |
-          if [ -n "${GEMINI_API_KEY}" ]; then
+          if [ "${LLM_PROVIDER}" = "anthropic" ]; then
+            # Not yet a gate: the adapter shipped before its key. A missing
+            # secret skips this leg with a notice on every event, including
+            # the nightly, and never fails it. Once the secret is added this
+            # leg runs and is gated like Gemini's.
+            if [ -n "${ANTHROPIC_API_KEY}" ]; then
+              echo "present=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::notice title=Anthropic eval skipped::No ANTHROPIC_API_KEY secret is set, so the Anthropic tool-selection sweep was skipped (not failed). Add the secret in Settings → Secrets and variables → Actions to run it."
+              echo "present=false" >> "$GITHUB_OUTPUT"
+            fi
+          elif [ -n "${GEMINI_API_KEY}" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "::warning::No GEMINI_API_KEY secret is set, so the live eval sweep cannot run."

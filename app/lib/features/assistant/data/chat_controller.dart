@@ -80,6 +80,7 @@ class ChatMessage {
     required this.text,
     this.artifacts = const [],
     this.tools = const [],
+    this.sources = const [],
     this.error,
     this.streaming = false,
   });
@@ -88,6 +89,9 @@ class ChatMessage {
   final String text;
   final List<ChatArtifact> artifacts;
   final List<ToolActivity> tools;
+
+  /// The live web pages the answer cited, from the turn's `sources` event.
+  final List<WebSource> sources;
 
   /// A user-safe message from the server. Rendered instead of prose, not
   /// alongside it — a half-answer followed by an error reads as a bug.
@@ -98,6 +102,7 @@ class ChatMessage {
     String? text,
     List<ChatArtifact>? artifacts,
     List<ToolActivity>? tools,
+    List<WebSource>? sources,
     String? error,
     bool? streaming,
   }) =>
@@ -106,6 +111,7 @@ class ChatMessage {
         text: text ?? this.text,
         artifacts: artifacts ?? this.artifacts,
         tools: tools ?? this.tools,
+        sources: sources ?? this.sources,
         error: error ?? this.error,
         streaming: streaming ?? this.streaming,
       );
@@ -296,6 +302,9 @@ class ChatController extends Notifier<ChatState> {
           artifacts[at] = artifact;
         }
         messages[index] = current.copyWith(artifacts: artifacts);
+      case SourcesEvent(:final sources):
+        // One per turn by contract; a repeat replaces rather than duplicates.
+        messages[index] = current.copyWith(sources: sources);
       case ErrorEvent(:final message):
         messages[index] = current.copyWith(error: message, streaming: false);
       case UsageEvent():

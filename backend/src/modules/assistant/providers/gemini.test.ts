@@ -2,8 +2,11 @@ import { FunctionCallingConfigMode, type GenerateContentParameters } from '@goog
 import { z } from 'zod';
 import type { AnyAssistantTool } from '../types';
 import {
+  GROUNDED_TOOL_CONFIG,
   classifyGeminiError,
   createGeminiProvider,
+  geminiSupportsSearchWithTools,
+  sourcesFromGrounding,
   normaliseGeminiUsage,
   toFunctionDeclarations,
   toGeminiContents,
@@ -395,5 +398,151 @@ describe('createGeminiProvider — construction', () => {
       logged.mockRestore();
       if (previous !== undefined) process.env.GEMINI_API_KEY = previous;
     }
+  });
+});
+
+describe('gemini adapter — Google Search grounding', () => {
+  function grounded(model: string, chunks: unknown[], capture?: (p: GenerateContentParameters) => void) {
+    const client: GeminiClient = {
+      models: {
+        async generateContentStream(params) {
+          capture?.(params);
+          async function* stream() {
+            for (const chunk of chunks) yield chunk as never;
+          }
+          return stream();
+        },
+      },
+    };
+    return createGeminiProvider({ client, models: { orchestrator: model, quarantine: 'gemini-3.6-flash' } });
+  }
+
+  it.each([
+    ['gemini-3.1-pro-preview', true],
+    ['models/gemini-3.6-flash', true],
+    ['gemini-2.5-flash', false],
+  ])('%s can combine search with function calling: %s', (model, ok) => {
+    expect(geminiSupportsSearchWithTools(model)).toBe(ok);
+  });
+
+  it('adds googleSearch beside the declarations, with server-side invocations and VALIDATED mode', async () => {
+    let params: GenerateContentParameters | undefined;
+    const provider = grounded('gemini-3.1-pro-preview', [{ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }], (p) => {
+      params = p;
+    });
+
+    await collect(provider.runTurn(contractInput({ webSearch: true }), new AbortController().signal));
+
+    expect(params?.config?.tools).toEqual([
+      { functionDeclarations: expect.any(Array) },
+      { googleSearch: {} },
+    ]);
+    expect(params?.config?.toolConfig).toEqual(GROUNDED_TOOL_CONFIG);
+    expect(GROUNDED_TOOL_CONFIG).toEqual({
+      functionCallingConfig: { mode: FunctionCallingConfigMode.VALIDATED },
+      includeServerSideToolInvocations: true,
+    });
+  });
+
+  it('degrades to no search on a model that cannot combine it with tools', async () => {
+    let params: GenerateContentParameters | undefined;
+    const provider = grounded('gemini-2.5-flash', [{ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }], (p) => {
+      params = p;
+    });
+
+    await collect(provider.runTurn(contractInput({ webSearch: true }), new AbortController().signal));
+
+    expect(JSON.stringify(params?.config?.tools)).not.toContain('googleSearch');
+    expect(params?.config?.toolConfig?.functionCallingConfig?.mode).toBe(FunctionCallingConfigMode.AUTO);
+  });
+
+  it('never grounds a quarantine or tool-suppressed turn', async () => {
+    let params: GenerateContentParameters | undefined;
+    const provider = grounded('gemini-3.1-pro-preview', [{ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }], (p) => {
+      params = p;
+    });
+
+    await collect(
+      provider.runTurn(contractInput({ webSearch: true, toolChoice: 'none' }), new AbortController().signal),
+    );
+
+    expect(JSON.stringify(params?.config)).not.toContain('googleSearch');
+  });
+
+  it('announces the search, replays signed server-side parts, and reports cited sources', async () => {
+    const provider = grounded('gemini-3.1-pro-preview', [
+      {
+        candidates: [
+          {
+            content: {
+              parts: [
+                { toolCall: { id: 's1', toolType: 'GOOGLE_SEARCH_WEB', args: { queries: ['shoprite'] } }, thoughtSignature: 'sig-call' },
+                { toolResponse: { id: 's1', toolType: 'GOOGLE_SEARCH_WEB', response: {} }, thoughtSignature: 'sig-resp' },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        candidates: [
+          {
+            content: {
+              parts: [{ functionCall: { id: 'f1', name: 'getAgentScorecard', args: { agentId: 'a' } }, thoughtSignature: 'sig-fn' }],
+            },
+            groundingMetadata: {
+              groundingChunks: [{ web: { uri: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc', title: 'news24.com' } }],
+              groundingSupports: [{ segment: { text: 'Shoprite is running a promotion.' }, groundingChunkIndices: [0] }],
+            },
+          },
+        ],
+      },
+    ]);
+
+    const events = await collect(
+      provider.runTurn(contractInput({ webSearch: true }), new AbortController().signal),
+    );
+
+    expect(events.map((e) => e.type)).toEqual(['web_search', 'tool_call', 'replay', 'sources', 'usage', 'done']);
+    const replay = events.find((e) => e.type === 'replay') as { content: unknown[] };
+    expect(replay.content).toHaveLength(3);
+    expect(events.find((e) => e.type === 'sources')).toEqual({
+      type: 'sources',
+      sources: [
+        {
+          url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc',
+          title: 'news24.com',
+          snippet: 'Shoprite is running a promotion.',
+        },
+      ],
+    });
+  });
+
+  it('replays a grounded assistant turn verbatim in history', () => {
+    const parts = [{ toolCall: { id: 's1' }, thoughtSignature: 'sig' }, { functionCall: { id: 'f1', name: 'x', args: {} } }];
+    const contents = toGeminiContents([
+      {
+        role: 'assistant',
+        content: 'rebuilt text would lose the signatures',
+        toolCalls: [{ id: 'f1', name: 'x', args: {} }],
+        providerReplay: { provider: 'gemini', content: parts },
+      },
+    ]);
+    expect(contents).toEqual([{ role: 'model', parts }]);
+  });
+
+  it("ignores another vendor's replay and rebuilds the turn", () => {
+    const contents = toGeminiContents([
+      {
+        role: 'assistant',
+        content: 'hi',
+        providerReplay: { provider: 'anthropic', content: [{ type: 'thinking' }] },
+      },
+    ]);
+    expect(contents).toEqual([{ role: 'model', parts: [{ text: 'hi' }] }]);
+  });
+
+  it('extracts no sources from metadata without web chunks', () => {
+    expect(sourcesFromGrounding(undefined)).toEqual([]);
+    expect(sourcesFromGrounding({ groundingChunks: [{}] })).toEqual([]);
   });
 });

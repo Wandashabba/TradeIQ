@@ -1,8 +1,12 @@
+import { createAnthropicProvider } from './anthropic';
+import { withFallback } from './fallback';
 import { createGeminiProvider } from './gemini';
 import type { LlmProvider, ProviderName } from './types';
 
 export * from './types';
+export { createAnthropicProvider } from './anthropic';
 export { createGeminiProvider } from './gemini';
+export { withFallback } from './fallback';
 
 /**
  * Which provider a new conversation gets.
@@ -24,30 +28,35 @@ export function defaultProviderName(): ProviderName {
       `LLM_PROVIDER is "${configured}", which is not a provider. Set it to "gemini" or "anthropic".`,
     );
   }
-  // Gemini is the default because its key is the one that exists. When the
-  // Anthropic adapter lands this stays as-is: the default is a deployment
-  // choice, not a preference expressed in code.
+  // Gemini is the default because its key is the one that exists. The
+  // Anthropic adapter has landed and this stays as-is: the default is a
+  // deployment choice, not a preference expressed in code.
   return 'gemini';
 }
 
 /**
  * Build the adapter for a provider name.
  *
- * `anthropic` is declared and throws rather than being absent from the union.
- * A conversation pinned to a provider whose adapter has not shipped is a real
- * state once the flag can be set, and "no such provider" is a clearer failure
- * than a `undefined is not a function` three frames into the orchestrator.
+ * `anthropic` is wrapped in an outage fallback to Gemini **when a Gemini key
+ * exists** — see `fallback.ts` for the narrow rules (outage only, before any
+ * output, once). Without the key there is nothing to fall back to, and the
+ * primary's error reaches the user as it always did. `LLM_FALLBACK=off` turns
+ * the wrapper off, for a measurement that must be one vendor only.
+ *
+ * Gemini as primary has no fallback: it is the provider whose key exists, and
+ * falling back to a provider nobody has configured would only change which
+ * error the user sees.
  */
 export function providerFor(name: ProviderName = defaultProviderName()): LlmProvider {
   switch (name) {
     case 'gemini':
       return createGeminiProvider();
-    case 'anthropic':
-      throw new Error(
-        'The Anthropic adapter has not been written yet — it is waiting on ANTHROPIC_API_KEY. ' +
-          'Set LLM_PROVIDER=gemini, or add providers/anthropic.ts and run the contract suite ' +
-          'against it (see providers/contract.ts).',
-      );
+    case 'anthropic': {
+      const primary = createAnthropicProvider();
+      const fallbackOff = process.env.LLM_FALLBACK?.trim().toLowerCase() === 'off';
+      if (fallbackOff || !process.env.GEMINI_API_KEY) return primary;
+      return withFallback(primary, createGeminiProvider());
+    }
     default: {
       // Exhaustiveness: adding a ProviderName without an adapter fails the build
       // here rather than at runtime on a customer's turn.

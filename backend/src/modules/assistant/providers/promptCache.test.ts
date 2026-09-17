@@ -110,4 +110,22 @@ describe('prompt cache', () => {
 
     expect(calls).toHaveLength(2);
   });
+  it('keys a grounded prefix apart from a plain one, and stores its tool config', async () => {
+    // A grounded request cannot send its tool config beside a cache, so the
+    // config has to live in the entry — and a plain prefix must never reuse it.
+    const configs: unknown[] = [];
+    const caches: CachesClient = {
+      async create(params) {
+        configs.push(params.config.toolConfig);
+        return { name: `cachedContents/${configs.length}` };
+      },
+    };
+    const toolConfig = { includeServerSideToolInvocations: true };
+
+    const plain = await getCachedPrefix(caches, 'gemini-3-x', 'SYSTEM', TOOLS);
+    const grounded = await getCachedPrefix(caches, 'gemini-3-x', 'SYSTEM', TOOLS, toolConfig);
+
+    expect(plain).not.toBe(grounded);
+    expect(configs).toEqual([undefined, toolConfig]);
+  });
 });

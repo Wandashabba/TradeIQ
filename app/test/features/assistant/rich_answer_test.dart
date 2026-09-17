@@ -8,6 +8,7 @@ import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/assistant/answer/answer_motion.dart';
 import 'package:tradeiq_app/features/assistant/answer/answer_view.dart';
+import 'package:tradeiq_app/features/assistant/answer/web_sources.dart';
 import 'package:tradeiq_app/features/assistant/answer/working_steps.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
@@ -106,11 +107,14 @@ Something a fourth time
 
 void main() {
   group('working steps', () {
-    testWidgets('pending, then done, then failed, then the summary',
-        (tester) async {
+    testWidgets('pending, then done, then failed, then the summary', (
+      tester,
+    ) async {
       final (repo, clock) = await pumpLive(tester);
 
-      repo.emit(const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'));
+      repo.emit(
+        const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
+      );
       await tester.pump();
       expect(find.text('Sell-in'), findsOneWidget);
       expect(find.byKey(const ValueKey('step-pending')), findsOneWidget);
@@ -139,7 +143,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(WorkingSteps), findsOneWidget);
-      expect(find.text('Checked 1 source · 1 unavailable · 1.8s'), findsOneWidget);
+      expect(
+        find.text('Checked 1 source · 1 unavailable · 1.8s'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('the summary of a clean run', (tester) async {
@@ -160,12 +167,20 @@ void main() {
     });
 
     test('labels map known tools and fall back by pillar', () {
-      expect(stepLabel(const ToolActivity(name: 'getSalesPerformance', pillar: 'sales')),
-          'Sell-in');
-      expect(stepLabel(const ToolActivity(name: 'getNew', pillar: 'stock')),
-          'Checking stock');
-      expect(stepLabel(const ToolActivity(name: 'getNew', pillar: 'x')),
-          'Looking that up');
+      expect(
+        stepLabel(
+          const ToolActivity(name: 'getSalesPerformance', pillar: 'sales'),
+        ),
+        'Sell-in',
+      );
+      expect(
+        stepLabel(const ToolActivity(name: 'getNew', pillar: 'stock')),
+        'Checking stock',
+      );
+      expect(
+        stepLabel(const ToolActivity(name: 'getNew', pillar: 'x')),
+        'Looking that up',
+      );
     });
 
     test('labels the operational tools in manager words, never by name', () {
@@ -179,21 +194,68 @@ void main() {
         'findTerritories': 'execution',
       };
       for (final entry in tools.entries) {
-        final label =
-            stepLabel(ToolActivity(name: entry.key, pillar: entry.value));
+        final label = stepLabel(
+          ToolActivity(name: entry.key, pillar: entry.value),
+        );
         expect(toolStepLabels[entry.key], label);
         expect(label, isNot(contains('get')));
       }
       expect(
-          stepLabel(const ToolActivity(
-              name: 'getPriceCompliance', pillar: 'competition')),
-          'Shelf prices vs RRP');
+        stepLabel(
+          const ToolActivity(name: 'getPriceCompliance', pillar: 'competition'),
+        ),
+        'Shelf prices vs RRP',
+      );
+    });
+
+    test('labels the web search, by name and by its pillar', () {
+      expect(
+        stepLabel(const ToolActivity(name: 'webSearch', pillar: 'web')),
+        'Searching the web',
+      );
+      expect(toolStepLabels['webSearch'], 'Searching the web');
+      expect(
+        stepLabel(const ToolActivity(name: 'webFetch', pillar: 'web')),
+        'Searching the web',
+      );
+    });
+  });
+
+  group('web sources', () {
+    testWidgets('a sources event lands under the answer', (tester) async {
+      final (repo, _) = await pumpLive(tester);
+      repo.emit(const ToolStartEvent(name: 'webSearch', pillar: 'web'));
+      await tester.pump();
+      expect(find.text('Searching the web'), findsOneWidget);
+      repo.emit(const ToolEndEvent(name: 'webSearch', ok: true));
+      repo.emit(const TokenEvent('Shoprite opened three stores.'));
+      await tester.pump();
+      expect(find.byType(WebSources), findsNothing);
+
+      repo.emit(
+        SourcesEvent([
+          WebSource(
+            title: 'Shoprite launches new stores',
+            url: Uri.parse('https://www.iol.co.za/business/shoprite'),
+            domain: 'iol.co.za',
+            retrievedAt: DateTime.utc(2026, 9, 17, 10, 12),
+          ),
+        ]),
+      );
+      repo.emit(const DoneEvent());
+      await repo.close();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Web sources'), findsOneWidget);
+      expect(find.text('iol.co.za'), findsOneWidget);
+      expect(find.text('Shoprite launches new stores'), findsOneWidget);
     });
   });
 
   group('streaming text', () {
-    testWidgets('a caret follows the text while streaming, and goes on done',
-        (tester) async {
+    testWidgets('a caret follows the text while streaming, and goes on done', (
+      tester,
+    ) async {
       final (repo, _) = await pumpLive(tester);
       repo.emit(const TokenEvent('Gauteng is **down'));
       await tester.pump();
@@ -226,8 +288,9 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('the headline is set larger and heavier than the body',
-        (tester) async {
+    testWidgets('the headline is set larger and heavier than the body', (
+      tester,
+    ) async {
       final (repo, _) = await pumpLive(tester);
       repo.emit(const TokenEvent(_answer));
       repo.emit(const DoneEvent());
@@ -253,29 +316,42 @@ void main() {
   });
 
   group('followups', () {
-    testWidgets('hidden while the fence is open; chips, capped at 3, once closed',
-        (tester) async {
-      final (repo, _) = await pumpLive(tester);
-      repo.emit(const TokenEvent('Down 12%.\n\n```followups\nShow Soweto outlets'));
-      await tester.pump();
+    testWidgets(
+      'hidden while the fence is open; chips, capped at 3, once closed',
+      (tester) async {
+        final (repo, _) = await pumpLive(tester);
+        repo.emit(
+          const TokenEvent('Down 12%.\n\n```followups\nShow Soweto outlets'),
+        );
+        await tester.pump();
 
-      expect(find.byType(FollowUpChips), findsNothing);
-      expect(screenText(tester), isNot(contains('`')));
-      expect(screenText(tester), isNot(contains('Show Soweto')));
+        expect(find.byType(FollowUpChips), findsNothing);
+        expect(screenText(tester), isNot(contains('`')));
+        expect(screenText(tester), isNot(contains('Show Soweto')));
 
-      repo.emit(const TokenEvent(
-          ' on a map\nWhich agents cover Soweto?\nCompare with Western Cape\n'
-          'Something a fourth time\n```'));
-      repo.emit(const DoneEvent());
-      await repo.close();
-      await tester.pumpAndSettle();
+        repo.emit(
+          const TokenEvent(
+            ' on a map\nWhich agents cover Soweto?\nCompare with Western Cape\n'
+            'Something a fourth time\n```',
+          ),
+        );
+        repo.emit(const DoneEvent());
+        await repo.close();
+        await tester.pumpAndSettle();
 
-      expect(find.byType(FollowUpChips), findsOneWidget);
-      expect(find.textContaining('Show Soweto outlets on a map'), findsOneWidget);
-      expect(find.textContaining('Compare with Western Cape'), findsOneWidget);
-      expect(find.textContaining('Something a fourth time'), findsNothing);
-      expect(screenText(tester), isNot(contains('`')));
-    });
+        expect(find.byType(FollowUpChips), findsOneWidget);
+        expect(
+          find.textContaining('Show Soweto outlets on a map'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Compare with Western Cape'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Something a fourth time'), findsNothing);
+        expect(screenText(tester), isNot(contains('`')));
+      },
+    );
 
     testWidgets('tapping a chip asks it as the next question', (tester) async {
       final (repo, _) = await pumpLive(tester);
@@ -294,8 +370,9 @@ void main() {
   });
 
   group('callout', () {
-    testWidgets('a blockquote with a bold first line has a kicker',
-        (tester) async {
+    testWidgets('a blockquote with a bold first line has a kicker', (
+      tester,
+    ) async {
       final (repo, _) = await pumpLive(tester);
       repo.emit(const TokenEvent(_answer));
       repo.emit(const DoneEvent());
@@ -306,54 +383,69 @@ void main() {
       expect(callout, findsOneWidget);
       expect(tester.widget<InsightCallout>(callout).kicker, 'What explains it');
       expect(find.text('WHAT EXPLAINS IT'), findsOneWidget);
-      expect(screenText(tester), contains('The 500ml was out of stock at 5 outlets.'));
+      expect(
+        screenText(tester),
+        contains('The 500ml was out of stock at 5 outlets.'),
+      );
     });
 
     testWidgets('a blockquote without one has none', (tester) async {
       final (repo, _) = await pumpLive(tester);
-      repo.emit(const TokenEvent('Headline.\n\n> Cola ran out at **5** outlets.'));
+      repo.emit(
+        const TokenEvent('Headline.\n\n> Cola ran out at **5** outlets.'),
+      );
       repo.emit(const DoneEvent());
       await repo.close();
       await tester.pumpAndSettle();
 
       expect(find.byType(InsightCallout), findsOneWidget);
-      expect(find.byKey(const ValueKey('insight-callout-kicker')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('insight-callout-kicker')),
+        findsNothing,
+      );
       expect(screenText(tester), contains('Cola ran out at 5 outlets.'));
     });
   });
 
-  testWidgets('cards are laid out by type: tiles, then the rest, then bars',
-      (tester) async {
+  testWidgets('cards are laid out by type: tiles, then the rest, then bars', (
+    tester,
+  ) async {
     final (repo, _) = await pumpLive(tester, theme: AppTheme.light());
     // The server's real order: the tool's own card, then its tiles and bars.
-    repo.emit(const ArtifactEvent(
-      id: 'getStockLevels-0',
-      type: 'pillar_metrics',
-      params: {'pillar': 'stock'},
-      data: {'osaPct': 88.0},
-    ));
-    repo.emit(const ArtifactEvent(
-      id: 'getStockLevels-ranked_bars-1',
-      type: 'ranked_bars',
-      params: {},
-      data: {
-        'title': 'Out-of-stock lines by outlet',
-        'unit': 'count',
-        'items': [
-          {'label': 'Spar Soweto', 'value': 6},
-        ],
-      },
-    ));
-    repo.emit(const ArtifactEvent(
-      id: 'getStockLevels-stat_tiles-1',
-      type: 'stat_tiles',
-      params: {},
-      data: {
-        'tiles': [
-          {'label': 'On-shelf availability', 'value': 88, 'unit': 'pct'},
-        ],
-      },
-    ));
+    repo.emit(
+      const ArtifactEvent(
+        id: 'getStockLevels-0',
+        type: 'pillar_metrics',
+        params: {'pillar': 'stock'},
+        data: {'osaPct': 88.0},
+      ),
+    );
+    repo.emit(
+      const ArtifactEvent(
+        id: 'getStockLevels-ranked_bars-1',
+        type: 'ranked_bars',
+        params: {},
+        data: {
+          'title': 'Out-of-stock lines by outlet',
+          'unit': 'count',
+          'items': [
+            {'label': 'Spar Soweto', 'value': 6},
+          ],
+        },
+      ),
+    );
+    repo.emit(
+      const ArtifactEvent(
+        id: 'getStockLevels-stat_tiles-1',
+        type: 'stat_tiles',
+        params: {},
+        data: {
+          'tiles': [
+            {'label': 'On-shelf availability', 'value': 88, 'unit': 'pct'},
+          ],
+        },
+      ),
+    );
     repo.emit(const TokenEvent('Stock is **tight**.'));
     repo.emit(const DoneEvent());
     await repo.close();
@@ -365,8 +457,11 @@ void main() {
         .toList();
     expect(types, ['stat_tiles', 'pillar_metrics', 'ranked_bars']);
     double top(String type) => tester
-        .getTopLeft(find.byWidgetPredicate(
-            (w) => w is ArtifactView && w.artifact.type == type))
+        .getTopLeft(
+          find.byWidgetPredicate(
+            (w) => w is ArtifactView && w.artifact.type == type,
+          ),
+        )
         .dy;
     expect(top('stat_tiles'), lessThan(top('pillar_metrics')));
     expect(top('pillar_metrics'), lessThan(top('ranked_bars')));
@@ -403,8 +498,18 @@ void main() {
       await run(tester, const [
         ToolStartEvent(name: 'getStockLevels', pillar: 'stock'),
         ToolEndEvent(name: 'getStockLevels', ok: true),
-        ArtifactEvent(id: 'p-1', type: 'pillar_metrics', params: {'pillar': 'stock'}, data: pillar),
-        ArtifactEvent(id: 'getStockLevels-stat_tiles-1', type: 'stat_tiles', params: {}, data: tiles),
+        ArtifactEvent(
+          id: 'p-1',
+          type: 'pillar_metrics',
+          params: {'pillar': 'stock'},
+          data: pillar,
+        ),
+        ArtifactEvent(
+          id: 'getStockLevels-stat_tiles-1',
+          type: 'stat_tiles',
+          params: {},
+          data: tiles,
+        ),
       ]);
       expect(shownTypes(tester), ['stat_tiles']);
     });
@@ -413,20 +518,36 @@ void main() {
       await run(tester, const [
         ToolStartEvent(name: 'getStockLevels', pillar: 'stock'),
         ToolEndEvent(name: 'getStockLevels', ok: true),
-        ArtifactEvent(id: 'p-1', type: 'pillar_metrics', params: {'pillar': 'stock'}, data: pillar),
+        ArtifactEvent(
+          id: 'p-1',
+          type: 'pillar_metrics',
+          params: {'pillar': 'stock'},
+          data: pillar,
+        ),
       ]);
       expect(shownTypes(tester), ['pillar_metrics']);
     });
 
-    testWidgets('pillar card from tool A, tiles from tool B: both shown',
-        (tester) async {
+    testWidgets('pillar card from tool A, tiles from tool B: both shown', (
+      tester,
+    ) async {
       await run(tester, const [
         ToolStartEvent(name: 'getStockLevels', pillar: 'stock'),
         ToolEndEvent(name: 'getStockLevels', ok: true),
-        ArtifactEvent(id: 'p-1', type: 'pillar_metrics', params: {'pillar': 'stock'}, data: pillar),
+        ArtifactEvent(
+          id: 'p-1',
+          type: 'pillar_metrics',
+          params: {'pillar': 'stock'},
+          data: pillar,
+        ),
         ToolStartEvent(name: 'getRateOfSale', pillar: 'sales'),
         ToolEndEvent(name: 'getRateOfSale', ok: true),
-        ArtifactEvent(id: 'getRateOfSale-stat_tiles-1', type: 'stat_tiles', params: {}, data: tiles),
+        ArtifactEvent(
+          id: 'getRateOfSale-stat_tiles-1',
+          type: 'stat_tiles',
+          params: {},
+          data: tiles,
+        ),
       ]);
       expect(shownTypes(tester), ['stat_tiles', 'pillar_metrics']);
     });
@@ -435,60 +556,84 @@ void main() {
       await run(tester, const [
         ToolStartEvent(name: 'getMetricTrend', pillar: 'stock'),
         ToolEndEvent(name: 'getMetricTrend', ok: true),
-        ArtifactEvent(id: 't-1', type: 'trend_chart', params: {}, data: {
-          'metric': 'availability',
-          'points': [
-            {'period': '2026-08-01', 'value': 90},
-            {'period': '2026-08-02', 'value': 91},
-          ],
-        }),
-        ArtifactEvent(id: 'getMetricTrend-stat_tiles-1', type: 'stat_tiles', params: {}, data: tiles),
+        ArtifactEvent(
+          id: 't-1',
+          type: 'trend_chart',
+          params: {},
+          data: {
+            'metric': 'availability',
+            'points': [
+              {'period': '2026-08-01', 'value': 90},
+              {'period': '2026-08-02', 'value': 91},
+            ],
+          },
+        ),
+        ArtifactEvent(
+          id: 'getMetricTrend-stat_tiles-1',
+          type: 'stat_tiles',
+          params: {},
+          data: tiles,
+        ),
       ]);
       expect(shownTypes(tester), ['stat_tiles', 'trend_chart']);
     });
   });
 
   testWidgets(
-      'an answer with none of the conventions still reads: bold and a list, '
-      'no oversized opening, text above the cards', (tester) async {
-    // The norm until the prompt change lands: the model bolds and lists, but
-    // writes no headline sentence, callout or follow-ups.
-    final (repo, _) = await pumpLive(tester, theme: AppTheme.light());
-    repo.emit(const ArtifactEvent(
-      id: 'getStockLevels-stat_tiles-1',
-      type: 'stat_tiles',
-      params: {},
-      data: {
-        'tiles': [
-          {'label': 'On-shelf availability', 'value': 88, 'unit': 'pct'},
-        ],
-      },
-    ));
-    const opening = 'On-shelf availability across your outlets was **88%** this '
-        'month, which is four points below July, mostly because three Soweto '
-        'outlets ran out of the 500ml for more than a week.';
-    repo.emit(const TokenEvent('$opening\n\n- Restock Soweto first.\n- Check the 2L.'));
-    repo.emit(const DoneEvent());
-    await repo.close();
-    await tester.pumpAndSettle();
+    'an answer with none of the conventions still reads: bold and a list, '
+    'no oversized opening, text above the cards',
+    (tester) async {
+      // The norm until the prompt change lands: the model bolds and lists, but
+      // writes no headline sentence, callout or follow-ups.
+      final (repo, _) = await pumpLive(tester, theme: AppTheme.light());
+      repo.emit(
+        const ArtifactEvent(
+          id: 'getStockLevels-stat_tiles-1',
+          type: 'stat_tiles',
+          params: {},
+          data: {
+            'tiles': [
+              {'label': 'On-shelf availability', 'value': 88, 'unit': 'pct'},
+            ],
+          },
+        ),
+      );
+      const opening =
+          'On-shelf availability across your outlets was **88%** this '
+          'month, which is four points below July, mostly because three Soweto '
+          'outlets ran out of the 500ml for more than a week.';
+      repo.emit(
+        const TokenEvent(
+          '$opening\n\n- Restock Soweto first.\n- Check the 2L.',
+        ),
+      );
+      repo.emit(const DoneEvent());
+      await repo.close();
+      await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(find.byType(InsightCallout), findsNothing);
-    expect(find.byType(FollowUpChips), findsNothing);
-    final views = tester.widgetList<AnswerBlockView>(find.byType(AnswerBlockView));
-    expect(views.any((v) => v.headline), isFalse);
-    expect(screenText(tester), isNot(contains('**')));
-    final opener = tester
-        .widgetList<RichText>(find.byType(RichText))
-        .firstWhere((w) => w.text.toPlainText().startsWith('On-shelf availability across'));
-    expect(opener.text.style!.fontSize, 14);
-    // With no headline, all the prose sits above the cards, as replies always
-    // have.
-    expect(
-      tester.getTopLeft(find.textContaining('Check the 2L')).dy,
-      lessThan(tester.getTopLeft(find.byType(ArtifactView)).dy),
-    );
-  });
+      expect(tester.takeException(), isNull);
+      expect(find.byType(InsightCallout), findsNothing);
+      expect(find.byType(FollowUpChips), findsNothing);
+      final views = tester.widgetList<AnswerBlockView>(
+        find.byType(AnswerBlockView),
+      );
+      expect(views.any((v) => v.headline), isFalse);
+      expect(screenText(tester), isNot(contains('**')));
+      final opener = tester
+          .widgetList<RichText>(find.byType(RichText))
+          .firstWhere(
+            (w) =>
+                w.text.toPlainText().startsWith('On-shelf availability across'),
+          );
+      expect(opener.text.style!.fontSize, 14);
+      // With no headline, all the prose sits above the cards, as replies always
+      // have.
+      expect(
+        tester.getTopLeft(find.textContaining('Check the 2L')).dy,
+        lessThan(tester.getTopLeft(find.byType(ArtifactView)).dy),
+      );
+    },
+  );
 
   testWidgets('a legacy plain reply renders exactly as before', (tester) async {
     final (repo, _) = await pumpLive(tester, theme: AppTheme.light());
@@ -507,19 +652,27 @@ void main() {
     expect(find.byType(FollowUpChips), findsNothing);
   });
 
-  testWidgets('reduced motion renders the final state on the first frame',
-      (tester) async {
+  testWidgets('reduced motion renders the final state on the first frame', (
+    tester,
+  ) async {
     final (repo, _) = await pumpLive(tester, disableAnimations: true);
-    repo.emit(const ArtifactEvent(
-      id: 'stat-1',
-      type: 'stat_tiles',
-      params: {},
-      data: {
-        'tiles': [
-          {'label': 'Sell-in, units', 'value': 48210, 'unit': 'units', 'meter': 81},
-        ],
-      },
-    ));
+    repo.emit(
+      const ArtifactEvent(
+        id: 'stat-1',
+        type: 'stat_tiles',
+        params: {},
+        data: {
+          'tiles': [
+            {
+              'label': 'Sell-in, units',
+              'value': 48210,
+              'unit': 'units',
+              'meter': 81,
+            },
+          ],
+        },
+      ),
+    );
     repo.emit(const TokenEvent('Gauteng is **down**.\n\n- one'));
     // A single frame: no tween may stand between the data and the screen.
     await tester.pump();
@@ -528,14 +681,17 @@ void main() {
     expect(
       tester
           .widget<FractionallySizedBox>(
-              find.byKey(const ValueKey('stat-tile-meter-fill')))
+            find.byKey(const ValueKey('stat-tile-meter-fill')),
+          )
           .widthFactor,
       closeTo(0.81, 1e-9),
     );
-    for (final opacity in tester.widgetList<Opacity>(find.descendant(
-      of: find.byType(RichAnswer),
-      matching: find.byType(Opacity),
-    ))) {
+    for (final opacity in tester.widgetList<Opacity>(
+      find.descendant(
+        of: find.byType(RichAnswer),
+        matching: find.byType(Opacity),
+      ),
+    )) {
       // The caret's blink is the only opacity allowed, and it is held on.
       expect(opacity.opacity, 1);
     }
@@ -549,29 +705,39 @@ void main() {
     ('light', AppTheme.light(), LumenPalette.light, TiqColors.light),
     ('night', AppTheme.dark(), LumenPalette.dark, TiqColors.night),
   ]) {
-    testWidgets('$name: the full answer draws in its Lumen tokens',
-        (tester) async {
+    testWidgets('$name: the full answer draws in its Lumen tokens', (
+      tester,
+    ) async {
       final (repo, clock) = await pumpLive(tester, theme: theme);
-      repo.emit(const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'));
+      repo.emit(
+        const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
+      );
       await tester.pump();
       clock.advance(400);
       repo.emit(const ToolEndEvent(name: 'getSalesPerformance', ok: true));
       await tester.pump();
-      repo.emit(const ArtifactEvent(
-        id: 'stat-1',
-        type: 'stat_tiles',
-        params: {},
-        data: {
-          'tiles': [
-            {
-              'label': 'Sell-in, units',
-              'value': 48210,
-              'unit': 'units',
-              'delta': {'value': 12.4, 'unit': 'pct', 'direction': 'down', 'sentiment': 'bad'},
-            },
-          ],
-        },
-      ));
+      repo.emit(
+        const ArtifactEvent(
+          id: 'stat-1',
+          type: 'stat_tiles',
+          params: {},
+          data: {
+            'tiles': [
+              {
+                'label': 'Sell-in, units',
+                'value': 48210,
+                'unit': 'units',
+                'delta': {
+                  'value': 12.4,
+                  'unit': 'pct',
+                  'direction': 'down',
+                  'sentiment': 'bad',
+                },
+              },
+            ],
+          },
+        ),
+      );
       repo.emit(const TokenEvent(_answer));
       repo.emit(const DoneEvent());
       await repo.close();
@@ -580,8 +746,10 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(StatTilesCard), findsOneWidget);
       expect(find.text('▼ 12.4%'), findsOneWidget);
-      expect(tester.widget<Text>(find.text('▼ 12.4%')).style!.color,
-          palette.critical);
+      expect(
+        tester.widget<Text>(find.text('▼ 12.4%')).style!.color,
+        palette.critical,
+      );
       expect(find.text('Checked 1 source · 0.4s'), findsOneWidget);
 
       final headline = tester
@@ -590,7 +758,8 @@ void main() {
       expect(headline.text.style!.color, palette.ink);
       // The callout is washed in the theme's warn.
       final callout = tester.widget<Container>(
-          find.byKey(const ValueKey('insight-callout')));
+        find.byKey(const ValueKey('insight-callout')),
+      );
       final border = (callout.decoration! as BoxDecoration).border! as Border;
       expect(border.top.color, colors.warn.withValues(alpha: 0.30));
     });
