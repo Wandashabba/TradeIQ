@@ -133,6 +133,7 @@ class LineChart extends StatefulWidget {
     this.gradientFill = false,
     this.comparison = const [],
     this.comparisonName = '',
+    this.dashedComparison = false,
   });
 
   final List<ChartPoint> points;
@@ -174,6 +175,12 @@ class LineChart extends StatefulWidget {
   /// What the comparison is, for the legend and the readout — "the month before
   /// this one". Colour is never the only carrier of which line is which.
   final String comparisonName;
+
+  /// Draw [comparison] as a dashed stroke — the assistant's "same month last
+  /// year" reference line, as the approved answer design draws it. The dash
+  /// says "reference, not a reading", and the legend swatch dashes with it.
+  /// Off by default, so every existing chart is unchanged.
+  final bool dashedComparison;
 
   @override
   State<LineChart> createState() => _LineChartState();
@@ -220,6 +227,7 @@ class _LineChartState extends State<LineChart> {
               final painter = _LinePainter(
                 points: widget.points,
                 comparison: widget.comparison,
+                dashedComparison: widget.dashedComparison,
                 scale: scale,
                 target: widget.target,
                 hover: _hover,
@@ -311,6 +319,7 @@ class _LineChartState extends State<LineChart> {
               ),
               _LegendItem(
                 color: ink.comparison,
+                dashed: widget.dashedComparison,
                 label: widget.comparisonName.isEmpty
                     ? 'Comparison'
                     : widget.comparisonName,
@@ -356,6 +365,7 @@ class _LinePainter extends CustomPainter {
     required this.colors,
     required this.lumen,
     this.comparison = const [],
+    this.dashedComparison = false,
     this.progress = 1,
     this.lineWidth = 2,
     this.gradientFill = false,
@@ -366,6 +376,7 @@ class _LinePainter extends CustomPainter {
   /// The second series, spanning the same plot width. Empty for every
   /// single-series caller.
   final List<ChartPoint> comparison;
+  final bool dashedComparison;
   final ({double min, double max, double step}) scale;
   final double? target;
   final int? hover;
@@ -459,14 +470,15 @@ class _LinePainter extends CustomPainter {
       canvas.clipRect(
         Rect.fromLTWH(_pad.left, 0, innerW * progress.clamp(0, 1), size.height),
       );
+      final otherPaint = Paint()
+        ..color = ink.comparison
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = dashedComparison ? lineWidth * 0.8 : lineWidth
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = dashedComparison ? StrokeCap.butt : StrokeCap.round;
       canvas.drawPath(
-        other,
-        Paint()
-          ..color = ink.comparison
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = lineWidth
-          ..strokeJoin = StrokeJoin.round
-          ..strokeCap = StrokeCap.round,
+        dashedComparison ? _dashed(other, dash: 4, gap: 4) : other,
+        otherPaint,
       );
       canvas.restore();
     }
@@ -580,6 +592,7 @@ class _LinePainter extends CustomPainter {
   bool shouldRepaint(_LinePainter old) =>
       old.points != points ||
       old.comparison != comparison ||
+      old.dashedComparison != dashedComparison ||
       old.hover != hover ||
       old.target != target ||
       old.progress != progress ||
@@ -976,11 +989,32 @@ class _BarPainter extends CustomPainter {
       old.lumen != lumen;
 }
 
+/// [source] cut into [dash]-long strokes separated by [gap].
+Path _dashed(Path source, {required double dash, required double gap}) {
+  final out = Path();
+  for (final metric in source.computeMetrics()) {
+    var distance = 0.0;
+    while (distance < metric.length) {
+      out.addPath(
+        metric.extractPath(distance, math.min(distance + dash, metric.length)),
+        Offset.zero,
+      );
+      distance += dash + gap;
+    }
+  }
+  return out;
+}
+
 class _LegendItem extends StatelessWidget {
-  const _LegendItem({required this.color, required this.label});
+  const _LegendItem({
+    required this.color,
+    required this.label,
+    this.dashed = false,
+  });
 
   final Color color;
   final String label;
+  final bool dashed;
 
   @override
   Widget build(BuildContext context) {
@@ -988,7 +1022,20 @@ class _LegendItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 9, height: 9, color: color),
+        if (dashed)
+          SizedBox(
+            width: 12,
+            height: 3,
+            child: Row(
+              children: [
+                Container(width: 4, height: 2, color: color),
+                const SizedBox(width: 4),
+                Container(width: 4, height: 2, color: color),
+              ],
+            ),
+          )
+        else
+          Container(width: 9, height: 9, color: color),
         const SizedBox(width: 6),
         // Flexible, because the label is not ours to bound.
         //

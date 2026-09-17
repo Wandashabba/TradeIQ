@@ -12,6 +12,7 @@ import '../../../core/widgets/worklist.dart';
 import '../data/artifact_repository.dart';
 import '../data/chat_controller.dart';
 import 'artifact_table.dart';
+import 'rich_figures.dart';
 import 'view_spec_registry.dart';
 
 /// Expanded mode — the artifact with everything the inline card leaves out.
@@ -133,6 +134,9 @@ class _TrendExpandedViewState extends State<TrendExpandedView> {
               comparison: comparison,
               seriesName: title,
               comparisonName: _comparisonLabel ?? '',
+              // The same dashed reference line the chat card draws, so
+              // expanding a card does not restyle the line being read.
+              dashedComparison: true,
               valueSuffix: suffix,
               height: 300,
             ),
@@ -352,6 +356,10 @@ class _Change extends StatelessWidget {
 /// naming the same thing differently.
 String expandedArtifactTitle(ArtifactDetail artifact) {
   final data = artifact.data;
+  if (artifact.type == 'ranked_bars') {
+    return RankedBarsData.from(data).title ?? 'Ranking';
+  }
+  if (artifact.type == 'stat_tiles') return 'Key figures';
   if (artifact.type == 'trend_chart' && data is Map<String, dynamic>) {
     final metric = data['metric'];
     return trendMetricLabels[metric] ?? (metric is String ? metric : 'Trend');
@@ -380,6 +388,11 @@ String? expandedArtifactSubtitle(ArtifactDetail artifact) {
   final comparison = data['comparison'];
   final label = comparison is Map<String, dynamic> ? comparison['label'] : null;
   final interval = data['interval'];
+  final comparedTo = data['comparedTo'];
+  if (artifact.type == 'ranked_bars' && comparedTo is String) {
+    // Pre-formatted by the server ("vs Aug '25").
+    return comparedTo.isEmpty ? null : comparedTo;
+  }
   final parts = [
     if (interval is String) 'By $interval',
     if (label is String && label.isNotEmpty) 'vs $label',
