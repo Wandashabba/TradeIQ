@@ -27,6 +27,9 @@ const Map<String, String> toolStepLabels = {
   'getMetricTrend': 'Trend over time',
   'getTerritoryRanking': 'Territory ranking',
   'getPriceCompliance': 'Shelf prices vs RRP',
+  // Outside data: prices read from retailers' public websites (gated off by
+  // default on the backend). Named so it is never confused with our own.
+  'getCompetitorShelfPrices': 'Competitor shelf prices',
   'getCampaignPerformance': 'Campaign results',
   'getSellInForecast': 'Sell-in forecast',
   'getContestStandings': 'Contest standings',

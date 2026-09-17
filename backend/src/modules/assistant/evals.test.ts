@@ -8,6 +8,8 @@ import {
 import { runTurn, type WireEvent } from './orchestrator';
 import type { LlmProvider, TurnEvent, TurnInput } from './providers/types';
 import { ALL_TOOL_NAMES } from './roster';
+import { EVAL_TOOL_GATES, GATED_TOOLS, isToolDeclared } from './toolGates';
+import { buildTools } from './tools';
 import { eraseToolTypes, type AnyAssistantTool } from './types';
 import { z } from 'zod';
 
@@ -53,6 +55,35 @@ describe('the golden question set', () => {
     for (const tool of ALL_TOOL_NAMES) {
       expect(covered).toContain(tool);
     }
+  });
+
+  it('only expects tools the eval sweep actually declares, gated tools included', () => {
+    // Gated tools (toolGates.ts) are off by default, so a sweep built with no
+    // gates would never declare them and every golden question for one would
+    // be a permanent miss. `evals/run.ts` declares EVAL_TOOL_GATES; this holds
+    // that set to every gate a question depends on.
+    const declared = new Set(
+      buildTools({
+        user: { userId: 'eval-user', role: 'manager', clientId: 'eval-client' },
+        now: new Date('2026-09-17T10:00:00.000Z'),
+        gates: EVAL_TOOL_GATES,
+      }).map((t) => t.name),
+    );
+    for (const question of GOLDEN_QUESTIONS) {
+      for (const name of [question.expectedTool, ...(question.acceptable ?? [])]) {
+        if (name !== null && name !== undefined) expect(declared).toContain(name);
+      }
+    }
+  });
+
+  it('knows which golden questions depend on a gate that is closed by default', () => {
+    // Stated rather than implied, so a reader of an eval report knows these
+    // rows measure a roster only enabled clients see.
+    const gatedQuestions = GOLDEN_QUESTIONS.filter(
+      (q) => q.expectedTool !== null && !isToolDeclared(q.expectedTool, {}),
+    ).map((q) => q.id);
+    expect(gatedQuestions).toEqual(['comp-6', 'comp-7']);
+    expect(Object.keys(GATED_TOOLS)).toEqual(['getCompetitorShelfPrices']);
   });
 
   it('covers all four pillars plus execution', () => {

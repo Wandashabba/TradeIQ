@@ -189,6 +189,21 @@ void main() {
               name: 'getPriceCompliance', pillar: 'competition')),
           'Shelf prices vs RRP');
     });
+
+    test('labels competitor retailer-website prices apart from our own', () {
+      const tool = ToolActivity(
+          name: 'getCompetitorShelfPrices', pillar: 'competition');
+      expect(stepLabel(tool), 'Competitor shelf prices');
+      expect(stepLabel(tool), isNot(contains('get')));
+      expect(
+          stepLabel(tool),
+          isNot(stepLabel(const ToolActivity(
+              name: 'getPriceCompliance', pillar: 'competition'))));
+      expect(
+          stepLabel(tool),
+          isNot(stepLabel(const ToolActivity(
+              name: 'getCompetitorActivity', pillar: 'competition'))));
+    });
   });
 
   group('streaming text', () {

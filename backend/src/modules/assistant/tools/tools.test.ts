@@ -2,14 +2,20 @@ import { z } from 'zod';
 import type { AuthTokenPayload } from '../../auth/auth.service';
 import { toFunctionDeclarations } from '../providers/gemini';
 import { ALL_TOOL_NAMES, rosterFor, TOOL_REGISTRY } from '../roster';
+import { ALL_GATES_OPEN, GATED_TOOLS } from '../toolGates';
 import { buildTools, unimplementedTools, type ToolContext } from './index';
 
 const NOW = new Date('2026-08-06T12:00:00.000Z');
 
-function ctx(role: AuthTokenPayload['role'] = 'manager'): ToolContext {
+/**
+ * Every gate open by default, so the structural checks below also cover gated
+ * tools. The closed-gate behaviour has its own describe block.
+ */
+function ctx(role: AuthTokenPayload['role'] = 'manager', gates: ToolContext['gates'] = ALL_GATES_OPEN): ToolContext {
   return {
     user: { userId: 'user-1', role, clientId: 'client-1' },
     now: NOW,
+    gates,
   };
 }
 
@@ -130,7 +136,14 @@ describe('tool declarations reach the provider intact', () => {
     // skipped by a rule, so a new tool without a period still fails here:
     // the territory lookup, contest standings (a contest carries its own
     // dates), and the forecast (always the last 28 complete days).
-    const undated = new Set(['findTerritories', 'getContestStandings', 'getSellInForecast']);
+    // Competitor shelf prices are latest-as-of-now plus a trailing trendDays
+    // window: collected prices have no period a manager's vocabulary maps to.
+    const undated = new Set([
+      'findTerritories',
+      'getContestStandings',
+      'getSellInForecast',
+      'getCompetitorShelfPrices',
+    ]);
     const periodic = buildTools(ctx()).filter((tool) => {
       const shape = z.toJSONSchema(tool.args, { io: 'input' }) as {
         properties?: Record<string, unknown>;
@@ -143,5 +156,36 @@ describe('tool declarations reach the provider intact', () => {
         .filter((name) => !undated.has(name))
         .sort(),
     );
+  });
+});
+
+describe('gated tools (toolGates.ts)', () => {
+  const gated = Object.keys(GATED_TOOLS);
+
+  it('declares no gated tool when the context carries no gates', () => {
+    const names = buildTools({ user: { userId: 'user-1', role: 'manager', clientId: 'client-1' }, now: NOW })
+      .map((t) => t.name);
+    for (const name of gated) expect(names).not.toContain(name);
+  });
+
+  it('declares no gated tool when its gate is closed', () => {
+    const names = buildTools(ctx('admin', { competitorShelfPrices: false })).map((t) => t.name);
+    expect(names).not.toContain('getCompetitorShelfPrices');
+  });
+
+  it('declares getCompetitorShelfPrices once its gate is open, in roster order', () => {
+    const names = buildTools(ctx('manager', { competitorShelfPrices: true })).map((t) => t.name);
+    expect(names).toContain('getCompetitorShelfPrices');
+    expect(names.indexOf('getCompetitorShelfPrices')).toBe(names.indexOf('getPriceCompliance') + 1);
+  });
+
+  it('leaves every ungated tool declared with the gates closed', () => {
+    const closed = buildTools(ctx('manager', {})).map((t) => t.name);
+    const open = buildTools(ctx('manager')).map((t) => t.name);
+    expect(closed).toEqual(open.filter((name) => !gated.includes(name)));
+  });
+
+  it('still gives a field agent nothing with every gate open', () => {
+    expect(buildTools(ctx('field_agent'))).toEqual([]);
   });
 });
