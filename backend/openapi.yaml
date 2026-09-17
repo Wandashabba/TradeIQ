@@ -1331,9 +1331,21 @@ paths:
         actual is the sell-in of its outlets. attainmentPct is actual / target x
         100, null when the target is missing or zero. This is sell-in, not
         consumer sell-out.
+
+
+        Omit month and the report covers the client's *current* local month —
+        the month the wall clock in Client.timezone is in, not the one the
+        calling device's clock is in. At 23:30Z on the last day of September a
+        Johannesburg client (UTC+2) is answered for 2026-10 and a UTC client for
+        2026-09. The month reported on is always echoed back as month, so a
+        caller that omitted it can say which month it got.
       security: [{ bearerAuth: [] }]
       parameters:
-        - { name: month, in: query, required: true, schema: { type: string, example: '2026-09' }, description: 'YYYY-MM' }
+        - name: month
+          in: query
+          required: false
+          schema: { type: string, example: '2026-09' }
+          description: "YYYY-MM. Omit for the client's current local month in Client.timezone."
         - { name: skuId, in: query, schema: { type: string } }
       responses:
         '200':
@@ -1341,7 +1353,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SalesAttainmentReport' }
-        '400': { description: Missing or invalid month }
+        '400': { description: month was given but is not YYYY-MM }
         '403': { description: Not a manager or admin }
   # ── Phase 3 Tier-2 ────────────────────────────────────────────────────────
   /orders:

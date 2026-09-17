@@ -6,7 +6,7 @@ import { round2 } from '../../lib/kpiMath';
 import { NotFoundError, ValidationError } from '../../middleware/errorHandler';
 import { getClientTimeZone } from '../clients/clients.service';
 import { CsvSyntaxError, normaliseHeader, parseCsv } from './csv';
-import { MonthWindow, monthKey, monthWindow, parseMonth } from './salesMonth';
+import { MonthWindow, localMonthOf, monthKey, monthWindow, parseMonth } from './salesMonth';
 
 /**
  * Monthly sell-in targets per SKU, and actual-vs-target attainment (#119).
@@ -627,11 +627,21 @@ export interface AttainmentReport {
  */
 export async function getSalesAttainment(input: {
   clientId: string;
-  month: Date;
+  /**
+   * The month to report on. Omitted means *the client's* current month (#339):
+   * which month it is is decided by the wall clock in `Client.timezone`, not by
+   * the clock of whatever device asked. At 23:30Z on 30 September a Johannesburg
+   * account is already in October and a UTC one is still in September, and two
+   * managers looking at the same account must not see different months.
+   */
+  month?: Date;
   skuId?: string;
+  /** The instant read as "now" when `month` is omitted. Tests pin it. */
+  now?: Date;
 }): Promise<AttainmentReport> {
   const timeZone = await getClientTimeZone(input.clientId);
-  const window = monthWindow(input.month, timeZone);
+  const month = input.month ?? localMonthOf(input.now ?? new Date(), timeZone);
+  const window = monthWindow(month, timeZone);
 
   const [skuRows, targets, sellIn] = await Promise.all([
     prisma.sku.findMany({

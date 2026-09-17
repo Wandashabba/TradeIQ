@@ -2,7 +2,8 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { TestUser, foreignTenant, userIn } from '../../test-utils/tenants';
-import { attainmentPct } from './salesTargets.service';
+import { localMonthOf, monthKey } from './salesMonth';
+import { attainmentPct, getSalesAttainment } from './salesTargets.service';
 
 type Foreign = Awaited<ReturnType<typeof foreignTenant>>;
 
@@ -462,9 +463,43 @@ describe('sales targets routes (#119)', () => {
       expect(await units('2025-10')).toBe(0);
     });
 
-    it('requires a month', async () => {
+    it('refuses a month it cannot read, instead of quietly reporting on another one', async () => {
+      const bad = await request(app).get('/sales-targets/attainment').set(auth(manager)).query({ month: '2026-9' });
+      expect(bad.status).toBe(400);
+      expect(bad.body.error).toMatch(/YYYY-MM/);
+      expect((await request(app).get('/sales-targets/attainment').set(auth(manager)).query({ month: '' })).status).toBe(400);
+    });
+
+    it("defaults to the client's own current month, not the caller's device's (#339)", async () => {
+      // One instant, 23:30Z on the last day of September. In Johannesburg
+      // (UTC+2) it is already 01:30 on 1 October; in UTC it is still the 30th.
+      // Which month "this month" is is a question about the client's clock.
+      const now = new Date('2026-09-30T23:30:00.000Z');
+      const monthAnswered = async () => (await getSalesAttainment({ clientId, now, skuId: edgeId })).month;
+
+      expect(await monthAnswered()).toBe('2026-10');
+      await prisma.client.update({ where: { id: clientId }, data: { timezone: 'UTC' } });
+      try {
+        expect(await monthAnswered()).toBe('2026-09');
+      } finally {
+        await prisma.client.update({ where: { id: clientId }, data: { timezone: 'Africa/Johannesburg' } });
+      }
+    });
+
+    it('omitting month over HTTP answers for the client month and echoes which', async () => {
       const res = await request(app).get('/sales-targets/attainment').set(auth(manager));
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(200);
+      expect(res.body.month).toBe(monthKey(localMonthOf(new Date(), 'Africa/Johannesburg')));
+
+      // Identical to naming that month outright — the default picks the month,
+      // it does not take a different path through the report.
+      const explicit = await request(app)
+        .get('/sales-targets/attainment')
+        .set(auth(manager))
+        .query({ month: res.body.month });
+      expect(explicit.body.from).toBe(res.body.from);
+      expect(explicit.body.to).toBe(res.body.to);
+      expect(explicit.body.summary).toEqual(res.body.summary);
     });
   });
 });
