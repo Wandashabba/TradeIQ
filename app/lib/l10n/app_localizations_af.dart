@@ -316,7 +316,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get myWorkNeedsYouHeading => 'Het jou nodig';
 
   @override
-  String get myWorkWaitingHeading => 'Wag om te stuur';
+  String get myWorkWaitingHeading => 'Wag om gestuur te word';
 
   @override
   String get myWorkSentHeading => 'Gestuur';
@@ -654,7 +654,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get submitNothingToRaise =>
-      'Niks om te skep nie. Jy het niks uit voorraad gekry nie en geen risiko’s gemerk nie — hierdie winkel is in goeie toestand.';
+      'Niks om te skep nie. Niks was uit voorraad nie en jy het geen risiko’s gemerk nie — hierdie winkel is in goeie toestand.';
 
   @override
   String get outcomeTitle => 'Besoek ingedien';
@@ -670,11 +670,11 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get outcomeHeldBodyUnreachable =>
-      'Kon nie nou die bediener bereik nie — dit sal self stuur sodra jy sein het. Jy kan die app toemaak.';
+      'Kon nie nou die bediener bereik nie — dit sal vanself stuur sodra jy sein het. Jy kan die app toemaak.';
 
   @override
   String get outcomeHeldBodyNoSignal =>
-      'Daar is nou geen sein nie — dit sal self stuur sodra jy sein het. Jy kan die app toemaak.';
+      'Daar is nou geen sein nie — dit sal vanself stuur sodra jy sein het. Jy kan die app toemaak.';
 
   @override
   String get outcomeScoredWhenSends => 'Word getel sodra dit stuur';
@@ -1020,7 +1020,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get s8FlagTypeLabel => 'Soort vlag';
 
   @override
-  String get s8FlagTypeHint => 'Wat uitgewys is';
+  String get s8FlagTypeHint => 'Wat gemerk is';
 
   @override
   String get s8SeverityLabel => 'Erns';
@@ -1309,7 +1309,7 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get locationSharingNoFixSubtitle =>
-      'Deel is aan, maar hierdie foon gee nie ’n ligging aan TradeIQ nie';
+      'Dit is aan, maar hierdie foon gee nie vir TradeIQ ’n ligging nie';
 
   @override
   String get locationSharingOffTitle => 'Jou ligging word nie gedeel nie';
@@ -1325,10 +1325,10 @@ class AppLocalizationsAf extends AppLocalizations {
       'Jou bestuurder sal nie meer kan sien waar jy is nie. Jy kan dit later weer aanskakel.';
 
   @override
-  String get locationStopConfirm => 'Hou op om te deel';
+  String get locationStopConfirm => 'Hou op deel';
 
   @override
-  String get locationStopCancel => 'Hou aan om te deel';
+  String get locationStopCancel => 'Bly deel';
 
   @override
   String get contestsTitle => 'Kompetisies';
