@@ -235,7 +235,7 @@
   "@todayLoadErrorDetail": {},
   "todayNoRouteTitle": "No route planned for today",
   "@todayNoRouteTitle": {},
-  "todayNoPlanDetail": "Your manager has not built a beat plan for today. You can still visit a store — pick it yourself.",
+  "todayNoPlanDetail": "No beat plan for today. You can still pick a store yourself.",
   "@todayNoPlanDetail": {
     "description": "Shown when no beat plan exists for today."
   },
@@ -363,7 +363,7 @@
   },
   "myWorkEmpty": "Nothing captured yet",
   "@myWorkEmpty": {},
-  "myWorkFooter": "Captures send themselves when you have signal — you never have to remember to do it. Nothing here is ever lost.",
+  "myWorkFooter": "Captures send themselves when you have signal. Nothing is lost.",
   "@myWorkFooter": {},
   "myWorkSendingTitle": "{count, plural, =1{Sending 1 item…} other{Sending {count} items…}}",
   "@myWorkSendingTitle": {
@@ -550,7 +550,7 @@
   "@visitAuditHeading": {
     "description": "Heading above the list of audit sections on the visit hub."
   },
-  "visitAnyOrderHint": "Do the sections in any order — the store will not always let you follow one. Everything saves as you go, even with no signal.",
+  "visitAnyOrderHint": "Any order. Everything saves as you go, even with no signal.",
   "@visitAnyOrderHint": {},
   "visitFinishToSubmit": "Finish {sections} to submit",
   "@visitFinishToSubmit": {
@@ -669,7 +669,7 @@
   "@visitCheckInFinding": {
     "description": "Title while waiting for a GPS fix to check in."
   },
-  "visitCheckInWithinHint": "You must be within 50 m of the store to check in. This is what proves the visit happened.",
+  "visitCheckInWithinHint": "Check in within 50 m of the store. This proves the visit happened.",
   "@visitCheckInWithinHint": {},
   "visitRetry": "Try again",
   "@visitRetry": {},
@@ -677,7 +677,7 @@
   "@visitBackToRoute": {},
   "visitTooFarTitle": "You’re too far away",
   "@visitTooFarTitle": {},
-  "visitTooFarBody": "Move closer to the store and try again. Nothing is lost — the visit hasn’t started.",
+  "visitTooFarBody": "Move closer and try again. Nothing is lost — the visit hasn’t started.",
   "@visitTooFarBody": {},
   "visitTooFarDistance": "{meters} m away · need 50 m or closer",
   "@visitTooFarDistance": {
@@ -688,13 +688,13 @@
       }
     }
   },
-  "visitTooFarFraudNote": "This attempt is recorded. Retrying from far away is itself a fraud signal, so it is better to walk closer than to keep tapping.",
+  "visitTooFarFraudNote": "This attempt is recorded. Retrying from far away is itself a fraud signal — walk closer instead.",
   "@visitTooFarFraudNote": {},
   "visitNoLocationTitle": "Can’t find your location",
   "@visitNoLocationTitle": {},
   "visitCheckInFailedTitle": "Could not start the visit",
   "@visitCheckInFailedTitle": {},
-  "visitCheckInFailedNothingLost": "Nothing has been lost — the visit had not started yet.",
+  "visitCheckInFailedNothingLost": "Nothing is lost — the visit hadn’t started.",
   "@visitCheckInFailedNothingLost": {},
   "submitSubtitleInStore": "{outlet} · {minutes} min in store",
   "@submitSubtitleInStore": {
@@ -710,13 +710,13 @@
   },
   "submitOfflineNote": "No signal? Submitting still works — it saves on the phone and sends itself.",
   "@submitOfflineNote": {},
-  "submitIntro": "Check this over before it goes to your manager. After submitting you cannot change it.",
+  "submitIntro": "Check this before it goes to your manager — you cannot change it after.",
   "@submitIntro": {},
   "submitWillRaiseHeading": "This will raise",
   "@submitWillRaiseHeading": {
     "description": "Heading above the list of tasks the submission will raise for the manager."
   },
-  "submitAccusation": "{count, plural, =1{You are telling the manager one thing is wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.} other{You are telling the manager {count} things are wrong in this store. They all come from what you captured — nothing is added afterwards. If the manager already has one of these open, it will not be raised twice.}}",
+  "submitAccusation": "{count, plural, =1{You are telling the manager one thing is wrong in this store. It comes from what you captured — nothing is added. If it is already open, it is not raised twice.} other{You are telling the manager {count} things are wrong in this store. They come from what you captured — nothing is added. Anything already open is not raised twice.}}",
   "@submitAccusation": {
     "description": "Note under the tasks the visit will raise. count is at least 1.",
     "placeholders": {
@@ -754,7 +754,7 @@
       }
     }
   },
-  "submitNothingToRaise": "Nothing to raise. You found no stockouts and flagged no risks — this store is in good shape.",
+  "submitNothingToRaise": "Nothing to raise. No stockouts, no risks — this store is in good shape.",
   "@submitNothingToRaise": {},
   "outcomeTitle": "Visit submitted",
   "@outcomeTitle": {
@@ -772,11 +772,11 @@
   "@outcomeHeldTitle": {
     "description": "Heading when the visit is submitted but still queued on the phone."
   },
-  "outcomeHeldBodyUnreachable": "Could not reach the server just now — it will send itself the moment you have signal. You can close the app.",
+  "outcomeHeldBodyUnreachable": "Could not reach the server. It sends itself when signal returns — you can close the app.",
   "@outcomeHeldBodyUnreachable": {
     "description": "Body when the visit is held on the phone because reading the score from the server failed."
   },
-  "outcomeHeldBodyNoSignal": "No signal right now — it will send itself the moment you have signal. You can close the app.",
+  "outcomeHeldBodyNoSignal": "No signal. It sends itself when signal returns — you can close the app.",
   "@outcomeHeldBodyNoSignal": {
     "description": "Body when the visit is held on the phone because there is no signal."
   },
@@ -784,11 +784,11 @@
   "@outcomeScoredWhenSends": {
     "description": "Banner title: the score is only worked out once the visit is sent."
   },
-  "outcomeScoredOnServer": "Your score is worked out on the server, not on the phone",
+  "outcomeScoredOnServer": "Worked out on the server, not on the phone",
   "@outcomeScoredOnServer": {
     "description": "Banner subtitle under outcomeScoredWhenSends."
   },
-  "outcomeNoGuess": "We are not guessing at a score here. You will see the real one — the same one your manager sees — as soon as this reaches the server.",
+  "outcomeNoGuess": "Your real score — the one your manager sees — appears once this reaches the server.",
   "@outcomeNoGuess": {
     "description": "Explains why no score is shown while the visit is still on the phone."
   },
@@ -869,11 +869,11 @@
   "@outcomeDimensionSalesCapability": {
     "description": "Scorecard dimension name (the 'salesCapability' dimension)."
   },
-  "outcomeUnmeasurableCompetitive": "No competitor on shelf to measure against — not counted against you.",
+  "outcomeUnmeasurableCompetitive": "No competitor on shelf — not counted against you.",
   "@outcomeUnmeasurableCompetitive": {
     "description": "Why the share-of-shelf dimension has no score."
   },
-  "outcomeUnmeasurableSalesCapability": "No staff on shift to assess — not counted against you.",
+  "outcomeUnmeasurableSalesCapability": "No staff on shift — not counted against you.",
   "@outcomeUnmeasurableSalesCapability": {
     "description": "Why the team-capability dimension has no score."
   },
@@ -1065,7 +1065,7 @@
   "@s34PhotoLabel": {
     "description": "S3–S4 photo capture label."
   },
-  "s34PhotoHelper": "Optional. Stored as evidence for this section and as training data for automated planogram scoring.",
+  "s34PhotoHelper": "Optional. Evidence for this section.",
   "@s34PhotoHelper": {
     "description": "S3–S4 photo capture helper text."
   },
@@ -1106,7 +1106,7 @@
   "@s5PhotoLabel": {
     "description": "S5 photo capture label."
   },
-  "s5PhotoHelper": "Optional. Prices are still entered by hand — this is evidence, and the training data for automated price reading.",
+  "s5PhotoHelper": "Optional. Evidence for the prices you typed.",
   "@s5PhotoHelper": {
     "description": "S5 photo capture helper text."
   },
@@ -1281,7 +1281,7 @@
   "@s9PriorityNormal": {
     "description": "S9 task priority choice."
   },
-  "s9Intro": "Risks flagged in S8 auto-create tasks with an SLA server-side. Add any extra manual tasks below.",
+  "s9Intro": "Risks flagged in S8 auto-create tasks with an SLA. Add extra tasks below.",
   "@s9Intro": {
     "description": "S9 intro text."
   },
@@ -1333,7 +1333,7 @@
   "@checkInLocationServicesDisabled": {
     "description": "Check-in: the phone's location (GPS) is switched off. Shown under 'Can’t find your location'."
   },
-  "checkInLocationTimedOut": "Timed out waiting for your location. Check that location is switched on for TradeIQ, then try again.",
+  "checkInLocationTimedOut": "Took too long. Check location is on for TradeIQ, then try again.",
   "@checkInLocationTimedOut": {
     "description": "Check-in: no GPS fix arrived in time. Shown under 'Can’t find your location'."
   },
@@ -1517,7 +1517,7 @@
       }
     }
   },
-  "visitTemplateSectionIntro": "Extra questions this client asks on every visit. Answer the required ones before you submit.",
+  "visitTemplateSectionIntro": "Asked on every visit. Answer the required ones to submit.",
   "@visitTemplateSectionIntro": {
     "description": "Client-questions section: one-line intro above the questions."
   },
@@ -1909,7 +1909,7 @@
   "@notificationsSaveFailed": {
     "description": "Snackbar when a toggle could not be saved; the toggle flips back."
   },
-  "notificationsFooter": "You can also turn off notifications for TradeIQ in your phone’s settings.",
+  "notificationsFooter": "You can also turn these off in your phone’s settings.",
   "@notificationsFooter": {
     "description": "Footnote under the notification toggles."
   }

@@ -310,7 +310,7 @@ void main() {
         findsOneWidget,
         reason: '$name reassurance copy',
       );
-      expect(find.textContaining('Nothing here is ever lost'), findsOneWidget);
+      expect(find.textContaining('Nothing is lost'), findsOneWidget);
     }
   });
 

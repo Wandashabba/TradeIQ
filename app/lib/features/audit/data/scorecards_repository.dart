@@ -20,9 +20,8 @@ const kDimensionLabels = <String, String>{
 /// Why a dimension could not be scored — in the agent's terms, so an unscored
 /// dimension reads as a fact about the store, not a failure of theirs.
 const kUnmeasurableReasons = <String, String>{
-  'competitive':
-      'No competitor on shelf to measure against — not counted against you.',
-  'salesCapability': 'No staff on shift to assess — not counted against you.',
+  'competitive': 'No competitor on shelf — not counted against you.',
+  'salesCapability': 'No staff on shift — not counted against you.',
 };
 
 /// A scorecard as the *server* computed it — the one the manager sees.

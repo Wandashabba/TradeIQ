@@ -112,8 +112,7 @@ class LocationService {
       );
     } on TimeoutException {
       return LocationError(
-        'Timed out waiting for your location. Check that location is switched '
-        'on for TradeIQ, then try again.',
+        'Took too long. Check location is on for TradeIQ, then try again.',
         kind: LocationErrorKind.timedOut,
       );
     } catch (e) {
