@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { RETAILER_ADAPTERS } from '../../competitorPrices/adapters';
-import { getCompetitorShelfPrices } from '../../competitorPrices/competitorPrices.service';
+import {
+  getCompetitorShelfPrices,
+  type CompetitorShelfPrices,
+} from '../../competitorPrices/competitorPrices.service';
 import { competitorPriceGate } from '../../competitorPrices/gate';
 import { eraseToolTypes, ToolFacingError, type AnyAssistantTool } from '../types';
 import type { ToolContext } from './execution';
@@ -72,6 +75,16 @@ export function buildCompetitorPriceTools(ctx: ToolContext): AnyAssistantTool[] 
           trendDays: args.trendDays,
         });
       },
+      // Each retailer page quoted, cited with the date it was READ — which is
+      // what makes a stale price visibly stale in the app's source list too.
+      sources: (_args, result) =>
+        (result as CompetitorShelfPrices).sources.map((s) => ({
+          url: s.url,
+          title: s.title,
+          snippet: null,
+          pageAge: null,
+          retrievedAt: s.retrievedAt,
+        })),
     }),
   ] as AnyAssistantTool[];
 }

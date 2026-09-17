@@ -86,6 +86,31 @@ describe('getCompetitorShelfPrices tool', () => {
     expect(result.competitorSkus).toEqual([]);
   });
 
+  it('cites each retailer page it quotes, with the date the page was read', () => {
+    const t = tool('c1');
+    const cited = t.sources!({}, {
+      sources: [
+        {
+          title: 'Example Retailer (fixture): Fizzy Cola 2L',
+          url: 'https://shop.example.test/p/fizzy-cola-2l',
+          domain: 'shop.example.test',
+          pageAge: null,
+          retrievedAt: '2026-09-10T01:00:00.000Z',
+          snippet: null,
+        },
+      ],
+    });
+    expect(cited).toEqual([
+      {
+        url: 'https://shop.example.test/p/fizzy-cola-2l',
+        title: 'Example Retailer (fixture): Fizzy Cola 2L',
+        snippet: null,
+        pageAge: null,
+        retrievedAt: '2026-09-10T01:00:00.000Z',
+      },
+    ]);
+  });
+
   it('says when NOT to use it, naming both neighbours', () => {
     const { description } = tool('c1');
     expect(description).toMatch(/^Call this when/);
