@@ -260,4 +260,19 @@ export function collectProse(result: unknown, maxDepth = 12): { path: string[]; 
   return found;
 }
 
+/**
+ * Disarm untrusted text that is going to a *person*, not to the model.
+ *
+ * Web search titles and snippets are shown under an answer. They never pass
+ * through us on the way to the model — both vendors run the search server-side —
+ * but they are still text a stranger wrote, so they get every defence here that
+ * does not add model-facing annotation: our fence and the invisible-text
+ * characters are stripped, and the answer's authoritative markup is disarmed so
+ * a page title cannot pose as a follow-up or a callout if a client ever renders
+ * it as markdown.
+ */
+export function neutraliseUntrustedText(value: string): string {
+  return neutraliseAnswerMarkup(neutraliseDelimiters(value));
+}
+
 export const SPOTLIGHT_FENCE = FENCE;

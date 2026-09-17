@@ -30,6 +30,8 @@ export interface TurnTrace {
   clientId: string;
   provider: string;
   model: string;
+  /** Set when an outage fallback answered: the provider the turn was meant for. */
+  fallbackFrom?: string;
 }
 
 export interface ToolSpan {
@@ -161,7 +163,11 @@ export class LangfuseTracer implements AssistantTracer {
           userId: trace.userId,
           // The tenant, so cost and accuracy can be read per client. It is an
           // opaque id, not a name.
-          metadata: { clientId: trace.clientId, provider: trace.provider },
+          metadata: {
+            clientId: trace.clientId,
+            provider: trace.provider,
+            ...(trace.fallbackFrom ? { fallbackFrom: trace.fallbackFrom } : {}),
+          },
           ...(TRACE_CONTENT && summary.content
             ? { input: summary.content.input, output: summary.content.output }
             : {}),

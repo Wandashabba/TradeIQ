@@ -26,6 +26,7 @@ const Map<String, String> toolStepLabels = {
   'getAgentScorecard': 'Agent scorecard',
   'getMetricTrend': 'Trend over time',
   'getTerritoryRanking': 'Territory ranking',
+  'webSearch': 'Searching the web',
 };
 
 String stepLabel(ToolActivity tool) =>
@@ -36,6 +37,7 @@ String stepLabel(ToolActivity tool) =>
       'visibility' => 'Checking visibility',
       'competition' => 'Checking competitors',
       'execution' => 'Checking field execution',
+      'web' => 'Searching the web',
       _ => 'Looking that up',
     };
 

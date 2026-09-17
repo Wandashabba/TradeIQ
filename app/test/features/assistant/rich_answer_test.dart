@@ -8,6 +8,7 @@ import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
 import 'package:tradeiq_app/features/assistant/answer/answer_motion.dart';
 import 'package:tradeiq_app/features/assistant/answer/answer_view.dart';
+import 'package:tradeiq_app/features/assistant/answer/web_sources.dart';
 import 'package:tradeiq_app/features/assistant/answer/working_steps.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
@@ -166,6 +167,43 @@ void main() {
           'Checking stock');
       expect(stepLabel(const ToolActivity(name: 'getNew', pillar: 'x')),
           'Looking that up');
+    });
+
+    test('labels the web search, by name and by its pillar', () {
+      expect(stepLabel(const ToolActivity(name: 'webSearch', pillar: 'web')),
+          'Searching the web');
+      expect(toolStepLabels['webSearch'], 'Searching the web');
+      expect(stepLabel(const ToolActivity(name: 'webFetch', pillar: 'web')),
+          'Searching the web');
+    });
+  });
+
+  group('web sources', () {
+    testWidgets('a sources event lands under the answer', (tester) async {
+      final (repo, _) = await pumpLive(tester);
+      repo.emit(const ToolStartEvent(name: 'webSearch', pillar: 'web'));
+      await tester.pump();
+      expect(find.text('Searching the web'), findsOneWidget);
+      repo.emit(const ToolEndEvent(name: 'webSearch', ok: true));
+      repo.emit(const TokenEvent('Shoprite opened three stores.'));
+      await tester.pump();
+      expect(find.byType(WebSources), findsNothing);
+
+      repo.emit(SourcesEvent([
+        WebSource(
+          title: 'Shoprite launches new stores',
+          url: Uri.parse('https://www.iol.co.za/business/shoprite'),
+          domain: 'iol.co.za',
+          retrievedAt: DateTime.utc(2026, 9, 17, 10, 12),
+        ),
+      ]));
+      repo.emit(const DoneEvent());
+      await repo.close();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Web sources'), findsOneWidget);
+      expect(find.text('iol.co.za'), findsOneWidget);
+      expect(find.text('Shoprite launches new stores'), findsOneWidget);
     });
   });
 

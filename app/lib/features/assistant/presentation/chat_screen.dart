@@ -9,6 +9,7 @@ import '../../../core/widgets/manager_scaffold.dart';
 import '../answer/answer_markdown.dart';
 import '../answer/answer_motion.dart';
 import '../answer/answer_view.dart';
+import '../answer/web_sources.dart';
 import '../answer/working_steps.dart';
 import '../data/chat_controller.dart';
 import '../view_specs/view_spec_registry.dart';
@@ -270,6 +271,20 @@ class _MessageView extends StatelessWidget {
         // the answer was built from.
         if (steps != null) ...[steps, const SizedBox(height: 10)],
         body,
+        // Where the answer's outside facts came from, after the answer — a
+        // turn that errored has no answer to cite.
+        if (message.sources.isNotEmpty && message.error == null) ...[
+          const SizedBox(height: 10),
+          Arrive(
+            key: const ValueKey('web-sources-arrive'),
+            enabled: animate,
+            child: ConstrainedBox(
+              constraints:
+                  const BoxConstraints(maxWidth: RichAnswer.maxProseWidth),
+              child: WebSources(sources: message.sources),
+            ),
+          ),
+        ],
       ],
     );
   }
