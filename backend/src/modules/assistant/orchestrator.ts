@@ -1,8 +1,9 @@
+import { validateFigure, type FigureArtifact } from './figures';
 import { SYSTEM_PROMPT } from './prompt';
 import type { LlmProvider, Message, ToolCallRecord, Usage } from './providers/types';
 import { quarantineFreeText } from './quarantine';
 import { pillarOf, type ToolName } from './roster';
-import { sanitizeToolResult } from './sanitize';
+import { neutraliseAnswerMarkup, sanitizeToolResult } from './sanitize';
 import { tracer as processTracer, type AssistantTracer, type ToolSpan } from './tracing';
 import { ToolFacingError, type AnyAssistantTool, type ToolArgs } from './types';
 import { validateViewSpec, type ViewSpec } from './viewspec';
@@ -303,9 +304,13 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         // exception is `ToolFacingError`, which a tool throws to say "I wrote
         // this string for the model deliberately" — that is how a tool asks a
         // clarifying question ("which Sipho?") instead of failing opaquely.
+        //
+        // Neutralised even so: a clarifying message can quote agent display
+        // names, and those are typed by the people the injection defence is
+        // about. See `neutraliseAnswerMarkup`.
         const forModel =
           err instanceof ToolFacingError
-            ? err.message
+            ? neutraliseAnswerMarkup(err.message)
             : 'That lookup failed. Tell the user you could not retrieve it.';
 
         // Logged at different levels because they are different events: an
@@ -368,6 +373,24 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         artifactIndex += 1;
       }
 
+      // Tiles and bars, after the tool's own view so the first artifact a
+      // client sees for a tool is unchanged. Not persisted: they are a
+      // rendering of this turn's result rather than something `refine` can
+      // re-run, so their ids stay turn-local — and are namespaced by type so
+      // they can never patch the view artifact above.
+      for (const figure of await safeFigures(tool, parsed.data, result)) {
+        yield {
+          event: 'artifact',
+          data: {
+            id: `${tool.name}-${figure.type}-${artifactIndex}`,
+            type: figure.type,
+            params: {},
+            data: figure.data,
+          },
+        };
+        artifactIndex += 1;
+      }
+
       const quarantined = await quarantineFreeText(result, { provider, signal });
       const { value } = sanitizeToolResult(quarantined.value);
 
@@ -421,6 +444,37 @@ function safeViewSpec(
     return null;
   }
   return validated.spec;
+}
+
+/**
+ * A tool's figure artifacts, each validated against the figure contract.
+ *
+ * Same degradation rule as {@link safeViewSpec}: a builder that throws or
+ * produces something malformed costs the card, never the turn.
+ */
+async function safeFigures(
+  tool: AnyAssistantTool,
+  args: unknown,
+  result: unknown,
+): Promise<FigureArtifact[]> {
+  if (!tool.figures) return [];
+
+  let candidates: unknown;
+  try {
+    candidates = await tool.figures(args as never, result);
+  } catch (err) {
+    console.error(`[assistant] figures for ${tool.name} threw`, err);
+    return [];
+  }
+  if (!Array.isArray(candidates)) return [];
+
+  const valid: FigureArtifact[] = [];
+  for (const candidate of candidates) {
+    const checked = validateFigure(candidate);
+    if (checked.ok) valid.push(checked.figure);
+    else console.error(`[assistant] ${tool.name} produced an invalid figure: ${checked.reason}`);
+  }
+  return valid;
 }
 
 /**

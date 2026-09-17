@@ -269,6 +269,8 @@ describe('POST /assistant/chat', () => {
         'tool_start',
         'tool_end',
         'artifact',
+        // The deterministic stat tiles, after the tool's own view (#answer design).
+        'artifact',
         'token',
         'usage',
         'done',
@@ -278,6 +280,19 @@ describe('POST /assistant/chat', () => {
         type: 'agent_scorecard',
         params: { agentId: agent.userId },
         data: { averageScore: 82, scoredVisits: 1 },
+      });
+      // Built server-side from the same result — the model supplied no number.
+      expect(frames[4].data).toMatchObject({
+        id: 'getAgentScorecard-stat_tiles-1',
+        type: 'stat_tiles',
+        params: {},
+        data: {
+          tiles: [
+            { label: 'Execution score', value: 82, unit: 'pts' },
+            { label: 'Visits', value: 1, unit: 'count' },
+            { label: 'Outlets visited', value: 1, unit: 'count' },
+          ],
+        },
       });
     });
 

@@ -7,6 +7,8 @@ import {
   resolveAgent,
 } from '../../scorecards/scorecards.service';
 import { getClientTimeZone } from '../../clients/clients.service';
+import type { AgentPerformance } from '../../scorecards/scorecards.service';
+import { scorecardFigures } from '../figures';
 import { periodSchema, resolvePeriod } from '../period';
 import {
   eraseToolTypes,
@@ -127,6 +129,13 @@ export function buildExecutionTools(ctx: ToolContext): AnyAssistantTool[] {
       type: 'agent_scorecard',
       params: { agentId: (result as { agentId: string }).agentId, period: args.period },
     }),
+    figures: async (args, result) => {
+      const tz = await timeZone();
+      return scorecardFigures(result as AgentPerformance, {
+        timeZone: tz,
+        current: resolvePeriod(args.period, now, tz),
+      });
+    },
   };
 
   return [eraseToolTypes(getAgentScorecard)];

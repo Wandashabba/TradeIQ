@@ -219,6 +219,60 @@ add events without a lockstep app release.
 | `error` | `{ code, message }` | Terminal; `message` is user-safe, never a stack trace |
 | `done` | `{}` | Stream complete |
 
+### Figure artifacts — `stat_tiles` and `ranked_bars`
+
+Added 2026-09-17 with the answer design ("livelier Ask TradeIQ"). They travel
+as ordinary `artifact` events, with `params: {}` and the figures in `data`, and
+are built **deterministically on the server** from the tool result the model
+also reads (`backend/src/modules/assistant/figures.ts`). The model never
+supplies a tile or bar number. They are turn-local — not persisted, not
+refinable — with ids of the form `<toolName>-<type>-<n>`, so they can never
+patch the tool's view artifact. For each tool they follow `tool_end` and the
+tool's own view artifact, and precede the next `tool_start` or `token`.
+
+```ts
+// type: 'stat_tiles'
+{ tiles: Array<{
+    label: string;                                   // "Sell-in, units"
+    value: number;
+    unit: 'units' | 'pct' | 'pts' | 'count';
+    delta?: { value: number /* magnitude */; unit: 'pct' | 'pts' | 'count';
+              direction: 'up' | 'down'; sentiment: 'good' | 'bad' | 'warn' | 'neutral' };
+    comparedTo?: string;                             // "vs 55,034 · Aug '25", pre-formatted
+    meter?: number;                                  // 0–100
+}> }
+
+// type: 'ranked_bars' — items ordered worst first, signs preserved
+{ title: string; comparedTo: string; unit: 'units' | 'pct' | 'pts' | 'count';
+  items: Array<{ label: string; value: number }> }
+```
+
+| Tool | Figures |
+|---|---|
+| `getRateOfSale` | tiles: sell-in units (Δ% vs comparison), target attainment with `meter` — **whole months with a target only**, outlets ordering |
+| `getStockLevels` | tiles: on-shelf availability (Δpts), outlets with a stock-out (Δcount); bars: out-of-stock lines by outlet |
+| `getShareOfShelf` | tile: share of shelf |
+| `getVisibilityCompliance` | tiles: planogram compliance, high-traffic placement |
+| `getCompetitorActivity` | tiles: competitor promoter presence, competitor SKUs seen; bars: competitor facings by SKU |
+| `getAgentScorecard` | tiles: execution score (Δ vs team), visits, outlets visited |
+
+Sentiment comes from the `SENTIMENT` table in `figures.ts`, never from the
+model. A figure with no observations behind it is omitted rather than shown as
+0. `trend_chart` data may carry `comparison: { label, basis, points }` — the
+prior-period series — only when the tool was asked for a comparison.
+
+### Answer markdown conventions
+
+The app renders `token` text as markdown: the first paragraph as a one-sentence
+headline, a blockquote opening `**What explains it**` as the insight callout,
+and a fenced block tagged `followups` (at most three questions, one per line) as
+tappable follow-ups. It does so for **any** model text, whether or not the
+prompt asks for these constructs. Tool results are therefore neutralised before
+they reach the model (`neutraliseAnswerMarkup` in `sanitize.ts`, applied to
+every tool-result string, to quarantine summaries, and to tool-facing error
+messages) so text written by field agents or outlet owners cannot smuggle a
+fence or a callout through the model.
+
 **Why `artifact` carries `data`:** the alternative — client re-fetches after the
 event — doubles latency on the visible path and re-runs the tool for no benefit.
 Refreshes after a *filter change* go through `refine`, which is a different path
