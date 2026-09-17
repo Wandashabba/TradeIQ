@@ -13,17 +13,34 @@ class ChatArtifact {
     required this.type,
     required this.params,
     required this.data,
+    this.toolCall,
   });
 
   final String id;
   final String type;
   final dynamic params;
   final dynamic data;
+
+  /// Which tool call in the turn this artifact followed — an index into
+  /// [ChatMessage.tools] — or null when none preceded it.
+  ///
+  /// The wire carries no call id on an artifact, but a tool's events arrive
+  /// together (`tool_start`, `tool_end`, its card, then its `stat_tiles` /
+  /// `ranked_bars`), so "the most recent call" is exact. It is what lets a
+  /// tool's tiles stand in for that same tool's `pillar_metrics` card without
+  /// parsing id formats.
+  final int? toolCall;
 }
 
-/// What a tool did, for the "checking stock levels…" affordance.
+/// What a tool did, for the working-steps timeline.
 class ToolActivity {
-  const ToolActivity({required this.name, required this.pillar, this.ok});
+  const ToolActivity({
+    required this.name,
+    required this.pillar,
+    this.ok,
+    this.startedAt,
+    this.endedAt,
+  });
 
   final String name;
   final String pillar;
@@ -31,9 +48,29 @@ class ToolActivity {
   /// `null` while running. Set when the tool finishes.
   final bool? ok;
 
-  ToolActivity finished(bool succeeded) =>
-      ToolActivity(name: name, pillar: pillar, ok: succeeded);
+  /// When this client saw `tool_start` and `tool_end`. **Client-measured**:
+  /// the wire carries no timings, and what a manager waited is what the
+  /// timeline should say — network included.
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+
+  /// How long the step took, once it has finished.
+  Duration? get duration => startedAt == null || endedAt == null
+      ? null
+      : endedAt!.difference(startedAt!);
+
+  ToolActivity finished(bool succeeded, {DateTime? at}) => ToolActivity(
+        name: name,
+        pillar: pillar,
+        ok: succeeded,
+        startedAt: startedAt,
+        endedAt: at,
+      );
 }
+
+/// The clock the timeline measures against. A provider so a test can step it.
+final assistantClockProvider =
+    Provider<DateTime Function()>((ref) => DateTime.now);
 
 enum ChatRole { user, assistant }
 
@@ -210,7 +247,14 @@ class ChatController extends Notifier<ChatState> {
         messages[index] = current.copyWith(text: current.text + text);
       case ToolStartEvent(:final name, :final pillar):
         messages[index] = current.copyWith(
-          tools: [...current.tools, ToolActivity(name: name, pillar: pillar)],
+          tools: [
+            ...current.tools,
+            ToolActivity(
+              name: name,
+              pillar: pillar,
+              startedAt: ref.read(assistantClockProvider)(),
+            ),
+          ],
         );
       case ToolEndEvent(:final name, :final ok):
         final tools = [...current.tools];
@@ -224,15 +268,28 @@ class ChatController extends Notifier<ChatState> {
         // one unresolved chip of a given name. FIFO is the convention to hold
         // if that ever changes to run tools concurrently.
         final at = tools.indexWhere((t) => t.name == name && t.ok == null);
-        if (at != -1) tools[at] = tools[at].finished(ok);
+        if (at != -1) {
+          tools[at] = tools[at].finished(
+            ok,
+            at: ref.read(assistantClockProvider)(),
+          );
+        }
         messages[index] = current.copyWith(tools: tools);
       case ArtifactEvent(:final id, :final type, :final params, :final data):
         final artifacts = [...current.artifacts];
-        final artifact =
-            ChatArtifact(id: id, type: type, params: params, data: data);
         // Same id patches in place. Appending instead is what turns a chat into
         // a graveyard of near-identical cards.
         final at = artifacts.indexWhere((a) => a.id == id);
+        final artifact = ChatArtifact(
+          id: id,
+          type: type,
+          params: params,
+          data: data,
+          // A patch keeps the call the card first came from.
+          toolCall: at != -1
+              ? artifacts[at].toolCall
+              : (current.tools.isEmpty ? null : current.tools.length - 1),
+        );
         if (at == -1) {
           artifacts.add(artifact);
         } else {
