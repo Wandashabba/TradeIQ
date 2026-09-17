@@ -1,6 +1,7 @@
 import { rosterFor, type ToolName } from '../roster';
 import type { AnyAssistantTool } from '../types';
 import { buildExecutionTools, type ToolContext } from './execution';
+import { buildOperationTools } from './operations';
 import { buildPillarTools } from './pillars';
 import { buildTrendTools } from './trends';
 
@@ -26,6 +27,7 @@ export function buildTools(ctx: ToolContext): AnyAssistantTool[] {
     ...buildExecutionTools(ctx),
     ...buildPillarTools(ctx),
     ...buildTrendTools(ctx),
+    ...buildOperationTools(ctx),
   ];
   const allowed = rosterFor(ctx.user.role);
 
@@ -51,7 +53,12 @@ export function buildTools(ctx: ToolContext): AnyAssistantTool[] {
  */
 export function unimplementedTools(ctx: ToolContext): ToolName[] {
   const implemented = new Set(
-    [...buildExecutionTools(ctx), ...buildPillarTools(ctx), ...buildTrendTools(ctx)].map(
+    [
+      ...buildExecutionTools(ctx),
+      ...buildPillarTools(ctx),
+      ...buildTrendTools(ctx),
+      ...buildOperationTools(ctx),
+    ].map(
       (tool) => tool.name,
     ),
   );
