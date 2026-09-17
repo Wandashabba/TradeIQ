@@ -283,8 +283,9 @@ class _ExecutionScorePanelState extends ConsumerState<_ExecutionScorePanel>
                       animate: animate,
                     ),
                     const SizedBox(width: 12),
-                    // Measured against the window immediately before this one —
-                    // the same comparison every tile below makes, so the whole
+                    // Measured against the like-for-like window before this
+                    // one, complete days on both sides (#365, see
+                    // DashboardRange.window) — the same comparison every tile below makes, so the whole
                     // screen is answering one question consistently. Tone
                     // follows the sign: the snapshot carries no other verdict
                     // to wire. The entrance wrap lives HERE, not inside
@@ -809,8 +810,8 @@ class _KpiStripState extends ConsumerState<_KpiStrip>
                                   countUpValue: rows[r][c].$5,
                                   countUpFormat: _fmtPct,
                                   animateCountUp: animate,
-                                  // Measured against the window immediately
-                                  // before this one — a second real request, not
+                                  // Measured against the like-for-like window
+                                  // before this one (#365) — a second real request, not
                                   // an invented baseline. Null when there is
                                   // nothing to compare to (all-time has no
                                   // "before"), and the tile then shows no pill.

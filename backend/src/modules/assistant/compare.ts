@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { describePeriod, resolvePeriod, type DateRange, type Period } from './period';
-import { localCalendarDate, startOfLocalDay } from '../../lib/clientTime';
+import {
+  addCalendarDays,
+  localCalendarDate,
+  localClockMs,
+  localInstantAt,
+  startOfLocalDay,
+} from '../../lib/clientTime';
 
 /**
  * Comparison — the feature that kills the Excel overlay.
@@ -47,7 +53,7 @@ export const compareToSchema = z
     kind: z
       .enum(['previous_period', 'same_period_last_year', 'territory'])
       .describe(
-        'previous_period = the equally long window just before this one. ' +
+        'previous_period = the same complete days one period earlier (month to date: the same days last month). ' +
           'same_period_last_year = the same dates a year earlier, for seasonality. ' +
           'territory = another territory over the same period.',
       ),
@@ -84,7 +90,7 @@ export const periodCompareToSchema = z
     kind: z
       .enum(['previous_period', 'same_period_last_year'])
       .describe(
-        'previous_period = the equally long window just before this one. ' +
+        'previous_period = the same complete days one period earlier (month to date: the same days last month). ' +
           'same_period_last_year = the same dates a year earlier, for seasonality.',
       ),
   })
@@ -96,61 +102,218 @@ export const periodCompareToSchema = z
 export type PeriodCompareTo = z.infer<typeof periodCompareToSchema>;
 
 /**
- * The window the comparison series is measured over.
+ * The two windows a compared figure is measured over, resolved together.
  *
- * A scope comparison (territory) keeps the *same* window — comparing Gauteng
- * last month against Western Cape this month would answer a question nobody
- * asked, and the difference would silently mix place and time.
+ * **Like for like (#365).** A comparison used to set the current window from
+ * `resolvePeriod` and the comparison to "the equally long window just before
+ * it". On 17 September that measured 1–17 Sep — today included, still at zero
+ * while orders arrive — against 15–31 Aug, which carries the month-end ordering
+ * spike, and reported sell-in down 12% when the like-for-like change was about
+ * 1%. The rule now is **the same calendar days, complete days only**:
+ *
+ * - `mtd`: current is the 1st of this month up to the start of today; the
+ *   comparison is the same days of the month before (or of the same month last
+ *   year), so on the 17th both sides are days 1–16. When last month is shorter,
+ *   the comparison stops at its end: on 31 March, 1–30 Mar meets all of February.
+ * - `ytd`: 1 January up to the start of today, against the same calendar days of
+ *   last year. For a year-to-date both bases are the same window.
+ * - `today` is partial by nature, so it is compared with yesterday (or the same
+ *   date last year) **up to the same local clock time**.
+ * - `yesterday`, `previous_week` and `custom` are whole days already. The
+ *   previous period stays the equally long run of days just before; last year
+ *   stays the same dates a year earlier.
+ * - A `territory` comparison keeps the uncompared window on both sides: nothing
+ *   moves in time, so a partial today is shared by both and is like for like.
+ *
+ * **The 1st of the month, and 1 January.** There are no complete days in the
+ * period yet. An empty window would come back as a confident −100% or n/a with
+ * nothing to say why, so instead the whole previous month (or year) is compared
+ * with the one before it — or the same month last year — and `note` says so,
+ * for the model to pass on. The labels follow the windows, not the period name.
+ *
+ * Only a compared figure is trimmed. A plain month-to-date total with no
+ * comparison still includes today (`resolvePeriod`), because "what have we sold
+ * this month" should count this morning's orders; the moment two windows are set
+ * side by side, both are complete days. Every compared tool reads both windows
+ * from here, so the current series can never be measured over a different
+ * window from the one its comparison was trimmed to.
+ *
+ * All arithmetic is on the client's calendar dates, converted to instants only
+ * at the boundaries, exactly as `resolvePeriod` does.
  */
-export function comparisonWindow(
+export interface ComparisonRanges {
+  current: DateRange;
+  comparison: DateRange;
+  /** Human label for the comparison series. */
+  label: string;
+  /** Set when the windows are not what the period's name suggests. */
+  note?: string;
+}
+
+export function comparisonRanges(
   period: Period,
   compareTo: CompareTo,
   now: Date,
   timeZone: string,
-): DateRange {
-  const current = resolvePeriod(period, now, timeZone);
-  switch (compareTo.kind) {
-    case 'previous_period': {
-      // Same length, ending where this one starts — the definition the
-      // dashboard's KPI tiles already use, so a figure in chat and the same
-      // figure on the console cannot disagree.
-      const span = current.to.getTime() - current.from.getTime();
-      return { from: new Date(current.from.getTime() - span), to: current.from };
-    }
-    case 'same_period_last_year': {
-      // Calendar-shifted, not 365 days back: "March vs March" must stay March
-      // across a leap year, and the practitioner's vocabulary is months.
-      return { from: shiftYear(current.from, timeZone), to: shiftYear(current.to, timeZone) };
-    }
-    case 'territory':
-      return current;
+): ComparisonRanges {
+  const label = describeComparison(period, compareTo);
+  if (compareTo.kind === 'territory') {
+    const current = resolvePeriod(period, now, timeZone);
+    return { current, comparison: current, label };
   }
+
+  const lastYear = compareTo.kind === 'same_period_last_year';
+  const at = (date: Date) => startOfLocalDay(date, timeZone);
+  const range = (from: Date, to: Date): DateRange => ({ from: at(from), to: at(to) });
+  const today = localCalendarDate(now, timeZone);
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const day = today.getUTCDate();
+  const monthStart = (y: number, m: number) => new Date(Date.UTC(y, m, 1));
+
+  switch (period.kind) {
+    case 'today': {
+      const other = lastYear ? shiftCalendarYear(today) : addCalendarDays(today, -1);
+      return {
+        current: { from: at(today), to: now },
+        comparison: { from: at(other), to: localInstantAt(other, localClockMs(now, timeZone), timeZone) },
+        label,
+      };
+    }
+
+    case 'mtd': {
+      if (day === 1) {
+        const current = range(monthStart(year, month - 1), monthStart(year, month));
+        const comparison = lastYear
+          ? range(monthStart(year - 1, month - 1), monthStart(year - 1, month))
+          : range(monthStart(year, month - 2), monthStart(year, month - 1));
+        const shown = monthName(monthStart(year, month - 1));
+        const against = monthName(localCalendarDate(comparison.from, timeZone));
+        return {
+          current,
+          comparison,
+          label: lastYear ? 'the same month last year' : 'the month before',
+          note:
+            `Today is the 1st, so this month has no complete days yet. These figures are ` +
+            `for all of ${shown}, compared with all of ${against}.`,
+        };
+      }
+      const current = range(monthStart(year, month), today);
+      if (lastYear) {
+        return {
+          current,
+          comparison: range(monthStart(year - 1, month), shiftCalendarYear(today)),
+          label,
+        };
+      }
+      // The same day-of-month last month, clamped to that month's end: day 31
+      // of March meets the 1st of March, i.e. all of February and no more.
+      const daysInLastMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      const end = new Date(Date.UTC(year, month - 1, Math.min(day, daysInLastMonth + 1)));
+      return { current, comparison: range(monthStart(year, month - 1), end), label };
+    }
+
+    case 'ytd': {
+      if (month === 0 && day === 1) {
+        return {
+          current: range(monthStart(year - 1, 0), monthStart(year, 0)),
+          comparison: range(monthStart(year - 2, 0), monthStart(year - 1, 0)),
+          label: 'the year before',
+          note:
+            `Today is 1 January, so this year has no complete days yet. These figures are ` +
+            `for all of ${year - 1}, compared with all of ${year - 2}.`,
+        };
+      }
+      // "Month to date" logic does not fit a year: the previous period of a
+      // year-to-date is the same calendar days of last year, whichever basis.
+      return {
+        current: range(monthStart(year, 0), today),
+        comparison: range(monthStart(year - 1, 0), shiftCalendarYear(today)),
+        label,
+      };
+    }
+
+    case 'yesterday':
+    case 'previous_week':
+    case 'custom': {
+      const current = resolvePeriod(period, now, timeZone);
+      const first = localCalendarDate(current.from, timeZone);
+      const end = localCalendarDate(current.to, timeZone);
+      if (lastYear) {
+        return { current, comparison: range(shiftCalendarYear(first), shiftCalendarYear(end)), label };
+      }
+      // Already whole days: the same number of days, ending where this starts.
+      // Counted in calendar days so a DST change cannot shift a boundary.
+      const days = Math.round((end.getTime() - first.getTime()) / DAY_MS);
+      return { current, comparison: range(addCalendarDays(first, -days), first), label };
+    }
+
+    default: {
+      const unreachable: never = period;
+      throw new Error(`Unknown period: ${JSON.stringify(unreachable)}`);
+    }
+  }
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/** A calendar date's month and year: `August 2026`. */
+function monthName(calendarDate: Date): string {
+  return `${MONTH_NAMES[calendarDate.getUTCMonth()]} ${calendarDate.getUTCFullYear()}`;
 }
 
 /**
- * The same local midnight one calendar year earlier. Shifted on the client's
- * calendar date, not the instant: the instant a Johannesburg day starts is
- * 22:00Z the evening before, and moving that UTC timestamp would mis-date
- * windows that touch 1 March or a DST change. 29 Feb rolls to 1 Mar, as before.
+ * The same calendar date one year earlier. Shifted on the client's calendar
+ * date, not the instant: the instant a Johannesburg day starts is 22:00Z the
+ * evening before, and moving that UTC timestamp would mis-date windows that
+ * touch 1 March or a DST change. 29 Feb rolls to 1 Mar, as before.
  */
-function shiftYear(boundary: Date, timeZone: string): Date {
-  const date = localCalendarDate(boundary, timeZone);
-  const shifted = new Date(
-    Date.UTC(date.getUTCFullYear() - 1, date.getUTCMonth(), date.getUTCDate()),
-  );
-  return startOfLocalDay(shifted, timeZone);
+function shiftCalendarYear(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear() - 1, date.getUTCMonth(), date.getUTCDate()));
 }
 
-/** How the comparison series should be labelled, in the user's own vocabulary. */
+/**
+ * How the comparison series should be labelled, in the user's own vocabulary.
+ * {@link comparisonRanges} carries the label actually used, which differs from
+ * this only on the 1st of the month and 1 January.
+ */
 export function describeComparison(period: Period, compareTo: CompareTo): string {
   switch (compareTo.kind) {
     case 'previous_period':
-      return `the ${describePeriod(period)} before this one`;
+      switch (period.kind) {
+        case 'today':
+          return 'yesterday, up to the same time';
+        case 'yesterday':
+          return 'the day before';
+        case 'previous_week':
+          return 'the week before';
+        case 'mtd':
+          return 'the same days last month';
+        case 'ytd':
+          return 'the same days last year';
+        case 'custom':
+          return 'the same number of days before';
+      }
+      break;
     case 'same_period_last_year':
-      return `${describePeriod(period)} last year`;
+      switch (period.kind) {
+        case 'today':
+          return 'the same day last year, up to the same time';
+        case 'mtd':
+        case 'ytd':
+          return 'the same days last year';
+        default:
+          return `${describePeriod(period)} last year`;
+      }
     case 'territory':
       return 'the other territory, same period';
   }
+  return 'the period before';
 }
 
 export interface Delta {
@@ -211,4 +374,6 @@ export interface Comparison {
   basis: CompareTo;
   values: unknown;
   deltas?: Record<string, Delta>;
+  /** Why the windows differ from the period's name — see {@link comparisonRanges}. */
+  note?: string;
 }

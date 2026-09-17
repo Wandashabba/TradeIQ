@@ -87,23 +87,67 @@ enum DashboardRange {
   final String label;
   final int? days;
 
-  /// The window itself. Null start = unbounded (all time).
-  (DateTime?, DateTime) window(DateTime now) => switch (this) {
-        DashboardRange.ytd => (DateTime(now.year), now),
-        DashboardRange.allTime => (null, now),
-        _ => (now.subtract(Duration(days: days!)), now),
+  /// The window itself, `[from, to)`. Null start = unbounded (all time).
+  ///
+  /// **Complete days whenever there is a delta (#365).** Today is always
+  /// partial while visits are still coming in, so a window ending at "now" set
+  /// against one of whole days reads a half-finished morning as a fall. Every
+  /// range with a [previousWindow] therefore ends at the start of today, and
+  /// both sides are local midnights — the same rule the assistant's
+  /// `comparisonRanges` (backend `compare.ts`) applies, so a figure in chat and
+  /// the same figure on the console agree:
+  ///
+  /// - 7d / 30d / 90d: the last N complete days, against the N days before
+  ///   them. These are rolling windows, so "the same days of last month" has no
+  ///   meaning here; each side is N whole days.
+  /// - YTD: 1 January to the start of today, against the same calendar days of
+  ///   last year (29 Feb rolls to 1 Mar, as on the server).
+  /// - 1 January: YTD has no complete days yet. Rather than an empty window
+  ///   and a fake −100%, the tiles show today so far with no arrow at all.
+  /// - All: everything up to now, and never an arrow.
+  ///
+  /// Days are stepped with the `DateTime(y, m, d)` constructor, which lands on
+  /// local midnight even across a DST change, never with `Duration(days:)`.
+  /// "Local" is the device's zone: the console has no client timezone to hand,
+  /// where the assistant counts in the client's.
+  (DateTime?, DateTime) window(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    return switch (this) {
+      DashboardRange.allTime => (null, now),
+      DashboardRange.ytd when _isNewYearsDay(now) => (today, now),
+      DashboardRange.ytd => (DateTime(now.year), today),
+      _ => (DateTime(now.year, now.month, now.day - days!), today),
+    };
+  }
+
+  /// The like-for-like window "up 0.8" is measured against — see [window].
+  /// Null when there is nothing honest to compare to: all-time has no
+  /// "before", and on 1 January the year has no complete days yet.
+  (DateTime, DateTime)? previousWindow(DateTime now) => switch (this) {
+        DashboardRange.allTime => null,
+        DashboardRange.ytd when _isNewYearsDay(now) => null,
+        DashboardRange.ytd => (
+            DateTime(now.year - 1),
+            DateTime(now.year - 1, now.month, now.day),
+          ),
+        _ => (
+            DateTime(now.year, now.month, now.day - 2 * days!),
+            DateTime(now.year, now.month, now.day - days!),
+          ),
       };
 
-  /// The equally-long window immediately before this one — the thing we measure
-  /// "up 0.8" against. Null when there is nothing to compare to: all-time has no
-  /// "before", and we will not fabricate one.
-  (DateTime, DateTime)? previousWindow(DateTime now) {
-    final (start, end) = window(now);
-    if (start == null) return null;
-    final span = end.difference(start);
-    return (start.subtract(span), start);
-  }
+  static bool _isNewYearsDay(DateTime now) => now.month == 1 && now.day == 1;
 }
+
+/// A window boundary as `GET /dashboard` expects it.
+///
+/// Sent in UTC with its `Z`, so a local midnight means the same instant on the
+/// server. The endpoint's `to` is INCLUSIVE (`lte`), so the exclusive end of a
+/// `[from, to)` window goes out a millisecond early — otherwise a visit at
+/// exactly midnight would count in both of two adjacent windows.
+String dashboardQueryFrom(DateTime from) => from.toUtc().toIso8601String();
+String dashboardQueryTo(DateTime to) =>
+    to.subtract(const Duration(milliseconds: 1)).toUtc().toIso8601String();
 
 /// Active dashboard filter. Wired to GET /dashboard's territoryId/from/to.
 class DashboardFilter {
@@ -199,7 +243,7 @@ final dashboardFilterProvider =
 /// The clock, injected so a test can pin "now" instead of racing it.
 final nowProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
-/// One KPI, its value now, and the same KPI over the window immediately before.
+/// One KPI, its value now, and the same KPI over the like-for-like window before.
 class KpiDelta {
   const KpiDelta({required this.current, this.previous});
 
@@ -244,8 +288,8 @@ final dashboardSnapshotProvider = FutureProvider<DashboardSnapshot>((ref) async 
 
   final current = await repo.fetchKpis(
     territoryId: filter.territoryId,
-    from: from?.toIso8601String(),
-    to: to.toIso8601String(),
+    from: from == null ? null : dashboardQueryFrom(from),
+    to: dashboardQueryTo(to),
   );
 
   if (previous == null) {
@@ -257,8 +301,8 @@ final dashboardSnapshotProvider = FutureProvider<DashboardSnapshot>((ref) async 
   try {
     final prior = await repo.fetchKpis(
       territoryId: filter.territoryId,
-      from: previous.$1.toIso8601String(),
-      to: previous.$2.toIso8601String(),
+      from: dashboardQueryFrom(previous.$1),
+      to: dashboardQueryTo(previous.$2),
     );
     return DashboardSnapshot(current: current, previous: prior);
   } catch (_) {
@@ -282,8 +326,10 @@ final dashboardByTerritoryProvider = FutureProvider<List<TerritoryDashboardKpis>
   final now = ref.read(nowProvider)();
   final (from, to) = filter.range.window(now);
 
+  // The same window as the tiles, so a territory's score and the headline
+  // figure are measured over the same days.
   return ref.read(dashboardRepositoryProvider).fetchByTerritory(
-        from: from?.toIso8601String(),
-        to: to.toIso8601String(),
+        from: from == null ? null : dashboardQueryFrom(from),
+        to: dashboardQueryTo(to),
       );
 });

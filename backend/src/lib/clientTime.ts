@@ -180,6 +180,34 @@ function offsetMs(instant: Date, timeZone: string): number {
 }
 
 /**
+ * How far into its local day `instant` is, as wall-clock milliseconds in
+ * `timeZone`: 14:30:05.250 is 52,205,250. Clock time, not elapsed time — on a
+ * DST change day the two differ by an hour.
+ */
+export function localClockMs(instant: Date, timeZone: string): number {
+  const { hour, minute, second } = wallClock(instant, timeZone);
+  const millis = ((instant.getTime() % 1000) + 1000) % 1000;
+  return ((hour * 60 + minute) * 60 + second) * 1000 + millis;
+}
+
+/**
+ * The instant a CALENDAR DATE reaches wall-clock time `clockMs` in `timeZone`.
+ *
+ * The pair to {@link localClockMs}: "yesterday at the time it is now" is
+ * `localInstantAt(yesterday, localClockMs(now, tz), tz)`, which lands on the
+ * same clock reading even across a DST change, where adding the elapsed time to
+ * yesterday's midnight would be an hour off. A clock time the zone skips
+ * resolves to within an hour of it, and never to before the day starts.
+ */
+export function localInstantAt(calendarDate: Date, clockMs: number, timeZone: string): Date {
+  const wall = calendarDate.getTime() + clockMs;
+  const first = wall - offsetMs(new Date(wall), timeZone);
+  const instant = new Date(wall - offsetMs(new Date(first), timeZone));
+  const dayStart = startOfLocalDay(calendarDate, timeZone);
+  return instant < dayStart ? dayStart : instant;
+}
+
+/**
  * The instant a calendar date begins in `timeZone`.
  *
  * Normally local 00:00. Where a DST change skips midnight itself (a few zones

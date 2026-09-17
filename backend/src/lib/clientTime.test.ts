@@ -3,6 +3,8 @@ import {
   DEFAULT_CLIENT_TIME_ZONE,
   isValidTimeZone,
   localCalendarDate,
+  localClockMs,
+  localInstantAt,
   mondayOfCalendarWeek,
   startOfLocalDay,
 } from './clientTime';
@@ -90,6 +92,35 @@ describe('startOfLocalDay', () => {
     expect(localCalendarDate(start, 'America/Santiago')).toEqual(date('2026-09-06'));
     expect(localCalendarDate(new Date(start.getTime() - 1), 'America/Santiago')).toEqual(
       date('2026-09-05'),
+    );
+  });
+});
+
+describe('localClockMs / localInstantAt', () => {
+  it('reads the wall clock and finds the same clock time on another date', () => {
+    const now = new Date('2026-09-17T10:15:30.250Z'); // 12:15:30.250 SAST
+    const clock = localClockMs(now, 'Africa/Johannesburg');
+    expect(clock).toBe(((12 * 60 + 15) * 60 + 30) * 1000 + 250);
+    expect(localInstantAt(date('2026-09-16'), clock, 'Africa/Johannesburg').toISOString()).toBe(
+      '2026-09-16T10:15:30.250Z',
+    );
+  });
+
+  it('keeps the clock time across a DST change, not the elapsed time', () => {
+    // 10:30 on 7 Mar 2026 in New York is EST; on 8 Mar it is EDT.
+    expect(localInstantAt(date('2026-03-07'), 10.5 * 3_600_000, 'America/New_York').toISOString()).toBe(
+      '2026-03-07T15:30:00.000Z',
+    );
+    expect(localInstantAt(date('2026-03-08'), 10.5 * 3_600_000, 'America/New_York').toISOString()).toBe(
+      '2026-03-08T14:30:00.000Z',
+    );
+  });
+
+  it('never lands before the day starts where DST skips midnight', () => {
+    // Santiago springs forward at midnight on 6 Sep 2026: 00:30 never happens,
+    // and the day begins at 01:00 (-03), 04:00Z.
+    expect(localInstantAt(date('2026-09-06'), 30 * 60_000, 'America/Santiago').toISOString()).toBe(
+      '2026-09-06T04:00:00.000Z',
     );
   });
 });

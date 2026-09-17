@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { listFlagged } from '../../fraud/fraud.service';
 import {
   compareToSchema,
-  comparisonWindow,
-  describeComparison,
+  comparisonRanges,
   numericDeltas,
   periodCompareToSchema,
   type Comparison,
@@ -18,7 +17,7 @@ import {
   visibilityComplianceFigures,
   type FigureWindows,
 } from '../figures';
-import { periodSchema, resolvePeriod } from '../period';
+import { periodSchema, resolvePeriod, type DateRange, type Period } from '../period';
 import {
   getCompetitorActivity,
   getSalesPerformance,
@@ -79,12 +78,22 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
   const { user, now } = ctx;
   const timeZone = clientTimeZoneOf(ctx);
 
-  /** Resolve the model's period into the window every service takes. */
-  const scope = async (args: z.infer<typeof windowArgs>) => ({
+  /**
+   * Resolve the model's period into the window every service takes.
+   *
+   * An uncompared figure uses the plain period, today included. A compared one
+   * passes `window`, the current side of `comparisonRanges`, so both runs are
+   * measured over complete, like-for-like days (#365).
+   */
+  const scope = async (args: z.infer<typeof windowArgs>, window?: DateRange) => ({
     clientId: user.clientId,
-    ...resolvePeriod(args.period, now, await timeZone()),
+    ...(window ?? resolvePeriod(args.period, now, await timeZone())),
     ...(args.territoryId ? { territoryId: args.territoryId } : {}),
   });
+
+  /** Both windows of a comparison, from the one helper that trims them together. */
+  const rangesFor = async (period: Period, compareTo: CompareTo) =>
+    comparisonRanges(period, compareTo, now, await timeZone());
 
   /**
    * The same scope, moved to whatever the comparison measures.
@@ -94,12 +103,13 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
    * mixed place and time would be uninterpretable, and the user would not be
    * able to tell which half moved.
    */
-  const comparisonScope = async (
+  const comparisonScope = (
     args: z.infer<typeof comparableWindowArgs>,
     compareTo: CompareTo,
+    window: DateRange,
   ) => ({
     clientId: user.clientId,
-    ...comparisonWindow(args.period, compareTo, now, await timeZone()),
+    ...window,
     // `id` is optional in the declared shape and guaranteed present for a
     // territory basis by the schema's refinement; the guard keeps the types
     // honest rather than asserting past them.
@@ -123,19 +133,21 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
     args: z.infer<typeof comparableWindowArgs>,
     run: (window: Awaited<ReturnType<typeof scope>>) => Promise<R>,
   ): Promise<R | (R & { comparison: Comparison })> => {
-    const current = await run(await scope(args));
-    if (!args.compareTo) return current;
+    if (!args.compareTo) return run(await scope(args));
 
+    const ranges = await rangesFor(args.period, args.compareTo);
+    const current = await run(await scope(args, ranges.current));
     const values = await run(
-      (await comparisonScope(args, args.compareTo)) as Awaited<ReturnType<typeof scope>>,
+      comparisonScope(args, args.compareTo, ranges.comparison) as Awaited<ReturnType<typeof scope>>,
     );
     return {
       ...current,
       comparison: {
-        label: describeComparison(args.period, args.compareTo),
+        label: ranges.label,
         basis: args.compareTo,
         values,
         ...(numericDeltas(current, values) ? { deltas: numericDeltas(current, values) } : {}),
+        ...(ranges.note ? { note: ranges.note } : {}),
       },
     };
   };
@@ -143,26 +155,21 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
   /**
    * The windows a comparable tool measured, for its figure artifacts.
    *
-   * Recomputed from the args with the same functions `scope` and
-   * `comparisonScope` used, against the timezone the run already looked up —
-   * so no query, and no chance of a tile labelling a different window from the
-   * one its numbers came from.
+   * Recomputed from the args with the same functions `withComparison` used,
+   * against the timezone the run already looked up — so no query, and no
+   * chance of a tile labelling a different window from the one its numbers
+   * came from.
    */
   const windowsFor = async (
     args: z.infer<typeof comparableWindowArgs>,
   ): Promise<FigureWindows> => {
     const tz = await timeZone();
+    if (!args.compareTo) return { timeZone: tz, current: resolvePeriod(args.period, now, tz) };
+    const ranges = comparisonRanges(args.period, args.compareTo, now, tz);
     return {
       timeZone: tz,
-      current: resolvePeriod(args.period, now, tz),
-      ...(args.compareTo
-        ? {
-            comparison: {
-              range: comparisonWindow(args.period, args.compareTo, now, tz),
-              basis: args.compareTo,
-            },
-          }
-        : {}),
+      current: ranges.current,
+      comparison: { range: ranges.comparison, basis: args.compareTo },
     };
   };
 
@@ -247,23 +254,27 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       }),
       run: async (args) => {
         const tz = await timeZone();
-        return getTerritorySellInChange({
+        const ranges = comparisonRanges(args.period, args.compareTo, now, tz);
+        const result = await getTerritorySellInChange({
           clientId: user.clientId,
           timeZone: tz,
-          current: resolvePeriod(args.period, now, tz),
-          comparison: comparisonWindow(args.period, args.compareTo, now, tz),
+          current: ranges.current,
+          comparison: ranges.comparison,
           ...(args.region ? { region: args.region } : {}),
         });
+        return {
+          ...result,
+          comparisonLabel: ranges.label,
+          ...(ranges.note ? { windowNote: ranges.note } : {}),
+        };
       },
       figures: async (args, result) => {
         const tz = await timeZone();
+        const ranges = comparisonRanges(args.period, args.compareTo, now, tz);
         return territoryRankingFigures(result as TerritorySellInChange, {
           timeZone: tz,
-          current: resolvePeriod(args.period, now, tz),
-          comparison: {
-            range: comparisonWindow(args.period, args.compareTo, now, tz),
-            basis: args.compareTo,
-          },
+          current: ranges.current,
+          comparison: { range: ranges.comparison, basis: args.compareTo },
         });
       },
     }),
