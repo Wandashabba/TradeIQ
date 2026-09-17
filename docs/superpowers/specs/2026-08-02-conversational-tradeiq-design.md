@@ -273,6 +273,11 @@ every tool-result string, to quarantine summaries, and to tool-facing error
 messages) so text written by field agents or outlet owners cannot smuggle a
 fence or a callout through the model.
 
+From prompt v3 (`SYSTEM_PROMPT_VERSION = 'v3-2026-09-17'`, rules 10–14) the
+model is asked to produce these constructs: a one-sentence headline with the
+key figure, at most one `**What explains it**` callout backed by retrieved
+figures, no restating of tile/bar/chart numbers, and up to three follow-ups.
+
 **Why `artifact` carries `data`:** the alternative — client re-fetches after the
 event — doubles latency on the visible path and re-runs the tool for no benefit.
 Refreshes after a *filter change* go through `refine`, which is a different path
