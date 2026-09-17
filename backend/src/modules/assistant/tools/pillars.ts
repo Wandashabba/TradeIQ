@@ -149,9 +149,21 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
     eraseToolTypes({
       name: 'getRateOfSale',
       pillar: 'sales' as const,
+      // The scope note is in the description on purpose (#337). These figures
+      // are sell-in — what outlets ORDERED through TradeIQ — and there is no
+      // POS feed anywhere in this product, so a model left to its own
+      // vocabulary will reach for "sold" and hand a manager a sell-out number
+      // that does not exist. It is also where the monthly-target rule has to be
+      // stated: the model chooses the period, so it is the only thing that can
+      // avoid asking for attainment over a window no target covers.
       description:
         'Call this when the user asks how sales are tracking against target, about rate of ' +
-        'sale, attainment, or whether a territory is hitting its numbers.',
+        'sale, attainment, or whether a territory is hitting its numbers. Reports SELL-IN — ' +
+        'units ordered through TradeIQ by outlets — against manager-set monthly targets. ' +
+        'These are NOT consumer sell-out: there is no till or POS feed, so never describe ' +
+        'them as what shoppers bought. Targets are monthly, so a target and attainment come ' +
+        'back only for whole calendar months; for any other period you get sell-in units and ' +
+        'a null target. A null target means none is set, not a target of zero.',
       args: comparableWindowArgs,
       run: async (args) => withComparison(args, (w) => getSalesPerformance(w)),
       view: pillarView('sales'),
