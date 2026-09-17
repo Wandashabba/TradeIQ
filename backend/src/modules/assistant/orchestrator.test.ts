@@ -1404,6 +1404,63 @@ describe('orchestrator', () => {
       expect(names(events).slice(-3)).toEqual(['token', 'usage', 'done']);
     });
 
+    it("cites a tool's outside pages with the date they were read, alongside web sources", async () => {
+      const provider = scriptedProvider([
+        [{ type: 'tool_call', id: 'c0', name: 'getCompetitorShelfPrices', args: {} }, { type: 'done' }],
+        [{ type: 'token', text: 'Checkers lists it at R24.99 (read 10 Sep).' }, { type: 'done' }],
+      ]);
+      const pricesTool = eraseToolTypes({
+        name: 'getCompetitorShelfPrices',
+        pillar: 'competition',
+        description: 'Call this when the user asks about retailer website prices.',
+        args: z.object({}),
+        run: async () => ({ ok: true }),
+        sources: () => [
+          { url: 'https://shop.example.test/p/cola', title: 'Example: Cola 2L', retrievedAt: '2026-09-10T01:00:00.000Z' },
+          // A stamp in the future is not trusted; it falls back to this turn.
+          { url: 'https://shop.example.test/p/lemon', title: 'Example: Lemon', retrievedAt: '2999-01-01T00:00:00.000Z' },
+        ],
+      } as never);
+
+      const events = await collect(
+        runTurn({ provider, tools: [pricesTool], messages: [{ role: 'user', content: 'q' }], signal: signal() }),
+      );
+
+      const published = events.find((e) => e.event === 'sources') as Extract<WireEvent, { event: 'sources' }>;
+      expect(published.data.sources).toHaveLength(2);
+      expect(published.data.sources[0]).toMatchObject({
+        url: 'https://shop.example.test/p/cola',
+        domain: 'shop.example.test',
+        retrievedAt: '2026-09-10T01:00:00.000Z',
+      });
+      expect(published.data.sources[1].retrievedAt).not.toBe('2999-01-01T00:00:00.000Z');
+    });
+
+    it('keeps the turn when a tool source builder throws', async () => {
+      const provider = scriptedProvider([
+        [{ type: 'tool_call', id: 'c0', name: 'getAgentScorecard', args: { agentId: 'a' } }, { type: 'done' }],
+        say('ok'),
+      ]);
+      const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const events = await collect(
+        runTurn({
+          provider,
+          tools: [
+            testTool({
+              sources: () => {
+                throw new Error('boom');
+              },
+            }),
+          ],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+        }),
+      );
+      error.mockRestore();
+      expect(names(events).slice(-2)).toEqual(['usage', 'done']);
+      expect(names(events)).not.toContain('sources');
+    });
+
     it('emits no sources event when nothing was cited', async () => {
       const provider = scriptedProvider([[{ type: 'sources', sources: [source('data:text/html,x')] }, { type: 'token', text: 'a' }, { type: 'done' }]]);
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});

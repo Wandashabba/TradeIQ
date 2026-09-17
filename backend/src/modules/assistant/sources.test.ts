@@ -37,6 +37,22 @@ describe('normaliseSources', () => {
   });
   afterEach(() => warn.mockRestore());
 
+  it("keeps a source's own earlier retrieval time, and ignores a future or malformed one", () => {
+    const out = normaliseSources(
+      [
+        { url: 'https://shop.example.test/p/a', retrievedAt: '2026-09-10T01:00:00Z' },
+        { url: 'https://shop.example.test/p/b', retrievedAt: '2026-09-18T00:00:00Z' },
+        { url: 'https://shop.example.test/p/c', retrievedAt: 'last week' },
+      ],
+      AT,
+    );
+    expect(out.map((s) => s.retrievedAt)).toEqual([
+      '2026-09-10T01:00:00.000Z',
+      AT.toISOString(),
+      AT.toISOString(),
+    ]);
+  });
+
   it('produces the published shape', () => {
     const [source] = normaliseSources(
       [

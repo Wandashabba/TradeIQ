@@ -128,8 +128,8 @@ describe('cited sources', () => {
         { sourceName: 'Open-Meteo', url: 'https://open-meteo.com/en/docs', publishedAt: null, retrievedAt: '2026-09-17' },
       ]),
     ).toEqual([
-      { url: 'https://x.example/a.pdf', title: 'Stats SA CPI', pageAge: 'Released 19 Aug 2026', snippet: null },
-      { url: 'https://open-meteo.com/en/docs', title: 'Open-Meteo', pageAge: null, snippet: null },
+      { url: 'https://x.example/a.pdf', title: 'Stats SA CPI', pageAge: 'Released 19 Aug 2026', snippet: null, retrievedAt: '2026-09-17' },
+      { url: 'https://open-meteo.com/en/docs', title: 'Open-Meteo', pageAge: null, snippet: null, retrievedAt: '2026-09-17' },
     ]);
   });
 

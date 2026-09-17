@@ -455,6 +455,9 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
 
       yield { event: 'tool_end', data: { name: tool.name, ok: true } };
       const { result } = outcome;
+      // Outside data a tool cites (retailer pages behind collected prices) joins
+      // the web sources, and goes through the same validation at the end.
+      rawSources.push(...safeToolSources(tool, plan.args, result));
 
       // The artifact carries the RAW result, and the model gets the sanitized
       // one. They are different on purpose: the client renders through a
@@ -510,10 +513,6 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         };
         artifactIndex += 1;
       }
-
-      // Outside-context tools cite their publishers; those join the web
-      // sources and are validated and published with them at the end.
-      rawSources.push(...safeToolSources(tool, plan.args, result));
 
       messages.push({
         role: 'tool',
@@ -770,11 +769,7 @@ async function safeFigures(
   return valid;
 }
 
-/**
- * A tool's cited sources. Same degradation rule as {@link safeFigures}: a
- * builder that throws costs the citations, never the turn. Validation happens
- * later, in `normaliseSources`, together with the web search's.
- */
+/** A tool's cited outside pages. A builder that throws costs the citations, never the turn. */
 function safeToolSources(tool: AnyAssistantTool, args: unknown, result: unknown): RawWebSource[] {
   if (!tool.sources) return [];
   try {

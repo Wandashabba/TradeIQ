@@ -308,6 +308,21 @@ void main() {
       expect(find.text('statssa.gov.za'), findsOneWidget);
       expect(find.textContaining('Released 19 Aug 2026'), findsOneWidget);
     });
+
+    test('labels competitor retailer-website prices apart from our own', () {
+      const tool = ToolActivity(
+          name: 'getCompetitorShelfPrices', pillar: 'competition');
+      expect(stepLabel(tool), 'Competitor shelf prices');
+      expect(stepLabel(tool), isNot(contains('get')));
+      expect(
+          stepLabel(tool),
+          isNot(stepLabel(const ToolActivity(
+              name: 'getPriceCompliance', pillar: 'competition'))));
+      expect(
+          stepLabel(tool),
+          isNot(stepLabel(const ToolActivity(
+              name: 'getCompetitorActivity', pillar: 'competition'))));
+    });
   });
 
   group('streaming text', () {

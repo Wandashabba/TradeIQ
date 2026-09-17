@@ -1,0 +1,36 @@
+<!doctype html>
+<!-- A LOCAL FIXTURE for the example adapter. Not copied from any retailer. -->
+<html lang="en-ZA">
+<head>
+  <meta charset="utf-8">
+  <title>Fizzy Cola 2L | Example Retailer</title>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": "Fizzy Cola Soft Drink 2L",
+    "sku": "000123",
+    "brand": { "@type": "Brand", "name": "Fizzy" },
+    "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.6", "reviewCount": "212" },
+    "review": [
+      {
+        "@type": "Review",
+        "author": { "@type": "Person", "name": "Thandi M." },
+        "reviewBody": "Love it, my email is thandi@example.test"
+      }
+    ],
+    "offers": {
+      "@type": "Offer",
+      "price": "24.99",
+      "priceCurrency": "ZAR",
+      "availability": "https://schema.org/InStock",
+      "seller": { "@type": "Organization", "name": "Example Retailer" }
+    }
+  }
+  </script>
+</head>
+<body>
+  <h1>Fizzy Cola Soft Drink 2L</h1>
+  <p class="price">R24.99</p>
+</body>
+</html>

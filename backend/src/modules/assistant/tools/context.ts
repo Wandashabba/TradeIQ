@@ -41,7 +41,7 @@ export async function periodDays(period: Period, now: Date, timeZone: string) {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
- * Provenance → the shared sources shape. The page-age slot carries the
+ * Provenance → the shared sources shape, retrieval date included. The page-age slot carries the
  * publisher's release date ("Released 19 Aug 2026"), which is what a manager
  * needs to judge how current an outside figure is.
  */
@@ -53,6 +53,8 @@ export function provenanceSources(provenance: readonly Provenance[]): RawWebSour
       ? `Released ${Number(p.publishedAt.slice(8, 10))} ${MONTHS[Number(p.publishedAt.slice(5, 7)) - 1]} ${p.publishedAt.slice(0, 4)}`
       : null,
     snippet: null,
+    // When we fetched it, or when a person last verified a static table.
+    retrievedAt: p.retrievedAt,
   }));
 }
 

@@ -14,6 +14,7 @@ import {
 import { runTurn, type WireEvent } from './orchestrator';
 import { providerFor } from './providers';
 import type { Message } from './providers/types';
+import { resolveToolGates } from './toolGates';
 import { buildTools, type ToolContext } from './tools';
 import {
   ArtifactNotFoundError,
@@ -134,10 +135,15 @@ assistantRouter.post(
 
     // Identity is bound once, here. Nothing below takes a tenant argument.
     const now = new Date();
-    // The tenant's switch for outside context. Off leaves the calendar, weather
-    // and economy tools out of the roster, so they are never declared.
-    const externalContext = await isAssistantExternalContextEnabled(user.clientId);
-    const tools = buildTools({ user, now, externalContext });
+    // Gated tools (toolGates.ts) are declared only when this client's gate is
+    // open. Resolving never throws: a failure leaves the gate closed. The
+    // outside-context switch works the same way for the calendar, weather and
+    // economy tools.
+    const [gates, externalContext] = await Promise.all([
+      resolveToolGates(user.clientId),
+      isAssistantExternalContextEnabled(user.clientId),
+    ]);
+    const tools = buildTools({ user, now, gates, externalContext });
     const owner = { userId: user.userId, clientId: user.clientId };
     const conversationId = parsed.data.conversationId ?? randomUUID();
 

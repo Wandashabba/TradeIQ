@@ -2689,6 +2689,92 @@ paths:
               schema: { $ref: '#/components/schemas/NotificationPreferences' }
         '400': { description: Empty body, unknown category, or a non-boolean value }
         '401': { description: Missing or invalid bearer token }
+  # ── Competitor shelf prices (off by default; docs/operations/competitor-price-collection.md) ──
+  /competitor-prices/settings:
+    get:
+      summary: Competitor price collection switch, approval, and whether it is actually live (admin)
+      description: >
+        Live only when COMPETITOR_PRICE_COLLECTION=on AND the client is enabled AND both approval
+        fields are set. `inactiveReason` says which is missing.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: 'enabled, approvedBy, approvedAt, killSwitch (on|off), active, inactiveReason' }
+        '403': { description: Not an admin }
+  /competitor-prices/settings/enable:
+    post:
+      summary: Enable collection for this client (admin; requires legal approval fields; audited)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvedBy, approvedAt]
+              properties:
+                approvedBy: { type: string, description: 'Who signed off the legal review' }
+                approvedAt: { type: string, description: 'ISO date or date-time, not in the future' }
+                note: { type: string }
+      responses:
+        '200': { description: Settings after the change }
+        '400': { description: Missing or invalid approval }
+        '403': { description: Not an admin }
+  /competitor-prices/settings/disable:
+    post:
+      summary: Disable collection for this client and clear the approval (admin; audited)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Settings after the change }
+        '403': { description: Not an admin }
+  /competitor-prices/audit:
+    get:
+      summary: Append-only ledger of switch changes (admin)
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: 'items[]' }, '403': { description: Not an admin } }
+  /competitor-prices/retailers:
+    get:
+      summary: Retailer adapters and their status (implemented | stub) (admin)
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: 'items[]' }, '403': { description: Not an admin } }
+  /competitor-prices/mappings:
+    get:
+      summary: Admin-maintained competitor SKU to retailer product page mappings (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: includeInactive, in: query, schema: { type: string, enum: ['true', 'false'] } }
+      responses: { '200': { description: 'items[]' }, '403': { description: Not an admin } }
+    post:
+      summary: Map a competitor SKU to a retailer product page (admin). No automatic matching.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [competitorSku, retailer, productUrl]
+              properties:
+                competitorSku: { type: string }
+                competitorBrand: { type: string, nullable: true }
+                retailer: { type: string, description: 'Adapter id from /competitor-prices/retailers' }
+                productUrl: { type: string, description: "https product page on the retailer's own host" }
+                packSize: { type: string, nullable: true }
+                ourSkuId: { type: string, nullable: true, description: 'One of our SKUs, for the price gap' }
+      responses:
+        '201': { description: Created }
+        '400': { description: Invalid (unknown retailer, wrong host, not our SKU) }
+        '403': { description: Not an admin }
+        '409': { description: Already mapped }
+  /competitor-prices/mappings/{id}:
+    patch:
+      summary: Update or deactivate a mapping (admin, own client only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Invalid }
+        '404': { description: Not found (including another client's mapping) }
 components:
   securitySchemes:
     bearerAuth:

@@ -31,33 +31,33 @@ enum TaskStatus {
 }
 
 model Client {
-  id                              String                   @id @default(uuid())
-  name                            String
-  industry                        String
-  scorecardWeights                Json                     @map("scorecard_weights")
-  kpiThresholds                   Json                     @map("kpi_thresholds")
+  id                                  String                            @id @default(uuid())
+  name                                String
+  industry                            String
+  scorecardWeights                    Json                              @map("scorecard_weights")
+  kpiThresholds                       Json                              @map("kpi_thresholds")
   /// Conversational assistant rollout flag. Defaults false: the assistant ships
   /// alongside the existing console, never in place of it, and no client gets it
   /// without a deliberate opt-in. Off is a true kill switch — Phases 0-2 mutate
   /// nothing, so degrading to today's dashboard loses no data.
-  assistantEnabled                Boolean                  @default(false) @map("assistant_enabled")
+  assistantEnabled                    Boolean                           @default(false) @map("assistant_enabled")
   /// Whether the assistant may run live web search for outside context
   /// (competitor news, launches, retailer announcements). Only meaningful once
   /// `assistantEnabled` is on. Defaults true because every answer that uses it
   /// is cited and labelled as outside information; off removes the search tool
   /// from the request entirely rather than asking the model not to use it.
-  assistantWebSearchEnabled       Boolean                  @default(true) @map("assistant_web_search_enabled")
+  assistantWebSearchEnabled           Boolean                           @default(true) @map("assistant_web_search_enabled")
   /// Whether Ask TradeIQ may reach for OUTSIDE context tools — public holidays,
   /// school terms, paydays, weather and Stats SA / fuel figures. Defaults true:
   /// the data is public and cited, and the only tenant-derived value that leaves
   /// is a territory's outlet-centroid coordinate, sent to the weather API.
   /// Off removes those tools from the declared roster for this client.
-  assistantExternalContextEnabled Boolean                  @default(true) @map("assistant_external_context_enabled")
+  assistantExternalContextEnabled     Boolean                           @default(true) @map("assistant_external_context_enabled")
   /// IANA zone the client's field team works in (#309). Every calendar-day
   /// rule reads it: which beat plan a check-in belongs to, trend day/week
   /// buckets, and the assistant's "today"/"last week". Validated against the
   /// runtime's IANA list on write; editable by managers and admins.
-  timezone                        String                   @default("Africa/Johannesburg")
+  timezone                            String                            @default("Africa/Johannesburg")
   /// When the client's field team works, on the wall clock of `timezone`
   /// (#153 T2). `HH:MM`, 24-hour, half-open `[start, end)`.
   ///
@@ -66,41 +66,56 @@ model Client {
   /// Nothing else reads it — it is not a shift model, and it is not attendance.
   /// Editable by managers and admins, like `timezone`: it is a fact about when
   /// the team works, not a scoring policy. See `lib/workingHours.ts`.
-  workHoursStart                  String                   @default("07:00") @map("work_hours_start")
-  workHoursEnd                    String                   @default("17:00") @map("work_hours_end")
+  workHoursStart                      String                            @default("07:00") @map("work_hours_start")
+  workHoursEnd                        String                            @default("17:00") @map("work_hours_end")
   /// The days that window applies to, as ISO weekdays: 1 = Monday … 7 = Sunday.
   /// Defaults to Monday–Friday, so a weekend collects nothing.
-  workDays                        Int[]                    @default([1, 2, 3, 4, 5]) @map("work_days")
-  users                           User[]
-  outlets                         Outlet[]
-  skus                            Sku[]
-  promoCalendar                   PromoCalendar[]
-  visits                          Visit[]
-  territories                     Territory[]
-  campaigns                       Campaign[]
-  beatPlans                       BeatPlan[]
-  alertRules                      AlertRule[]
-  alerts                          Alert[]
-  auditTemplates                  AuditTemplate[]          @relation("ClientAuditTemplates")
-  checkInAttempts                 CheckInAttempt[]
-  orders                          Order[]
-  messages                        Message[]
-  announcements                   Announcement[]
-  webhooks                        Webhook[]
-  reportDefinitions               ReportDefinition[]
-  incentiveSchemes                IncentiveScheme[]
-  reportSchedules                 ReportSchedule[]
-  assistantArtifacts              AssistantArtifact[]
-  assistantActions                AssistantAction[]
-  photos                          Photo[]
-  pointsLedger                    PointsLedgerEntry[]
-  locationPings                   AgentLocationPing[]
-  agentDaySummaries               AgentDaySummary[]
-  locationConsents                LocationConsent[]
-  contests                        Contest[]
-  deviceTokens                    DeviceToken[]
-  notificationPrefs               NotificationPreference[]
-  salesTargets                    SalesTarget[]
+  workDays                            Int[]                             @default([1, 2, 3, 4, 5]) @map("work_days")
+  /// Competitor shelf-price collection from retailer websites. OFF by default,
+  /// and meaningless on its own: collection runs only when this is true, BOTH
+  /// approval fields below are set, and the global kill switch
+  /// `COMPETITOR_PRICE_COLLECTION=on`. Set only through the admin endpoint,
+  /// which writes a CompetitorPriceCollectionAudit row. See
+  /// docs/operations/competitor-price-collection.md for the legal checklist.
+  competitorPriceCollectionEnabled    Boolean                           @default(false) @map("competitor_price_collection_enabled")
+  /// Who signed off the legal review (a name, not a user id: the approver is
+  /// often counsel, who has no TradeIQ account).
+  competitorPriceCollectionApprovedBy String?                           @map("competitor_price_collection_approved_by")
+  competitorPriceCollectionApprovedAt DateTime?                         @map("competitor_price_collection_approved_at")
+  users                               User[]
+  outlets                             Outlet[]
+  skus                                Sku[]
+  promoCalendar                       PromoCalendar[]
+  visits                              Visit[]
+  territories                         Territory[]
+  campaigns                           Campaign[]
+  beatPlans                           BeatPlan[]
+  alertRules                          AlertRule[]
+  alerts                              Alert[]
+  auditTemplates                      AuditTemplate[]                   @relation("ClientAuditTemplates")
+  checkInAttempts                     CheckInAttempt[]
+  orders                              Order[]
+  messages                            Message[]
+  announcements                       Announcement[]
+  webhooks                            Webhook[]
+  reportDefinitions                   ReportDefinition[]
+  incentiveSchemes                    IncentiveScheme[]
+  reportSchedules                     ReportSchedule[]
+  assistantArtifacts                  AssistantArtifact[]
+  assistantActions                    AssistantAction[]
+  photos                              Photo[]
+  pointsLedger                        PointsLedgerEntry[]
+  locationPings                       AgentLocationPing[]
+  agentDaySummaries                   AgentDaySummary[]
+  locationConsents                    LocationConsent[]
+  contests                            Contest[]
+  deviceTokens                        DeviceToken[]
+  notificationPrefs                   NotificationPreference[]
+  salesTargets                        SalesTarget[]
+  competitorSkuMappings               CompetitorSkuMapping[]
+  competitorShelfPrices               CompetitorShelfPriceObservation[]
+  competitorPriceCollectionLog        CompetitorPriceCollectionEvent[]
+  competitorPriceAudit                CompetitorPriceCollectionAudit[]
 
   /// The audit template whose questions field agents answer on every visit, as
   /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
@@ -189,17 +204,18 @@ model Outlet {
 }
 
 model Sku {
-  id                 String         @id @default(uuid())
-  clientId           String         @map("client_id")
-  client             Client         @relation(fields: [clientId], references: [id])
+  id                 String                 @id @default(uuid())
+  clientId           String                 @map("client_id")
+  client             Client                 @relation(fields: [clientId], references: [id])
   name               String
   category           String
-  minFacingsStandard Int            @map("min_facings_standard")
+  minFacingsStandard Int                    @map("min_facings_standard")
   rrp                Float
   visitStock         VisitStock[]
   visitPricing       VisitPricing[]
   orderLines         OrderLine[]
   salesTargets       SalesTarget[]
+  competitorMappings CompetitorSkuMapping[]
 
   @@index([clientId])
   @@map("skus")
@@ -1380,6 +1396,116 @@ model SalesTarget {
   @@index([clientId, month])
   @@index([skuId])
   @@map("sales_targets")
+}
+
+/// Which retailer product page is which competitor SKU, for one client.
+///
+/// **Maintained by hand, by an admin.** Nothing matches products automatically:
+/// "Coca-Cola 2L" on a retailer's site and the competitor SKU a manager means
+/// are only the same thing because a person said so. A fuzzy match presented as
+/// fact would put a wrong competitor price in front of a pricing decision.
+///
+/// Deactivated rather than deleted, so observations keep the mapping they were
+/// collected under.
+model CompetitorSkuMapping {
+  id              String                            @id @default(uuid())
+  clientId        String                            @map("client_id")
+  client          Client                            @relation(fields: [clientId], references: [id])
+  /// The competitor product as this client names it, e.g. "Coca-Cola 2L".
+  competitorSku   String                            @map("competitor_sku")
+  competitorBrand String?                           @map("competitor_brand")
+  /// Adapter id from src/modules/competitorPrices/adapters, e.g. "checkers".
+  retailer        String
+  /// The retailer's product page. Must be on the adapter's own host.
+  productUrl      String                            @map("product_url")
+  /// Pack size as the admin recorded it, for like-for-like reading.
+  packSize        String?                           @map("pack_size")
+  /// Our product this competes with, for the price gap. Optional.
+  ourSkuId        String?                           @map("our_sku_id")
+  ourSku          Sku?                              @relation(fields: [ourSkuId], references: [id], onDelete: SetNull)
+  active          Boolean                           @default(true)
+  createdBy       String                            @map("created_by")
+  createdAt       DateTime                          @default(now()) @map("created_at")
+  updatedAt       DateTime                          @updatedAt @map("updated_at")
+  observations    CompetitorShelfPriceObservation[]
+
+  @@unique([clientId, retailer, productUrl])
+  @@index([clientId, active])
+  @@map("competitor_sku_mappings")
+}
+
+/// One shelf price read from a retailer's public product page. **Append-only**
+/// (a database trigger refuses UPDATE): a price that changed is a new row, so
+/// the trend is the table.
+///
+/// Only these fields are collected — product name, pack size, shelf price,
+/// promo price and promo end date when shown, the URL, and when. No personal
+/// data, no reviews, no ratings.
+model CompetitorShelfPriceObservation {
+  id          String               @id @default(uuid())
+  clientId    String               @map("client_id")
+  client      Client               @relation(fields: [clientId], references: [id])
+  mappingId   String               @map("mapping_id")
+  mapping     CompetitorSkuMapping @relation(fields: [mappingId], references: [id])
+  retailer    String
+  /// The name as the retailer's page showed it — provenance, not a match.
+  productName String               @map("product_name")
+  packSize    String?              @map("pack_size")
+  /// The regular shelf price, in ZAR.
+  shelfPrice  Float                @map("shelf_price")
+  /// A promotional price, only when the page showed one.
+  promoPrice  Float?               @map("promo_price")
+  promoEndsAt DateTime?            @map("promo_ends_at")
+  currency    String               @default("ZAR")
+  sourceUrl   String               @map("source_url")
+  retrievedAt DateTime             @map("retrieved_at")
+  /// How it was read: `page` (public product page) or `feed` (official feed/API).
+  method      String               @default("page")
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  @@index([clientId, mappingId, retrievedAt])
+  @@map("competitor_shelf_price_observations")
+}
+
+/// What the collector did that was NOT a price: robots.txt refusals, blocks,
+/// parse failures, caps reached. A `blocked` row stops further requests to that
+/// retailer until it ages out — the collector never retries its way past one.
+model CompetitorPriceCollectionEvent {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  retailer  String
+  mappingId String?  @map("mapping_id")
+  /// blocked · robots_disallowed · parse_failed · not_found · http_error · daily_cap · error
+  kind      String
+  url       String?
+  detail    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([clientId, retailer, kind, createdAt])
+  @@map("competitor_price_collection_events")
+}
+
+/// Every change to a client's competitor price collection switch. Append-only.
+///
+/// A dedicated ledger rather than `assistant_actions`: that one records what
+/// the ASSISTANT attempted, classified by a tool risk tier, and an admin
+/// flipping a legal gate is neither.
+model CompetitorPriceCollectionAudit {
+  id         String    @id @default(uuid())
+  clientId   String    @map("client_id")
+  client     Client    @relation(fields: [clientId], references: [id])
+  /// Who made the change. Not a relation: the ledger must outlive the user.
+  userId     String    @map("user_id")
+  /// enabled · disabled
+  action     String
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+  note       String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([clientId, createdAt])
+  @@map("competitor_price_collection_audit")
 }
 
 /// One figure from a public economic series (#external-context): Stats SA

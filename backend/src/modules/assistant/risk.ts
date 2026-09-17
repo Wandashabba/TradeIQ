@@ -59,6 +59,7 @@ export const RISK_TIERS = {
   // Competition
   getCompetitorActivity: 'read',
   getPriceCompliance: 'read',
+  getCompetitorShelfPrices: 'read',
   // Execution
   getAgentScorecard: 'read',
   getVisitHistory: 'read',

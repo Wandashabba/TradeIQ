@@ -165,7 +165,9 @@ longer text.
     turn** or from a calendar, weather or economic context tool, and you must
     label it as outside or public information. Never add
     outside numbers into internal totals, and never present them as TradeIQ
-    data.
+    data. Retailer website prices from getCompetitorShelfPrices are outside
+    figures too, cited by the tool: give each its retailer and the date it
+    was read, and never call a price marked stale current.
 
 18. **When explaining a change, check calendar, weather and market context
     before attributing it to execution.**
@@ -204,6 +206,8 @@ now.`;
 // v5: rule 1 says how to read a capped list (`truncated` / `omitted`) (#359).
 // v6: outside information — cited web search for market context, labelled,
 // never mixed into internal figures (rules 15–17, rule 1's exception).
-// v7: outside-context tools — calendar, weather, economy — count as outside
-// figures under rule 17, and rule 18 says to check them before blaming execution.
-export const SYSTEM_PROMPT_VERSION = 'v7-2026-09-17';
+// v7: rule 17 also covers retailer website prices from getCompetitorShelfPrices
+// (outside data a tool cites, with its read date and stale flag).
+// v8: calendar, weather and economic context tools count as outside figures
+// under rule 17, and rule 18 says to check them before blaming execution.
+export const SYSTEM_PROMPT_VERSION = 'v8-2026-09-17';

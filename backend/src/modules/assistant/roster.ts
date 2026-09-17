@@ -29,6 +29,8 @@ export const TOOL_REGISTRY = {
   // Competition
   getCompetitorActivity: 'competition',
   getPriceCompliance: 'competition',
+  // Outside/public data, and gated off by default — see toolGates.ts.
+  getCompetitorShelfPrices: 'competition',
   // Execution
   getAgentScorecard: 'execution',
   getVisitHistory: 'execution',
@@ -95,6 +97,8 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
     'getVisibilityCompliance',
     'getCompetitorActivity',
     'getPriceCompliance',
+    // Declared only when the client's legal gate is open (toolGates.ts).
+    'getCompetitorShelfPrices',
     'getAgentScorecard',
     'getVisitHistory',
     'getFraudFlags',
@@ -121,6 +125,8 @@ const ROSTERS: Readonly<Record<Role, readonly ToolName[]>> = {
     'getVisibilityCompliance',
     'getCompetitorActivity',
     'getPriceCompliance',
+    // Declared only when the client's legal gate is open (toolGates.ts).
+    'getCompetitorShelfPrices',
     'getAgentScorecard',
     'getVisitHistory',
     'getFraudFlags',

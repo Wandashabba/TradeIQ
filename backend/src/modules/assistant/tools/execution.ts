@@ -10,6 +10,7 @@ import { getClientTimeZone } from '../../clients/clients.service';
 import type { AgentPerformance } from '../../scorecards/scorecards.service';
 import { scorecardFigures } from '../figures';
 import { periodSchema, resolvePeriod } from '../period';
+import type { ToolGates } from '../toolGates';
 import {
   eraseToolTypes,
   ToolFacingError,
@@ -41,6 +42,12 @@ export interface ToolContext {
    * reads it per turn; omitted means the column default, on.
    */
   externalContext?: boolean;
+  /**
+   * Which per-client gates are open this request (`toolGates.ts`). Omitted
+   * means every gate is CLOSED, so a context built without it never declares a
+   * gated tool.
+   */
+  gates?: ToolGates;
 }
 
 /**

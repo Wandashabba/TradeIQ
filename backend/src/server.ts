@@ -1,5 +1,9 @@
 import 'dotenv/config';
 import { app } from './app';
+import {
+  competitorPriceWorkerEnabled,
+  startCompetitorPriceWorker,
+} from './modules/competitorPrices/collector.worker';
 import { assertJwtSecretUsable } from './modules/auth/auth.service';
 import { locationPruneEnabled, startLocationPruneWorker } from './modules/locations/locationPrune.worker';
 import { economicRefreshEnabled, startEconomicRefreshWorker } from './modules/externalContext/economic.worker';
@@ -39,6 +43,10 @@ const slaBreachWorker = slaBreachSweepEnabled() ? startSlaBreachWorker() : null;
 // Ask TradeIQ's outside economic context: Stats SA and fuel prices, daily.
 // ECONOMIC_REFRESH_ENABLED=false opts out.
 const economicRefreshWorker = economicRefreshEnabled() ? startEconomicRefreshWorker() : null;
+// Competitor shelf prices from retailer websites. Not even started unless
+// COMPETITOR_PRICE_COLLECTION=on, and then only collects for clients whose own
+// legal gate is open (docs/operations/competitor-price-collection.md).
+const competitorPriceWorker = competitorPriceWorkerEnabled() ? startCompetitorPriceWorker() : null;
 
 let shuttingDown = false;
 function shutdown(signal: string): void {
@@ -63,6 +71,8 @@ function shutdown(signal: string): void {
     .catch((err) => console.error('SLA breach worker did not stop cleanly:', err))
     .then(() => economicRefreshWorker?.stop())
     .catch((err) => console.error('Economic refresh worker did not stop cleanly:', err))
+    .then(() => competitorPriceWorker?.stop())
+    .catch((err) => console.error('Competitor price worker did not stop cleanly:', err))
     // Pushes already on their way to FCM are let finish, not cut off.
     .then(() => settleInFlightPushes())
     .finally(() => server.close(() => process.exit(0)));

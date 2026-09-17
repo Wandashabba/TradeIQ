@@ -71,13 +71,11 @@ export interface AssistantTool<A extends ToolArgs = ToolArgs, R = unknown> {
    */
   readonly figures?: (args: A, result: R) => Promise<FigureArtifact[]> | FigureArtifact[];
   /**
-   * The public sources this result cites — for outside-context tools, whose
-   * figures are not TradeIQ data and must be traceable to their publisher.
-   *
-   * Published through the same `sources` event, and the same validation
-   * (`sources.ts`), as the pages a web search cites, so the app shows one list
-   * of where the outside facts in an answer came from. Built from the result
-   * only; never a query.
+   * Outside sources this result's figures came from, cited alongside web search
+   * results on the turn's `sources` event. Only for tools that report OUTSIDE
+   * data (getCompetitorShelfPrices; the calendar, weather and economic context
+   * tools); internal tools cite nothing. Validated by `sources.ts` like any web
+   * source. Built from the result only; never a query.
    */
   readonly sources?: (args: A, result: R) => RawWebSource[];
 }
