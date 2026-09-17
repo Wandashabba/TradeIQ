@@ -24,6 +24,7 @@ class LumenPalette {
     required this.accentInk,
     required this.accentLight,
     required this.track,
+    required this.critical,
     required this.panelFill,
     required this.panelRim,
     required this.tileFill,
@@ -64,6 +65,12 @@ class LumenPalette {
   final Color accentInk;
   final Color accentLight;
   final Color track;
+
+  /// The critical status as ink and mark — a fall, a breach, a negative bar.
+  /// Derived from the rose bloom rather than the flat palette's fire-engine
+  /// red, so a bad number reads as part of the same lavender material:
+  /// `#A3294A` by day (6.5:1 on surface1), `#F29BB0` at night (8:1).
+  final Color critical;
 
   final Color panelFill;
   final Color panelRim;
@@ -118,6 +125,7 @@ class LumenPalette {
     accentInk: LumenGlass.accentInk,
     accentLight: LumenGlass.accentLight,
     track: LumenGlass.track,
+    critical: LumenGlass.critical,
     panelFill: LumenGlass.panelFill,
     panelRim: LumenGlass.panelRim,
     tileFill: LumenGlass.tileFill,
@@ -153,6 +161,7 @@ class LumenPalette {
     accentInk: Color(0xFFD4CDFF),
     accentLight: Color(0xFFB5ABFC),
     track: Color(0x29FFFFFF),
+    critical: Color(0xFFF29BB0),
     panelFill: Color(0x17FFFFFF),
     panelRim: Color(0x2EFFFFFF),
     tileFill: Color(0x14FFFFFF),

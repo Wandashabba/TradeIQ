@@ -84,6 +84,10 @@ class LumenGlass {
   /// text over it still clears 4.7:1, so a blocked button stays readable.
   static const actionDisabled = Color(0x99241F47);
 
+  /// Critical ink by day — the rose bloom deepened until it clears 4.5:1 as
+  /// words on every pane. Night's value lives in `LumenPalette.dark`.
+  static const critical = Color(0xFFA3294A);
+
   /// The neutral track under a bar.
   static const track = Color(0x245B5F75);
 

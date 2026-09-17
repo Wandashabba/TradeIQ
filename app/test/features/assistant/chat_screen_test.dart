@@ -90,8 +90,9 @@ void main() {
     expect(find.text('Tumo is up 6 points.'), findsOneWidget);
   });
 
-  testWidgets('a tool shows its pillar, not its function name', (tester) async {
-    // `getShareOfShelf` is our vocabulary; "visibility" is the manager's.
+  testWidgets('a tool shows as a plain-English step, not its function name',
+      (tester) async {
+    // `getShareOfShelf` is our vocabulary; "Share of shelf" is the manager's.
     final repository = StubRepository([
       const ToolStartEvent(name: 'getShareOfShelf', pillar: 'visibility'),
       const ToolEndEvent(name: 'getShareOfShelf', ok: true),
@@ -104,8 +105,26 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pumpAndSettle();
 
-    expect(find.text('Checking visibility'), findsOneWidget);
+    expect(find.text('Share of shelf'), findsOneWidget);
     expect(find.textContaining('getShareOfShelf'), findsNothing);
+  });
+
+  testWidgets('a tool this build does not know falls back to its pillar',
+      (tester) async {
+    final repository = StubRepository([
+      const ToolStartEvent(name: 'getShelfHologram', pillar: 'visibility'),
+      const ToolEndEvent(name: 'getShelfHologram', ok: true),
+      const TokenEvent('Done.'),
+      const DoneEvent(),
+    ]);
+    await pumpChat(tester, repository);
+
+    await tester.enterText(find.byType(TextField), 'q');
+    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Checking visibility'), findsOneWidget);
+    expect(find.textContaining('getShelfHologram'), findsNothing);
   });
 
   testWidgets('the exit demo: narrative plus the real scorecard widget',
