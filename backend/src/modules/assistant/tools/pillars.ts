@@ -199,7 +199,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
       // avoid asking for attainment over a window no target covers.
       description:
         'Call this when the user asks how sales are tracking against target, about rate of ' +
-        'sale, attainment, or whether a territory is hitting its numbers. Reports SELL-IN — ' +
+        'sale, attainment, or whether a territory or region is hitting its numbers. Reports SELL-IN — ' +
         'units ordered through TradeIQ by outlets — against manager-set monthly targets. ' +
         'These are NOT consumer sell-out: there is no till or POS feed, so never describe ' +
         'them as what shoppers bought. Targets are monthly, so a target and attainment come ' +
@@ -224,7 +224,8 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
         'Call this when the user wants territories ranked or compared against each other ' +
         'by how their sell-in changed — which territories grew or declined, which area is ' +
         'driving a drop, or the change by territory against an earlier period. Only for ' +
-        'comparisons ACROSS territories. ' +
+        'comparisons ACROSS territories. Never for targets, attainment, or whether a region or ' +
+          'territory is hitting its numbers — use getRateOfSale for those, even when a region is named. ' +
         'Returns each territory\'s SELL-IN (units ordered through TradeIQ — never consumer ' +
         'sell-out) and its % change against the comparison window, worst first. No targets ' +
         'or attainment. Use getRateOfSale instead for a total, a single territory\'s figure, ' +
@@ -242,7 +243,7 @@ export function buildPillarTools(ctx: ToolContext): AnyAssistantTool[] {
           .min(1)
           .max(80)
           .optional()
-          .describe('Optional region name to narrow to, e.g. "Gauteng". Omit for all territories.'),
+          .describe('Optional region to narrow the ranking to. Omit to rank every territory.'),
       }),
       run: async (args) => {
         const tz = await timeZone();
