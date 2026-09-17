@@ -1097,6 +1097,77 @@ describe('POST /assistant/chat', () => {
     });
   });
 
+  describe('live web search switch', () => {
+    const turn = () =>
+      request(app)
+        .post('/assistant/chat')
+        .set('Authorization', `Bearer ${manager.token}`)
+        .send({ message: 'Any Shoprite promotions this week?' })
+        .expect(200);
+
+    afterEach(async () => {
+      await prisma.client.update({ where: { id: clientId }, data: { assistantWebSearchEnabled: true } });
+    });
+
+    it('offers web search by default', async () => {
+      script.rounds = [[{ type: 'token', text: 'ok' }, { type: 'done' }]];
+      await turn();
+      expect(script.calls[0].webSearch).toBe(true);
+    });
+
+    it('does not offer it to a tenant that has switched it off', async () => {
+      await prisma.client.update({ where: { id: clientId }, data: { assistantWebSearchEnabled: false } });
+      script.rounds = [[{ type: 'token', text: 'ok' }, { type: 'done' }]];
+      await turn();
+      expect(script.calls[0].webSearch).toBeFalsy();
+    });
+
+    it('streams validated sources after the answer', async () => {
+      script.rounds = [
+        [
+          { type: 'web_search' },
+          { type: 'token', text: 'Public reports say Shoprite has a promotion.' },
+          {
+            type: 'sources',
+            sources: [
+              { url: 'https://www.news24.com/business/shoprite', title: 'Shoprite promo', snippet: 'Two weeks.' },
+              { url: 'javascript:alert(1)', title: 'bad' },
+            ],
+          },
+          { type: 'done' },
+        ],
+      ];
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const res = await turn();
+      warn.mockRestore();
+
+      const frames = parseSse(res.text);
+      expect(frames.map((f) => f.event)).toEqual([
+        'conversation',
+        'tool_start',
+        'tool_end',
+        'token',
+        'sources',
+        'usage',
+        'done',
+      ]);
+      expect(frames[1]).toEqual({ event: 'tool_start', data: { name: 'webSearch', pillar: 'web' } });
+      expect(frames[4].data).toEqual({
+        sources: [
+          {
+            title: 'Shoprite promo',
+            url: 'https://www.news24.com/business/shoprite',
+            domain: 'news24.com',
+            pageAge: null,
+            retrievedAt: expect.any(String),
+            snippet: 'Two weeks.',
+          },
+        ],
+      });
+    });
+  });
+
   describe('errors travel as frames once the stream is open', () => {
     it('sends a provider failure as an error event, not a 500', async () => {
       script.rounds = [[{ type: 'error', code: 'rate_limited', message: 'Busy right now.' }]];

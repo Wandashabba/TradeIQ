@@ -66,6 +66,8 @@ sealed class AssistantEvent {
           params: data['params'],
           data: data['data'],
         );
+      case 'sources':
+        return SourcesEvent(WebSource.listFrom(data['sources']));
       case 'usage':
         final cost = data['costCents'];
         return UsageEvent(
@@ -135,6 +137,102 @@ class ArtifactEvent extends AssistantEvent {
   final String type;
   final dynamic params;
   final dynamic data;
+}
+
+/// One live web page the answer drew on, as `webSearch` cited it.
+///
+/// Everything here came off the open web, so it is untrusted by construction:
+/// [title] and [snippet] are plain text — never markdown, never a link — and
+/// [url] is only ever http/https. The server already guarantees both; the
+/// client holds the line again because a tap on this opens a browser.
+class WebSource {
+  const WebSource({
+    required this.title,
+    required this.url,
+    required this.domain,
+    required this.retrievedAt,
+    this.pageAge,
+    this.snippet,
+  });
+
+  final String title;
+  final Uri url;
+
+  /// Hostname without `www.`.
+  final String domain;
+
+  /// Free text from the search index ("3 days ago", "April 30, 2025").
+  final String? pageAge;
+
+  /// When the server fetched the result. Null when absent or unparseable.
+  final DateTime? retrievedAt;
+
+  /// ≤ 200 chars, sanitised server-side. Plain text only.
+  final String? snippet;
+
+  /// The most sources a turn carries; anything beyond is dropped.
+  static const maxSources = 10;
+
+  /// Whether [uri] is safe to hand to a browser: http or https with a host.
+  static bool isWebUri(Uri uri) =>
+      (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
+
+  /// A source from one wire entry, or null when it cannot be cited safely.
+  static WebSource? tryParse(dynamic raw) {
+    if (raw is! Map) return null;
+    final title = raw['title'];
+    final url = raw['url'];
+    if (title is! String || title.trim().isEmpty || url is! String) {
+      return null;
+    }
+    final uri = Uri.tryParse(url.trim());
+    // javascript:, data:, ftp:, file: and scheme-less strings are all dropped
+    // here, whatever the server said.
+    if (uri == null || !isWebUri(uri)) return null;
+
+    final domain = raw['domain'];
+    final pageAge = raw['pageAge'];
+    final retrievedAt = raw['retrievedAt'];
+    final snippet = raw['snippet'];
+    return WebSource(
+      title: title.trim(),
+      url: uri,
+      domain: domain is String && domain.trim().isNotEmpty
+          ? domain.trim()
+          : _hostOf(uri),
+      pageAge: pageAge is String && pageAge.trim().isNotEmpty
+          ? pageAge.trim()
+          : null,
+      retrievedAt:
+          retrievedAt is String ? DateTime.tryParse(retrievedAt) : null,
+      snippet: snippet is String && snippet.trim().isNotEmpty
+          ? snippet.trim()
+          : null,
+    );
+  }
+
+  /// Every readable entry of the `sources` array, in order, capped at
+  /// [maxSources]. A malformed entry is skipped, not fatal.
+  static List<WebSource> listFrom(dynamic raw) {
+    if (raw is! List) return const [];
+    final out = <WebSource>[];
+    for (final entry in raw) {
+      final source = tryParse(entry);
+      if (source != null) out.add(source);
+      if (out.length == maxSources) break;
+    }
+    return out;
+  }
+
+  static String _hostOf(Uri uri) =>
+      uri.host.startsWith('www.') ? uri.host.substring(4) : uri.host;
+}
+
+/// The live web pages this turn's answer cited. At most one per turn, after
+/// the answer's tokens.
+class SourcesEvent extends AssistantEvent {
+  const SourcesEvent(this.sources);
+  final List<WebSource> sources;
 }
 
 class UsageEvent extends AssistantEvent {

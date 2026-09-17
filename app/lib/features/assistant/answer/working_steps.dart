@@ -36,6 +36,7 @@ const Map<String, String> toolStepLabels = {
   'getTaskSummary': 'Tasks',
   'getAlerts': 'Alerts',
   'findTerritories': 'Finding the territory',
+  'webSearch': 'Searching the web',
 };
 
 String stepLabel(ToolActivity tool) =>
@@ -46,6 +47,7 @@ String stepLabel(ToolActivity tool) =>
       'visibility' => 'Checking visibility',
       'competition' => 'Checking competitors',
       'execution' => 'Checking field execution',
+      'web' => 'Searching the web',
       _ => 'Looking that up',
     };
 
@@ -102,8 +104,11 @@ class WorkingSteps extends StatelessWidget {
     final header = Text(
       streaming ? 'Working on it…' : stepsSummary(tools),
       key: const ValueKey('working-steps-summary'),
-      style: LumenGlass.figure(size: 12, color: muted, weight: FontWeight.w500)
-          .copyWith(height: 1.2),
+      style: LumenGlass.figure(
+        size: 12,
+        color: muted,
+        weight: FontWeight.w500,
+      ).copyWith(height: 1.2),
     );
 
     final body = Column(
@@ -170,12 +175,12 @@ class _Step extends StatelessWidget {
   final Color muted;
 
   StepState get state => switch (tool.ok) {
-        true => StepState.done,
-        false => StepState.failed,
-        // A turn that ended with this step still open — a dropped stream —
-        // must not spin forever.
-        null => streaming ? StepState.pending : StepState.unfinished,
-      };
+    true => StepState.done,
+    false => StepState.failed,
+    // A turn that ended with this step still open — a dropped stream —
+    // must not spin forever.
+    null => streaming ? StepState.pending : StepState.unfinished,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -189,24 +194,24 @@ class _Step extends StatelessWidget {
 
     final Widget mark = switch (state) {
       StepState.pending => CircularProgressIndicator(
-          strokeWidth: 2,
-          color: glass ? lumen.accentSolid : colors.brand,
-          backgroundColor: glass ? lumen.track : colors.grid,
-        ),
+        strokeWidth: 2,
+        color: glass ? lumen.accentSolid : colors.brand,
+        backgroundColor: glass ? lumen.track : colors.grid,
+      ),
       StepState.done => Container(
-          decoration: BoxDecoration(
-            color: good.withValues(alpha: 0.18),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.check, size: 10, color: good),
+        decoration: BoxDecoration(
+          color: good.withValues(alpha: 0.18),
+          shape: BoxShape.circle,
         ),
+        child: Icon(Icons.check, size: 10, color: good),
+      ),
       StepState.failed => Container(
-          decoration: BoxDecoration(
-            color: critical.withValues(alpha: 0.16),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.close, size: 10, color: critical),
+        decoration: BoxDecoration(
+          color: critical.withValues(alpha: 0.16),
+          shape: BoxShape.circle,
         ),
+        child: Icon(Icons.close, size: 10, color: critical),
+      ),
       StepState.unfinished => Icon(Icons.remove, size: 12, color: muted),
     };
 

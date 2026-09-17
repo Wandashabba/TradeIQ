@@ -1,6 +1,11 @@
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
-import { computeDaysOutOfStock, computeVelocityAvg, fetchStockHistoryForOutlet } from '../../services/stock-derived.service';
+import {
+  computeDaysOutOfStock,
+  computeVelocityAvg,
+  fetchLastInStockForOutlet,
+  fetchStockHistoryForOutlet,
+} from '../../services/stock-derived.service';
 
 interface PromoDiscount {
   discountType: string;
@@ -37,7 +42,7 @@ export interface ListSkusForClientInput {
 
 export async function listSkusForClient(input: ListSkusForClientInput) {
   const { clientId, outletId, limit, cursor } = input;
-  const [rows, historyBySku, outlet, activePromos] = await Promise.all([
+  const [rows, historyBySku, lastInStockBySku, outlet, activePromos] = await Promise.all([
     prisma.sku.findMany({
       where: { clientId },
       // `id` is the unique tiebreaker that makes the cursor deterministic
@@ -50,6 +55,7 @@ export async function listSkusForClient(input: ListSkusForClientInput) {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     }),
     fetchStockHistoryForOutlet(outletId, clientId),
+    fetchLastInStockForOutlet(outletId, clientId),
     // Scoped to the caller's tenant, like every other read here.
     //
     // This was a `findUnique` on the bare id, and `outletId` arrives straight
@@ -93,7 +99,7 @@ export async function listSkusForClient(input: ListSkusForClientInput) {
       : undefined;
     return {
       ...sku,
-      daysOutOfStock: computeDaysOutOfStock(history, asOf),
+      daysOutOfStock: computeDaysOutOfStock(history, asOf, lastInStockBySku.get(sku.id) ?? null),
       velocityAvg: computeVelocityAvg(history),
       effectivePrice: computeEffectivePrice(sku.rrp, promo),
     };

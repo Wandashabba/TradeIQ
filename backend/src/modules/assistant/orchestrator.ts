@@ -1,9 +1,11 @@
 import { validateFigure, type FigureArtifact } from './figures';
 import { SYSTEM_PROMPT } from './prompt';
-import type { LlmProvider, Message, ToolCallRecord, Usage } from './providers/types';
+import type { LlmProvider, Message, RawWebSource, ToolCallRecord, Usage } from './providers/types';
 import { quarantineFreeText } from './quarantine';
 import { pillarOf, type ToolName } from './roster';
 import { neutraliseAnswerMarkup, sanitizeToolResult } from './sanitize';
+import { shrinkToolResult } from './shrink';
+import { normaliseSources, type WebSource } from './sources';
 import { tracer as processTracer, type AssistantTracer, type ToolSpan } from './tracing';
 import { ToolFacingError, type AnyAssistantTool, type ToolArgs } from './types';
 import { validateViewSpec, type ViewSpec } from './viewspec';
@@ -29,10 +31,66 @@ import { validateViewSpec, type ViewSpec } from './viewspec';
  * How many times the model may call tools before we stop it.
  *
  * Every round is a paid request, so an unbounded loop is a spend incident, not
- * a hang. Four is comfortably above what a real question needs — the exit demo
- * is one round — and low enough that a runaway costs a rounding error.
+ * a hang. Ten leaves room for a real investigation — a headline figure, the
+ * territory behind it, the outlets behind that, and a comparison — which four
+ * cut off halfway. What makes ten safe is not the number but the guards around
+ * it: an identical repeated call ends the loop at once, and the time and cost
+ * budgets below end it whichever limit is reached first.
  */
-export const MAX_TOOL_ROUNDS = 4;
+export const MAX_TOOL_ROUNDS = 10;
+
+/**
+ * How many of one round's tool calls run at once.
+ *
+ * The model often asks for several independent figures in one round (stock and
+ * share of shelf, this month and last). Running them one after another made a
+ * round as slow as the sum of its tools; four at a time keeps it near the
+ * slowest one without letting a single turn take a large share of the database
+ * pool that is also serving the console. Results are still emitted in the order
+ * the model asked for them.
+ */
+export const MAX_PARALLEL_TOOLS = 4;
+
+/**
+ * Soft per-turn budgets, checked between rounds.
+ *
+ * Neither existed while a turn was capped at four rounds; at ten, a slow or
+ * expensive turn needs its own ceiling. Reaching one does not cut the turn off:
+ * the next round runs with tools withdrawn, so the model still answers from
+ * what it retrieved, and the user is told the answer may be incomplete. Both
+ * are overridable per call.
+ */
+export const TURN_TIME_BUDGET_MS = 120_000;
+export const TURN_COST_BUDGET_CENTS = 100;
+
+/**
+ * What the user sees appended to an answer the tool budget cut short. Plain
+ * text: it follows whatever the model wrote, `followups` block included.
+ */
+export const BUDGET_NOTICE =
+  '\n\nI reached the limit on how many lookups I can make for one question, so this answer ' +
+  'may be incomplete. Ask a narrower follow-up to go further.';
+
+/** What the model is told on the last round, inside the final tool results. */
+const FINAL_ROUND_NOTE: Record<FinalReason, string> = {
+  rounds:
+    'Tool budget reached: no more tool calls are possible in this turn. Answer now from the ' +
+    'results you already have, and say plainly if anything the user asked is not covered.',
+  time:
+    'Time budget reached: no more tool calls are possible in this turn. Answer now from the ' +
+    'results you already have, and say plainly if anything the user asked is not covered.',
+  cost:
+    'Cost budget reached: no more tool calls are possible in this turn. Answer now from the ' +
+    'results you already have, and say plainly if anything the user asked is not covered.',
+  repeat:
+    'You repeated a tool call with identical arguments; its result is already above. No more ' +
+    'tool calls are possible in this turn. Answer now from the results you already have.',
+};
+
+type FinalReason = 'rounds' | 'time' | 'cost' | 'repeat';
+
+/** The working-step name a vendor-run web search is announced under. */
+export const WEB_SEARCH_STEP = 'webSearch';
 
 /** What the route writes to the wire. Mirrors the SSE table in the design spec. */
 export type WireEvent =
@@ -46,6 +104,12 @@ export type WireEvent =
   | { event: 'tool_start'; data: { name: string; pillar: string } }
   | { event: 'tool_end'; data: { name: string; ok: boolean } }
   | { event: 'artifact'; data: { id: string; type: string; params: unknown; data: unknown } }
+  /**
+   * Web pages the answer cited, validated by `sources.ts`. At most once per
+   * turn, after the last token and before `usage`. Clients that predate it
+   * ignore it, as they must any unknown event.
+   */
+  | { event: 'sources'; data: { sources: WebSource[] } }
   | { event: 'usage'; data: Usage }
   | { event: 'error'; data: { code: string; message: string } }
   | { event: 'done'; data: Record<string, never> };
@@ -59,6 +123,14 @@ export interface OrchestratorInput {
   /** Overridden in tests. */
   system?: string;
   maxToolRounds?: number;
+  /** Overrides {@link TURN_TIME_BUDGET_MS} and {@link TURN_COST_BUDGET_CENTS}. */
+  budget?: { maxMs?: number; maxCostCents?: number };
+  /**
+   * Offer the provider's live web search this turn. Off unless the caller says
+   * so — the route reads it from the tenant's switch — so every existing caller,
+   * including the eval sweep, keeps scoring internal tool choice alone.
+   */
+  webSearch?: boolean;
   /**
    * Who is asking, for tracing only.
    *
@@ -120,6 +192,8 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
   // under-reports the expensive turns by the most.
   let totalUsage = zeroUsage();
   let artifactIndex = 0;
+  // Collected across rounds and published once, at the end, deduplicated.
+  const rawSources: RawWebSource[] = [];
 
   // Tracing state. Collected as the turn runs and emitted once at the end —
   // a trace per event would multiply the request count by the number of tools
@@ -142,8 +216,11 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       (input.tracer ?? processTracer()).recordTurn(
         {
           ...trace,
+          // Read at emit time, not at the start: a fallback wrapper reports
+          // whichever vendor actually answered.
           provider: provider.name,
           model: provider.models.orchestrator,
+          ...(provider.fallbackFrom ? { fallbackFrom: provider.fallbackFrom } : {}),
         },
         {
           usage: totalUsage,
@@ -157,6 +234,15 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       console.error('[assistant] tracer threw while recording a turn', err);
     }
   };
+
+  // Why the next round is the last, once something has decided it is. Set by
+  // the round budget, the time and cost budgets, or the repeated-call guard.
+  let finalReason: FinalReason | null = null;
+  // Every call already made this turn, by name and canonical args. A model
+  // asking for the same thing twice is looping, not investigating.
+  const executed = new Set<string>();
+  const maxMs = input.budget?.maxMs ?? TURN_TIME_BUDGET_MS;
+  const maxCostCents = input.budget?.maxCostCents ?? TURN_COST_BUDGET_CENTS;
 
   for (let round = 0; round <= maxRounds; round += 1) {
     roundsUsed = round + 1;
@@ -174,9 +260,10 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
     // being cut off. The model still gets to answer from what it already
     // retrieved, which is a useful answer; stopping dead would waste every
     // paid call the turn had already made.
-    const lastRound = round === maxRounds;
+    const lastRound = round === maxRounds || finalReason !== null;
     const calls: ToolCallRecord[] = [];
     let assistantText = '';
+    let replay: unknown;
     let failed = false;
 
     for await (const event of provider.runTurn(
@@ -185,6 +272,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         tools,
         messages,
         ...(lastRound ? { toolChoice: 'none' as const } : {}),
+        ...(input.webSearch ? { webSearch: true } : {}),
       },
       signal,
     )) {
@@ -209,6 +297,23 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
           totalUsage = addUsage(totalUsage, event.usage);
           break;
 
+        // The vendor ran its own search. It is shown as a working step like
+        // any tool, but there is nothing for us to execute.
+        case 'web_search':
+          yield { event: 'tool_start', data: { name: WEB_SEARCH_STEP, pillar: 'web' } };
+          yield { event: 'tool_end', data: { name: WEB_SEARCH_STEP, ok: true } };
+          toolSpans.push({ name: WEB_SEARCH_STEP, pillar: 'web', ok: true, durationMs: 0 });
+          break;
+
+        case 'sources':
+          rawSources.push(...event.sources);
+          break;
+
+        // Opaque. Only carried back into history — see TextMessage.providerReplay.
+        case 'replay':
+          replay = event.content;
+          break;
+
         case 'error':
           // The adapter has already made this message user-safe.
           errorCode = event.code;
@@ -229,16 +334,46 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
 
     // No tool calls means the model has answered. This is the only exit that
     // is not an error or a bound — everything else is a failure of some kind.
-    if (calls.length === 0) {
+    //
+    // A turn a budget cut short says so after the answer, so the user is not
+    // left to assume the reading is complete. A repeated call is not a budget:
+    // the model already had what it asked for twice.
+    if (calls.length === 0 || lastRound) {
+      if (finalReason !== null && finalReason !== 'repeat') {
+        yield { event: 'token', data: { text: BUDGET_NOTICE } };
+      } else if (calls.length > 0) {
+        // The provider ignored `toolChoice: 'none'`. Its calls are not run —
+        // that would spend past every bound — and the user hears why.
+        yield { event: 'token', data: { text: BUDGET_NOTICE } };
+      }
       emitTrace();
+      const sources = normaliseSources(rawSources, new Date());
+      if (sources.length > 0) yield { event: 'sources', data: { sources } };
       yield { event: 'usage', data: totalUsage };
       yield { event: 'done', data: {} };
       return;
     }
 
-    messages.push({ role: 'assistant', content: assistantText, toolCalls: calls });
+    messages.push({
+      role: 'assistant',
+      content: assistantText,
+      toolCalls: calls,
+      ...(replay !== undefined ? { providerReplay: { provider: provider.name, content: replay } } : {}),
+    });
 
-    for (const call of calls) {
+    // Parse and classify every call up front; the ones worth running start
+    // together, bounded, and are emitted below in the order the model asked.
+    const planned = calls.map((call) => planCall(call, byName, executed));
+    const running = startBounded(planned, MAX_PARALLEL_TOOLS, (plan) =>
+      plan.kind === 'run' ? runPlannedTool(plan, { provider, signal }) : Promise.resolve(null),
+    );
+    // Awaited in order below, but a turn that returns early (abort) must not
+    // leave a rejected promise unobserved.
+    for (const pending of running) pending.catch(() => undefined);
+
+    let repeated = false;
+
+    for (const [index, call] of calls.entries()) {
       if (signal.aborted) {
         errorCode = 'aborted';
         emitTrace();
@@ -246,12 +381,12 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         return;
       }
 
-      const tool = byName.get(call.name);
+      const plan = planned[index];
 
       // A tool the caller's roster does not carry. Not an error the user should
       // see — it is the security boundary doing its job, and the model recovers
       // better from "that is unavailable" than from a dead turn.
-      if (!tool) {
+      if (plan.kind === 'unavailable') {
         yield { event: 'tool_start', data: { name: call.name, pillar: 'unknown' } };
         yield { event: 'tool_end', data: { name: call.name, ok: false } };
         messages.push({
@@ -264,20 +399,27 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         continue;
       }
 
-      yield { event: 'tool_start', data: { name: tool.name, pillar: tool.pillar } };
-      const toolStartedAt = Date.now();
-      const span = (ok: boolean): void => {
-        toolSpans.push({
-          name: tool.name,
-          pillar: tool.pillar,
-          ok,
-          durationMs: Date.now() - toolStartedAt,
+      // The loop guard. Not run and not shown: nothing new happens, and the
+      // model is told why before its final, tool-less round.
+      if (plan.kind === 'repeat') {
+        repeated = true;
+        messages.push({
+          role: 'tool',
+          callId: call.id,
+          name: call.name,
+          ok: false,
+          content:
+            'You already called this tool with these exact arguments in this turn; its result ' +
+            'is above. Do not call it again.',
         });
-      };
+        continue;
+      }
 
-      const parsed = tool.args.safeParse(call.args);
-      if (!parsed.success) {
-        span(false);
+      const { tool } = plan;
+      yield { event: 'tool_start', data: { name: tool.name, pillar: tool.pillar } };
+
+      if (plan.kind === 'invalid') {
+        toolSpans.push({ name: tool.name, pillar: tool.pillar, ok: false, durationMs: 0 });
         yield { event: 'tool_end', data: { name: tool.name, ok: false } };
         messages.push({
           role: 'tool',
@@ -286,62 +428,40 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
           ok: false,
           // Naming the bad field lets the model retry correctly instead of
           // guessing, which is the difference between one wasted round and four.
-          content: `Invalid arguments: ${parsed.error.issues
-            .map((i) => `${i.path.join('.') || '<root>'} ${i.message}`)
-            .join('; ')}`,
+          content: plan.content,
         });
         continue;
       }
 
-      let result: unknown;
-      try {
-        result = await tool.run(parsed.data);
-      } catch (err) {
-        // A tool that throws is ordinary — a stale id, an empty period.
-        //
-        // The message is ours, never the exception's: a Prisma error carries
-        // table and column names straight into the model's context. The one
-        // exception is `ToolFacingError`, which a tool throws to say "I wrote
-        // this string for the model deliberately" — that is how a tool asks a
-        // clarifying question ("which Sipho?") instead of failing opaquely.
-        //
-        // Neutralised even so: a clarifying message can quote agent display
-        // names, and those are typed by the people the injection defence is
-        // about. See `neutraliseAnswerMarkup`.
-        const forModel =
-          err instanceof ToolFacingError
-            ? neutraliseAnswerMarkup(err.message)
-            : 'That lookup failed. Tell the user you could not retrieve it.';
+      const outcome = (await running[index])!;
+      toolSpans.push({
+        name: tool.name,
+        pillar: tool.pillar,
+        ok: outcome.ok,
+        durationMs: outcome.durationMs,
+      });
 
-        // Logged at different levels because they are different events: an
-        // ambiguous name is the system working, and a Prisma failure is not.
-        if (err instanceof ToolFacingError) {
-          console.warn(`[assistant] tool ${tool.name} declined: ${err.message}`);
-        } else {
-          console.error(`[assistant] tool ${tool.name} failed`, err);
-        }
-
-        span(false);
+      if (!outcome.ok) {
         yield { event: 'tool_end', data: { name: tool.name, ok: false } };
         messages.push({
           role: 'tool',
           callId: call.id,
           name: call.name,
           ok: false,
-          content: forModel,
+          content: outcome.content,
         });
         continue;
       }
 
-      span(true);
       yield { event: 'tool_end', data: { name: tool.name, ok: true } };
+      const { result } = outcome;
 
       // The artifact carries the RAW result, and the model gets the sanitized
       // one. They are different on purpose: the client renders through a
       // validated spec into widgets that draw data, so fencing would put
       // "«untrusted» …" inside a chart label. The model's copy is the one that
       // needs spotlighting, because the model is the thing an injection targets.
-      const spec = safeViewSpec(tool, parsed.data, result);
+      const spec = safeViewSpec(tool, plan.args, result);
       if (spec) {
         // A persisted id is what makes the card refinable after the turn ends:
         // `/artifacts/:id/refine` has to find a row. Persistence failing must
@@ -358,7 +478,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
               // re-validates through the same schema, so storing anything
               // Zod had not already accepted would put a row in the table
               // that can never be re-run.
-              params: parsed.data,
+              params: plan.args,
             });
             if (persisted) id = persisted;
           } catch (err) {
@@ -378,7 +498,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       // rendering of this turn's result rather than something `refine` can
       // re-run, so their ids stay turn-local — and are namespaced by type so
       // they can never patch the view artifact above.
-      for (const figure of await safeFigures(tool, parsed.data, result)) {
+      for (const figure of await safeFigures(tool, plan.args, result)) {
         yield {
           event: 'artifact',
           data: {
@@ -391,25 +511,194 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         artifactIndex += 1;
       }
 
-      const quarantined = await quarantineFreeText(result, { provider, signal });
-      const { value } = sanitizeToolResult(quarantined.value);
-
       messages.push({
         role: 'tool',
         callId: call.id,
         name: call.name,
         ok: true,
-        content: truncate(JSON.stringify(value)),
+        content: outcome.content,
       });
+    }
+
+    // Decide whether the next round is the last, and if so tell the model now,
+    // inside this round's final tool result — the only place a note can go
+    // without a synthetic user turn, which Gemini rejects next to a tool
+    // response, or a change to the cached system prompt.
+    finalReason = repeated
+      ? 'repeat'
+      : round + 1 >= maxRounds
+        ? 'rounds'
+        : Date.now() - startedAt >= maxMs
+          ? 'time'
+          : totalUsage.costCents >= maxCostCents
+            ? 'cost'
+            : null;
+    if (finalReason !== null) {
+      const last = messages[messages.length - 1];
+      if (last.role === 'tool') {
+        messages[messages.length - 1] = {
+          ...last,
+          content: JSON.stringify({ turnNote: FINAL_ROUND_NOTE[finalReason], result: parseOrText(last.content) }),
+        };
+      }
     }
   }
 
-  // Unreachable: the final round runs with tools withdrawn, so it cannot
-  // produce calls and must exit through the `calls.length === 0` branch. Kept
-  // because "unreachable" is a claim about code that changes.
+  // Unreachable: the final round runs with tools withdrawn, and exits through
+  // the branch above whether or not the model obeyed. Kept because
+  // "unreachable" is a claim about code that changes.
   emitTrace();
   yield { event: 'usage', data: totalUsage };
   yield { event: 'done', data: {} };
+}
+
+/** A tool result's content back as data where it is JSON, so a wrapper stays valid JSON. */
+function parseOrText(content: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch {
+    return content;
+  }
+}
+
+/** Object keys sorted at every depth, so `{a, b}` and `{b, a}` are the same call. */
+function canonicalJson(value: unknown): string {
+  const sort = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(sort);
+    if (v !== null && typeof v === 'object') {
+      return Object.fromEntries(
+        Object.keys(v as Record<string, unknown>)
+          .sort()
+          .map((k) => [k, sort((v as Record<string, unknown>)[k])]),
+      );
+    }
+    return v;
+  };
+  return JSON.stringify(sort(value)) ?? 'undefined';
+}
+
+type PlannedCall =
+  | { kind: 'unavailable' }
+  | { kind: 'repeat' }
+  | { kind: 'invalid'; tool: AnyAssistantTool; content: string }
+  | { kind: 'run'; tool: AnyAssistantTool; args: ToolArgs };
+
+/**
+ * What to do with one call, decided before anything runs.
+ *
+ * The repeat check keys on the model's raw args, canonicalised, and counts a
+ * call as made once it is planned — so the same call twice in one round is a
+ * repeat too, and runs once.
+ */
+function planCall(
+  call: ToolCallRecord,
+  byName: Map<string, AnyAssistantTool>,
+  executed: Set<string>,
+): PlannedCall {
+  const tool = byName.get(call.name);
+  if (!tool) return { kind: 'unavailable' };
+
+  const signature = `${call.name}:${canonicalJson(call.args ?? {})}`;
+  if (executed.has(signature)) return { kind: 'repeat' };
+  executed.add(signature);
+
+  const parsed = tool.args.safeParse(call.args);
+  if (!parsed.success) {
+    return {
+      kind: 'invalid',
+      tool,
+      content: `Invalid arguments: ${parsed.error.issues
+        .map((i) => `${i.path.join('.') || '<root>'} ${i.message}`)
+        .join('; ')}`,
+    };
+  }
+  return { kind: 'run', tool, args: parsed.data as ToolArgs };
+}
+
+type ToolOutcome =
+  | { ok: true; result: unknown; content: string; durationMs: number }
+  | { ok: false; content: string; durationMs: number };
+
+/**
+ * Run one tool and prepare the model's copy of its result.
+ *
+ * Everything that can run alongside another tool's call lives here: the query
+ * itself, and the quarantine and sanitising of its free text. What must follow
+ * the model's order — events, artifacts, history — stays in the loop.
+ */
+async function runPlannedTool(
+  plan: Extract<PlannedCall, { kind: 'run' }>,
+  context: { provider: LlmProvider; signal: AbortSignal },
+): Promise<ToolOutcome> {
+  const { tool } = plan;
+  const startedAt = Date.now();
+
+  let result: unknown;
+  try {
+    result = await tool.run(plan.args);
+  } catch (err) {
+    // A tool that throws is ordinary — a stale id, an empty period.
+    //
+    // The message is ours, never the exception's: a Prisma error carries
+    // table and column names straight into the model's context. The one
+    // exception is `ToolFacingError`, which a tool throws to say "I wrote
+    // this string for the model deliberately" — that is how a tool asks a
+    // clarifying question ("which Sipho?") instead of failing opaquely.
+    //
+    // Neutralised even so: a clarifying message can quote agent display
+    // names, and those are typed by the people the injection defence is
+    // about. See `neutraliseAnswerMarkup`.
+    const content =
+      err instanceof ToolFacingError
+        ? neutraliseAnswerMarkup(err.message)
+        : 'That lookup failed. Tell the user you could not retrieve it.';
+
+    // Logged at different levels because they are different events: an
+    // ambiguous name is the system working, and a Prisma failure is not.
+    if (err instanceof ToolFacingError) {
+      console.warn(`[assistant] tool ${tool.name} declined: ${err.message}`);
+    } else {
+      console.error(`[assistant] tool ${tool.name} failed`, err);
+    }
+    return { ok: false, content, durationMs: Date.now() - startedAt };
+  }
+  const durationMs = Date.now() - startedAt;
+
+  const quarantined = await quarantineFreeText(result, context);
+  const { value } = sanitizeToolResult(quarantined.value);
+  return { ok: true, result, content: shrinkToolResult(value), durationMs };
+}
+
+/**
+ * Start `run` over every item with at most `limit` in flight, returning one
+ * promise per item in input order — so the caller can await them in order while
+ * they execute concurrently.
+ */
+function startBounded<T, R>(items: readonly T[], limit: number, run: (item: T) => Promise<R>): Promise<R>[] {
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  const acquire = (): Promise<void> => {
+    if (active < limit) {
+      active += 1;
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => waiting.push(resolve));
+  };
+  const release = (): void => {
+    const next = waiting.shift();
+    // Hand the slot straight to the next waiter, or give it back.
+    if (next) next();
+    else active -= 1;
+  };
+  return items.map((item) =>
+    acquire().then(async () => {
+      try {
+        return await run(item);
+      } finally {
+        release();
+      }
+    }),
+  );
 }
 
 /**
@@ -475,24 +764,6 @@ async function safeFigures(
     else console.error(`[assistant] ${tool.name} produced an invalid figure: ${checked.reason}`);
   }
   return valid;
-}
-
-/**
- * Bound one tool result's contribution to context.
- *
- * A tool that returns thousands of rows would otherwise push the turn past the
- * window — and it is billed by the token either way. Truncation is announced
- * inside the payload so the model reports a partial answer rather than
- * confidently summarising the half it happened to receive.
- */
-const MAX_TOOL_RESULT_CHARS = 24_000;
-
-function truncate(json: string): string {
-  if (json.length <= MAX_TOOL_RESULT_CHARS) return json;
-  return (
-    json.slice(0, MAX_TOOL_RESULT_CHARS) +
-    '\n[truncated: this result was too large to include in full. Say so, and suggest narrowing the question.]'
-  );
 }
 
 export function pillarFor(name: string): string {

@@ -41,6 +41,12 @@ model Client {
   /// without a deliberate opt-in. Off is a true kill switch — Phases 0-2 mutate
   /// nothing, so degrading to today's dashboard loses no data.
   assistantEnabled                    Boolean                           @default(false) @map("assistant_enabled")
+  /// Whether the assistant may run live web search for outside context
+  /// (competitor news, launches, retailer announcements). Only meaningful once
+  /// `assistantEnabled` is on. Defaults true because every answer that uses it
+  /// is cited and labelled as outside information; off removes the search tool
+  /// from the request entirely rather than asking the model not to use it.
+  assistantWebSearchEnabled           Boolean                           @default(true) @map("assistant_web_search_enabled")
   /// IANA zone the client's field team works in (#309). Every calendar-day
   /// rule reads it: which beat plan a check-in belongs to, trend day/week
   /// buckets, and the assistant's "today"/"last week". Validated against the

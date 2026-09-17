@@ -6,7 +6,7 @@ import {
   assistantTenantRateLimiter,
   assistantUserRateLimiter,
 } from '../../middleware/rateLimit';
-import { requireAssistantEnabled } from './featureFlag';
+import { isAssistantWebSearchEnabled, requireAssistantEnabled } from './featureFlag';
 import { runTurn, type WireEvent } from './orchestrator';
 import { providerFor } from './providers';
 import type { Message } from './providers/types';
@@ -186,12 +186,17 @@ assistantRouter.post(
       { role: 'user' as const, content: manifestNote + changeNote + parsed.data.message },
     ];
 
+    // The tenant's switch for live web search. Off means the search tool is not
+    // declared at all — absence, not an instruction the model could ignore.
+    const webSearch = await isAssistantWebSearchEnabled(user.clientId);
+
     try {
       for await (const frame of runTurn({
         provider: providerFor(),
         tools,
         messages,
         signal: controller.signal,
+        webSearch,
         // Identity for tracing only — it never reaches a tool, which closes
         // over `req.user` instead. `randomUUID` rather than a counter so ids
         // stay unique across processes and restarts.
