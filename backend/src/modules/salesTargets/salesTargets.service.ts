@@ -591,6 +591,23 @@ async function sellInRows(
   `;
 }
 
+/**
+ * Sell-in units per territory **code** over a half-open window — the same
+ * {@link sellInRows} query every other sell-in figure reads, rolled up in
+ * memory. Codes, not ids: `Outlet.territoryId` stores the code, and resolving
+ * it to a `Territory` is the caller's job, inside the same tenant.
+ */
+export async function sellInUnitsByTerritoryCode(
+  clientId: string,
+  range: SellInRange,
+): Promise<Map<string, number>> {
+  const byCode = new Map<string, number>();
+  for (const row of await sellInRows(clientId, range)) {
+    byCode.set(row.territory_code, (byCode.get(row.territory_code) ?? 0) + Number(row.units));
+  }
+  return byCode;
+}
+
 /** The month's sell-in — {@link sellInRows} over the month's local days. */
 async function sellInForMonth(clientId: string, window: MonthWindow, skuId?: string): Promise<SellInRow[]> {
   return sellInRows(clientId, window, skuId ? { skuId } : {});

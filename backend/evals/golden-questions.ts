@@ -118,6 +118,12 @@ export const GOLDEN_QUESTIONS: readonly GoldenQuestion[] = [
     expectedTool: 'getRateOfSale',
     note: 'Exercises the period vocabulary and an implied comparison at once.',
   },
+  {
+    id: 'sales-6',
+    question: 'Which territories are driving the drop in sell-in this month?',
+    expectedTool: 'getTerritoryRanking',
+    note: 'Ranks territories against each other by sell-in change. Must not collapse into getRateOfSale, which gives a total or a single territory.',
+  },
 
   // ── Stock ────────────────────────────────────────────────────────────────
   {
