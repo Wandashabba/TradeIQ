@@ -1316,6 +1316,88 @@ class AppLocalizationsEn extends AppLocalizations {
   String get locationStopCancel => 'Keep sharing';
 
   @override
+  String get backgroundLocationNoticeTitle =>
+      'Recording your route between stores';
+
+  @override
+  String backgroundLocationNoticeBody(int minutes, String start, String end) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: 'every $minutes minutes',
+      one: 'every minute',
+    );
+    return 'This is separate from sharing your location while TradeIQ is open, and you can say no to it. If you turn it on, TradeIQ records where you are $_temp0 — even when TradeIQ is closed — so your manager can see your route between stores. It runs only on a working day between $start and $end, never at night and never at a weekend. While it is on, a notification stays on your phone so you can always tell. You can turn it off at any time, and turning it off does not stop the sharing you already agreed to.';
+  }
+
+  @override
+  String get backgroundLocationNoticeAccept => 'Turn on route tracking';
+
+  @override
+  String get backgroundLocationNoticeDecline => 'No, don’t record my route';
+
+  @override
+  String get backgroundLocationOfferTitle => 'Route tracking is off';
+
+  @override
+  String get backgroundLocationOfferSubtitle => 'Tap to see what it does';
+
+  @override
+  String get backgroundLocationActiveTitle =>
+      'Recording your route between stores';
+
+  @override
+  String get backgroundLocationActiveSubtitle =>
+      'Working hours only · tap to stop';
+
+  @override
+  String get backgroundLocationOutsideHoursTitle => 'Route tracking is paused';
+
+  @override
+  String backgroundLocationOutsideHoursSubtitle(String start) {
+    return 'It starts again on a working day at $start';
+  }
+
+  @override
+  String get backgroundLocationPermissionTitle =>
+      'Android needs one more permission';
+
+  @override
+  String get backgroundLocationPermissionBody =>
+      'To record your route when TradeIQ is closed, Android needs you to choose “Allow all the time” for location on TradeIQ’s settings page. Everything else in TradeIQ keeps working if you would rather not.';
+
+  @override
+  String get backgroundLocationPermissionOpenSettings =>
+      'Open TradeIQ’s settings';
+
+  @override
+  String get backgroundLocationPermissionNotNow => 'Not now';
+
+  @override
+  String get backgroundLocationStopTitle => 'Stop recording your route?';
+
+  @override
+  String get backgroundLocationStopBody =>
+      'Your manager will no longer see your route between stores. Sharing your location while TradeIQ is open is not affected — that stays exactly as it is.';
+
+  @override
+  String get backgroundLocationStopConfirm => 'Stop route tracking';
+
+  @override
+  String get backgroundLocationStopCancel => 'Keep recording';
+
+  @override
+  String get backgroundLocationNotificationTitle =>
+      'TradeIQ is recording your route';
+
+  @override
+  String get backgroundLocationNotificationBody =>
+      'Working hours only. Turn it off in TradeIQ.';
+
+  @override
+  String get backgroundLocationNotificationChannel => 'Route tracking';
+
+  @override
   String get contestsTitle => 'Contests';
 
   @override

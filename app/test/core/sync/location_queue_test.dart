@@ -23,13 +23,35 @@ class _RecordingFlusher implements QueueFlusher {
 
 class _RecordingSender implements LocationPingSender {
   final List<List<Map<String, dynamic>>> batches = [];
+
+  /// The `source` each batch was posted with — foreground and background go in
+  /// separate requests (#153 T2), and this is what proves they never mix.
+  final List<String> sources = [];
   Object? failWith;
 
   @override
-  Future<void> send(List<Map<String, dynamic>> pings) async {
+  Future<void> send(
+    List<Map<String, dynamic>> pings, {
+    required String source,
+  }) async {
     if (failWith != null) throw failWith!;
     batches.add(pings);
+    sources.add(source);
   }
+}
+
+/// A sender that can fail one lane and not the other — the case where the
+/// server has the foreground acknowledgement but not the background one.
+class _SelectiveSender implements LocationPingSender {
+  _SelectiveSender({required this.onSend});
+
+  final void Function(List<Map<String, dynamic>> pings, String source) onSend;
+
+  @override
+  Future<void> send(
+    List<Map<String, dynamic>> pings, {
+    required String source,
+  }) async => onSend(pings, source);
 }
 
 DioException _http(int? status) {
@@ -100,7 +122,79 @@ void main() {
       'accuracyM': 9.0,
       'recordedAt': '2026-09-15T08:00:00.000Z',
     });
+    expect(sender.sources, ['foreground', 'foreground', 'foreground']);
     expect(await rows(), isEmpty);
+  });
+
+  /// #153 T2 — background route points travel in their own lane. `POST
+  /// /locations` takes one `source` for the whole batch, so the two must never
+  /// share a request.
+  group('background pings (#153 T2)', () {
+    Future<void> queueBackgroundPings(int count) async {
+      for (var i = 0; i < count; i++) {
+        final at = DateTime.utc(2026, 9, 15, 9).add(Duration(minutes: 10 * i));
+        await db.enqueue(
+          entityType: locationBackgroundPingEntity,
+          entityId: at.toIso8601String(),
+          payloadJson: jsonEncode({
+            'lat': -26.2,
+            'lng': 28.1,
+            'accuracyM': 18.0,
+            'recordedAt': at.toIso8601String(),
+          }),
+        );
+      }
+    }
+
+    test('posts them with source background, never mixed with the heartbeat', () async {
+      await queuePings(2);
+      await queueBackgroundPings(3);
+
+      await sync.flushLocationQueue();
+
+      expect(sender.sources, ['foreground', 'background']);
+      expect(sender.batches.map((b) => b.length), [2, 3]);
+      // Foreground first: it is the fresher signal and the one a manager
+      // watching the live map is actually looking at.
+      expect(sender.batches.first.first['lat'], -26.1);
+      expect(sender.batches.last.first['lat'], -26.2);
+      expect(await rows(), isEmpty);
+    });
+
+    test('a background lane the server refuses does not hold up the heartbeat', () async {
+      // The realistic case: the background notice is not on record yet (403),
+      // while foreground sharing is perfectly fine.
+      await queuePings(2);
+      await queueBackgroundPings(2);
+      var seen = 0;
+      sync = SyncService(
+        db: db,
+        flusher: flusher,
+        pingSender: _SelectiveSender(
+          onSend: (pings, source) {
+            seen++;
+            if (source == 'background') throw _http(403);
+          },
+        ),
+      );
+
+      await sync.flushLocationQueue();
+
+      expect(seen, 2);
+      final left = await rows();
+      // The foreground pings are gone (sent); the background ones are held for
+      // the next flush, with the attempt recorded.
+      expect(left.map((r) => r.entityType).toSet(), {locationBackgroundPingEntity});
+      expect(left, hasLength(2));
+      expect(left.every((r) => r.attempts == 1), isTrue);
+    });
+
+    test('batches background pings at the server limit too', () async {
+      await queueBackgroundPings(150);
+      await sync.flushLocationQueue();
+      expect(sender.batches.map((b) => b.length), [100, 50]);
+      expect(sender.sources, ['background', 'background']);
+    });
   });
 
   test('flushPending sends pings in a batch, never through the per-item flusher', () async {

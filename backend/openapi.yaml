@@ -1814,7 +1814,7 @@ paths:
   # ── Follow-ups (Phase 1/3) ────────────────────────────────────────────────
   /clients/me:
     get:
-      summary: The caller's client config (scorecard weights / KPI thresholds / timezone)
+      summary: The caller's client config (scorecard weights / KPI thresholds / timezone / working hours)
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -1823,7 +1823,19 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [id, name, industry, scorecardWeights, kpiThresholds, assistantEnabled, timezone]
+                required:
+                  [
+                    id,
+                    name,
+                    industry,
+                    scorecardWeights,
+                    kpiThresholds,
+                    assistantEnabled,
+                    timezone,
+                    workHoursStart,
+                    workHoursEnd,
+                    workDays,
+                  ]
                 properties:
                   id: { type: string }
                   name: { type: string }
@@ -1838,12 +1850,36 @@ paths:
                       IANA zone the client's calendar days are counted in (#309):
                       beat-plan route-stop matching, trend day/week buckets and the
                       assistant's periods. Defaults to Africa/Johannesburg.
+                  workHoursStart:
+                    type: string
+                    example: '07:00'
+                    description: >-
+                      When the field team's working day starts, HH:MM on the wall
+                      clock of `timezone` (#153 T2). Inclusive.
+                  workHoursEnd:
+                    type: string
+                    example: '17:00'
+                    description: >-
+                      When it ends, HH:MM. EXCLUSIVE — a background ping stamped
+                      exactly at this time is outside the window.
+                  workDays:
+                    type: array
+                    items: { type: integer, minimum: 1, maximum: 7 }
+                    example: [1, 2, 3, 4, 5]
+                    description: >-
+                      The days that window applies to, as ISO weekdays: 1 = Monday
+                      … 7 = Sunday. Sorted, unique, never empty. Read by exactly one
+                      thing — the window background location tracking may run in.
+                      It is not a shift model and not attendance.
     patch:
-      summary: Update scoring config (admin) and/or timezone (manager/admin)
+      summary: Update scoring config (admin), timezone and working hours (manager/admin)
       description: >-
         scorecardWeights and kpiThresholds are admin-only — a manager sending
-        either gets 403, even alongside timezone, and nothing is changed. A
-        manager may send timezone on its own.
+        either gets 403, even alongside timezone or working hours, and nothing is
+        changed. A manager may send timezone and the working-hours fields on
+        their own. The three working-hours fields are one window: whichever are
+        sent, all three are validated together against what is currently stored
+        and written together, so a new start can never land against an old end.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -1851,7 +1887,9 @@ paths:
           application/json:
             schema:
               type: object
-              description: At least one of scorecardWeights, kpiThresholds or timezone is required.
+              description: >-
+                At least one of scorecardWeights, kpiThresholds, timezone,
+                workHoursStart, workHoursEnd or workDays is required.
               properties:
                 scorecardWeights: { type: object, additionalProperties: { type: number, minimum: 0 } }
                 kpiThresholds: { type: object, additionalProperties: { type: number } }
@@ -1862,9 +1900,30 @@ paths:
                     A canonical IANA zone name as listed by the runtime's
                     Intl.supportedValuesOf('timeZone'), or UTC. Case-sensitive;
                     offsets (+02:00), abbreviations (SAST) and aliases are a 400.
+                workHoursStart:
+                  type: string
+                  example: '07:00'
+                  description: >-
+                    HH:MM, 24-hour. Must be strictly before workHoursEnd once
+                    applied. An overnight window is a 400: it would span two
+                    calendar days, which the per-local-day retention summaries
+                    could not agree with.
+                workHoursEnd: { type: string, example: '17:00', description: 'HH:MM, 24-hour.' }
+                workDays:
+                  type: array
+                  minItems: 1
+                  items: { type: integer, minimum: 1, maximum: 7 }
+                  example: [1, 2, 3, 4, 5]
+                  description: >-
+                    ISO weekdays, 1 = Monday … 7 = Sunday. Stored sorted. Empty,
+                    repeated or out-of-range entries are a 400 — an empty list
+                    would be a second, silent kill switch no agent can see.
       responses:
         '200': { description: 'Updated config (same shape as GET)' }
-        '400': { description: 'Empty body, invalid weights/thresholds, or not an IANA timezone' }
+        '400':
+          description: >-
+            Empty body, invalid weights/thresholds, not an IANA timezone, a
+            malformed HH:MM, a start at or after the end, or a bad workDays list
         '403': { description: 'Field agent; or a manager sending scorecardWeights/kpiThresholds' }
   /users:
     get:
@@ -2222,11 +2281,23 @@ paths:
         '429': { description: Too many downloads from this address }
   /locations/settings:
     get:
-      summary: Foreground location sharing settings for the signed-in agent — field agent (#153 T1)
+      summary: Location sharing settings for the signed-in agent — field agent (#153 T1, T2)
       description: >
-        The heartbeat interval (Client.kpiThresholds.locationPingIntervalSeconds,
-        default 120, clamped to 60–900), the current location-notice version, and
-        the agent's answer to it. The app sends no pings unless sharingEnabled.
+        The top-level fields are FOREGROUND sharing (T1): the heartbeat interval
+        (Client.kpiThresholds.locationPingIntervalSeconds, default 120, clamped
+        to 60–900), the current foreground notice version, and the agent's answer
+        to it. The app sends no foreground pings unless sharingEnabled.
+
+        `background` (T2) reports background tracking INDEPENDENTLY: its own
+        notice, its own answer, and the client's working-hours window. Accepting
+        one notice never implies the other, and revoking either leaves the other
+        exactly where it was.
+
+        The working window is resolved here into INSTANTS (windowOpensAt /
+        windowClosesAt) rather than shipping the client's timezone rules to the
+        phone: the app only has to compare its clock against two instants, and a
+        phone whose clock is wrong cannot move the boundary, because ingest
+        re-checks every ping against the same window on arrival.
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -2241,20 +2312,73 @@ paths:
                   consent:
                     type: object
                     nullable: true
-                    description: The latest answer to the CURRENT notice; null if unanswered.
+                    description: The latest answer to the CURRENT foreground notice; null if unanswered.
                     properties:
                       decision: { type: string, enum: [acknowledged, declined] }
                       noticeVersion: { type: string }
                       decidedAt: { type: string, format: date-time }
                   sharingEnabled: { type: boolean }
+                  background:
+                    type: object
+                    description: Background tracking between stores (#153 T2). Android only, app-side.
+                    properties:
+                      intervalSeconds:
+                        type: integer
+                        example: 600
+                        description: How often the Android foreground service takes a fix. Ten minutes.
+                      noticeVersion:
+                        type: string
+                        description: Versioned separately from the foreground notice; the two move independently.
+                      consent:
+                        type: object
+                        nullable: true
+                        description: The latest answer to the CURRENT background notice; null if unanswered.
+                        properties:
+                          decision: { type: string, enum: [acknowledged, declined] }
+                          noticeVersion: { type: string }
+                          decidedAt: { type: string, format: date-time }
+                      enabled:
+                        type: boolean
+                        description: True only when the agent has acknowledged the current background notice.
+                      workingHours:
+                        type: object
+                        description: The client's window, and the zone its wall clock is read in.
+                        properties:
+                          start: { type: string, example: '07:00' }
+                          end: { type: string, example: '17:00', description: 'Exclusive.' }
+                          days:
+                            type: array
+                            items: { type: integer, minimum: 1, maximum: 7 }
+                            description: 'ISO weekdays, 1 = Monday … 7 = Sunday.'
+                          timezone: { type: string, example: Africa/Johannesburg }
+                      withinWorkingHours:
+                        type: boolean
+                        description: Whether the window is open right now, on the server clock.
+                      windowClosesAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        description: When the open window closes. Null when it is shut.
+                      windowOpensAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        description: When the next window opens. Null when one is already open.
         '403': { description: Not a field agent }
   /locations/consent:
     post:
-      summary: Record the agent's answer to the location notice — field agent (#153 T1)
+      summary: Record the agent's answer to a location notice — field agent (#153 T1, T2)
       description: >
-        Append-only; the latest answer to the current notice wins. A re-sent
-        identical answer adds no row. decidedAt is the device's tap time (the
-        answer may queue offline) and is clamped to the server clock.
+        Append-only; the latest answer to the current version of that notice
+        wins. A re-sent identical answer adds no row. decidedAt is the device's
+        tap time (the answer may queue offline) and is clamped to the server
+        clock.
+
+        `kind` says WHICH notice is being answered. The two are wholly
+        independent: declining background leaves the foreground heartbeat
+        running, and declining foreground leaves a background acknowledgement
+        standing. noticeVersion must match the current version OF THAT KIND, or
+        the answer is a 409 rather than being recorded against the wrong wording.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -2265,6 +2389,14 @@ paths:
               required: [decision, noticeVersion]
               properties:
                 decision: { type: string, enum: [acknowledged, declined] }
+                kind:
+                  type: string
+                  enum: [foreground, background]
+                  default: foreground
+                  description: >-
+                    Which notice. Absent means foreground, so an app build that
+                    predates T2 keeps recording answers against the notice it
+                    actually showed.
                 noticeVersion: { type: string }
                 decidedAt: { type: string, format: date-time }
       responses:
@@ -2276,21 +2408,33 @@ paths:
                 type: object
                 properties:
                   decision: { type: string, enum: [acknowledged, declined] }
+                  kind: { type: string, enum: [foreground, background] }
                   noticeVersion: { type: string }
                   decidedAt: { type: string, format: date-time }
-        '400': { description: Invalid decision, noticeVersion or decidedAt }
+        '400': { description: Invalid decision, kind, noticeVersion or decidedAt }
         '403': { description: Not a field agent }
-        '409': { description: The answer is for an older notice version }
+        '409': { description: The answer is for an older version of that notice }
   /locations:
     post:
-      summary: Ingest a batch of foreground location pings — field agent (#153 T1)
+      summary: Ingest a batch of location pings — field agent (#153 T1 foreground, T2 background)
       description: >
         Pings queue offline and may arrive late and out of order; ordering is by
         recordedAt, never arrival. User.lastLat/lastLng/lastSeenAt move forward
         only. A structurally invalid ping rejects the whole batch (400). Stored
         idempotently on (agent, recordedAt). Well-formed pings are ignored (not
         stored) when older than the 90-day retention window, more than 10 minutes
-        in the future, or recorded before the agent acknowledged the notice.
+        in the future, or recorded before the agent acknowledged the relevant
+        notice.
+
+        `source` covers the WHOLE batch and decides two things: which notice must
+        have been acknowledged, and whether the client's working-hours window
+        applies. A background ping recorded outside that window is ignored and
+        counted in `outsideWorkingHours` — not refused. A batch is a queue flush,
+        so it routinely straddles the edge of the window, and rejecting it would
+        throw away the legitimate pings with the late one. The window is a
+        property of each ping's own recordedAt, so it is only evaluated per ping.
+        Refusal is reserved for consent, which is the one condition the app must
+        change its behaviour in response to.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -2300,6 +2444,13 @@ paths:
               type: object
               required: [pings]
               properties:
+                source:
+                  type: string
+                  enum: [foreground, background]
+                  default: foreground
+                  description: >-
+                    What produced this batch. Absent means foreground, so an app
+                    build that predates T2 keeps working unchanged.
                 pings:
                   type: array
                   minItems: 1
@@ -2323,31 +2474,53 @@ paths:
                   accepted: { type: integer }
                   duplicates: { type: integer }
                   ignored: { type: integer }
-        '400': { description: Malformed batch, out-of-range coordinates, or more than 100 pings }
+                  outsideWorkingHours:
+                    type: integer
+                    description: >-
+                      How many of `ignored` fell outside the client's working
+                      hours. Present only on a background batch — a foreground
+                      heartbeat runs whenever the agent has the app open, so the
+                      number would be meaningless there.
+        '400': { description: Malformed batch, bad source, out-of-range coordinates, or more than 100 pings }
         '403':
-          description: Not a field agent, or the location notice is not acknowledged (code location_consent_required)
+          description: >-
+            Not a field agent, or the notice covering this source is not
+            acknowledged. The code names WHICH notice, so a missing background
+            acknowledgement never makes the app stop the foreground heartbeat.
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   error: { type: string }
-                  code: { type: string, enum: [location_consent_required] }
+                  code:
+                    type: string
+                    enum: [location_consent_required, background_location_consent_required]
   /agents/locations:
     get:
-      summary: Each field agent's latest foreground location, age and live state — manager/admin (#153 T1)
+      summary: Each field agent's latest location, age and live state — manager/admin (#153 T1, T2)
       description: >
         Paged by agent (limit default 50, max 200). States, first match wins:
-        not_sharing (the agent's latest answer to the current location notice is
-        declined — takes precedence over any stored ping, and lastPing/ageSeconds
-        are then null); offline (older than offlineAfterSeconds = 1800, or never
-        shared, including an agent who never answered the notice); stale (older
-        than staleAfterSeconds = max(300, 3 × intervalSeconds)); in_transit (fresh
-        ping outside every fence); at_store (fresh ping inside an outlet's 50m
-        check-in geofence with accuracyM not null and ≤ maxAtStoreAccuracyM = 100);
-        near_store (fresh ping inside a fence whose accuracyM is null or above
-        maxAtStoreAccuracyM — lastOutlet names the fence). Age decides before
-        place. ageSeconds is measured against serverTime.
+        not_sharing (the agent's latest answer to the current FOREGROUND location
+        notice is declined — takes precedence over any stored ping, and
+        lastPing/ageSeconds are then null); offline (older than
+        offlineAfterSeconds = 1800, or never shared, including an agent who never
+        answered the notice); stale (older than staleAfterSeconds = max(300, 3 ×
+        intervalSeconds)); in_transit (fresh ping outside every fence); at_store
+        (fresh ping inside an outlet's 50m check-in geofence with accuracyM not
+        null and ≤ maxAtStoreAccuracyM = 100); near_store (fresh ping inside a
+        fence whose accuracyM is null or above maxAtStoreAccuracyM — lastOutlet
+        names the fence). Age decides before place. ageSeconds is measured against
+        serverTime.
+
+        Background pings (#153 T2) feed the SAME states — a manager should not
+        have to learn a second vocabulary to read the same map — but a background
+        ping can never read at_store or near_store, and never names a fence in
+        lastOutlet. The best it reads is in_transit. A background fix is taken by
+        a service on a ten-minute timer with the phone in a pocket, which is not
+        evidence anybody was in the shop; presence in a store is established by
+        check-in and by the foreground heartbeat instead. Such an agent falls
+        back to their last confirmed check-in for lastOutlet.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: territoryId, in: query, schema: { type: string }, description: A Territory.id; restricts to agents assigned to it }
@@ -2386,6 +2559,12 @@ paths:
                             lng: { type: number }
                             accuracyM: { type: number, nullable: true }
                             recordedAt: { type: string, format: date-time }
+                            source:
+                              type: string
+                              enum: [foreground, background]
+                              description: >-
+                                What took this fix. A background one is placed on
+                                the map and ages normally, but names no store.
                         ageSeconds: { type: integer, nullable: true }
                         currentOutlet:
                           type: object

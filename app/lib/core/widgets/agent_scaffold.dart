@@ -11,6 +11,7 @@ import '../theme/theme_mode_controller.dart';
 import '../theme/tiq_colors.dart';
 import 'agent_kit.dart';
 import 'agent_motion.dart';
+import 'background_location_banner.dart';
 import 'glass.dart';
 import 'location_sharing_banner.dart';
 import 'lumen_kit.dart';
@@ -87,6 +88,11 @@ class AgentScaffold extends ConsumerWidget {
         // agent's location is being shared must always have a visible answer
         // (#153 T1, POPIA risk 1). Renders nothing for anyone else.
         const LocationSharingBanner(),
+        // And whether their ROUTE is being recorded when the app is closed,
+        // which is a bigger thing and therefore a separate line with its own
+        // notice, its own consent and its own off switch (#153 T2). Renders
+        // nothing on anything but Android.
+        const BackgroundLocationBanner(),
         Expanded(child: body),
       ],
     );

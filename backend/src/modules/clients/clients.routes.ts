@@ -3,7 +3,12 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { isValidTimeZone } from '../../lib/clientTime';
-import { getClientConfig, updateClientConfig, type UpdateClientConfigInput } from './clients.service';
+import { validateWorkingHours, workingHoursOf } from '../../lib/workingHours';
+import {
+  getClientConfig,
+  updateClientConfig,
+  type UpdateClientConfigInput,
+} from './clients.service';
 
 export const clientsRouter = Router();
 clientsRouter.use(requireAuth);
@@ -19,21 +24,34 @@ clientsRouter.get('/me', async (req: AuthedRequest, res) => {
   res.status(200).json(client);
 });
 
-// Managers reach this route for `timezone` only; the scoring config stays
-// admin-only (checked per field below). A timezone is a fact about where the
-// team works — the manager who runs the team is the one who knows it — while
-// weights and thresholds are scoring policy.
+// Managers reach this route for `timezone` and the working hours; the scoring
+// config stays admin-only (checked per field below). Where the team works and
+// when it works are facts about the team — the manager who runs it is the one
+// who knows them — while weights and thresholds are scoring policy.
 clientsRouter.patch('/me', requireRole('manager', 'admin'), async (req: AuthedRequest, res) => {
-  const { scorecardWeights, kpiThresholds, timezone } = req.body as {
-    scorecardWeights?: unknown;
-    kpiThresholds?: unknown;
-    timezone?: unknown;
-  };
+  const { scorecardWeights, kpiThresholds, timezone, workHoursStart, workHoursEnd, workDays } =
+    req.body as {
+      scorecardWeights?: unknown;
+      kpiThresholds?: unknown;
+      timezone?: unknown;
+      workHoursStart?: unknown;
+      workHoursEnd?: unknown;
+      workDays?: unknown;
+    };
 
-  if (scorecardWeights === undefined && kpiThresholds === undefined && timezone === undefined) {
-    res
-      .status(400)
-      .json({ error: 'At least one of scorecardWeights, kpiThresholds or timezone is required' });
+  const touchesWorkingHours =
+    workHoursStart !== undefined || workHoursEnd !== undefined || workDays !== undefined;
+
+  if (
+    scorecardWeights === undefined &&
+    kpiThresholds === undefined &&
+    timezone === undefined &&
+    !touchesWorkingHours
+  ) {
+    res.status(400).json({
+      error:
+        'At least one of scorecardWeights, kpiThresholds, timezone, workHoursStart, workHoursEnd or workDays is required',
+    });
     return;
   }
 
@@ -86,6 +104,28 @@ clientsRouter.patch('/me', requireRole('manager', 'admin'), async (req: AuthedRe
   }
 
   const data: UpdateClientConfigInput = {};
+
+  if (touchesWorkingHours) {
+    // Validated against what is CURRENTLY stored, because a PATCH may move only
+    // one edge and "start before end" has to hold for the row as it will be
+    // afterwards — not for the one field that changed.
+    const current = await getClientConfig(req.user!.clientId);
+    const parsed = validateWorkingHours(
+      { start: workHoursStart, end: workHoursEnd, days: workDays },
+      workingHoursOf(current),
+    );
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+    // All three are written together. They are one window, and storing a new
+    // start against an old end is how a row ends up in a state neither the
+    // manager nor the validator ever saw.
+    data.workHoursStart = parsed.value.start;
+    data.workHoursEnd = parsed.value.end;
+    data.workDays = parsed.value.days;
+  }
+
   if (scorecardWeights !== undefined) {
     data.scorecardWeights = scorecardWeights as Prisma.InputJsonValue;
   }

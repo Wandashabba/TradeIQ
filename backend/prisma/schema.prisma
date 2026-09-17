@@ -46,6 +46,19 @@ model Client {
   /// buckets, and the assistant's "today"/"last week". Validated against the
   /// runtime's IANA list on write; editable by managers and admins.
   timezone           String                   @default("Africa/Johannesburg")
+  /// When the client's field team works, on the wall clock of `timezone`
+  /// (#153 T2). `HH:MM`, 24-hour, half-open `[start, end)`.
+  ///
+  /// This exists to bound BACKGROUND location tracking: it runs only on a
+  /// working day inside this window, and never at night or at a weekend.
+  /// Nothing else reads it — it is not a shift model, and it is not attendance.
+  /// Editable by managers and admins, like `timezone`: it is a fact about when
+  /// the team works, not a scoring policy. See `lib/workingHours.ts`.
+  workHoursStart     String                   @default("07:00") @map("work_hours_start")
+  workHoursEnd       String                   @default("17:00") @map("work_hours_end")
+  /// The days that window applies to, as ISO weekdays: 1 = Monday … 7 = Sunday.
+  /// Defaults to Monday–Friday, so a weekend collects nothing.
+  workDays           Int[]                    @default([1, 2, 3, 4, 5]) @map("work_days")
   users              User[]
   outlets            Outlet[]
   skus               Sku[]
@@ -1142,8 +1155,12 @@ model AgentLocationPing {
   accuracyM  Float?   @map("accuracy_m")
   /// When the device took the fix. The ordering key for everything.
   recordedAt DateTime @map("recorded_at")
-  /// What produced the ping. Only `foreground` exists (T1); T2 background
-  /// tracking is a separate, POPIA-gated decision and would add its own value.
+  /// What produced the ping: `foreground` (T1 — the heartbeat, while the agent
+  /// has the app open) or `background` (T2 — the Android foreground service,
+  /// inside the client's working hours). The two carry different weight: a
+  /// background fix is taken with nobody looking at the phone, so it places the
+  /// agent on the map but never asserts that they are IN a store. See
+  /// `agentLocations.service.ts` and `locationRetention.foldStops`.
   source     String
   /// Arrival on the server. Diagnostic only — never an ordering key.
   createdAt  DateTime @default(now()) @map("created_at")
@@ -1183,18 +1200,29 @@ model AgentDaySummary {
   @@map("agent_day_summaries")
 }
 
-/// An agent's answer to the in-app location notice (#153, POPIA risk 1).
+/// An agent's answer to an in-app location notice (#153, POPIA risk 1).
 ///
 /// Append-only: every acknowledgement and every decline is a row, so the
 /// history of what an agent agreed to, and when, is never overwritten. The
-/// latest row for the current notice version is the agent's position.
+/// latest row for the current version of a given notice is the agent's
+/// position on that notice.
 model LocationConsent {
   id            String   @id @default(uuid())
   clientId      String   @map("client_id")
   client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   agentId       String   @map("agent_id")
   agent         User     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  /// WHICH notice: `foreground` (T1 — sharing while the app is open) or
+  /// `background` (T2 — tracking between stores while it is not).
+  ///
+  /// Two separate notices with two separate answers, deliberately. Background
+  /// tracking is a materially bigger ask than foreground sharing, so agreeing
+  /// to the first must never be read as agreeing to the second, and revoking
+  /// either must leave the other exactly where it was. Defaults to
+  /// `foreground` so every row written before T2 keeps the meaning it had.
+  kind          String   @default("foreground")
   /// Which wording of the notice they saw. A changed notice needs a new answer.
+  /// Versioned per `kind`: the two notices move independently.
   noticeVersion String   @map("notice_version")
   /// acknowledged · declined
   decision      String

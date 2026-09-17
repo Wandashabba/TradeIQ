@@ -66,6 +66,23 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- iOS is deliberately FOREGROUND-ONLY, and stays that way (#153 T2).
+
+	     Background location tracking between stores shipped for Android only.
+	     This file therefore declares NSLocationWhenInUseUsageDescription and
+	     nothing else: there is no NSLocationAlwaysAndWhenInUseUsageDescription
+	     and no UIBackgroundModes "location" entry, so iOS cannot grant Always
+	     authorisation and CoreLocation stops delivering the moment TradeIQ
+	     leaves the foreground. The app enforces the same rule in code —
+	     backgroundLocationGatewayProvider is null on every platform but Android
+	     — so the two cannot drift apart.
+
+	     Adding either key here would be a real decision, not a config tweak: it
+	     needs its own App Store review justification and a demo video, on top of
+	     the POPIA position. Do not add one to "match Android".
+
+	     The description below is what an iOS user is actually promised, and its
+	     last sentence must stay true for as long as this stays foreground-only. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>While TradeIQ is open, it uses your location to confirm you're at the outlet you're checking into and to share which store you're at with your manager. Nothing is sent in the background.</string>
 	<key>NSCameraUsageDescription</key>

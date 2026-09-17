@@ -5,7 +5,8 @@ import {
   LOCATION_NOTICE_VERSION,
   MAX_AT_STORE_ACCURACY_M,
   OFFLINE_AFTER_SECONDS,
-  confirmsStore,
+  PingSource,
+  confirmsStorePresence,
   pingIntervalSeconds,
   staleAfterSeconds,
 } from '../locations/locationPolicy';
@@ -23,6 +24,10 @@ import { containingOutlet, outletsNear } from '../locations/outletFence';
  * - `not_sharing` — the agent's latest answer to the CURRENT location notice is
  *   `declined`. Distinct from `offline`, which also covers an agent who never
  *   answered at all.
+ *
+ * T2 (#153) adds background pings to the same states rather than new ones — a
+ * manager should not have to learn a second vocabulary to read the same map —
+ * but caps what one may claim: see `confirmsStorePresence`.
  */
 export type LiveAgentState = 'at_store' | 'near_store' | 'in_transit' | 'stale' | 'offline' | 'not_sharing';
 
@@ -33,8 +38,10 @@ export interface DeriveLiveStateInput {
   insideOutlet: boolean;
   /** The latest ping's horizontal accuracy in metres; null when the platform gave none. */
   accuracyM: number | null;
+  /** What produced the latest ping. Absent is read as `foreground`. */
+  source?: PingSource;
   intervalSeconds: number;
-  /** The agent's latest answer to the current notice is `declined`. */
+  /** The agent's latest answer to the current foreground notice is `declined`. */
   declined: boolean;
 }
 
@@ -47,9 +54,15 @@ export interface DeriveLiveStateInput {
  *    place while it is recent enough to be where the agent IS — an old ping
  *    inside a store fence is stale, not at_store, because risk 2 on #153 is
  *    exactly a marker that reads live when it is 40 minutes old.
- * 3. **Place** — outside every fence → in_transit; inside one with accuracy
- *    that confirms it (`confirmsStore`) → at_store; inside one otherwise →
- *    near_store.
+ * 3. **Place** — outside every fence → in_transit; inside one that can confirm
+ *    presence (`confirmsStorePresence`: accurate enough, and not a background
+ *    fix) → at_store; inside one otherwise → near_store.
+ *
+ * **A background ping can only ever read `in_transit`** (or stale/offline by
+ * age). It is placed on the map and it ages normally, but it names no store:
+ * see `confirmsStorePresence` for why, and note that this is what makes T2
+ * answer the question it was built for — did the agent travel between these
+ * stores — without quietly weakening the one T1 already answers.
  */
 export function deriveLiveState(input: DeriveLiveStateInput): LiveAgentState {
   const { ageSeconds } = input;
@@ -57,7 +70,11 @@ export function deriveLiveState(input: DeriveLiveStateInput): LiveAgentState {
   if (ageSeconds === null || ageSeconds > OFFLINE_AFTER_SECONDS) return 'offline';
   if (ageSeconds > staleAfterSeconds(input.intervalSeconds)) return 'stale';
   if (!input.insideOutlet) return 'in_transit';
-  return confirmsStore(input.accuracyM) ? 'at_store' : 'near_store';
+  return confirmsStorePresence(input.source ?? 'foreground', input.accuracyM)
+    ? 'at_store'
+    : input.source === 'background'
+      ? 'in_transit'
+      : 'near_store';
 }
 
 export interface AgentLocation {
@@ -72,7 +89,14 @@ export interface AgentLocation {
    * retention, but a map that kept pinning a declined agent's last position
    * would go on showing where they are after they said no.
    */
-  lastPing: { lat: number; lng: number; accuracyM: number | null; recordedAt: Date } | null;
+  lastPing: {
+    lat: number;
+    lng: number;
+    accuracyM: number | null;
+    recordedAt: Date;
+    /** `foreground` or `background` — what took this fix (#153 T2). */
+    source: PingSource;
+  } | null;
   /** Whole seconds between `lastPing.recordedAt` and `serverTime`; never negative. Null when `lastPing` is. */
   ageSeconds: number | null;
   /** Set only when `state` is `at_store`. */
@@ -84,6 +108,11 @@ export interface AgentLocation {
    * presents a check-in from this morning as a live reading. For `near_store`
    * this is the fence the ping fell in; for `not_sharing` only a check-in is
    * ever given.
+   *
+   * A BACKGROUND ping never names a fence here either, for the same reason it
+   * never reads `at_store`: naming the store it happened to land in would make
+   * the same claim through a side door. Such an agent falls back to their last
+   * confirmed check-in, which is a thing somebody actually did.
    */
   lastOutlet: { id: string; name: string; at: Date; source: 'ping' | 'check_in' } | null;
 }
@@ -114,6 +143,7 @@ interface LatestPingRow {
   lng: number;
   accuracyM: number | null;
   recordedAt: Date;
+  source: string;
 }
 
 interface LatestVisitRow {
@@ -183,7 +213,7 @@ export async function listAgentLocations(input: ListAgentLocationsInput): Promis
   const [latestPings, latestVisits, latestConsents] = await Promise.all([
     prisma.$queryRaw<LatestPingRow[]>`
       SELECT DISTINCT ON (agent_id)
-        agent_id AS "agentId", lat, lng, accuracy_m AS "accuracyM", recorded_at AS "recordedAt"
+        agent_id AS "agentId", lat, lng, accuracy_m AS "accuracyM", recorded_at AS "recordedAt", source
       FROM agent_location_pings
       WHERE client_id = ${clientId} AND agent_id IN (${ids})
       ORDER BY agent_id, recorded_at DESC, id DESC`,
@@ -216,6 +246,7 @@ export async function listAgentLocations(input: ListAgentLocationsInput): Promis
     data: page.map((agent) => {
       const ping = pingByAgent.get(agent.id) ?? null;
       const visit = visitByAgent.get(agent.id) ?? null;
+      const source: PingSource = ping?.source === 'background' ? 'background' : 'foreground';
       const fence = ping ? containingOutlet(ping, outlets) : null;
       const ageSeconds = ping
         ? Math.max(0, Math.floor((serverTime.getTime() - ping.recordedAt.getTime()) / 1000))
@@ -224,12 +255,16 @@ export async function listAgentLocations(input: ListAgentLocationsInput): Promis
         ageSeconds,
         insideOutlet: fence !== null,
         accuracyM: ping?.accuracyM ?? null,
+        source,
         intervalSeconds,
         declined: declined.has(agent.id),
       });
 
+      // A background ping's fence is deliberately not reported as a place the
+      // agent has been — see AgentLocation.lastOutlet.
+      const fenceNamesAStore = fence !== null && source !== 'background';
       let lastOutlet: AgentLocation['lastOutlet'] = null;
-      if (fence && ping) {
+      if (fenceNamesAStore && fence && ping) {
         lastOutlet = { id: fence.id, name: fence.name, at: ping.recordedAt, source: 'ping' };
       } else if (visit) {
         lastOutlet = { id: visit.outletId, name: visit.outletName, at: visit.checkinTs, source: 'check_in' };
@@ -242,7 +277,13 @@ export async function listAgentLocations(input: ListAgentLocationsInput): Promis
         email: agent.email,
         state,
         lastPing: ping
-          ? { lat: ping.lat, lng: ping.lng, accuracyM: ping.accuracyM, recordedAt: ping.recordedAt }
+          ? {
+              lat: ping.lat,
+              lng: ping.lng,
+              accuracyM: ping.accuracyM,
+              recordedAt: ping.recordedAt,
+              source,
+            }
           : null,
         ageSeconds,
         currentOutlet: state === 'at_store' && fence ? { id: fence.id, name: fence.name } : null,

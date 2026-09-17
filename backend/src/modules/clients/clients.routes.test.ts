@@ -299,4 +299,130 @@ describe('clients routes', () => {
     expect(res.body.name).toBe('CLIENT-Other');
     expect(res.body.scorecardWeights).toEqual({ pricing: 1 });
   });
+
+  /**
+   * #153 T2 — the window background location tracking may run in. Managers may
+   * edit it as well as admins, like the timezone, because when the team works is
+   * a fact about the team rather than a scoring policy.
+   */
+  describe('working hours', () => {
+    const patch = (token: string, body: object) =>
+      request(app).patch('/clients/me').set('Authorization', `Bearer ${token}`).send(body);
+
+    const stored = () => prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+
+    afterEach(async () => {
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { workHoursStart: '07:00', workHoursEnd: '17:00', workDays: [1, 2, 3, 4, 5] },
+      });
+    });
+
+    it('GET reports the Monday-to-Friday 07:00-17:00 default', async () => {
+      const res = await request(app)
+        .get('/clients/me')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.workHoursStart).toBe('07:00');
+      expect(res.body.workHoursEnd).toBe('17:00');
+      expect(res.body.workDays).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('a manager may set the whole window', async () => {
+      const res = await patch(managerToken, {
+        workHoursStart: '06:30',
+        workHoursEnd: '18:00',
+        workDays: [1, 2, 3, 4, 5, 6],
+      });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        workHoursStart: '06:30',
+        workHoursEnd: '18:00',
+        workDays: [1, 2, 3, 4, 5, 6],
+      });
+      expect(await stored()).toMatchObject({ workHoursStart: '06:30', workHoursEnd: '18:00' });
+    });
+
+    it('an admin may too', async () => {
+      expect((await patch(adminToken, { workHoursEnd: '18:00' })).status).toBe(200);
+    });
+
+    it('a field agent may not', async () => {
+      expect((await patch(agentToken, { workHoursEnd: '18:00' })).status).toBe(403);
+      expect((await stored()).workHoursEnd).toBe('17:00');
+    });
+
+    it('stores the days sorted, however they were sent', async () => {
+      const res = await patch(managerToken, { workDays: [6, 1, 3] });
+      expect(res.status).toBe(200);
+      expect(res.body.workDays).toEqual([1, 3, 6]);
+    });
+
+    it('writes all three together, so a new start never lands against an old end', async () => {
+      // Only the start is sent; the other two must come back unchanged rather
+      // than being dropped or defaulted.
+      await patch(managerToken, { workHoursStart: '08:00', workHoursEnd: '16:00', workDays: [2, 4] });
+      const res = await patch(managerToken, { workHoursStart: '09:00' });
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        workHoursStart: '09:00',
+        workHoursEnd: '16:00',
+        workDays: [2, 4],
+      });
+    });
+
+    it('validates a partial edit against what is STORED, not against the one field sent', async () => {
+      await patch(managerToken, { workHoursStart: '09:00', workHoursEnd: '17:00' });
+      // 08:00 alone is a fine time; it is only wrong next to the stored end.
+      const res = await patch(managerToken, { workHoursEnd: '08:00' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/before/);
+      expect((await stored()).workHoursEnd).toBe('17:00');
+    });
+
+    it.each([
+      ['a start equal to the end', { workHoursStart: '08:00', workHoursEnd: '08:00' }],
+      ['an overnight window', { workHoursStart: '22:00', workHoursEnd: '06:00' }],
+      ['a single-digit hour', { workHoursStart: '7:00' }],
+      ['seconds', { workHoursStart: '07:00:00' }],
+      ['a 12-hour clock', { workHoursEnd: '5pm' }],
+      ['hour 24', { workHoursEnd: '24:00' }],
+      ['an empty day list', { workDays: [] }],
+      ['a non-array day list', { workDays: 'weekdays' }],
+      ['day 0', { workDays: [0, 1] }],
+      ['day 8', { workDays: [8] }],
+      ['a repeated day', { workDays: [1, 1] }],
+    ])('refuses %s with a 400 and changes nothing', async (_label, body) => {
+      const before = await stored();
+      const res = await patch(managerToken, body);
+      expect(res.status).toBe(400);
+      expect(typeof res.body.error).toBe('string');
+      const after = await stored();
+      expect(after.workHoursStart).toBe(before.workHoursStart);
+      expect(after.workHoursEnd).toBe(before.workHoursEnd);
+      expect(after.workDays).toEqual(before.workDays);
+    });
+
+    it('still refuses a manager who sends scoring config alongside the hours', async () => {
+      const res = await patch(managerToken, {
+        workHoursEnd: '18:00',
+        kpiThresholds: { green: 70 },
+      });
+      expect(res.status).toBe(403);
+      expect((await stored()).workHoursEnd).toBe('17:00');
+    });
+
+    it('an empty body still names every editable field', async () => {
+      const res = await patch(managerToken, {});
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/workHoursStart/);
+    });
+
+    it('does not touch another tenant', async () => {
+      expect((await patch(otherAdminToken, { workHoursEnd: '18:00' })).status).toBe(200);
+      expect((await stored()).workHoursEnd).toBe('17:00');
+      const other = await prisma.client.findUniqueOrThrow({ where: { id: otherClientId } });
+      expect(other.workHoursEnd).toBe('18:00');
+    });
+  });
 });

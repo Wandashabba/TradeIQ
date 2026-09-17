@@ -100,6 +100,66 @@ export function confirmsStore(accuracyM: number | null): boolean {
   return accuracyM !== null && accuracyM <= MAX_AT_STORE_ACCURACY_M;
 }
 
+// ── Background tracking (#153 T2) ────────────────────────────────────────────
+
+/**
+ * What produced a ping. `AgentLocationPing.source` holds one of these.
+ *
+ * - `foreground` — the T1 heartbeat, taken while the agent has the app open in
+ *   front of them.
+ * - `background` — the T2 Android foreground service, taken on a timer inside
+ *   the client's working hours with nobody looking at the phone.
+ */
+export type PingSource = 'foreground' | 'background';
+
+export function isPingSource(value: unknown): value is PingSource {
+  return value === 'foreground' || value === 'background';
+}
+
+/**
+ * Ten minutes. Product decision on #153 T2.
+ *
+ * Roughly 60 points per agent per working day — enough to draw the route
+ * between two stores and see that an agent is moving, and cheap enough that
+ * Android can serve most fixes from the fused provider's existing work rather
+ * than waking the GPS radio for each one (risk 5, battery). It is deliberately
+ * coarser than the foreground heartbeat's two minutes: the foreground map
+ * answers "where is this agent right now", background answers "did they travel
+ * between these stores", and the second question does not need the first
+ * question's resolution.
+ */
+export const BACKGROUND_PING_INTERVAL_SECONDS = 10 * 60;
+
+/**
+ * Whether a ping may be read as the agent being IN the outlet whose fence it
+ * falls in — accuracy AND provenance, in one rule shared by the live map
+ * (`at_store` / `near_store`) and by the stops retention folds into
+ * `AgentDaySummary`.
+ *
+ * **A background ping never places an agent in a store.** Product decision on
+ * #153 T2, and the reasoning is worth keeping:
+ *
+ * - `at_store` is the strongest claim the map makes, and a background fix is
+ *   the weakest evidence it has. It is taken by a service on a ten-minute
+ *   timer with the phone in a pocket, so Android is free to answer from a
+ *   cached or low-power network fix — and those routinely land inside the
+ *   50m fence of a shop the agent is only parked beside. The accuracy gate
+ *   catches many of those, not all.
+ * - T2 exists to show *movement between* stores. Presence *in* a store is
+ *   already established twice over, by check-in (T0) and by the foreground
+ *   heartbeat an agent runs while actually working the shelf. Letting a
+ *   pocketed phone assert the visit would add nothing those two do not already
+ *   say, while quietly lowering the bar for what "at store" means.
+ * - The same rule governs `foldStops`, so a stop in a day summary continues to
+ *   mean "somebody confirmed present", not "a phone was nearby".
+ *
+ * So a background ping inside a fence reads `in_transit`: it is placed on the
+ * map, it ages normally, and it names no outlet.
+ */
+export function confirmsStorePresence(source: PingSource, accuracyM: number | null): boolean {
+  return source !== 'background' && confirmsStore(accuracyM);
+}
+
 // ── Ingest bounds ────────────────────────────────────────────────────────────
 
 /**
@@ -124,10 +184,41 @@ export const RAW_PING_RETENTION_DAYS = 90;
 // ── Disclosure (POPIA risk 1) ────────────────────────────────────────────────
 
 /**
- * The wording the app shows. Bump it when the notice text changes in a way an
- * agent should answer again — every agent is then asked afresh, and pings stop
- * until they do.
+ * Which notice an answer answers. Two notices, two independent answers.
+ *
+ * Accepting foreground sharing must NOT imply background tracking (product
+ * decision, #153 T2): it is a materially bigger ask — the phone reports where
+ * the agent is when they are not using the app at all — so it gets its own
+ * words, its own tap, and its own row. Revoking either leaves the other
+ * untouched, in both directions.
+ */
+export type ConsentKind = 'foreground' | 'background';
+
+export function isConsentKind(value: unknown): value is ConsentKind {
+  return value === 'foreground' || value === 'background';
+}
+
+/**
+ * The wording the app shows for FOREGROUND sharing. Bump it when the notice
+ * text changes in a way an agent should answer again — every agent is then
+ * asked afresh, and pings stop until they do.
  */
 export const LOCATION_NOTICE_VERSION = '2026-09-15';
+
+/**
+ * The wording the app shows for BACKGROUND tracking (#153 T2).
+ *
+ * Versioned separately from the foreground notice on purpose. Re-wording one
+ * must not force every agent to re-answer the other, and the two will not
+ * change at the same times: the foreground notice describes a heartbeat, this
+ * one describes a service that runs inside working hours with a permanent
+ * notification.
+ */
+export const BACKGROUND_LOCATION_NOTICE_VERSION = '2026-09-17';
+
+/** The current wording of the notice for `kind`. */
+export function noticeVersionFor(kind: ConsentKind): string {
+  return kind === 'background' ? BACKGROUND_LOCATION_NOTICE_VERSION : LOCATION_NOTICE_VERSION;
+}
 
 export type ConsentDecision = 'acknowledged' | 'declined';

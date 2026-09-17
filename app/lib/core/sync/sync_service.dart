@@ -18,7 +18,18 @@ abstract class QueueFlusher {
 /// see [SyncService.flushLocationQueue].
 const locationPingEntity = 'location_ping';
 
-/// The agent's answer to the location notice (#153 T1).
+/// A background location ping (#153 T2), taken by the Android foreground
+/// service inside the client's working hours.
+///
+/// Its own outbox lane rather than a flag on the foreground rows, deliberately.
+/// `POST /locations` takes ONE `source` for the whole batch, so the two must
+/// never end up in the same request; and turning background tracking off has to
+/// drop the background queue without touching foreground pings the agent is
+/// still happy to send.
+const locationBackgroundPingEntity = 'location_ping_background';
+
+/// The agent's answer to a location notice — the foreground one (#153 T1) or
+/// the background one (#153 T2). The payload names which.
 const locationConsentEntity = 'location_consent';
 
 /// An in-store order capture (#36). Unlike every other non-visit entity it
@@ -29,14 +40,21 @@ const orderEntity = 'order';
 /// Outbox rows that are not the agent's work. They never appear in "Your
 /// work" or the sync chip: a heartbeat queueing every two minutes would
 /// otherwise keep telling an agent in a dead zone that "work" is waiting.
-const locationEntityTypes = {locationPingEntity, locationConsentEntity};
+const locationEntityTypes = {
+  locationPingEntity,
+  locationBackgroundPingEntity,
+  locationConsentEntity,
+};
 
 /// The most pings in one POST /locations — the server's own limit.
 const maxPingsPerBatch = 100;
 
 /// Sends one batch of pings. Abstracted so tests can count batches.
 abstract class LocationPingSender {
-  Future<void> send(List<Map<String, dynamic>> pings);
+  /// [source] is `foreground` or `background`, and covers the whole batch —
+  /// it decides which notice the server requires and whether the client's
+  /// working-hours window applies.
+  Future<void> send(List<Map<String, dynamic>> pings, {required String source});
 }
 
 class HttpLocationPingSender implements LocationPingSender {
@@ -44,8 +62,10 @@ class HttpLocationPingSender implements LocationPingSender {
   final Dio _dio;
 
   @override
-  Future<void> send(List<Map<String, dynamic>> pings) =>
-      _dio.post('/locations', data: {'pings': pings});
+  Future<void> send(
+    List<Map<String, dynamic>> pings, {
+    required String source,
+  }) => _dio.post('/locations', data: {'source': source, 'pings': pings});
 }
 
 /// Posts queued entities to their matching backend endpoint.
@@ -302,13 +322,34 @@ class SyncService {
 
     final sender = pingSender;
     if (sender == null) return;
+    // Foreground first: it is the fresher signal and the one a manager watching
+    // the live map is actually looking at. Each lane is sent on its own, so a
+    // background lane the server is refusing (the notice not yet on record)
+    // cannot hold up the heartbeat, or the other way round.
+    await _flushPingLane(sender, owner, locationPingEntity, 'foreground');
+    await _flushPingLane(
+      sender,
+      owner,
+      locationBackgroundPingEntity,
+      'background',
+    );
+  }
+
+  /// Sends one outbox lane of pings, in batches, until it is empty or the
+  /// server stops accepting them.
+  Future<void> _flushPingLane(
+    LocationPingSender sender,
+    String owner,
+    String entityType,
+    String source,
+  ) async {
     for (;;) {
       final batch = await (db.select(db.syncQueueItems)
             ..where(
               (t) =>
                   t.synced.equals(false) &
                   t.userId.equals(owner) &
-                  t.entityType.equals(locationPingEntity),
+                  t.entityType.equals(entityType),
             )
             ..orderBy([(t) => OrderingTerm(expression: t.id)])
             ..limit(maxPingsPerBatch))
@@ -325,7 +366,7 @@ class SyncService {
       }
 
       try {
-        if (pings.isNotEmpty) await sender.send(pings);
+        if (pings.isNotEmpty) await sender.send(pings, source: source);
       } catch (e) {
         if (e is DioException && e.response?.statusCode == 400) {
           // The server validates a batch whole and will never accept this

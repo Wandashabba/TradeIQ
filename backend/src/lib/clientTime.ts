@@ -130,6 +130,48 @@ export function mondayOfCalendarWeek(date: Date): Date {
   return addCalendarDays(date, -((date.getUTCDay() + 6) % 7));
 }
 
+/**
+ * Minutes since local midnight at `instant` in `timeZone`, 0–1439.
+ *
+ * The time-of-day counterpart to `localCalendarDate`: together they say which
+ * day it is *and* how far into it, which is what a working-hours window needs
+ * (#153 T2, `workingHours.ts`). Seconds are dropped, so 07:00:59 is 420 —
+ * a window boundary is a minute, not an instant.
+ */
+export function localMinuteOfDay(instant: Date, timeZone: string): number {
+  const { hour, minute } = wallClock(instant, timeZone);
+  return hour * 60 + minute;
+}
+
+/**
+ * The ISO-8601 weekday of a CALENDAR DATE: 1 = Monday … 7 = Sunday.
+ *
+ * ISO numbering rather than `getUTCDay`'s 0 = Sunday, because the thing this
+ * feeds — a client's list of working days (#153 T2) — is written by people, and
+ * a list that reads `[1,2,3,4,5]` for Monday-to-Friday is one a manager can
+ * check at a glance.
+ *
+ * **Calendar dates only** — the UTC-midnight convention at the top of this
+ * file. Passing a real instant here reads the UTC day, which is a different day
+ * from the local one for part of every day. Use {@link localIsoWeekday} for an
+ * instant.
+ */
+export function isoWeekdayOfCalendarDate(date: Date): number {
+  return ((date.getUTCDay() + 6) % 7) + 1;
+}
+
+/**
+ * The ISO-8601 weekday a moment falls on in `timeZone`: 1 = Monday … 7 = Sunday.
+ *
+ * Resolved through the local calendar date, so it is the day a person in that
+ * zone would name. Do not hand this a calendar date: UTC midnight of 31 October
+ * is still 30 October in New York, so a date would come back as the day before
+ * in every zone behind UTC.
+ */
+export function localIsoWeekday(instant: Date, timeZone: string): number {
+  return isoWeekdayOfCalendarDate(localCalendarDate(instant, timeZone));
+}
+
 /** How far `timeZone`'s wall clock is ahead of UTC at `instant`, in ms. */
 function offsetMs(instant: Date, timeZone: string): number {
   const w = wallClock(instant, timeZone);

@@ -1,17 +1,47 @@
 import { prisma } from '../../lib/prisma';
 import { parseIsoInstant } from '../../lib/parseIsoInstant';
 import { ConflictError } from '../../middleware/errorHandler';
+import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import {
+  WorkingHours,
+  WorkingWindow,
+  isWithinWorkingHours,
+  workingHoursOf,
+  workingWindowAt,
+} from '../../lib/workingHours';
+import {
+  BACKGROUND_PING_INTERVAL_SECONDS,
   ConsentDecision,
-  LOCATION_NOTICE_VERSION,
+  ConsentKind,
   MAX_CLOCK_SKEW_SECONDS,
   MAX_PINGS_PER_BATCH,
+  PingSource,
   RAW_PING_RETENTION_DAYS,
+  isPingSource,
+  noticeVersionFor,
   pingIntervalSeconds,
 } from './locationPolicy';
 
-/** Pings are refused until the agent has acknowledged the location notice. */
-export class LocationConsentRequiredError extends Error {}
+/**
+ * Pings are refused until the agent has acknowledged the notice that covers
+ * them. Carries WHICH notice, so the route can hand the app a code it can act
+ * on — stop the heartbeat, or stop the background service — rather than one
+ * blanket refusal that would make the app stop both.
+ */
+export class LocationConsentRequiredError extends Error {
+  constructor(
+    readonly kind: ConsentKind,
+    message: string,
+  ) {
+    super(message);
+  }
+
+  get code(): 'location_consent_required' | 'background_location_consent_required' {
+    return this.kind === 'background'
+      ? 'background_location_consent_required'
+      : 'location_consent_required';
+  }
+}
 
 export interface ParsedPing {
   lat: number;
@@ -20,18 +50,32 @@ export interface ParsedPing {
   recordedAt: Date;
 }
 
-export type PingBatchParse = { ok: true; pings: ParsedPing[] } | { ok: false; error: string };
+export type PingBatchParse =
+  | { ok: true; pings: ParsedPing[]; source: PingSource }
+  | { ok: false; error: string };
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /**
- * Validates `{ pings: [...] }`. Structural problems reject the WHOLE batch with
- * a reason: a malformed ping is an app bug, and quietly storing the rest would
- * hide it. Well-formed pings that are merely out of window (too old, too far in
- * the future) are not errors — see `ingestPings`.
+ * Validates `{ source?, pings: [...] }`. Structural problems reject the WHOLE
+ * batch with a reason: a malformed ping is an app bug, and quietly storing the
+ * rest would hide it. Well-formed pings that are merely out of window (too old,
+ * too far in the future, outside working hours) are not errors — see
+ * `ingestPings`.
+ *
+ * `source` is a property of the BATCH rather than of each ping. The app queues
+ * foreground and background pings in separate outbox lanes and flushes them in
+ * separate requests, so a batch is always one or the other; making it per-ping
+ * would invite a mixed batch that no single consent check could answer for.
+ * Absent means `foreground`, so an app build that predates T2 keeps working.
  */
 export function parsePingBatch(body: unknown): PingBatchParse {
-  const pings = (body as { pings?: unknown } | null)?.pings;
+  const raw = (body ?? null) as { pings?: unknown; source?: unknown } | null;
+  const source = raw?.source === undefined ? 'foreground' : raw.source;
+  if (!isPingSource(source)) {
+    return { ok: false, error: "source must be 'foreground' or 'background'" };
+  }
+  const pings = raw?.pings;
   if (!Array.isArray(pings) || pings.length === 0) {
     return { ok: false, error: 'pings must be a non-empty array' };
   }
@@ -39,8 +83,8 @@ export function parsePingBatch(body: unknown): PingBatchParse {
     return { ok: false, error: `a batch holds at most ${MAX_PINGS_PER_BATCH} pings` };
   }
   const parsed: ParsedPing[] = [];
-  for (const [i, raw] of pings.entries()) {
-    const p = raw as Record<string, unknown> | null;
+  for (const [i, entry] of pings.entries()) {
+    const p = entry as Record<string, unknown> | null;
     if (typeof p !== 'object' || p === null) {
       return { ok: false, error: `pings[${i}] must be an object` };
     }
@@ -72,7 +116,7 @@ export function parsePingBatch(body: unknown): PingBatchParse {
       recordedAt,
     });
   }
-  return { ok: true, pings: parsed };
+  return { ok: true, pings: parsed, source };
 }
 
 export interface ConsentState {
@@ -82,13 +126,21 @@ export interface ConsentState {
 }
 
 /**
- * The agent's latest answer to the CURRENT notice, or null if they have not
- * answered it. An answer to an older wording does not count: the notice changed
- * because what they are agreeing to changed.
+ * The agent's latest answer to the CURRENT version of one notice, or null if
+ * they have not answered it. An answer to an older wording does not count: the
+ * notice changed because what they are agreeing to changed.
+ *
+ * `kind` picks the notice. The two are wholly independent — an agent may have
+ * acknowledged foreground sharing and declined background tracking, or the
+ * reverse, and neither lookup can see the other's rows.
  */
-export async function currentConsent(clientId: string, agentId: string): Promise<ConsentState | null> {
+export async function currentConsent(
+  clientId: string,
+  agentId: string,
+  kind: ConsentKind = 'foreground',
+): Promise<ConsentState | null> {
   const row = await prisma.locationConsent.findFirst({
-    where: { clientId, agentId, noticeVersion: LOCATION_NOTICE_VERSION },
+    where: { clientId, agentId, kind, noticeVersion: noticeVersionFor(kind) },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     select: { decision: true, noticeVersion: true, decidedAt: true },
   });
@@ -100,25 +152,104 @@ export async function currentConsent(clientId: string, agentId: string): Promise
   };
 }
 
+/** The client's working-hours window and the zone it is read in (#153 T2). */
+export interface WorkingHoursSettings extends WorkingHours {
+  timezone: string;
+}
+
+export interface BackgroundLocationSettings {
+  /** How often the Android service takes a fix, in seconds. */
+  intervalSeconds: number;
+  noticeVersion: string;
+  /** The agent's latest answer to the CURRENT background notice; null if unanswered. */
+  consent: ConsentState | null;
+  /** True only when the agent has acknowledged the current background notice. */
+  enabled: boolean;
+  workingHours: WorkingHoursSettings;
+  /** Whether the working window is open right now, on the server clock. */
+  withinWorkingHours: boolean;
+  /** When the open window closes. Null when it is shut. */
+  windowClosesAt: Date | null;
+  /** When the next window opens. Null when one is already open. */
+  windowOpensAt: Date | null;
+}
+
 export interface LocationSettings {
   intervalSeconds: number;
   noticeVersion: string;
   consent: ConsentState | null;
   /** True only when the agent has acknowledged the current notice. */
   sharingEnabled: boolean;
+  /**
+   * Everything the Android background service needs (#153 T2), reported
+   * INDEPENDENTLY of the foreground fields above: an agent may have said yes to
+   * one and no to the other, and this object never speaks for the heartbeat.
+   */
+  background: BackgroundLocationSettings;
 }
 
-/** What the app needs before it may start (or must stop) the heartbeat. */
-export async function getLocationSettings(clientId: string, agentId: string): Promise<LocationSettings> {
-  const [client, consent] = await Promise.all([
-    prisma.client.findUnique({ where: { id: clientId }, select: { kpiThresholds: true } }),
-    currentConsent(clientId, agentId),
-  ]);
+interface ClientLocationConfig {
+  kpiThresholds: unknown;
+  timezone: string;
+  hours: WorkingHours;
+}
+
+/** The tenant settings both the app and ingest read, in one query. */
+async function clientLocationConfig(clientId: string): Promise<ClientLocationConfig> {
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: {
+      kpiThresholds: true,
+      timezone: true,
+      workHoursStart: true,
+      workHoursEnd: true,
+      workDays: true,
+    },
+  });
   return {
-    intervalSeconds: pingIntervalSeconds(client?.kpiThresholds),
-    noticeVersion: LOCATION_NOTICE_VERSION,
+    kpiThresholds: client?.kpiThresholds,
+    timezone: client?.timezone ?? DEFAULT_CLIENT_TIME_ZONE,
+    hours: workingHoursOf(client),
+  };
+}
+
+/**
+ * What the app needs before it may start (or must stop) the heartbeat and the
+ * background service.
+ *
+ * The working window is resolved HERE, into instants, rather than shipping the
+ * client's timezone rules to the phone. The phone then only has to compare
+ * `now` against two instants — no timezone database on the device, nothing to
+ * go stale, and a phone whose own clock is wrong cannot move the boundary,
+ * because ingest re-checks every ping against the same window on arrival.
+ */
+export async function getLocationSettings(
+  clientId: string,
+  agentId: string,
+  now: Date = new Date(),
+): Promise<LocationSettings> {
+  const [config, consent, backgroundConsent] = await Promise.all([
+    clientLocationConfig(clientId),
+    currentConsent(clientId, agentId, 'foreground'),
+    currentConsent(clientId, agentId, 'background'),
+  ]);
+  const window: WorkingWindow = workingWindowAt(now, config.timezone, config.hours);
+
+  return {
+    intervalSeconds: pingIntervalSeconds(config.kpiThresholds),
+    noticeVersion: noticeVersionFor('foreground'),
     consent,
     sharingEnabled: consent?.decision === 'acknowledged',
+    background: {
+      intervalSeconds: BACKGROUND_PING_INTERVAL_SECONDS,
+      noticeVersion: noticeVersionFor('background'),
+      consent: backgroundConsent,
+      enabled: backgroundConsent?.decision === 'acknowledged',
+      workingHours: { ...config.hours, timezone: config.timezone },
+      withinWorkingHours: window.open,
+      windowClosesAt: window.closesAt,
+      windowOpensAt: window.opensAt,
+    },
   };
 }
 
@@ -127,26 +258,35 @@ export interface RecordConsentInput {
   agentId: string;
   decision: ConsentDecision;
   noticeVersion: string;
+  /** Which notice is being answered. Absent means the foreground one. */
+  kind?: ConsentKind;
   /** The device's tap time; the server clock when absent. */
   decidedAt?: Date;
   now?: Date;
 }
 
 /**
- * Appends the agent's answer. Append-only, so what an agent agreed to and when
- * is never rewritten.
+ * Appends the agent's answer to one notice. Append-only, so what an agent
+ * agreed to and when is never rewritten.
  *
- * An answer to an older notice is refused (409) rather than recorded against
- * the current one — an agent who acknowledged yesterday's wording offline has
- * not seen today's.
+ * An answer to an older version of that notice is refused (409) rather than
+ * recorded against the current one — an agent who acknowledged yesterday's
+ * wording offline has not seen today's.
  *
  * A re-sent identical answer (the outbox retrying after a lost response) adds
  * no second row.
+ *
+ * **The two notices never touch each other.** Declining background writes a
+ * background row and leaves the foreground heartbeat running; declining
+ * foreground leaves a background acknowledgement standing. That is the point of
+ * having two — see `ConsentKind`.
  */
-export async function recordConsent(input: RecordConsentInput): Promise<ConsentState> {
-  if (input.noticeVersion !== LOCATION_NOTICE_VERSION) {
+export async function recordConsent(input: RecordConsentInput): Promise<ConsentState & { kind: ConsentKind }> {
+  const kind = input.kind ?? 'foreground';
+  const current = noticeVersionFor(kind);
+  if (input.noticeVersion !== current) {
     throw new ConflictError(
-      `This answer is for location notice ${input.noticeVersion}; the current notice is ${LOCATION_NOTICE_VERSION}`,
+      `This answer is for ${kind} location notice ${input.noticeVersion}; the current ${kind} notice is ${current}`,
     );
   }
   const now = input.now ?? new Date();
@@ -154,27 +294,28 @@ export async function recordConsent(input: RecordConsentInput): Promise<ConsentS
   const decidedAt =
     input.decidedAt && input.decidedAt.getTime() <= now.getTime() ? input.decidedAt : now;
 
-  const latest = await currentConsent(input.clientId, input.agentId);
+  const latest = await currentConsent(input.clientId, input.agentId, kind);
   if (
     latest &&
     latest.decision === input.decision &&
     latest.decidedAt.getTime() === decidedAt.getTime()
   ) {
-    return latest;
+    return { ...latest, kind };
   }
 
   await prisma.locationConsent.create({
     data: {
       clientId: input.clientId,
       agentId: input.agentId,
-      noticeVersion: LOCATION_NOTICE_VERSION,
+      kind,
+      noticeVersion: current,
       decision: input.decision,
       decidedAt,
     },
   });
   // Declining deletes nothing: it stops FUTURE pings. What was shared while the
   // agent had agreed follows the same 90-day retention as everyone else's.
-  return { decision: input.decision, noticeVersion: LOCATION_NOTICE_VERSION, decidedAt };
+  return { decision: input.decision, noticeVersion: current, decidedAt, kind };
 }
 
 export interface IngestResult {
@@ -184,12 +325,20 @@ export interface IngestResult {
   duplicates: number;
   /** Well-formed pings deliberately not stored — see `ingestPings`. */
   ignored: number;
+  /**
+   * How many of `ignored` fell outside the client's working hours. Present only
+   * on a background batch, where the window applies; a foreground heartbeat runs
+   * whenever the agent has the app open, so the number would be meaningless.
+   */
+  outsideWorkingHours?: number;
 }
 
 export interface IngestPingsInput {
   clientId: string;
   agentId: string;
   pings: ParsedPing[];
+  /** Which capture produced them. Absent means `foreground`. */
+  source?: PingSource;
   now?: Date;
 }
 
@@ -205,6 +354,11 @@ export interface IngestPingsInput {
  * batches racing each other cannot either, because the comparison happens
  * inside the database row lock rather than in a read-then-write here.
  *
+ * **Consent is checked per source**, against the notice that covers it. A
+ * background batch from an agent who has not accepted the background notice is
+ * a 403 the app must act on, and it is refused even if they have acknowledged
+ * the foreground one.
+ *
  * Not stored (counted as `ignored`):
  * - pings older than the 90-day retention window — the pruning job would
  *   delete them on its next run, and a day it has already summarised must not
@@ -213,12 +367,37 @@ export interface IngestPingsInput {
  *   would otherwise pin the agent's "latest" position forever;
  * - pings recorded before the agent acknowledged the notice. They cannot exist
  *   from a well-behaved app, and location an agent had not agreed to share is
- *   the one thing this endpoint must never keep.
+ *   the one thing this endpoint must never keep;
+ * - **background pings recorded outside the client's working hours** (#153 T2),
+ *   also reported separately as `outsideWorkingHours`.
+ *
+ * **Why out-of-hours pings are ignored rather than refused.** The obvious
+ * alternative — 4xx the whole batch — is wrong here for two reasons. A batch is
+ * a queue flush, so it routinely spans the edge of the window: an agent who had
+ * no signal all afternoon flushes at 18:30 a queue holding pings from 15:00
+ * onwards plus the one that fired as the window closed. Refusing that batch
+ * would throw away the legitimate pings with the late one, and the app's
+ * existing 400 handling deletes a rejected batch outright, so they would be
+ * gone for good. The window is also a property of each ping's own `recordedAt`,
+ * not of the request, so it can only honestly be evaluated per ping. Refusal is
+ * reserved for the one condition that really is about the request — consent —
+ * because that is the one the app must change its behaviour in response to.
  */
 export async function ingestPings(input: IngestPingsInput): Promise<IngestResult> {
-  const consent = await currentConsent(input.clientId, input.agentId);
+  const source: PingSource = input.source ?? 'foreground';
+  const kind: ConsentKind = source === 'background' ? 'background' : 'foreground';
+
+  const [consent, config] = await Promise.all([
+    currentConsent(input.clientId, input.agentId, kind),
+    source === 'background' ? clientLocationConfig(input.clientId) : Promise.resolve(null),
+  ]);
   if (consent?.decision !== 'acknowledged') {
-    throw new LocationConsentRequiredError('Location notice not acknowledged');
+    throw new LocationConsentRequiredError(
+      kind,
+      kind === 'background'
+        ? 'Background location notice not acknowledged'
+        : 'Location notice not acknowledged',
+    );
   }
 
   const now = (input.now ?? new Date()).getTime();
@@ -226,13 +405,20 @@ export async function ingestPings(input: IngestPingsInput): Promise<IngestResult
   const newestAllowed = now + MAX_CLOCK_SKEW_SECONDS * 1000;
   const consentedFrom = consent.decidedAt.getTime();
 
+  let outsideWorkingHours = 0;
   const keep = input.pings.filter((p) => {
     const t = p.recordedAt.getTime();
-    return t >= oldest && t <= newestAllowed && t >= consentedFrom;
+    if (t < oldest || t > newestAllowed || t < consentedFrom) return false;
+    if (config && !isWithinWorkingHours(p.recordedAt, config.timezone, config.hours)) {
+      outsideWorkingHours += 1;
+      return false;
+    }
+    return true;
   });
   const ignored = input.pings.length - keep.length;
+  const counters = source === 'background' ? { outsideWorkingHours } : {};
   if (keep.length === 0) {
-    return { accepted: 0, duplicates: 0, ignored };
+    return { accepted: 0, duplicates: 0, ignored, ...counters };
   }
 
   const { count } = await prisma.agentLocationPing.createMany({
@@ -243,7 +429,7 @@ export async function ingestPings(input: IngestPingsInput): Promise<IngestResult
       lng: p.lng,
       accuracyM: p.accuracyM,
       recordedAt: p.recordedAt,
-      source: 'foreground',
+      source,
     })),
     // The (agentId, recordedAt) unique key makes a retried batch a no-op.
     skipDuplicates: true,
@@ -259,5 +445,5 @@ export async function ingestPings(input: IngestPingsInput): Promise<IngestResult
     data: { lastLat: newest.lat, lastLng: newest.lng, lastSeenAt: newest.recordedAt },
   });
 
-  return { accepted: count, duplicates: keep.length - count, ignored };
+  return { accepted: count, duplicates: keep.length - count, ignored, ...counters };
 }

@@ -465,3 +465,174 @@ describe('GET /agents/locations (#153 T1)', () => {
     expect((await get(agents.transit)).status).toBe(403);
   });
 });
+
+/**
+ * #153 T2 — background pings on the same map.
+ *
+ * They feed the same six states, but a background fix is taken on a timer with
+ * the phone in a pocket, so it is never allowed to say the agent is IN a store.
+ */
+describe('background pings never claim a store (#153 T2)', () => {
+  describe('deriveLiveState', () => {
+    const at = (
+      ageSeconds: number | null,
+      insideOutlet: boolean,
+      accuracyM: number | null,
+      source: 'foreground' | 'background',
+    ) =>
+      deriveLiveState({
+        ageSeconds,
+        insideOutlet,
+        accuracyM,
+        source,
+        intervalSeconds: 120,
+        declined: false,
+      });
+
+    it('a fresh, pinpoint background ping inside a fence is in_transit, not at_store', () => {
+      expect(at(30, true, 5, 'background')).toBe('in_transit');
+      // The same reading from the foreground heartbeat does say at_store.
+      expect(at(30, true, 5, 'foreground')).toBe('at_store');
+    });
+
+    it('is never near_store either — there is no store to be near', () => {
+      expect(at(30, true, 500, 'background')).toBe('in_transit');
+      expect(at(30, true, null, 'background')).toBe('in_transit');
+      expect(at(30, true, 500, 'foreground')).toBe('near_store');
+    });
+
+    it('outside every fence it is in_transit, like any other ping', () => {
+      expect(at(30, false, 5, 'background')).toBe('in_transit');
+    });
+
+    it('ages exactly like a foreground ping', () => {
+      expect(at(361, true, 5, 'background')).toBe('stale');
+      expect(at(1801, true, 5, 'background')).toBe('offline');
+      expect(at(null, false, null, 'background')).toBe('offline');
+    });
+
+    it('an absent source is read as foreground, so T1 callers are unchanged', () => {
+      expect(
+        deriveLiveState({
+          ageSeconds: 30,
+          insideOutlet: true,
+          accuracyM: 5,
+          intervalSeconds: 120,
+          declined: false,
+        }),
+      ).toBe('at_store');
+    });
+  });
+
+  describe('GET /agents/locations', () => {
+    const SEC = 1000;
+    const store = { lat: -26.4, lng: 28.4 };
+    /** ~10m north of the store: well inside its 50m fence. */
+    const inStore = { lat: store.lat + 0.00009, lng: store.lng };
+
+    let clientId: string;
+    let outletId: string;
+    let manager: TestUser;
+    let backgroundAgent: TestUser;
+    let foregroundAgent: TestUser;
+
+    const get = (user: TestUser) =>
+      request(app).get('/agents/locations?limit=200').set('Authorization', `Bearer ${user.token}`);
+
+    interface AgentRow {
+      agentId: string;
+      state: string;
+      ageSeconds: number | null;
+      lastPing: { lat: number; lng: number; accuracyM: number | null; source: string } | null;
+      currentOutlet: { id: string; name: string } | null;
+      lastOutlet: { id: string; name: string; source: string } | null;
+    }
+
+    const row = (body: { data: AgentRow[] }, agent: TestUser): AgentRow =>
+      body.data.find((r) => r.agentId === agent.userId)!;
+
+    beforeAll(async () => {
+      const client = await prisma.client.create({
+        data: {
+          name: `BGMAP-${Date.now()}`,
+          industry: 'FMCG',
+          scorecardWeights: {},
+          kpiThresholds: {},
+        },
+      });
+      clientId = client.id;
+      outletId = (
+        await prisma.outlet.create({
+          data: {
+            clientId,
+            name: 'Background Store',
+            code: 'BGMAP-1',
+            channelType: 'grocery',
+            territoryId: 'T-BGMAP',
+            ...store,
+          },
+        })
+      ).id;
+      manager = await userIn(clientId, 'manager');
+      backgroundAgent = await userIn(clientId, 'field_agent');
+      foregroundAgent = await userIn(clientId, 'field_agent');
+
+      // Both standing in the same store, with the same pinpoint accuracy. The
+      // only difference between them is what took the fix.
+      const recordedAt = new Date(Date.now() - 30 * SEC);
+      for (const [agent, source] of [
+        [backgroundAgent, 'background'],
+        [foregroundAgent, 'foreground'],
+      ] as const) {
+        await prisma.agentLocationPing.create({
+          data: {
+            clientId,
+            agentId: agent.userId,
+            ...inStore,
+            accuracyM: 5,
+            recordedAt,
+            source,
+          },
+        });
+      }
+    });
+
+    afterAll(async () => {
+      await prisma.agentLocationPing.deleteMany({ where: { clientId } });
+      await prisma.outlet.delete({ where: { id: outletId } });
+      await prisma.user.deleteMany({ where: { clientId } });
+      await prisma.client.delete({ where: { id: clientId } });
+    });
+
+    it('reads in_transit where the identical foreground ping reads at_store', async () => {
+      const res = await get(manager);
+      expect(res.status).toBe(200);
+      expect(row(res.body, backgroundAgent).state).toBe('in_transit');
+      expect(row(res.body, foregroundAgent).state).toBe('at_store');
+    });
+
+    it('names no currentOutlet', async () => {
+      const res = await get(manager);
+      expect(row(res.body, backgroundAgent).currentOutlet).toBeNull();
+      expect(row(res.body, foregroundAgent).currentOutlet).toMatchObject({ name: 'Background Store' });
+    });
+
+    it('names no lastOutlet from its fence either — that would be the same claim by another route', async () => {
+      const res = await get(manager);
+      // No check-in exists for this agent, so there is nothing to fall back to.
+      expect(row(res.body, backgroundAgent).lastOutlet).toBeNull();
+      expect(row(res.body, foregroundAgent).lastOutlet).toMatchObject({
+        name: 'Background Store',
+        source: 'ping',
+      });
+    });
+
+    it('still places the agent on the map, and says what took the fix', async () => {
+      const res = await get(manager);
+      const ping = row(res.body, backgroundAgent).lastPing;
+      expect(ping).toMatchObject({ lat: inStore.lat, lng: inStore.lng, source: 'background' });
+      expect(row(res.body, backgroundAgent).ageSeconds).toBeGreaterThanOrEqual(0);
+      expect(row(res.body, foregroundAgent).lastPing!.source).toBe('foreground');
+    });
+  });
+});

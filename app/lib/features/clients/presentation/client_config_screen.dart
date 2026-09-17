@@ -114,6 +114,8 @@ class _ConfigFormState extends ConsumerState<_ConfigForm> {
       children: [
         _TimezonePanel(timezone: widget.config.timezone),
         const SizedBox(height: 16),
+        _WorkingHoursPanel(config: widget.config),
+        const SizedBox(height: 16),
         PanelCard(
           title: 'Scorecard weights',
           subtitle: 'Relative — the server normalises by their total',
@@ -283,6 +285,323 @@ class _TimezonePanelState extends ConsumerState<_TimezonePanel> {
           'weeks begin. A change applies to trends straight away; stops already '
           'ticked on past routes stay as they are.',
           style: TextStyle(fontSize: 11.5, color: colors.ink3, height: 1.5),
+        ),
+      ],
+    );
+  }
+}
+
+/// The team's working hours (#153 T2) — the window background location
+/// tracking is allowed to run in, on the clock of the timezone above.
+///
+/// Changeable by a manager or an admin, like the timezone and for the same
+/// reason: when the team works is a fact about the team, not a scoring policy.
+///
+/// It is stated plainly on the panel that this is not a shift model and not
+/// attendance, because a field called "working hours" in a field-sales product
+/// will otherwise be read as both. Nothing is scored against it and no agent is
+/// measured by it; it exists only to put an outer boundary on tracking.
+class _WorkingHoursPanel extends ConsumerStatefulWidget {
+  const _WorkingHoursPanel({required this.config});
+
+  final ClientConfig config;
+
+  @override
+  ConsumerState<_WorkingHoursPanel> createState() => _WorkingHoursPanelState();
+}
+
+class _WorkingHoursPanelState extends ConsumerState<_WorkingHoursPanel> {
+  bool _saving = false;
+
+  Future<void> _change() async {
+    final picked = await showDialog<({String start, String end, List<int> days})>(
+      context: context,
+      builder: (_) => _WorkingHoursDialog(config: widget.config),
+    );
+    if (picked == null || !mounted) return;
+
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(clientsRepositoryProvider)
+          .updateWorkingHours(
+            start: picked.start,
+            end: picked.end,
+            days: picked.days,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Working hours saved')),
+      );
+      ref.invalidate(clientConfigProvider);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            describeSaveFailure(
+              e,
+              forbidden:
+                  'Only a manager or administrator can change working hours.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    // Same split as the timezone: managers as well as admins.
+    final canEdit = canEditTimezone(ref);
+    final config = widget.config;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PanelCard(
+          title: 'Working hours',
+          subtitle: 'The only hours background location tracking may run in',
+          child: Container(
+            key: const ValueKey<String>('working-hours-current'),
+            padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+            decoration: BoxDecoration(
+              color: colors.surface2,
+              border: Border.all(
+                color: colors.glass ? context.lumen.panelRim : colors.lineStrong,
+              ),
+              borderRadius: BorderRadius.circular(
+                colors.glass ? LumenGlass.radiusControl : AppColors.radiusControl,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.route_outlined, size: 16, color: colors.ink3),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${config.workHoursStart} – ${config.workHoursEnd}',
+                          key: const ValueKey<String>('working-hours-value'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.ink1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          describeWorkDays(config.workDays),
+                          key: const ValueKey<String>('working-days-value'),
+                          style: TextStyle(fontSize: 11, color: colors.ink3),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (canEdit)
+                  TextButton(
+                    key: const ValueKey<String>('change-working-hours'),
+                    onPressed: _saving ? null : _change,
+                    child: Text(_saving ? 'Saving…' : 'Change'),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Read by one thing only: an agent who has switched on background '
+          'route tracking is tracked inside this window and at no other time — '
+          'never at night, never at a weekend. It is not a shift model and not '
+          'attendance: nothing is scored against it and no agent is measured by '
+          'it. The times are read on the clock of the timezone above '
+          '(${config.timezone}), and the end time is exclusive — a point '
+          'recorded at exactly ${config.workHoursEnd} is outside the window.',
+          style: TextStyle(fontSize: 11.5, color: colors.ink3, height: 1.5),
+        ),
+      ],
+    );
+  }
+}
+
+/// The working days in words: "Monday to Friday" when they run together,
+/// otherwise the list. A manager should be able to check this at a glance
+/// rather than decode `[1, 2, 3, 4, 5]`.
+String describeWorkDays(List<int> days) {
+  final sorted = [...days]..sort();
+  if (sorted.isEmpty) return 'No days';
+  if (sorted.length == 7) return 'Every day';
+  final runsTogether = sorted.last - sorted.first == sorted.length - 1;
+  if (runsTogether && sorted.length > 2) {
+    return '${weekdayNames[sorted.first]} to ${weekdayNames[sorted.last]}';
+  }
+  return sorted.map((d) => weekdayNames[d]).join(', ');
+}
+
+/// Validates an edit the way the server does, so a manager is told what is
+/// wrong before a round trip rather than after one.
+String? validateWorkingHoursEdit({
+  required String start,
+  required String end,
+  required List<int> days,
+}) {
+  final startMinutes = parseWallClock(start);
+  final endMinutes = parseWallClock(end);
+  if (startMinutes == null) return 'Start must be a 24-hour time like 07:00.';
+  if (endMinutes == null) return 'End must be a 24-hour time like 17:00.';
+  if (startMinutes >= endMinutes) {
+    return 'Start must be before end on the same day.';
+  }
+  if (days.isEmpty) return 'Pick at least one working day.';
+  return null;
+}
+
+/// `HH:MM` as minutes since midnight, or null. Mirrors the server exactly —
+/// `7:00` and `07:00:00` are refused there, so they are refused here.
+int? parseWallClock(String value) {
+  final match = RegExp(r'^([01]\d|2[0-3]):([0-5]\d)$').firstMatch(value.trim());
+  if (match == null) return null;
+  return int.parse(match.group(1)!) * 60 + int.parse(match.group(2)!);
+}
+
+class _WorkingHoursDialog extends StatefulWidget {
+  const _WorkingHoursDialog({required this.config});
+
+  final ClientConfig config;
+
+  @override
+  State<_WorkingHoursDialog> createState() => _WorkingHoursDialogState();
+}
+
+class _WorkingHoursDialogState extends State<_WorkingHoursDialog> {
+  late final TextEditingController _start = TextEditingController(
+    text: widget.config.workHoursStart,
+  );
+  late final TextEditingController _end = TextEditingController(
+    text: widget.config.workHoursEnd,
+  );
+  late final Set<int> _days = {...widget.config.workDays};
+  String? _error;
+
+  @override
+  void dispose() {
+    _start.dispose();
+    _end.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final days = _days.toList()..sort();
+    final error = validateWorkingHoursEdit(
+      start: _start.text.trim(),
+      end: _end.text.trim(),
+      days: days,
+    );
+    if (error != null) {
+      setState(() => _error = error);
+      return;
+    }
+    Navigator.of(context).pop((
+      start: _start.text.trim(),
+      end: _end.text.trim(),
+      days: days,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return AlertDialog(
+      title: const Text('Working hours'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey<String>('work-hours-start'),
+                    controller: _start,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'Start',
+                      hintText: '07:00',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey<String>('work-hours-end'),
+                    controller: _end,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      labelText: 'End (exclusive)',
+                      hintText: '17:00',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const SectionLabel('Working days'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var day = 1; day <= 7; day++)
+                  FilterChip(
+                    key: ValueKey<String>('work-day-$day'),
+                    label: Text(weekdayNames[day].substring(0, 3)),
+                    selected: _days.contains(day),
+                    onSelected: (on) => setState(() {
+                      if (on) {
+                        _days.add(day);
+                      } else {
+                        _days.remove(day);
+                      }
+                      _error = null;
+                    }),
+                  ),
+              ],
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                key: const ValueKey<String>('work-hours-error'),
+                // critText, not crit: crit is a mark colour and does not clear
+                // 4.5:1 when it has to carry words.
+                style: TextStyle(fontSize: 12, color: colors.critText),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey<String>('save-working-hours'),
+          onPressed: _save,
+          child: const Text('Save'),
         ),
       ],
     );

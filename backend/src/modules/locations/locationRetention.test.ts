@@ -465,4 +465,115 @@ describe('location ping retention (#178)', () => {
       expect(await rawCount(agent)).toBe(1);
     });
   });
+
+  /**
+   * #153 T2 — background pings are retained exactly like any other ping. The
+   * one thing they do differently is that they cannot open a stop, which is the
+   * same rule that stops them reading `at_store` on the live map.
+   */
+  describe('background pings (#153 T2)', () => {
+    const addBackgroundPing = (
+      agent: TestUser,
+      at: Date,
+      where: { lat: number; lng: number },
+      accuracyM: number | null = 10,
+    ) =>
+      prisma.agentLocationPing.create({
+        data: {
+          clientId: agent.clientId,
+          agentId: agent.userId,
+          ...where,
+          accuracyM,
+          recordedAt: at,
+          source: 'background',
+        },
+      });
+
+    it('foldStops skips a background ping however accurate it is', () => {
+      const outlets = [{ id: outletA, name: 'Store A', ...storeA }];
+      const at = (minutes: number) => new Date(Date.UTC(2026, 8, 15, 8, minutes));
+
+      // Pinpoint, squarely inside the fence, and still no stop.
+      expect(
+        foldStops(
+          [
+            { ...storeA, accuracyM: 5, recordedAt: at(0), source: 'background' },
+            { ...storeA, accuracyM: 5, recordedAt: at(10), source: 'background' },
+          ],
+          outlets,
+        ),
+      ).toEqual([]);
+
+      // The same two readings from the heartbeat are one stop.
+      expect(
+        foldStops(
+          [
+            { ...storeA, accuracyM: 5, recordedAt: at(0), source: 'foreground' },
+            { ...storeA, accuracyM: 5, recordedAt: at(10), source: 'foreground' },
+          ],
+          outlets,
+        ),
+      ).toEqual([
+        {
+          outletId: outletA,
+          outletName: 'Store A',
+          arrivedAt: at(0).toISOString(),
+          leftAt: at(10).toISOString(),
+          pingCount: 2,
+        },
+      ]);
+    });
+
+    it('a background ping does not END a stop either — it is not evidence of leaving', () => {
+      const outlets = [{ id: outletA, name: 'Store A', ...storeA }];
+      const at = (minutes: number) => new Date(Date.UTC(2026, 8, 15, 8, minutes));
+      const stops = foldStops(
+        [
+          { ...storeA, accuracyM: 5, recordedAt: at(0), source: 'foreground' },
+          // Out on the street, but taken in the background mid-visit: ignored.
+          { ...street, accuracyM: 5, recordedAt: at(10), source: 'background' },
+          { ...storeA, accuracyM: 5, recordedAt: at(20), source: 'foreground' },
+        ],
+        outlets,
+      );
+      expect(stops).toHaveLength(1);
+      expect(stops[0]).toMatchObject({ pingCount: 2, leftAt: at(20).toISOString() });
+    });
+
+    it('an absent source is read as foreground, so every pre-T2 row folds as before', () => {
+      const outlets = [{ id: outletA, name: 'Store A', ...storeA }];
+      const at = new Date(Date.UTC(2026, 8, 15, 8, 0));
+      expect(foldStops([{ ...storeA, accuracyM: 5, recordedAt: at }], outlets)).toHaveLength(1);
+    });
+
+    it('prunes background pings past retention, keeping them in the day totals', async () => {
+      const agent = await userIn(clientId, 'field_agent');
+      const day = dayAt(91, 0);
+      await addBackgroundPing(agent, dayAt(91, 8), storeA);
+      await addBackgroundPing(agent, dayAt(91, 9), street);
+      // One foreground ping the same day, so the summary has a stop to hold.
+      await addPing(agent, dayAt(91, 10), storeA);
+      expect(await rawCount(agent)).toBe(3);
+
+      const result = await pruneLocationPings({ clientId, now });
+      expect(result.pingsDeleted).toBeGreaterThanOrEqual(3);
+      expect(await rawCount(agent)).toBe(0);
+
+      const folded = await summary(agent, day);
+      // All three count towards the day — those numbers describe sharing, not
+      // stores — but only the foreground one opened a stop.
+      expect(folded).toMatchObject({ pingCount: 3 });
+      expect((folded!.stops as unknown as StopSummary[]).map((s) => s.outletId)).toEqual([outletA]);
+    });
+
+    it('deletes a deactivated agent’s background pings straight away', async () => {
+      const agent = await userIn(clientId, 'field_agent');
+      await addBackgroundPing(agent, dayAt(2, 8), storeA);
+      await prisma.user.update({ where: { id: agent.userId }, data: { active: false } });
+
+      await purgeAgentLocationPings({ clientId, agentId: agent.userId });
+      expect(await rawCount(agent)).toBe(0);
+      expect(await summary(agent, dayAt(2, 0))).toMatchObject({ pingCount: 1 });
+    });
+  });
 });

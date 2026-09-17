@@ -39,6 +39,13 @@ class StubClients implements ClientsRepository {
   @override
   Future<ClientConfig> updateTimezone(String timezone) async =>
       throw UnimplementedError();
+
+  @override
+  Future<ClientConfig> updateWorkingHours({
+    required String start,
+    required String end,
+    required List<int> days,
+  }) async => throw UnimplementedError();
 }
 
 Future<void> pumpGate(

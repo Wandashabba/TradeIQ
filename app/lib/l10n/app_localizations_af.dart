@@ -1331,6 +1331,90 @@ class AppLocalizationsAf extends AppLocalizations {
   String get locationStopCancel => 'Bly deel';
 
   @override
+  String get backgroundLocationNoticeTitle =>
+      'Ons teken jou roete tussen winkels aan';
+
+  @override
+  String backgroundLocationNoticeBody(int minutes, String start, String end) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: 'elke $minutes minute',
+      one: 'elke minuut',
+    );
+    return 'Dit is apart van die deel van jou ligging terwyl TradeIQ oop is, en jy mag nee sê. As jy dit aanskakel, teken TradeIQ $_temp0 aan waar jy is — selfs wanneer TradeIQ toe is — sodat jou bestuurder jou roete tussen winkels kan sien. Dit loop net op ’n werksdag tussen $start en $end, nooit snags nie en nooit oor naweke nie. Terwyl dit aan is, bly ’n kennisgewing op jou foon sodat jy altyd kan sien. Jy kan dit enige tyd afskakel, en om dit af te skakel stop nie die deel waartoe jy reeds ingestem het nie.';
+  }
+
+  @override
+  String get backgroundLocationNoticeAccept => 'Skakel roete-aantekening aan';
+
+  @override
+  String get backgroundLocationNoticeDecline =>
+      'Nee, moenie my roete aanteken nie';
+
+  @override
+  String get backgroundLocationOfferTitle => 'Roete-aantekening is af';
+
+  @override
+  String get backgroundLocationOfferSubtitle => 'Tik om te sien wat dit doen';
+
+  @override
+  String get backgroundLocationActiveTitle =>
+      'Ons teken jou roete tussen winkels aan';
+
+  @override
+  String get backgroundLocationActiveSubtitle =>
+      'Net werksure · tik om te stop';
+
+  @override
+  String get backgroundLocationOutsideHoursTitle =>
+      'Roete-aantekening is onderbreek';
+
+  @override
+  String backgroundLocationOutsideHoursSubtitle(String start) {
+    return 'Dit begin weer op ’n werksdag om $start';
+  }
+
+  @override
+  String get backgroundLocationPermissionTitle =>
+      'Android het nog een toestemming nodig';
+
+  @override
+  String get backgroundLocationPermissionBody =>
+      'Om jou roete aan te teken wanneer TradeIQ toe is, moet jy “Laat altyd toe” vir ligging op TradeIQ se instellingsblad kies. Alles anders in TradeIQ werk steeds as jy liewer nie wil nie.';
+
+  @override
+  String get backgroundLocationPermissionOpenSettings =>
+      'Maak TradeIQ se instellings oop';
+
+  @override
+  String get backgroundLocationPermissionNotNow => 'Nie nou nie';
+
+  @override
+  String get backgroundLocationStopTitle => 'Hou op om jou roete aan te teken?';
+
+  @override
+  String get backgroundLocationStopBody =>
+      'Jou bestuurder sal nie meer jou roete tussen winkels sien nie. Die deel van jou ligging terwyl TradeIQ oop is, word nie geraak nie — dit bly presies soos dit is.';
+
+  @override
+  String get backgroundLocationStopConfirm => 'Stop roete-aantekening';
+
+  @override
+  String get backgroundLocationStopCancel => 'Hou aan aanteken';
+
+  @override
+  String get backgroundLocationNotificationTitle =>
+      'TradeIQ teken jou roete aan';
+
+  @override
+  String get backgroundLocationNotificationBody =>
+      'Net werksure. Skakel dit in TradeIQ af.';
+
+  @override
+  String get backgroundLocationNotificationChannel => 'Roete-aantekening';
+
+  @override
   String get contestsTitle => 'Kompetisies';
 
   @override
