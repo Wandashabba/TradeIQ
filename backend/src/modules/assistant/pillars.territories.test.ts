@@ -1,8 +1,8 @@
 import { prisma } from '../../lib/prisma';
 import { foreignTenant, userIn, type TestUser } from '../../test-utils/tenants';
-import { comparisonWindow } from './compare';
+import { comparisonRanges } from './compare';
 import { territoryRankingFigures } from './figures';
-import { resolvePeriod, type Period } from './period';
+import type { Period } from './period';
 import { getTerritorySellInChange } from './pillars.service';
 
 type Foreign = Awaited<ReturnType<typeof foreignTenant>>;
@@ -19,10 +19,10 @@ describe('getTerritorySellInChange', () => {
   const TZ = 'Africa/Johannesburg';
   const NOW = new Date('2026-09-17T10:00:00.000Z');
   const AUGUST: Period = { kind: 'custom', from: '2026-08-01', to: '2026-08-31' };
-  const windowsFor = (period: Period) => ({
-    current: resolvePeriod(period, NOW, TZ),
-    comparison: comparisonWindow(period, { kind: 'previous_period' }, NOW, TZ),
-  });
+  const windowsFor = (period: Period) => {
+    const { current, comparison } = comparisonRanges(period, { kind: 'previous_period' }, NOW, TZ);
+    return { current, comparison };
+  };
 
   let clientId: string;
   let agent: TestUser;

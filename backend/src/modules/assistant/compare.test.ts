@@ -1,75 +1,179 @@
 import {
-  comparisonWindow,
+  comparisonRanges,
   compareToSchema,
   describeComparison,
   numericDeltas,
   periodCompareToSchema,
+  type CompareTo,
 } from './compare';
-import type { Period } from './period';
+import { resolvePeriod, type Period } from './period';
 import { z } from 'zod';
 import { toGeminiSchema } from './providers/geminiSchema';
 
-const NOW = new Date('2026-08-16T12:00:00Z');
 const MTD: Period = { kind: 'mtd' };
+const YTD: Period = { kind: 'ytd' };
+const TODAY: Period = { kind: 'today' };
+const PREVIOUS: CompareTo = { kind: 'previous_period' };
+const LAST_YEAR: CompareTo = { kind: 'same_period_last_year' };
+const SAST = 'Africa/Johannesburg';
 
-describe('comparison basis', () => {
-  it('measures the previous period over an equally long window ending where this one starts', () => {
-    // The same definition the dashboard's KPI tiles use. If chat and the
-    // console disagreed about what "previous" means, the same metric would
-    // carry two different deltas in one product.
-    const window = comparisonWindow(MTD, { kind: 'previous_period' }, NOW, 'UTC');
+/** Both windows as ISO strings, so an expectation reads as the dates it means. */
+function iso(period: Period, compareTo: CompareTo, now: string, timeZone = SAST) {
+  const ranges = comparisonRanges(period, compareTo, new Date(now), timeZone);
+  return {
+    current: [ranges.current.from.toISOString(), ranges.current.to.toISOString()],
+    comparison: [ranges.comparison.from.toISOString(), ranges.comparison.to.toISOString()],
+    label: ranges.label,
+    note: ranges.note,
+  };
+}
 
-    // MTD on the 16th resolves to 1 Aug 00:00 → 17 Aug 00:00 — end-exclusive,
-    // so the whole of the 16th is inside it. That is 16 days, and the window
-    // before it is the 16 days ending where this one starts.
-    expect(window.to.toISOString()).toBe('2026-08-01T00:00:00.000Z');
-    expect(window.from.toISOString()).toBe('2026-07-16T00:00:00.000Z');
+describe('comparison windows — like for like (#365)', () => {
+  // A Johannesburg day starts at 22:00Z the evening before, so every boundary
+  // below is 22:00Z: local midnight, not UTC midnight.
+
+  it('compares month to date with the same complete days of last month', () => {
+    // The case that reported "down 12%" for a ~1% change: on 17 Sep the old
+    // window was 1–17 Sep (today still at zero) against 15–31 Aug (month-end
+    // spike). Now both sides are days 1–16.
+    const w = iso(MTD, PREVIOUS, '2026-09-17T12:00:00+02:00');
+    expect(w.current).toEqual(['2026-08-31T22:00:00.000Z', '2026-09-16T22:00:00.000Z']);
+    expect(w.comparison).toEqual(['2026-07-31T22:00:00.000Z', '2026-08-16T22:00:00.000Z']);
+    expect(w.label).toBe('the same days last month');
+    expect(w.note).toBeUndefined();
   });
 
-  it('shifts last year by the calendar, not by 365 days', () => {
-    // "March vs March" has to stay March across a leap year. Subtracting a
-    // fixed number of days drifts the month, and the practitioner's vocabulary
-    // is months.
-    const window = comparisonWindow(MTD, { kind: 'same_period_last_year' }, NOW, 'UTC');
-
-    expect(window.from.toISOString()).toBe('2025-08-01T00:00:00.000Z');
-    expect(window.to.toISOString()).toBe('2025-08-17T00:00:00.000Z');
+  it('clamps to the end of a shorter previous month', () => {
+    // 31 March: 1–30 Mar against all of February, and not a day of March.
+    const w = iso(MTD, PREVIOUS, '2026-03-31T12:00:00+02:00');
+    expect(w.current).toEqual(['2026-02-28T22:00:00.000Z', '2026-03-30T22:00:00.000Z']);
+    expect(w.comparison).toEqual(['2026-01-31T22:00:00.000Z', '2026-02-28T22:00:00.000Z']);
   });
 
-  it('keeps the window when comparing territories', () => {
-    // Moving both place and time would produce a difference nobody can read:
-    // the user cannot tell which half moved.
-    const current = comparisonWindow(MTD, { kind: 'territory', id: 't1' }, NOW, 'UTC');
+  it('counts a leap-year February in full', () => {
+    // 30 Mar 2028: 1–29 Mar against all 29 days of February 2028.
+    const w = iso(MTD, PREVIOUS, '2028-03-30T12:00:00+02:00');
+    expect(w.comparison).toEqual(['2028-01-31T22:00:00.000Z', '2028-02-29T22:00:00.000Z']);
+  });
 
-    expect(current.from.toISOString()).toBe('2026-08-01T00:00:00.000Z');
-    expect(current.to.toISOString()).toBe('2026-08-17T00:00:00.000Z');
+  it('on the 1st, compares all of last month with the month before, and says so', () => {
+    // No complete days yet. An empty window would come back as a silent −100%
+    // or n/a, so the whole previous month is shown, labelled and explained.
+    const w = iso(MTD, PREVIOUS, '2026-09-01T09:00:00+02:00');
+    expect(w.current).toEqual(['2026-07-31T22:00:00.000Z', '2026-08-31T22:00:00.000Z']);
+    expect(w.comparison).toEqual(['2026-06-30T22:00:00.000Z', '2026-07-31T22:00:00.000Z']);
+    expect(w.label).toBe('the month before');
+    expect(w.note).toMatch(/all of August 2026, compared with all of July 2026/);
+
+    const lastYear = iso(MTD, LAST_YEAR, '2026-09-01T09:00:00+02:00');
+    expect(lastYear.current).toEqual(w.current);
+    expect(lastYear.comparison).toEqual(['2025-07-31T22:00:00.000Z', '2025-08-31T22:00:00.000Z']);
+    expect(lastYear.label).toBe('the same month last year');
+    expect(lastYear.note).toMatch(/all of August 2026, compared with all of August 2025/);
+  });
+
+  it('on 1 January, month to date wraps back across the year', () => {
+    const w = iso(MTD, PREVIOUS, '2027-01-01T09:00:00+02:00');
+    expect(w.current).toEqual(['2026-11-30T22:00:00.000Z', '2026-12-31T22:00:00.000Z']);
+    expect(w.comparison).toEqual(['2026-10-31T22:00:00.000Z', '2026-11-30T22:00:00.000Z']);
+  });
+
+  it('compares year to date with the same calendar days last year', () => {
+    const w = iso(YTD, PREVIOUS, '2026-09-17T12:00:00+02:00');
+    expect(w.current).toEqual(['2025-12-31T22:00:00.000Z', '2026-09-16T22:00:00.000Z']);
+    expect(w.comparison).toEqual(['2024-12-31T22:00:00.000Z', '2025-09-16T22:00:00.000Z']);
+    expect(w.label).toBe('the same days last year');
+    // For a year to date, both bases are the same window.
+    expect(iso(YTD, LAST_YEAR, '2026-09-17T12:00:00+02:00').comparison).toEqual(w.comparison);
+  });
+
+  it('on 1 January, compares all of last year with the year before, and says so', () => {
+    const w = iso(YTD, PREVIOUS, '2027-01-01T09:00:00+02:00');
+    expect(w.current).toEqual(['2025-12-31T22:00:00.000Z', '2026-12-31T22:00:00.000Z']);
+    expect(w.comparison).toEqual(['2024-12-31T22:00:00.000Z', '2025-12-31T22:00:00.000Z']);
+    expect(w.label).toBe('the year before');
+    expect(w.note).toMatch(/all of 2026, compared with all of 2025/);
+  });
+
+  it('handles leap day: 1 Jan–28 Feb 2028 meets all of Jan and Feb 2027', () => {
+    // On 29 Feb 2028 the complete days are 1 Jan–28 Feb; last year that is
+    // 1 Jan–28 Feb 2027 — its whole February.
+    const w = iso(YTD, PREVIOUS, '2028-02-29T12:00:00+02:00');
+    expect(w.current).toEqual(['2027-12-31T22:00:00.000Z', '2028-02-28T22:00:00.000Z']);
+    expect(w.comparison).toEqual(['2026-12-31T22:00:00.000Z', '2027-02-28T22:00:00.000Z']);
+
+    const month = iso(MTD, LAST_YEAR, '2028-02-29T12:00:00+02:00');
+    expect(month.current).toEqual(['2028-01-31T22:00:00.000Z', '2028-02-28T22:00:00.000Z']);
+    expect(month.comparison).toEqual(['2027-01-31T22:00:00.000Z', '2027-02-28T22:00:00.000Z']);
+  });
+
+  it('trims month to date to complete days on both sides against last year too', () => {
+    // Calendar-shifted, not 365 days back: "March vs March" stays March across
+    // a leap year, and the practitioner's vocabulary is months.
+    const w = iso(MTD, LAST_YEAR, '2026-09-17T12:00:00+02:00');
+    expect(w.current).toEqual(['2026-08-31T22:00:00.000Z', '2026-09-16T22:00:00.000Z']);
+    expect(w.comparison).toEqual(['2025-08-31T22:00:00.000Z', '2025-09-16T22:00:00.000Z']);
   });
 
   it('shifts last year on the client calendar, keeping local midnights (#309)', () => {
-    // Johannesburg MTD on 16 Aug starts at 1 Aug 00:00 SAST = 31 Jul 22:00Z.
-    // Shifting that UTC instant by a year is the same here, but the rule must
-    // be the calendar one so a DST zone lands on ITS midnight a year earlier.
-    const sast = comparisonWindow(MTD, { kind: 'same_period_last_year' }, NOW, 'Africa/Johannesburg');
-    expect(sast.from.toISOString()).toBe('2025-07-31T22:00:00.000Z');
-    expect(sast.to.toISOString()).toBe('2025-08-16T22:00:00.000Z');
+    // New York: 15 Mar 2027 is EDT (-4), and so is 15 Mar 2026; 1 Mar is EST
+    // (-5) in both. Each boundary must be local midnight in ITS offset.
+    const ny = iso(MTD, LAST_YEAR, '2027-03-15T12:00:00Z', 'America/New_York');
+    expect(ny.current).toEqual(['2027-03-01T05:00:00.000Z', '2027-03-15T04:00:00.000Z']);
+    expect(ny.comparison).toEqual(['2026-03-01T05:00:00.000Z', '2026-03-15T04:00:00.000Z']);
+  });
 
-    // New York: 1 Mar 2027 is EST (-5); 1 Mar 2026 is EST too, but 16 Mar 2026
-    // is EDT (-4). The shifted end must be local midnight in EDT, not EST.
-    const ny = comparisonWindow(
-      MTD,
-      { kind: 'same_period_last_year' },
-      new Date('2027-03-15T12:00:00Z'),
-      'America/New_York',
-    );
-    expect(ny.from.toISOString()).toBe('2026-03-01T05:00:00.000Z');
-    expect(ny.to.toISOString()).toBe('2026-03-16T04:00:00.000Z');
+  it('compares today so far with yesterday up to the same clock time', () => {
+    const w = iso(TODAY, PREVIOUS, '2026-09-17T12:00:00+02:00');
+    expect(w.current).toEqual(['2026-09-16T22:00:00.000Z', '2026-09-17T10:00:00.000Z']);
+    expect(w.comparison).toEqual(['2026-09-15T22:00:00.000Z', '2026-09-16T10:00:00.000Z']);
+    expect(w.label).toBe('yesterday, up to the same time');
+
+    const lastYear = iso(TODAY, LAST_YEAR, '2026-09-17T12:00:00+02:00');
+    expect(lastYear.comparison).toEqual(['2025-09-16T22:00:00.000Z', '2025-09-17T10:00:00.000Z']);
+  });
+
+  it('matches the clock time, not the elapsed time, across a DST change', () => {
+    // 8 Mar 2026 10:30 in New York is EDT (14:30Z); 7 Mar 10:30 was EST
+    // (15:30Z). Stepping back 24 hours would land at 09:30 on the 7th.
+    const w = iso(TODAY, PREVIOUS, '2026-03-08T14:30:00Z', 'America/New_York');
+    expect(w.comparison).toEqual(['2026-03-07T05:00:00.000Z', '2026-03-07T15:30:00.000Z']);
+  });
+
+  it('keeps whole-day periods as the equally long run of days just before', () => {
+    const now = '2026-09-17T12:00:00+02:00';
+    expect(iso({ kind: 'yesterday' }, PREVIOUS, now).comparison).toEqual([
+      '2026-09-14T22:00:00.000Z',
+      '2026-09-15T22:00:00.000Z',
+    ]);
+    // Thursday 17 Sep: last week is Mon 7–Sun 13 Sep, the week before 31 Aug–6 Sep.
+    const week = iso({ kind: 'previous_week' }, PREVIOUS, now);
+    expect(week.current).toEqual(['2026-09-06T22:00:00.000Z', '2026-09-13T22:00:00.000Z']);
+    expect(week.comparison).toEqual(['2026-08-30T22:00:00.000Z', '2026-09-06T22:00:00.000Z']);
+    const august = iso({ kind: 'custom', from: '2026-08-01', to: '2026-08-31' }, PREVIOUS, now);
+    expect(august.comparison).toEqual(['2026-06-30T22:00:00.000Z', '2026-07-31T22:00:00.000Z']);
+    expect(iso({ kind: 'custom', from: '2026-08-01', to: '2026-08-31' }, LAST_YEAR, now).comparison)
+      .toEqual(['2025-07-31T22:00:00.000Z', '2025-08-31T22:00:00.000Z']);
+  });
+
+  it('keeps the plain window when comparing territories', () => {
+    // Moving both place and time would produce a difference nobody can read,
+    // and with nothing moved in time a partial today is shared by both sides.
+    const now = new Date('2026-09-17T12:00:00+02:00');
+    const ranges = comparisonRanges(MTD, { kind: 'territory', id: 't1' }, now, SAST);
+    expect(ranges.current).toEqual(resolvePeriod(MTD, now, SAST));
+    expect(ranges.comparison).toEqual(ranges.current);
   });
 
   it('labels each basis in the vocabulary the user already uses', () => {
-    expect(describeComparison(MTD, { kind: 'previous_period' })).toMatch(/before this one/);
-    expect(describeComparison(MTD, { kind: 'same_period_last_year' })).toMatch(/last year/);
+    expect(describeComparison(MTD, PREVIOUS)).toBe('the same days last month');
+    expect(describeComparison(MTD, LAST_YEAR)).toMatch(/last year/);
+    expect(describeComparison({ kind: 'previous_week' }, PREVIOUS)).toBe('the week before');
+    expect(describeComparison({ kind: 'previous_week' }, LAST_YEAR)).toBe('last week last year');
   });
+});
 
+describe('comparison basis', () => {
   it('rejects a basis the pillar tools cannot honour', () => {
     // The plan also names agent and sku. The pillar services take neither, and
     // declaring them would have the model promise the user a comparison it

@@ -7,7 +7,7 @@ import {
   type TrendFilters,
   type TrendSeries,
 } from '../../trends/trends.service';
-import { comparisonWindow, describeComparison, periodCompareToSchema } from '../compare';
+import { comparisonRanges, periodCompareToSchema } from '../compare';
 import { periodSchema, resolvePeriod } from '../period';
 import { eraseToolTypes, type AnyAssistantTool } from '../types';
 import { TREND_INTERVALS, TREND_METRICS, type TrendMetric } from '../viewspec';
@@ -75,18 +75,23 @@ export function buildTrendTools(ctx: ToolContext): AnyAssistantTool[] {
             ...window,
           });
 
-        const series = await fetch(resolvePeriod(args.period, now, await timeZone()));
+        // A compared trend draws both lines over the like-for-like windows
+        // from `comparisonRanges` (#365) — the current line included, so it
+        // cannot end on a half-finished today its comparison does not have.
+        const tz = await timeZone();
+        const ranges = args.compareTo
+          ? comparisonRanges(args.period, args.compareTo, now, tz)
+          : undefined;
+        const series = await fetch(ranges?.current ?? resolvePeriod(args.period, now, tz));
         // The metric rides with the series so the widget can label the chart
         // without re-deriving it from the spec params.
         const current = { metric: args.metric, interval: series.interval, points: series.points };
-        if (!args.compareTo) return current;
+        if (!args.compareTo || !ranges) return current;
 
         // Sequential, like the pillar tools: the same indexed queries over the
         // same tables, and a turn that fans out doubles the peak load on a
         // database also serving the console.
-        const earlier = await fetch(
-          comparisonWindow(args.period, args.compareTo, now, await timeZone()),
-        );
+        const earlier = await fetch(ranges.comparison);
 
         // Shaped like the pillar tools' `Comparison` — same `label`, same
         // `basis` — but carrying `points` instead of `values`, and no `deltas`.
@@ -98,9 +103,10 @@ export function buildTrendTools(ctx: ToolContext): AnyAssistantTool[] {
         return {
           ...current,
           comparison: {
-            label: describeComparison(args.period, args.compareTo),
+            label: ranges.label,
             basis: args.compareTo,
             points: earlier.points,
+            ...(ranges.note ? { note: ranges.note } : {}),
           },
         };
       },

@@ -4,34 +4,62 @@ import 'package:tradeiq_app/features/dashboard/data/dashboard_repository.dart';
 void main() {
   final now = DateTime(2026, 7, 14, 9);
 
-  group('DashboardRange', () {
-    test('a 30-day window compares against the 30 days immediately before', () {
+  group('DashboardRange — like for like, complete days (#365)', () {
+    test('a 30-day window is the last 30 complete days, against the 30 before', () {
       const range = DashboardRange.last30;
 
       final (from, to) = range.window(now);
-      expect(from, DateTime(2026, 6, 14, 9));
-      expect(to, now);
+      // Today (14 Jul, still in progress) is out: it ends at local midnight.
+      expect(from, DateTime(2026, 6, 14));
+      expect(to, DateTime(2026, 7, 14));
 
       final previous = range.previousWindow(now)!;
-      // Equal length, immediately prior — so "up 0.8" means something.
+      expect(previous.$1, DateTime(2026, 5, 15));
       expect(previous.$2, from);
-      expect(previous.$2.difference(previous.$1), to.difference(from!));
     });
 
-    test('YTD compares against the equally-long stretch before the year began', () {
-      final previous = DashboardRange.ytd.previousWindow(now)!;
+    test('YTD compares the same calendar days of last year', () {
       final (from, to) = DashboardRange.ytd.window(now);
-
       expect(from, DateTime(2026));
-      expect(previous.$2, from);
-      expect(previous.$2.difference(previous.$1), to.difference(from!));
+      expect(to, DateTime(2026, 7, 14));
+
+      // Not the stretch before 1 January — that would set summer against
+      // last year's December.
+      final previous = DashboardRange.ytd.previousWindow(now)!;
+      expect(previous.$1, DateTime(2025));
+      expect(previous.$2, DateTime(2025, 7, 14));
+    });
+
+    test('YTD on a leap day meets all of last January and February', () {
+      final leap = DateTime(2028, 2, 29, 12);
+      expect(DashboardRange.ytd.window(leap).$2, DateTime(2028, 2, 29));
+      // 29 Feb 2027 does not exist; like the server, it rolls to 1 Mar.
+      expect(DashboardRange.ytd.previousWindow(leap)!.$2, DateTime(2027, 3, 1));
+    });
+
+    test('on 1 January YTD shows today so far, with no arrow', () {
+      // No complete days yet: an empty window would be a fake −100%.
+      final newYear = DateTime(2027, 1, 1, 10);
+      expect(DashboardRange.ytd.window(newYear), (DateTime(2027), newYear));
+      expect(DashboardRange.ytd.previousWindow(newYear), isNull);
     });
 
     test('all-time has NO previous window — and we will not invent one', () {
       // There is no "before all time". A delta here would be a fabrication, so
       // the range refuses to produce one and the tiles show no arrow.
       expect(DashboardRange.allTime.previousWindow(now), isNull);
-      expect(DashboardRange.allTime.window(now).$1, isNull);
+      expect(DashboardRange.allTime.window(now), (null, now));
+    });
+
+    test('query bounds go out in UTC, with the inclusive end a millisecond early', () {
+      final midnight = DateTime(2026, 7, 14);
+      expect(dashboardQueryFrom(midnight), midnight.toUtc().toIso8601String());
+      expect(dashboardQueryFrom(midnight), endsWith('Z'));
+      expect(
+        DateTime.parse(dashboardQueryTo(midnight))
+            .isAtSameMomentAs(midnight.subtract(const Duration(milliseconds: 1))),
+        isTrue,
+      );
     });
   });
 

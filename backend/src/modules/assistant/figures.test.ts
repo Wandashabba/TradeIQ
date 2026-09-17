@@ -1,5 +1,5 @@
 import type { AgentPerformance } from '../scorecards/scorecards.service';
-import { comparisonWindow, type CompareTo } from './compare';
+import { comparisonRanges, type CompareTo } from './compare';
 import {
   buildDelta,
   competitorFigures,
@@ -32,12 +32,13 @@ const AUGUST: Period = { kind: 'custom', from: '2026-08-01', to: '2026-08-31' };
 const MTD: Period = { kind: 'mtd' };
 
 function windows(period: Period, compareTo?: CompareTo): FigureWindows {
+  if (!compareTo) return { timeZone: TZ, current: resolvePeriod(period, NOW, TZ) };
+  // The tools read both windows from one helper, so the tests do too (#365).
+  const ranges = comparisonRanges(period, compareTo, NOW, TZ);
   return {
     timeZone: TZ,
-    current: resolvePeriod(period, NOW, TZ),
-    ...(compareTo
-      ? { comparison: { range: comparisonWindow(period, compareTo, NOW, TZ), basis: compareTo } }
-      : {}),
+    current: ranges.current,
+    comparison: { range: ranges.comparison, basis: compareTo },
   };
 }
 

@@ -602,12 +602,17 @@ describe('POST /assistant/chat', () => {
           data: { points: unknown[]; comparison: { label: string; points: unknown[] } };
         }
       ).data;
-      expect(data.points).toHaveLength(1);
+      // The one seeded visit is TODAY, and a compared month to date is complete
+      // days only on both sides (#365): today's partial figures have nothing
+      // like for like to meet, so the current line leaves them out rather than
+      // ending on a half-finished day. (The uncompared trend above keeps it.)
+      expect(data.points).toEqual([]);
       // Nothing was seeded in the previous window, and an empty second series is
       // the honest answer — not a reason to omit the comparison and leave the
       // user wondering whether it was asked for.
       expect(data.comparison.points).toEqual([]);
-      expect(data.comparison.label).toMatch(/before this one/);
+      // Like for like (#365): month to date meets the same days of last month.
+      expect(data.comparison.label).toBe('the same days last month');
     });
 
     it('resolves a NAME to the right agent in one hop', async () => {

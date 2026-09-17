@@ -189,12 +189,22 @@ describe('getMetricTrend comparison series', () => {
     expect(result).toMatchObject({
       points: series([90, 88]).points,
       comparison: {
-        label: 'month to date last year',
+        label: 'the same days last year',
         basis: { kind: 'same_period_last_year' },
         points: series([93, 92]).points,
       },
     });
     expect(trends.getAvailabilityTrend).toHaveBeenCalledTimes(2);
+    // Both lines over complete days only (#365): on 17 Sep that is 1–16 Sep
+    // against 1–16 Sep last year, local midnights — the current line included.
+    const windows = trends.getAvailabilityTrend.mock.calls.map(([f]) => [
+      f.from.toISOString(),
+      f.to.toISOString(),
+    ]);
+    expect(windows).toEqual([
+      ['2026-08-31T22:00:00.000Z', '2026-09-16T22:00:00.000Z'],
+      ['2025-08-31T22:00:00.000Z', '2025-09-16T22:00:00.000Z'],
+    ]);
   });
 });
 
@@ -265,4 +275,76 @@ describe('getTerritoryRanking', () => {
     expect(description).toMatch(/No targets or attainment/);
     expect(description).toMatch(/Use getRateOfSale instead/);
   });
+});
+
+describe('like-for-like comparison windows (#365)', () => {
+  const windowOf = (mock: jest.Mock, call: number) => {
+    const { from, to } = mock.mock.calls[call][0] as { from: Date; to: Date };
+    return [from.toISOString(), to.toISOString()];
+  };
+
+  it('measures BOTH sides of a compared month to date over complete days', async () => {
+    // The reported case: on 17 Sep, 1–17 Sep (today still at zero) was set
+    // against 15–31 Aug (month-end spike). The current run must be trimmed to
+    // the same days as its comparison, not resolved separately.
+    pillars.getSalesPerformance
+      .mockResolvedValueOnce(sellIn(475))
+      .mockResolvedValueOnce(sellIn(481));
+    const { result } = await runWithFigures('getRateOfSale', {
+      period: { kind: 'mtd' },
+      compareTo: { kind: 'previous_period' },
+    });
+
+    expect(windowOf(pillars.getSalesPerformance, 0)).toEqual([
+      '2026-08-31T22:00:00.000Z',
+      '2026-09-16T22:00:00.000Z',
+    ]);
+    expect(windowOf(pillars.getSalesPerformance, 1)).toEqual([
+      '2026-07-31T22:00:00.000Z',
+      '2026-08-16T22:00:00.000Z',
+    ]);
+    expect(result).toMatchObject({ comparison: { label: 'the same days last month' } });
+    expect((result as { comparison: object }).comparison).not.toHaveProperty('note');
+  });
+
+  it('leaves an uncompared month to date including today', async () => {
+    pillars.getSalesPerformance.mockResolvedValueOnce(sellIn(481));
+    await runWithFigures('getRateOfSale', { period: { kind: 'mtd' } });
+    expect(windowOf(pillars.getSalesPerformance, 0)).toEqual([
+      '2026-08-31T22:00:00.000Z',
+      '2026-09-17T22:00:00.000Z',
+    ]);
+  });
+
+  it('ranks territories over the trimmed windows, and explains the 1st of the month', async () => {
+    pillars.getTerritorySellInChange.mockResolvedValue(change());
+    const midMonth = await runWithFigures('getTerritoryRanking', { period: { kind: 'mtd' } });
+    const { current, comparison } = pillars.getTerritorySellInChange.mock.calls[0][0];
+    expect([current.from, current.to, comparison.from, comparison.to].map((d) => d.toISOString())).toEqual([
+      '2026-08-31T22:00:00.000Z',
+      '2026-09-16T22:00:00.000Z',
+      '2026-07-31T22:00:00.000Z',
+      '2026-08-16T22:00:00.000Z',
+    ]);
+    expect(midMonth.result).toMatchObject({ comparisonLabel: 'the same days last month' });
+    expect(midMonth.result).not.toHaveProperty('windowNote');
+
+    const firstOfMonth = buildTools({ user: USER, now: new Date('2026-09-01T07:00:00.000Z') }).find(
+      (t) => t.name === 'getTerritoryRanking',
+    )!;
+    const result = await firstOfMonth.run(firstOfMonth.args.parse({ period: { kind: 'mtd' } }));
+    const call = pillars.getTerritorySellInChange.mock.calls[1][0];
+    expect([call.current.from.toISOString(), call.comparison.from.toISOString()]).toEqual([
+      '2026-07-31T22:00:00.000Z',
+      '2026-06-30T22:00:00.000Z',
+    ]);
+    expect(result).toMatchObject({
+      comparisonLabel: 'the month before',
+      windowNote: expect.stringMatching(/all of August 2026, compared with all of July 2026/),
+    });
+  });
+
+  function change() {
+    return { totalSellInUnits: 10, comparisonTotalSellInUnits: 12, territories: [], excludedNoComparison: [] };
+  }
 });
