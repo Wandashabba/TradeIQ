@@ -117,24 +117,34 @@ class TorchSheet extends StatelessWidget {
         const SizedBox(height: TiqSpace.s4),
     ];
 
-    Widget body = Column(
+    final inner = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[...header, child],
     );
 
-    if (scrollable) {
-      body = SingleChildScrollView(
-        padding: EdgeInsets.only(bottom: spec.bottomPadding),
-        child: body,
-      );
-      body = Flexible(child: body);
-    } else {
-      body = Padding(
-        padding: EdgeInsets.only(bottom: spec.bottomPadding),
-        child: body,
-      );
-    }
+    // THE HORIZONTAL PADDING IS INSIDE THE SCROLL, and the `Flexible` is a
+    // direct child of the one Column. Both matter: a `Flexible` nested inside
+    // a second min-size Column takes the full remaining height and then the
+    // grabber above it pushes the pair past the ceiling, which is an overflow
+    // that only appears at 2.0× on a 320dp phone — the one place nobody
+    // screenshots. Flat, once, measured by the test that found it.
+    final padded = Padding(
+      padding: EdgeInsets.symmetric(horizontal: spec.horizontalPadding),
+      child: inner,
+    );
+
+    final body = scrollable
+        ? Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(bottom: spec.bottomPadding),
+              child: padded,
+            ),
+          )
+        : Padding(
+            padding: EdgeInsets.only(bottom: spec.bottomPadding),
+            child: padded,
+          );
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,17 +158,8 @@ class TorchSheet extends StatelessWidget {
           )
         else
           _Grabber(spec: spec),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: spec.horizontalPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              SizedBox(height: veld ? TiqSpace.s5 : spec.belowGrabber),
-              if (scrollable) Flexible(child: body) else body,
-            ],
-          ),
-        ),
+        SizedBox(height: veld ? TiqSpace.s5 : spec.belowGrabber),
+        body,
       ],
     );
 
