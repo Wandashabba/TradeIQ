@@ -78,11 +78,7 @@ class TiqNumberSymbols {
 /// localised. This class does not own language.
 @immutable
 class TiqUnit {
-  const TiqUnit._({
-    this.prefix = '',
-    this.suffix = '',
-    this.isCurrency = false,
-  });
+  const TiqUnit._({this.suffix = '', this.isCurrency = false});
 
   /// A bare number.
   static const TiqUnit none = TiqUnit._();
@@ -99,10 +95,12 @@ class TiqUnit {
   factory TiqUnit.worded(String word, {bool tight = false}) =>
       TiqUnit._(suffix: tight ? word : ' $word');
 
-  final String prefix;
+  /// What hangs off the end of the digits: `%`, ` pts`, or nothing.
   final String suffix;
 
-  /// Whether the prefix comes from the locale rather than from this object.
+  /// Whether this unit carries a leading affix, and takes it from the locale
+  /// rather than from a literal here. Rand is `R ` in English and `R\u00A0`
+  /// in Afrikaans, and the difference is the locale's business.
   final bool isCurrency;
 }
 
@@ -261,7 +259,7 @@ class TiqNumber {
         : (signed && v > 0 && !roundsToZero ? '+' : '');
 
     return FormattedFigure(
-      prefix: unit.isCurrency ? symbols.currencyPrefix : unit.prefix,
+      prefix: unit.isCurrency ? symbols.currencyPrefix : '',
       run: '$sign$body',
       suffix: unit.suffix,
       state: resolved,
