@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/rating_band.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
@@ -170,7 +171,8 @@ class _Scored extends StatelessWidget {
     if (colors.glass) return _GlassScored(outcome: outcome);
     final l10n = context.l10n;
     final score = outcome.score!;
-    final band = _band(l10n, colors, score.ratingBand);
+    final band = RatingBand.ofWire(score.ratingBand);
+    final ink = band.inkOn(colors);
     final delta = outcome.delta;
 
     return ListView(
@@ -223,24 +225,17 @@ class _Scored extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // The dot is a graphical mark, so it keeps the raw status
-                    // token; the word beside it carries the AA-safe tint.
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: band.dot,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 7),
+                    // A mark and the word, never a coloured dot: '✓ / ! / ✕'
+                    // says which band this is without colour, so Watch and Gap
+                    // — which share a hue, because severity never borrows the
+                    // brand's amber — are still told apart in greyscale. The
+                    // label carries the AA-safe tint.
                     Text(
-                      // The band is spelled out, never left to the dot's colour.
-                      band.word,
+                      band.markedWord(l10n),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: band.text,
+                        color: ink,
                       ),
                     ),
                   ],
@@ -285,21 +280,6 @@ class _Scored extends StatelessWidget {
     );
   }
 
-  /// Band → (dot mark colour, AA-safe word colour, spelled word). The dot keeps
-  /// the raw status token; the word takes the text-grade tint — red as `crit`
-  /// text fails 4.5:1 on the hero wash, so the word uses `critText`.
-  static ({Color dot, Color text, String word}) _band(
-    AppLocalizations l10n,
-    TiqColors colors,
-    String band,
-  ) {
-    final word = l10n.outcomeRatingBand(band);
-    return switch (band) {
-      'green' => (dot: colors.good, text: colors.good, word: word),
-      'amber' => (dot: colors.warn, text: colors.warn, word: word),
-      _ => (dot: colors.crit, text: colors.critText, word: word),
-    };
-  }
 }
 
 /// Up or down since this agent's last visit to this store — the only comparison
@@ -542,12 +522,8 @@ class _GlassScored extends StatelessWidget {
     final l10n = context.l10n;
     final score = outcome.score!;
     final delta = outcome.delta;
-    final word = l10n.outcomeRatingBand(score.ratingBand);
-    final ink = switch (score.ratingBand) {
-      'green' => LumenGlass.onDarkGood,
-      'amber' => LumenGlass.onDarkWarn,
-      _ => LumenGlass.onDarkCrit,
-    };
+    final band = RatingBand.ofWire(score.ratingBand);
+    final ink = band.glassInk();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
@@ -615,18 +591,11 @@ class _GlassScored extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: ink,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              // The band is spelled out, never left to colour.
+                              // The mark carries the band without colour, and
+                              // the word spells it out; Watch and Gap share
+                              // this ink on purpose.
                               Text(
-                                word,
+                                band.markedWord(l10n),
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,

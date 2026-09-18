@@ -42,7 +42,9 @@ class ServerScorecard {
   final String visitId;
   final double weightedTotal;
 
-  /// 'green' | 'amber' | 'red'
+  /// The wire value: 'green' | 'amber' | 'red'. Kept exactly as the server
+  /// sends it — it is never shown. `core/rating_band.dart` turns it into the
+  /// display name (Healthy / Watch / Gap) at the render site.
   final String ratingBand;
 
   /// A dimension the server could not measure is ABSENT here, not zero — and it

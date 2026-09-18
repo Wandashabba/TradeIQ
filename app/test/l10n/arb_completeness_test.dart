@@ -30,7 +30,8 @@ void main() {
   test('the English template declares a type for every placeholder', () {
     for (final key in _messageKeys(en)) {
       // A placeholder is `{name}` or `{name, plural|select, …}`. A select or
-      // plural branch body such as `green{Green}` is copy, not a placeholder —
+      // plural branch body such as `green{Healthy}` is copy, not a
+      // placeholder —
       // hence the lookbehind excluding a selector just before the brace.
       final used = RegExp(r'(?<![\w=])\{(\w+)(?:\}|,\s*(?:plural|select))')
           .allMatches(en[key] as String)

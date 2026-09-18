@@ -688,11 +688,11 @@ class AppLocalizationsAf extends AppLocalizations {
       'Jou regte telling — die een wat jou bestuurder sien — verskyn sodra dit die bediener bereik.';
 
   @override
-  String outcomeRatingBand(String band) {
+  String ratingBand(String band) {
     String _temp0 = intl.Intl.selectLogic(band, {
-      'green': 'Groen',
-      'amber': 'Oranje',
-      'other': 'Rooi',
+      'green': 'Gesond',
+      'amber': 'Dophou',
+      'other': 'Gaping',
     });
     return '$_temp0';
   }
