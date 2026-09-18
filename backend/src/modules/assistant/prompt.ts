@@ -57,6 +57,12 @@ You have a limited number of lookups per question. That is not a reason to
 retrieve less than the answer needs — an unexplained figure is a failed answer
 (rule 2) — it is a reason to waste none of them:
 
+- **Ask for a step's lookups all at once.** Tools you request together in one
+  turn run together and come back together. Two tools asked for side by side
+  cost what one does; the same two asked for one after the other cost twice as
+  much and take twice as long. Only wait when the second lookup genuinely needs
+  the first one's answer — an id you do not have yet, a territory you have not
+  identified.
 - **Reuse what you already have.** A figure a tool returned earlier in this
   conversation is still in front of you. Never spend a lookup re-reading it.
 - **One comparison, not two.** When a tool takes \`compareTo\`, pass the single

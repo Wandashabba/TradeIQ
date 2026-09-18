@@ -23,7 +23,18 @@
  * JSON, and anything shrunk says so inside it.
  */
 
-export const MAX_TOOL_RESULT_CHARS = 24_000;
+/**
+ * The ceiling on one result, in characters.
+ *
+ * Was 24,000, which is a context-window number rather than a cost one. A turn
+ * re-sends every result it has collected on every subsequent round, so a single
+ * 24k result that arrives in round two is paid for again in rounds three, four
+ * and five — roughly 25k tokens for one lookup. Measured, real results land
+ * between 1k and 3k characters, so 8,000 is still several times the largest
+ * thing any tool actually returns and the ladder below stays dormant in the
+ * ordinary case. It bites only on the runaway, which is what a ceiling is for.
+ */
+export const MAX_TOOL_RESULT_CHARS = Number(process.env.ASSISTANT_MAX_TOOL_RESULT_CHARS ?? 8_000);
 
 /** Tried in order; the first that fits wins. */
 const LIST_LIMITS = [50, 25, 10, 5, 3, 1, 0];
