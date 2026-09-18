@@ -65,11 +65,7 @@ class ChoiceRow<T> extends StatelessWidget {
     this.notAnsweredLine = 'Not answered yet',
     this.error,
     this.clear,
-  }) : assert(
-         options.length >= 2 && options.length <= 4,
-         'A choice group holds two to four options. One option is a '
-         'statement, and five is a list — use a sheet.',
-       );
+  });
 
   /// Names the question, and is what a screen reader reads before the options.
   final String label;
@@ -140,6 +136,13 @@ class ChoiceRow<T> extends StatelessWidget {
     final p = skin.palette;
     final bad = error != null;
     final nothingSelected = value == null;
+    // In `build` because `List.length` is not a constant expression in Dart,
+    // and a const-constructed group is the common case.
+    assert(
+      options.length >= 2 && options.length <= 4,
+      'A choice group holds two to four options. One option is a statement, '
+      'and five is a list — use a sheet.',
+    );
 
     return Semantics(
       container: true,

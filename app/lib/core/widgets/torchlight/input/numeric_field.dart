@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart'
-    show InputDecoration, TextField, TextSelectionThemeData, Theme;
+    show
+        InputDecoration,
+        Material,
+        MaterialType,
+        TextField,
+        TextSelectionThemeData,
+        Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -238,10 +244,7 @@ class _TorchNumericFieldState extends State<TorchNumericField> {
     final suffix = widget.unit.suffix;
     final affix = suffix.isEmpty
         ? null
-        : Text(
-            suffix,
-            style: spec.affixStyle.style(color: spec.affixInk),
-          );
+        : Text(suffix, style: spec.affixStyle.style(color: spec.affixInk));
 
     final displayed = raw.isEmpty ? emDash : raw;
 
@@ -314,8 +317,9 @@ class _TorchNumericFieldState extends State<TorchNumericField> {
                           decimalSeparator: numbers.symbols.decimal,
                           hintInk: spec.hintInk,
                           selectionFill: skin.palette.lifted,
-                          onChanged: (text) =>
-                              widget.onChanged?.call(_parse(text, numbers.symbols)),
+                          onChanged: (text) => widget.onChanged?.call(
+                            _parse(text, numbers.symbols),
+                          ),
                         ),
                       ),
                       if (affix != null) ...<Widget>[
@@ -371,36 +375,41 @@ class _Editable extends StatelessWidget {
   final ValueChanged<String> onChanged;
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: Theme.of(context).copyWith(
-      textSelectionTheme: TextSelectionThemeData(
-        cursorColor: style.color,
-        selectionColor: selectionFill,
-        selectionHandleColor: style.color,
+  // `Material` at `transparency` paints nothing; `TextField` simply refuses to
+  // build without a Material ancestor. See the note in `text_field.dart`.
+  Widget build(BuildContext context) => Material(
+    type: MaterialType.transparency,
+    child: Theme(
+      data: Theme.of(context).copyWith(
+        textSelectionTheme: TextSelectionThemeData(
+          cursorColor: style.color,
+          selectionColor: selectionFill,
+          selectionHandleColor: style.color,
+        ),
       ),
-    ),
-    child: TextField(
-      controller: controller,
-      focusNode: focus,
-      enabled: enabled,
-      readOnly: readOnly,
-      style: style,
-      textAlign: align,
-      cursorColor: style.color,
-      maxLines: 1,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: <TextInputFormatter>[
-        // Digits, a true minus, and BOTH separators — the locale decides how a
-        // value is written back, never what a thumb is allowed to type.
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,\- ]')),
-      ],
-      onChanged: onChanged,
-      decoration: InputDecoration.collapsed(
-        // An EMPTY numeric trough shows an em dash, not a zero and not a
-        // ghosted example: not counted and counted-as-none are different facts
-        // and this is where they diverge.
-        hintText: emDash,
-        hintStyle: style.copyWith(color: hintInk),
+      child: TextField(
+        controller: controller,
+        focusNode: focus,
+        enabled: enabled,
+        readOnly: readOnly,
+        style: style,
+        textAlign: align,
+        cursorColor: style.color,
+        maxLines: 1,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: <TextInputFormatter>[
+          // Digits, a true minus, and BOTH separators — the locale decides how a
+          // value is written back, never what a thumb is allowed to type.
+          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,\- ]')),
+        ],
+        onChanged: onChanged,
+        decoration: InputDecoration.collapsed(
+          // An EMPTY numeric trough shows an em dash, not a zero and not a
+          // ghosted example: not counted and counted-as-none are different facts
+          // and this is where they diverge.
+          hintText: emDash,
+          hintStyle: style.copyWith(color: hintInk),
+        ),
       ),
     ),
   );

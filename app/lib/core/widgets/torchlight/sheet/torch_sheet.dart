@@ -496,9 +496,16 @@ class TorchSheetSwap extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final still = MotionBudget.of(context).still;
-    final duration = still
-        ? Duration.zero
-        : skin.motion.resolve(TiqMotion.reveal);
+    final duration = skin.motion.resolve(TiqMotion.reveal);
+    // UNDER REDUCE-MOTION THE SWAP IS THE PANE CHANGING, and nothing else —
+    // not a zero-duration animation, which is a different thing wearing the
+    // same clothes. `AnimatedSize` at zero duration still re-dirties itself
+    // inside its own `performLayout` when a pane arrives at a new height,
+    // which is an assertion in debug and a dropped frame in release. The
+    // reader who asked for no motion gets no animator at all.
+    if (still || duration == Duration.zero) {
+      return KeyedSubtree(key: ValueKey<String>(paneKey), child: child);
+    }
     return AnimatedSize(
       duration: duration,
       curve: TiqMotion.stateCurve,

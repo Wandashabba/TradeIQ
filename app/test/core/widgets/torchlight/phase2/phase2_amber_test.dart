@@ -54,6 +54,15 @@ void main() {
       testWidgets(skin.mode.name, (tester) async {
         for (final entry in phase2Cases()) {
           await pumpPhase2(tester, skin: skin, child: entry.value);
+          // A component that failed to build renders an ErrorWidget, which is
+          // crimson — hue 0, outside the flame box — so the census would pass
+          // it happily. Check first, or this becomes a test that proves a red
+          // screen contains no amber.
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '${entry.key} [${skin.mode.name}] failed to build.',
+          );
           final census = await amberCensus(tester);
           expect(
             census.objectCount,

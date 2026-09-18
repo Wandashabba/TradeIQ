@@ -169,7 +169,6 @@ class _DecisionSheetState extends State<DecisionSheet> {
           claimId: 'check-in-again',
           busy: busy,
           onPressed: busy ? null : () => _pop(DecisionOutcome.checkInAgain),
-          blockedReason: busy ? widget.countingNote : null,
         ),
         const SizedBox(height: TiqSpace.s3),
         TorchSecondaryButton(
@@ -182,11 +181,15 @@ class _DecisionSheetState extends State<DecisionSheet> {
           claimId: 'carry-on',
           busy: busy,
           onPressed: busy ? null : () => _pop(DecisionOutcome.carryOn),
-          blockedReason: busy ? widget.countingNote : null,
         ),
       const SizedBox(height: TiqSpace.s3),
       TorchDestructiveButton(
         label: widget.startOverLabel,
+        // The note sits between the two actions while the cost is being
+        // counted, because it is about BOTH of them: neither choice may be
+        // made until the cost is known. The safe action shows its busy dots;
+        // this one shows the sentence.
+        blockedReason: busy ? widget.countingNote : null,
         onPressed: busy ? null : () => setState(() => _confirming = true),
       ),
       if (widget.startOverCost != null) ...<Widget>[
@@ -265,11 +268,7 @@ class ConfirmSheet extends StatelessWidget {
     this.cancelLabel = 'Cancel',
     this.busy = false,
     this.failure,
-  }) : assert(
-         consequences.length <= 3,
-         'Three consequences is the most a person reads before a destructive '
-         'press. A fourth belongs in the screen this sheet was opened from.',
-       );
+  });
 
   /// The action as a sentence, at `title.l`, max two lines.
   final String action;
@@ -295,6 +294,13 @@ class ConfirmSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final p = skin.palette;
+    // In `build` because `List.length` is not a constant expression in Dart,
+    // and a const-constructed sheet is the common case.
+    assert(
+      consequences.length <= 3,
+      'Three consequences is the most a person reads before a destructive '
+      'press. A fourth belongs in the screen this sheet was opened from.',
+    );
     return TorchSheet(
       title: action,
       // A destructive confirm is severity, and severity never touches amber.

@@ -144,11 +144,7 @@ class SkipReasonPicker extends StatefulWidget {
     this.reasonsWereConfigured = true,
     this.busy = false,
     this.failure,
-  }) : assert(
-         reasons.length >= 2 && reasons.length <= 4,
-         'Two to four reasons. A single reason is not a question, and a fifth '
-         'belongs behind "Something else".',
-       );
+  });
 
   final String title;
   final String? subtitle;
@@ -237,6 +233,15 @@ class _SkipReasonPickerState extends State<SkipReasonPicker> {
     final skin = context.skin;
     final p = skin.palette;
     final blocked = _blockedReason;
+    // In `build` and not in the constructor because `List.length` is not a
+    // constant expression in Dart, and `SkipReason.standard` is a const list —
+    // a constructor assert on it would make the default configuration
+    // uncompilable.
+    assert(
+      widget.reasons.length >= 2 && widget.reasons.length <= 4,
+      'Two to four reasons. A single reason is not a question, and a fifth '
+      'belongs behind "Something else".',
+    );
 
     return TorchSheet(
       title: widget.title,

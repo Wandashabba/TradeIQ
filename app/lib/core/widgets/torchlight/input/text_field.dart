@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart'
-    show InputDecoration, TextField, TextSelectionThemeData, Theme;
+    show
+        InputDecoration,
+        Material,
+        MaterialType,
+        TextField,
+        TextSelectionThemeData,
+        Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -153,49 +159,57 @@ class _TorchTextFieldState extends State<TorchTextField> {
     // selection handles, the caret, the IME and the toolbar are a year of work
     // nobody should rewrite — and every pixel of the decoration is this
     // system's. That is exactly what "replaces TextField *decoration*" means.
-    final field = Theme(
-      data: Theme.of(context).copyWith(
-        textSelectionTheme: TextSelectionThemeData(
-          cursorColor: spec.ink,
-          selectionColor: skin.palette.lifted,
-          selectionHandleColor: spec.ink,
+    // `Material` at `transparency`, which paints **nothing**: no ink, no
+    // elevation, no colour, no shape. `TextField` asks for a Material ancestor
+    // for its splash machinery and refuses to build without one; this is the
+    // form of that ancestor which cannot contribute a pixel, so the trough
+    // stays the only thing drawing the field.
+    final field = Material(
+      type: MaterialType.transparency,
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          textSelectionTheme: TextSelectionThemeData(
+            cursorColor: spec.ink,
+            selectionColor: skin.palette.lifted,
+            selectionHandleColor: spec.ink,
+          ),
         ),
-      ),
-      child: TextField(
-        controller: _controller,
-        focusNode: _focus,
-        enabled: widget.enabled,
-        readOnly: widget.readOnly,
-        style: role.style(color: spec.ink),
-        cursorColor: spec.ink,
-        cursorWidth: 2,
-        minLines: widget.minLines,
-        maxLines: widget.maximumLines,
-        keyboardType:
-            widget.keyboardType ??
-            (widget.maximumLines > 1
-                ? TextInputType.multiline
-                : TextInputType.text),
-        textCapitalization: widget.identifier
-            ? TextCapitalization.characters
-            : widget.textCapitalization,
-        // An outlet code is not a sentence and must never be autocorrected
-        // into one; a GTIN "0736" becoming "736" is a record nobody can find
-        // again.
-        autocorrect: widget.identifier ? false : widget.autocorrect,
-        enableSuggestions: !widget.identifier,
-        textInputAction: widget.textInputAction,
-        onChanged: widget.onChanged,
-        onSubmitted: widget.onSubmitted,
-        inputFormatters: cap == null
-            ? null
-            : <TextInputFormatter>[LengthLimitingTextInputFormatter(cap)],
-        // A trough scrolls the focused field into view above the keyboard with
-        // a gutter of margin — the sheet itself never resizes under a thumb.
-        scrollPadding: EdgeInsets.all(skin.space.gutter),
-        decoration: InputDecoration.collapsed(
-          hintText: widget.hint,
-          hintStyle: role.style(color: spec.hintInk),
+        child: TextField(
+          controller: _controller,
+          focusNode: _focus,
+          enabled: widget.enabled,
+          readOnly: widget.readOnly,
+          style: role.style(color: spec.ink),
+          cursorColor: spec.ink,
+          cursorWidth: 2,
+          minLines: widget.minLines,
+          maxLines: widget.maximumLines,
+          keyboardType:
+              widget.keyboardType ??
+              (widget.maximumLines > 1
+                  ? TextInputType.multiline
+                  : TextInputType.text),
+          textCapitalization: widget.identifier
+              ? TextCapitalization.characters
+              : widget.textCapitalization,
+          // An outlet code is not a sentence and must never be autocorrected
+          // into one; a GTIN "0736" becoming "736" is a record nobody can find
+          // again.
+          autocorrect: widget.identifier ? false : widget.autocorrect,
+          enableSuggestions: !widget.identifier,
+          textInputAction: widget.textInputAction,
+          onChanged: widget.onChanged,
+          onSubmitted: widget.onSubmitted,
+          inputFormatters: cap == null
+              ? null
+              : <TextInputFormatter>[LengthLimitingTextInputFormatter(cap)],
+          // A trough scrolls the focused field into view above the keyboard with
+          // a gutter of margin — the sheet itself never resizes under a thumb.
+          scrollPadding: EdgeInsets.all(skin.space.gutter),
+          decoration: InputDecoration.collapsed(
+            hintText: widget.hint,
+            hintStyle: role.style(color: spec.hintInk),
+          ),
         ),
       ),
     );

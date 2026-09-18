@@ -85,10 +85,11 @@ class Skeleton extends StatefulWidget {
 }
 
 class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: Skeleton.travel,
-  );
+  // Constructed in `initState`, not lazily in `build`. A ticker created after
+  // `didChangeDependencies` makes the vsync mixin resolve `TickerMode` on its
+  // way out instead, which is an ancestor lookup on a deactivated element —
+  // an assertion at teardown that names neither this widget nor the reason.
+  late final AnimationController _controller;
   Timer? _appear;
   Timer? _slow;
   bool _visible = false;
@@ -97,6 +98,7 @@ class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    _controller = AnimationController(vsync: this, duration: Skeleton.travel);
     _appear = Timer(Skeleton.appearsAfter, () {
       if (!mounted) return;
       setState(() => _visible = true);

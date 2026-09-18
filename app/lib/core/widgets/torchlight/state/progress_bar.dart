@@ -130,10 +130,14 @@ class TorchProgressBar extends StatefulWidget {
 
 class _TorchProgressBarState extends State<TorchProgressBar>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _travel = AnimationController(
-    vsync: this,
-    duration: TiqMotion.skeleton,
-  );
+  // In `initState`, not lazily in `build` — see the note in `skeleton.dart`.
+  late final AnimationController _travel;
+
+  @override
+  void initState() {
+    super.initState();
+    _travel = AnimationController(vsync: this, duration: TiqMotion.skeleton);
+  }
 
   @override
   void dispose() {
