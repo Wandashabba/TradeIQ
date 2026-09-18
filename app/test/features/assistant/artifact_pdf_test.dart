@@ -60,12 +60,19 @@ ArtifactDetail _trendArtifact() => const ArtifactDetail(
 );
 
 Future<ArtifactPdfFonts> _fonts() async {
+  // Onest, not Inter, and the PDF-only STATIC instances rather than the
+  // variable file the app renders with: package:pdf reads `glyf` outlines and
+  // ignores a variable font's `gvar` deltas, so Onest-Variable.ttf would come
+  // out at weight 400 for all three. Loaded here by literal path, as the
+  // shipping code does — `the exporter finds the font files it names` below
+  // asserts the two lists agree.
   Future<Uint8List> load(String name) async =>
       (await rootBundle.load('assets/fonts/$name')).buffer.asUint8List();
   return ArtifactPdfFonts(
-    regular: await load('Inter-Regular.ttf'),
-    medium: await load('Inter-Medium.ttf'),
-    bold: await load('Inter-Bold.ttf'),
+    regular: await load('Onest-Pdf-400.ttf'),
+    medium: await load('Onest-Pdf-500.ttf'),
+    bold: await load('Onest-Pdf-700.ttf'),
+    fallback: await load('JetBrainsMono-Regular.ttf'),
   );
 }
 
@@ -148,6 +155,32 @@ void main() {
     expect(bytes, equals(golden.readAsBytesSync()));
   });
 
+  test('the delta arrows survive the Onest swap', () async {
+    // Onest has no U+25B2/25BC. package:pdf does not render tofu for a missing
+    // glyph — it drops the character and logs to stderr, which no CI reads. So
+    // without the JetBrains Mono fallback the sign of every delta in an
+    // exported report would vanish and every other assertion here would still
+    // pass. Asserting the glyph is embedded is the only thing that notices.
+    final fonts = await ArtifactExporter.loadFonts();
+    expect(
+      fonts.fallback.lengthInBytes,
+      greaterThan(1000),
+      reason: 'The fallback face is missing, so ▲ and ▼ would be dropped.',
+    );
+
+    final bytes = await buildArtifactPdf(_request(await _fonts()));
+    final text = String.fromCharCodes(bytes);
+    // The fallback font has to be embedded, which only happens when a glyph
+    // was actually taken from it.
+    expect(
+      text,
+      contains('JetBrainsMono'),
+      reason:
+          'No JetBrains Mono subset is embedded, so nothing pulled ▲ or ▼ '
+          'from it — the delta markers have gone silent.',
+    );
+  });
+
   test('the exporter finds the font files it names', () async {
     // The three weights are addressed by literal path, so renaming or moving
     // one breaks every export at runtime and nothing else would notice:
@@ -159,6 +192,7 @@ void main() {
     expect(fonts.regular.lengthInBytes, greaterThan(1000));
     expect(fonts.medium.lengthInBytes, greaterThan(1000));
     expect(fonts.bold.lengthInBytes, greaterThan(1000));
+    expect(fonts.fallback.lengthInBytes, greaterThan(1000));
   });
 
   test('the compressed document — what actually ships — is a valid PDF', () async {

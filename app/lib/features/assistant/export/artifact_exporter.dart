@@ -93,11 +93,15 @@ class ArtifactExporter {
     await Printing.sharePdf(bytes: bytes, filename: filename);
   }
 
-  /// The bundled Inter weights, as bytes an isolate can carry.
+  /// The bundled Onest weights, as bytes an isolate can carry.
   ///
   /// Bundled rather than fetched, for the same reason the theme bundles them:
   /// the report has to look like the product on a phone with no signal, and a
   /// runtime font download would leave it rendering in something else.
+  ///
+  /// These are the PDF-only static instances, not `Onest-Variable.ttf`:
+  /// `package:pdf` reads `glyf` outlines and ignores a variable font's `gvar`
+  /// deltas, so the variable file would render medium and bold at regular.
   static Future<ArtifactPdfFonts> loadFonts() async {
     Future<Uint8List> load(String name) async =>
         (await rootBundle.load('assets/fonts/$name')).buffer.asUint8List();
@@ -105,9 +109,11 @@ class ArtifactExporter {
     // Sequential: three small reads off the same bundle, and a report is not
     // where concurrency earns anything.
     return ArtifactPdfFonts(
-      regular: await load('Inter-Regular.ttf'),
-      medium: await load('Inter-Medium.ttf'),
-      bold: await load('Inter-Bold.ttf'),
+      regular: await load('Onest-Pdf-400.ttf'),
+      medium: await load('Onest-Pdf-500.ttf'),
+      bold: await load('Onest-Pdf-700.ttf'),
+      // Onest has no U+25B2/25BC; without this the delta arrows disappear.
+      fallback: await load('JetBrainsMono-Regular.ttf'),
     );
   }
 

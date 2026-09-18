@@ -1,6 +1,21 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    # Torchlight Aisle deprecated `context.colors`, `context.lumen`,
+    # `LumenGlass`, `AppColors` and `statusPill*` in favour of one `TiqSkin`
+    # (see docs/design/torchlight-aisle.md). Those five are referenced in 105
+    # files in lib/ and 65 in test/, and every one of them is a deliberate,
+    # still-correct call until its screen is migrated — so leaving the
+    # diagnostic on would put ~400 infos in front of `flutter analyze` and turn
+    # the one signal CI has into noise that nobody reads.
+    #
+    # The annotation still does its job: it strikes the member through in the
+    # editor and carries the "use this instead" message. What ENFORCES the
+    # migration is test/core/theme/torchlight/torchlight_lint_test.dart, which
+    # fails on a file that gains a hardcoded colour or text style. Turn this
+    # back on when the last shim call site is gone, and delete the shims.
+    deprecated_member_use_from_same_package: ignore
   exclude:
     # Generated build output, not our source. Xcode drops third-party Swift
     # package checkouts in here when it resolves dependencies — notably
