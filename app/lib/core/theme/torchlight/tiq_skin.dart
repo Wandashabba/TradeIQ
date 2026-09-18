@@ -50,6 +50,8 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     required this.depth,
     required this.motion,
     required this.amberIsInk,
+    this.textFloor = 0,
+    this.borderFloor = 0,
   });
 
   /// Which of the three skins this is. Never [SkinMode.auto] — auto is a
@@ -79,6 +81,29 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
   /// Everything else that used to be amber (torch-on, "you are here", the
   /// ranked-bar focus channel, the live pulse) is something else there.
   final bool amberIsInk;
+
+  /// THIS SKIN's own contrast floor for anything carrying a word, over and
+  /// above whatever WCAG asks of the role.
+  ///
+  /// Zero on Night and Day: there the role's own floor (4.5 for body, 3.0 for
+  /// large text) is the whole requirement. Nine on Veld, because an entry LCD
+  /// at 40% backlight in highveld sun loses the bottom two stops and outdoors
+  /// there is no such thing as a decoration — not even a disabled control.
+  ///
+  /// It is a token and not an `if (mode == veld)` in the contrast generator
+  /// for the reason the system doc gives: a skin is a value set, not a code
+  /// path, and a branch on the mode is a token that does not exist yet.
+  final double textFloor;
+
+  /// The same, for a border or a meaningful graphic. Fifteen on Veld.
+  final double borderFloor;
+
+  /// The floor a pairing actually has to clear on this skin: the stricter of
+  /// the role's requirement and the skin's own.
+  double floorFor(double roleFloor, {required bool isText}) {
+    final skinFloor = isText ? textFloor : borderFloor;
+    return roleFloor > skinFloor ? roleFloor : skinFloor;
+  }
 
   TiqDensity get density => space.density;
 
@@ -131,6 +156,8 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     depth: TiqDepth.veld,
     motion: TiqMotion.off,
     amberIsInk: true,
+    textFloor: 9,
+    borderFloor: 15,
   );
 
   /// Build the skin a [SkinMode] asks for. [platformBrightness] only matters
@@ -175,6 +202,8 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     TiqDepth? depth,
     TiqMotion? motion,
     bool? amberIsInk,
+    double? textFloor,
+    double? borderFloor,
   }) => TiqSkin(
     mode: mode ?? this.mode,
     brightness: brightness ?? this.brightness,
@@ -185,6 +214,8 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
     depth: depth ?? this.depth,
     motion: motion ?? this.motion,
     amberIsInk: amberIsInk ?? this.amberIsInk,
+    textFloor: textFloor ?? this.textFloor,
+    borderFloor: borderFloor ?? this.borderFloor,
   );
 
   /// Colours and radii interpolate; a type scale, a density and a depth budget
@@ -204,6 +235,10 @@ class TiqSkin extends ThemeExtension<TiqSkin> {
       depth: past ? depth : other.depth,
       motion: past ? motion : other.motion,
       amberIsInk: past ? amberIsInk : other.amberIsInk,
+      // A contrast floor does not interpolate: half of Veld's 9:1 is a floor
+      // nobody declared and nothing was designed against.
+      textFloor: past ? textFloor : other.textFloor,
+      borderFloor: past ? borderFloor : other.borderFloor,
     );
   }
 }
