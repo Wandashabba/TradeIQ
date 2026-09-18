@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
 import { NotFoundError } from '../../middleware/errorHandler';
-import { facingsTotal, mean, round2 } from '../../lib/kpiMath';
+import { facingsTotal, mean, onShelfAvailabilityPct, round2 } from '../../lib/kpiMath';
 import { personLabel } from '../../lib/personName';
 import { recordPointsBestEffort, recordScorecard } from '../gamification/pointsLedger';
 
@@ -41,10 +41,117 @@ function asNumberRecord(value: unknown): Record<string, number> {
   return out;
 }
 
+/**
+ * The score the DEVICE showed the agent, as the client sends it (#390, #399).
+ *
+ * The app scores a visit locally from the outbox so the agent sees a number
+ * before leaving the store (ADR 0005), using a deliberately simpler formula:
+ * `pricing` is a proxy, `competitive` may be unmeasurable, and the weights are a
+ * hardcoded mirror of the seed rather than the client's own. The server then
+ * recomputes from what actually persisted, and the two legitimately disagree.
+ *
+ * Until now the device's number was thrown away on sync, so an agent who
+ * watched 84 on the walk out and later opened 71 had no way to learn that both
+ * were honest — it simply looked as though the app had lied to them.
+ */
+export interface ProvisionalScoreInput {
+  /** What the device showed, 0-100. */
+  weightedTotal: number;
+  ratingBand: 'green' | 'amber' | 'red';
+  /** The DEVICE clock when it showed that score. Absent → we do not know when. */
+  computedAt?: string;
+}
+
 export interface GenerateScorecardInput {
   visitId: string;
   clientId: string;
   agentId: string;
+  /**
+   * Optional, and absent from every older app build — which must keep working
+   * unchanged, so its absence can never mean anything but "this client did not
+   * tell us". Notably it does NOT mean "clear what we were told before": see
+   * the upsert in generateScorecard.
+   */
+  provisional?: ProvisionalScoreInput;
+}
+
+/**
+ * One scorecard on the wire.
+ *
+ * Every field the endpoint has always returned is still here, unchanged in name
+ * and type. `scoredAt` and `provisional` are added (#390).
+ */
+export interface ScorecardResponse {
+  id: string;
+  visitId: string;
+  dimensionScores: Prisma.JsonValue;
+  weightedTotal: number;
+  ratingBand: string;
+  createdAt: Date;
+  /**
+   * When the SERVER computed `weightedTotal`.
+   *
+   * `createdAt` survives the regenerate upsert, so on a rescored visit it names
+   * when the FIRST score was written, not this one. A client rendering "scored
+   * 71" needs to be able to say when 71 was decided.
+   */
+  scoredAt: Date;
+  /**
+   * What the agent SAW, or null — never 0 (#390, #399).
+   *
+   * Null is "we do not know what the device showed": no client sent one, which
+   * is true of every scorecard written before this existed and of every older
+   * app build. A zero here would be a claim that the device scored the visit at
+   * nothing, which is a different and much more damning statement.
+   *
+   * `seenAt` is null in turn when a score arrived without a device clock for it.
+   */
+  provisional: { weightedTotal: number; ratingBand: string; seenAt: Date | null } | null;
+}
+
+/** The Scorecard columns every response is built from. */
+const scorecardSelect = {
+  id: true,
+  visitId: true,
+  dimensionScores: true,
+  weightedTotal: true,
+  ratingBand: true,
+  createdAt: true,
+  scoredAt: true,
+  provisionalTotal: true,
+  provisionalBand: true,
+  provisionalAt: true,
+} as const satisfies Prisma.ScorecardSelect;
+
+type ScorecardRow = Prisma.ScorecardGetPayload<{ select: typeof scorecardSelect }>;
+
+/**
+ * Shape one stored scorecard for the wire.
+ *
+ * The three `provisional*` columns are folded into one nested object rather
+ * than exposed raw, so "there is no provisional" is a single null a client
+ * cannot half-read — a `provisionalTotal: null` beside a `provisionalBand:
+ * 'red'` would be exactly the ambiguity this is meant to remove.
+ */
+export function toScorecardResponse(row: ScorecardRow): ScorecardResponse {
+  return {
+    id: row.id,
+    visitId: row.visitId,
+    dimensionScores: row.dimensionScores,
+    weightedTotal: row.weightedTotal,
+    ratingBand: row.ratingBand,
+    createdAt: row.createdAt,
+    scoredAt: row.scoredAt,
+    // Both halves or neither: a total without a band is not a score anyone saw.
+    provisional:
+      row.provisionalTotal !== null && row.provisionalBand !== null
+        ? {
+            weightedTotal: row.provisionalTotal,
+            ratingBand: row.provisionalBand,
+            seenAt: row.provisionalAt,
+          }
+        : null,
+  };
 }
 
 export async function generateScorecard(input: GenerateScorecardInput) {
@@ -66,10 +173,10 @@ export async function generateScorecard(input: GenerateScorecardInput) {
   const { client, stock, visibility, pricing, competitive, capability } = visit;
 
   // availability: share of captured SKUs that are on shelf.
-  const availability =
-    stock.length > 0
-      ? clamp((100 * stock.filter((row) => row.unitsAvailable > 0).length) / stock.length)
-      : 0;
+  // Counted lines only: an agent who has not reached a SKU has not found it
+  // missing (#389). A visit where nothing was counted scores 0 here exactly as
+  // a visit with no stock section always has.
+  const availability = clamp(onShelfAvailabilityPct(stock));
 
   // visibility: planogram compliance as captured.
   const visibilityScore = visibility ? clamp(visibility.planogramCompliancePct) : 0;
@@ -161,12 +268,40 @@ export async function generateScorecard(input: GenerateScorecardInput) {
     ratingBand,
   };
 
+  // What the agent saw (#390, #399).
+  //
+  // **Write-once-ish, by omission.** When the body carries no provisional this
+  // object is EMPTY, so the upsert's `update` does not mention the columns and
+  // leaves whatever is there. That is deliberate and load-bearing: a regenerate
+  // — a re-sync, a manager's rescore, the submit hook firing twice — is the
+  // server recomputing ITS number, and it has learned nothing new about what the
+  // device displayed. Listing the columns with `?? null` would wipe the agent's
+  // record of what they were shown every time the server re-scored, which is the
+  // whole thing this exists to keep.
+  //
+  // `provisionalAt` is null when the client sent a score but no device clock for
+  // it: we know what they saw, not when. Stamping the server clock instead would
+  // be inventing a device time.
+  //
+  // Nothing READS these columns as an input. Not this function, not
+  // `lib/kpiMath.ts`, not any KPI, aggregate, trend or leaderboard. They are
+  // reported back and nothing else — the device's number is what the agent SAW,
+  // and letting it feed a score would let the app grade its own work.
+  const provisionalFields = input.provisional
+    ? {
+        provisionalTotal: input.provisional.weightedTotal,
+        provisionalBand: input.provisional.ratingBand,
+        provisionalAt: input.provisional.computedAt ? new Date(input.provisional.computedAt) : null,
+      }
+    : {};
+
   // One Scorecard per visit (unique visitId) — upsert so re-submitting is
   // idempotent, mirroring the section-capture services.
   const scorecard = await prisma.scorecard.upsert({
     where: { visitId: input.visitId },
-    create: { visitId: input.visitId, ...fields },
-    update: fields,
+    create: { visitId: input.visitId, ...fields, ...provisionalFields },
+    update: { ...fields, ...provisionalFields },
+    select: scorecardSelect,
   });
 
   // Issue #124: the scorecard feeds the leaderboard's average — record it (or
@@ -175,7 +310,7 @@ export async function generateScorecard(input: GenerateScorecardInput) {
     recordScorecard(scorecard, { clientId: visit.clientId, agentId: visit.agentId }),
   );
 
-  return scorecard;
+  return toScorecardResponse(scorecard);
 }
 
 export async function listScorecardsForClient(input: {
@@ -185,6 +320,7 @@ export async function listScorecardsForClient(input: {
 }) {
   const rows = await prisma.scorecard.findMany({
     where: { visit: { clientId: input.clientId } },
+    select: scorecardSelect,
     // The `id` tiebreaker must share the primary sort's direction — see the
     // note in alerts.service.ts. Scorecards are written in bursts as a day's
     // offline visits sync, so equal createdAt values are routine.
@@ -193,7 +329,8 @@ export async function listScorecardsForClient(input: {
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
 
-  return buildPage(rows, input.limit);
+  const page = buildPage(rows, input.limit);
+  return { data: page.data.map(toScorecardResponse), nextCursor: page.nextCursor };
 }
 
 /// The scores this outlet has been given, most recent first.
@@ -223,12 +360,14 @@ export async function listScorecardHistory(input: {
         ...(input.agentId ? { agentId: input.agentId } : {}),
       },
     },
+    select: scorecardSelect,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: input.limit + 1,
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
 
-  return buildPage(rows, input.limit);
+  const page = buildPage(rows, input.limit);
+  return { data: page.data.map(toScorecardResponse), nextCursor: page.nextCursor };
 }
 
 export async function getScorecardByVisit(visitId: string, clientId: string) {
@@ -236,11 +375,14 @@ export async function getScorecardByVisit(visitId: string, clientId: string) {
   if (!visit) {
     throw new NotFoundError('Visit not found');
   }
-  const scorecard = await prisma.scorecard.findUnique({ where: { visitId } });
+  const scorecard = await prisma.scorecard.findUnique({
+    where: { visitId },
+    select: scorecardSelect,
+  });
   if (!scorecard) {
     throw new NotFoundError('Scorecard not found');
   }
-  return scorecard;
+  return toScorecardResponse(scorecard);
 }
 
 export interface ResolvedAgent {

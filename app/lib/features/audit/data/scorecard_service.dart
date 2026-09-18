@@ -145,19 +145,29 @@ class ScorecardService {
     }
   }
 
+  /// On-shelf availability: 100 * (lines with stock) / (lines that were
+  /// COUNTED) — the same rule as the server's `onShelfAvailabilityPct` (#389).
+  ///
+  /// An uncounted line (`unitsAvailable: null`) leaves the ratio entirely: it
+  /// is neither on the shelf nor off it. This used to read `?? 0`, which put
+  /// every shelf the agent had not reached into the denominator as an empty
+  /// one — so the number the agent saw on the walk out disagreed with the
+  /// server's for a reason that was a bug, not the honest difference in formula
+  /// that `provisional` exists to explain (#390).
   static double _availability(List<Map<String, dynamic>> stockPayloads) {
-    var total = 0;
+    var counted = 0;
     var inStock = 0;
     for (final payload in stockPayloads) {
       final items = (payload['items'] as List?) ?? const [];
       for (final item in items) {
-        total += 1;
-        final units = ((item as Map)['unitsAvailable'] as num?) ?? 0;
+        final units = (item as Map)['unitsAvailable'] as num?;
+        if (units == null) continue;
+        counted += 1;
         if (units > 0) inStock += 1;
       }
     }
-    if (total == 0) return 0;
-    return _clamp(100 * inStock / total);
+    if (counted == 0) return 0;
+    return _clamp(100 * inStock / counted);
   }
 
   static Map<String, double> _visibilityAndDisplay(

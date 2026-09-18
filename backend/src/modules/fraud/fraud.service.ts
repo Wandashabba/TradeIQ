@@ -4,6 +4,7 @@ import { DEFAULT_CLIENT_TIME_ZONE, localCalendarDate } from '../../lib/clientTim
 import { DEFAULT_LIMIT, buildPage } from '../../lib/pagination';
 import { GEOFENCE_RADIUS_M, haversineDistanceMeters } from '../../lib/geofence';
 import { kpiThreshold } from '../../lib/kpiThresholds';
+import { personLabel } from '../../lib/personName';
 import { NotFoundError } from '../../middleware/errorHandler';
 import {
   MAX_NEAR_DUPLICATE_DISTANCE,
@@ -417,7 +418,17 @@ export interface FraudPhotoMatch {
   matchSection: string;
 }
 
-/** One VisitStock row, as repeating_stock_counts sees it. */
+/**
+ * One VisitStock row, as repeating_stock_counts sees it.
+ *
+ * Only COUNTED rows ever become one. An uncounted line (`units_available IS
+ * NULL`, #389) is dropped by the loaders below, which is exactly the behaviour
+ * this detector already has for a SKU a visit did not record at all: absence
+ * is not agreement, so it ends the run rather than extending it. Letting a
+ * null through as a 0 would have done the opposite — manufacturing a run of
+ * identical counts out of shelves nobody looked at, and accusing an agent of
+ * copying numbers they never typed.
+ */
 export interface FraudStockCount {
   skuId: string;
   unitsAvailable: number;
@@ -1176,11 +1187,12 @@ function sectionCreatedAts(visit: FraudVisitPayload): Date[] {
 }
 
 function toStockCounts(visit: FraudVisitPayload): FraudStockCount[] {
-  return visit.stock.map((row) => ({
-    skuId: row.skuId,
-    unitsAvailable: row.unitsAvailable,
-    velocityAvg: row.velocityAvg,
-  }));
+  return visit.stock.flatMap((row) =>
+    // Uncounted lines are not counts — see FraudStockCount (#389).
+    row.unitsAvailable === null
+      ? []
+      : [{ skuId: row.skuId, unitsAvailable: row.unitsAvailable, velocityAvg: row.velocityAvg }],
+  );
 }
 
 /** Where one visit's stock history ends: strictly before it, on (checkinTs, id). */
@@ -1228,6 +1240,8 @@ export async function loadPriorStockVisits(
     Prisma.sql`
       SELECT anchor.visit_id AS anchor_visit_id, r.id AS visit_id, r.checkin_ts,
         vs.sku_id, vs.units_available, vs.velocity_avg
+        -- (the join below filters vs.units_available IS NOT NULL, so this
+        --  column is never null in a PriorStockRow)
       FROM unnest(
         ${anchors.map((a) => a.outletId)}::text[],
         ${anchors.map((a) => a.checkinTs.toISOString())}::timestamp[],
@@ -1240,11 +1254,17 @@ export async function loadPriorStockVisits(
           AND v.outlet_id = anchor.outlet_id
           AND v.status = 'submitted'
           AND (v.checkin_ts, v.id) < (anchor.checkin_ts, anchor.visit_id)
-          AND EXISTS (SELECT 1 FROM visit_stock s WHERE s.visit_id = v.id)
+          -- A visit whose stock lines were all left uncounted (#389) has no
+          -- counts to compare against, so it must not consume a lookback slot
+          -- that a visit with real counts could have filled.
+          AND EXISTS (
+            SELECT 1 FROM visit_stock s
+            WHERE s.visit_id = v.id AND s.units_available IS NOT NULL
+          )
         ORDER BY v.checkin_ts DESC, v.id DESC
         LIMIT ${lookback}
       ) r
-      JOIN visit_stock vs ON vs.visit_id = r.id
+      JOIN visit_stock vs ON vs.visit_id = r.id AND vs.units_available IS NOT NULL
       ORDER BY anchor.ord, r.checkin_ts DESC, r.id DESC, vs.sku_id
     `,
   );
@@ -1739,16 +1759,32 @@ export interface FlaggedVisit {
   signals: FraudSignal[];
   /** When the stored score's inputs were read: how old this snapshot is (#236). */
   scoredAt: Date | null;
+  /**
+   * The manager's standing ruling on this visit, or null when nobody has ruled
+   * (#392). Null is the honest answer for "not yet reviewed" — a row without a
+   * verdict has not been cleared, it has not been looked at.
+   */
+  verdict: FraudVerdictRecord | null;
 }
 
 /** Default review window when the caller does not name one. */
 export const DEFAULT_FRAUD_WINDOW_DAYS = 30;
+
+/**
+ * Which side of the review line `GET /fraud/flagged` answers about (#392).
+ *
+ * `unreviewed` is the DEFAULT, and it is a deliberate change of behaviour: see
+ * listFlagged.
+ */
+export type FlaggedReviewFilter = 'unreviewed' | 'reviewed' | 'all';
 
 export interface ListFlaggedInput {
   clientId: string;
   minScore: number;
   from?: Date;
   to?: Date;
+  /** Defaults to `unreviewed` — the open queue. See listFlagged. */
+  reviewed?: FlaggedReviewFilter;
   /** Page size. Defaults to the standard list default (DEFAULT_LIMIT). */
   limit?: number;
   cursor?: string;
@@ -1795,6 +1831,25 @@ export interface FlaggedPage {
  *
  * The window is a review horizon, no longer a scan bound: `checkinTs` within
  * [from, to], defaulting to the last DEFAULT_FRAUD_WINDOW_DAYS as before.
+ *
+ * ── THIS LIST IS THE OPEN QUEUE, AND ITS DEFAULT RESULT SET CHANGED (#392) ──
+ *
+ * By default it now returns only visits NOBODY HAS RULED ON. A ruled visit
+ * leaves the queue.
+ *
+ * That is the point of recording a verdict at all. Before it, the same twenty
+ * visits came back every morning, each manager re-read the ones a colleague had
+ * already dismissed yesterday, and the only way to keep track of what had been
+ * dealt with was a spreadsheet beside the screen. A queue that never shortens
+ * is a queue people stop opening, and the flagged visit that actually mattered
+ * went unlooked-at among the ones that had already been cleared.
+ *
+ * Nothing is hidden: `?reviewed=true` is the decided list, `?reviewed=all` is
+ * the old behaviour exactly, and every row carries its `verdict` either way. A
+ * caller that wants what this endpoint used to return asks for `reviewed=all`.
+ *
+ * `unscored` is filtered the same way, so the page and its "not looked at"
+ * counter always describe one population rather than two.
  */
 export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage> {
   const { clientId } = input;
@@ -1806,10 +1861,18 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
   // the column's type rather than meaning "none").
   const minScore = Math.min(RISK_MAX + 1, Math.max(RISK_MIN, Math.ceil(input.minScore)));
 
+  // The review filter is a relation predicate on the one-to-one verdict, so
+  // "already ruled on" is a join the database answers, not a second pass in
+  // memory that would break the keyset page boundaries.
+  const reviewed = input.reviewed ?? 'unreviewed';
+  const reviewFilter: Prisma.VisitWhereInput =
+    reviewed === 'all' ? {} : { fraudVerdict: reviewed === 'reviewed' ? { isNot: null } : { is: null } };
+
   const inWindow: Prisma.VisitWhereInput = {
     clientId,
     status: 'submitted',
     checkinTs: { gte: from, lte: to },
+    ...reviewFilter,
   };
   const [rows, unscored] = await Promise.all([
     prisma.visit.findMany({
@@ -1821,6 +1884,7 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
         riskScore: true,
         fraudSignals: true,
         fraudScoredAt: true,
+        fraudVerdict: { select: fraudVerdictSelect },
       },
       // `id` is the unique tiebreaker, in the same direction as the primary
       // sort — equal scores are the norm here (weights are a handful of flat
@@ -1842,10 +1906,220 @@ export async function listFlagged(input: ListFlaggedInput): Promise<FlaggedPage>
       riskScore: row.riskScore ?? RISK_MIN,
       signals: (row.fraudSignals ?? []) as unknown as FraudSignal[],
       scoredAt: row.fraudScoredAt,
+      verdict: row.fraudVerdict ? toVerdictRecord(row.fraudVerdict) : null,
     })),
     nextCursor: page.nextCursor,
     unscored,
     from,
     to,
+  };
+}
+
+// ── The manager's ruling on a flagged visit (#392, #395) ───────────────────
+//
+// A flagged visit is an accusation the engine has made and a person has to
+// answer. Until #392 there was nowhere to record the answer, so the answer
+// lived in a colleague's memory: the same visit was re-read by three managers,
+// each reaching their own conclusion, and none of them could see the others'.
+// Worse, two managers looking at one visit at the same time could each believe
+// theirs was the decision that stood.
+//
+// A verdict is therefore INSERT-ONLY against a UNIQUE `visit_id`. The unique
+// constraint IS the lock — see recordFraudVerdict for why a SELECT first would
+// not be one.
+
+/** The three rulings a reviewer may reach. */
+export const FRAUD_VERDICTS = ['confirmed', 'dismissed', 'inconclusive'] as const;
+export type FraudVerdictValue = (typeof FRAUD_VERDICTS)[number];
+
+export function isFraudVerdict(value: unknown): value is FraudVerdictValue {
+  return typeof value === 'string' && (FRAUD_VERDICTS as readonly string[]).includes(value);
+}
+
+/** One ruling, as the wire says it. */
+export interface FraudVerdictRecord {
+  visitId: string;
+  verdict: string;
+  /**
+   * Who ruled, as the ledger froze them: `label` is the display name (or email)
+   * as it read at the time, so a renamed or deactivated reviewer does not
+   * rewrite or erase a decision they made.
+   */
+  reviewer: { id: string; label: string };
+  /** Free text the reviewer added, or null when they added none — never ''. */
+  note: string | null;
+  /**
+   * The `Visit.riskScore` the reviewer was actually looking at. Null when the
+   * visit was unscored at review time: a rescore can move the stored score
+   * afterwards, and without this a dismissal read later looks as though it was
+   * made against a number nobody ever saw.
+   */
+  riskScoreAtReview: number | null;
+  decidedAt: Date;
+}
+
+/** A ledger row, which is a verdict plus its own id (the keyset cursor). */
+export interface FraudVerdictLedgerEntry extends FraudVerdictRecord {
+  id: string;
+}
+
+const fraudVerdictSelect = {
+  id: true,
+  visitId: true,
+  verdict: true,
+  reviewerId: true,
+  reviewerLabel: true,
+  note: true,
+  riskScoreAtReview: true,
+  decidedAt: true,
+} as const satisfies Prisma.FraudVerdictSelect;
+
+type FraudVerdictRow = Prisma.FraudVerdictGetPayload<{ select: typeof fraudVerdictSelect }>;
+
+function toVerdictRecord(row: FraudVerdictRow): FraudVerdictRecord {
+  return {
+    visitId: row.visitId,
+    verdict: row.verdict,
+    reviewer: { id: row.reviewerId, label: row.reviewerLabel },
+    note: row.note,
+    riskScoreAtReview: row.riskScoreAtReview,
+    decidedAt: row.decidedAt,
+  };
+}
+
+export interface RecordFraudVerdictInput {
+  visitId: string;
+  clientId: string;
+  /** From `req.user`, NEVER from the body: nobody rules under another name. */
+  reviewerId: string;
+  verdict: FraudVerdictValue;
+  note?: string;
+}
+
+/**
+ * The outcome of `POST /fraud/visits/:id/verdict`.
+ *
+ * `created: false` is not a failure to write, it is a race that was LOST: a
+ * verdict already stands, and it is returned so the loser is told whose ruling
+ * it is rather than being left to assume theirs took effect. The route answers
+ * 409 with it.
+ */
+export type RecordFraudVerdictResult =
+  | { created: true; verdict: FraudVerdictRecord }
+  | { created: false; verdict: FraudVerdictRecord };
+
+/**
+ * Record one manager's ruling on one flagged visit (#392, #395).
+ *
+ * **The uniqueness of `visit_id` is the lock, and the write is an INSERT.**
+ *
+ * Not an upsert: an upsert would let the second manager silently overwrite the
+ * first manager's decision, which is the exact failure a verdict exists to
+ * prevent — a dismissal replaced by a confirmation with no trace that anyone
+ * disagreed. And not SELECT-then-INSERT either: between the read and the write
+ * there is a window in which both requests see no verdict, and both then write
+ * one. Two managers pressing the button at the same moment on the same visit is
+ * not a hypothetical — it is what happens when a queue is worked by a team.
+ *
+ * So the database decides. Exactly one INSERT can win; the other trips the
+ * unique index (P2002), and we answer it by reading back the verdict that
+ * stands and handing it to the caller.
+ *
+ * Tenant scoping is a 404, not a 403, matching `GET /fraud/visits/:visitId`: a
+ * 403 on another tenant's id would confirm that the id exists.
+ */
+export async function recordFraudVerdict(
+  input: RecordFraudVerdictInput,
+): Promise<RecordFraudVerdictResult> {
+  const visit = await prisma.visit.findFirst({
+    where: { id: input.visitId, clientId: input.clientId },
+    select: { id: true, riskScore: true },
+  });
+  if (!visit) {
+    throw new NotFoundError('Visit not found');
+  }
+
+  // The reviewer's name is read here and FROZEN onto the row. The ledger has to
+  // outlive the account: `reviewerId` is a bare string with no relation, so a
+  // deactivated or deleted reviewer cannot take the record of their decision
+  // with them, and a later rename cannot rewrite who a past decision was made by.
+  const reviewer = await prisma.user.findFirst({
+    where: { id: input.reviewerId, clientId: input.clientId },
+    select: { id: true, displayName: true, email: true },
+  });
+  if (!reviewer) {
+    throw new NotFoundError('Reviewer not found');
+  }
+
+  const data = {
+    visitId: visit.id,
+    clientId: input.clientId,
+    verdict: input.verdict,
+    reviewerId: reviewer.id,
+    reviewerLabel: personLabel(reviewer.displayName, reviewer.email),
+    note: input.note ?? null,
+    // The score as the reviewer saw it. Null stays null: an unscored visit was
+    // reviewed against no number, and writing 0 would claim they cleared a
+    // visit the engine had rated harmless.
+    riskScoreAtReview: visit.riskScore,
+  };
+
+  try {
+    const row = await prisma.fraudVerdict.create({ data, select: fraudVerdictSelect });
+    return { created: true, verdict: toVerdictRecord(row) };
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      const standing = await prisma.fraudVerdict.findUnique({
+        where: { visitId: visit.id },
+        select: fraudVerdictSelect,
+      });
+      if (standing) {
+        return { created: false, verdict: toVerdictRecord(standing) };
+      }
+    }
+    throw err;
+  }
+}
+
+export interface ListVerdictsInput {
+  clientId: string;
+  /** Page size. Defaults to the standard list default (DEFAULT_LIMIT). */
+  limit?: number;
+  cursor?: string;
+}
+
+export interface VerdictLedgerPage {
+  data: FraudVerdictLedgerEntry[];
+  nextCursor: string | null;
+}
+
+/**
+ * `GET /fraud/verdicts` — the tenant's review ledger, newest decision first.
+ *
+ * The flagged queue answers "what still needs a person"; this answers "what did
+ * the people decide", which is the question an audit, a dispute or a new
+ * manager's first week actually asks. Without it, a dismissal is only visible
+ * by opening the visit it dismissed, so nobody can see the pattern: one
+ * reviewer clearing everything, or a fortnight where nothing was ruled at all.
+ *
+ * Keyset-paged on (decidedAt desc, id desc) — the tiebreaker shares the primary
+ * sort's direction, and rulings arrive in bursts as a queue is worked, so equal
+ * timestamps are ordinary here rather than theoretical. The
+ * (client_id, decided_at desc, id desc) index serves exactly this in order.
+ */
+export async function listVerdicts(input: ListVerdictsInput): Promise<VerdictLedgerPage> {
+  const limit = input.limit ?? DEFAULT_LIMIT;
+  const rows = await prisma.fraudVerdict.findMany({
+    where: { clientId: input.clientId },
+    select: fraudVerdictSelect,
+    orderBy: [{ decidedAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+  });
+
+  const page = buildPage(rows, limit);
+  return {
+    data: page.data.map((row) => ({ id: row.id, ...toVerdictRecord(row) })),
+    nextCursor: page.nextCursor,
   };
 }

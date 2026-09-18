@@ -120,6 +120,11 @@ paths:
   /visits:
     get:
       summary: List visits (field_agent sees own; manager/admin sees the client's)
+      description: >
+        Rows are whole Visit records. Since #379 each also carries
+        `resumedFromDraft` (false for a fresh check-in and for every visit
+        recorded before the field existed) and `clientVisitId` (the device's
+        idempotency key, null when the app sent none).
       security: [{ bearerAuth: [] }]
       parameters:
         - name: outletId
@@ -153,11 +158,42 @@ paths:
                   type: string
                   format: date-time
                   description: Client-captured check-in time (offline-first); server clock if omitted.
+                clientVisitId:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                  pattern: '^[A-Za-z0-9._:-]+$'
+                  description: >
+                    The DEVICE's own id for this visit — its idempotency key (#379, #385).
+                    Optional. When given, a retry after a lost response returns the visit
+                    already stored under this key instead of creating a second one, and
+                    writes no second CheckInAttempt row. Unique per agent, so two agents'
+                    local uuids never collide. Same shape as `clientMessageId` on POST /messages.
+                resumed:
+                  type: boolean
+                  default: false
+                  description: >
+                    True when the agent RESUMED a saved draft rather than checking in fresh
+                    (#379). Persisted as `resumedFromDraft` and returned on GET /visits and
+                    GET /visits/{id}. Defaults false, which is what a fresh check-in — and
+                    every older app build — honestly is.
       responses:
+        '200':
+          description: >
+            A visit already existed for this (agent, clientVisitId): the ORIGINAL visit is
+            returned, unchanged, with `deduplicated: true` and an `Idempotent-Replayed: true`
+            header. Nothing was created, no CheckInAttempt row was written, and the agent's
+            last-known location was not moved — a retry is not a second check-in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckInResponse' }
         '201':
           description: Visit created (status in_progress)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckInResponse' }
         '400':
-          description: Missing outletId, lat, or lng
+          description: Missing outletId, lat, or lng; or a malformed clientVisitId or resumed
         '401':
           description: Missing or invalid token
         '403':
@@ -192,7 +228,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [id, status, outlet, agent, checkinTs, submittedAtClient, geofence, score, sections, photos, fraud]
+                required: [id, status, outlet, agent, checkinTs, submittedAtClient, resumedFromDraft, geofence, score, sections, photos, fraud]
                 properties:
                   id: { type: string }
                   status: { type: string, enum: [in_progress, submitted] }
@@ -215,6 +251,14 @@ paths:
                     format: date-time
                     nullable: true
                     description: Device clock at submit; null for a draft or a visit recorded before it existed
+                  resumedFromDraft:
+                    type: boolean
+                    description: >
+                      True when the agent RESUMED a saved draft rather than checking in fresh
+                      (#379). A resumed visit's check-in happened earlier and its dwell spans
+                      an interruption, so without this a paused visit and an idle agent are
+                      indistinguishable on the timeline. False for every visit recorded
+                      before it existed.
                   geofence:
                     type: object
                     properties:
@@ -227,7 +271,30 @@ paths:
                       weightedTotal: { type: number }
                       ratingBand: { type: string, enum: [green, amber, red] }
                       target: { type: number, description: "The client's current green threshold" }
-                      scoredAt: { type: string, format: date-time }
+                      scoredAt:
+                        type: string
+                        format: date-time
+                        description: >
+                          When the SERVER computed `weightedTotal`. Reads Scorecard.scoredAt,
+                          not createdAt — createdAt survives the regenerate upsert and so named
+                          when the FIRST score was written, not this one (#390).
+                      provisional:
+                        type: object
+                        nullable: true
+                        description: >
+                          The score the DEVICE showed the agent before the server recomputed
+                          (#390, #399). NULL means "we do not know what they saw" — no client
+                          sent one — and must never render as 0. Never an input to anything:
+                          no KPI, aggregate or scorecard maths reads it.
+                        required: [weightedTotal, ratingBand, seenAt]
+                        properties:
+                          weightedTotal: { type: number, minimum: 0, maximum: 100 }
+                          ratingBand: { type: string, enum: [green, amber, red] }
+                          seenAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                            description: The device clock when it showed that score; null when the client sent none
                       dimensions:
                         type: array
                         items:
@@ -342,19 +409,28 @@ paths:
                   type: array
                   items:
                     type: object
-                    required:
-                      [skuId, unitsAvailable, lastStockinDate, daysOutOfStock, velocityAvg, salesActual, salesTarget]
+                    required: [skuId, lastStockinDate]
                     properties:
                       skuId: { type: string }
-                      unitsAvailable: { type: integer }
+                      unitsAvailable:
+                        type: integer
+                        nullable: true
+                        description: >-
+                          Units on the shelf, or null when this SKU was never counted (#389).
+                          null and 0 are different findings: 0 is an agent at an empty shelf
+                          and raises a stock-out task, while null is a SKU the agent has not
+                          reached and raises nothing, leaving every availability ratio's
+                          denominator instead. Omitting the field means the same as null.
+                          Older clients always send an integer and are unaffected.
                       lastStockinDate: { type: string, format: date-time }
-                      daysOutOfStock: { type: integer }
-                      velocityAvg: { type: number }
-                      salesActual: { type: number }
-                      salesTarget: { type: number }
+                      salesActual: { type: number, nullable: true }
+                      salesTarget: { type: number, nullable: true }
       responses:
         '201':
-          description: Stock rows created (coverageDaysPredicted computed server-side)
+          description: >-
+            Stock rows created. daysOutOfStock and velocityAvg are derived server-side from
+            the outlet's earlier history; coverageDaysPredicted is units/velocity and is
+            therefore null exactly when unitsAvailable is null.
         '400':
           description: Missing visitId or a non-empty valid items[]
         '401':
@@ -620,14 +696,36 @@ paths:
               required: [visitId]
               properties:
                 visitId: { type: string }
+                provisional:
+                  type: object
+                  description: >
+                    The score the DEVICE showed the agent before this call (#390, #399).
+                    OPTIONAL — an older app build sends `{ visitId }` alone and everything
+                    works. Stored as provisionalTotal/provisionalBand/provisionalAt and
+                    returned as `provisional`; NOTHING reads it as an input to any score,
+                    KPI or aggregate. Write-once-ish: a REGENERATE that carries no
+                    `provisional` leaves an existing one alone, because the server
+                    recomputing its own number has learned nothing new about what the agent
+                    was shown.
+                  required: [weightedTotal, ratingBand]
+                  properties:
+                    weightedTotal: { type: number, minimum: 0, maximum: 100 }
+                    ratingBand: { type: string, enum: [green, amber, red] }
+                    computedAt:
+                      type: string
+                      format: date-time
+                      description: The DEVICE clock when it showed that score. Omitted → `seenAt` is null.
       responses:
         '201':
           description: >
             Scorecard upserted (idempotent). Dimension scores computed from the
             visit's S2-S8 rows, weighted by Client.scorecardWeights; ratingBand
             from Client.kpiThresholds (defaults green>=80, amber>=60).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scorecard' }
         '400':
-          description: Missing visitId
+          description: Missing visitId, or a malformed provisional block
         '401':
           description: Missing or invalid token
         '403':
@@ -646,6 +744,9 @@ paths:
       responses:
         '200':
           description: The visit's scorecard
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scorecard' }
         '401':
           description: Missing or invalid token
         '404':
@@ -672,13 +773,35 @@ paths:
           description: >
             { kpis: { numericDistribution, weightedDistribution, osaPct,
             executionScore, priceCompliancePct, visibilityCompliancePct,
-            shareOfShelf, perfectStoreRate }, totals: { visits, outletsVisited,
-            outletsTotal }, scoreBands: [{ label, minScore, outlets }] }.
+            shareOfShelf, perfectStoreRate }, sampleSizes: { …the same eight
+            keys… }, totals: { visits, outletsVisited, outletsTotal },
+            scoreBands: [{ label, minScore, outlets }] }.
             scoreBands is the perfect-store distribution — always five bands,
             highest first (90–100, 80–89, 70–79, 60–69, <60) — counting each
             outlet once, at its most recent scored visit in scope.
             weightedDistribution and shareOfShelf are Phase-1 proxies (see
             module comments).
+
+
+            `sampleSizes` (#387, #406) is ADDITIVE — `kpis` is unchanged in name
+            and type, so an older client ignores it and behaves exactly as
+            before. Each key is how many rows the KPI beside it was actually
+            divided by, so the client can render the low-sample treatment: a
+            tile reading 100% off two observations and one reading 100% off two
+            thousand are otherwise identical. Each is the KPI's OWN denominator
+            rather than a nearby proxy — `shareOfShelf` divides by facings, so
+            its sample size is facings and not the row count of the captures.
+            `osaPct` counts only stock lines that were COUNTED (#389). A value
+            of `null` means the KPI is not a ratio over observations and has no
+            denominator to report; it is never 0 for that case, because a client
+            reading a missing sample size as 0 would mark every healthy tile as
+            low-sample.
+
+
+            There is no `baselineSampleSizes` here: this endpoint reports ONE
+            window and returns no deltas, so there is no baseline that could be
+            thin. The assistant's figures, which do compare windows, carry
+            `baselineSampleSize` per figure.
         '400':
           description: Unparseable from/to date
         '401':
@@ -1096,6 +1219,100 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters: [{ name: visitId, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: 'Risk score + signals' }, '404': { description: Not found } }
+  /fraud/visits/{visitId}/verdict:
+    post:
+      summary: Record the manager's ruling on a flagged visit — manager/admin (#392, #395)
+      description: >
+        A flagged visit is an accusation the engine made and a person has to answer.
+        The ruling is INSERTed against a UNIQUE visit_id, never upserted: **201 once,
+        409 ever after.** The second manager to press the button does not overwrite the
+        first manager's decision — they lose at the database and are answered 409 with
+        the standing verdict in the body, so they learn whose ruling applies instead of
+        believing theirs took effect. The uniqueness IS the lock; there is no
+        read-then-write window for two concurrent reviewers to slip through.
+
+
+        The reviewer is taken from the bearer token and never from the body: a body that
+        could name the reviewer is a body that lets one manager file a ruling under a
+        colleague's name, and this row is the audit trail. `reviewerLabel` freezes their
+        display name (or email) as it read at the time, so a rename or deactivation
+        cannot rewrite or erase who decided.
+
+
+        A ruled visit LEAVES the default `GET /fraud/flagged` queue — see that endpoint.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: visitId, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verdict]
+              additionalProperties: false
+              properties:
+                verdict: { type: string, enum: [confirmed, dismissed, inconclusive] }
+                note:
+                  type: string
+                  maxLength: 2000
+                  description: Free text, trimmed. Blank or absent is stored and returned as null, never ''.
+      responses:
+        '201':
+          description: The ruling was recorded; it now stands
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FraudVerdict' }
+        '400':
+          description: Unknown verdict, an over-long note, or an unrecognised field
+        '401': { description: Missing or invalid token }
+        '403': { description: Not a manager or admin }
+        '404':
+          description: >
+            Visit not found for this client. 404 rather than 403 for another tenant's id,
+            matching GET /fraud/visits/{visitId} — a 403 would confirm the id exists.
+        '409':
+          description: A verdict already stands on this visit; it is returned so the loser knows whose ruling applies
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, verdict]
+                properties:
+                  error: { type: string }
+                  verdict: { $ref: '#/components/schemas/FraudVerdict' }
+  /fraud/verdicts:
+    get:
+      summary: The tenant's fraud review ledger, newest decision first — manager/admin (#392)
+      description: >
+        The flagged queue answers "what still needs a person"; this answers "what did the
+        people decide" — the question an audit, a dispute or a new manager's first week
+        actually asks. Keyset-paged on (decidedAt desc, id desc); page with `nextCursor`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string }, description: '`nextCursor` from the previous page' }
+      responses:
+        '200':
+          description: One page of verdicts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - { $ref: '#/components/schemas/FraudVerdict' }
+                        - type: object
+                          required: [id]
+                          properties:
+                            id: { type: string, description: The verdict's own id, which is also this list's cursor }
+                  nextCursor: { type: string, nullable: true }
+        '400': { description: Malformed limit or cursor }
+        '401': { description: Missing or invalid token }
+        '403': { description: Not a manager or admin }
   /fraud/attempts:
     get:
       summary: List check-in attempts (incl. rejected) — manager/admin
@@ -1116,9 +1333,31 @@ paths:
         live. Visits in the window without a stored score are excluded and counted
         in `unscored`. Ordered riskScore descending, then id descending; page with
         `nextCursor`.
+
+
+        **BY DEFAULT THIS IS NOW THE OPEN QUEUE, AND THAT CHANGED WHAT AN UNCHANGED
+        REQUEST RETURNS (#392).** A visit a manager has ruled on
+        (POST /fraud/visits/{visitId}/verdict) LEAVES this list. Before verdicts existed
+        the same twenty visits came back every morning, each manager re-reading the ones
+        a colleague had already dismissed yesterday; a queue that never shortens is a
+        queue people stop opening, and the flagged visit that mattered went unread among
+        the ones already cleared. Nothing is hidden: `?reviewed=true` is the decided
+        list, `?reviewed=all` is exactly the old behaviour, and every row carries its
+        `verdict` (null = nobody has ruled) whichever side you ask for. `unscored` is
+        filtered the same way, so the page and its counter describe one population.
       security: [{ bearerAuth: [] }]
       parameters:
         - { name: minScore, in: query, schema: { type: number, default: 50 }, description: 'Scores are whole numbers 0-100; a fraction rounds up' }
+        - name: reviewed
+          in: query
+          schema: { type: string, enum: ['true', 'false', 'all'], default: 'false' }
+          description: >
+            Which side of the review line to answer about. Absent or `false` → only
+            visits nobody has ruled on (the open queue, the default). `true` → only ruled
+            visits. `all` → both, which is what this endpoint returned before #392.
+            Anything else is a 400 rather than a silent fallback: a quietly ignored
+            `reviewed=yes` would hand back the open queue to a caller who believed they
+            were reading the decided one.
         - { name: from, in: query, schema: { type: string, format: date-time }, description: 'Check-in at or after. Default: 30 days before `to`' }
         - { name: to, in: query, schema: { type: string, format: date-time }, description: 'Check-in at or before. Default: now' }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
@@ -1136,7 +1375,7 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [visitId, outletId, agentId, riskScore, signals, scoredAt]
+                      required: [visitId, outletId, agentId, riskScore, signals, scoredAt, verdict]
                       properties:
                         visitId: { type: string }
                         outletId: { type: string }
@@ -1151,8 +1390,15 @@ paths:
                               detail: { type: string }
                               weight: { type: integer }
                         scoredAt: { type: string, format: date-time, nullable: true, description: When the stored score's inputs were read }
+                        verdict:
+                          allOf: [{ $ref: '#/components/schemas/FraudVerdict' }]
+                          nullable: true
+                          description: >
+                            The standing ruling, or null when nobody has ruled. Null is the
+                            honest answer for "not yet reviewed" — a row without a verdict has
+                            not been cleared, it has not been looked at.
                   nextCursor: { type: string, nullable: true }
-                  unscored: { type: integer, description: Submitted visits in the window with no stored score yet }
+                  unscored: { type: integer, description: Submitted visits in the window (on the same side of the review line) with no stored score yet }
                   from: { type: string, format: date-time }
                   to: { type: string, format: date-time }
         '400': { description: 'Malformed minScore, from, to, limit or cursor' }
@@ -2791,6 +3037,100 @@ components:
         empty series.
       schema: { type: string }
   schemas:
+    CheckInResponse:
+      type: object
+      description: >
+        A whole Visit row, plus `deduplicated` (#379, #385). Additive: every field
+        POST /visits has always returned is unchanged, so a client that only reads `id`
+        needs no change whether it gets a 201 or a 200.
+      properties:
+        id: { type: string }
+        outletId: { type: string }
+        agentId: { type: string }
+        clientId: { type: string }
+        checkinTs: { type: string, format: date-time }
+        checkinLat: { type: number }
+        checkinLng: { type: number }
+        geofencePass: { type: boolean }
+        checkinDistanceM: { type: number, nullable: true }
+        status: { type: string, enum: [in_progress, submitted] }
+        submittedAtClient: { type: string, format: date-time, nullable: true }
+        clientVisitId:
+          type: string
+          nullable: true
+          description: The device's idempotency key as stored; null when the app sent none
+        resumedFromDraft:
+          type: boolean
+          description: True when the agent resumed a saved draft rather than checking in fresh (#379)
+        deduplicated:
+          type: boolean
+          description: >
+            True when this request found the visit already stored under its `clientVisitId`
+            and returned THAT one (HTTP 200) instead of creating a second. False on a fresh
+            create (HTTP 201) and whenever no key was sent.
+    FraudVerdict:
+      type: object
+      description: >
+        One manager's standing ruling on one flagged visit (#392, #395). A ledger entry:
+        `reviewer.label` is the name frozen as it read when the ruling was made, so a
+        renamed or deactivated reviewer neither rewrites nor erases it.
+      required: [visitId, verdict, reviewer, note, riskScoreAtReview, decidedAt]
+      properties:
+        visitId: { type: string }
+        verdict: { type: string, enum: [confirmed, dismissed, inconclusive] }
+        reviewer:
+          type: object
+          required: [id, label]
+          properties:
+            id: { type: string }
+            label: { type: string, description: "Display name, or the email when they have none" }
+        note: { type: string, nullable: true, description: 'null when the reviewer added none — never ""' }
+        riskScoreAtReview:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: >
+            The stored Visit.riskScore the reviewer was actually looking at. Visit.riskScore
+            is a snapshot a rescore can move afterwards, so without this a dismissal read
+            later looks as though it was made against a number nobody ever saw. NULL — never
+            0 — when the visit was unscored at review time.
+        decidedAt: { type: string, format: date-time }
+    Scorecard:
+      type: object
+      description: >
+        One visit's perfect-store score. Every field this endpoint has always returned is
+        unchanged; `scoredAt` and `provisional` are added (#390, #399).
+      required: [id, visitId, dimensionScores, weightedTotal, ratingBand, createdAt, scoredAt, provisional]
+      properties:
+        id: { type: string }
+        visitId: { type: string }
+        dimensionScores:
+          type: object
+          additionalProperties: { type: number }
+          description: >
+            Keyed by dimension. A dimension with nothing to measure is OMITTED, not zero.
+        weightedTotal: { type: number, minimum: 0, maximum: 100 }
+        ratingBand: { type: string, enum: [green, amber, red] }
+        createdAt: { type: string, format: date-time, description: When the FIRST score for this visit was written; survives a regenerate }
+        scoredAt: { type: string, format: date-time, description: When the SERVER last computed `weightedTotal` }
+        provisional:
+          type: object
+          nullable: true
+          description: >
+            The score the DEVICE showed the agent (#390, #399). NULL means "we do not know
+            what they saw" — no client sent one, which is true of every scorecard written
+            before this existed and of every older app build — and must never render as 0.
+            Reported back and nothing else: no KPI, aggregate or scorecard maths reads it.
+          required: [weightedTotal, ratingBand, seenAt]
+          properties:
+            weightedTotal: { type: number, minimum: 0, maximum: 100 }
+            ratingBand: { type: string, enum: [green, amber, red] }
+            seenAt:
+              type: string
+              format: date-time
+              nullable: true
+              description: The device clock when it showed that score; null when the client sent none
     AuditTemplate:
       type: object
       description: >

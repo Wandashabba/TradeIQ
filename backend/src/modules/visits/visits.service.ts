@@ -2,7 +2,7 @@ import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
 import { haversineDistanceMeters, isWithinGeofence } from '../../lib/geofence';
 import { GeofenceRejectedError, NotFoundError } from '../../middleware/errorHandler';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Visit } from '@prisma/client';
 import type { AuthTokenPayload } from '../auth/auth.service';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
 import { DEFAULT_PRICE_DEVIATION_THRESHOLD, evaluateVisit } from '../alerts/alerts.service';
@@ -18,6 +18,10 @@ import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
 import { markRouteStopsVisited } from '../beatplans/beatplans.service';
 import { recordPointsBestEffort, recordVisitSubmitted } from '../gamification/pointsLedger';
 
+/** Longest accepted clientVisitId. A UUID is 36; this leaves room, not abuse.
+ *  The same bound as `Message.clientMessageId` (#308), deliberately. */
+export const MAX_CLIENT_VISIT_ID_LENGTH = 128;
+
 export interface CheckInInput {
   outletId: string;
   lat: number;
@@ -28,9 +32,66 @@ export interface CheckInInput {
   // may be captured hours before it syncs, so the client's timestamp is the
   // real one. Falls back to the server clock when absent.
   checkinTs?: string;
+  /**
+   * The DEVICE's own id for this visit — its idempotency key (#379, #385).
+   *
+   * Optional, so an older app build that sends none behaves exactly as it
+   * always did: no key, no dedupe, and Postgres treats the NULLs as distinct so
+   * the unique index does not constrain it.
+   */
+  clientVisitId?: string;
+  /**
+   * True when the agent RESUMED a saved draft rather than checking in fresh
+   * (#379). Defaults false, which is what every older build and every existing
+   * visit honestly is.
+   */
+  resumed?: boolean;
 }
 
-export async function checkIn(input: CheckInInput) {
+export interface CheckInResult {
+  visit: Visit;
+  /**
+   * True when this request found a visit already stored under its
+   * `clientVisitId` and returned THAT one instead of creating a second.
+   *
+   * The route answers 200 rather than 201 for it — the resource was not created
+   * by this request — but the body is the same visit either way, so a client
+   * that only reads `id` needs no change at all.
+   */
+  deduplicated: boolean;
+}
+
+/**
+ * Geofenced check-in — idempotent when the device sends a `clientVisitId`
+ * (#379, #385).
+ *
+ * The app mints a local uuid the moment an agent checks in and flushes the
+ * outbox later. When that POST succeeded but its response was lost — a dead
+ * zone at the shop door, which is the normal case, not the edge case — the
+ * retry created a SECOND visit: one store walk, two rows, two scorecards, two
+ * fraud scores, and a manager with no way to tell which was the real one.
+ *
+ * With a key, the retry finds the first row and returns it.
+ *
+ * **The dedupe lookup runs FIRST, before anything is written.** That ordering
+ * is the point, not a micro-optimisation: `checkIn` records a `CheckInAttempt`
+ * row and moves `User.lastLat/lastLng` before the visit is created, and a retry
+ * is not a second attempt to check in. Letting a retry write an attempt row
+ * would feed the fraud engine's negative-signal dataset a rejected-looking
+ * burst of attempts for a visit that actually happened once, and would move the
+ * agent's last-known position to wherever they were when the outbox finally
+ * flushed — which may be the next town.
+ */
+export async function checkIn(input: CheckInInput): Promise<CheckInResult> {
+  // Before the attempt row, before the location update, before the outlet is
+  // even looked up: this request may not be a check-in at all.
+  if (input.clientVisitId !== undefined) {
+    const existing = await findByClientVisitId(input);
+    if (existing) {
+      return { visit: existing, deduplicated: true };
+    }
+  }
+
   const outlet = await prisma.outlet.findFirst({
     where: { id: input.outletId, clientId: input.clientId },
   });
@@ -74,17 +135,62 @@ export async function checkIn(input: CheckInInput) {
     data: { lastLat: input.lat, lastLng: input.lng, lastSeenAt: new Date() },
   });
 
-  return prisma.visit.create({
-    data: {
-      outletId: input.outletId,
+  try {
+    const visit = await prisma.visit.create({
+      data: {
+        outletId: input.outletId,
+        agentId: input.agentId,
+        clientId: input.clientId,
+        checkinTs: input.checkinTs ? new Date(input.checkinTs) : new Date(),
+        checkinLat: input.lat,
+        checkinLng: input.lng,
+        geofencePass,
+        checkinDistanceM: distanceM,
+        status: 'in_progress',
+        clientVisitId: input.clientVisitId,
+        resumedFromDraft: input.resumed ?? false,
+      },
+    });
+    return { visit, deduplicated: false };
+  } catch (err) {
+    // The race: two retries of one lost response arriving at once. Both miss
+    // the lookup above, and the unique (agent_id, client_visit_id) index lets
+    // exactly one insert win. The loser reads the winner back and answers as a
+    // retry would — a 500 here would send the app away to retry again, which is
+    // how one lost response becomes an endless one.
+    //
+    // The loser has already written its CheckInAttempt row by this point, and
+    // that row stays. Deleting it would be deleting evidence the geofence
+    // genuinely evaluated, and a concurrent double-flush is rare enough that a
+    // duplicate PASSED attempt is the lesser distortion.
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002' &&
+      input.clientVisitId !== undefined
+    ) {
+      const winner = await findByClientVisitId(input);
+      if (winner) {
+        return { visit: winner, deduplicated: true };
+      }
+    }
+    throw err;
+  }
+}
+
+/**
+ * The visit this agent already stored under this device key, or null.
+ *
+ * Scoped to the agent AND the tenant. The unique index is (agent_id,
+ * client_visit_id) — per agent, for the same reason `Message.clientMessageId`
+ * is per sender: two agents' local uuids are separate namespaces, and one
+ * agent's key must never resolve to another's visit.
+ */
+function findByClientVisitId(input: CheckInInput): Promise<Visit | null> {
+  return prisma.visit.findFirst({
+    where: {
       agentId: input.agentId,
       clientId: input.clientId,
-      checkinTs: input.checkinTs ? new Date(input.checkinTs) : new Date(),
-      checkinLat: input.lat,
-      checkinLng: input.lng,
-      geofencePass,
-      checkinDistanceM: distanceM,
-      status: 'in_progress',
+      clientVisitId: input.clientVisitId,
     },
   });
 }
@@ -273,6 +379,17 @@ export interface VisitDetail {
   /** Device clock at submit; null for a draft or a pre-#101 visit. */
   submittedAtClient: Date | null;
   geofence: { pass: boolean; distanceM: number | null };
+  /**
+   * True when the agent resumed a saved draft rather than checking in fresh
+   * (#379).
+   *
+   * A reviewer reading the timeline needs it: a resumed visit's check-in
+   * happened earlier and its dwell spans an interruption, so without the marker
+   * a paused visit and an idle agent are indistinguishable. False for every
+   * visit recorded before it existed, and for every older app build, which is
+   * what those genuinely are.
+   */
+  resumedFromDraft: boolean;
   /** Null until the visit has been scored. */
   score: {
     weightedTotal: number;
@@ -281,7 +398,25 @@ export interface VisitDetail {
     target: number;
     /** Every dimension, in the fixed order; `score` null means not measurable. */
     dimensions: Array<{ key: ScorecardDimension; score: number | null }>;
+    /**
+     * When the SERVER computed `weightedTotal`.
+     *
+     * This reads `Scorecard.scoredAt`, not `createdAt`. `createdAt` survives the
+     * regenerate upsert, so after a rescore it named when the FIRST score was
+     * written — a screen saying "scored 71 on Tuesday" about a number decided on
+     * Thursday. Same field, same type; it just stopped being wrong (#390).
+     */
     scoredAt: Date;
+    /**
+     * The score the DEVICE showed the agent, or null (#390, #399).
+     *
+     * **Null means "we do not know what they saw", and must never render as 0.**
+     * Every scorecard written before #390, and every one an older app build
+     * sends, has no provisional — that is not a device that scored zero, it is a
+     * device whose number was thrown away on sync. `seenAt` is null in turn when
+     * the client sent a score but no device clock for it.
+     */
+    provisional: { weightedTotal: number; ratingBand: string; seenAt: Date | null } | null;
   } | null;
   sections: VisitSectionSummary[];
   photos: {
@@ -338,12 +473,23 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
       checkinLat: true,
       checkinLng: true,
       submittedAtClient: true,
+      resumedFromDraft: true,
       geofencePass: true,
       checkinDistanceM: true,
       outlet: { select: { id: true, name: true, code: true, channelType: true } },
       agent: { select: { id: true, email: true } },
       scorecard: {
-        select: { weightedTotal: true, ratingBand: true, dimensionScores: true, createdAt: true },
+        select: {
+          weightedTotal: true,
+          ratingBand: true,
+          dimensionScores: true,
+          scoredAt: true,
+          // What the agent SAW. Read here only to report it back; no scoring,
+          // KPI or aggregate anywhere reads these columns (#390).
+          provisionalTotal: true,
+          provisionalBand: true,
+          provisionalAt: true,
+        },
       },
       stock: {
         select: {
@@ -473,7 +619,16 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
       ratingBand: visit.scorecard.ratingBand,
       target: kpiThreshold(client?.kpiThresholds, 'green', DEFAULT_GREEN_THRESHOLD),
       dimensions: SCORECARD_DIMENSIONS.map((key) => ({ key, score: stored[key] ?? null })),
-      scoredAt: visit.scorecard.createdAt,
+      scoredAt: visit.scorecard.scoredAt,
+      // Both halves or neither: a total without a band is not a score anyone saw.
+      provisional:
+        visit.scorecard.provisionalTotal !== null && visit.scorecard.provisionalBand !== null
+          ? {
+              weightedTotal: visit.scorecard.provisionalTotal,
+              ratingBand: visit.scorecard.provisionalBand,
+              seenAt: visit.scorecard.provisionalAt,
+            }
+          : null,
     };
   }
 
@@ -484,6 +639,7 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
     agent: visit.agent,
     checkinTs: visit.checkinTs,
     submittedAtClient: visit.submittedAtClient,
+    resumedFromDraft: visit.resumedFromDraft,
     geofence: { pass: visit.geofencePass, distanceM: visit.checkinDistanceM },
     score,
     sections: [
@@ -517,20 +673,34 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
 
 function summariseStock(
   rows: Array<{
-    unitsAvailable: number;
+    unitsAvailable: number | null;
     daysOutOfStock: number;
-    coverageDaysPredicted: number;
+    coverageDaysPredicted: number | null;
     sku: { name: string };
   }>,
   count: number,
 ): VisitSectionSummary {
-  const out = rows
-    .filter((r) => r.unitsAvailable <= 0)
+  // `unitsAvailable === null` is a SKU the agent never reached (#389). It is
+  // not out of stock, it has no coverage to be low on, and — crucially — it is
+  // not in the "N of M" denominator: "3 of 40 SKUs out of stock" must not be
+  // built on 37 shelves nobody looked at.
+  const counted = rows.filter((r) => r.unitsAvailable !== null);
+  const out = counted
+    .filter((r) => r.unitsAvailable! <= 0)
     .sort((a, b) => b.daysOutOfStock - a.daysOutOfStock);
   // Coverage uses the forecast service's own red line, not a number made up here.
-  const low = rows.filter((r) => r.unitsAvailable > 0 && coverageStatus(r.coverageDaysPredicted) === 'red');
+  const low = counted.filter(
+    (r) =>
+      r.unitsAvailable! > 0 &&
+      r.coverageDaysPredicted !== null &&
+      coverageStatus(r.coverageDaysPredicted) === 'red',
+  );
   const findings: string[] = [];
-  if (count > 0) findings.push(`${out.length} of ${plural(count, 'SKU')} out of stock`);
+  if (counted.length > 0) findings.push(`${out.length} of ${plural(counted.length, 'SKU')} out of stock`);
+  const uncounted = rows.length - counted.length;
+  if (uncounted > 0 && findings.length < VISIT_DETAIL_MAX_FINDINGS) {
+    findings.push(`${plural(uncounted, 'SKU')} not counted`);
+  }
   for (const r of out.slice(0, VISIT_DETAIL_MAX_FINDINGS - 1)) {
     findings.push(`${r.sku.name}: out of stock, ${plural(r.daysOutOfStock, 'day')}`);
   }
