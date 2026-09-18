@@ -38,7 +38,7 @@ class TorchSyncChip extends ConsumerWidget {
     // LOADING is not a state with its own copy: the outbox is a local stream
     // and it answers in a frame. An absent answer renders nothing rather than
     // a chip that says something it does not know.
-    final data = status.valueOrNull;
+    final data = status.value;
     if (data == null) return const SizedBox.shrink();
 
     final go = onTap ?? () => context.go('/my-work');

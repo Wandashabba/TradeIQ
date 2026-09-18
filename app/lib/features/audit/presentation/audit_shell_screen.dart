@@ -1,6 +1,5 @@
 import 'dart:async' show unawaited;
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter/widgets.dart';
@@ -155,7 +154,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
             .catchError((Object e) {
               debugPrint('Template pin failed for $visitId: $e');
               if (!mounted) return;
-              ref.read(templatePinFailedProvider(visitId).notifier).failed();
+              ref.read(templatePinFailedProvider.notifier).failed(visitId);
             }),
       );
     }
@@ -906,7 +905,7 @@ class _TooFar extends ConsumerWidget {
     final skin = context.skin;
     final metres = distanceMeters.round();
     final reported =
-        ref.watch(pinReportsProvider).valueOrNull?.contains(outlet.id) ?? false;
+        ref.watch(pinReportsProvider).contains(outlet.id);
 
     return VisitFrame(
       phase: 'too-far',

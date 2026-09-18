@@ -2515,6 +2515,282 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You can also turn these off in your phone’s settings.'**
   String get notificationsFooter;
+
+  /// Nav slot 1 of the agent's floating pill. One or two words — the bar goes icon-only if any label overflows.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get navToday;
+
+  /// Nav slot 2: the agent's outbox.
+  ///
+  /// In en, this message translates to:
+  /// **'My work'**
+  String get navMyWork;
+
+  /// Nav slot 3.
+  ///
+  /// In en, this message translates to:
+  /// **'Map'**
+  String get navMap;
+
+  /// Nav slot 4: the agent's own profile and earnings.
+  ///
+  /// In en, this message translates to:
+  /// **'Me'**
+  String get navMe;
+
+  /// Block label inside the day block on Today. Sentence case; the widget uppercases for display.
+  ///
+  /// In en, this message translates to:
+  /// **'Route'**
+  String get todayRouteEyebrow;
+
+  /// State word under a later stop's distance on Today. The counterpart of todayStopDoneTag.
+  ///
+  /// In en, this message translates to:
+  /// **'To do'**
+  String get todayStopUpcoming;
+
+  /// Unit word after a distance in metres. Set in the surrounding text face beside a monospaced figure.
+  ///
+  /// In en, this message translates to:
+  /// **'m'**
+  String get unitMetres;
+
+  /// Unit word after a distance in kilometres.
+  ///
+  /// In en, this message translates to:
+  /// **'km'**
+  String get unitKilometres;
+
+  /// The name of the paper screen, in the skin cycle's spoken label.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get skinDay;
+
+  /// The name of the dark screen, in the skin cycle's spoken label.
+  ///
+  /// In en, this message translates to:
+  /// **'Night'**
+  String get skinNight;
+
+  /// The name of the outdoor screen, in the skin cycle's spoken label. The explanation is part of the name because a blind user has no other way to learn what Veld is.
+  ///
+  /// In en, this message translates to:
+  /// **'Veld, the outdoor high-contrast screen'**
+  String get skinVeld;
+
+  /// Sync chip when the outbox is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'All sent'**
+  String get syncChipAllSent;
+
+  /// Screen-reader label for the all-sent sync chip. The state word leads.
+  ///
+  /// In en, this message translates to:
+  /// **'All your work is sent. Double-tap to see it.'**
+  String get syncChipAllSentSemantics;
+
+  /// Name of the client-questions row when the client's own template could not be loaded, so its real name is unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The client’s questions'**
+  String get visitClientQuestions;
+
+  /// Headline when the visit hub cannot read its own progress.
+  ///
+  /// In en, this message translates to:
+  /// **'This visit could not be read.'**
+  String get visitReadFailedTitle;
+
+  /// Why the submit is disabled when the hub's progress read failed. Shown above the button.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit’s own progress could not be read, so it cannot be sent yet.'**
+  String get visitReadFailedBlock;
+
+  /// Detail line on a section whose state is can't-confirm because the outlet's SKU list failed to load.
+  ///
+  /// In en, this message translates to:
+  /// **'The product list did not load — this section can’t be confirmed.'**
+  String get visitCantConfirmProducts;
+
+  /// Detail line on the client-questions row when its template could not be pinned to the visit.
+  ///
+  /// In en, this message translates to:
+  /// **'The client’s questions did not load — this section can’t be confirmed.'**
+  String get visitCantConfirmTemplate;
+
+  /// Block label at the top of the check-in failure screens.
+  ///
+  /// In en, this message translates to:
+  /// **'Check-in'**
+  String get visitCheckInEyebrow;
+
+  /// Note on the too-far screen for the first and second attempt. A fact, with no threat attached — the penalty has not started.
+  ///
+  /// In en, this message translates to:
+  /// **'Every attempt is recorded with where you were.'**
+  String get visitTooFarAttemptsRecorded;
+
+  /// Body line on the too-far screen when the agent is under 80 m away.
+  ///
+  /// In en, this message translates to:
+  /// **'You’re close. Try walking to the front door.'**
+  String get visitTooFarClose;
+
+  /// Body line on the too-far screen when the agent is more than 2 km away.
+  ///
+  /// In en, this message translates to:
+  /// **'This looks like the wrong store, or the store’s pin is wrong.'**
+  String get visitTooFarWrongStore;
+
+  /// A third, quieter action on the too-far screen: the agent is at the shop and the stored coordinates are not.
+  ///
+  /// In en, this message translates to:
+  /// **'The pin is wrong'**
+  String get visitPinIsWrong;
+
+  /// Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.'**
+  String get visitPinReportedHeld;
+
+  /// The fix, as its own paragraph, when location permission was denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow location for TradeIQ in your phone’s settings. You can allow it just while using the app.'**
+  String get visitNoGpsFixPermission;
+
+  /// The fix when location services are switched off on the device.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn location on in your phone’s settings, then try again.'**
+  String get visitNoGpsFixServices;
+
+  /// The fix when the position lookup timed out.
+  ///
+  /// In en, this message translates to:
+  /// **'Step outside or near a window and try again. Your GPS still works in airplane mode — give it a few seconds.'**
+  String get visitNoGpsFixTimedOut;
+
+  /// The fix when the cause is not one we can name.
+  ///
+  /// In en, this message translates to:
+  /// **'Step outside or near a window and try again.'**
+  String get visitNoGpsFixGeneric;
+
+  /// Button that copies the error code on the check-in failure screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get visitCopyCode;
+
+  /// Screen-reader label for the Copy button.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the error code'**
+  String get visitCopyCodeSemantics;
+
+  /// Screen-reader label for the whole day block on Today — one node, not five.
+  ///
+  /// In en, this message translates to:
+  /// **'Route: {done} of {total} stores done, {left} left.'**
+  String todayRouteSemantics(int done, int total, int left);
+
+  /// Screen-reader label for one stop row on Today. Ends in its verb.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {code}, {state}. Double-tap to check in here.'**
+  String todayStopSemantics(String name, String code, String state);
+
+  /// Screen-reader label for a distance in metres; the unit is spelled out.
+  ///
+  /// In en, this message translates to:
+  /// **'{meters} metres away'**
+  String todayDistanceMetresSemantics(int meters);
+
+  /// Screen-reader label for a distance in kilometres; the unit is spelled out.
+  ///
+  /// In en, this message translates to:
+  /// **'{km} kilometres away'**
+  String todayDistanceKmSemantics(num km);
+
+  /// Screen-reader label for the skin cycle. It names the NEXT state, not this one — a toggle that says only where it is makes a blind user press it to find out.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen: {current}. Double-tap for {next}.'**
+  String skinCycleLabel(String current, String next);
+
+  /// Screen-reader label for the whole readiness block on the visit hub — one node.
+  ///
+  /// In en, this message translates to:
+  /// **'Captured, {done} of {total}. {blocking} sections still needed.'**
+  String visitReadinessSemantics(int done, int total, int blocking);
+
+  /// Screen-reader label for the score row on the visit hub. It is not focusable as a button — the score is a result, not a form.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, not yet available. Worked out when the visit sends.'**
+  String visitScoreSemantics(String name);
+
+  /// Screen-reader label for one section row on the visit hub: the name, then the state word, then the one-line detail.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}. {state}. {detail}'**
+  String visitSectionSemantics(String name, String state, String detail);
+
+  /// Body line beneath the measured distance on the too-far screen.
+  ///
+  /// In en, this message translates to:
+  /// **'You need to be within 50 m. Right now you are {meters} m away.'**
+  String visitTooFarNeedWithin(int meters);
+
+  /// Screen-reader label for the measured-distance block; the unit is spelled out.
+  ///
+  /// In en, this message translates to:
+  /// **'Too far from the shop. You are {meters} metres away. You need to be within 50 metres.'**
+  String visitTooFarSemantics(int meters);
+
+  /// Screen-reader label for the error-code block. The code arrives already spaced out character by character, because a machine code read as a word is a code nobody can repeat down a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Error code {code}'**
+  String visitErrorCodeSemantics(String code);
+
+  /// Sync chip when captures are waiting on the phone. Never an error — this is the normal state of field connectivity.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 held on this phone} other{{count} held on this phone}}'**
+  String syncChipHeld(int count);
+
+  /// Screen-reader label for the held sync chip.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 capture held on this phone. Double-tap to see your work.} other{{count} captures held on this phone. Double-tap to see your work.}}'**
+  String syncChipHeldSemantics(int count);
+
+  /// Sync chip when items in the outbox will not send on their own.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 needs you} other{{count} need you}}'**
+  String syncChipNeedsYou(int count);
+
+  /// Screen-reader label for the needs-you sync chip. The state word leads.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Needs you. 1 capture will not send on its own. Double-tap to see your work.} other{Needs you. {count} captures will not send on their own. Double-tap to see your work.}}'**
+  String syncChipNeedsYouSemantics(int count);
+
+  /// Second line in the readiness block. Counted and named separately from the captured figure: a section nobody could measure is not a section somebody skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 section can’t be confirmed} other{{count} sections can’t be confirmed}}'**
+  String visitCantConfirmCount(int count);
 }
 
 class _AppLocalizationsDelegate

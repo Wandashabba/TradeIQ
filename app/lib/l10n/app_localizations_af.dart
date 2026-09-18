@@ -1559,4 +1559,219 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get notificationsFooter =>
       'Jy kan dit ook in jou foon se instellings afskakel.';
+
+  @override
+  String get navToday => 'Vandag';
+
+  @override
+  String get navMyWork => 'Jou werk';
+
+  @override
+  String get navMap => 'Kaart';
+
+  @override
+  String get navMe => 'Ek';
+
+  @override
+  String get todayRouteEyebrow => 'Roete';
+
+  @override
+  String get todayStopUpcoming => 'Om te doen';
+
+  @override
+  String get unitMetres => 'm';
+
+  @override
+  String get unitKilometres => 'km';
+
+  @override
+  String get skinDay => 'Dag';
+
+  @override
+  String get skinNight => 'Nag';
+
+  @override
+  String get skinVeld => 'Veld, die buitelug-skerm met hoë kontras';
+
+  @override
+  String get syncChipAllSent => 'Alles gestuur';
+
+  @override
+  String get syncChipAllSentSemantics =>
+      'Al jou werk is gestuur. Dubbeltik om dit te sien.';
+
+  @override
+  String get visitClientQuestions => 'Die kliënt se vrae';
+
+  @override
+  String get visitReadFailedTitle => 'Hierdie besoek kon nie gelees word nie.';
+
+  @override
+  String get visitReadFailedBlock =>
+      'Die besoek se eie vordering kon nie gelees word nie, so dit kan nog nie gestuur word nie.';
+
+  @override
+  String get visitCantConfirmProducts =>
+      'Die produklys het nie gelaai nie — hierdie afdeling kan nie bevestig word nie.';
+
+  @override
+  String get visitCantConfirmTemplate =>
+      'Die kliënt se vrae het nie gelaai nie — hierdie afdeling kan nie bevestig word nie.';
+
+  @override
+  String get visitCheckInEyebrow => 'Inklok';
+
+  @override
+  String get visitTooFarAttemptsRecorded =>
+      'Elke poging word aangeteken saam met waar jy was.';
+
+  @override
+  String get visitTooFarClose =>
+      'Jy is naby. Probeer tot by die voordeur stap.';
+
+  @override
+  String get visitTooFarWrongStore =>
+      'Dit lyk na die verkeerde winkel, of die winkel se speld is verkeerd.';
+
+  @override
+  String get visitPinIsWrong => 'Die speld is verkeerd';
+
+  @override
+  String get visitPinReportedHeld =>
+      'Op hierdie foon aangeteken. Dit is nog nêrens gestuur nie — daar is nêrens om dit heen te stuur nie.';
+
+  @override
+  String get visitNoGpsFixPermission =>
+      'Laat ligging vir TradeIQ toe in jou foon se instellings. Jy kan dit net toelaat terwyl jy die program gebruik.';
+
+  @override
+  String get visitNoGpsFixServices =>
+      'Skakel ligging aan in jou foon se instellings en probeer weer.';
+
+  @override
+  String get visitNoGpsFixTimedOut =>
+      'Stap buitentoe of na ’n venster en probeer weer. Jou GPS werk steeds in vliegtuigmodus — gee dit ’n paar sekondes.';
+
+  @override
+  String get visitNoGpsFixGeneric =>
+      'Stap buitentoe of na ’n venster en probeer weer.';
+
+  @override
+  String get visitCopyCode => 'Kopieer';
+
+  @override
+  String get visitCopyCodeSemantics => 'Kopieer die foutkode';
+
+  @override
+  String todayRouteSemantics(int done, int total, int left) {
+    return 'Roete: $done van $total winkels klaar, $left oor.';
+  }
+
+  @override
+  String todayStopSemantics(String name, String code, String state) {
+    return '$name, $code, $state. Dubbeltik om hier in te klok.';
+  }
+
+  @override
+  String todayDistanceMetresSemantics(int meters) {
+    return '$meters meter ver';
+  }
+
+  @override
+  String todayDistanceKmSemantics(num km) {
+    return '$km kilometer ver';
+  }
+
+  @override
+  String skinCycleLabel(String current, String next) {
+    return 'Skerm: $current. Dubbeltik vir $next.';
+  }
+
+  @override
+  String visitReadinessSemantics(int done, int total, int blocking) {
+    return 'Vasgelê, $done van $total. $blocking afdelings word nog benodig.';
+  }
+
+  @override
+  String visitScoreSemantics(String name) {
+    return '$name, nog nie beskikbaar nie. Word uitgewerk wanneer die besoek stuur.';
+  }
+
+  @override
+  String visitSectionSemantics(String name, String state, String detail) {
+    return '$name. $state. $detail';
+  }
+
+  @override
+  String visitTooFarNeedWithin(int meters) {
+    return 'Jy moet binne 50 m wees. Jy is nou $meters m ver.';
+  }
+
+  @override
+  String visitTooFarSemantics(int meters) {
+    return 'Te ver van die winkel. Jy is $meters meter ver. Jy moet binne 50 meter wees.';
+  }
+
+  @override
+  String visitErrorCodeSemantics(String code) {
+    return 'Foutkode $code';
+  }
+
+  @override
+  String syncChipHeld(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count op hierdie foon gehou',
+      one: '1 op hierdie foon gehou',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncChipHeldSemantics(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count vasleggings op hierdie foon gehou. Dubbeltik om jou werk te sien.',
+      one: '1 vaslegging op hierdie foon gehou. Dubbeltik om jou werk te sien.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncChipNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count het jou nodig',
+      one: '1 het jou nodig',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncChipNeedsYouSemantics(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Het jou nodig. $count vasleggings sal nie vanself stuur nie. Dubbeltik om jou werk te sien.',
+      one:
+          'Het jou nodig. 1 vaslegging sal nie vanself stuur nie. Dubbeltik om jou werk te sien.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String visitCantConfirmCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count afdelings kan nie bevestig word nie',
+      one: '1 afdeling kan nie bevestig word nie',
+    );
+    return '$_temp0';
+  }
 }

@@ -205,7 +205,7 @@ class TodayFrame extends ConsumerWidget {
           // Exactly one trailing icon button, and on a tab root that one is
           // the skin cycle (unify §1.2). The sync chip is not an icon button
           // and does not compete for the slot — it is a flag chip.
-          trailing: const AgentSkinCycleButton(),
+          trailing: skinCycleIconButton(context, ref),
           flagChips: const <Widget>[TorchSyncChip()],
         ),
         navPill: TorchNavPill(
@@ -497,7 +497,6 @@ class _StopRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final skin = context.skin;
     final l10n = context.l10n;
     final done = stop.visited;
 

@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -70,26 +72,38 @@ final pinReportStoreProvider = Provider<PinReportStore>(
 );
 
 /// Outlets whose pin this agent has said is wrong, on this phone.
-class PinReports extends AsyncNotifier<Set<String>> {
+///
+/// A plain [Notifier] over a `Set`, not an `AsyncNotifier`: the screen that
+/// reads it is a check-in failure screen, and a second loading state on top of
+/// a failure is a screen that cannot say anything at all. It starts empty,
+/// fills in when the store answers, and the affordance is live either way —
+/// the worst case is that a report made on a previous run is offered again,
+/// and [report] is idempotent.
+class PinReports extends Notifier<Set<String>> {
   @override
-  Future<Set<String>> build() => ref.read(pinReportStoreProvider).read();
+  Set<String> build() {
+    unawaited(_load());
+    return const <String>{};
+  }
+
+  Future<void> _load() async {
+    final stored = await ref.read(pinReportStoreProvider).read();
+    if (stored.isEmpty) return;
+    state = <String>{...state, ...stored};
+  }
 
   /// Records the report and moves the screen to its "reported" state.
   ///
-  /// Idempotent: a second tap is not a second report, and the affordance
-  /// disappears once the state has changed anyway.
+  /// Idempotent: a second tap is not a second report, and the affordance is
+  /// gone once the state has changed anyway.
   Future<void> report(String outletId) async {
-    final current = state.valueOrNull ?? const <String>{};
-    if (current.contains(outletId)) return;
-    final next = <String>{...current, outletId};
-    state = AsyncData(next);
+    if (state.contains(outletId)) return;
+    final next = <String>{...state, outletId};
+    state = next;
     await ref.read(pinReportStoreProvider).write(next);
   }
-
-  bool reported(String outletId) =>
-      state.valueOrNull?.contains(outletId) ?? false;
 }
 
-final pinReportsProvider = AsyncNotifierProvider<PinReports, Set<String>>(
+final pinReportsProvider = NotifierProvider<PinReports, Set<String>>(
   PinReports.new,
 );

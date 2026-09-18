@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../l10n/l10n.dart';
 import '../../theme/torchlight/agent_skin.dart';
 import '../../theme/torchlight/tiq_skin.dart';
+import 'button/buttons.dart';
 import 'chrome/chrome.dart';
 
 /// A skin's name in the agent's language.
@@ -43,17 +44,17 @@ class AgentSkinCycle extends ConsumerWidget {
 ///
 /// Same three glyphs, same cycle, same "name the next state" rule; a
 /// different 48dp box.
-class AgentSkinCycleButton extends ConsumerWidget {
-  const AgentSkinCycleButton({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(agentSkinProvider);
-    final next = TorchSkinCycle.next(mode);
-    return TorchIconButton(
-      icon: TorchSkinCycle.glyphFor(mode),
-      semanticLabel: skinCycleLabel(context.l10n, mode),
-      onPressed: () => ref.read(agentSkinProvider.notifier).set(next),
-    );
-  }
+///
+/// A function and not a widget, because [TorchAppHeader.trailing] is **typed**
+/// as a `TorchIconButton`: the rule is *exactly one* trailing icon button, and
+/// the type is how the chrome enforces it. A `ConsumerWidget` wrapper would
+/// satisfy the reader and not the compiler.
+TorchIconButton skinCycleIconButton(BuildContext context, WidgetRef ref) {
+  final mode = ref.watch(agentSkinProvider);
+  final next = TorchSkinCycle.next(mode);
+  return TorchIconButton(
+    icon: TorchSkinCycle.glyphFor(mode),
+    semanticLabel: skinCycleLabel(context.l10n, mode),
+    onPressed: () => ref.read(agentSkinProvider.notifier).set(next),
+  );
 }

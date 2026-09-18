@@ -328,25 +328,27 @@ class VisitProgress {
       cantConfirm.length + (templateCantConfirm == null ? 0 : 1);
 }
 
-/// Whether pinning the client's audit template to this visit threw.
+/// Visits whose client-template pin threw.
 ///
 /// The hub calls `pinForVisit` once, at check-in, and it used to swallow the
 /// failure with a `catchError` and a `debugPrint` — so a client whose
 /// questions could not be loaded got a hub with the row silently absent and a
 /// submit that went straight through. This is the seam that makes the failure
-/// a *state* instead: the hub sets it, [visitProgressProvider] reads it, and
-/// the row renders can't-confirm.
+/// a *state* instead: the hub records the draft id, [visitProgressProvider]
+/// reads it, and the row renders can't-confirm and blocks.
 ///
-/// Per visit draft, so a retry at a second store starts clean.
-class TemplatePinFailures extends FamilyNotifier<bool, String> {
+/// A set of ids rather than a family, because the thing being tracked is rare
+/// and the set is what a test can assert against in one line.
+class TemplatePinFailures extends Notifier<Set<String>> {
   @override
-  bool build(String visitDraftId) => false;
+  Set<String> build() => const <String>{};
 
-  void failed() => state = true;
+  void failed(String visitDraftId) =>
+      state = <String>{...state, visitDraftId};
 }
 
 final templatePinFailedProvider =
-    NotifierProvider.family<TemplatePinFailures, bool, String>(
+    NotifierProvider<TemplatePinFailures, Set<String>>(
       TemplatePinFailures.new,
     );
 
@@ -379,9 +381,9 @@ final visitProgressProvider =
       // Whether the pin at check-in failed outright. The hub tells us; the
       // repository's own fallbacks (no signal → the last template this agent
       // was given → nothing) are not failures and do not set it.
-      final templatePinFailed = ref.watch(
-        templatePinFailedProvider(key.visitDraftId),
-      );
+      final templatePinFailed = ref
+          .watch(templatePinFailedProvider)
+          .contains(key.visitDraftId);
 
       return db.select(db.syncQueueItems).watch().map((rows) {
         final payloads = <String, List<Map<String, dynamic>>>{};
