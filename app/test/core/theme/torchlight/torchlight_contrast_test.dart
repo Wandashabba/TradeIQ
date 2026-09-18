@@ -305,7 +305,7 @@ void main() {
       'night amber rim flame-600 on raised': 7.51,
       'night active-tab underbar flame-600 on nav body (well)': 9.49,
       'night focus bar flame-600 on chart track (lifted)': 6.37,
-      'night neutral bar chart-neutral on chart track (lifted)': 3.01,
+      'night neutral bar chart-neutral on chart track (lifted)': 4.02,
       'night good on ground': 11.76,
       'night good on raised': 8.30,
       'night bad on ground': 7.78,
@@ -338,7 +338,7 @@ void main() {
       'day comparison on ground': 4.58,
       'day edge-control on ground': 4.69,
       'day edge-structure on ground — the Panel outline': 3.41,
-      'day neutral bar on chart track (well)': 4.52,
+      'day neutral bar on chart track (well)': 5.29,
       'day focus bar ink-1 on chart track (well)': 11.12,
       'day nav-active: ground ink on the lifted block': 9.43,
       'day decorative hairline on ground': 1.18,
@@ -418,12 +418,35 @@ void main() {
       final grey = luminanceSeparation(p.flame600, p.chartNeutral);
       expect(
         grey,
-        greaterThan(2.0),
+        greaterThan(1.4),
         reason:
             'Focus/neutral separation in greyscale is '
             '${grey.toStringAsFixed(2)}:1. It carries shape, weight and a '
             'leading marker as well — but if this drops to 1.0 the amber bar '
             'is literally its neighbour again.',
+      );
+      // THE TRADE, RECORDED. Phase 1 moved chart-neutral from #8B8271 to
+      // #A39887 (unify §1.4) because the old value measured 3.01:1 against its
+      // own track — the product's most-drawn graphic sitting on the AA floor
+      // with 0.01 of margin. It now measures 4.02:1 there, and the price was
+      // this number: the neutral moved *up* the luminance range, towards the
+      // focus amber, and the greyscale separation between the two fell from
+      // 2.42:1 to 1.58:1.
+      //
+      // That is affordable here and nowhere else. The focus bar carries four
+      // channels — an amber fill, a gradient bloom, a leading triangle marker
+      // and a heavier label — and the hue is the third of them. The track
+      // carries one channel, which is the fill against the track, and a
+      // graphic on the floor with no margin is a graphic that disappears on a
+      // 6-bit panel at 40% backlight. One of the two had to give and it was
+      // the one with three spares.
+      expect(
+        grey,
+        lessThan(2.42),
+        reason:
+            'This is the old value. If the separation is back above it, '
+            'chart-neutral has been reverted to #8B8271 and every neutral bar '
+            'in the product is back on the AA floor.',
       );
     });
 

@@ -175,8 +175,18 @@ class TiqType {
   final TiqTypeToken bodyStrong;
   final TiqTypeToken label;
 
-  /// 11/700/+8% uppercase. Two jobs only: the plate kicker and the stat-tile
-  /// label. The section marker is a knocked-out rule, not an eyebrow.
+  /// 11/700/+4% uppercase, wrapping to two lines.
+  ///
+  /// Legal in three places only (unify §1.17): a stat tile's label, a
+  /// hero/plate figure's label, and a block label inside a panel ("WORST
+  /// FIRST"). Every screen-level section marker is the knocked-out rule at
+  /// `title.m` in sentence case, not an eyebrow.
+  ///
+  /// Tracking moved from +8% to **+4%** in Phase 1 (unify §1.4, "applies to
+  /// the eyebrow role globally"). Uppercase plus tracking is the most
+  /// space-hungry setting in the system and the eyebrow is a stat tile's only
+  /// label channel; +8% on "BESKIKBAARHEID OP RAK" cost a line it did not
+  /// need to.
   final TiqTypeToken eyebrow;
 
   /// Timestamps and source lines — prose.
@@ -301,7 +311,7 @@ class TiqType {
     size: 11,
     weight: _w7,
     height: 1.10,
-    trackingPercent: 8,
+    trackingPercent: 4,
     uppercase: true,
   );
 
@@ -512,7 +522,7 @@ class TiqType {
       size: 13,
       weight: _w7,
       height: 1.15,
-      trackingPercent: 8,
+      trackingPercent: 4,
       uppercase: true,
     ),
     meta: TiqTypeToken(
