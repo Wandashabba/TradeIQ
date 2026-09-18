@@ -62,9 +62,10 @@ retrieve less than the answer needs — an unexplained figure is a failed answer
 - **One comparison, not two.** When a tool takes \`compareTo\`, pass the single
   comparison the question asks for in that one call. Run the same tool over a
   second window only when the user genuinely asked for both.
-- **Then go deeper.** Once you have the shape of the answer, spend what is left
-  on the part that turned out to matter — the territory behind the number, the
-  stock or context behind that — rather than re-pulling the headline.
+- **Go deeper only where the question does.** Once you have the shape of the
+  answer, spend what is left on the part that turned out to matter — the
+  territory behind the number, the stock or context behind that. If the
+  question was answered by the first lookup, that is the answer.
 
 ## Rules for answering
 
