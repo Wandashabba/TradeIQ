@@ -24,8 +24,11 @@ class TradeIqApp extends ConsumerWidget {
     ref.listen(pushRegistrationProvider, (_, _) {});
     return MaterialApp.router(
       title: 'TradeIQ',
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      // Torchlight Aisle (#401). Screens still reading `context.colors` render
+      // through `TiqColors.fromSkin`, so the palette lands everywhere at once
+      // and the per-screen migration is about layout and components, not colour.
+      theme: AppTheme.day(),
+      darkTheme: AppTheme.night(),
       // Persisted choice; defaults to dark, so nobody's console changes until
       // they touch the toggle (Task 7).
       themeMode: ref.watch(themeModeProvider),
