@@ -343,6 +343,7 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         system,
         tools,
         messages,
+        round,
         ...(lastRound ? { toolChoice: 'none' as const } : {}),
         ...(input.webSearch ? { webSearch: true } : {}),
       },

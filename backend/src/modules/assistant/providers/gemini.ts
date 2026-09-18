@@ -76,23 +76,32 @@ export const GEMINI_QUARANTINE_MODEL = process.env.GEMINI_QUARANTINE_MODEL ?? 'g
  * answer. At the output rate that round alone was 4.2 of the turn's 13.1 cents —
  * more than every cached prefix read in the turn put together.
  *
- * The two kinds of round are set apart because they are not the same job and
- * carry opposite risks:
+ * Three kinds of round, because they are three different jobs carrying
+ * different risks:
  *
- * - A **tool round** decides what to retrieve next. It is where a wrong turn is
- *   expensive — the eval gate scores first-tool choice — and it is already
- *   cheap, at 150–750 output tokens a round. So it is left at the vendor
- *   default: nothing about tool selection changes.
+ * - The **opening round** picks the first tool from the user's words alone.
+ *   That is the choice the eval gate scores at 90%, the one a turn cannot
+ *   recover from, and — measured — the cheapest round in the turn at around 200
+ *   thinking tokens whatever the level. There is nothing to save here and
+ *   everything to lose, so it is left at the vendor default.
+ * - A **later tool round** picks a follow-up with the previous results already
+ *   in front of it. A narrower decision, and an expensive one: measured at
+ *   1,640 output tokens on one round, because thinking scales with the context
+ *   it reasons over and the context has been growing all turn.
  * - The **answer round** runs with `toolChoice: 'none'`. Every figure it may
- *   use is already in front of it and no decision remains but how to phrase the
- *   reading. That is the round that was spending thousands of tokens deciding,
- *   and it is the one turned down.
+ *   use is in front of it and no decision remains but how to phrase the
+ *   reading. It was spending 3,539 output tokens on 719 characters of prose.
  *
- * Both are overridable, and setting either to an empty string restores the
- * vendor default for that kind of round.
+ * Measured on twenty golden questions, first-tool choice was 20/20 at the
+ * vendor default and 19/20 at `low` — which is why round zero keeps the
+ * default rather than trusting a 95% that is one sample away from the gate.
+ *
+ * All three are overridable, and an empty string restores the vendor default
+ * for that kind of round.
  */
 const THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
-const THINKING_LEVEL = process.env.GEMINI_THINKING_LEVEL ?? '';
+const FIRST_THINKING_LEVEL = process.env.GEMINI_FIRST_THINKING_LEVEL ?? '';
+const THINKING_LEVEL = process.env.GEMINI_THINKING_LEVEL ?? 'low';
 const ANSWER_THINKING_LEVEL = process.env.GEMINI_ANSWER_THINKING_LEVEL ?? 'low';
 
 /**
@@ -377,13 +386,19 @@ export function geminiSupportsSearchWithTools(model: string): boolean {
  */
 export function thinkingConfigFor(
   model: string,
-  kind: 'tool' | 'answer' | 'quarantine',
+  kind: 'first' | 'tool' | 'answer' | 'quarantine',
 ): ThinkingConfig | undefined {
   // The quarantine tier summarises one string with no tools. It has nothing to
   // reason about, and it is a different model whose levels we have not measured.
   if (kind === 'quarantine') return undefined;
   if (!/^(models\/)?gemini-3/i.test(model)) return undefined;
-  const level = (kind === 'answer' ? ANSWER_THINKING_LEVEL : THINKING_LEVEL).toLowerCase();
+  const level = (
+    kind === 'answer'
+      ? ANSWER_THINKING_LEVEL
+      : kind === 'first'
+        ? FIRST_THINKING_LEVEL
+        : THINKING_LEVEL
+  ).toLowerCase();
   // An unrecognised value is treated as "unset" rather than forwarded. A typo in
   // an env var should cost the discount, not every turn — and the vendor's
   // answer to an unknown level is a 400 on every request.
@@ -482,7 +497,16 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
       // the contract the same for both adapters.
       const thinking = thinkingConfigFor(
         model,
-        input.model === 'quarantine' ? 'quarantine' : input.toolChoice === 'none' ? 'answer' : 'tool',
+        input.model === 'quarantine'
+          ? 'quarantine'
+          : input.toolChoice === 'none'
+            ? 'answer'
+            : // No `round` at all means a caller that predates it, and the
+              // safe reading of "unknown round" is the one that changes
+              // nothing about tool selection.
+              (input.round ?? 0) === 0
+              ? 'first'
+              : 'tool',
       );
       // Grounding rides beside the function declarations, never alone: a
       // search-only request would change what a tool-less round means.

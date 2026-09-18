@@ -221,22 +221,36 @@ describe('gemini adapter — vendor specifics', () => {
     );
   });
 
-  it('turns thinking down on the answer round and leaves the tool rounds alone', async () => {
-    // The largest single line on the bill. Measured on one live turn, the round
-    // with tools withdrawn spent 3,539 of the turn's 5,644 output tokens to
-    // write a 719-character answer — more than every cached prefix read in the
-    // turn put together. Tool rounds are NOT turned down: that is where a wrong
-    // choice is expensive, the eval gate scores it, and they were already
-    // costing a few hundred tokens each.
-    const tool = providerCapturing({ textChunks: ['x'] });
-    await collect(tool.provider.runTurn(contractInput(), new AbortController().signal));
-    expect(tool.params().config?.thinkingConfig).toBeUndefined();
+  it('spends full thinking on the opening round and less on every round after', async () => {
+    // The largest single line on the bill. The opening round is the one the
+    // eval gate scores and the cheapest in the turn whatever the level, so it
+    // keeps the vendor default; the rounds after it reason over a context that
+    // has been growing all turn, which is what makes them expensive.
+    const first = providerCapturing({ textChunks: ['x'] });
+    await collect(first.provider.runTurn(contractInput({ round: 0 }), new AbortController().signal));
+    expect(first.params().config?.thinkingConfig).toBeUndefined();
+
+    const later = providerCapturing({ textChunks: ['x'] });
+    await collect(later.provider.runTurn(contractInput({ round: 2 }), new AbortController().signal));
+    expect(later.params().config?.thinkingConfig).toEqual({ thinkingLevel: 'low' });
 
     const answer = providerCapturing({ textChunks: ['x'] });
     await collect(
-      answer.provider.runTurn(contractInput({ toolChoice: 'none' }), new AbortController().signal),
+      answer.provider.runTurn(
+        contractInput({ toolChoice: 'none', round: 3 }),
+        new AbortController().signal,
+      ),
     );
     expect(answer.params().config?.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+  });
+
+  it('treats a caller that sends no round as the opening round', async () => {
+    // "Unknown round" must read as the setting that changes nothing about tool
+    // selection, or adding a field to the contract quietly re-tunes every
+    // caller written before it.
+    const { provider, params } = providerCapturing({ textChunks: ['x'] });
+    await collect(provider.runTurn(contractInput(), new AbortController().signal));
+    expect(params().config?.thinkingConfig).toBeUndefined();
   });
 
   it('caps one round\'s generation', async () => {
@@ -334,9 +348,14 @@ describe('gemini adapter — vendor specifics', () => {
 });
 
 describe('thinkingConfigFor', () => {
-  it('turns the answer round down and leaves tool rounds at the vendor default', () => {
+  it('protects the opening round and turns the rest down', () => {
+    // Measured on twenty golden questions: first-tool choice was 20/20 at the
+    // vendor default and 19/20 at `low`. The gate needs 90%, so 95% would pass
+    // — and is one sample from not passing, for a saving the measurement says
+    // is not there anyway (round zero thinks ~200 tokens at either level).
+    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'first')).toBeUndefined();
+    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'tool')).toEqual({ thinkingLevel: 'low' });
     expect(thinkingConfigFor('gemini-3.1-pro-preview', 'answer')).toEqual({ thinkingLevel: 'low' });
-    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'tool')).toBeUndefined();
   });
 
   it('never configures the quarantine tier', () => {

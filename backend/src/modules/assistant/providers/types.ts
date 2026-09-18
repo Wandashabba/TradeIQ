@@ -81,6 +81,19 @@ export interface TurnInput {
    * the quarantine tier — a tool-less pass must stay tool-less.
    */
   webSearch?: boolean;
+  /**
+   * Which round of the turn this is, counting from zero. Optional, and safe to
+   * ignore: an adapter that does not read it behaves exactly as before.
+   *
+   * It exists so an adapter can spend differently on the first round than on
+   * the rest, and the distinction it encodes is a real one. Round zero picks
+   * the FIRST tool from the user's words alone, which is the choice the eval
+   * gate scores and the one a turn cannot recover from. Every later round picks
+   * a follow-up with the previous results already in front of it — a narrower
+   * decision, and measurably a more expensive one to reason about, because the
+   * context it reasons over has grown.
+   */
+  round?: number;
 }
 
 export type Role = 'user' | 'assistant';
