@@ -369,10 +369,15 @@ class _DayBlock extends StatelessWidget {
               spacing: TiqSpace.s2,
               runSpacing: TiqSpace.s2,
               children: <Widget>[
+                // `figure.l` and not `display`: the design calls for "mono
+                // display 40/600" and there is no declared FIGURE role at 40 —
+                // display is a prose role, and `FigureSlot` asserts on one.
+                // The nearest declared figure is 32, and it steps down to 24
+                // under the measured fit rather than shrinking optically.
                 FigureSlot(
                   value: done,
-                  role: skin.text.display,
-                  fit: <TiqTypeToken>[skin.text.display, skin.text.figureL],
+                  role: skin.text.figureL,
+                  fit: <TiqTypeToken>[skin.text.figureL, skin.text.figureM],
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: TiqSpace.s1),
