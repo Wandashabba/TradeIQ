@@ -120,6 +120,72 @@ class TorchlightScanner {
     return out;
   }
 
+  /// Every way of naming an amber token.
+  ///
+  /// `flame*` plus the three that are amber without the word in their name:
+  /// the ink that goes ON an amber block, the pressed fill, and the gradient
+  /// stops every bloom is made of.
+  static final RegExp _amberToken = RegExp(
+    r'(?<![A-Za-z0-9_$])'
+    r'(flame(300|500|600|700|900)|glowAmber|amberPressed|onAmberPressed|onAmber)'
+    r'(?![A-Za-z0-9_$])',
+  );
+
+  /// Files that are allowed to name an amber token.
+  ///
+  /// Amber is emitted light and the ladder decides who emits it. A widget
+  /// that reaches for `flame600` directly has not asked [TorchScope] whether
+  /// it is lit, which means it is lit on every route including the ones with
+  /// two other lights on them — and the pixel census will then fail on a
+  /// screen whose own code looks innocent.
+  ///
+  /// Adding a path here is adding an emitter to the system. It is a design
+  /// decision, and it should be argued in the PR that adds it.
+  static const Set<String> amberAllowlist = <String>{
+    // The token source itself, and the one place the old shims map onto it.
+    'core/theme/torchlight/tiq_palette.dart',
+    'core/theme/torchlight/tiq_skin.dart',
+    'core/theme/torchlight/tiq_contrast.dart',
+    'core/theme/tiq_colors.dart',
+    'core/theme/app_theme.dart',
+  };
+
+  /// Scan [root] (expected to be `lib/`) for amber tokens named outside the
+  /// allowlist.
+  static List<StyleViolation> scanAmber(Directory root) {
+    final out = <StyleViolation>[];
+    final files =
+        root
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.dart'))
+            .toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
+
+    for (final file in files) {
+      final rel = _relative(file.path, root.path);
+      if (amberAllowlist.contains(rel)) continue;
+      final lines = file.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        final raw = lines[i];
+        if (raw.contains(escapeHatch)) continue;
+        final lineComment = raw.indexOf('//');
+        final code = lineComment == -1 ? raw : raw.substring(0, lineComment);
+        if (_amberToken.hasMatch(code)) {
+          out.add(
+            StyleViolation(
+              file: rel,
+              line: i + 1,
+              kind: 'amber-outside-allowlist',
+              text: code,
+            ),
+          );
+        }
+      }
+    }
+    return out;
+  }
+
   static Map<String, int> countByFile(List<StyleViolation> violations) {
     final counts = <String, int>{};
     for (final v in violations) {

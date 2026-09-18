@@ -362,6 +362,10 @@ All in `app/test/core/theme/torchlight/`, run by `flutter test` in
 | `torchlight_render_test.dart` | All three skins building a theme and painting a screen that touches every token; `lerp` across a mode change; `Veld × Console` being unconstructible; the spacing scale being base-4 with no twelfth step; the shim mapping. |
 | `torchlight_text_scale_test.dart` | The clamp, the one documented exception, and all three skins at 1.0×/1.3×/2.0× on a 360dp phone. |
 | `onest_font_test.dart` | Every theme asking for Onest; the Torchlight themes setting figures in mono; the PDF instances shipping and being static. |
+| `torchlight_generated_contrast_test.dart` | ~1000 generated ink x role x fill pairings across all five skin/density combinations; the Vienot deuteranopia and protanopia simulations against the ruling's own figures; every declared series pair carrying a non-colour channel. |
+| `torchlight_amber_lint_test.dart` | A `flame*` token named anywhere under `lib/` outside the five-file emitter allowlist. |
+| `torchlight_glyph_coverage_test.dart` | A character the formatters or the translations emit that is missing from the committed PDF font subsets; a new reference to U+25B2 or U+25BC. |
+| `core/design/*_test.dart` | The six foundations: the ladder and both of its failure modes, the formatter in both locales, the figure primitive's four states and its measured fitting, the motion boolean, the two hard hatch rules, and the amber pixel census against three fixture routes. |
 
 ### The style ratchet
 
@@ -379,7 +383,355 @@ verbose.
 
 ---
 
-## 9. Adding a token
+## 9. The six foundations
+
+Phase 0 of the component system. These are patterns, not pixels: nothing here
+is wired into a route, and **no screen changed appearance when they landed**.
+Phase 1 builds components against them.
+
+```
+app/lib/core/design/
+  torch_scope.dart     TorchScope — the amber allocator.
+  tiq_number.dart      TiqNumber — the one locale formatter.
+  figure_slot.dart     FigureSlot — the one figure primitive.
+  motion_budget.dart   MotionBudget — one `still` boolean.
+  hatch_paint.dart     HatchPaint — the four patterns.
+```
+
+### 9.1 TorchScope — the amber allocator
+
+**What it is.** An `InheritedWidget` at the top of a route that decides which
+of the objects asking to be lit actually are. A screen gets a countable number
+of lights and a fixed ladder decides who gets them, because "use amber
+sparingly" is a sentence nobody can fail and every audit of this app found the
+same twelve amber objects on one screen.
+
+The arithmetic: **Night = 2** — the nav's active tab is slot 1 whenever the nav
+renders, content gets one grant on a tabbed route and two on an untabbed one.
+**Day and Veld = 1**, and it is the primary commit block; zero when nothing is
+armed. The nav is *counted*, not exempt — kit called it "reserved" and manager
+called it "exempt", both produce the same number, and "counted" is the honest
+word.
+
+The ladder: `primaryCommit` → `plateStripLight` → `chartFocus` → `navCircle`
+(only on a route with no primary) → `textFieldFocus` → `livePulse` (presence
+only, one per route). There is no `meterTick` rung: a target tick is an
+annotation, an annotation is a label, and it is ink-1 everywhere.
+
+**How to use it.**
+
+```dart
+TorchScope(
+  skin: context.skin,
+  phase: 'loaded',            // resolved per route × phase, never per frame
+  navRenders: true,
+  tabbedRoute: true,
+  beneathSheet: false,
+  claims: <TorchClaim>[
+    TorchClaim.primaryCommit('check-in'),
+    TorchClaim.chartFocus('worst-outlet', subject: true),  // one per route
+  ],
+  child: …,
+)
+```
+
+An emitter asks and takes its ink form when the answer is false:
+
+```dart
+color: TorchScope.lit(context, 'check-in')
+    ? skin.palette.flame600
+    : skin.palette.chartNeutral,
+```
+
+Outside a scope the answer is `false`. Unlit is always the safe render, so a
+Phase 1 golden with no route around it does not paint amber by default.
+
+On a **light ground** the ladder has one rung. Every other claim is denied with
+`notAmberOnLightGround` — not because it lost, but because it has a non-amber
+form there and takes it: the nav tab is an Abyssal block, the focus bar is
+ink-1, "you are here" is a disc with a white ring, the live pulse is a `lifted`
+dot and the word Live.
+
+While a **modal sheet** is up, `beneathSheet: true` extinguishes every amber on
+the route beneath — the nav tab drops to its ink form and the plate's light goes
+off. That is what lets the scrim stay at 72% and keep the held work visible
+behind it instead of hiding it under 88%.
+
+**Failure.** Over-claiming throws a `FlutterError` in debug, with the whole
+ladder and the `subject: true` override printed. In release the surplus loses in
+ladder order and the frame renders correctly lit — a design rule must never
+throw in front of a user in a back aisle during Stage 6. A test exercises the
+release path by setting `debugTorchAssertOverClaim = false`; that flag is the
+one documented way past the assert and is deliberately not a constructor
+argument.
+
+**How to add to it.** A new rung means a new `TorchClaimKind` and a new line in
+`_rung`. That is a change to the law, not a feature: argue it in the PR, add the
+case to `torch_scope_test.dart`'s ladder group, and say which surface's claim it
+settles.
+
+### 9.2 TiqNumber + FigureSlot — the formatter and the figure
+
+**What they are.** One locale formatter and one figure primitive. Before them
+there was `NumberFormat('#,##0.#', 'en_US')` in one file and sixty-nine
+`toStringAsFixed` calls in thirty-three others, which is why the same number
+could print three ways on three screens and a fourth way in the PDF.
+
+`TiqNumber` owns grouping, the decimal mark, the currency affix and the sign:
+
+| | en | af |
+|---|---|---|
+| `format(1284990.5)` | `1,284,990.5` | `1 284 990,5` (U+00A0 groups) |
+| `format(-31, unit: percent)` | `−31%` | `−31%` |
+| `format(1284990, unit: currency)` | `R 1,284,990` | `R 1 284 990` |
+
+Every minus is **U+2212**, never a hyphen-minus: a hyphen is a word-joiner,
+it is narrower than a digit, and in a tabular column it makes a negative number
+look indented rather than negative. A value that rounds to zero prints unsigned,
+because `−0%` is a movement that did not happen. Separators are *declared* here
+rather than read from CLDR at runtime — a CLDR bump that moved English onto
+space-and-comma would change every screen in the product without a line of the
+diff being about it.
+
+`FigureSlot` sets it:
+
+```dart
+FigureSlot(
+  value: outlet.score,          // null is a state, not an absence
+  role: skin.text.figureL,      // must be a figure or identifier role
+  fit: <TiqTypeToken>[skin.text.heroFigure, skin.text.heroFigureCompact],
+  unit: TiqUnit.percent,        // or .currency, or TiqUnit.worded(l10n.points)
+  decimals: metric.decimals,    // the metric's precision, not the value's
+  state: FigureState.lowSample,
+  semanticsLabel: l10n.noVisitsInWindow,   // required for every unknown state
+)
+```
+
+Four things it owns:
+
+1. **Two faces.** The digits are JetBrains Mono with `tnum`; the affixes are
+   Onest at zero tracking, because `R` and `pts` are language.
+2. **Unknown versus zero.** A measured zero renders `0`, keeps its place and is
+   never suppressed. A null renders an em dash in **ink-3, at the figure's own
+   role and face**, with the unit suppressed and `allowsDelta: false` — a delta
+   never stands beside nothing. A low sample keeps the figure at **ink-2**, the
+   caller outlines the fill, and the delta goes, for a thin baseline too.
+3. **Measured fitting.** Candidate roles are laid out with a `TextPainter` at
+   the live `TextScaler`, affixes included; the first that fits wins. There is
+   no `FittedBox` anywhere in it — optically shrinking one figure in a baseline
+   row breaks the row's baseline, which is what a tabular column exists to
+   prevent.
+4. **The scale cap.** `hero.figure` caps at 1.6×, applied through
+   `TextScaler.clamp`, never as a factor multiplied into a font size.
+
+**How to add to it.** A new locale is a `TiqNumberSymbols` member plus a row in
+`tiq_number_test.dart`. A new unit is a `TiqUnit` member only if it is a
+*symbol*; a worded unit is a translated string and arrives through
+`TiqUnit.worded` already localised — this class does not own language.
+
+> **Not yet migrated.** The 69 `toStringAsFixed` call sites and
+> `rich_figures.dart`'s `NumberFormat` are unchanged. Repointing them is a
+> visible change — Afrikaans separators, a true minus where a hyphen is today —
+> and Phase 0 changes no screen. They move with their screens, in §11's
+> migration order.
+
+### 9.3 MotionBudget — one `still` boolean
+
+**What it is.** `disableAnimations ∨ Veld ∨ powerSave`, resolved once and read
+by everything that moves. The audit found four ambient loops, two of which
+honoured reduce-motion and none of which knew about Veld.
+
+```dart
+if (MotionBudget.of(context).still) {
+  // the resting frame: a filled square and the word "Live"
+} else {
+  // the 3200ms pulse
+}
+```
+
+Durations do not need it — `skin.motion.resolve(d)` already returns
+`Duration.zero`. This is for what a duration cannot express: whether to start a
+`Ticker` at all, and which of two *different* renderings to paint.
+`MotionBudgetScope` pins a value for a test or a golden; there is no scope in
+the running app, because this is a value that can always be computed.
+
+> **`powerSave` is `false`, and that is #407.** Reading the OS battery-saver
+> state needs about forty lines of platform code on each of Android and iOS and
+> nobody has written them. The input is wired open, with the ticket number on
+> it, so the sentence "motion stops in battery saver" is a promise with an owner
+> rather than a line in a design document. `motion_budget_test.dart` asserts
+> both the `false` and the `TODO(#407)`, so the day the channel lands the test
+> is what says "now wire it".
+
+### 9.4 HatchPaint — the four patterns
+
+**What it is.** A hatch says what a fill cannot: *not measured*, *negative*,
+*low sample*, *provisional*. It is the second channel where there is no room for
+a word, and it survives greyscale, both dichromacies and a sun-washed panel —
+which a hue does not.
+
+| Pattern | Looks like | Says |
+|---|---|---|
+| `notMeasured` | 45° falling stripes, full track width | Nobody scored this dimension |
+| `negative` | 45° rising stripes | The wrong side of a diverging axis |
+| `lowSampleOutline` | fill removed, outline only | A real number, too thin a sample |
+| `provisionalOutlineDots` | outline plus dots | Server-stamped provisional, console only |
+
+```dart
+HatchPaint.paint(canvas, trackRect, HatchPaint.spec(skin, HatchPattern.notMeasured));
+```
+
+Two rules, both asserted:
+
+1. **Never inside a glyph.** A 3dp stripe inside a 28dp section-state tile
+   aliases to a flat grey disc at 40% backlight — the half-disc it must not
+   resemble. "Can't confirm" is a fourth *silhouette* (a ring with a 2px
+   diagonal bar), not a hatched third one. The `insideGlyph:` argument exists so
+   that a caller who believes it has a good reason has to write the word down,
+   and then the assert says no.
+2. **Never on a mark under 4dp.** Below that the stripe pitch and the mark are
+   the same size and the pattern reads as noise or as a solid.
+
+A hatch in a list row is **painter lines**, not a gradient decoration: a
+gradient inside a `ListView.builder` row is a new `Paint` and a new shader per
+row per scroll frame. There is no gradient form in the registry, so there is
+nothing to reach for by mistake, and `hatch_paint_test.dart` asserts the source
+file does not contain the word.
+
+**How to add to it.** A fifth pattern is a `HatchPattern` member, a `spec` case
+and a row in the pinned list in `hatch_paint_test.dart`. Ask first whether the
+thing wants a fourth *silhouette* instead — a shape beats a texture at 40%
+backlight every time.
+
+### 9.5 The generated contrast test
+
+`torchlight_contrast_test.dart` checks the pairings a person wrote down.
+`torchlight_generated_contrast_test.dart` checks the ones nobody did.
+
+**The sweep.** `TorchlightContrast.generatedFor(skin)` produces every ink × type
+role × fill pairing for one skin at one density, with the floor taken from the
+role that is actually set in the ink — `meta` at 12px needs 4.5:1 and
+`figure.l` at 32px needs 3.0:1, so the same two colours are two different
+verdicts. It runs over all five skin × density combinations the app can build
+(Veld appears once: `Veld × Console` has no spelling), which is about a thousand
+pairings.
+
+Veld's 9:1 / 15:1 floors are now **tokens on the skin** — `skin.textFloor` and
+`skin.borderFloor`, combined with the role's floor by `skin.floorFor` — rather
+than an `if (mode == veld)` in the generator. A skin is a value set, not a code
+path.
+
+**The colour-vision passes.** `simulateVision(color, filter)` implements
+greyscale plus Viénot–Brettel–Mollon deuteranopia and protanopia in
+`tiq_contrast.dart`, beside `contrastRatio`, so production and test cannot
+compute them differently. The implementation reproduces the ruling's own
+figures: Burning Flame against Truffle is **1.41:1** in deuteranopia, and `bad`
+against `chartNeutral` is **1.55:1** true and **1.26:1** in protanopia. Both are
+pinned.
+
+Two findings worth keeping in mind:
+
+- **Greyscale is not a separate pass.** WCAG contrast is already a
+  luminance-only metric, so a pair that measures 1.42:1 in colour measures
+  1.42:1 in greyscale *by construction*. There is no hue rescue available
+  anywhere in this system. That is the finding, not a flaw in the test.
+- **Dichromacy sometimes separates a pair better.** A protanope sees crimson far
+  darker, so `good` against `badSolid` is 4.10:1 under protanopia against 2.58:1
+  in normal vision — and it is no help at all, because the pair is still one hue
+  with two silhouettes doing the work. The test therefore validates the
+  *matrices* (a neutral grey must map to itself; the red and green channels must
+  collapse onto one confusion line) rather than asserting a direction.
+
+**The registry.** `TorchlightContrast.seriesPairs` is twenty-seven declared
+pairs — nine in each skin — of things a reader has to tell apart, each carrying
+the `SeparationChannel`s that tell them apart when hue cannot (`shape`,
+`weight`, `dash`, `hatch`, `outline`, `word`, `position`) and one sentence of
+why. A pair with an empty channel set fails. "It also has a different shape" is
+a claim, and a claim in a review comment does not survive the component being
+rewritten.
+
+**How to add to it.** A new ink or fill goes in the matrices inside
+`generatedFor`. A new pair of things a reader must distinguish goes in
+`seriesPairs` with its channels and its sentence.
+
+### 9.6 The amber golden harness
+
+**What it is.** `TorchScope` asserts on what a route *claims*.
+`test/core/design/amber_golden.dart` counts what it *painted*. Both are needed:
+a widget can light itself without asking the allocator, a decoration can bloom
+where nobody declared an object, and a shim can hand an old screen a flame token
+through a mapping table.
+
+```dart
+await pumpAmberRoute(tester, skin: TiqSkin.night(), child: const DashboardFixture());
+final census = await amberCensus(tester);
+expectWithinAmberBudget(census, skin, route: 'dashboard', phase: 'loaded');
+```
+
+It renders the route into a `RepaintBoundary` at a pinned 360×720 and
+devicePixelRatio 1.0, classifies every pixel, finds the eight-connected regions
+of the flame-hued ones, discards anything under 12px as an anti-aliasing speck,
+and fails when the count exceeds the skin's budget.
+
+**What counts as flame-hued:** hue 20°–48°, value ≥ 0.90, saturation ≥ 0.12.
+That box contains `flame500/600/700/900` and excludes every warm neutral the
+system paints beside them. The value floor is what makes it a census of
+*emitted* light: `flame300` is amber but it is ink (value 0.54), and the tail of
+a bloom composited at 30% over the Night ground lands at value 0.33. Counting a
+halo as a second light is how a budget check gets switched off for being noisy.
+
+Oatmeal sits one hundredth of a saturation point outside the box, which is not a
+coincidence — Burning Flame and Oatmeal have identical relative luminance. A
+test asserts the classification of every token in every skin, so if a palette
+change ever moves Oatmeal into the box that fails first and says so.
+
+**It is proven to fail.** Three fixtures ship: `AmberDashboardFixture` (tabbed,
+nav + primary — 2 in Night, 1 on a light ground), `AmberVisitFixture` (untabbed,
+plate + live pulse — 2 in Night, 0 on a light ground) and
+`AmberOverLitFixture`, which paints four amber blocks directly without ever
+speaking to the allocator. Tests assert that the census counts all four, that
+`expectWithinAmberBudget` throws on it in Night *and* on a light ground, and
+that a route under an open sheet paints zero. The pixel arithmetic itself —
+touching blocks are one object, a diagonal rim is one object, a 4px speck is
+none — is checked against buffers built by hand.
+
+**How to add to it.** A Phase 1 component's golden pumps its route through
+`pumpAmberRoute` and asserts both `expectWithinAmberBudget` *and* the exact
+count the ladder predicted. "Under budget" also passes for a screen that lost
+its light entirely.
+
+### 9.7 The other two guards
+
+**The codepoint guard** (`torchlight_glyph_coverage_test.dart`) parses the
+`cmap` tables of the three committed `Onest-Pdf-*.ttf` files — the binaries, not
+`tool/build_pdf_fonts.sh`'s intentions, because a range added to the script and
+never re-run is a range that does not exist — and asserts that every character
+`TiqNumber` emits and every character in both `.arb` files is really in all
+three weights. `package:pdf` does not fall back and does not draw tofu: a
+missing glyph is simply absent from the report, which is how a delta arrow left
+every export in #401 and was found by a customer.
+
+It also ratchets **U+25B2 / U+25BC**, which Onest has never had at any weight.
+Five call sites survive, in a ledger with the component that deletes each:
+`delta_pill.dart` (2), `rich_figures.dart` (2), `artifact_pdf.dart` (1). No file
+may gain one and a file not in the ledger may not have one at all. It is a
+ratchet rather than a flat ban because removing those five lines changes what is
+on screen, and Phase 0 changes nothing on screen; Phase 1's **Delta** draws the
+triangle as a path and empties the ledger.
+
+**The amber lint** (`torchlight_amber_lint_test.dart`) forbids `flame300/500/
+600/700/900`, `glowAmber`, `amberPressed`, `onAmber` and `onAmberPressed`
+anywhere under `lib/` outside a five-file allowlist, all of them in
+`core/theme/`. A widget that reaches for `flame600` directly has not asked
+whether it is lit, which means it is lit on every route including the ones that
+already have two lights. Adding a path to
+`TorchlightScanner.amberAllowlist` is adding an emitter to the system: argue it
+in the PR. Phase 1 adds four — the nav pill, the primary button, the plate and
+the chart focus bar.
+
+---
+
+## 10. Adding a token
 
 1. **Check it is a token and not a value.** If it is used once, it is a value.
    If two components would disagree about it, it is a token.
@@ -403,7 +755,7 @@ verbose.
 
 ---
 
-## 10. Migration status
+## 11. Migration status
 
 The five old colour sources — `TiqColors`, `LumenPalette`, `LumenGlass`,
 `AppColors`, `status_pill_colors.dart` — are all `@Deprecated`, all still
