@@ -94,13 +94,6 @@ class FigureSlot extends StatelessWidget {
       'three are fine in a sentence and disqualifying in a figure. Use a '
       'figure or identifier role.',
     );
-    assert(
-      state == FigureState.measured || semanticsLabel != null,
-      'FigureSlot: a ${state.name} figure needs a semanticsLabel. An em dash '
-      'announced as "em dash" is not the sentence in words the design asks '
-      'for.',
-    );
-
     final skin = context.skin;
     final figure = TiqNumber.of(context).split(
       value,
@@ -108,6 +101,14 @@ class FigureSlot extends StatelessWidget {
       decimals: decimals,
       signed: signed,
       state: state,
+    );
+    // Asserted on the RESOLVED state, not the declared one: a caller that
+    // passes a null value has not declared `missing`, it has produced one.
+    assert(
+      figure.state == FigureState.measured || semanticsLabel != null,
+      'FigureSlot: a ${figure.state.name} figure needs a semanticsLabel. An '
+      'em dash announced as "em dash" is not the sentence in words the design '
+      'asks for.',
     );
     final candidates = fit ?? <TiqTypeToken>[role];
     assert(candidates.isNotEmpty, 'FigureSlot: fit cannot be empty.');
