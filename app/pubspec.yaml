@@ -104,30 +104,42 @@ flutter:
   assets:
     - assets/images/tradeiq-ti-monogram.png
     - assets/videos/Steadycam_gliding_down_aisle_202607102247.mp4
+    # Onest for the PDF exporter, and ONLY for it — declared as assets rather
+    # than under `fonts:` so the engine never resolves a screen to them.
+    # `package:pdf` parses a TTF's `glyf` outlines directly and knows nothing
+    # about a variable font's `gvar` deltas, so handing it Onest-Variable three
+    # times would render every weight at 400 and silently flatten the report's
+    # hierarchy. These are static instances at wght 400/500/700, subset to
+    # Latin + Latin-Ext plus the punctuation and currency the app emits: 50 KB
+    # each against 1.25 MB of Inter. Regenerate with tool/build_pdf_fonts.sh.
+    - assets/fonts/Onest-Pdf-400.ttf
+    - assets/fonts/Onest-Pdf-500.ttf
+    - assets/fonts/Onest-Pdf-700.ttf
 
-  # Inter is bundled, not fetched: field agents work offline in shops with no
+  # Fonts are bundled, not fetched: field agents work offline in shops with no
   # signal, so a runtime download (the google_fonts default) would mean the
   # theme's typeface — whose metrics every letterSpacing and font-size token
-  # was tuned against — simply isn't there. Static TTFs, not the variable
-  # font: Flutter only maps FontWeight to distinct font files, not to a
-  # variable wght axis. Weights match what lib/ actually uses (400/500/600/
-  # 700). SIL OFL 1.1 — licence at assets/fonts/OFL.txt.
+  # was tuned against — simply isn't there.
+  #
+  # Onest is the Torchlight Aisle prose face, shipped as the single VARIABLE
+  # font Google Fonts publishes (wght 100–900, no italic). One asset, not four
+  # static instances: Flutter has mapped FontWeight onto a variable font's wght
+  # axis since 3.41 and this app is on 3.44.8, so the old note here about
+  # Flutter only resolving distinct files is out of date. 193 KB replaces
+  # Inter's 1.67 MB. Filename has no brackets on purpose: the generated
+  # FontManifest URL-escapes them and an asset key stops round-tripping. SIL OFL 1.1 — licence at assets/fonts/OFL-Onest.txt.
   fonts:
-    - family: Inter
+    - family: Onest
       fonts:
-        - asset: assets/fonts/Inter-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/Inter-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Inter-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Inter-Bold.ttf
-          weight: 700
+        - asset: assets/fonts/Onest-Variable.ttf
 
-    # JetBrains Mono — the Lumen Glass figure and micro-label face: every
-    # numeral in a data role and every uppercase kicker. Bundled for the same
-    # offline reason as Inter. SIL OFL 1.1 — licence at
-    # assets/fonts/OFL-JetBrainsMono.txt.
+    # JetBrains Mono — the FIGURE and IDENTIFIER face, and the reason Onest is
+    # never allowed to render one. Onest has no slashed zero, its digits are
+    # proportional unless `tnum` is switched on, and its capital I and
+    # lowercase l are the same shape — all fine for prose and disqualifying for
+    # an outlet code, a GTIN or an order ref. The split is enforced by
+    # test/core/theme/torchlight/torchlight_type_test.dart, not by discipline.
+    # SIL OFL 1.1 — licence at assets/fonts/OFL-JetBrainsMono.txt.
     - family: JetBrains Mono
       fonts:
         - asset: assets/fonts/JetBrainsMono-Regular.ttf

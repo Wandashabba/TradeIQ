@@ -3,6 +3,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'torchlight/tiq_skin.dart';
 
 /// The theme-aware TradeIQ palette — every semantic slot the console uses,
 /// carried as a [ThemeExtension] so widgets can respond to the light/dark
@@ -287,6 +288,71 @@ class TiqColors extends ThemeExtension<TiqColors> {
   /// Glass on a dark ground — light ink is the tell.
   bool get isNight => glass && ink1.computeLuminance() > 0.5;
 
+  /// **The migration shim.** Every legacy slot, expressed in Torchlight
+  /// tokens.
+  ///
+  /// This is the whole mapping table from the five old colour sources onto the
+  /// one new one, in a single place a migrating screen can read. When a screen
+  /// is ported it stops going through here and reads `context.skin` directly;
+  /// when the last one has, this factory and the class around it are deleted.
+  ///
+  /// Where the old system had a slot the new one deliberately does not — most
+  /// of all `warn`, because severity abandons amber's hue band entirely — the
+  /// mapping points at the Torchlight token that now carries that *job*, not
+  /// at a colour that merely looks similar. `warn` therefore maps to `bad`:
+  /// there is no amber warning in TradeIQ, and a shim that invented one would
+  /// reintroduce the exact brand/warning collision this direction exists to
+  /// kill.
+  factory TiqColors.fromSkin(TiqSkin skin) {
+    final p = skin.palette;
+    return TiqColors(
+      plane: p.ground,
+      surface1: p.surface,
+      surface2: p.well,
+      surface3: p.raised,
+      line: p.hairline,
+      lineStrong: p.edgeStructure,
+      ink1: p.ink1,
+      ink2: p.ink2,
+      ink3: p.ink3,
+      // ink4 was "graphical marks, 3:1, never text" — that is edge-control.
+      ink4: p.edgeControl,
+      brand: p.flame600,
+      brandHover: p.flame700,
+      // Three series slots collapse onto the Torchlight data story: us (amber),
+      // them (truffle), everyone else (the neutral).
+      series1: p.flame600,
+      series2: p.comparison,
+      series3: p.chartNeutral,
+      good: p.good,
+      warn: p.bad,
+      crit: p.bad,
+      critText: p.bad,
+      grid: p.hairline,
+      axis: p.edgeControl,
+      shadow: skin.depth.sh1?.color ?? const Color(0x00000000),
+      scrim: p.scrim,
+      // There is no hero "wash" any more — a hero sits on the plate or on the
+      // ground. The nearest honest surface is the raised cell.
+      heroWash: p.raised,
+      heroBorder: p.edgeStructure,
+      navBarBg: p.well,
+      navBarLine: p.edgeStructure,
+      navInactiveInk: p.navInkInactive,
+      // The active pill is gone; the active slot is an amber underbar on the
+      // nav body. The old fill slot maps to the body so a screen that still
+      // paints a pill paints nothing visible rather than a stray block.
+      navActivePillBg: p.well,
+      navActiveInk: p.flame600,
+      glass: false,
+      action: skin.amberIsInk ? p.flame600 : p.lifted,
+      onAction: skin.amberIsInk ? p.onAmber : p.ink1,
+      radiusControl: skin.radii.control,
+      radiusCard: skin.radii.chip,
+      radiusPanel: skin.radii.panel,
+    );
+  }
+
   @override
   TiqColors copyWith({
     Color? plane,
@@ -414,10 +480,16 @@ class TiqColors extends ThemeExtension<TiqColors> {
 /// `context.colors` — how feature code reads the ambient palette.
 ///
 /// Falls back to the flat [TiqColors.dark] when no theme registers the
-/// extension. In production both AppTheme.light() and AppTheme.dark() register
-/// a glass palette, so the fallback only fires in tests that pump a bare
-/// MaterialApp.
+/// extension. In production every AppTheme factory registers one, so the
+/// fallback only fires in tests that pump a bare MaterialApp.
 extension TiqColorsContext on BuildContext {
+  @Deprecated(
+    'Torchlight Aisle replaced the five colour sources with one TiqSkin. '
+    'Use context.skin (core/theme/torchlight/tiq_skin.dart) — colours live on '
+    'context.skin.palette, spacing on .space, radii on .radii, type on .type. '
+    'TiqColors.fromSkin() holds the slot-by-slot mapping while screens are '
+    'migrated. See docs/design/torchlight-aisle.md.',
+  )
   TiqColors get colors =>
       Theme.of(this).extension<TiqColors>() ?? TiqColors.dark;
 }

@@ -10,6 +10,12 @@ import 'package:flutter/material.dart';
 /// rides on colour alone.
 ///
 /// Mirrors `design/tokens.css`.
+@Deprecated(
+  'Torchlight Aisle collapsed the five colour sources into one TiqSkin. '
+  'Use context.skin.palette — see docs/design/torchlight-aisle.md. This table '
+  'also carries radiusPill (999), which no longer exists: Torchlight has four '
+  'radii tied to four materials and the stadium died with the active-tab pill.',
+)
 class AppColors {
   AppColors._();
 

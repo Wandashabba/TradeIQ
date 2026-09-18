@@ -185,6 +185,14 @@ class LumenPalette {
 }
 
 extension LumenContext on BuildContext {
+  @Deprecated(
+    'Torchlight Aisle collapsed the five colour sources into one TiqSkin. '
+    'Use context.skin (core/theme/torchlight/tiq_skin.dart): grounds and '
+    'surfaces are context.skin.palette, geometry is .radii and .space, and '
+    'the glass rims, blooms and shadows have no successor because Night has '
+    'no shadow and every bloom is a gradient. See '
+    'docs/design/torchlight-aisle.md.',
+  )
   LumenPalette get lumen => Theme.of(this).brightness == Brightness.dark
       ? LumenPalette.dark
       : LumenPalette.light;

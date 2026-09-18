@@ -15,14 +15,38 @@ typedef StatusPillWash = ({Color bg, Color fg});
 /// Every status pill in the app (DeltaPill, SlaPill, StatusBanner's light-mode
 /// text tints, the beat-plan "route done" chip) references these — the literal
 /// hexes must live here and nowhere else, so they cannot drift.
+@Deprecated(
+  'Torchlight Aisle has no fixed status washes. Severity is one hue at two '
+  'commitment levels plus a glyph silhouette and a semanticLabel: watch is a '
+  'bad outline with bad ink, critical is a solid badSolid block with '
+  'onBadSolid ink, good is a good outline, and held is ink-2 on the well. '
+  'There is no warn: severity abandons amber entirely. Use context.skin — see '
+  'docs/design/torchlight-aisle.md.',
+)
 const StatusPillWash statusPillGood = (
   bg: Color(0xFFE7F5E7),
   fg: Color(0xFF0B6B0B),
 );
+@Deprecated(
+  'Torchlight Aisle has no fixed status washes. Severity is one hue at two '
+  'commitment levels plus a glyph silhouette and a semanticLabel: watch is a '
+  'bad outline with bad ink, critical is a solid badSolid block with '
+  'onBadSolid ink, good is a good outline, and held is ink-2 on the well. '
+  'There is no warn: severity abandons amber entirely. Use context.skin — see '
+  'docs/design/torchlight-aisle.md.',
+)
 const StatusPillWash statusPillWarn = (
   bg: Color(0xFFFDF3E2),
   fg: Color(0xFF8A5A00),
 );
+@Deprecated(
+  'Torchlight Aisle has no fixed status washes. Severity is one hue at two '
+  'commitment levels plus a glyph silhouette and a semanticLabel: watch is a '
+  'bad outline with bad ink, critical is a solid badSolid block with '
+  'onBadSolid ink, good is a good outline, and held is ink-2 on the well. '
+  'There is no warn: severity abandons amber entirely. Use context.skin — see '
+  'docs/design/torchlight-aisle.md.',
+)
 const StatusPillWash statusPillBad = (
   bg: Color(0xFFFDEEEE),
   fg: Color(0xFFA52A2A),

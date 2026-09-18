@@ -57,7 +57,7 @@ class ArtifactPdfRequest {
   /// The same table the screen shows, derived once in [artifactTableFor].
   final ArtifactTable? table;
 
-  /// Inter, as bundled with the app. Passed in rather than loaded here because
+  /// Onest, as bundled with the app. Passed in rather than loaded here because
   /// `rootBundle` does not exist in a background isolate.
   final ArtifactPdfFonts fonts;
 
@@ -70,11 +70,22 @@ class ArtifactPdfFonts {
     required this.regular,
     required this.medium,
     required this.bold,
+    required this.fallback,
   });
 
   final Uint8List regular;
   final Uint8List medium;
   final Uint8List bold;
+
+  /// JetBrains Mono, carried purely as a glyph fallback.
+  ///
+  /// Onest has no geometric shapes — U+25B2/25BC, the solid up and down
+  /// triangles the delta marker draws, are simply not in the face (Inter had
+  /// them). `package:pdf` does not tofu a missing glyph, it drops it and logs,
+  /// so without this the sign of every delta in an exported report would
+  /// vanish silently. JetBrains Mono ships in the app already and has all four
+  /// shapes.
+  final Uint8List fallback;
 }
 
 /// Build the document. Pure: same request in, same document out — bar the two
@@ -88,13 +99,19 @@ Future<Uint8List> buildArtifactPdf(ArtifactPdfRequest request) async {
   final regular = pw.Font.ttf(request.fonts.regular.buffer.asByteData());
   final medium = pw.Font.ttf(request.fonts.medium.buffer.asByteData());
   final bold = pw.Font.ttf(request.fonts.bold.buffer.asByteData());
+  final fallback = pw.Font.ttf(request.fonts.fallback.buffer.asByteData());
 
   final document = pw.Document(
     compress: request.compress,
     title: request.title,
     producer: 'TradeIQ',
     subject: request.filters,
-    theme: pw.ThemeData.withFont(base: regular, bold: bold, italic: regular),
+    theme: pw.ThemeData.withFont(
+      base: regular,
+      bold: bold,
+      italic: regular,
+      fontFallback: <pw.Font>[fallback],
+    ),
   );
 
   final ink1 = PdfColor.fromInt(0xFF14161C);

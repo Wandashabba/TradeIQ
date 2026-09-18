@@ -16,6 +16,13 @@ import 'tiq_colors.dart';
 /// Only the LIGHT theme is glass ([TiqColors.glass]). Dark keeps the flat
 /// instrument panel, so each widget built on these tokens checks
 /// `context.colors.glass` and falls back to its flat recipe in dark.
+@Deprecated(
+  'Torchlight Aisle collapsed the five colour sources into one TiqSkin. '
+  'Geometry moved to context.skin.radii and context.skin.space, type to '
+  'context.skin.text, motion to TiqMotion. The glass itself has no successor: '
+  'there is zero BackdropFilter in the application and every bloom is a '
+  'gradient. See docs/design/torchlight-aisle.md.',
+)
 class LumenGlass {
   LumenGlass._();
 
