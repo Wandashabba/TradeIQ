@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/rating_band.dart';
 import '../../../core/theme/lumen_glass.dart';
 import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/console.dart';
@@ -9,6 +10,7 @@ import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/glass_page_scaffold.dart';
 import '../../../core/widgets/lumen_kit.dart';
 import '../../../core/widgets/worklist.dart';
+import '../../../l10n/l10n.dart';
 import '../../audit/data/photos_repository.dart';
 import '../../fraud/presentation/fraud_screen.dart';
 import '../../templates/domain/template_schema.dart';
@@ -412,13 +414,21 @@ class _Fact extends StatelessWidget {
 
 // ── Score ──────────────────────────────────────────────────────────────────
 
-/// The stored band as a status and its word. Words, never colour alone.
-({LumenStatus status, String word}) bandStatus(String band) => switch (band) {
-  'green' => (status: LumenStatus.good, word: 'Healthy'),
-  'amber' => (status: LumenStatus.warn, word: 'At risk'),
-  'red' => (status: LumenStatus.crit, word: 'Gap'),
-  _ => (status: LumenStatus.none, word: 'Unbanded'),
-};
+/// The stored band as a status and its labelled word. Words and marks, never
+/// colour alone — both come from [RatingBand], the one place the wire values
+/// `green` / `amber` / `red` become something a person reads.
+///
+/// A band this build does not recognise is NOT guessed at: it shows as
+/// unbanded, with no severity and no mark.
+({LumenStatus status, String label}) bandStatus(
+  AppLocalizations l10n,
+  String band,
+) {
+  final known = RatingBand.fromWire(band);
+  return known == null
+      ? (status: LumenStatus.none, label: 'Unbanded')
+      : (status: known.status, label: known.markedWord(l10n));
+}
 
 const _dimensionLabels = <String, String>{
   'availability': 'Availability',
@@ -467,7 +477,7 @@ class _ScorePanel extends StatelessWidget {
       );
     }
 
-    final band = bandStatus(score.ratingBand);
+    final band = bandStatus(context.l10n, score.ratingBand);
     return GlassPane(
       key: const ValueKey('visit-score'),
       padding: const EdgeInsets.all(18),
@@ -480,7 +490,7 @@ class _ScorePanel extends StatelessWidget {
               LumenStatusPill(
                 key: const ValueKey('visit-band'),
                 status: band.status,
-                label: band.word,
+                label: band.label,
               ),
             ],
           ),

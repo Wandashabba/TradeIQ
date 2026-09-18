@@ -152,8 +152,9 @@ void main() {
           findsOneWidget,
           reason: name,
         );
-        // Band carries a word (never colour alone); 'red' → 'Red'.
-        expect(find.text('Red'), findsOneWidget, reason: name);
+        // Band carries a mark and a word (never colour alone); the wire value
+        // 'red' is shown as '✕ Gap'.
+        expect(find.text('✕ Gap'), findsOneWidget, reason: name);
 
         // Refresh recomputes — an AgentButton, not a raw TextButton.
         await tester.ensureVisible(find.widgetWithText(AgentButton, 'Refresh'));
@@ -205,16 +206,22 @@ void main() {
     },
   );
 
-  // Every band, both themes: the word is spelled out (never colour alone) and
-  // its rendered colour clears AA text contrast on surface1. Hardwiring the
-  // fake to one band would let the other branches rot — a reviewer mutating
-  // amber's colour to raw crit (3.76:1 dark) or dropping green/amber's word
-  // must fail here.
-  const bands = {'green': 'Green', 'amber': 'Amber', 'red': 'Red'};
-  for (final MapEntry(key: band, value: word) in bands.entries) {
+  // Every band, both themes: the band is spelled out AND marked (never colour
+  // alone) and its rendered colour clears AA text contrast on surface1.
+  // Hardwiring the fake to one band would let the other branches rot — a
+  // reviewer pointing Watch back at a warn/amber token, mutating a word's
+  // colour to raw crit (3.76:1 dark), or dropping a word or a mark must fail
+  // here. The wire values are unchanged: `amber` still goes in, "Watch" comes
+  // out.
+  const bands = {
+    'green': ('Healthy', '✓'),
+    'amber': ('Watch', '!'),
+    'red': ('Gap', '✕'),
+  };
+  for (final MapEntry(key: band, value: (word, mark)) in bands.entries) {
     testWidgets(
-      'the $band band spells out "$word" and clears 4.5:1 on surface1 — '
-      'both themes',
+      'the $band band spells out "$word", marks it "$mark" and clears 4.5:1 '
+      'on surface1 — both themes',
       (tester) async {
         for (final name in _bothThemes) {
           final fake = _fake(band: band);
@@ -223,14 +230,16 @@ void main() {
           );
           await tester.pumpAndSettle();
 
-          // (a) never colour alone — the word is present under the band key.
+          // (a) never colour alone — the word AND its non-colour mark are both
+          // present under the band key, and they travel together as one label
+          // so no surface can keep one and drop the other.
           final bandText = tester.widget<Text>(
             find.descendant(
               of: find.byKey(const ValueKey('score-band')),
               matching: find.byType(Text),
             ),
           );
-          expect(bandText.data, word, reason: '$band/$name word');
+          expect(bandText.data, '$mark $word', reason: '$band/$name label');
 
           // (b) the colour the tree actually rendered it with clears AA text
           // contrast on surface1.
@@ -243,17 +252,18 @@ void main() {
             greaterThanOrEqualTo(4.5),
             reason:
                 '$band/$name band word is $ratio:1 on surface1 — a coloured '
-                'band label must clear AA text contrast (critText for red, '
-                'not the crit mark).',
+                'band label must clear AA text contrast (critText for Watch '
+                'and Gap, not the crit mark).',
           );
 
           final palette = _colorsFor(name);
           if (palette.glass) {
             // Lumen Glass sets the word on its own OPAQUE status wash, in the
             // swatch's ink — so measure it on that wash too.
+            // No `warn` branch on purpose: a band never reaches for amber's
+            // slot, so Watch takes crit alongside Gap.
             final sw = switch (band) {
               'green' => LumenStatus.good,
-              'amber' => LumenStatus.warn,
               _ => LumenStatus.crit,
             }.swatchOf(palette);
             final wash =
@@ -293,7 +303,7 @@ void main() {
       await tester.pumpWidget(_screen(_fake(), theme: AppTheme.light()));
       await tester.pumpAndSettle();
 
-      // Each row is drawn against the green line it is banded by.
+      // Each row is drawn against the Healthy line it is banded by.
       for (final key in const [
         'availability',
         'visibility',
@@ -308,13 +318,15 @@ void main() {
             matching: find.byType(BenchmarkBar),
           ),
         );
-        expect(bar.target, 80, reason: '$key tick at the green line');
+        expect(bar.target, 80, reason: '$key tick at the Healthy line');
       }
       // Six dimensions plus the total.
       expect(find.byType(BenchmarkBar), findsNWidgets(7));
 
-      // Figures are mono, in their status ink: 50 is below amber (red), 70 is
-      // amber — the same cut-offs as the band word.
+      // Figures are mono, in their status ink. A dimension figure is not a
+      // rating band — it keeps the three-step status scale — so 50 sits below
+      // the 60 cut-off and 70 between 60 and 80, on the same numbers the band
+      // word is worked out from.
       final fifty = tester.widget<Text>(find.text('50')).style!;
       expect(fifty.fontFamily, LumenGlass.mono);
       expect(fifty.color, LumenStatus.crit.swatchOf(palette).ink);
@@ -341,10 +353,14 @@ void main() {
         LumenGlass.mono,
       );
 
-      // A red total is a BREACH, in words, on an AA-safe wash.
+      // The pill beside the total carries the BAND's word and mark — the same
+      // vocabulary as the readout next to it, not the pill's own compliance
+      // words — on an AA-safe wash.
       final pill = tester.widget<LumenStatusPill>(find.byType(LumenStatusPill));
       expect(pill.status, LumenStatus.crit);
-      expect(find.text('BREACH'), findsOneWidget);
+      expect(pill.label, '✕ Gap');
+      expect(find.text('✕ GAP'), findsOneWidget);
+      expect(find.text('BREACH'), findsNothing);
       final crit = LumenStatus.crit.swatchOf(palette);
       expect(
         _contrastRatio(crit.ink, Color.alphaBlend(crit.tint, palette.surface1)),

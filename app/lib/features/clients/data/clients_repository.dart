@@ -101,17 +101,19 @@ class ClientConfig {
 /// `needsImprovement`, which no code path reads, so the RAG bands silently fell
 /// back to their defaults; see #46.)
 enum KpiThreshold {
+  // The keys are wire values and stay `green` / `amber` / `red`; the labels
+  // are the display names the rest of the app shows (core/rating_band.dart).
   green(
     key: 'green',
-    label: 'Green band',
-    help: 'A scorecard at or above this scores green.',
+    label: 'Healthy band',
+    help: 'A scorecard at or above this is Healthy.',
     fallback: 80,
     suffix: '',
   ),
   amber(
     key: 'amber',
-    label: 'Amber band',
-    help: 'At or above this is amber; below it is red.',
+    label: 'Watch band',
+    help: 'At or above this is Watch; below it is Gap.',
     fallback: 60,
     suffix: '',
   ),

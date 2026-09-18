@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/rating_band.dart';
 import '../../../../core/theme/lumen_glass.dart';
 import '../../../../core/theme/lumen_palette.dart';
 import '../../../../core/theme/tiq_colors.dart';
@@ -89,6 +90,7 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
         if (scorecard == null) {
           return const Center(child: CircularProgressIndicator());
         }
+        final band = RatingBand.ofWire(scorecard.ratingBand);
         final total = Text(
           scorecard.weightedTotal.toStringAsFixed(1),
           key: const ValueKey('score-total'),
@@ -143,8 +145,11 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (colors.glass)
-                              // Glass pairs the label with the band's
-                              // compliance word — ON STANDARD, AT RISK, BREACH.
+                              // Glass pairs the label with the band, in the
+                              // same words and marks every other band surface
+                              // uses — never the pill's own compliance
+                              // vocabulary, which would disagree with the
+                              // readout beside it.
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 4,
@@ -152,7 +157,8 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
                                 children: [
                                   SectionLabel(l10n.s10WeightedTotal),
                                   LumenStatusPill(
-                                    status: _bandStatus(scorecard.ratingBand),
+                                    status: band.status,
+                                    label: band.markedWord(l10n),
                                   ),
                                 ],
                               )
@@ -165,17 +171,17 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
                       ),
                       _BandReadout(
                         key: const ValueKey('score-band'),
-                        band: scorecard.ratingBand,
+                        band: band,
                       ),
                     ],
                   ),
                   if (colors.glass) ...[
                     const SizedBox(height: 14),
-                    // The total against the green line it is banded by.
+                    // The total against the Healthy line it is banded by.
                     BenchmarkBar(
                       value: scorecard.weightedTotal,
-                      target: _greenFrom,
-                      status: _bandStatus(scorecard.ratingBand),
+                      target: _healthyFrom,
+                      status: band.status,
                     ),
                   ],
                 ],
@@ -205,23 +211,21 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
   }
 }
 
-/// The on-device banding (scorecard_service.dart): green from 80, amber from
-/// 60, red below. The glass bars tick at the green line and take their status
+/// The on-device banding (scorecard_service.dart): the `green` band from 80,
+/// the `amber` band from 60, `red` below — wire values, shown as Healthy /
+/// Watch / Gap. The glass bars tick at the Healthy line and take their status
 /// from the same cut-offs, so a bar never disagrees with the band word.
-const double _greenFrom = 80;
-const double _amberFrom = 60;
+const double _healthyFrom = 80;
+const double _watchFrom = 60;
 
-LumenStatus _bandStatus(String band) => switch (band) {
-  'green' => LumenStatus.good,
-  'amber' => LumenStatus.warn,
-  _ => LumenStatus.crit,
-};
-
+/// A dimension's own figure, which is banded on the same cut-offs as the total
+/// but is not a rating band: it gets no word and no mark, so it keeps the
+/// three-step status scale.
 LumenStatus _scoreStatus(double? score) => score == null
     ? LumenStatus.none
-    : score >= _greenFrom
+    : score >= _healthyFrom
     ? LumenStatus.good
-    : score >= _amberFrom
+    : score >= _watchFrom
     ? LumenStatus.warn
     : LumenStatus.crit;
 
@@ -317,7 +321,7 @@ class _DimensionRow extends StatelessWidget {
           const SizedBox(height: 8),
           BenchmarkBar(
             value: score ?? 0,
-            target: score == null ? null : _greenFrom,
+            target: score == null ? null : _healthyFrom,
             status: status,
             height: 6,
           ),
@@ -327,54 +331,36 @@ class _DimensionRow extends StatelessWidget {
   }
 }
 
-/// The rating band as a coloured dot plus its spelled-out word — never colour
-/// alone. The word's colour clears AA text contrast: `red` carries [critText]
-/// (the mark [crit] fails 4.5:1 as text), matching the console's rule that
-/// meaning surviving greyscale must also stay readable.
+/// The rating band as its mark plus its spelled-out word — never colour alone,
+/// and never a mark alone. The word's colour clears AA text contrast: Watch and
+/// Gap carry [TiqColors.critText] (the mark colour `crit` fails 4.5:1 as text),
+/// matching the console's rule that meaning surviving greyscale must also stay
+/// readable.
 class _BandReadout extends StatelessWidget {
   const _BandReadout({super.key, required this.band});
 
-  final String band;
+  final RatingBand band;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    // The band word is shared with the visit outcome screen's readout.
-    final word = context.l10n.outcomeRatingBand(band);
-    if (colors.glass) return _glass(colors, word);
-    final (dot, text) = switch (band) {
-      'green' => (colors.good, colors.good),
-      'amber' => (colors.warn, colors.warn),
-      _ => (colors.crit, colors.critText),
-    };
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: dot,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 7),
-        Text(
-          word,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: text,
-          ),
-        ),
-      ],
+    // Word and mark are shared with the visit outcome screen's readout.
+    final label = band.markedWord(context.l10n);
+    if (colors.glass) return _glass(colors, label);
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: band.inkOn(colors),
+      ),
     );
   }
 
-  /// Glass: the dot and word on an OPAQUE status wash, the word in the
-  /// swatch's ink — which clears AA on that wash by itself.
-  Widget _glass(TiqColors colors, String word) {
-    final sw = _bandStatus(band).swatchOf(colors);
+  /// Glass: the mark and word on an OPAQUE status wash, in the swatch's ink —
+  /// which clears AA on that wash by itself.
+  Widget _glass(TiqColors colors, String label) {
+    final sw = band.status.swatchOf(colors);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -382,27 +368,13 @@ class _BandReadout extends StatelessWidget {
         borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
         border: Border.all(color: sw.rim),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: sw.fill,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 7),
-          Text(
-            word,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: sw.ink,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: sw.ink,
+        ),
       ),
     );
   }

@@ -120,7 +120,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('72'), findsOneWidget);
-    expect(find.text('Amber'), findsOneWidget);
+    expect(find.text('! Watch'), findsOneWidget);
     expect(find.text('83'), findsOneWidget);
   });
 
@@ -258,12 +258,18 @@ void main() {
       }
     });
 
-    // The band is a dot AND a spelled word (never colour-alone), and the word's
-    // colour clears AA on every ground it sits on.
+    // The band is a mark AND a spelled word (never colour-alone), and the
+    // word's colour clears AA on every ground it sits on. Watch and Gap share
+    // the crit ink deliberately: severity never borrows the brand's amber, so
+    // the mark and the word — not the hue — are what tell them apart. A
+    // reviewer pointing `amber` back at a warn/amber token fails here.
     for (final (band, word, expected) in <(String, String, Color)>[
-      ('green', 'Green', palette.glass ? LumenGlass.onDarkGood : palette.good),
-      ('amber', 'Amber', palette.glass ? LumenGlass.onDarkWarn : palette.warn),
-      ('low', 'Red', palette.glass ? LumenGlass.onDarkCrit : palette.critText),
+      ('green', '✓ Healthy',
+          palette.glass ? LumenGlass.onDarkGood : palette.good),
+      ('amber', '! Watch',
+          palette.glass ? LumenGlass.onDarkCrit : palette.critText),
+      ('low', '✕ Gap',
+          palette.glass ? LumenGlass.onDarkCrit : palette.critText),
     ]) {
       testWidgets('band $word carries an AA-safe word — $name', (tester) async {
         await tester.pumpWidget(

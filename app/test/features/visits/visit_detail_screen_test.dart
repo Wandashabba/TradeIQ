@@ -269,7 +269,7 @@ void main() {
         for (final word in [
           'SUBMITTED',
           'INSIDE FENCE',
-          'GAP', // the red band
+          '✕ GAP', // the `red` band on the wire, marked and spelled out
           'ON TARGET',
           'BELOW TARGET',
           'NOT MEASURED',
