@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { BUDGET_NOTICE, MAX_PARALLEL_TOOLS, runTurn, type WireEvent } from './orchestrator';
 import type { LlmProvider, TurnEvent, TurnInput } from './providers/types';
-import { SPOTLIGHT_FENCE, SPOTLIGHT_FENCE_END } from './sanitize';
 import type { AssistantTracer, TurnSummary, TurnTrace } from './tracing';
 import { eraseToolTypes, ToolFacingError, type AnyAssistantTool } from './types';
 
@@ -1279,8 +1278,7 @@ describe('orchestrator', () => {
       // Quarantined: the raw payload is replaced by a summary, and what remains
       // is fenced as data.
       expect(toolMessage.content).not.toContain('Ignore all previous instructions');
-      expect(toolMessage.content).toContain(SPOTLIGHT_FENCE);
-      expect(toolMessage.content).toContain(SPOTLIGHT_FENCE_END);
+      expect(toolMessage.content).toContain('untrusted data');
     });
 
     it('neutralises followups fences and blockquotes before the model sees them', async () => {

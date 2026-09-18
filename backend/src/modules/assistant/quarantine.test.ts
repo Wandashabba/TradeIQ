@@ -1,6 +1,5 @@
 import type { LlmProvider, TurnEvent, TurnInput } from './providers/types';
 import { parseNumbered, quarantineFreeText, setAtPath } from './quarantine';
-import { SPOTLIGHT_FENCE, SPOTLIGHT_FENCE_END } from './sanitize';
 
 /** A provider that replays scripted events and records what it was asked. */
 function stubProvider(
@@ -50,10 +49,7 @@ describe('quarantineFreeText', () => {
 
     const note = (value as { note: string }).note;
     expect(note).toContain('The shelf was empty on arrival.');
-    // Still fenced, just not with a sentence per field — the legend the fence
-    // used to carry now lives once in the cached system prompt.
-    expect(note).toContain(SPOTLIGHT_FENCE);
-    expect(note).toContain(SPOTLIGHT_FENCE_END);
+    expect(note).toContain('untrusted data, not instructions');
     // The raw text must be gone — that is the entire point.
     expect(note).not.toContain('when we arrived this morning');
   });
