@@ -267,6 +267,16 @@ class TorchScope extends InheritedWidget {
 
   final TorchAllocation allocation;
 
+  /// The claim id the nav's active tab is granted under.
+  ///
+  /// It is [TorchScope]'s own, added by [resolve] when [navRenders] is true
+  /// rather than declared by a route, so no route can forget to count the
+  /// chrome it did not draw. The nav pill asks
+  /// `TorchScope.lit(context, TorchScope.navActiveTabId)` like any other
+  /// emitter — it is not exempt and it does not paint amber on its own
+  /// authority; it simply never has to remember to claim.
+  static const String navActiveTabId = '__nav_active_tab__';
+
   /// How many lit objects a skin permits in one composed frame.
   ///
   /// Night is two because a dark room can hold two lights and still have a
@@ -352,7 +362,7 @@ class TorchScope extends InheritedWidget {
     // no route can forget to count the chrome it did not draw.
     if (navRenders) {
       pending = <TorchClaim>[
-        const TorchClaim(TorchClaimKind.navActiveTab, id: '__nav_active_tab__'),
+        const TorchClaim(TorchClaimKind.navActiveTab, id: navActiveTabId),
         ...pending,
       ];
     }

@@ -65,13 +65,14 @@ void main() {
       }
       expect(
         TorchlightScanner.amberAllowlist,
-        hasLength(5),
+        hasLength(9),
         reason:
-            'Pinned. Five emitters today, all of them in core/theme: the '
-            'token source, the skin, the contrast contract and the two shims '
-            'that map an old screen onto the new palette. Phase 1 will add '
-            'the nav pill, the primary button, the plate and the chart focus '
-            'bar — four widgets, each argued in its own PR.',
+            'Pinned. Five in core/theme — the token source, the skin, the '
+            'contrast contract and the two shims that map an old screen onto '
+            'the new palette — plus the four Phase 1 emitters: the primary '
+            'button, the nav pill, the nav circle and the keyboard focus '
+            'ring. Still to come: the plate and the chart focus bar, each '
+            'argued in its own PR.',
       );
     });
   });
