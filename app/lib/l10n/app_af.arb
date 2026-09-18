@@ -177,7 +177,7 @@
   "outcomeScoredWhenSends": "Word getel sodra dit stuur",
   "outcomeScoredOnServer": "Word op die bediener uitgewerk, nie op die foon nie",
   "outcomeNoGuess": "Jou regte telling — die een wat jou bestuurder sien — verskyn sodra dit die bediener bereik.",
-  "outcomeRatingBand": "{band, select, green{Groen} amber{Oranje} other{Rooi}}",
+  "ratingBand": "{band, select, green{Gesond} amber{Dophou} other{Gaping}}",
   "outcomeDeltaSame": "Dieselfde as jou vorige besoek hier ({previous}).",
   "outcomeDeltaUp": "{count, plural, =1{1 punt hoër} other{{count} punte hoër}}",
   "outcomeDeltaDown": "{count, plural, =1{1 punt laer} other{{count} punte laer}}",
