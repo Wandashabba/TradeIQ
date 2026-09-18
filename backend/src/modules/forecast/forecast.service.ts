@@ -88,6 +88,11 @@ export async function getSkuForecast(filters: ForecastFilters, now: Date = new D
     prisma.visitStock.findFirst({
       where: {
         skuId: filters.skuId,
+        // The latest line that was actually COUNTED (#389). A half-finished
+        // visit leaves uncounted lines that are newer than every real count,
+        // and taking one of those would have read 0 units on hand — turning
+        // "nobody reached this SKU" into "this SKU has no cover left".
+        unitsAvailable: { not: null },
         visit: {
           clientId: filters.clientId,
           ...(filters.outletId ? { outletId: filters.outletId } : {}),

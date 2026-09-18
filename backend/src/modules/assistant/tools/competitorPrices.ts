@@ -82,6 +82,11 @@ export function buildCompetitorPriceTools(ctx: ToolContext): AnyAssistantTool[] 
         (result as CompetitorShelfPrices).sources.map((s) => ({
           url: s.url,
           title: s.title,
+          origin: 'competitor_prices',
+          // A retailer's own shelf page: the retailer IS the publisher, and it
+          // states no release date — the read date is the only date there is.
+          publisher: s.title,
+          publishedAt: null,
           snippet: null,
           pageAge: null,
           retrievedAt: s.retrievedAt,

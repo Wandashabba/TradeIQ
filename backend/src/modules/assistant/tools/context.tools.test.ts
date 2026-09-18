@@ -121,16 +121,56 @@ describe('getEconomicContext', () => {
 });
 
 describe('cited sources', () => {
-  it('turns provenance into the shared sources shape, release date in the page-age slot', () => {
+  it('carries the publisher and the release date as themselves, not only as prose', () => {
+    // #406. These used to be flattened on the way out — the publisher into the
+    // untrusted `title`, the release date into an English sentence in
+    // `pageAge` — so the app had to parse "Released 19 Aug 2026" back into a
+    // date and could not tell a publisher we assigned from a title a page had
+    // given itself. The prose stays for clients that already read it.
     expect(
-      provenanceSources([
-        { sourceName: 'Stats SA CPI', url: 'https://x.example/a.pdf', publishedAt: '2026-08-19', retrievedAt: '2026-09-17' },
-        { sourceName: 'Open-Meteo', url: 'https://open-meteo.com/en/docs', publishedAt: null, retrievedAt: '2026-09-17' },
-      ]),
+      provenanceSources(
+        [
+          { sourceName: 'Stats SA CPI', url: 'https://x.example/a.pdf', publishedAt: '2026-08-19', retrievedAt: '2026-09-17' },
+          { sourceName: 'Open-Meteo', url: 'https://open-meteo.com/en/docs', publishedAt: null, retrievedAt: '2026-09-17' },
+        ],
+        'stats_sa',
+      ),
     ).toEqual([
-      { url: 'https://x.example/a.pdf', title: 'Stats SA CPI', pageAge: 'Released 19 Aug 2026', snippet: null, retrievedAt: '2026-09-17' },
-      { url: 'https://open-meteo.com/en/docs', title: 'Open-Meteo', pageAge: null, snippet: null, retrievedAt: '2026-09-17' },
+      {
+        url: 'https://x.example/a.pdf',
+        title: 'Stats SA CPI',
+        origin: 'stats_sa',
+        publisher: 'Stats SA CPI',
+        publishedAt: '2026-08-19',
+        pageAge: 'Released 19 Aug 2026',
+        snippet: null,
+        retrievedAt: '2026-09-17',
+      },
+      {
+        url: 'https://open-meteo.com/en/docs',
+        title: 'Open-Meteo',
+        origin: 'stats_sa',
+        publisher: 'Open-Meteo',
+        // A source that states no release date says so with null, never with
+        // the date we happened to read it.
+        publishedAt: null,
+        pageAge: null,
+        snippet: null,
+        retrievedAt: '2026-09-17',
+      },
     ]);
+  });
+
+  it('labels each context tool\'s citations with the kind of outside data they are', async () => {
+    const originOf = async (name: string, args: unknown) => {
+      const t = tool(name);
+      const parsed = t.args.parse(args);
+      return t.sources!(parsed, await t.run(parsed)).map((s) => s.origin);
+    };
+    const calendar = await originOf('getCalendarContext', {
+      period: { kind: 'custom', from: '2026-11-01', to: '2026-11-07' },
+    });
+    expect(new Set(calendar)).toEqual(new Set(['calendar']));
   });
 
   it('cites the calendar tables a calendar answer used', async () => {

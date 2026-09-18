@@ -97,6 +97,11 @@ describe('getCompetitorShelfPrices tool', () => {
           pageAge: null,
           retrievedAt: '2026-09-10T01:00:00.000Z',
           snippet: null,
+          origin: 'competitor_prices',
+          publisher: 'Example Retailer (fixture): Fizzy Cola 2L',
+          // A retailer's shelf page states no release date; the read date is
+          // the only date there is, and it lives in retrievedAt.
+          publishedAt: null,
         },
       ],
     });
@@ -104,6 +109,9 @@ describe('getCompetitorShelfPrices tool', () => {
       {
         url: 'https://shop.example.test/p/fizzy-cola-2l',
         title: 'Example Retailer (fixture): Fizzy Cola 2L',
+        origin: 'competitor_prices',
+        publisher: 'Example Retailer (fixture): Fizzy Cola 2L',
+        publishedAt: null,
         snippet: null,
         pageAge: null,
         retrievedAt: '2026-09-10T01:00:00.000Z',

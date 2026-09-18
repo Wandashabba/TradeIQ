@@ -1,6 +1,27 @@
 import { z } from 'zod';
+import { FIGURE_ORIGINS, type FigureOrigin } from './figures';
 import type { RawWebSource } from './providers/types';
 import { neutraliseUntrustedText, scanForInstructions } from './sanitize';
+
+/**
+ * Every source is outside data, so `internal` is not a legal origin here — it
+ * is only meaningful on a figure, where it is the default.
+ */
+const OUTSIDE_ORIGINS = FIGURE_ORIGINS.filter((o) => o !== 'internal') as Exclude<
+  FigureOrigin,
+  'internal'
+>[];
+const figureOriginSchema = z.enum(OUTSIDE_ORIGINS as [string, ...string[]]);
+
+/** A declared origin we recognise, else the honest default for a cited page. */
+function sourceOrigin(raw: unknown): string {
+  return typeof raw === 'string' && (OUTSIDE_ORIGINS as string[]).includes(raw) ? raw : 'web_search';
+}
+
+/** `YYYY-MM-DD`, or null. A publisher's date is a day, never an instant. */
+function isoDayOrNull(raw: unknown): string | null {
+  return typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+}
 
 /**
  * Web sources — the citations behind outside information in an answer.
@@ -33,6 +54,8 @@ export const MAX_TITLE_CHARS = 160;
 const MAX_URL_CHARS = 2048;
 const MAX_PAGE_AGE_CHARS = 40;
 
+const MAX_PUBLISHER_CHARS = 120;
+
 /** What goes out on the `sources` SSE event, one entry per cited page. */
 export const webSourceSchema = z.object({
   title: z.string().min(1).max(MAX_TITLE_CHARS),
@@ -44,6 +67,37 @@ export const webSourceSchema = z.object({
   /** When this turn retrieved it, ISO-8601. */
   retrievedAt: z.string().datetime(),
   snippet: z.string().max(MAX_SNIPPET_CHARS).nullable(),
+
+  /**
+   * What kind of outside source this is (#406) — the same vocabulary a figure
+   * uses, so a card marked `origin: 'stats_sa'` and the citation behind it can
+   * be matched up. Everything in this list is outside data by construction; a
+   * source is only ever created for something we did not compute ourselves.
+   */
+  origin: figureOriginSchema,
+  /**
+   * The publisher's NAME, when the source states one; null when all we have is
+   * a hostname (`domain` still carries that).
+   *
+   * It used to be packed into `title` — the one field on this object written by
+   * whoever owns the page — so "Statistics South Africa" was indistinguishable
+   * from a page that had merely titled itself that. Carried separately, a
+   * publisher set by one of our own tools stays distinguishable from a page's
+   * self-description.
+   */
+  publisher: z.string().min(1).max(MAX_PUBLISHER_CHARS).nullable(),
+  /**
+   * When the PUBLISHER released it, `YYYY-MM-DD`, or null.
+   *
+   * `retrievedAt` is when we read it; this is how old the thing we read is. The
+   * two answer different questions and a CPI print retrieved this morning can
+   * still be six weeks old. It used to survive only as the English prose in
+   * `pageAge` ("Released 19 Aug 2026"), which the client had to parse back.
+   */
+  publishedAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
 });
 export type WebSource = z.infer<typeof webSourceSchema>;
 
@@ -121,10 +175,17 @@ export function normaliseSources(raw: readonly RawWebSource[], retrievedAt: Date
     }
     const pageAge = cleanText(candidate.pageAge, MAX_PAGE_AGE_CHARS);
 
+    const publisher = cleanText(candidate.publisher, MAX_PUBLISHER_CHARS);
+    const publishedAt = isoDayOrNull(candidate.publishedAt);
+
     const existing = byUrl.get(href);
     if (existing) {
       if (!existing.snippet && snippet) existing.snippet = snippet;
       if (!existing.pageAge && pageAge) existing.pageAge = pageAge;
+      // Same rule as the two above: the first citation that actually knows a
+      // thing supplies it, and a later one never overwrites it.
+      if (!existing.publisher && publisher) existing.publisher = publisher;
+      if (!existing.publishedAt && publishedAt) existing.publishedAt = publishedAt;
       continue;
     }
     if (byUrl.size >= MAX_SOURCES) continue;
@@ -137,6 +198,9 @@ export function normaliseSources(raw: readonly RawWebSource[], retrievedAt: Date
       pageAge,
       retrievedAt: earlierRetrieval(candidate.retrievedAt, retrievedAt) ?? retrievedAt.toISOString(),
       snippet,
+      origin: sourceOrigin(candidate.origin),
+      publisher,
+      publishedAt,
     };
     const checked = webSourceSchema.safeParse(source);
     if (checked.success) byUrl.set(href, checked.data);

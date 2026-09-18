@@ -111,6 +111,9 @@ export async function evaluateVisit(input: EvaluateVisitInput): Promise<Alert[]>
   const outOfStockRule = ruleByMetric.get('out_of_stock');
   if (outOfStockRule) {
     const stockRows = await prisma.visitStock.findMany({
+      // An exact 0, so an uncounted line (`unitsAvailable: null`, #389) is not
+      // matched: a SKU nobody reached must not raise an out-of-stock alert.
+      // Prisma renders this as `= 0`, and NULL = 0 is never true.
       where: { visitId: visit.id, unitsAvailable: 0 },
       select: { skuId: true },
     });

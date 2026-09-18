@@ -116,6 +116,7 @@ model Client {
   competitorShelfPrices               CompetitorShelfPriceObservation[]
   competitorPriceCollectionLog        CompetitorPriceCollectionEvent[]
   competitorPriceAudit                CompetitorPriceCollectionAudit[]
+  fraudVerdicts                       FraudVerdict[]
 
   /// The audit template whose questions field agents answer on every visit, as
   /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
@@ -285,6 +286,34 @@ model Visit {
   /// When the stored score's inputs were read.
   fraudScoredAt DateTime? @map("fraud_scored_at")
 
+  /// The DEVICE's own id for this visit — its idempotency key (#379, #385).
+  ///
+  /// The app creates a local uuid the moment an agent checks in and only later
+  /// flushes the outbox. If that POST succeeded but its response was lost, the
+  /// retry used to create a SECOND visit: one store walk, two rows, two
+  /// scorecards, and a manager unable to tell which was real. Sending the
+  /// device id makes the retry find this row instead.
+  ///
+  /// Unique per agent, not globally — two agents' local uuids never collide,
+  /// and Postgres treats NULLs as distinct, so visits from older app builds
+  /// (which send no key) stay unconstrained. Same shape as
+  /// `Message.clientMessageId` (#308), deliberately.
+  clientVisitId    String?  @map("client_visit_id")
+
+  /// True when the agent RESUMED a saved draft rather than checking in fresh.
+  ///
+  /// A resumed visit is a different thing from a new one: its check-in happened
+  /// earlier, its dwell time spans an interruption, and a manager reading the
+  /// timeline needs to know the gap is a paused visit and not an idle agent.
+  /// Without the marker the two are indistinguishable, so #379's duplicate rows
+  /// could not even be diagnosed from the data.
+  ///
+  /// Defaults false, so every existing visit and every older app build reads as
+  /// what it is: a fresh check-in.
+  resumedFromDraft Boolean  @default(false) @map("resumed_from_draft")
+
+  fraudVerdict FraudVerdict?
+
   stock       VisitStock[]
   visibility  VisitVisibility?
   pricing     VisitPricing[]
@@ -307,7 +336,52 @@ model Visit {
   @@index([clientId, status, riskScore(sort: Desc), id(sort: Desc)])
   @@index([outletId])
   @@index([agentId])
+  /// The idempotency lock for #379/#385. Scoped to the agent for the same
+  /// reason `Message.clientMessageId` is scoped to the sender.
+  @@unique([agentId, clientVisitId])
   @@map("visits")
+}
+
+/// One manager's ruling on one flagged visit (#392, #395).
+///
+/// `visitId` is UNIQUE, and that uniqueness IS the lock: the verdict is
+/// INSERTed, never upserted, so the second manager to press the button loses
+/// the race at the database rather than silently overwriting the first
+/// manager's decision. They are told whose verdict already stands.
+///
+/// A ledger, so it outlives everything it refers to: `reviewerId` is a bare
+/// String rather than a relation (a deactivated reviewer must not erase the
+/// record of who ruled), and `reviewerLabel` freezes the name as it read at the
+/// time. Same shape and the same reasoning as
+/// `CompetitorPriceCollectionAudit`.
+model FraudVerdict {
+  id       String @id @default(uuid())
+  visitId  String @unique @map("visit_id")
+  visit    Visit  @relation(fields: [visitId], references: [id])
+  clientId String @map("client_id")
+  client   Client @relation(fields: [clientId], references: [id])
+
+  /// confirmed · dismissed · inconclusive
+  verdict String
+
+  /// Who ruled. Not a relation: the ledger must outlive the user.
+  reviewerId    String  @map("reviewer_id")
+  /// Their display name (or email) as it read when they ruled.
+  reviewerLabel String  @map("reviewer_label")
+  note          String?
+
+  /// The risk score the reviewer was actually looking at.
+  ///
+  /// `Visit.riskScore` is a snapshot that a rescore can move afterwards, so
+  /// without this a dismissal read later looks like it was made against a
+  /// number nobody ever saw. Null when the visit was unscored at review time.
+  riskScoreAtReview Int? @map("risk_score_at_review")
+
+  decidedAt DateTime @default(now()) @map("decided_at")
+
+  /// GET /fraud/verdicts: the tenant's ledger, newest first.
+  @@index([clientId, decidedAt(sort: Desc), id(sort: Desc)])
+  @@map("fraud_verdicts")
 }
 
 model VisitStock {
@@ -316,11 +390,20 @@ model VisitStock {
   visit                 Visit    @relation(fields: [visitId], references: [id])
   skuId                 String   @map("sku_id")
   sku                   Sku      @relation(fields: [skuId], references: [id])
-  unitsAvailable        Int      @map("units_available")
+  /**
+   * Units on the shelf, or NULL when this SKU was never counted (#389).
+   *
+   * NULL and 0 are different findings and must stay different: 0 is an agent
+   * standing at an empty shelf, and it raises a stock-out task and drags
+   * on-shelf availability down. NULL is a SKU the agent has not reached, and
+   * it must do neither — it leaves every ratio's denominator instead.
+   */
+  unitsAvailable        Int?     @map("units_available")
   lastStockinDate       DateTime @map("last_stockin_date")
   daysOutOfStock        Int      @map("days_out_of_stock")
   velocityAvg           Float    @map("velocity_avg")
-  coverageDaysPredicted Float    @map("coverage_days_predicted")
+  /** units / velocity, so NULL exactly when `unitsAvailable` is NULL. */
+  coverageDaysPredicted Float?   @map("coverage_days_predicted")
   salesActual           Float?   @map("sales_actual")
   salesTarget           Float?   @map("sales_target")
   createdAt             DateTime @default(now()) @map("created_at")
@@ -503,6 +586,35 @@ model Scorecard {
   weightedTotal   Float    @map("weighted_total")
   ratingBand      String   @map("rating_band")
   createdAt       DateTime @default(now()) @map("created_at")
+
+  /// The score the DEVICE showed the agent before this one was computed
+  /// (#390, #399).
+  ///
+  /// The app scores a visit locally as the agent works, from the outbox, using
+  /// a deliberately simplified formula — `pricing` is a proxy, `competitive`
+  /// may be unmeasurable, and the weights are a hardcoded mirror. The server
+  /// then recomputes from what actually persisted, and the two legitimately
+  /// disagree. Until now the device's number was thrown away on sync, so an
+  /// agent who watched 84 on the walk out and later opened 71 had no way to
+  /// learn that both were honest.
+  ///
+  /// Recording it lets the app say "scored 71, you saw 84" instead of quietly
+  /// replacing one number with another. It is what the agent SAW, never an
+  /// input to anything: no aggregate, KPI or scorecard reads these columns.
+  ///
+  /// Null when the client sent none — every older app build, and every
+  /// scorecard written before this existed.
+  provisionalTotal Float?    @map("provisional_total")
+  provisionalBand  String?   @map("provisional_band")
+  /// The device clock when it showed that score.
+  provisionalAt    DateTime? @map("provisional_at")
+
+  /// When the SERVER last computed `weightedTotal`.
+  ///
+  /// `createdAt` is preserved across the upsert, so after a regenerate it
+  /// names when the first score was written, not this one. A client rendering
+  /// "scored 71" needs to say when 71 was decided.
+  scoredAt DateTime @default(now()) @updatedAt @map("scored_at")
 
   @@index([createdAt])
   @@map("scorecards")

@@ -256,6 +256,22 @@ export type TurnEvent =
 export interface RawWebSource {
   url: string;
   title?: string | null;
+  /**
+   * Which kind of outside source this is (#406). Omitted by a vendor web
+   * search, which is `web_search` by definition; set explicitly by a tool that
+   * knows better — Stats SA, the weather API, a retailer's shelf page.
+   */
+  origin?: string | null;
+  /**
+   * Who published it, as a NAME rather than a hostname ("Statistics South
+   * Africa", not "statssa.gov.za"). The publisher used to be flattened into the
+   * untrusted `title` field on the way here and could not be told apart from
+   * the page's own words; a figure marked "outside data" has to be able to say
+   * whose data it is.
+   */
+  publisher?: string | null;
+  /** The publisher's own release date, `YYYY-MM-DD`, machine-readable. */
+  publishedAt?: string | null;
   /** The cited passage, when the vendor exposes one. */
   snippet?: string | null;
   /** Free text from the vendor ("3 days ago", "April 30, 2025"), when known. */

@@ -134,7 +134,13 @@ describe('getPriceCompliance', () => {
       ['Avg price vs RRP', 13.7],
       ['Lines >10% above RRP', 50],
     ]);
-    expect(bars(figures)?.items[0]).toEqual({ label: 'QuickSave Alpha', value: 14 });
+    // #387: priced lines at that one outlet ride with the bar, so a "worst
+    // offender" built from a single line cannot read like one built from forty.
+    expect(bars(figures)?.items[0]).toEqual({
+      label: 'QuickSave Alpha',
+      value: 14,
+      sampleSize: 10,
+    });
   });
 
   it('runs a comparison twice, moving only the territory for a territory basis', async () => {
@@ -197,8 +203,8 @@ describe('getCampaignPerformance', () => {
     });
     const { figures } = await run('getCampaignPerformance', {});
     expect(bars(figures)?.items).toEqual([
-      { label: 'Winter Warmer', value: -11.1 },
-      { label: 'Zero Launch', value: 24.3 },
+      { label: 'Winter Warmer', value: -11.1, sampleSize: null },
+      { label: 'Zero Launch', value: 24.3, sampleSize: null },
     ]);
   });
 });
@@ -289,7 +295,11 @@ describe('getAlerts', () => {
       type: 'price_deviation',
     });
     expect(tiles(figures).map((t) => t.value)).toEqual([3, 2]);
-    expect(bars(figures)?.items[0]).toEqual({ label: 'QuickSave Alpha', value: 2 });
+    expect(bars(figures)?.items[0]).toEqual({
+      label: 'QuickSave Alpha',
+      value: 2,
+      sampleSize: null,
+    });
     expect(tool('getAlerts').args.safeParse({ type: 'weather' }).success).toBe(false);
   });
 

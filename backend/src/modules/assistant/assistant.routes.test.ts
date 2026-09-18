@@ -1191,6 +1191,12 @@ describe('POST /assistant/chat', () => {
             pageAge: null,
             retrievedAt: expect.any(String),
             snippet: 'Two weeks.',
+            // #406. A vendor search result declares no origin of its own, so
+            // it is what it is. Neither a publisher name nor a release date is
+            // available, and both say so with null rather than by absence.
+            origin: 'web_search',
+            publisher: null,
+            publishedAt: null,
           },
         ],
       });

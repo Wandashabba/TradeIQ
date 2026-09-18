@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { facingsTotal, mean, pct, round2 } from '../../lib/kpiMath';
+import { facingsTotal, mean, onShelfAvailabilityPct, pct, round2 } from '../../lib/kpiMath';
 import { kpiThreshold } from '../../lib/kpiThresholds';
 import { DEFAULT_GREEN_THRESHOLD } from '../scorecards/scorecards.service';
 import {
@@ -269,7 +269,7 @@ async function loadPerfectStore(scope: Scope): Promise<MetricRows> {
   });
 }
 
-/** 100 * (stock rows with unitsAvailable > 0) / stock rows. */
+/** 100 * (stock rows with unitsAvailable > 0) / stock rows that were counted. */
 async function loadAvailability(scope: Scope): Promise<MetricRows> {
   const createdAt = resolveWindow(scope.from, scope.to);
   const rows = await prisma.visitStock.findMany({
@@ -280,7 +280,7 @@ async function loadAvailability(scope: Scope): Promise<MetricRows> {
     timeZone: scope.timeZone,
     at: (row) => row.createdAt,
     territoryCode: (row) => row.visit.outlet.territoryId,
-    reduce: (bucket) => pct(bucket.filter((row) => row.unitsAvailable > 0).length, bucket.length),
+    reduce: (bucket) => onShelfAvailabilityPct(bucket),
   });
 }
 
@@ -426,14 +426,20 @@ export async function getScorecardsTrend(filters: TrendFilters): Promise<TrendSe
 
 /**
  * On-Shelf-Availability per bucket: `value` = 100 * (stock rows with
- * unitsAvailable > 0) / (stock rows in the bucket).
+ * unitsAvailable > 0) / (stock rows in the bucket that were COUNTED).
+ *
+ * `n` counts only `units_available IS NOT NULL`, matching
+ * `onShelfAvailabilityPct` in kpiMath — an uncounted line (#389) leaves the
+ * denominator here exactly as it does on the dashboard, so the series and the
+ * tile cannot disagree. `count` on the returned point therefore reads as
+ * "lines counted in this bucket", which is the sample size the client wants.
  */
 export async function getAvailabilityTrend(filters: TrendFilters): Promise<TrendSeries> {
   const scope = await scopeFor(filters);
   const bucket = bucketSql(Prisma.sql`vs."created_at"`, scope, filters.interval);
   const rows = await prisma.$queryRaw<BucketRow[]>`
     SELECT ${bucket} AS bucket,
-      COUNT(*)::int AS n,
+      COUNT(*) FILTER (WHERE vs."units_available" IS NOT NULL)::int AS n,
       COUNT(*) FILTER (WHERE vs."units_available" > 0)::int AS a,
       0 AS b
     FROM "visit_stock" vs
