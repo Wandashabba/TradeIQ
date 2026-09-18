@@ -1,0 +1,253 @@
+import 'package:flutter/widgets.dart';
+
+import '../../../theme/torchlight/tiq_skin.dart';
+import 'row_marks.dart';
+import 'soft_row.dart';
+
+/// Name a human (#399/#400).
+///
+/// A configuration of [SoftRow] with two absolute rules and one consequence.
+///
+/// **Never a database id as the thing a reader reads first.** The name is the
+/// title; the role and the outlet are the reason line. Where there is no name
+/// the primary line becomes the role and the outlet, and the identifier drops
+/// to a third line in `mono.ident` — the one place a raw id is legitimate,
+/// because it is then the only fact. A UUID is never a title.
+///
+/// **Never a photograph.** POPIA, and forty kilobytes of bundle per person.
+/// The leading tile carries two uppercase initials on the `well`, or a barred
+/// ring when even the initials are unknown — never a generic silhouette icon,
+/// which says "person" to a reader who already knows this row is a person.
+///
+/// The consequence: the name **middle-truncates**. On a 200dp fraud row
+/// "Nomsa Dlamini-Mkhize" and "Nomsa Dlamini-Ndlovu" end-truncate to the same
+/// string, and the human being was getting less care than the store. The full
+/// name is in the semantics label whatever is painted.
+///
+/// ```dart
+/// PersonRow(
+///   name: agent.fullName,
+///   role: l10n.roleFieldAgent,
+///   outlet: agent.outletName,
+///   trailingWord: agent.isSelf ? l10n.you : null,
+///   onTap: () => context.push(agent.route),
+/// )
+/// ```
+class PersonRow extends StatelessWidget {
+  const PersonRow({
+    super.key,
+    this.name,
+    this.role,
+    this.outlet,
+    this.identifier,
+    this.identifierLabel,
+    this.unknownLabel,
+    this.trailingWord,
+    this.trailing,
+    this.deactivated = false,
+    this.onTap,
+    this.onLongPress,
+    this.density = SoftRowDensity.tall,
+    this.separator = SoftRowSeparator.auto,
+  }) : assert(
+         name != null || role != null || outlet != null || unknownLabel != null,
+         'PersonRow: with no name, no role and no outlet there is nothing to '
+         'show but an id, and an id is never the primary line. Pass '
+         'unknownLabel ("Unknown agent") so the row says so in words.',
+       );
+
+  /// The full name. Wraps to two lines and middle-truncates only when a single
+  /// line is structurally forced.
+  final String? name;
+
+  /// "Field agent", "Area manager". Already localised.
+  final String? role;
+
+  /// The outlet or territory. Joined to [role] with a middot only when both
+  /// exist, so there is never a dangling separator.
+  final String? outlet;
+
+  /// A machine identifier, rendered in `mono.ident` on a third line **only**
+  /// when there is no name. Never shown beside one.
+  final String? identifier;
+
+  /// The word that introduces [identifier] — "Reference", "id". Required
+  /// alongside it, because a bare UUID on a line of its own is not a sentence.
+  final String? identifierLabel;
+
+  /// "Unknown agent". Becomes the title when there is no name and no role.
+  final String? unknownLabel;
+
+  /// A trailing word: "You", "Live", a state. Never a coloured badge.
+  final String? trailingWord;
+
+  /// A trailing widget, when the row needs a figure rather than a word.
+  /// Ignored if [trailingWord] is set.
+  final Widget? trailing;
+
+  /// Ink drops to ink-mute, the chevron goes, the row stops being tappable —
+  /// and the caller passes the reason as [trailingWord] ("No longer active").
+  final bool deactivated;
+
+  final VoidCallback? onTap;
+
+  /// The one legitimate use for a raw id: a deliberate gesture that copies it.
+  final VoidCallback? onLongPress;
+
+  final SoftRowDensity density;
+  final SoftRowSeparator separator;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final hasName = name != null && name!.trim().isNotEmpty;
+    final parts = <String>[
+      if (role != null && role!.isNotEmpty) role!,
+      if (outlet != null && outlet!.isNotEmpty) outlet!,
+    ];
+
+    // With a name, the name is the title and role · outlet is the reason line.
+    // Without one, the role and outlet move up and the identifier — never
+    // before now — appears on a third line.
+    final title = hasName
+        ? name!
+        : (parts.isNotEmpty ? parts.join(' · ') : unknownLabel!);
+    // Only a named row has a reason line: with no name the role and outlet
+    // have already been promoted into the title and repeating them beneath
+    // would be the same sentence twice.
+    final subtitle = hasName && parts.isNotEmpty ? parts.join(' · ') : null;
+
+    final showIdentifier =
+        !hasName && identifier != null && identifierLabel != null;
+
+    return SoftRow(
+      density: density,
+      title: title,
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: subtitle,
+      meta: showIdentifier
+          ? _Identifier(label: identifierLabel!, value: identifier!)
+          : null,
+      leading: _InitialsTile(
+        name: hasName ? name : null,
+        deactivated: deactivated,
+      ),
+      trailing: _trailing(skin),
+      enabled: !deactivated,
+      onTap: deactivated ? null : onTap,
+      onLongPress: onLongPress,
+      separator: separator,
+      semanticsLabel: <String?>[
+        // The FULL name, whatever the row painted.
+        hasName ? name : unknownLabel,
+        if (parts.isNotEmpty) parts.join(', '),
+        if (showIdentifier) '$identifierLabel ${_spell(identifier!)}',
+        trailingWord,
+      ].whereType<String>().join(', '),
+    );
+  }
+
+  Widget? _trailing(TiqSkin skin) {
+    if (trailingWord != null) {
+      return Text(
+        trailingWord!,
+        textAlign: TextAlign.end,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: skin.text.label
+            .copyWith(weight: FontWeight.w600)
+            .style(color: deactivated ? skin.palette.inkMute : skin.palette.ink2),
+      );
+    }
+    if (trailing != null) return trailing;
+    return deactivated || onTap == null ? null : const SoftRowChevron();
+  }
+
+  /// An identifier is read character by character, because "a-b-c-1-2-3" is a
+  /// reference somebody has to repeat down a phone line.
+  static String _spell(String id) => id.split('').join(' ');
+}
+
+/// Initials on the `well`, in a radius-6 tile with a real edge. Never a photo,
+/// never a silhouette icon.
+class _InitialsTile extends StatelessWidget {
+  const _InitialsTile({required this.name, required this.deactivated});
+
+  final String? name;
+  final bool deactivated;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = _initialsOf(name);
+    if (initials == null) {
+      return RowMarkTile(
+        mark: RowMark.barredRing,
+        tone: deactivated ? RowMarkTone.muted : RowMarkTone.neutral,
+      );
+    }
+    final skin = context.skin;
+    return ExcludeSemantics(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: skin.palette.well,
+          borderRadius: BorderRadius.circular(skin.radii.chip),
+          border: Border.all(
+            color: skin.palette.edgeStructure,
+            width: skin.depth.borderWidth,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            initials,
+            maxLines: 1,
+            style: skin.text.figureS.style(
+              color: deactivated ? skin.palette.inkMute : skin.palette.ink2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Up to two initials from the first and last word. Null where the name is
+  /// absent or carries no letters, which is what puts a barred ring in the
+  /// tile instead of an empty box.
+  static String? _initialsOf(String? name) {
+    if (name == null) return null;
+    final words = name
+        .trim()
+        .split(RegExp(r'[\s\-]+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    if (words.isEmpty) return null;
+    final letters = <String>[
+      words.first.substring(0, 1),
+      if (words.length > 1) words.last.substring(0, 1),
+    ].where((c) => RegExp(r'\p{L}', unicode: true).hasMatch(c)).toList();
+    if (letters.isEmpty) return null;
+    return letters.join().toUpperCase();
+  }
+}
+
+class _Identifier extends StatelessWidget {
+  const _Identifier({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: TiqSpace.s1,
+      children: <Widget>[
+        Text(label),
+        Text(
+          value,
+          style: skin.text.monoIdent.style(color: skin.palette.ink3),
+        ),
+      ],
+    );
+  }
+}

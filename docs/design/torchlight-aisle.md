@@ -731,6 +731,139 @@ the chart focus bar.
 
 ---
 
+## 9b. Phase 1 — the soft row
+
+The first Phase 1 component, and the single most-used object in the product:
+every list on all sixty screens is a stack of these.
+
+```
+app/lib/core/widgets/torchlight/row/
+  row.dart            the barrel — import this
+  soft_row.dart       SoftRow, SoftRowChevron, MiddleTruncatedText
+  soft_row_spec.dart  SoftRowSpec — the resolved geometry, as a pure function
+  row_marks.dart      RowMarkTile — the drawn state silhouettes
+  outbox_row.dart     OutboxRow + PayloadSize          (#382)
+  held_work_row.dart  HeldWorkRow                      (#391)
+  decision_row.dart   DecisionRow
+  person_row.dart     PersonRow                        (#399/#400)
+```
+
+**No screen consumes it yet.** Nothing under `lib/features/` changed when it
+landed; screens adopt it one feature folder at a time, behind a green suite.
+
+### Two forms, three densities
+
+```dart
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+
+// A list row — flush, radius 0, separated by a 1px rule inset to the text edge.
+SoftRow(
+  density: SoftRowDensity.standard,        // compact 56 / standard 64 / tall 80
+  title: outlet.name,
+  titleTruncation: SoftRowTruncation.middle, // names and outlets only
+  subtitle: l10n.metresAway(outlet.distance),
+  meta: Text(l10n.lastVisited(outlet.lastVisit)),
+  leading: const RowMarkTile(mark: RowMark.square),
+  trailing: const SoftRowChevron(),
+  severity: SoftRowSeverity.critical,
+  severityLabel: l10n.severityCritical,     // required with a severity
+  onTap: () => context.push(outlet.route),
+  separator: isLast ? SoftRowSeparator.none : SoftRowSeparator.auto,
+)
+
+// A standalone row — radius 14, `surface` fill, 1px edgeStructure outline.
+// Next-up card, day block, readiness block, outbox summary.
+SoftRow(
+  form: SoftRowForm.standalone,
+  density: SoftRowDensity.tall,
+  title: l10n.nextUp(outlet.name),
+  subtitle: l10n.metresAway(outlet.distance),
+  onTap: () => context.push(outlet.route),
+)
+```
+
+The rule's **colour is not a parameter**: `edgeStructure` (3.73:1) between
+tappable rows because 1.4.11 wants a perceivable boundary around a UI
+component, `hairline` between non-tappable ones because there it is decoration.
+`SoftRowSeparator` therefore has two members — `auto` and `none` — and `none`
+means "last in the group", not "a different line".
+
+### The four configurations
+
+Each is a *configuration* of `SoftRow` — a density, a mark, a severity and some
+strings — not a second row. None of them paints a fill, an edge, a rule or a
+radius of its own.
+
+```dart
+OutboxRow(                                // #382
+  state: OutboxState.retrying,            // queued / sending / retrying /
+  title: l10n.outboxShelfPhoto(outlet),   //   sent / stuck / waitingForVisit
+  stateWord: l10n.outboxRetrying,
+  sentence: l10n.outboxRetryingAt(nextAttempt),   // the REAL next-attempt time
+  ageLine: l10n.outboxQueuedAt(item.queuedAt),
+  payloadBytes: item.payloadBytes,        // DECODED bytes, from the sync queue
+  stuckLabel: l10n.severityNeedsYou,      // required for `stuck`
+  onTap: () => showOutboxItemSheet(context, item),
+)
+
+HeldWorkRow(state: HeldWorkState.held, ...)   // #391, the console's mirror
+DecisionRow(title: ..., reason: ..., value: 71, unit: TiqUnit.percent,
+            sparkline: Sparkline(...))        // the sparkline is a slot
+PersonRow(name: ..., role: ..., outlet: ...)  // #399/#400 — never an id
+```
+
+### What is fixed, and why
+
+| Rule | Where it lives |
+|---|---|
+| 56 / 64 / 80, collapsing to 64 in Veld | `SoftRowSpec.minHeight` |
+| content starts at the same inset with or without a severity bar | `SoftRowSpec.severityLane`, always reserved |
+| pressed = `lifted` fill **and** a 2px `edgeControl` rule **and** scale 0.98 **and** the tick haptic | `SoftRowSpec.resolve(pressed: true)` |
+| critical = solid bar, watch = outlined bar, both plus a word | `SoftRowSpec.barFill` / `barStroke` + `severityLabel` |
+| the trailing column drops beneath the text rather than squeezing the title | measured in `_RenderSoftRowContent`, never guessed from the text scale |
+| a name middle-truncates; the full name is what a screen reader gets | `MiddleTruncatedText` + the row's `Semantics` label |
+| **no amber, ever** | `row_amber_test.dart` — a pixel census with a budget of zero |
+
+The press needs both channels because the fill step alone is 1.49:1 on the
+Night well: invisible on a 6-bit panel at 40% backlight, which is the panel a
+field agent has. On Day and Veld `lifted` is an ink block on paper, so the press
+inverts and the ink goes to `ground` with it.
+
+### Adopting it on a screen
+
+1. Delete the `ListTile`, `Card` or `GlassPane` the list was built from. A row
+   takes **no `Material` ancestor** — no ripple, no elevation, no `InkWell`.
+2. Pass the whole row's tap as `onTap`. A thumb in a shop aims at the row, not
+   at a 40dp trailing button.
+3. Localise the words. Every string a configuration needs is a parameter:
+   `stateWord`, `sentence`, `severityLabel`, `unknownLabel`. Nothing in this
+   directory hardcodes English, and `severityLabel` is **required** whenever a
+   severity bar is drawn — the bar is crimson, and the word is what survives
+   greyscale, deuteranopia, glare and a screen reader.
+4. Pass `separator: SoftRowSeparator.none` on the last row of each group.
+5. Drop any per-row amber. If a row looks like it needs light, it has been
+   misread: sending is Oatmeal dots, held is an Oatmeal square, live presence
+   belongs to the route's one `TorchClaim.livePulse` and not to eleven rows.
+6. Align anything you put *beside* a row — a section rule, a sticky header, a
+   swipe background — to `SoftRowSpec.resolve(...).textInset(hasLeading: …)`
+   rather than to a literal.
+
+### The goldens
+
+`test/core/widgets/torchlight/row/goldens/soft_row_<skin>.txt` — one line per
+`form × density × severity × tappable × pressed × textScale`, per skin, in the
+ruling's sequence: Night first, then Day, Veld last. They are **text**, not
+PNGs: CI runs `flutter test` on `ubuntu-latest` while the repo is developed on
+macOS, and an image golden that disagrees across platforms gets skipped within a
+week. What unify §1.3 rules is a set of declared values, and a text golden names
+the one that moved. The thing a PNG would catch — a row painting something
+nobody declared — is caught by the amber census, which walks the real pixels for
+the property that matters most.
+
+Regenerate with `UPDATE_ROW_GOLDENS=1 flutter test`, and read the diff.
+
+---
+
 ## 10. Adding a token
 
 1. **Check it is a token and not a value.** If it is used once, it is a value.
