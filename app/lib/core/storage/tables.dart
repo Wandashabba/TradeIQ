@@ -62,7 +62,18 @@ class StockDrafts extends Table {
   TextColumn get id => text()();
   TextColumn get visitDraftId => text()();
   TextColumn get skuId => text()();
-  IntColumn get unitsAvailable => integer()();
+
+  /// Units on the shelf, or NULL when this SKU was never counted (#389).
+  ///
+  /// NULL and 0 are different findings and must stay different: 0 is an agent
+  /// standing at an empty shelf, and it raises a stock-out task and drags
+  /// on-shelf availability down. NULL is a SKU the agent has not reached, and
+  /// it must do neither — it leaves every ratio's denominator instead.
+  ///
+  /// It used to be NOT NULL, and the capture screen coerced an untyped field to
+  /// 0, so every shelf the agent had not reached yet was reported as out of
+  /// stock. The column has to allow null before the screen can stop lying.
+  IntColumn get unitsAvailable => integer().nullable()();
   DateTimeColumn get lastStockinDate => dateTime()();
 
   @override
@@ -106,4 +117,24 @@ class SyncQueueItems extends Table {
   /// their owner recovered. Those are deliberately never flushed: guessing an
   /// owner is precisely the bug being fixed here.
   TextColumn get userId => text().nullable()();
+
+  /// How many bytes of real payload this row is holding — the DECODED size
+  /// (#382).
+  ///
+  /// The outbox is the one place that knows why a phone's storage is filling
+  /// up, and nothing could say it: a sync screen could count rows, but a row is
+  /// either a 200-byte stock batch or a multi-megabyte photo, and counting them
+  /// tells an agent nothing about which is which.
+  ///
+  /// It is the decoded size, not `payloadJson.length`, because a photo payload
+  /// is a base64 data URL inside the JSON and base64 inflates by 4/3. Reporting
+  /// the encoded length would overstate every photo row by a third — see
+  /// `decodedPayloadBytes` in local_db.dart, and the same encoded-vs-decoded
+  /// distinction in the backend's `photos/thumbnails.ts`.
+  ///
+  /// Nullable, and deliberately NOT backfilled: rows queued before this column
+  /// existed have never been measured, and `length(payload_json)` is precisely
+  /// the wrong number to guess them with. Null means unmeasured; it must never
+  /// read as an empty payload.
+  IntColumn get payloadBytes => integer().nullable()();
 }

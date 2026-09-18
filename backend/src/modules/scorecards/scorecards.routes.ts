@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import {
@@ -13,15 +14,49 @@ import { parsePagination } from '../../lib/pagination';
 export const scorecardsRouter = Router();
 scorecardsRouter.use(requireAuth);
 
-scorecardsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {
-  const { visitId } = req.body as { visitId?: unknown };
+function issues(error: z.ZodError) {
+  return error.issues.map((i) => `${i.path.join('.') || '<root>'}: ${i.message}`);
+}
 
-  if (typeof visitId !== 'string' || visitId.length === 0) {
-    res.status(400).json({ error: 'visitId is required' });
+/**
+ * The device's own score, sent alongside the finalize marker (#390, #399).
+ *
+ * Optional at every level: an older app build sends `{ visitId }` alone and
+ * everything works exactly as it did. `.strict()` on both objects so a client
+ * that misspells `ratingBnd` is told, instead of having half a score silently
+ * stored — a total with no band is not a score anyone saw, and the service
+ * would have to discard it.
+ */
+const provisionalBody = z
+  .object({
+    weightedTotal: z.number().min(0).max(100),
+    ratingBand: z.enum(['green', 'amber', 'red']),
+    computedAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+
+const createScorecardBody = z
+  .object({
+    visitId: z.string().min(1),
+    provisional: provisionalBody.optional(),
+  })
+  .strict();
+
+scorecardsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {
+  const parsed = createScorecardBody.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'visitId is required', issues: issues(parsed.error) });
     return;
   }
 
-  const scorecard = await generateScorecard({ visitId, clientId: req.user!.clientId, agentId: req.user!.userId });
+  const scorecard = await generateScorecard({
+    visitId: parsed.data.visitId,
+    // What the agent SAW on the device. Recorded, never scored against: see
+    // generateScorecard.
+    provisional: parsed.data.provisional,
+    clientId: req.user!.clientId,
+    agentId: req.user!.userId,
+  });
   res.status(201).json(scorecard);
 });
 

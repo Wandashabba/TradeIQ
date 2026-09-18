@@ -19,7 +19,14 @@ const STOCKOUT_FINDING_TYPE = 'stockout';
 
 export interface StockItemInput {
   skuId: string;
-  unitsAvailable: number;
+  /**
+   * Units on the shelf, or null when the agent never reached this SKU (#389).
+   *
+   * An omitted field is read as null for the same reason, so a part-finished
+   * count is expressible either way. What it is NOT is 0: a counted 0 is a
+   * finding and still raises the stock-out task below.
+   */
+  unitsAvailable: number | null;
   lastStockinDate: string; // ISO
   salesActual?: number;
   salesTarget?: number;
@@ -46,7 +53,11 @@ export function hasDuplicateSkuIds(items: Pick<StockItemInput, 'skuId'>[]): bool
 
 // predictCoverageDays returns Infinity when velocityAvg <= 0, which a Postgres
 // Float column can't store — clamp it to 0 (route validation also guards this).
-function coverageFor(unitsAvailable: number, velocityAvg: number): number {
+//
+// An uncounted line has no coverage to predict, and 0 would read as "no cover
+// left", the loudest thing this figure can say. It is null instead (#389).
+function coverageFor(unitsAvailable: number | null, velocityAvg: number): number | null {
+  if (unitsAvailable === null) return null;
   const coverage = predictCoverageDays({ unitsAvailable, velocityAvg });
   return Number.isFinite(coverage) ? coverage : 0;
 }
@@ -86,7 +97,15 @@ export async function recordStock(input: RecordStockInput) {
     throw new ValidationError(DUPLICATE_SKU_ID_MESSAGE);
   }
 
-  const skuIds = input.items.map((i) => i.skuId);
+  // One normalisation, here, so "field absent" and "field null" cannot mean
+  // different things further down: both are "not counted" (#389). Every check
+  // below can then compare against `null` alone.
+  const items: StockItemInput[] = input.items.map((item) => ({
+    ...item,
+    unitsAvailable: item.unitsAvailable ?? null,
+  }));
+
+  const skuIds = items.map((i) => i.skuId);
   const skus = await prisma.sku.findMany({
     where: { id: { in: skuIds }, clientId: input.clientId },
     select: { id: true },
@@ -110,7 +129,7 @@ export async function recordStock(input: RecordStockInput) {
   ]);
 
   const rows = await prisma.$transaction(
-    input.items.map((item) => {
+    items.map((item) => {
       const history = historyBySku.get(item.skuId) ?? [];
       const daysOutOfStock = computeDaysOutOfStock(
         history,
@@ -122,7 +141,7 @@ export async function recordStock(input: RecordStockInput) {
         data: {
           visitId: input.visitId,
           skuId: item.skuId,
-          unitsAvailable: item.unitsAvailable,
+          unitsAvailable: item.unitsAvailable ?? null,
           lastStockinDate: new Date(item.lastStockinDate),
           daysOutOfStock,
           velocityAvg,
@@ -139,7 +158,7 @@ export async function recordStock(input: RecordStockInput) {
   // (visitId, findingType, requiredFix) so re-submitting the section is
   // idempotent. Task creation is best-effort: a failure here must not fail the
   // already-persisted stock capture.
-  await createStockoutTasks(input.visitId, input.clientId, visit.outletId, visit.agentId, input.items);
+  await createStockoutTasks(input.visitId, input.clientId, visit.outletId, visit.agentId, items);
 
   return rows;
 }
@@ -162,7 +181,13 @@ async function createStockoutTasks(
       DEFAULT_STOCKOUT_UNITS_THRESHOLD,
     );
 
-    const stockouts = items.filter((item) => item.unitsAvailable <= unitsThreshold);
+    // An uncounted SKU is not a stock-out (#389). Before nulls existed, a
+    // part-finished count sent 0 for everything the agent had not reached and
+    // this line opened a high-priority restock task for each of them — the
+    // store was accused of being empty of things nobody had looked at.
+    const stockouts = items.filter(
+      (item) => item.unitsAvailable !== null && item.unitsAvailable <= unitsThreshold,
+    );
     if (stockouts.length === 0) return;
 
     const existing = await prisma.task.findMany({

@@ -74,10 +74,15 @@ class _StockFormState extends ConsumerState<_StockForm> {
     final entries = widget.skus.map((sku) {
       return StockEntry(
         skuId: sku.id,
-        // An uncounted SKU is recorded as 0 — the server reads that as out of
-        // stock, which is why the hub will not let the visit be submitted until
-        // every SKU has actually been counted.
-        unitsAvailable: _units[sku.id] ?? 0,
+        // An uncounted SKU travels as null, not 0 (#389).
+        //
+        // This used to be `?? 0`, and that expression is the bug: a shelf the
+        // agent had not walked to yet was submitted as an empty one, raising a
+        // stock-out task and dragging on-shelf availability down for a SKU
+        // nobody had looked at. The hub still refuses to submit a visit with
+        // uncounted SKUs — but a half-finished save must not accuse the store
+        // in the meantime.
+        unitsAvailable: _units[sku.id],
         lastStockinDate: _lastStockin[sku.id]!,
       );
     }).toList();

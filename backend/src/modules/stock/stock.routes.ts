@@ -17,7 +17,12 @@ function isValidItem(item: unknown): item is StockItemInput {
   if (typeof item !== 'object' || item === null) return false;
   const i = item as Record<string, unknown>;
   if (typeof i.skuId !== 'string' || typeof i.lastStockinDate !== 'string') return false;
-  if (typeof i.unitsAvailable !== 'number') return false;
+  // null (or the field left off entirely) means "not counted" — a part-finished
+  // count is a legitimate submission, not a malformed one (#389). An older app
+  // build always sends a number and is unaffected.
+  if (i.unitsAvailable !== undefined && i.unitsAvailable !== null && typeof i.unitsAvailable !== 'number') {
+    return false;
+  }
   if (i.salesActual !== undefined && i.salesActual !== null && typeof i.salesActual !== 'number') return false;
   if (i.salesTarget !== undefined && i.salesTarget !== null && typeof i.salesTarget !== 'number') return false;
   return true;

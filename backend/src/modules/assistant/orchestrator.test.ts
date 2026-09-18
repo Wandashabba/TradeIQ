@@ -307,6 +307,79 @@ describe('orchestrator', () => {
       view: () => ({ type: 'agent_scorecard', params: { agentId: 'agent-1', period: { kind: 'mtd' } } }),
     };
 
+    // #406. The card's one highlight, and the outside-data badge.
+    it('sends focus straight after the artifact it points at, and only for a figure that declares one', async () => {
+      const focused = {
+        type: 'ranked_bars',
+        data: {
+          ...ranking.data,
+          // Worst first, so the head of the list is what the sentence is about.
+          // The client used to pick this itself from "biggest" or "first",
+          // neither of which can see which way worse runs for the metric.
+          focusIndex: 0,
+        },
+      };
+      const events = await collect(
+        runTurn({
+          provider: scriptedProvider([
+            callTool('getAgentScorecard', { agentId: 'agent-1' }),
+            say('Soweto Superette is the worst.'),
+          ]),
+          tools: [testTool({ figures: async () => [tiles, focused] } as never)],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+        }),
+      );
+
+      // The tiles carry no focusIndex, so they get no focus event — a row of
+      // tiles has no single bar to highlight.
+      expect(names(events)).toEqual([
+        'tool_start',
+        'tool_end',
+        'artifact',
+        'artifact',
+        'focus',
+        'token',
+        'usage',
+        'done',
+      ]);
+      const focus = events.find((e) => e.event === 'focus');
+      const bars = events.filter(
+        (e): e is Extract<WireEvent, { event: 'artifact' }> => e.event === 'artifact',
+      )[1];
+      expect(focus).toEqual({
+        event: 'focus',
+        data: { artifactId: bars.data.id, index: 0 },
+      });
+    });
+
+    it('marks an outside-data run on the artifact frame itself', async () => {
+      const cpi = {
+        type: 'stat_tiles',
+        data: {
+          tiles: [{ label: 'CPI, year on year', value: 4.6, unit: 'pct', origin: 'stats_sa' }],
+          outsideData: true,
+        },
+      };
+      const events = await collect(
+        runTurn({
+          provider: scriptedProvider([
+            callTool('getAgentScorecard', { agentId: 'agent-1' }),
+            say('Inflation was 4.6%.'),
+          ]),
+          tools: [testTool({ figures: async () => [tiles, cpi] } as never)],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+        }),
+      );
+      const artifacts = events.filter(
+        (e): e is Extract<WireEvent, { event: 'artifact' }> => e.event === 'artifact',
+      );
+      // The flag rides on the frame so a client can badge the card without
+      // walking its tiles — and the tenant's own figures stay unbadged.
+      expect(artifacts.map((a) => a.data.outsideData)).toEqual([false, true]);
+    });
+
     it('emits tiles then bars after the tool ends and its view, before the answer', async () => {
       const provider = scriptedProvider([
         callTool('getAgentScorecard', { agentId: 'agent-1' }),
@@ -344,6 +417,10 @@ describe('orchestrator', () => {
         type: 'stat_tiles',
         params: {},
         data: tiles.data,
+        // Lifted out of the figure so a client can badge the card without
+        // walking its tiles (#406). Internal figures, so false — present and
+        // false, not absent: the client reads a flag rather than inferring one.
+        outsideData: false,
       });
       // Namespaced by type, so a figure can never patch the view card in place.
       expect(new Set(events.filter((e) => e.event === 'artifact').map((e) => (e.data as { id: string }).id)).size).toBe(3);
@@ -754,6 +831,49 @@ describe('orchestrator', () => {
         .join('');
       expect(text).toBe(`partial answer${BUDGET_NOTICE}`);
       expect(names(events).slice(-2)).toEqual(['usage', 'done']);
+
+      // #406. The same fact, twice, on purpose: the prose is what an older
+      // build already renders and must keep rendering, and the code is so a
+      // newer one stops pattern-matching English to find out why an answer
+      // stopped short.
+      expect(events.find((e) => e.event === 'notice')).toEqual({
+        event: 'notice',
+        data: { code: 'lookup_budget', message: BUDGET_NOTICE.trim() },
+      });
+    });
+
+    it('names the time budget as its own reason, and says nothing for a repeated call', async () => {
+      // A repeat is not an incomplete answer — the model already had what it
+      // asked for, twice — so it gets neither the prose nor a notice.
+      const repeated = await collect(
+        runTurn({
+          provider: scriptedProvider([
+            callTool('getAgentScorecard', { agentId: 'a' }, 'c1'),
+            callTool('getAgentScorecard', { agentId: 'a' }, 'c2'),
+            say('same answer'),
+          ]),
+          tools: [testTool()],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+        }),
+      );
+      expect(repeated.some((e) => e.event === 'notice')).toBe(false);
+
+      const timedOut = await collect(
+        runTurn({
+          provider: scriptedProvider([
+            callTool('getAgentScorecard', { agentId: 'a' }, 'c1'),
+            say('partial answer'),
+          ]),
+          tools: [testTool()],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+          budget: { maxMs: 0 },
+        }),
+      );
+      expect(timedOut.find((e) => e.event === 'notice')).toMatchObject({
+        data: { code: 'time_budget' },
+      });
     });
 
     it('does not run tools a provider returns on the final round', async () => {
@@ -774,7 +894,16 @@ describe('orchestrator', () => {
       );
 
       expect(runs).toBe(1);
-      expect(names(events)).toEqual(['tool_start', 'tool_end', 'token', 'usage', 'done']);
+      // The budget prose token AND the machine-readable `notice` beside it: an
+      // older client keeps reading the sentence, a new one reads the code (#406).
+      expect(names(events)).toEqual([
+        'tool_start',
+        'tool_end',
+        'token',
+        'notice',
+        'usage',
+        'done',
+      ]);
     });
 
     it('withdraws tools once the cost budget is spent', async () => {

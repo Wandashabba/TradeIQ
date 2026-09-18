@@ -7,6 +7,12 @@ import { prisma } from '../lib/prisma';
 
 export interface StockHistoryRow {
   visitCheckinTs: Date;
+  /**
+   * Always a real count. Uncounted lines (`units_available IS NULL`, #389) are
+   * dropped by {@link fetchStockHistoryForOutlet} before they get here: an
+   * uncounted shelf is not evidence of a level, so it can neither anchor
+   * days-out-of-stock nor imply consumption between two visits.
+   */
   unitsAvailable: number;
 }
 
@@ -93,6 +99,11 @@ export async function fetchStockHistoryForOutlet(
         FROM visit_stock vs
         JOIN visits v ON v.id = vs.visit_id
         WHERE v.outlet_id = ${outletId} AND v.client_id = ${clientId}
+          -- An uncounted line is not a count (#389). Excluding it here rather
+          -- than downstream keeps the five-row window meaning "the last five
+          -- times anyone actually looked", so a half-finished visit cannot
+          -- push real history out of the velocity window.
+          AND vs.units_available IS NOT NULL
       ) ranked
       WHERE rn <= ${HISTORY_WINDOW}
       ORDER BY sku_id, checkin_ts DESC

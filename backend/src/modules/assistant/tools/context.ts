@@ -41,14 +41,26 @@ export async function periodDays(period: Period, now: Date, timeZone: string) {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
- * Provenance → the shared sources shape, retrieval date included. The page-age slot carries the
- * publisher's release date ("Released 19 Aug 2026"), which is what a manager
- * needs to judge how current an outside figure is.
+ * Provenance → the shared sources shape, retrieval date included.
+ *
+ * `publisher` and `publishedAt` now travel as themselves (#406). They used to
+ * be flattened on the way out — the publisher's name into the untrusted `title`
+ * field, and the release date into English prose in `pageAge` ("Released 19 Aug
+ * 2026") — so the app had to parse a sentence back into a date, and could not
+ * tell a publisher we assigned from a title a page had given itself. The prose
+ * stays in `pageAge` for clients that already read it; the machine-readable
+ * fields sit beside it.
  */
-export function provenanceSources(provenance: readonly Provenance[]): RawWebSource[] {
+export function provenanceSources(
+  provenance: readonly Provenance[],
+  origin: RawWebSource['origin'],
+): RawWebSource[] {
   return provenance.map((p) => ({
     url: p.url,
     title: p.sourceName,
+    origin,
+    publisher: p.sourceName,
+    publishedAt: p.publishedAt,
     pageAge: p.publishedAt
       ? `Released ${Number(p.publishedAt.slice(8, 10))} ${MONTHS[Number(p.publishedAt.slice(5, 7)) - 1]} ${p.publishedAt.slice(0, 4)}`
       : null,
@@ -106,7 +118,8 @@ export function buildContextTools(ctx: ToolContext): AnyAssistantTool[] {
         facing(async () =>
           getCalendarContext({ ...(await periodDays(args.period, now, await timeZone())), province: args.province }),
         ),
-      sources: (_args, result) => provenanceSources((result as { sources?: Provenance[] }).sources ?? []),
+      sources: (_args, result) =>
+        provenanceSources((result as { sources?: Provenance[] }).sources ?? [], 'calendar'),
     }),
 
     eraseToolTypes({
@@ -139,7 +152,8 @@ export function buildContextTools(ctx: ToolContext): AnyAssistantTool[] {
             territoryId: args.territoryId,
           });
         }),
-      sources: (_args, result) => provenanceSources((result as { sources?: Provenance[] }).sources ?? []),
+      sources: (_args, result) =>
+        provenanceSources((result as { sources?: Provenance[] }).sources ?? [], 'weather'),
     }),
 
     eraseToolTypes({
@@ -156,7 +170,11 @@ export function buildContextTools(ctx: ToolContext): AnyAssistantTool[] {
       args: z.object({ period: periodSchema }),
       run: async (args) =>
         facing(async () => getEconomicContext({ ...(await periodDays(args.period, now, await timeZone())), now })),
-      sources: (_args, result) => provenanceSources(economicProvenance(result as Parameters<typeof economicProvenance>[0])),
+      sources: (_args, result) =>
+        provenanceSources(
+          economicProvenance(result as Parameters<typeof economicProvenance>[0]),
+          'stats_sa',
+        ),
     }),
   ] as AnyAssistantTool[];
 }

@@ -73,6 +73,12 @@ describe('normaliseSources', () => {
       pageAge: '3 days ago',
       retrievedAt: '2026-09-17T10:00:00.000Z',
       snippet: 'Shoprite said on Monday it would cut prices.',
+      // A vendor result declares no origin, so it is what it is: a web search
+      // (#406). It states neither a publisher name nor a release date, and
+      // both say so with null rather than by being absent.
+      origin: 'web_search',
+      publisher: null,
+      publishedAt: null,
     });
     expect(webSourceSchema.safeParse(source).success).toBe(true);
   });

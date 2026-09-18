@@ -25,7 +25,9 @@ import type {
  */
 
 const tiles = (list: StatTile[]): FigureArtifact[] =>
-  list.length > 0 ? [{ type: 'stat_tiles', data: { tiles: list } }] : [];
+  // Every operations figure is the tenant's own data, so the run is internal
+  // and says so explicitly rather than by omission (#406).
+  list.length > 0 ? [{ type: 'stat_tiles', data: { tiles: list, outsideData: false } }] : [];
 
 const bars = (value: RankedBars | null): FigureArtifact[] =>
   value ? [{ type: 'ranked_bars', data: value }] : [];
@@ -50,6 +52,9 @@ export function priceComplianceFigures(
       unit: 'pct',
       baseline: usable ? before!.avgDeviationPct : null,
       baselineLabel: against,
+      // Priced lines: the mean's own denominator (#387).
+      sampleSize: result.pricedLines,
+      baselineSampleSize: usable ? before!.pricedLines! : null,
     }),
     buildTile({
       metric: 'price_breach_lines',
@@ -58,6 +63,8 @@ export function priceComplianceFigures(
       unit: 'pct',
       baseline: usable ? before!.linesAboveThresholdPct : null,
       baselineLabel: against,
+      sampleSize: result.pricedLines,
+      baselineSampleSize: usable ? before!.pricedLines! : null,
     }),
   ]);
 
@@ -66,7 +73,14 @@ export function priceComplianceFigures(
     title: 'Price vs RRP by outlet',
     comparedTo: formatPeriodLabel(windows.current, windows.timeZone),
     unit: 'pct',
-    items: result.worstOutlets.map((o) => ({ label: o.outletName, value: o.avgDeviationPct })),
+    items: result.worstOutlets.map((o) => ({
+      label: o.outletName,
+      value: o.avgDeviationPct,
+      // Priced lines at THIS outlet: a "worst offender" built from one line is
+      // not the same claim as one built from forty.
+      sampleSize: o.lines,
+    })),
+    sampleSize: result.pricedLines,
   });
   return [...out, ...bars(ranking)];
 }
@@ -99,6 +113,8 @@ export function campaignFigures(result: CampaignPerformance): FigureArtifact[] {
           value: p.execution.visitCoverageRate,
           unit: 'pct',
           meter: p.execution.visitCoverageRate,
+          // Outlets in the campaign's scope — the coverage rate's denominator.
+          sampleSize: p.execution.outletsTotal,
         }),
       );
     }
@@ -110,6 +126,8 @@ export function campaignFigures(result: CampaignPerformance): FigureArtifact[] {
           value: p.execution.avgPlanogramCompliancePct,
           unit: 'pct',
           meter: p.execution.avgPlanogramCompliancePct,
+          // Only the outlets that were actually visited can be scored.
+          sampleSize: p.execution.outletsVisited,
         }),
       );
     }
@@ -124,6 +142,8 @@ export function campaignFigures(result: CampaignPerformance): FigureArtifact[] {
       comparedTo: 'vs the equal period before each',
       unit: 'pct',
       items: ended.map((c) => ({ label: c.name, value: c.performance!.liftPct as number })),
+      // Campaigns compared, not rows: the bars ARE the sample.
+      sampleSize: ended.length,
     }),
   );
 }
@@ -184,6 +204,9 @@ export function forecastFigures(result: SellInForecast): FigureArtifact[] {
       value: result.forecastDailyUnits,
       unit: 'units',
       comparedTo: `smoothed from ${result.historyDays} days`,
+      // Days that actually carried an order. A forecast smoothed from two
+      // ordering days inside a 90-day window is the low-sample case exactly.
+      sampleSize: result.daysWithOrders,
     }),
   ];
   if (finite(result.daysOfCover)) {

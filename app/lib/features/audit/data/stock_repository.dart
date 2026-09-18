@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -17,9 +18,25 @@ class StockEntry {
     required this.lastStockinDate,
   });
   final String skuId;
-  final int unitsAvailable;
+
+  /// Units on the shelf, or null when this SKU was never counted (#389).
+  ///
+  /// Null and 0 are different findings and travel to the server as different
+  /// findings. 0 is an agent standing at an empty shelf: it raises a stock-out
+  /// task and drags on-shelf availability down. Null is a SKU the agent has not
+  /// reached, and it does neither — the server drops it from the ratio's
+  /// denominator entirely.
+  ///
+  /// It used to be a non-null `int`, and the capture screen filled every
+  /// untouched field with 0, so a half-finished count accused the store of
+  /// being out of stock on every shelf the agent had not walked to yet.
+  final int? unitsAvailable;
   final DateTime lastStockinDate;
 
+  /// The `POST /stock` item shape. An uncounted SKU is sent as an explicit
+  /// `null` rather than omitted: the server reads both the same way, and a
+  /// present null says "we looked and there is no count" instead of leaving the
+  /// reader to guess whether the field was dropped by an old client.
   Map<String, dynamic> toJson() => {
     'skuId': skuId,
     'unitsAvailable': unitsAvailable,
@@ -56,7 +73,7 @@ class DriftStockRepository implements StockRepository {
                 id: _uuid.v4(),
                 visitDraftId: visitDraftId,
                 skuId: entry.skuId,
-                unitsAvailable: entry.unitsAvailable,
+                unitsAvailable: Value(entry.unitsAvailable),
                 lastStockinDate: entry.lastStockinDate,
               ),
             );

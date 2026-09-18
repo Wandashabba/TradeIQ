@@ -237,9 +237,14 @@ describe('getTerritoryRanking', () => {
       title: 'Change by territory',
       comparedTo: "vs Jul '26",
       unit: 'pct',
+      decimals: 1,
+      sampleSize: 2,
+      baselineSampleSize: 2,
+      outsideData: false,
+      focusIndex: 0,
       items: [
-        { label: 'Soweto', value: -31 },
-        { label: 'Pretoria East', value: 7 },
+        { label: 'Soweto', value: -31, sampleSize: null },
+        { label: 'Pretoria East', value: 7, sampleSize: null },
       ],
     });
   });

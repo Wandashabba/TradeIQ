@@ -269,6 +269,39 @@ void main() {
     expect(spy.entries!.first.unitsAvailable, 3);
   });
 
+  testWidgets('an untouched SKU is saved as null, a typed 0 as 0 (#389)', (
+    tester,
+  ) async {
+    // The bug: this screen used to send `_units[sku.id] ?? 0`, so a shelf the
+    // agent had not walked to yet was submitted as an empty one — raising a
+    // high-priority restock task and dragging on-shelf availability down for a
+    // SKU nobody had looked at. Null and 0 have to leave here as different
+    // findings, because the server treats them as different findings.
+    final spy = _SpyStockRepository();
+
+    await tester.pumpWidget(_screen(stock: spy));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Save stock'));
+    await tester.tap(find.text('Save stock'));
+    await tester.pumpAndSettle();
+
+    expect(spy.entries!.first.unitsAvailable, isNull);
+
+    // The same SKU, now actually counted and found empty. That IS a finding.
+    await tester.tap(find.byKey(const ValueKey('units-s1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('units-input-s1')), '0');
+    await tester.tap(find.byKey(const ValueKey('units-confirm-s1')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Save stock'));
+    await tester.tap(find.text('Save stock'));
+    await tester.pumpAndSettle();
+
+    expect(spy.entries!.first.unitsAvailable, 0);
+  });
+
   testWidgets('a zero count is shown as the finding it is', (tester) async {
     await tester.pumpWidget(_screen(stock: _SpyStockRepository()));
     await tester.pumpAndSettle();

@@ -1,4 +1,4 @@
-import { facingsTotal, mean, pct, round2 } from './kpiMath';
+import { facingsTotal, mean, onShelfAvailabilityPct, pct, round2 } from './kpiMath';
 
 describe('round2', () => {
   it('rounds to 2 decimal places', () => {
@@ -58,5 +58,31 @@ describe('facingsTotal', () => {
     expect(facingsTotal(undefined)).toBe(0);
     expect(facingsTotal('nope')).toBe(0);
     expect(facingsTotal([1, 2])).toBe(0);
+  });
+});
+
+describe('onShelfAvailabilityPct (#389)', () => {
+  const line = (unitsAvailable: number | null) => ({ unitsAvailable });
+
+  it('counts a line with stock as available and a counted zero as not', () => {
+    expect(onShelfAvailabilityPct([line(5), line(0), line(3), line(0)])).toBe(50);
+  });
+
+  it('leaves an uncounted line out of the denominator entirely', () => {
+    // Three counted lines, two with stock. The two uncounted SKUs are neither
+    // on the shelf nor off it — before nulls existed they arrived as 0 and
+    // dragged this to 40%, reporting a shortage nobody had observed.
+    expect(onShelfAvailabilityPct([line(5), line(3), line(0), line(null), line(null)])).toBe(
+      onShelfAvailabilityPct([line(5), line(3), line(0)]),
+    );
+    expect(onShelfAvailabilityPct([line(5), line(3), line(0), line(null), line(null)])).toBeCloseTo(
+      66.67,
+      2,
+    );
+  });
+
+  it('returns 0 rather than NaN when nothing was counted at all', () => {
+    expect(onShelfAvailabilityPct([])).toBe(0);
+    expect(onShelfAvailabilityPct([line(null), line(null)])).toBe(0);
   });
 });

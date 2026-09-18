@@ -293,6 +293,21 @@ describe('dashboard routes', () => {
       shareOfShelf: 80, // 8 own facings vs 2 competitor rows
       perfectStoreRate: 50, // 1 of 2 scorecards green
     });
+    // #387/#406: what each percentage above was actually divided by, so the
+    // client can put the low-sample treatment on a confident-looking tile
+    // built from two rows.
+    expect(res.body.sampleSizes).toEqual({
+      numericDistribution: 2,
+      weightedDistribution: 2,
+      osaPct: 2,
+      executionScore: 2,
+      priceCompliancePct: 2,
+      // One visibility row: the tile reads 80% off a single capture.
+      visibilityCompliancePct: 1,
+      // Facings, not capture rows — the denominator shareOfShelf really uses.
+      shareOfShelf: 10,
+      perfectStoreRate: 2,
+    });
     expect(res.body.totals).toEqual({ visits: 2, outletsVisited: 2, outletsTotal: 2 });
     // One door per outlet: the 73 (amber) and the 90 (green). Client B's 20
     // must not leak into the <60 band.
@@ -400,6 +415,20 @@ describe('dashboard routes', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.kpis).toEqual({
+      numericDistribution: 0,
+      weightedDistribution: 0,
+      osaPct: 0,
+      executionScore: 0,
+      priceCompliancePct: 0,
+      visibilityCompliancePct: 0,
+      shareOfShelf: 0,
+      perfectStoreRate: 0,
+    });
+    // Every KPI reads 0 because there is nothing to divide, and every sample
+    // size reads 0 because that is the true count of rows behind them. This is
+    // exactly the case the low-sample treatment exists for: eight confident
+    // zeros a manager would otherwise read as eight measurements.
+    expect(res.body.sampleSizes).toEqual({
       numericDistribution: 0,
       weightedDistribution: 0,
       osaPct: 0,

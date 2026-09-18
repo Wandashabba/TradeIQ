@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { facingsTotal, mean, pct } from '../../lib/kpiMath';
+import { facingsTotal, mean, onShelfAvailabilityPct, pct } from '../../lib/kpiMath';
 
 const PRICE_COMPLIANCE_TOLERANCE_PCT = 5;
 
@@ -35,6 +35,38 @@ export interface DashboardSummary {
     visibilityCompliancePct: number;
     shareOfShelf: number;
     perfectStoreRate: number;
+  };
+  /**
+   * How many rows each KPI above was measured over (#387, #406).
+   *
+   * A tile reading 100% off two observations and a tile reading 100% off two
+   * thousand look identical, and a console full of confident percentages built
+   * on a handful of visits is the most expensive thing this product can show a
+   * manager. The client draws its low-sample treatment from these.
+   *
+   * `null` means the KPI is not a ratio over observations and has no
+   * denominator to report. It is never 0 for that case: a client reading a
+   * missing sample size as 0 would mark every healthy tile as low-sample.
+   *
+   * Each key is the KPI's own denominator, not a nearby proxy — `shareOfShelf`
+   * divides by facings, so its sample size is facings and not the row count of
+   * the captures they came from.
+   *
+   * There is no `baselineSampleSizes` beside this: the endpoint reports ONE
+   * window and returns no deltas, so there is no baseline that could be thin.
+   * The assistant's tiles, which do compare windows, carry
+   * `baselineSampleSize` per figure. If a comparison window is ever added here,
+   * its counts belong next to this object.
+   */
+  sampleSizes: {
+    numericDistribution: number | null;
+    weightedDistribution: number | null;
+    osaPct: number | null;
+    executionScore: number | null;
+    priceCompliancePct: number | null;
+    visibilityCompliancePct: number | null;
+    shareOfShelf: number | null;
+    perfectStoreRate: number | null;
   };
   totals: {
     visits: number;
@@ -105,10 +137,7 @@ function computeKpisFromScope(outlets: ScopedOutlet[], visits: ScopedVisit[]): D
     .reduce((sum, outlet) => sum + outlet.acvWeight, 0);
   const weightedDistribution = pct(visitedAcv, totalAcv);
 
-  const osaPct = pct(
-    stockRows.filter((row) => row.unitsAvailable > 0).length,
-    stockRows.length,
-  );
+  const osaPct = onShelfAvailabilityPct(stockRows);
 
   const executionScore = mean(scorecards.map((scorecard) => scorecard.weightedTotal));
 
@@ -168,6 +197,20 @@ function computeKpisFromScope(outlets: ScopedOutlet[], visits: ScopedVisit[]): D
       visibilityCompliancePct,
       shareOfShelf,
       perfectStoreRate,
+    },
+    // Each one is the denominator the KPI beside it was actually divided by —
+    // read off the same arrays, in the same function, so the two cannot drift
+    // the way two copies of a formula did in #93.
+    sampleSizes: {
+      numericDistribution: outletsTotal,
+      weightedDistribution: outletsTotal,
+      // COUNTED stock lines only, matching `onShelfAvailabilityPct` (#389).
+      osaPct: stockRows.filter((row) => row.unitsAvailable !== null).length,
+      executionScore: scorecards.length,
+      priceCompliancePct: pricingRows.length,
+      visibilityCompliancePct: visibilityRows.length,
+      shareOfShelf: ownFacings + competitorFacings,
+      perfectStoreRate: scorecards.length,
     },
     totals: {
       visits: visits.length,

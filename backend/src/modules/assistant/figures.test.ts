@@ -175,6 +175,10 @@ describe('salesFigures', () => {
         label: 'Sell-in, units',
         value: 48_210,
         unit: 'units',
+        decimals: 0,
+        // Outlets that ordered, in each window — the doors behind each total.
+        sampleSize: 90,
+        baselineSampleSize: 94,
         delta: { value: 12.4, unit: 'pct', direction: 'down', sentiment: 'bad' },
         comparedTo: "vs 55,034 · Aug '25",
       },
@@ -182,6 +186,10 @@ describe('salesFigures', () => {
         label: 'Target attainment',
         value: 81,
         unit: 'pct',
+        decimals: 1,
+        // One whole calendar month, the only unit attainment is defined over.
+        sampleSize: 1,
+        baselineSampleSize: null,
         comparedTo: "of 59,500 · Aug '26",
         meter: 81,
       },
@@ -189,6 +197,10 @@ describe('salesFigures', () => {
         label: 'Outlets ordering',
         value: 90,
         unit: 'count',
+        decimals: 0,
+        // A count of things has no denominator: null, never 0.
+        sampleSize: null,
+        baselineSampleSize: null,
         delta: { value: 4, unit: 'count', direction: 'down', sentiment: 'bad' },
         comparedTo: "vs 94 · Aug '25",
       },
@@ -197,7 +209,15 @@ describe('salesFigures', () => {
 
   it('carries no delta or comparedTo when nothing was compared', () => {
     const units = tile(salesFigures(sales(), windows(AUGUST)), 'Sell-in, units');
-    expect(units).toEqual({ label: 'Sell-in, units', value: 48_210, unit: 'units' });
+    expect(units).toEqual({
+      label: 'Sell-in, units',
+      value: 48_210,
+      unit: 'units',
+      decimals: 0,
+      sampleSize: 90,
+      // Nothing was compared, so there is no baseline to have been thin.
+      baselineSampleSize: null,
+    });
   });
 
   it('labels a territory comparison as such, not as a period', () => {
@@ -278,6 +298,10 @@ describe('stockFigures', () => {
       label: 'On-shelf availability',
       value: 88,
       unit: 'pct',
+      decimals: 1,
+      // The counted stock lines the percentage was divided by, both windows.
+      sampleSize: 400,
+      baselineSampleSize: 400,
       delta: { value: 4, unit: 'pts', direction: 'down', sentiment: 'warn' },
       comparedTo: "vs 92% · Jul '26",
     });
@@ -293,10 +317,16 @@ describe('stockFigures', () => {
       title: 'Out-of-stock lines by outlet',
       comparedTo: "Aug '26",
       unit: 'count',
+      decimals: 0,
+      sampleSize: 400,
+      baselineSampleSize: null,
+      outsideData: false,
+      // Worst first, so the head of the list is the bar the sentence is about.
+      focusIndex: 0,
       items: [
-        { label: 'Soweto Superette', value: 9 },
-        { label: 'Alpha Cash & Carry', value: 3 },
-        { label: 'Kasi Spaza', value: 3 },
+        { label: 'Soweto Superette', value: 9, sampleSize: null },
+        { label: 'Alpha Cash & Carry', value: 3, sampleSize: null },
+        { label: 'Kasi Spaza', value: 3, sampleSize: null },
       ],
     });
   });
@@ -349,11 +379,16 @@ describe('rankedBars', () => {
       title: 'Change by territory',
       comparedTo: "vs Aug '25",
       unit: 'pct',
+      decimals: 1,
+      sampleSize: null,
+      baselineSampleSize: null,
+      outsideData: false,
+      focusIndex: 0,
       items: [
-        { label: 'Soweto', value: -31 },
-        { label: 'Tembisa', value: -9 },
-        { label: 'Sandton', value: 4 },
-        { label: 'Pretoria East', value: 7 },
+        { label: 'Soweto', value: -31, sampleSize: null },
+        { label: 'Tembisa', value: -9, sampleSize: null },
+        { label: 'Sandton', value: 4, sampleSize: null },
+        { label: 'Pretoria East', value: 7, sampleSize: null },
       ],
     });
   });
@@ -389,7 +424,18 @@ describe('the other pillar builders', () => {
     };
     const figures = shareOfShelfFigures(base, windows(AUGUST));
     expectValid(figures);
-    expect(tilesOf(figures)).toEqual([{ label: 'Share of shelf', value: 41.5, unit: 'pct' }]);
+    expect(tilesOf(figures)).toEqual([
+      {
+        label: 'Share of shelf',
+        value: 41.5,
+        unit: 'pct',
+        decimals: 1,
+        // FACINGS, not the 20 capture rows: the percentage divides by facings,
+        // so anything else would report a denominator it was not computed over.
+        sampleSize: 200,
+        baselineSampleSize: null,
+      },
+    ]);
     expect(
       shareOfShelfFigures({ ...base, ourFacings: 0, competitorFacings: 0, shareOfShelfPct: 0 }, windows(AUGUST)),
     ).toEqual([]);
@@ -455,6 +501,11 @@ describe('the other pillar builders', () => {
       label: 'Execution score',
       value: 82,
       unit: 'pts',
+      decimals: 1,
+      // The agent's own scored visits. The team average is a different set of
+      // rows, so it reports no comparable n.
+      sampleSize: 20,
+      baselineSampleSize: null,
       delta: { value: 11, unit: 'pts', direction: 'up', sentiment: 'good' },
       comparedTo: "vs team 71 · Aug '26",
     });
@@ -490,5 +541,69 @@ describe('validateFigure', () => {
         data: { title: 't', comparedTo: 'c', unit: 'pct', items: [{ label: 'a', value: 1 }] },
       }).ok,
     ).toBe(true);
+  });
+
+  // #406. The wire has to be able to say "this number is not ours" and "this
+  // number was never measured", and it has to be unable to say them wrongly.
+  describe('provenance and sample size', () => {
+    const tilesData = (tiles: unknown[], extra: Record<string, unknown> = {}) => ({
+      type: 'stat_tiles',
+      data: { tiles, ...extra },
+    });
+    const internal = { label: 'Sell-in', value: 10, unit: 'units' };
+    const outside = { label: 'CPI', value: 4.6, unit: 'pct', origin: 'stats_sa' };
+
+    it('refuses a run that mixes internal and outside data', () => {
+      // A tile row reads as one set of comparable numbers. Mixing national CPI
+      // into a row of this tenant's figures is how an outside number ends up
+      // inside an internal total — so the run is dropped, not labelled.
+      const mixed = validateFigure(tilesData([internal, outside], { outsideData: true }));
+      expect(mixed.ok).toBe(false);
+      expect(mixed.ok === false && mixed.reason).toContain('must not mix');
+
+      expect(validateFigure(tilesData([internal, internal], { outsideData: false })).ok).toBe(true);
+      expect(validateFigure(tilesData([outside, outside], { outsideData: true })).ok).toBe(true);
+    });
+
+    it('refuses an outsideData flag that disagrees with the tiles it describes', () => {
+      // The badge and the figures must not be able to drift apart.
+      expect(validateFigure(tilesData([outside], { outsideData: false })).ok).toBe(false);
+      expect(validateFigure(tilesData([internal], { outsideData: true })).ok).toBe(false);
+    });
+
+    it('refuses a focusIndex that points past the end of the run', () => {
+      expect(validateFigure(tilesData([internal], { focusIndex: 0 })).ok).toBe(true);
+      expect(validateFigure(tilesData([internal], { focusIndex: 1 })).ok).toBe(false);
+    });
+
+    it('accepts a null sample size but not a negative or fractional one', () => {
+      const withSample = (sampleSize: unknown) =>
+        validateFigure(tilesData([{ ...internal, sampleSize }])).ok;
+      // null is the whole point: "this figure has no denominator", which is a
+      // different statement from 0, "measured over nothing".
+      expect(withSample(null)).toBe(true);
+      expect(withSample(0)).toBe(true);
+      expect(withSample(-1)).toBe(false);
+      expect(withSample(2.5)).toBe(false);
+    });
+
+    it('declares decimals on every built figure without changing any value', () => {
+      const figures = stockFigures(
+        {
+          onShelfAvailabilityPct: 88.35,
+          linesObserved: 400,
+          outOfStockLines: 48,
+          outletsWithStockout: 17,
+          worstOutlets: [],
+          truncated: false,
+        },
+        windows(AUGUST),
+      );
+      const availability = tile(figures, 'On-shelf availability');
+      // A percentage carries one place; the value itself is untouched, so the
+      // number on the wire is exactly what it was before `decimals` existed.
+      expect(availability).toMatchObject({ decimals: 1, value: 88.35 });
+      expect(tile(figures, 'Outlets with a stock-out')).toMatchObject({ decimals: 0 });
+    });
   });
 });

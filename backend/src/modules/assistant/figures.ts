@@ -54,6 +54,58 @@ export type ValueUnit = z.infer<typeof valueUnit>;
 export type DeltaUnit = z.infer<typeof deltaUnit>;
 export type Sentiment = z.infer<typeof sentiment>;
 
+/**
+ * Where a figure's number came from (#406).
+ *
+ * `internal` is the tenant's own TradeIQ data. Everything else is **outside
+ * data**: public, about the world rather than about this client, and never
+ * summable with an internal total. A rand of CPI does not add to a rand of
+ * sell-in, and rainfall is not a KPI — but on a card they are all just numbers,
+ * which is exactly how one ends up in a total it has no business being in.
+ *
+ * Marking the origin on the figure rather than only on the citation list is
+ * what lets the app draw the distinction where the number is, and lets
+ * {@link validateFigure} refuse a run that mixes the two at all.
+ */
+export const FIGURE_ORIGINS = [
+  'internal',
+  'web_search',
+  'stats_sa',
+  'weather',
+  'calendar',
+  'competitor_prices',
+] as const;
+const figureOrigin = z.enum(FIGURE_ORIGINS);
+export type FigureOrigin = (typeof FIGURE_ORIGINS)[number];
+
+/** Anything that is not the tenant's own data. An absent origin is internal. */
+export function isOutsideData(origin: FigureOrigin | undefined): boolean {
+  return (origin ?? 'internal') !== 'internal';
+}
+
+/**
+ * How many decimal places a figure is meaningful to, per unit.
+ *
+ * The client used to guess, and guessed differently from the server: the app
+ * re-formatted with its own `#,##0.#` while {@link formatNumber} here rounds to
+ * one place — so "92.35" could render as 92.4 in one place and 92.35 in
+ * another. Declaring it means the number and its precision travel together.
+ *
+ * Counts and units are whole things — outlets, SKUs, cases — and a fractional
+ * one is a rounding artefact, not a measurement. Percentages and points carry
+ * one place, which is the resolution the underlying `round2`/`round1` maths
+ * actually supports.
+ *
+ * This declares precision; it does not change any value. The numbers on the
+ * wire are exactly what they were before this field existed.
+ */
+export const DECIMALS_BY_UNIT: Record<ValueUnit, number> = {
+  units: 0,
+  count: 0,
+  pct: 1,
+  pts: 1,
+};
+
 const deltaSchema = z
   .object({
     /** Magnitude. The sign lives in `direction`, so the two cannot disagree. */
@@ -64,6 +116,34 @@ const deltaSchema = z
   })
   .strict();
 
+/**
+ * How many underlying rows a figure was measured over, and how many its
+ * baseline was (#387, #406).
+ *
+ * `null` means "this figure has no denominator" — a total, a count of things,
+ * anything that is not a ratio over observations. It is emphatically NOT 0: a
+ * client that reads a missing sample size as 0 would put the low-sample warning
+ * on every headline total in the product.
+ *
+ * `baselineSampleSize` is the same count for the comparison window. It exists
+ * so the client can suppress a delta rather than draw it: "+14 points" against
+ * three observations last month is noise wearing the costume of a trend, and
+ * the only place that can be judged is where the denominator is known.
+ */
+const sampleFields = {
+  sampleSize: z.number().int().nonnegative().nullable().optional(),
+  baselineSampleSize: z.number().int().nonnegative().nullable().optional(),
+};
+
+/** See {@link FIGURE_ORIGINS}. Absent `origin` means internal TradeIQ data. */
+const provenanceFields = {
+  origin: figureOrigin.optional(),
+  /** Who published it, for outside data. Null when the source does not say. */
+  publisher: z.string().min(1).max(120).nullable().optional(),
+  /** When we retrieved it, ISO-8601. Null when unknown. */
+  readAt: z.string().datetime().nullable().optional(),
+};
+
 const tileSchema = z
   .object({
     label: z.string().min(1).max(60),
@@ -72,10 +152,78 @@ const tileSchema = z
     delta: deltaSchema.optional(),
     comparedTo: z.string().min(1).max(80).optional(),
     meter: z.number().min(0).max(100).optional(),
+    /** See {@link DECIMALS_BY_UNIT}. */
+    decimals: z.number().int().min(0).max(3).optional(),
+    ...sampleFields,
+    ...provenanceFields,
   })
   .strict();
 
-const statTilesSchema = z.object({ tiles: z.array(tileSchema).min(1).max(6) }).strict();
+/**
+ * A run of figures may not mix internal and outside data (#406).
+ *
+ * Not a style rule. A row of tiles reads as one set of comparable numbers, and
+ * a client summing or averaging across it — or a person doing so by eye — would
+ * be mixing the tenant's sell-in with a national CPI print. Rejecting the run
+ * outright is stronger than labelling it, because labelling relies on every
+ * future reader noticing the label.
+ *
+ * `outsideData` is the run-level flag the client draws the badge from. When
+ * supplied it must agree with the tiles' own origins, so the badge and the
+ * figures cannot drift apart.
+ */
+function checkRun(
+  origins: (FigureOrigin | undefined)[],
+  outsideData: boolean | undefined,
+  focusIndex: number | undefined,
+  ctx: z.RefinementCtx,
+): void {
+  const outside = origins.filter(isOutsideData).length;
+  if (outside > 0 && outside < origins.length) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'a figure run must not mix internal and outside data',
+    });
+  }
+  if (outsideData !== undefined && outsideData !== outside > 0) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `outsideData is ${outsideData} but ${outside} of ${origins.length} figures are outside data`,
+    });
+  }
+  if (focusIndex !== undefined && focusIndex >= origins.length) {
+    ctx.addIssue({ code: 'custom', message: 'focusIndex is outside the run' });
+  }
+}
+
+/**
+ * Which single figure in the run the answer's sentence is about (#406).
+ *
+ * The client used to pick the highlight itself, from a heuristic — the biggest
+ * bar, or the first one — that had no way to know which way "worst" runs for
+ * the metric in hand. {@link SENTIMENT} is the only thing that knows, and it
+ * lives here, so the choice is made here and travels with the card.
+ */
+const focusIndexField = z.number().int().nonnegative().optional();
+
+/** True when any figure in the run is outside data. Drawn as a badge. */
+const outsideDataField = z.boolean().optional();
+
+const statTilesSchema = z
+  .object({
+    tiles: z.array(tileSchema).min(1).max(6),
+    outsideData: outsideDataField,
+    focusIndex: focusIndexField,
+  })
+  .strict()
+  .superRefine((value, ctx) =>
+    checkRun(
+      value.tiles.map((tile) => tile.origin),
+      value.outsideData,
+      value.focusIndex,
+      ctx,
+    ),
+  );
 
 const rankedBarsSchema = z
   .object({
@@ -83,11 +231,36 @@ const rankedBarsSchema = z
     comparedTo: z.string().min(1).max(80),
     unit: valueUnit,
     items: z
-      .array(z.object({ label: z.string().min(1).max(MAX_LABEL_CHARS), value: z.number() }).strict())
+      .array(
+        z
+          .object({
+            label: z.string().min(1).max(MAX_LABEL_CHARS),
+            value: z.number(),
+            /** Rows behind this one bar, when the tool counted them. Never 0 for "unknown". */
+            sampleSize: z.number().int().nonnegative().nullable().optional(),
+          })
+          .strict(),
+      )
       .min(1)
       .max(12),
+    /** See {@link DECIMALS_BY_UNIT}. One unit for the list, so one precision. */
+    decimals: z.number().int().min(0).max(3).optional(),
+    ...sampleFields,
+    ...provenanceFields,
+    outsideData: outsideDataField,
+    focusIndex: focusIndexField,
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) =>
+    // One list, one origin — so the run is uniform by construction and only
+    // the flag and the focus bound need checking.
+    checkRun(
+      value.items.map(() => value.origin),
+      value.outsideData,
+      value.focusIndex,
+      ctx,
+    ),
+  );
 
 export type StatTile = z.infer<typeof tileSchema>;
 export type TileDelta = z.infer<typeof deltaSchema>;
@@ -314,8 +487,30 @@ export function buildTile(input: {
   baselineLabel?: string;
   meter?: number;
   comparedTo?: string;
+  /**
+   * Rows behind this figure, and behind its baseline. Pass `null` — never
+   * omit and never 0 — when the figure is a total rather than a ratio, so the
+   * client can tell "measured over nothing" from "not that kind of number".
+   */
+  sampleSize?: number | null;
+  baselineSampleSize?: number | null;
+  /** Overrides {@link DECIMALS_BY_UNIT} for a figure with its own resolution. */
+  decimals?: number;
+  origin?: FigureOrigin;
+  publisher?: string | null;
+  readAt?: string | null;
 }): StatTile {
-  const tile: StatTile = { label: input.label, value: input.value, unit: input.unit };
+  const tile: StatTile = {
+    label: input.label,
+    value: input.value,
+    unit: input.unit,
+    decimals: input.decimals ?? DECIMALS_BY_UNIT[input.unit],
+    sampleSize: input.sampleSize ?? null,
+    baselineSampleSize: input.baselineSampleSize ?? null,
+  };
+  if (input.origin !== undefined) tile.origin = input.origin;
+  if (input.publisher !== undefined) tile.publisher = input.publisher;
+  if (input.readAt !== undefined) tile.readAt = input.readAt;
   const hasBaseline =
     input.baseline !== undefined && input.baseline !== null && Number.isFinite(input.baseline);
 
@@ -347,13 +542,24 @@ export function rankedBars(input: {
   title: string;
   comparedTo: string;
   unit: ValueUnit;
-  items: readonly { label: string; value: number }[];
+  items: readonly { label: string; value: number; sampleSize?: number | null }[];
   limit?: number;
+  /** Rows behind the whole list, and behind its baseline. `null`, never 0, when unknown. */
+  sampleSize?: number | null;
+  baselineSampleSize?: number | null;
+  decimals?: number;
+  origin?: FigureOrigin;
+  publisher?: string | null;
+  readAt?: string | null;
 }): RankedBars | null {
   const ascending = higherIsBetter(input.metric);
   const items = input.items
     .filter((item) => Number.isFinite(item.value) && item.label.trim().length > 0)
-    .map((item) => ({ label: boundLabel(item.label), value: round1(item.value) }))
+    .map((item) => ({
+      label: boundLabel(item.label),
+      value: round1(item.value),
+      sampleSize: item.sampleSize ?? null,
+    }))
     .sort((a, b) =>
       a.value === b.value
         ? a.label.localeCompare(b.label)
@@ -365,11 +571,37 @@ export function rankedBars(input: {
 
   // One bar is not a ranking. The tool's other output already covers it.
   if (items.length < 2) return null;
-  return { title: input.title, comparedTo: input.comparedTo, unit: input.unit, items };
+  return {
+    title: input.title,
+    comparedTo: input.comparedTo,
+    unit: input.unit,
+    items,
+    decimals: input.decimals ?? DECIMALS_BY_UNIT[input.unit],
+    sampleSize: input.sampleSize ?? null,
+    baselineSampleSize: input.baselineSampleSize ?? null,
+    outsideData: isOutsideData(input.origin),
+    // The list is sorted worst-first above, by this metric's own definition of
+    // worse, so the head of it IS the bar the answer's sentence is about. The
+    // field exists so the client is TOLD that rather than re-deriving it from
+    // a rule (largest? first? highest?) that cannot see SENTIMENT.
+    focusIndex: 0,
+    ...(input.origin !== undefined ? { origin: input.origin } : {}),
+    ...(input.publisher !== undefined ? { publisher: input.publisher } : {}),
+    ...(input.readAt !== undefined ? { readAt: input.readAt } : {}),
+  };
 }
 
 const tiles = (list: StatTile[]): FigureArtifact[] =>
-  list.length > 0 ? [{ type: 'stat_tiles', data: { tiles: list } }] : [];
+  list.length > 0
+    ? [
+        {
+          type: 'stat_tiles',
+          // Explicit, not defaulted: a client deciding whether to draw the
+          // outside-data badge should read a flag, not infer one from absence.
+          data: { tiles: list, outsideData: list.some((tile) => isOutsideData(tile.origin)) },
+        },
+      ]
+    : [];
 
 const bars = (value: RankedBars | null): FigureArtifact[] =>
   value ? [{ type: 'ranked_bars', data: value }] : [];
@@ -407,6 +639,11 @@ export function salesFigures(result: SalesPerformance, windows: FigureWindows): 
       unit: 'units',
       baseline: finite(before?.sellInUnits) ? before.sellInUnits : null,
       baselineLabel: against,
+      // Outlets that ordered: the doors behind the total. Sell-in from three
+      // outlets and sell-in from three hundred are different claims, and only
+      // this number tells them apart.
+      sampleSize: result.outletsOrdering,
+      baselineSampleSize: finite(before?.outletsOrdering) ? before.outletsOrdering : null,
     }),
   );
 
@@ -424,6 +661,9 @@ export function salesFigures(result: SalesPerformance, windows: FigureWindows): 
         value: result.attainmentPct,
         unit: 'pct',
         meter: result.attainmentPct,
+        // Whole calendar months, which is the only unit attainment is defined
+        // over (prompt rule 9). One month is a thin baseline for a trend.
+        sampleSize: result.months.length,
         comparedTo:
           `of ${formatValue(result.targetUnits, 'units')} · ` +
           formatPeriodLabel(windows.current, windows.timeZone),
@@ -439,6 +679,10 @@ export function salesFigures(result: SalesPerformance, windows: FigureWindows): 
       unit: 'count',
       baseline: finite(before?.outletsOrdering) ? before.outletsOrdering : null,
       baselineLabel: against,
+      // A count of things, not a ratio over observations — so it has no
+      // denominator and says null rather than a 0 the client would read as
+      // "measured over nothing".
+      sampleSize: null,
     }),
   );
 
@@ -466,6 +710,10 @@ export function stockFigures(result: StockLevels, windows: FigureWindows): Figur
       unit: 'pct',
       baseline: baselineUsable ? before!.onShelfAvailabilityPct : null,
       baselineLabel: against,
+      // Stock lines that were actually COUNTED — the percentage's own
+      // denominator (#389). An uncounted SKU is in neither.
+      sampleSize: result.linesObserved,
+      baselineSampleSize: baselineUsable ? before!.linesObserved : null,
     }),
     buildTile({
       metric: 'outlets_with_stockout',
@@ -474,6 +722,8 @@ export function stockFigures(result: StockLevels, windows: FigureWindows): Figur
       unit: 'count',
       baseline: baselineUsable ? before!.outletsWithStockout : null,
       baselineLabel: against,
+      sampleSize: result.linesObserved,
+      baselineSampleSize: baselineUsable ? before!.linesObserved : null,
     }),
   ]);
 
@@ -483,6 +733,7 @@ export function stockFigures(result: StockLevels, windows: FigureWindows): Figur
     comparedTo: formatPeriodLabel(windows.current, windows.timeZone),
     unit: 'count',
     items: (result.worstOutlets ?? []).map((o) => ({ label: o.outletName, value: o.outOfStockLines })),
+    sampleSize: result.linesObserved,
   });
 
   return [...out, ...bars(ranking)];
@@ -505,6 +756,11 @@ export function shareOfShelfFigures(result: ShareOfShelf, windows: FigureWindows
       unit: 'pct',
       baseline: baselineUsable ? before!.shareOfShelfPct : null,
       baselineLabel: comparisonLabel(windows),
+      // Facings, not visibility rows. The percentage divides by facings, so
+      // reporting the row count as its sample size would describe a different
+      // denominator from the one the number was computed over.
+      sampleSize: result.ourFacings + result.competitorFacings,
+      baselineSampleSize: baselineUsable ? before!.ourFacings! + before!.competitorFacings! : null,
     }),
   ]);
 }
@@ -527,6 +783,8 @@ export function visibilityComplianceFigures(
       unit: 'pct',
       baseline: baselineUsable ? before!.planogramCompliancePct : null,
       baselineLabel: against,
+      sampleSize: result.observations,
+      baselineSampleSize: baselineUsable ? before!.observations : null,
     }),
     buildTile({
       metric: 'high_traffic_pass',
@@ -535,6 +793,8 @@ export function visibilityComplianceFigures(
       unit: 'pct',
       baseline: baselineUsable ? before!.highTrafficPassPct : null,
       baselineLabel: against,
+      sampleSize: result.observations,
+      baselineSampleSize: baselineUsable ? before!.observations : null,
     }),
   ]);
 }
@@ -557,6 +817,8 @@ export function competitorFigures(
       unit: 'pct',
       baseline: baselineUsable ? before!.promoterPresencePct : null,
       baselineLabel: against,
+      sampleSize: result.observations,
+      baselineSampleSize: baselineUsable ? before!.observations : null,
     }),
     buildTile({
       metric: 'competitor_skus',
@@ -565,6 +827,8 @@ export function competitorFigures(
       unit: 'count',
       baseline: baselineUsable ? before!.distinctCompetitorSkus : null,
       baselineLabel: against,
+      sampleSize: result.observations,
+      baselineSampleSize: baselineUsable ? before!.observations : null,
     }),
   ]);
 
@@ -575,7 +839,10 @@ export function competitorFigures(
     unit: 'count',
     items: (result.topCompetitors ?? [])
       .filter((c) => c.facings > 0)
-      .map((c) => ({ label: c.competitorSku, value: c.facings })),
+      // `sightings` is how many captures each SKU was seen in — a real per-bar
+      // denominator, so a SKU seen once does not read like one seen forty times.
+      .map((c) => ({ label: c.competitorSku, value: c.facings, sampleSize: c.sightings })),
+    sampleSize: result.observations,
   });
 
   return [...out, ...bars(ranking)];
@@ -598,6 +865,9 @@ export function scorecardFigures(result: AgentPerformance, windows: FigureWindow
         value: result.averageScore,
         unit: 'pts',
         baseline: finite(result.teamAverageScore) ? result.teamAverageScore : null,
+        // The agent's own scored visits. The team average is not a window over
+        // the same rows, so it has no comparable n to report here.
+        sampleSize: result.scoredVisits,
         ...(finite(result.teamAverageScore)
           ? { comparedTo: `vs team ${formatValue(result.teamAverageScore, 'pts')} · ${period}` }
           : {}),
@@ -606,12 +876,19 @@ export function scorecardFigures(result: AgentPerformance, windows: FigureWindow
   }
 
   out.push(
-    buildTile({ metric: 'visits', label: 'Visits', value: result.visits, unit: 'count' }),
+    buildTile({
+      metric: 'visits',
+      label: 'Visits',
+      value: result.visits,
+      unit: 'count',
+      sampleSize: null,
+    }),
     buildTile({
       metric: 'outlets_visited',
       label: 'Outlets visited',
       value: result.outletsVisited,
       unit: 'count',
+      sampleSize: null,
     }),
   );
 
@@ -643,6 +920,10 @@ export function territoryRankingFigures(
           unit: 'units',
           baseline: result.comparisonTotalSellInUnits,
           baselineLabel: against,
+          // Territories in scope, current and comparison. A ranking over two
+          // territories is not the same claim as one over twenty.
+          sampleSize: result.territories.length,
+          baselineSampleSize: result.territories.length,
         }),
       ]),
     );
@@ -655,6 +936,8 @@ export function territoryRankingFigures(
     unit: 'pct',
     items: result.territories.map((t) => ({ label: t.territoryName, value: t.changePct })),
     limit: 12,
+    sampleSize: result.territories.length,
+    baselineSampleSize: result.territories.length,
   });
   return [...out, ...bars(ranking)];
 }

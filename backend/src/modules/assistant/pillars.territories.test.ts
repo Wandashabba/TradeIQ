@@ -230,11 +230,17 @@ describe('getTerritorySellInChange', () => {
       {
         type: 'stat_tiles',
         data: {
+          outsideData: false,
           tiles: [
             {
               label: 'Sell-in, units',
               value: 476,
               unit: 'units',
+              decimals: 0,
+              // Territories in scope, both windows — a ranking over five is a
+              // different claim from one over fifty.
+              sampleSize: 5,
+              baselineSampleSize: 5,
               delta: { value: 0.2, unit: 'pct', direction: 'up', sentiment: 'good' },
               comparedTo: "vs 475 · Jul '26",
             },
@@ -247,12 +253,18 @@ describe('getTerritorySellInChange', () => {
           title: 'Change by territory',
           comparedTo: "vs Jul '26",
           unit: 'pct',
+          decimals: 1,
+          sampleSize: 5,
+          baselineSampleSize: 5,
+          outsideData: false,
+          // Worst first, so the head of the list is the bar the answer is about.
+          focusIndex: 0,
           items: [
-            { label: 'Soweto', value: -31 },
-            { label: 'Tembisa', value: -9 },
-            { label: 'Alberton', value: 4 },
-            { label: 'Sandton', value: 4 },
-            { label: 'Pretoria East', value: 7 },
+            { label: 'Soweto', value: -31, sampleSize: null },
+            { label: 'Tembisa', value: -9, sampleSize: null },
+            { label: 'Alberton', value: 4, sampleSize: null },
+            { label: 'Sandton', value: 4, sampleSize: null },
+            { label: 'Pretoria East', value: 7, sampleSize: null },
           ],
         },
       },

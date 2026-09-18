@@ -426,4 +426,161 @@ describe('stock routes', () => {
     const res = await request(app).get('/stock').query({ visitId });
     expect(res.status).toBe(401);
   });
+
+  // #389. The bug these guard: a part-finished count used to send 0 for every
+  // SKU the agent had not reached, so the store was accused of being out of
+  // stock on shelves nobody had looked at — a high-priority restock task each,
+  // and on-shelf availability dragged to the floor.
+  describe('an uncounted SKU (#389)', () => {
+    let uncountedVisitId: string;
+    let uncountedSkuId: string;
+
+    beforeAll(async () => {
+      const outlet = await prisma.outlet.findFirstOrThrow({ where: { clientId } });
+      const agent = await prisma.user.findFirstOrThrow({
+        where: { clientId, email: 'stock-agent@example.com' },
+      });
+      const visit = await prisma.visit.create({
+        data: {
+          outletId: outlet.id,
+          agentId: agent.id,
+          clientId,
+          checkinTs: new Date(),
+          checkinLat: -26.2041,
+          checkinLng: 28.0473,
+          geofencePass: true,
+          status: 'in_progress',
+        },
+      });
+      uncountedVisitId = visit.id;
+      const sku = await prisma.sku.create({
+        data: { clientId, name: 'Stock Sprite', category: 'Beverages', minFacingsStandard: 4, rrp: 17.5 },
+      });
+      uncountedSkuId = sku.id;
+    });
+
+    it('stores an explicit null rather than rejecting it or coercing it to 0', async () => {
+      const res = await request(app)
+        .post('/stock')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({
+          visitId: uncountedVisitId,
+          items: [{ skuId: uncountedSkuId, unitsAvailable: null, lastStockinDate: '2026-07-01T00:00:00.000Z' }],
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body[0].unitsAvailable).toBeNull();
+      // Coverage is units/velocity, so it is unknowable here. 0 would have read
+      // as "no cover left" — the loudest thing this figure can say.
+      expect(res.body[0].coverageDaysPredicted).toBeNull();
+    });
+
+    it('reads an omitted unitsAvailable as null, not as 0', async () => {
+      const sku = await prisma.sku.create({
+        data: { clientId, name: 'Stock Tonic', category: 'Beverages', minFacingsStandard: 4, rrp: 12 },
+      });
+      const res = await request(app)
+        .post('/stock')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({
+          visitId: uncountedVisitId,
+          items: [{ skuId: sku.id, lastStockinDate: '2026-07-01T00:00:00.000Z' }],
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body[0].unitsAvailable).toBeNull();
+    });
+
+    it('raises no stock-out task, while a counted 0 on the same visit still does', async () => {
+      const countedZeroSku = await prisma.sku.create({
+        data: { clientId, name: 'Stock Soda', category: 'Beverages', minFacingsStandard: 4, rrp: 14 },
+      });
+
+      const res = await request(app)
+        .post('/stock')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({
+          visitId: uncountedVisitId,
+          items: [
+            { skuId: countedZeroSku.id, unitsAvailable: 0, lastStockinDate: '2026-07-01T00:00:00.000Z' },
+            {
+              skuId: uncountedSkuId,
+              unitsAvailable: null,
+              lastStockinDate: '2026-07-01T00:00:00.000Z',
+            },
+          ],
+        });
+      expect(res.status).toBe(201);
+
+      const tasks = await prisma.task.findMany({
+        where: { visitId: uncountedVisitId, findingType: 'stockout' },
+      });
+      // Exactly one: the shelf that was looked at and found empty. The
+      // uncounted SKU is not a finding.
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].requiredFix).toBe(`Restock SKU ${countedZeroSku.id}`);
+    });
+
+    it('keeps an uncounted line out of the velocity and days-out history', async () => {
+      // Two real counts a week apart around an uncounted line. If the null were
+      // read as 0 it would look like the shelf emptied and refilled, inventing
+      // consumption out of a SKU nobody looked at.
+      const sku = await prisma.sku.create({
+        data: { clientId, name: 'Stock Water', category: 'Beverages', minFacingsStandard: 4, rrp: 9 },
+      });
+      const outlet = await prisma.outlet.findFirstOrThrow({ where: { clientId } });
+      const agent = await prisma.user.findFirstOrThrow({
+        where: { clientId, email: 'stock-agent@example.com' },
+      });
+      const day = 24 * 60 * 60 * 1000;
+      const visitAt = async (daysAgo: number) =>
+        prisma.visit.create({
+          data: {
+            outletId: outlet.id,
+            agentId: agent.id,
+            clientId,
+            checkinTs: new Date(Date.now() - daysAgo * day),
+            checkinLat: -26.2041,
+            checkinLng: 28.0473,
+            geofencePass: true,
+            status: 'submitted',
+          },
+        });
+
+      const count = async (daysAgo: number, unitsAvailable: number | null) => {
+        const visit = await visitAt(daysAgo);
+        await prisma.visitStock.create({
+          data: {
+            visitId: visit.id,
+            skuId: sku.id,
+            unitsAvailable,
+            lastStockinDate: new Date('2026-06-01T00:00:00.000Z'),
+            daysOutOfStock: 0,
+            velocityAvg: 0,
+            coverageDaysPredicted: unitsAvailable === null ? null : 0,
+          },
+        });
+      };
+      await count(21, 100);
+      await count(14, null); // nobody reached this SKU on that visit
+      await count(7, 30);
+
+      const now = await visitAt(0);
+      const res = await request(app)
+        .post('/stock')
+        .set('Authorization', `Bearer ${agentToken}`)
+        .send({
+          visitId: now.id,
+          items: [{ skuId: sku.id, unitsAvailable: 25, lastStockinDate: '2026-07-01T00:00:00.000Z' }],
+        });
+
+      expect(res.status).toBe(201);
+      // The two REAL counts are 100 at -21 days and 30 at -7: 70 units over 14
+      // days, 5/day. Had the uncounted row been read as 0 units, the history
+      // would have been 100 -> 0 -> 30 and the mean of (14.3/day, restock) would
+      // have come out near 7.1 — a velocity invented from a shelf nobody
+      // looked at.
+      expect(res.body[0].velocityAvg).toBeCloseTo(5, 1);
+    });
+  });
 });

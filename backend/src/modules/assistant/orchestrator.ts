@@ -99,6 +99,26 @@ const FINAL_ROUND_NOTE: Record<FinalReason, string> = {
 
 type FinalReason = 'rounds' | 'time' | 'cost' | 'repeat';
 
+/**
+ * The machine-readable reason an answer stopped short (#406).
+ *
+ * Deliberately a distinct vocabulary from {@link FinalReason}: that is an
+ * internal control-flow state including `repeat`, which is NOT an incomplete
+ * answer and never produces a notice. `lookup_budget` is what the user
+ * experiences when any of the three budgets runs out — the practical difference
+ * between hitting the round cap and hitting the cost cap is nothing a manager
+ * can act on, and naming the cost budget on the wire would leak our pricing into
+ * the app. `tool_call_refused` is the provider ignoring `toolChoice: 'none'`.
+ */
+export const NOTICE_CODES = ['lookup_budget', 'time_budget', 'tool_call_refused'] as const;
+export type NoticeCode = (typeof NOTICE_CODES)[number];
+
+const NOTICE_FOR: Record<Exclude<FinalReason, 'repeat'>, NoticeCode> = {
+  rounds: 'lookup_budget',
+  cost: 'lookup_budget',
+  time: 'time_budget',
+};
+
 /** The working-step name a vendor-run web search is announced under. */
 export const WEB_SEARCH_STEP = 'webSearch';
 
@@ -113,7 +133,46 @@ export type WireEvent =
   | { event: 'token'; data: { text: string } }
   | { event: 'tool_start'; data: { name: string; pillar: string } }
   | { event: 'tool_end'; data: { name: string; ok: boolean } }
-  | { event: 'artifact'; data: { id: string; type: string; params: unknown; data: unknown } }
+  | {
+      event: 'artifact';
+      data: {
+        id: string;
+        type: string;
+        params: unknown;
+        data: unknown;
+        /**
+         * True when this card's figures are outside data — public numbers about
+         * the world, not this tenant's own (#406). Present on figure artifacts;
+         * absent on view specs, whose data is internal by construction.
+         */
+        outsideData?: boolean;
+      };
+    }
+  /**
+   * Which single figure the answer's sentence is about — the card's one
+   * highlight (#406).
+   *
+   * Sent immediately after the artifact it points at, so a client can apply it
+   * as the card arrives. The server chooses it because the server is the only
+   * side that knows which way "worst" runs for the metric (`SENTIMENT` in
+   * figures.ts); the app used to guess from the biggest or first bar, which is
+   * right for stock-outs and wrong for sell-in change.
+   *
+   * At most one per artifact, and not every artifact gets one.
+   */
+  | { event: 'focus'; data: { artifactId: string; index: number } }
+  /**
+   * Why an answer is incomplete, as a code rather than as prose (#406).
+   *
+   * The same fact already reaches the user as {@link BUDGET_NOTICE}, appended
+   * to the answer text — which meant a client wanting to render it as anything
+   * other than a sentence had to pattern-match English. Both are sent: the
+   * prose keeps older builds working exactly as they do now, and this carries
+   * the machine-readable reason beside it.
+   *
+   * At most once per turn, immediately before `usage`.
+   */
+  | { event: 'notice'; data: { code: NoticeCode; message: string } }
   /**
    * Web pages the answer cited, validated by `sources.ts`. At most once per
    * turn, after the last token and before `usage`. Clients that predate it
@@ -423,16 +482,25 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
     // left to assume the reading is complete. A repeated call is not a budget:
     // the model already had what it asked for twice.
     if (calls.length === 0 || lastRound) {
+      // The prose and the code say the same thing. The prose is what an older
+      // build already renders and must keep rendering; the `notice` event is
+      // the same fact without the English (#406).
+      let noticeCode: NoticeCode | null = null;
       if (finalReason !== null && finalReason !== 'repeat') {
         yield { event: 'token', data: { text: BUDGET_NOTICE } };
+        noticeCode = NOTICE_FOR[finalReason];
       } else if (calls.length > 0) {
         // The provider ignored `toolChoice: 'none'`. Its calls are not run —
         // that would spend past every bound — and the user hears why.
         yield { event: 'token', data: { text: BUDGET_NOTICE } };
+        noticeCode = 'tool_call_refused';
       }
       emitTrace();
       const sources = normaliseSources(rawSources, new Date());
       if (sources.length > 0) yield { event: 'sources', data: { sources } };
+      if (noticeCode) {
+        yield { event: 'notice', data: { code: noticeCode, message: BUDGET_NOTICE.trim() } };
+      }
       yield { event: 'usage', data: totalUsage };
       yield { event: 'done', data: {} };
       return;
@@ -586,15 +654,24 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       // re-run, so their ids stay turn-local — and are namespaced by type so
       // they can never patch the view artifact above.
       for (const figure of await safeFigures(tool, plan.args, result)) {
+        const figureId = `${tool.name}-${figure.type}-${artifactIndex}`;
         yield {
           event: 'artifact',
           data: {
-            id: `${tool.name}-${figure.type}-${artifactIndex}`,
+            id: figureId,
             type: figure.type,
             params: {},
             data: figure.data,
+            // Lifted out of the figure so a client can decide whether to badge
+            // the card without walking its tiles (#406).
+            outsideData: figure.data.outsideData ?? false,
           },
         };
+        // Immediately after its artifact, so the highlight is applied as the
+        // card arrives rather than after a second pass over the stream.
+        if (figure.data.focusIndex !== undefined) {
+          yield { event: 'focus', data: { artifactId: figureId, index: figure.data.focusIndex } };
+        }
         artifactIndex += 1;
       }
 

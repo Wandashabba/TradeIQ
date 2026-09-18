@@ -323,15 +323,20 @@ export async function getSkuMovement(
     }[]
   >`
     WITH per_sku AS (
+      -- observations is the SKU's sample size and units its total on
+      -- shelf, so both count only lines that were actually counted (#389).
+      -- SUM already skips NULL; the FILTER keeps the two consistent, so a SKU
+      -- can never report more observations than counts behind its total.
       SELECT vs."sku_id",
         SUM(vs."units_available")::float8 AS units,
         SUM(vs."velocity_avg")::float8 AS velocity_sum,
         MAX(vs."days_out_of_stock") AS days_out,
-        COUNT(*)::int AS observations
+        COUNT(*) FILTER (WHERE vs."units_available" IS NOT NULL)::int AS observations
       FROM "visit_stock" vs
       JOIN "visits" v ON v."id" = vs."visit_id"
       WHERE ${await visitWhere(input)}
       GROUP BY vs."sku_id"
+      HAVING COUNT(*) FILTER (WHERE vs."units_available" IS NOT NULL) > 0
     )
     SELECT p."sku_id", s."name", s."category", p.units, p.velocity_sum, p.days_out,
       p.observations, COUNT(*) OVER ()::int AS total_count
@@ -400,8 +405,12 @@ export async function getStockLevels(input: PillarWindow): Promise<StockLevels> 
     }[]
   >`
     WITH per_outlet AS (
+      -- Counted lines only (#389): lines is the availability denominator and
+      -- the sample size reported to the model, and a SKU nobody reached is
+      -- neither on the shelf nor off it. '<= 0' already excludes NULL in SQL,
+      -- so a stock-out still means a counted zero.
       SELECT v."outlet_id",
-        COUNT(*)::int AS lines,
+        COUNT(*) FILTER (WHERE vs."units_available" IS NOT NULL)::int AS lines,
         COUNT(*) FILTER (WHERE vs."units_available" <= 0)::int AS oos
       FROM "visit_stock" vs
       JOIN "visits" v ON v."id" = vs."visit_id"

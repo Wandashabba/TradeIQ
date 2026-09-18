@@ -2,7 +2,13 @@ import { Router } from 'express';
 import { AuthedRequest, requireAuth } from '../../middleware/auth';
 import { requireRole } from '../../middleware/roleGuard';
 import { parsePagination } from '../../lib/pagination';
-import { checkIn, getVisitDetail, listVisits, submitVisit } from './visits.service';
+import {
+  MAX_CLIENT_VISIT_ID_LENGTH,
+  checkIn,
+  getVisitDetail,
+  listVisits,
+  submitVisit,
+} from './visits.service';
 
 const VISIT_STATUSES = ['in_progress', 'submitted'] as const;
 type VisitStatusFilter = (typeof VISIT_STATUSES)[number];
@@ -14,14 +20,29 @@ function isVisitStatus(value: string): value is VisitStatusFilter {
 export const visitsRouter = Router();
 visitsRouter.use(requireAuth);
 
+// The same shape `POST /messages` accepts for `clientMessageId` (#308), and for
+// the same reason: the key is a device-minted uuid, and anything that is not
+// one is a client bug worth surfacing rather than storing.
+const CLIENT_VISIT_ID_RE = /^[A-Za-z0-9._:-]+$/;
+
 // Check-in is a field-agent action. Relax this guard if managers/admins ever
 // need to record visits directly.
+//
+// Idempotency (#379, #385) rides in the body as `clientVisitId`, not an
+// `Idempotency-Key` header: the key is stored on the visit and belongs to it,
+// and the app already builds this body. 201 when this request created the
+// visit; 200 with the ORIGINAL visit (plus `deduplicated: true` and an
+// `Idempotent-Replayed` header) when an earlier request already had. Both
+// bodies are a visit with an `id`, so an older client — which sends no key and
+// only reads `id` — is unaffected in either direction.
 visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {
-  const { outletId, lat, lng, checkinTs } = req.body as {
+  const { outletId, lat, lng, checkinTs, clientVisitId, resumed } = req.body as {
     outletId?: string;
     lat?: number;
     lng?: number;
     checkinTs?: string;
+    clientVisitId?: unknown;
+    resumed?: unknown;
   };
 
   if (!outletId || lat === undefined || lng === undefined) {
@@ -29,15 +50,40 @@ visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
     return;
   }
 
-  const visit = await checkIn({
+  if (
+    clientVisitId !== undefined &&
+    (typeof clientVisitId !== 'string' ||
+      clientVisitId.length === 0 ||
+      clientVisitId.length > MAX_CLIENT_VISIT_ID_LENGTH ||
+      !CLIENT_VISIT_ID_RE.test(clientVisitId))
+  ) {
+    res.status(400).json({
+      error:
+        `clientVisitId must be 1-${MAX_CLIENT_VISIT_ID_LENGTH} characters of ` +
+        'letters, digits, ".", "_", ":" or "-" (a UUID works) when given',
+    });
+    return;
+  }
+
+  if (resumed !== undefined && typeof resumed !== 'boolean') {
+    res.status(400).json({ error: 'resumed must be a boolean when given' });
+    return;
+  }
+
+  const { visit, deduplicated } = await checkIn({
     outletId,
     lat,
     lng,
     checkinTs,
+    clientVisitId: clientVisitId as string | undefined,
+    resumed: resumed as boolean | undefined,
     clientId: req.user!.clientId,
     agentId: req.user!.userId,
   });
-  res.status(201).json(visit);
+  if (deduplicated) {
+    res.set('Idempotent-Replayed', 'true');
+  }
+  res.status(deduplicated ? 200 : 201).json({ ...visit, deduplicated });
 });
 
 visitsRouter.post('/:id/submit', requireRole('field_agent'), async (req: AuthedRequest, res) => {
