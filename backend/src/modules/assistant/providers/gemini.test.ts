@@ -221,18 +221,21 @@ describe('gemini adapter — vendor specifics', () => {
     );
   });
 
-  it('spends full thinking on the opening round and less on every round after', async () => {
-    // The largest single line on the bill. The opening round is the one the
-    // eval gate scores and the cheapest in the turn whatever the level, so it
-    // keeps the vendor default; the rounds after it reason over a context that
-    // has been growing all turn, which is what makes them expensive.
+  it('turns thinking down on the answer round alone', async () => {
+    // The largest single line on the bill — and the only round where turning it
+    // down cannot cost the answer anything, because by then nothing further can
+    // be retrieved. Every round that can still decide to fetch something keeps
+    // the vendor default.
     const first = providerCapturing({ textChunks: ['x'] });
     await collect(first.provider.runTurn(contractInput({ round: 0 }), new AbortController().signal));
     expect(first.params().config?.thinkingConfig).toBeUndefined();
 
+    // Later tool rounds were turned down and turned back up: at `low`, two
+    // consecutive live runs stopped after one lookup where the default had run
+    // three, and answered without the cause the extra lookups had found.
     const later = providerCapturing({ textChunks: ['x'] });
     await collect(later.provider.runTurn(contractInput({ round: 2 }), new AbortController().signal));
-    expect(later.params().config?.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+    expect(later.params().config?.thinkingConfig).toBeUndefined();
 
     const answer = providerCapturing({ textChunks: ['x'] });
     await collect(
@@ -348,13 +351,13 @@ describe('gemini adapter — vendor specifics', () => {
 });
 
 describe('thinkingConfigFor', () => {
-  it('protects the opening round and turns the rest down', () => {
+  it('turns down only the round that has nothing left to decide', () => {
     // Measured on twenty golden questions: first-tool choice was 20/20 at the
     // vendor default and 19/20 at `low`. The gate needs 90%, so 95% would pass
     // — and is one sample from not passing, for a saving the measurement says
     // is not there anyway (round zero thinks ~200 tokens at either level).
     expect(thinkingConfigFor('gemini-3.1-pro-preview', 'first')).toBeUndefined();
-    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'tool')).toEqual({ thinkingLevel: 'low' });
+    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'tool')).toBeUndefined();
     expect(thinkingConfigFor('gemini-3.1-pro-preview', 'answer')).toEqual({ thinkingLevel: 'low' });
   });
 

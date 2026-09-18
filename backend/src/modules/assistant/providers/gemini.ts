@@ -84,24 +84,33 @@ export const GEMINI_QUARANTINE_MODEL = process.env.GEMINI_QUARANTINE_MODEL ?? 'g
  *   recover from, and — measured — the cheapest round in the turn at around 200
  *   thinking tokens whatever the level. There is nothing to save here and
  *   everything to lose, so it is left at the vendor default.
- * - A **later tool round** picks a follow-up with the previous results already
- *   in front of it. A narrower decision, and an expensive one: measured at
- *   1,640 output tokens on one round, because thinking scales with the context
- *   it reasons over and the context has been growing all turn.
+ * - A **later tool round** decides whether to keep going and what to fetch
+ *   next. Expensive — measured at 1,640 output tokens on one round, because
+ *   thinking scales with the context it reasons over and the context has been
+ *   growing all turn — and **turned down anyway, then turned back up.** At
+ *   `low`, two consecutive live runs of the same question stopped after a
+ *   single lookup where the default had run three, and answered without the
+ *   cause the extra lookups had found. That is a cheaper answer, not a better
+ *   one, and "interpret, do not just report" is the product. Left at the
+ *   vendor default; the switch stays for anyone who measures otherwise.
  * - The **answer round** runs with `toolChoice: 'none'`. Every figure it may
  *   use is in front of it and no decision remains but how to phrase the
  *   reading. It was spending 3,539 output tokens on 719 characters of prose.
+ *   This is the one that is turned down, and the depth of an answer cannot
+ *   depend on it, because by then nothing further can be retrieved.
  *
- * Measured on twenty golden questions, first-tool choice was 20/20 at the
- * vendor default and 19/20 at `low` — which is why round zero keeps the
- * default rather than trusting a 95% that is one sample away from the gate.
+ * Round zero also keeps the default, for a second reason: measured on twenty
+ * golden questions, first-tool choice was 20/20 at the vendor default and
+ * 19/20 at `low`. A 95% clears the 90% gate and is one sample from not
+ * clearing it — for a saving that is not there, since round zero thinks around
+ * 200 tokens at either level.
  *
  * All three are overridable, and an empty string restores the vendor default
  * for that kind of round.
  */
 const THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
 const FIRST_THINKING_LEVEL = process.env.GEMINI_FIRST_THINKING_LEVEL ?? '';
-const THINKING_LEVEL = process.env.GEMINI_THINKING_LEVEL ?? 'low';
+const THINKING_LEVEL = process.env.GEMINI_THINKING_LEVEL ?? '';
 const ANSWER_THINKING_LEVEL = process.env.GEMINI_ANSWER_THINKING_LEVEL ?? 'low';
 
 /**
