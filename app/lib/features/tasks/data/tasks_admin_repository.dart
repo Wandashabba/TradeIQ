@@ -16,6 +16,7 @@ class TaskItem {
     this.closurePhotoUrl,
     this.visitId,
     this.evidencePhotoId,
+    this.createdAt,
   });
   final String id;
   final String findingType;
@@ -35,6 +36,12 @@ class TaskItem {
   /// visit. Null means the row shows NO thumbnail, never a placeholder.
   final String? evidencePhotoId;
 
+  /// When the finding was raised. On the wire already; parsed here so The
+  /// Floor can put a task and an alert in one column under one meaning —
+  /// how long this has been broken — rather than mixing an age with a
+  /// deadline and calling the result a figure.
+  final DateTime? createdAt;
+
   factory TaskItem.fromJson(Map<String, dynamic> json) => TaskItem(
     id: json['id'] as String,
     findingType: json['findingType'] as String,
@@ -47,6 +54,7 @@ class TaskItem {
     visitId: json['visitId'] as String?,
     slaDueAt: DateTime.parse(json['slaDueAt'] as String),
     evidencePhotoId: json['evidencePhotoId'] as String?,
+    createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
   );
 }
 

@@ -65,14 +65,14 @@ void main() {
       }
       expect(
         TorchlightScanner.amberAllowlist,
-        hasLength(9),
+        hasLength(10),
         reason:
             'Pinned. Five in core/theme — the token source, the skin, the '
             'contrast contract and the two shims that map an old screen onto '
-            'the new palette — plus the four Phase 1 emitters: the primary '
-            'button, the nav pill, the nav circle and the keyboard focus '
-            'ring. Still to come: the plate and the chart focus bar, each '
-            'argued in its own PR.',
+            'the new palette — plus the five Phase 1 emitters: the primary '
+            'button, the nav pill, the nav circle, the keyboard focus ring '
+            'and the plate\'s strip light. Still to come: the chart focus '
+            'bar, argued in its own PR.',
       );
     });
   });

@@ -1472,3 +1472,171 @@ goldens are **measurements**, Night first, then Day, Veld last:
 `mark_harness.dart` holds `paintMark`, `greyscaleDifference` and
 `inkedFraction`. The last one exists so a silhouette test cannot pass by
 comparing two blank frames.
+
+---
+
+## 14. Phase 1 — the plate, the section rule, and The Floor
+
+The first screen migrated to Torchlight, and the two components it needed that
+nobody else owned.
+
+### 14.1 What replaces what
+
+| New | Replaces | Amber |
+|---|---|---|
+| `TiqPlate` + `PlateSpec` + `PlateFallback` | *(new)* | `TorchClaim.plateStripLight`, rung 2 |
+| `SectionRule` (+ `SectionRuleAction`) | uppercase eyebrows used as section markers | none, ever |
+| `Sparkline` + `SparklinePainter` | `charts.dart`'s pre-Torchlight `Sparkline` on Torchlight surfaces | none |
+| `TheFloorScreen` + `FirstRunBoard` | `DashboardShellScreen` as the manager **home** | two, counted |
+
+`DashboardShellScreen` is **not** deleted. The Floor replaces its KPI header and
+its three needs-attention counters; it does not replace the trend, benchmark,
+agent-activity or sales-attainment panels, which are separate spec items and not
+yet migrated. Deleting the route would delete those features, so it moved to
+`/dashboard/overview` with a nav destination of its own. `GlassPane` likewise
+stays: it still has 101 call sites across `lib/`, and unify §5 is explicit that
+it goes when its call sites are empty, not first.
+
+### 14.2 The plate
+
+**The fold is arithmetic.** `PlateSpec.heightFor(vh)` is
+`min(clamp(0.44 × vh, 200, 360), vh − 440)` and nothing else. The second term is
+the one that bites on a phone: at 360×640 it yields exactly 200, leaving 440dp
+for the list. Under the 200dp floor the plate does not render at all and a 96dp
+hero band replaces it — a smaller photograph is a photograph nobody can read
+*and* a list nobody can use.
+
+| viewport | height | strip light y | zone top | hero face |
+|---|---|---|---|---|
+| 640 | 200 | 76 | 84 | `hero.figure.compact` |
+| 720 | 280 | 106.4 | 134.4 | `hero.figure` |
+| 892 | 360 | 136.8 | 172.8 | `hero.figure` |
+| 600 | *collapsed, 96* | — | — | `hero.figure.compact` |
+| any, Veld | *none* | — | — | — |
+
+**The light is one object.** A 2px `flame600` line at `0.38h`, clamped out of the
+lower 40%, with a 48dp `glowAmber` gradient above it. Line plus bloom is one
+light because that is what it looks like, and the pixel census counts it as one.
+Two things gate it: `TorchScope.lit(...)`, and whether there is a photograph at
+all. The second is not an optimisation — a light needs something to be a light
+*on*, and a lit drawing is a decoration wearing the screen's one grant. A plate
+with no photo therefore renders **zero** amber even holding the grant.
+
+**The text-safe zone is a hard box.** A bottom-up scrim (`ground` 0% → 80%) over
+the lower 52%, or 58% under 240dp. The provenance caption sits on its first line
+and the hero cluster at its foot. When the cluster wants more room than the zone
+has — which it does at the 200dp floor — the answer is the hero's own fitting
+ladder (`hero.figure` → `hero.figure.compact` → `BoxFit.scaleDown`), **not** a
+scrim that quietly grows to swallow more of the photograph.
+
+**Provenance is mandatory.** A figure printed over a photograph of one named
+store is read as being about that store. The `meta`/`ink3` caption at the top of
+the zone — `Kasi Corner Spaza · 17 Sep 06:40` — is what makes the image visibly a
+specimen and the hero cluster visibly about the territory. An uncaptioned plate
+is the one state this component may not have.
+
+**The bake is still owed.** The spec calls for a server-baked asset: 12% chroma,
+no pixel above `plateCeiling` #474747, an alpha edge dissolve, ≤60 kB WebP. That
+does not exist yet. Until it does the plate reads the existing ≤60 kB thumbnail
+route and applies the *luminance* half of the bake client-side, as a `multiply`
+blend on the image's own paint — one paint parameter, no `ColorFiltered` and so
+no `saveLayer`. The chroma reduction, the dissolve and the byte cap stay on the
+server, because a client cannot fix a 900 kB download by dimming it.
+
+**Cost.** One `Image` decoded at `cacheWidth`; two gradient decorations (scrim,
+bloom). Zero `BackdropFilter`, `ShaderMask`, `ImageFiltered`, `saveLayer` and
+`BoxShadow`.
+
+### 14.3 The section rule
+
+A rule gutter to gutter with the section's name sitting on it, left, knocked out
+12dp either side (16 in Veld), `title.m` 16/600 `ink1`, **sentence case**. A count
+follows the name in `figure.s` tabular mono `ink3`, inside the same knock-out.
+An optional ghost action sits at the far end in a 44dp box.
+
+The rule is `hairline` in Night (2.14:1 — visible on a dark ground, and the text
+carries the meaning) and `edgeStructure` in Day (3.41:1), because Day's hairline
+at 1.18:1 is nothing and this is the console's only full-width line.
+
+At 2.0× the name wraps and the rule **drops beneath** the text block rather than
+running through it — a rule crossing two lines of type is a strike-through. The
+decision is measured with a `TextPainter`, not guessed from a scale threshold.
+
+An empty section still renders its rule and its name, followed by one `body`
+`ink2` line. A section that vanishes when empty makes a manager think the
+feature is gone.
+
+**Amber: none, ever.** It replaced an amber section marker and a numbered
+eyebrow precisely so it could not become a repeated accent.
+
+### 14.4 The sparkline
+
+A 64×20 shape, not a chart: no axis, no gridline, no label, no tooltip. It
+caches to a `ui.Picture` inside a `RepaintBoundary` and carries the recording
+across a rebuild when the series has not changed, because five of these
+re-recording on every scroll frame is the budget gone.
+
+Three rules it does not bend: fewer than two points draws **nothing** (a single
+reading drawn as a flat line is a fabricated trend); a flat series draws through
+the middle, not along the floor (no change is a horizontal line, not a zero);
+and the last dot takes the row's **severity** ink, which is crimson at two
+commitment levels and never amber — five rows of amber last-dots is the exact
+repeated fill the law bans by name.
+
+### 14.5 The Floor, and unknown versus zero
+
+Top to bottom: the plate; the one dominant metric (on-shelf availability) as a
+`StatTile(lead: true)` with coverage and the visit count as its subordinates;
+the knocked-out rule `Needs a decision N`; up to five `DecisionRow`s worst
+first; and `and N more need a decision`. Then the floating nav pill and its
+circle. No cards, no shadows, nothing centred.
+
+Three phases, and the screen never guesses between them from a figure:
+
+| phase | what says so | what renders |
+|---|---|---|
+| first run | `totals.outletsTotal == 0` | the `FirstRunBoard` — a different screen |
+| window empty | outlets exist, `totals.visits == 0` | The Floor, em dashes, sentences, no deltas |
+| measured | visits in the window | the real thing, zeros included |
+
+A measured `0` renders `0` and keeps its place. An absence renders an em dash in
+`ink3` with the unit suppressed and a sentence in words. `sampleSizes` from
+`GET /dashboard` drives the thin-sample treatment; the **baseline** denominator
+is the previous window's own `sampleSizes`, from the second request the console
+already makes, so a thin baseline is a fact rather than an inference.
+
+The decision list merges alerts and tasks — a manager does not think in terms of
+which table a finding came from — ranked by severity and then by age. Both kinds
+carry `createdAt`, so the trailing column means **one** thing on every row: how
+long this has been broken. Mixing an alert's age with a task's SLA deadline
+would put two measurements in one column and make it unreadable as a column.
+
+### 14.6 The amber census
+
+| route × skin | objects | which |
+|---|---|---|
+| Floor, Night, with a photo | **2** | nav active tab, plate strip light |
+| Floor, Night, no photo | **1** | nav active tab |
+| Floor, Day | **0** | no primary on this route |
+| Floor, Veld | **0** | no plate, no amber |
+| First-run board, Night | 1 | nav active tab |
+
+The hero's delta is severity crimson, the sparkline's last dot is severity
+crimson, the section rule has no colour, the filter chip does not exist here and
+the nav circle is denied outright by the ladder — the plate took rung 2 and the
+circle sits at rung 4.
+
+### 14.7 What is not built yet, and why
+
+* **The filter rail** (territory × window chips) — the filter chip is Phase 2.
+* **`Today's field`** (agents on the map, held work, coverage progress) — needs
+  the progress bar and the person row, both Phase 3.
+* **A sparkline on a live row.** The component is built and tested, but there is
+  no per-outlet series on the wire today (`/dashboard` answers one window,
+  `/trends/*` answers the territory). `DecisionRow` omits the slot rather than
+  inventing a shape, which is its own documented rule.
+* **The skin cycle on this route.** On a tab root it belongs in the app header's
+  single trailing slot, and The Floor has no header — the plate is the header.
+  It belongs in the Menu destination when the Menu sheet ships.
+* **The plate's `Dark frame` state**, which needs the mean luma the server bake
+  computes.

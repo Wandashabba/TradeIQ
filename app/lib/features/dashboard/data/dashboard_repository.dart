@@ -16,10 +16,10 @@ class ScoreBand {
   final int outlets;
 
   factory ScoreBand.fromJson(Map<String, dynamic> json) => ScoreBand(
-        label: json['label'] as String? ?? '',
-        minScore: (json['minScore'] as num?)?.toDouble() ?? 0,
-        outlets: (json['outlets'] as num?)?.toInt() ?? 0,
-      );
+    label: json['label'] as String? ?? '',
+    minScore: (json['minScore'] as num?)?.toDouble() ?? 0,
+    outlets: (json['outlets'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// The manager dashboard KPI set returned by GET /dashboard.
@@ -34,6 +34,10 @@ class DashboardKpis {
     required this.shareOfShelf,
     required this.perfectStoreRate,
     this.scoreBands = const [],
+    this.sampleSizes = const DashboardSampleSizes(),
+    this.outletsVisited,
+    this.outletsTotal,
+    this.visits,
   });
   final double numericDistribution;
   final double weightedDistribution;
@@ -49,10 +53,43 @@ class DashboardKpis {
   /// than drawing five zero-height bars as if they were data.
   final List<ScoreBand> scoreBands;
 
+  /// How many rows each KPI was computed from. **Null is not zero** — it means
+  /// "this figure has no denominator", and a figure with no denominator gets
+  /// the unknown treatment rather than a thin-sample warning.
+  final DashboardSampleSizes sampleSizes;
+
+  /// `totals` — the window's coverage, which is what tells a first-run tenant
+  /// apart from a quiet week. Null where the server predates the field.
+  final int? outletsVisited;
+  final int? outletsTotal;
+  final int? visits;
+
+  /// Whether this window measured anything at all.
+  ///
+  /// The distinction The Floor turns on: a window with no visits is an
+  /// ABSENCE and renders em dashes and a sentence; a window with visits and a
+  /// KPI of 0 is a FINDING and renders `0`. Deciding that from the figures
+  /// themselves is impossible — eight genuine zeros look exactly like eight
+  /// missing ones — which is the whole reason `totals` is on the wire.
+  bool get measuredSomething => (visits ?? 0) > 0 || (outletsVisited ?? 0) > 0;
+
+  /// True only when the tenant has nothing at all: no outlets on the books.
+  /// A tenant with outlets and no visits is not first-run, it is unmeasured,
+  /// and those are two different screens.
+  bool get hasNoOutlets => outletsTotal != null && outletsTotal == 0;
+
   factory DashboardKpis.fromJson(Map<String, dynamic> json) {
     final kpis = (json['kpis'] as Map<String, dynamic>?) ?? const {};
+    final totals = (json['totals'] as Map<String, dynamic>?) ?? const {};
     double read(String field) => (kpis[field] as num?)?.toDouble() ?? 0;
+    int? count(String field) => (totals[field] as num?)?.toInt();
     return DashboardKpis(
+      sampleSizes: DashboardSampleSizes.fromJson(
+        json['sampleSizes'] as Map<String, dynamic>?,
+      ),
+      outletsVisited: count('outletsVisited'),
+      outletsTotal: count('outletsTotal'),
+      visits: count('visits'),
       numericDistribution: read('numericDistribution'),
       weightedDistribution: read('weightedDistribution'),
       osaPct: read('osaPct'),
@@ -65,6 +102,59 @@ class DashboardKpis {
         for (final band in (json['scoreBands'] as List?) ?? const [])
           if (band is Map<String, dynamic>) ScoreBand.fromJson(band),
       ],
+    );
+  }
+}
+
+/// The denominator behind each KPI — `sampleSizes` on the wire.
+///
+/// The server's contract, restated because it is the part that is easy to get
+/// wrong: **null means "not a ratio, no denominator", and is never 0 for
+/// unknown.** A `0` here is a real, measured emptiness — nothing was counted —
+/// and a null is the server declining to claim one.
+///
+/// `GET /dashboard` deliberately carries no `baselineSampleSizes`: it answers
+/// for one window. The baseline denominator on The Floor is the *previous*
+/// window's own `sampleSizes`, which the console already fetches as the second
+/// half of a [DashboardSnapshot] — so a thin baseline is a fact about a real
+/// second request rather than an inference.
+class DashboardSampleSizes {
+  const DashboardSampleSizes({
+    this.numericDistribution,
+    this.weightedDistribution,
+    this.osaPct,
+    this.executionScore,
+    this.priceCompliancePct,
+    this.visibilityCompliancePct,
+    this.shareOfShelf,
+    this.perfectStoreRate,
+  });
+
+  final int? numericDistribution;
+  final int? weightedDistribution;
+
+  /// Counted stock lines only — it matches `osaPct`'s own numerator, so the
+  /// two cannot disagree about what was measured.
+  final int? osaPct;
+
+  final int? executionScore;
+  final int? priceCompliancePct;
+  final int? visibilityCompliancePct;
+  final int? shareOfShelf;
+  final int? perfectStoreRate;
+
+  factory DashboardSampleSizes.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const DashboardSampleSizes();
+    int? n(String field) => (json[field] as num?)?.toInt();
+    return DashboardSampleSizes(
+      numericDistribution: n('numericDistribution'),
+      weightedDistribution: n('weightedDistribution'),
+      osaPct: n('osaPct'),
+      executionScore: n('executionScore'),
+      priceCompliancePct: n('priceCompliancePct'),
+      visibilityCompliancePct: n('visibilityCompliancePct'),
+      shareOfShelf: n('shareOfShelf'),
+      perfectStoreRate: n('perfectStoreRate'),
     );
   }
 }
@@ -124,17 +214,17 @@ enum DashboardRange {
   /// Null when there is nothing honest to compare to: all-time has no
   /// "before", and on 1 January the year has no complete days yet.
   (DateTime, DateTime)? previousWindow(DateTime now) => switch (this) {
-        DashboardRange.allTime => null,
-        DashboardRange.ytd when _isNewYearsDay(now) => null,
-        DashboardRange.ytd => (
-            DateTime(now.year - 1),
-            DateTime(now.year - 1, now.month, now.day),
-          ),
-        _ => (
-            DateTime(now.year, now.month, now.day - 2 * days!),
-            DateTime(now.year, now.month, now.day - days!),
-          ),
-      };
+    DashboardRange.allTime => null,
+    DashboardRange.ytd when _isNewYearsDay(now) => null,
+    DashboardRange.ytd => (
+      DateTime(now.year - 1),
+      DateTime(now.year - 1, now.month, now.day),
+    ),
+    _ => (
+      DateTime(now.year, now.month, now.day - 2 * days!),
+      DateTime(now.year, now.month, now.day - days!),
+    ),
+  };
 
   static bool _isNewYearsDay(DateTime now) => now.month == 1 && now.day == 1;
 }
@@ -151,26 +241,21 @@ String dashboardQueryTo(DateTime to) =>
 
 /// Active dashboard filter. Wired to GET /dashboard's territoryId/from/to.
 class DashboardFilter {
-  const DashboardFilter({
-    this.territoryId,
-    this.range = DashboardRange.last30,
-  });
+  const DashboardFilter({this.territoryId, this.range = DashboardRange.last30});
 
   final String? territoryId;
   final DashboardRange range;
 
-  bool get isActive =>
-      territoryId != null || range != DashboardRange.last30;
+  bool get isActive => territoryId != null || range != DashboardRange.last30;
 
   DashboardFilter copyWith({
     String? territoryId,
     bool clearTerritory = false,
     DashboardRange? range,
-  }) =>
-      DashboardFilter(
-        territoryId: clearTerritory ? null : (territoryId ?? this.territoryId),
-        range: range ?? this.range,
-      );
+  }) => DashboardFilter(
+    territoryId: clearTerritory ? null : (territoryId ?? this.territoryId),
+    range: range ?? this.range,
+  );
 }
 
 /// One territory's KPI block, as returned by GET /dashboard/by-territory.
@@ -184,7 +269,8 @@ class TerritoryDashboardKpis {
   final String territoryName;
   final DashboardKpis kpis;
 
-  factory TerritoryDashboardKpis.fromJson(Map<String, dynamic> json) => TerritoryDashboardKpis(
+  factory TerritoryDashboardKpis.fromJson(Map<String, dynamic> json) =>
+      TerritoryDashboardKpis(
         territoryId: json['territoryId'] as String,
         territoryName: json['territoryName'] as String,
         // DashboardKpis.fromJson reads json['kpis'], so passing the whole
@@ -194,17 +280,28 @@ class TerritoryDashboardKpis {
 }
 
 abstract class DashboardRepository {
-  Future<DashboardKpis> fetchKpis({String? territoryId, String? from, String? to});
+  Future<DashboardKpis> fetchKpis({
+    String? territoryId,
+    String? from,
+    String? to,
+  });
 
   /// Every territory's KPI block in a single request — see
   /// [dashboardByTerritoryProvider] for why this replaced one `fetchKpis`
   /// call per territory (#97).
-  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to});
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({
+    String? from,
+    String? to,
+  });
 }
 
 class DioDashboardRepository implements DashboardRepository {
   @override
-  Future<DashboardKpis> fetchKpis({String? territoryId, String? from, String? to}) async {
+  Future<DashboardKpis> fetchKpis({
+    String? territoryId,
+    String? from,
+    String? to,
+  }) async {
     final query = <String, dynamic>{};
     if (territoryId != null) query['territoryId'] = territoryId;
     if (from != null) query['from'] = from;
@@ -214,19 +311,29 @@ class DioDashboardRepository implements DashboardRepository {
   }
 
   @override
-  Future<List<TerritoryDashboardKpis>> fetchByTerritory({String? from, String? to}) async {
+  Future<List<TerritoryDashboardKpis>> fetchByTerritory({
+    String? from,
+    String? to,
+  }) async {
     final query = <String, dynamic>{};
     if (from != null) query['from'] = from;
     if (to != null) query['to'] = to;
-    final response = await dio.get('/dashboard/by-territory', queryParameters: query);
+    final response = await dio.get(
+      '/dashboard/by-territory',
+      queryParameters: query,
+    );
     return (response.data as List)
-        .map((json) => TerritoryDashboardKpis.fromJson(json as Map<String, dynamic>))
+        .map(
+          (json) =>
+              TerritoryDashboardKpis.fromJson(json as Map<String, dynamic>),
+        )
         .toList();
   }
 }
 
-final dashboardRepositoryProvider =
-    Provider<DashboardRepository>((ref) => DioDashboardRepository());
+final dashboardRepositoryProvider = Provider<DashboardRepository>(
+  (ref) => DioDashboardRepository(),
+);
 
 class DashboardFilterNotifier extends Notifier<DashboardFilter> {
   @override
@@ -237,8 +344,8 @@ class DashboardFilterNotifier extends Notifier<DashboardFilter> {
 
 final dashboardFilterProvider =
     NotifierProvider<DashboardFilterNotifier, DashboardFilter>(
-  DashboardFilterNotifier.new,
-);
+      DashboardFilterNotifier.new,
+    );
 
 /// The clock, injected so a test can pin "now" instead of racing it.
 final nowProvider = Provider<DateTime Function()>((ref) => DateTime.now);
@@ -273,12 +380,14 @@ class DashboardSnapshot {
   final DashboardKpis? previous;
 
   KpiDelta of(double Function(DashboardKpis) read) => KpiDelta(
-        current: read(current),
-        previous: previous == null ? null : read(previous!),
-      );
+    current: read(current),
+    previous: previous == null ? null : read(previous!),
+  );
 }
 
-final dashboardSnapshotProvider = FutureProvider<DashboardSnapshot>((ref) async {
+final dashboardSnapshotProvider = FutureProvider<DashboardSnapshot>((
+  ref,
+) async {
   final filter = ref.watch(dashboardFilterProvider);
   final repo = ref.read(dashboardRepositoryProvider);
   final now = ref.read(nowProvider)();
@@ -321,15 +430,18 @@ final dashboardKpisProvider = FutureProvider<DashboardKpis>(
 /// silently broken: it filtered outlets by `Territory.id`, a UUID that never
 /// matches the free-text `Outlet.territoryId` column (which stores
 /// `Territory.code`), so every per-territory figure was a quiet zero.
-final dashboardByTerritoryProvider = FutureProvider<List<TerritoryDashboardKpis>>((ref) {
-  final filter = ref.watch(dashboardFilterProvider);
-  final now = ref.read(nowProvider)();
-  final (from, to) = filter.range.window(now);
+final dashboardByTerritoryProvider =
+    FutureProvider<List<TerritoryDashboardKpis>>((ref) {
+      final filter = ref.watch(dashboardFilterProvider);
+      final now = ref.read(nowProvider)();
+      final (from, to) = filter.range.window(now);
 
-  // The same window as the tiles, so a territory's score and the headline
-  // figure are measured over the same days.
-  return ref.read(dashboardRepositoryProvider).fetchByTerritory(
-        from: from == null ? null : dashboardQueryFrom(from),
-        to: dashboardQueryTo(to),
-      );
-});
+      // The same window as the tiles, so a territory's score and the headline
+      // figure are measured over the same days.
+      return ref
+          .read(dashboardRepositoryProvider)
+          .fetchByTerritory(
+            from: from == null ? null : dashboardQueryFrom(from),
+            to: dashboardQueryTo(to),
+          );
+    });
