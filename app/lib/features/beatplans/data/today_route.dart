@@ -23,14 +23,51 @@ class RouteStop {
   /// gets no distances rather than made-up ones.
   final double? distanceMeters;
 
-  /// "42 m away" / "1.2 km" — near enough is a walk, far enough is a drive, and
-  /// that is the only distinction an agent needs from this number.
-  String? get distanceLabel {
+  /// The distance as a **figure**, not a string: near enough is a walk, far
+  /// enough is a drive, and that is the only distinction an agent needs from
+  /// this number.
+  ///
+  /// It hands back the value and how many decimals the metric carries, and
+  /// the screen renders it through `FigureSlot` — which owns the grouping,
+  /// the decimal mark (`1,2 km` in Afrikaans) and the mono face. The old
+  /// `distanceLabel` built the string here with `toStringAsFixed(1)` and an
+  /// English " m away" glued on, which is two of the things the one formatter
+  /// exists to stop.
+  ///
+  /// Null when the phone will not say where it is. An agent who declined
+  /// location gets a sentence, never a wrong number.
+  RouteDistance? get distance {
     final metres = distanceMeters;
     if (metres == null) return null;
-    if (metres < 950) return '${metres.round()} m away';
-    return '${(metres / 1000).toStringAsFixed(1)} km';
+    if (metres < 950) {
+      return RouteDistance(value: metres.round(), decimals: 0, kilometres: false);
+    }
+    return RouteDistance(
+      value: metres / 1000,
+      decimals: 1,
+      kilometres: true,
+    );
   }
+}
+
+/// How far away a stop is, as a figure the one formatter can set.
+class RouteDistance {
+  const RouteDistance({
+    required this.value,
+    required this.decimals,
+    required this.kilometres,
+  });
+
+  final num value;
+
+  /// The precision the *metric* carries, not the precision this value happens
+  /// to have: metres are whole, kilometres get one place.
+  final int decimals;
+
+  /// Whether the unit word is kilometres or metres. The word itself is
+  /// translated by the screen and passed as a `TiqUnit.worded` — this class
+  /// does not own language.
+  final bool kilometres;
 }
 
 /// The agent's day, as planned for them.

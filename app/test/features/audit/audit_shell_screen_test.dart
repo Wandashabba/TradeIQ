@@ -132,10 +132,10 @@ const _nothingDone = VisitProgress(states: {}, details: {});
 /// The four scored sections done — the state that unblocks submit.
 const _readyToSubmit = VisitProgress(
   states: {
-    AuditSection.stock: SectionState.done,
-    AuditSection.visibility: SectionState.done,
-    AuditSection.pricing: SectionState.done,
-    AuditSection.capability: SectionState.done,
+    AuditSection.stock: CaptureState.done,
+    AuditSection.visibility: CaptureState.done,
+    AuditSection.pricing: CaptureState.done,
+    AuditSection.capability: CaptureState.done,
   },
   details: {},
 );
@@ -732,8 +732,8 @@ void main() {
             _testDb(),
             progress: const VisitProgress(
               states: {
-                AuditSection.pricing: SectionState.partial,
-                AuditSection.risks: SectionState.done,
+                AuditSection.pricing: CaptureState.partial,
+                AuditSection.risks: CaptureState.done,
               },
               // No English lines: the tiles must word the codes themselves.
               details: {},

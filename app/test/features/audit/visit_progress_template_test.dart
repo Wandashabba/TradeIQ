@@ -128,7 +128,7 @@ void main() {
     final p = await progress();
 
     expect(p.template, isNotNull);
-    expect(p.template!.state, SectionState.notStarted);
+    expect(p.template!.state, CaptureState.notStarted);
     expect(p.blocking, isEmpty); // the fixed sections are all done…
     expect(p.templateBlocking, isTrue); // …but the client's questions are not
     expect(p.blockingCount, 1);
@@ -142,7 +142,7 @@ void main() {
     await saveAnswers({'note': 'hello'});
     final p = await progress();
 
-    expect(p.template!.state, SectionState.partial);
+    expect(p.template!.state, CaptureState.partial);
     expect(p.template!.requiredLeft, 1);
     expect(p.canSubmit, isFalse);
     expect(
@@ -158,7 +158,7 @@ void main() {
     await saveAnswers({'facings': 4}); // the newest save wins
     final p = await progress();
 
-    expect(p.template!.state, SectionState.done);
+    expect(p.template!.state, CaptureState.done);
     expect(p.template!.answers, {'facings': 4});
     expect(p.canSubmit, isTrue);
     expect(p.doneCount, 5); // the 4 required fixed captures + the client's
@@ -185,7 +185,7 @@ void main() {
     });
     final p = await progress();
 
-    expect(p.template!.state, SectionState.notStarted);
+    expect(p.template!.state, CaptureState.notStarted);
     expect(p.canSubmit, isFalse);
   });
 }

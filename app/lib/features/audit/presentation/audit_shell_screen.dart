@@ -1,24 +1,37 @@
-import 'package:flutter/material.dart';
+import 'dart:async' show unawaited;
+
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/torch_scope.dart';
 import '../../../core/network/human_error.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/tiq_colors.dart';
+import '../../../core/theme/torchlight/agent_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/check_in_radar.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/skin_controls.dart';
+import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../l10n/l10n.dart';
+import '../../beatplans/presentation/today_screen.dart' show displayFor;
 import '../../outlets/data/outlets_repository.dart';
+import '../data/pin_report.dart';
 import '../data/template_section_repository.dart';
 import '../data/visit_progress.dart';
 import '../data/visits_repository.dart';
 import 'sections/client_questions_screen.dart';
-import 'submit_gate_screen.dart';
+import 'sections/s10_scorecard_screen.dart';
 import 'sections/s1_outlet_info_screen.dart';
 import 'sections/s2_stock_screen.dart';
 import 'sections/s3_4_visibility_display_screen.dart';
@@ -27,22 +40,67 @@ import 'sections/s6_competitive_screen.dart';
 import 'sections/s7_capability_screen.dart';
 import 'sections/s8_risks_screen.dart';
 import 'sections/s9_action_plan_screen.dart';
-import 'sections/s10_scorecard_screen.dart';
-import '../../../core/theme/lumen_palette.dart';
+import 'submit_gate_screen.dart';
 
-/// The visit hub.
+/// THE VISIT — check-in, and then the hub.
 ///
-/// This replaces a Material [Stepper] whose steps were built with
-/// `Step(title: SizedBox.shrink())` — nine sections with *no titles at all*, on
-/// one long scroll. An agent could not see which section they were on, what was
-/// done, or what was left.
+/// ## No tabs, one primary
 ///
-/// Sections can be done in any order, because a store will not always let you
-/// follow one: you cannot count stock while a delivery is blocking the aisle.
+/// The owner's decision, and the reason this screen is not a tab root:
+/// mid-visit navigation loses captured work. From the moment the agent is
+/// inside the fence there is one way forward — finish the sections — and one
+/// commit, in the thumb zone where a hand holding a crate can reach it.
+///
+/// ```text
+///   Kasi Corner Spaza            [ 12 held on this phone ]
+///   In store 12 min
+///   ┌───────────────────────────────────────────┐
+///   │ CAPTURED                                  │
+///   │ 5 /8        ( 3 sections still needed )   │
+///   │ ▬▬▬▬▬▬▬▬▬▬▬▬▬░░░░░░░░░░░░░                │
+///   └───────────────────────────────────────────┘
+///   Do them in any order. Everything saves as you go.
+///   ── Sections ────────────────────────────────
+///   ◉ Outlet info           Confirmed at check-in
+///   ◑ Stock & availability  7 of 12    [Required]
+///   ⊘ Pricing               The product list did not load
+///   ⊘ Score                 Worked out when the visit sends   —
+///   ─────────────────────────────────────────────
+///   Stock and Pricing still need finishing.
+///   [ ☾ ] [        Submit this visit        ]
+/// ```
+///
+/// ## Amber
+///
+/// An untabbed route, so the content has two grants in Night — and the hub
+/// spends at most one of them, deliberately: it is a reading screen. **A
+/// blocked submit emits nothing.** It does not declare a claim at all, so the
+/// screen paints zero amber objects while it is blocked and exactly one when
+/// it is armed. The readiness chip, the state glyphs, the REQUIRED badges, the
+/// section rule and the meter's fill are all labels, and the law bans amber
+/// from every one of them by name.
+///
+/// ## Can't confirm (#389)
+///
+/// A section the app could not establish shows the fourth silhouette — a
+/// barred ring, not a hatch — names the reason in words, and **blocks the
+/// submit**. Before this, a stock section with the product list missing
+/// reported *done* on zero captures, and a visit with nothing in it went
+/// through the gate printing "This store is clean".
 class AuditShellScreen extends ConsumerStatefulWidget {
   const AuditShellScreen({super.key, required this.outletId});
 
   final String outletId;
+
+  /// The submit's claim id. Declared only when the visit can actually be sent.
+  static const String submitClaimId = 'visit-submit';
+
+  /// The check-in screens' primary. One id across the three failures: only
+  /// one of them is ever on screen, and a census failure names the phase.
+  static const String retryClaimId = 'check-in-retry';
+
+  /// The locating radar's live pulse — rung 6, presence and never progress.
+  static const String locatingClaimId = 'check-in-locating';
 
   @override
   ConsumerState<AuditShellScreen> createState() => _AuditShellScreenState();
@@ -53,6 +111,14 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   CheckInResult? _checkInResult;
   DateTime? _checkinTs;
   String? _visitDraftId;
+
+  /// How many times this agent has asked for a fix at this outlet in this
+  /// session. The too-far screen's note changes on the third attempt — the
+  /// moment the penalty actually starts, and not before.
+  int _attempts = 0;
+
+  /// When the last failure happened, for the error-code line.
+  DateTime? _failedAt;
 
   Future<void> _startCheckIn(double outletLat, double outletLng) async {
     // The repository is written not to throw, but this is the one place where
@@ -76,24 +142,41 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     if (!mounted) return;
     if (result case CheckInSucceeded(:final visitId)) {
       // Pin the client's audit template to this visit (#122), once, so its
-      // questions cannot change mid-visit and reopen without signal. Best
-      // effort and not awaited: a client without a template — or a pin that
-      // fails — leaves the hub exactly as it has always been.
-      ref
-          .read(templateSectionRepositoryProvider)
-          .pinForVisit(visitId)
-          .catchError((Object e) {
-            debugPrint('Template pin failed for $visitId: $e');
-          });
+      // questions cannot change mid-visit and reopen without signal.
+      //
+      // #389: the failure is no longer swallowed. A pin that throws sets a
+      // flag the hub reads, and the client-questions row renders
+      // **can't confirm** and blocks the submit — rather than vanishing and
+      // taking the client's questions silently with it.
+      unawaited(
+        ref
+            .read(templateSectionRepositoryProvider)
+            .pinForVisit(visitId)
+            .catchError((Object e) {
+              debugPrint('Template pin failed for $visitId: $e');
+              if (!mounted) return;
+              ref.read(templatePinFailedProvider(visitId).notifier).failed();
+            }),
+      );
     }
     setState(() {
       _checkInResult = result;
       if (result is CheckInSucceeded) {
         _checkinTs = DateTime.now();
         _visitDraftId = result.visitId;
+      } else {
+        _failedAt = DateTime.now();
       }
     });
   }
+
+  /// Retry resets the whole state machine **including the started flag**, so
+  /// the post-frame call actually fires again.
+  void _retry() => setState(() {
+    _checkInStarted = false;
+    _checkInResult = null;
+    _attempts += 1;
+  });
 
   Outlet? _findOutlet(List<Outlet> outlets) {
     for (final outlet in outlets) {
@@ -129,10 +212,10 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     };
   }
 
-  /// One section, full screen. No nesting, no long scroll of nine forms.
-  ///
-  /// It slides in from the right, which says "you have gone *into* something and
-  /// can come back out" — exactly the hub/section relationship.
+  /// One section, full screen. It slides in from the right, which says "you
+  /// have gone *into* something and can come back out" — exactly the
+  /// hub/section relationship. No stagger behind it: the section arrives
+  /// whole.
   void _openSection(AuditSection section, String visitDraftId) {
     Navigator.of(context).push(
       agentSectionRoute<void>(
@@ -144,7 +227,6 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     );
   }
 
-  /// The client-questions section (#122), full screen like every other one.
   void _openTemplateSection(ClientTemplate template, String visitDraftId) {
     Navigator.of(context).push(
       agentSectionRoute<void>(
@@ -159,16 +241,17 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     );
   }
 
-  /// Everything still blocking the submit, by name: the fixed sections, then
-  /// the client's questions when required ones are left.
+  /// Everything still blocking the submit, **by name**: the fixed sections,
+  /// then the client's questions.
   List<String> _blockingNames(AppLocalizations l10n, VisitProgress progress) => [
     for (final s in progress.blocking) sectionLabel(l10n, s),
-    if (progress.templateBlocking) progress.template!.template.name,
+    if (progress.templateBlocking)
+      progress.template?.template.name ?? l10n.visitClientQuestions,
   ];
 
-  /// Submitting is irreversible and it raises tasks against a real shop. It does
-  /// not happen on one tap of a hub button — the agent gets to see what they are
-  /// about to say about this store, and confirm it.
+  /// Submitting is irreversible and it raises tasks against a real shop. It
+  /// does not happen on one tap of a hub button — the agent gets to see what
+  /// they are about to say about this store, and confirm it.
   Future<void> _openSubmitGate(Outlet outlet) async {
     final id = _visitDraftId;
     if (id == null) return;
@@ -191,37 +274,56 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
 
     // The visit is done. Let them feel it — they are about to walk out of the
     // shop and will not be looking at the screen.
-    Buzz.done();
-    // The score is the outcome of the visit, so it is where the visit ends.
-    // `go` rather than `push`: there is no way back into a submitted visit.
+    TorchBuzz.success();
     context.go(
       '/audit/${outlet.id}/done?draft=$id&name=${Uri.encodeComponent(outlet.name)}',
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => TorchlightRoute(child: _body());
+
+  Widget _body() {
     final outletsAsync = ref.watch(outletsListProvider);
     final l10n = context.l10n;
 
     return outletsAsync.when(
-      loading: () => AgentScaffold(
+      loading: () => VisitFrame(
+        phase: 'outlet-loading',
         title: l10n.visitStartingTitle,
         showSyncChip: false,
-        body: const Center(child: CircularProgressIndicator()),
+        children: const <Widget>[_HubSkeleton()],
       ),
-      error: (err, _) => AgentScaffold(
+      error: (err, _) => VisitFrame(
+        phase: 'outlet-error',
         title: l10n.visitTitle,
         showSyncChip: false,
-        body: Center(child: Text(l10n.visitOutletLoadFailed('$err'))),
+        children: <Widget>[
+          _Statement(
+            glyph: Icons.link_off,
+            headline: l10n.visitCheckInFailedTitle,
+            body: l10n.visitOutletLoadFailed('$err'),
+            actionLabel: l10n.visitBackToRoute,
+            onAction: () => context.go('/today'),
+          ),
+        ],
       ),
       data: (outlets) {
         final outlet = _findOutlet(outlets);
         if (outlet == null) {
-          return AgentScaffold(
+          return VisitFrame(
+            phase: 'outlet-missing',
             title: l10n.visitTitle,
             showSyncChip: false,
-            body: Center(child: Text(l10n.visitOutletNotFound)),
+            children: <Widget>[
+              _Statement(
+                glyph: Icons.link_off,
+                headline: l10n.visitOutletNotFound,
+                body: l10n.todayPickStore,
+                actionLabel: l10n.visitBackToRoute,
+                onAction: () => context.go('/today'),
+              ),
+            ],
           );
         }
 
@@ -238,55 +340,51 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
           CheckInGeofenceFailed(:final distanceMeters) => _TooFar(
             outlet: outlet,
             distanceMeters: distanceMeters,
-            onRetry: () => setState(() {
-              _checkInStarted = false;
-              _checkInResult = null;
-            }),
+            attempts: _attempts,
+            onRetry: _retry,
           ),
-          final CheckInLocationUnavailable unavailable => _NoLocation(
+          final CheckInLocationUnavailable unavailable => _NoGps(
             outlet: outlet,
-            message: unavailable.messageIn(context.l10n),
-            onRetry: () => setState(() {
-              _checkInStarted = false;
-              _checkInResult = null;
-            }),
+            message: unavailable.messageIn(l10n),
+            problem: unavailable.problem,
+            onRetry: _retry,
           ),
-          CheckInFailed(:final reason) => _CheckInFailed(
+          CheckInFailed(:final reason) => _SomethingElse(
             outlet: outlet,
-            message: reason.message(context.l10n),
-            onRetry: () => setState(() {
-              _checkInStarted = false;
-              _checkInResult = null;
-            }),
+            reason: reason,
+            failedAt: _failedAt,
+            onRetry: _retry,
           ),
         };
       },
     );
   }
 
-  /// The hub in Lumen Glass: the progress block, then the whole audit as a
-  /// two-column grid of tiles — so every section is visible without scrolling.
-  /// The hub's entries in order: S1–S9, then the client's questions when the
-  /// visit has a template (#122), then the score — the RESULT of the captures,
-  /// so it stays last. With no template the list is exactly the fixed audit.
+  /// The hub's rows, in order: S1–S9, then the client's questions when the
+  /// visit has a template (#122), then the score — the RESULT of the
+  /// captures, so it stays last and is not a form.
   List<_HubEntry> _entries(VisitProgress progress, String visitDraftId) {
     final l10n = context.l10n;
-    _HubEntry fixed(AuditSection section) => _HubEntry(
-      tileKey: 'section-${section.name}',
-      label: sectionLabel(l10n, section),
-      state: progress.stateOf(section),
-      detail: progress.detailIn(section, l10n),
-      required: section.required,
-      isScore: section == AuditSection.score,
-      // The score is the RESULT of the other eight, so it cannot be opened
-      // and filled in.
-      onTap: section == AuditSection.score
-          ? null
-          : () => _openSection(section, visitDraftId),
-    );
+    _HubEntry fixed(AuditSection section) {
+      final state = progress.stateOf(section);
+      final reason = progress.cantConfirm[section];
+      return _HubEntry(
+        tileKey: 'section-${section.name}',
+        label: sectionLabel(l10n, section),
+        state: state,
+        detail: reason != null
+            ? cantConfirmText(l10n, reason)
+            : progress.detailIn(section, l10n),
+        required: section.required,
+        isScore: section == AuditSection.score,
+        onTap: section == AuditSection.score
+            ? null
+            : () => _openSection(section, visitDraftId),
+      );
+    }
 
     final template = progress.template;
-    return [
+    return <_HubEntry>[
       for (final section in AuditSection.values)
         if (section != AuditSection.score) fixed(section),
       if (template != null)
@@ -298,54 +396,25 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
           required: template.isRequired,
           isScore: false,
           onTap: () => _openTemplateSection(template.template, visitDraftId),
+        )
+      else if (progress.templateCantConfirm != null)
+        _HubEntry(
+          tileKey: 'section-clientQuestions',
+          label: l10n.visitClientQuestions,
+          state: CaptureState.cantConfirm,
+          detail: cantConfirmText(l10n, progress.templateCantConfirm!),
+          required: true,
+          isScore: false,
+          // Nothing to open: the questions are what could not be loaded.
+          onTap: null,
         ),
       fixed(AuditSection.score),
     ];
   }
 
-  Widget _glassHubBody(VisitProgress progress, String visitDraftId) {
-    final entries = _entries(progress, visitDraftId);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-      children: [
-        _GlassProgress(progress: progress),
-        const SizedBox(height: 20),
-        Kicker(context.l10n.visitAuditHeading),
-        const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, box) {
-            final width = (box.maxWidth - 10) / 2;
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final (i, entry) in entries.indexed)
-                  SizedBox(
-                    width: width,
-                    child: Reveal(
-                      index: i,
-                      child: _SectionTile(entry: entry),
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 14),
-        Text(
-          context.l10n.visitAnyOrderHint,
-          style: TextStyle(
-            fontSize: 12.5,
-            color: context.lumen.inkMuted,
-            height: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _hub(Outlet outlet) {
     final visitDraftId = _visitDraftId!;
+    final l10n = context.l10n;
     final progressAsync = ref.watch(
       visitProgressProvider((
         visitDraftId: visitDraftId,
@@ -353,89 +422,382 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       )),
     );
 
-    final l10n = context.l10n;
     return progressAsync.when(
-      loading: () => AgentScaffold(
+      loading: () => VisitFrame(
+        phase: 'hub-loading',
         title: outlet.name,
-        body: const Center(child: CircularProgressIndicator()),
+        facts: <String>[?_inStore(l10n, _checkinTs)],
+        children: const <Widget>[_HubSkeleton()],
       ),
-      error: (err, _) => AgentScaffold(
+      // The chrome renders, the ladder becomes an error line with a retry, and
+      // the submit stays disabled naming why. A hub that cannot read its own
+      // progress must never offer to send it.
+      error: (err, _) => VisitFrame(
+        phase: 'hub-error',
         title: outlet.name,
-        body: Center(child: Text(l10n.visitReadFailed('$err'))),
+        facts: <String>[?_inStore(l10n, _checkinTs)],
+        submit: TorchPrimaryButton(
+          claimId: AuditShellScreen.submitClaimId,
+          label: l10n.visitSubmitButton,
+          onPressed: null,
+          blockedReason: l10n.visitReadFailedBlock,
+        ),
+        children: <Widget>[
+          _Statement(
+            glyph: Icons.link_off,
+            headline: l10n.visitReadFailedTitle,
+            body: l10n.visitReadFailed('$err'),
+            actionLabel: l10n.visitRetry,
+            onAction: () => ref.invalidate(
+              visitProgressProvider((
+                visitDraftId: visitDraftId,
+                outletId: widget.outletId,
+              )),
+            ),
+          ),
+        ],
       ),
       data: (progress) {
-        final colors = context.colors;
         final blocking = _blockingNames(l10n, progress);
         final entries = _entries(progress, visitDraftId);
+        final ready = progress.canSubmit;
+        final skin = context.skin;
 
-        return AgentScaffold(
+        return VisitFrame(
+          phase: ready ? 'ready' : 'blocked',
           title: outlet.name,
-          subtitle: _checkinTs == null ? null : _inStore(l10n, _checkinTs!),
-          bottomAction: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // A blocked action explains itself. A dead end in a shop is a
-              // phone call to the manager.
-              if (blocking.isNotEmpty)
-                BarNote(
-                  l10n.visitFinishToSubmit(
+          facts: <String>[?_inStore(l10n, _checkinTs)],
+          // ARMED or nothing. A disabled primary declares no claim, so a
+          // blocked hub paints zero amber objects — and the census is what
+          // proves that rather than this comment.
+          claimSubmit: ready,
+          submit: TorchPrimaryButton(
+            key: const ValueKey<String>('submit-visit'),
+            claimId: AuditShellScreen.submitClaimId,
+            label: l10n.visitSubmitButton,
+            onPressed: ready ? () => _openSubmitGate(outlet) : null,
+            // The BarNote names every blocker by name, wrapping, never
+            // truncated. A dead end in a shop is a phone call to the office.
+            blockedReason: ready
+                ? null
+                : l10n.visitFinishToSubmit(
                     blocking.reduce((a, b) => l10n.visitSectionsAnd(a, b)),
                   ),
-                ),
-              AgentButton(
-                key: const ValueKey('submit-visit'),
-                label: l10n.visitSubmitButton,
-                onPressed: progress.canSubmit
-                    ? () => _openSubmitGate(outlet)
-                    : null,
-              ),
-            ],
           ),
-          body: colors.glass
-              ? _glassHubBody(progress, visitDraftId)
-              : ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            children: [
-              _Progress(progress: progress),
-              const SizedBox(height: 18),
-              _Heading(l10n.visitAuditHeading),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colors.surface1,
-                  border: Border.all(color: colors.line),
-                  borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-                ),
-                child: Column(
-                  children: [
-                    for (final (i, entry) in entries.indexed)
-                      Reveal(
-                        index: i,
-                        child: _SectionRow(
-                          entry: entry,
-                          last: i == entries.length - 1,
-                        ),
-                      ),
-                  ],
-                ),
+          children: <Widget>[
+            _ReadinessBlock(progress: progress),
+            const SizedBox(height: TiqSpace.s7),
+            // Promoted from meta at the bottom: the agent needs to know this
+            // before they start choosing, not after they have finished.
+            Text(
+              l10n.visitAnyOrderHint,
+              style: skin.text.label.style(color: skin.palette.ink2),
+            ),
+            const SizedBox(height: TiqSpace.s5),
+            SectionRule(l10n.visitAuditHeading),
+            const SizedBox(height: TiqSpace.s5),
+            TorchBleed(
+              extra: skin.space.gutter * 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  for (final (i, entry) in entries.indexed)
+                    _SectionRow(entry: entry, last: i == entries.length - 1),
+                ],
               ),
-              const SizedBox(height: 14),
-              Text(
-                l10n.visitAnyOrderHint,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: colors.ink3,
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
+/// The frame every untabbed visit screen wears.
+///
+/// One shell, one bottom region: the thumb zone, with the skin cycle at the
+/// leading gutter and at most one primary beside it. There is no nav here by
+/// the owner's decision, so `tabbedRoute` is false and the content has two
+/// grants in Night — which every screen in this file spends at most one of.
+class VisitFrame extends StatelessWidget {
+  const VisitFrame({
+    super.key,
+    required this.phase,
+    required this.title,
+    required this.children,
+    this.facts = const <String>[],
+    this.submit,
+    this.secondary,
+    this.claimSubmit = false,
+    this.claimId = AuditShellScreen.submitClaimId,
+    this.pulseId,
+    this.showSyncChip = true,
+  });
+
+  final String phase;
+  final String title;
+  final List<String> facts;
+  final List<Widget> children;
+
+  /// The thumb zone's primary, or null on a screen that has none.
+  final Widget? submit;
+
+  /// The ghost above it. It sits above rather than below because the thumb
+  /// rests at the bottom of the screen and a control that leaves the visit
+  /// must never be the bottom-most thing under it.
+  final Widget? secondary;
+
+  /// Whether the primary is armed. A primary that is disabled declares
+  /// nothing — that is the whole of "a disabled submit emits nothing".
+  final bool claimSubmit;
+
+  final String claimId;
+
+  /// The live pulse, when this screen has one (the locating radar).
+  final String? pulseId;
+
+  /// Suppressed on the check-in screens: nothing has been captured yet, so
+  /// "12 held on this phone" is true but is not about this moment.
+  final bool showSyncChip;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+
+    return TorchScope(
+      skin: skin,
+      phase: phase,
+      navRenders: false,
+      tabbedRoute: false,
+      claims: <TorchClaim>[
+        if (claimSubmit) TorchClaim.primaryCommit(claimId),
+        if (pulseId != null) TorchClaim.livePulse(pulseId!),
+      ],
+      child: TorchShell(
+        profile: TorchShellProfile.agent,
+        header: TorchAppHeader(
+          title: title,
+          facts: facts,
+          flagChips: showSyncChip
+              ? const <Widget>[TorchSyncChip()]
+              : const <Widget>[],
+        ),
+        // Not a tab root, so the cycle sits at the leading end of the thumb
+        // zone — on every screen here including the ones with no primary.
+        // Never a screen without the skin cycle.
+        skinCycle: const AgentSkinCycle(),
+        primary: submit,
+        secondary: secondary,
+        children: children,
+      ),
+    );
+  }
+}
+
+/// THE READINESS BLOCK — "5 / 8", and what is still needed, in words.
+class _ReadinessBlock extends StatelessWidget {
+  const _ReadinessBlock({required this.progress});
+
+  final VisitProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final done = progress.doneCount;
+    final total = progress.captureCount;
+    final blocking = progress.blockingCount;
+    final unconfirmed = progress.cantConfirmCount;
+    final ready = blocking == 0;
+
+    return Semantics(
+      container: true,
+      label: l10n.visitReadinessSemantics(done, total, blocking),
+      excludeSemantics: true,
+      child: Container(
+        key: const ValueKey<String>('visit-progress'),
+        padding: const EdgeInsets.all(TiqSpace.s4),
+        decoration: BoxDecoration(
+          color: skin.palette.surface,
+          borderRadius: BorderRadius.circular(skin.radii.panel),
+          border: Border.all(
+            color: skin.palette.edgeStructure,
+            width: skin.depth.borderWidth,
+          ),
+          boxShadow: skin.depth.shadows,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Eyebrow(l10n.visitSectionsCaptured),
+            const SizedBox(height: TiqSpace.s3),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: TiqSpace.s3,
+              runSpacing: TiqSpace.s2,
+              children: <Widget>[
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    FigureSlot(value: done, role: skin.text.figureL),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: TiqSpace.s1),
+                      child: Text(
+                        '/$total',
+                        style: skin.text.figureM.style(color: skin.palette.ink3),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: TiqSpace.s1),
+                  child: StatusChip(
+                    level: ready ? StatusLevel.onTarget : StatusLevel.watch,
+                    label: ready
+                        ? l10n.visitReadyToSubmit
+                        : l10n.visitStillRequired(blocking),
+                  ),
+                ),
+              ],
+            ),
+            if (unconfirmed > 0) ...<Widget>[
+              const SizedBox(height: TiqSpace.s2),
+              Text(
+                // Two facts, not one figure. A section nobody could measure is
+                // not a section somebody skipped.
+                l10n.visitCantConfirmCount(unconfirmed),
+                style: skin.text.meta.style(color: skin.palette.ink2),
+              ),
+            ],
+            const SizedBox(height: TiqSpace.s4),
+            Meter(
+              value: total == 0 ? 0 : done / total * 100,
+              semanticsValue: l10n.visitReadinessSemantics(
+                done,
+                total,
+                blocking,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One entry on the hub — a fixed section, the client's questions (#122), or
+/// the score.
+class _HubEntry {
+  const _HubEntry({
+    required this.tileKey,
+    required this.label,
+    required this.state,
+    required this.detail,
+    required this.required,
+    required this.isScore,
+    required this.onTap,
+  });
+
+  final String tileKey;
+  final String label;
+  final CaptureState state;
+  final String? detail;
+
+  /// Whether the submit waits on it.
+  final bool required;
+  final bool isScore;
+  final VoidCallback? onTap;
+}
+
+class _SectionRow extends StatelessWidget {
+  const _SectionRow({required this.entry, required this.last});
+
+  final _HubEntry entry;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+
+    // THE SCORE ROW. A result, not a form: a barred-ring tile, an em dash, no
+    // chevron, no tap — and NOT at reduced opacity, because opacity is banned
+    // as a state channel and a dimmed row reads as a disabled one.
+    if (entry.isScore) {
+      return SoftRow(
+        key: ValueKey<String>(entry.tileKey),
+        title: entry.label,
+        subtitle: l10n.visitScoreCalculatedOnSubmit,
+        leading: const RowMarkTile(mark: RowMark.barredRing),
+        trailing: Text(
+          emDash,
+          style: skin.text.figureM.style(color: skin.palette.ink3),
+        ),
+        separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+        semanticsLabel: l10n.visitScoreSemantics(entry.label),
+      );
+    }
+
+    final state = torchStateOf(entry.state);
+    final showRequired = entry.required && entry.state != CaptureState.done;
+    final detail =
+        entry.detail ??
+        (entry.required
+            ? l10n.visitSectionNotStarted
+            : l10n.visitSectionOptional);
+
+    return SoftRow(
+      key: ValueKey<String>(entry.tileKey),
+      title: entry.label,
+      subtitle: detail,
+      leading: SectionStateGlyph(state: state, required_: showRequired),
+      // The REQUIRED badge sits under the name. Crimson at the outlined
+      // commitment level plus a silhouette plus the word — a standing fact
+      // about the row, and never carried by the hue alone.
+      meta: showRequired
+          ? Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: StatusChip(
+                level: StatusLevel.watch,
+                label: l10n.visitRequiredToSubmitBadge,
+              ),
+            )
+          : null,
+      trailing: entry.onTap == null ? null : const SoftRowChevron(),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: l10n.visitSectionSemantics(
+        entry.label,
+        SectionStateToken.of(skin, state).word,
+        detail,
+      ),
+      onTap: entry.onTap,
+    );
+  }
+}
+
+/// The data layer's [CaptureState] as the design system's four silhouettes.
+SectionState torchStateOf(CaptureState state) => switch (state) {
+  CaptureState.notStarted => SectionState.notStarted,
+  CaptureState.partial => SectionState.inProgress,
+  CaptureState.done => SectionState.done,
+  CaptureState.cantConfirm => SectionState.cantConfirm,
+};
+
+/// Why a section could not be confirmed, in the agent's language.
+String cantConfirmText(AppLocalizations l10n, CantConfirmReason reason) =>
+    switch (reason) {
+      CantConfirmReason.productListUnavailable => l10n.visitCantConfirmProducts,
+      CantConfirmReason.clientTemplateUnavailable =>
+        l10n.visitCantConfirmTemplate,
+    };
+
 /// A section, full screen, with its own way back to the hub.
+///
+/// Still [AgentScaffold], deliberately: the section forms are the stock
+/// counter, the photo capture and the trough inputs, and all three are Phase 2
+/// components another workstream owns. A Torchlight frame around a Lumen form
+/// is worse than either, so the frame moves when the fields do.
 class _SectionScreen extends StatelessWidget {
   const _SectionScreen({required this.title, required this.child});
 
@@ -461,334 +823,14 @@ class _SectionScreen extends StatelessWidget {
   }
 }
 
-class _Progress extends StatelessWidget {
-  const _Progress({required this.progress});
-
-  final VisitProgress progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final done = progress.doneCount;
-    final total = progress.captureCount;
-    final blocking = progress.blockingCount;
-    final ready = blocking == 0;
-
-    // The arrival moment reads as the console's washed "glass" hero — a
-    // heroWash→surface1 gradient under the hero hairline — not a flat card.
-    return PanelCard(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [colors.heroWash, colors.surface1],
-      ),
-      borderColor: colors.heroBorder,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Row(
-                  key: const ValueKey('visit-progress'),
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // The count rolls up as sections land — nine small wins a
-                    // visit, each one visible. It is the biggest figure here.
-                    AnimatedCount(
-                      value: done,
-                      style: TextStyle(
-                        fontSize: 31,
-                        fontWeight: FontWeight.w700,
-                        height: 1,
-                        color: colors.ink1,
-                      ),
-                    ),
-                    Flexible(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 3),
-                        child: Text(
-                          context.l10n.visitProgressOfSections(total),
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: colors.ink2,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              _StatusPill(
-                label: ready
-                    ? context.l10n.visitReadyToSubmit
-                    : context.l10n.visitStillRequired(blocking),
-                ready: ready,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: total == 0 ? 0 : done / total),
-              duration: reduceMotion(context) ? Duration.zero : Motion.slow,
-              curve: Motion.enter,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 6,
-                backgroundColor: colors.surface3,
-                valueColor: AlwaysStoppedAnimation(
-                  // The bar turns green the moment the visit is submittable —
-                  // "you can go" said in colour, before it is said in words.
-                  ready ? colors.good : colors.series1,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A status token composited to an OPAQUE 12% wash over surface1 — the shared
-/// ground for the ready / REQUIRED / distance pills. Opaque, rather than a
-/// translucent self-tint over a varying ground, is precisely what lets each
-/// pill's text tint clear 4.5:1 in both themes.
-Color _wash(TiqColors colors, Color token) =>
-    Color.alphaBlend(token.withValues(alpha: 0.12), colors.surface1);
-
-/// The submit-readiness verdict — words on a wash, never colour alone. Ready
-/// takes a good wash; blocked, a neutral chip. Because the good wash is
-/// composited to an opaque tint over surface1 (see [_wash]), the good token
-/// reads ≥4.5:1 as text on it. Today's `_StatusPill` reaches the same AA floor
-/// with fixed hexes instead; reconciling the two into one shared widget is
-/// tracked in #214.
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.ready});
-
-  final String label;
-  final bool ready;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final good = LumenStatus.good.swatchOf(colors);
-    final bg = ready
-        ? (colors.glass
-              ? Color.alphaBlend(good.tint, colors.surface1)
-              : _wash(colors, colors.good))
-        : colors.surface2;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: ready ? (colors.glass ? good.ink : colors.good) : colors.ink3,
-        ),
-      ),
-    );
-  }
-}
-
-class _Heading extends StatelessWidget {
-  const _Heading(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.9,
-          color: context.colors.ink3,
-        ),
-      ),
-    );
-  }
-}
-
-/// One entry on the hub — a fixed section, or the client's questions (#122) —
-/// with everything its row or tile needs to draw it.
-class _HubEntry {
-  const _HubEntry({
-    required this.tileKey,
-    required this.label,
-    required this.state,
-    required this.detail,
-    required this.required,
-    required this.isScore,
-    required this.onTap,
-  });
-
-  final String tileKey;
-  final String label;
-  final SectionState state;
-  final String? detail;
-
-  /// Whether the submit waits on it.
-  final bool required;
-  final bool isScore;
-  final VoidCallback? onTap;
-}
-
-class _SectionRow extends StatelessWidget {
-  const _SectionRow({required this.entry, required this.last});
-
-  final _HubEntry entry;
-  final bool last;
-
-  SectionState get state => entry.state;
-  String? get detail => entry.detail;
-  VoidCallback? get onTap => entry.onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final isScore = entry.isScore;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: ValueKey(entry.tileKey),
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            border: last
-                ? null
-                : Border(bottom: BorderSide(color: colors.line)),
-          ),
-          child: Opacity(
-            opacity: isScore ? 0.7 : 1,
-            child: Row(
-              children: [
-                _StateMark(state: state, isScore: isScore),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        entry.label,
-                        style: TextStyle(fontSize: 15, color: colors.ink1),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        isScore
-                            ? context.l10n.visitScoreCalculatedOnSubmit
-                            : detail ??
-                                  (entry.required
-                                      ? context.l10n.visitSectionNotStarted
-                                      : context.l10n.visitSectionOptional),
-                        style: TextStyle(fontSize: 12, color: colors.ink3),
-                      ),
-                      if (entry.required && state != SectionState.done)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 5),
-                          // critText on an opaque crit wash: raw crit-on-crit
-                          // fails AA in dark; critText carries the words.
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _wash(colors, colors.crit),
-                              borderRadius: BorderRadius.circular(
-                                AppColors.radiusControl,
-                              ),
-                            ),
-                            child: Text(
-                              context.l10n.visitRequiredToSubmitBadge,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                                color: colors.critText,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (onTap != null)
-                  Icon(Icons.chevron_right, size: 18, color: colors.ink3),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// State is a shape *and* a colour — readable in glare, in greyscale, and under
-/// colour-vision deficiency.
-class _StateMark extends StatelessWidget {
-  const _StateMark({required this.state, required this.isScore});
-
-  final SectionState state;
-  final bool isScore;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (isScore) {
-      return SizedBox(
-        width: 22,
-        height: 22,
-        child: Center(
-          child: Text('—', style: TextStyle(color: colors.ink3)),
-        ),
-      );
-    }
-
-    // Done draws its tick; the other two are static marks. Completing a section
-    // is the small win the agent gets nine times a visit — it should land, not
-    // blink into existence.
-    if (state == SectionState.done) {
-      return TickMark(done: true, color: colors.good);
-    }
-
-    final color = state == SectionState.partial ? colors.warn : colors.ink3;
-
-    return AnimatedContainer(
-      duration: reduceMotion(context) ? Duration.zero : Motion.base,
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: color, width: 1.5),
-      ),
-      child: state == SectionState.partial
-          ? Icon(Icons.more_horiz, size: 13, color: color)
-          : null,
-    );
-  }
-}
-
 // ── Check-in states ────────────────────────────────────────────────────────
 
+/// LOCATING. Waiting for a fix in a way that says *we are looking for you*,
+/// not *something is happening*.
+///
+/// There is no primary action while waiting and the zone does not pretend
+/// there is: the skin cycle and a real escape, and nothing else. With no
+/// primary, a screen-reader user's last stop is a way out.
 class _CheckingIn extends StatelessWidget {
   const _CheckingIn({required this.outlet});
 
@@ -796,464 +838,475 @@ class _CheckingIn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return AgentScaffold(
+    final l10n = context.l10n;
+    final skin = context.skin;
+
+    return VisitFrame(
+      phase: 'locating',
       title: outlet.name,
-      subtitle: outlet.code,
+      facts: <String>[outlet.code],
       showSyncChip: false,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // A radar, not a spinner. A spinner says "something is happening";
-              // this says "we are looking for you", which is what waiting for a
-              // GPS fix actually is.
-              colors.glass
-                  ? const _GlassBeacon(child: _LocatingRadar())
-                  : const _LocatingRadar(),
-              const SizedBox(height: 22),
-              Text(
-                context.l10n.visitCheckInFinding,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: colors.ink1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                context.l10n.visitCheckInWithinHint,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  color: colors.ink2,
-                  height: 1.5,
-                ),
-              ),
-            ],
+      pulseId: AuditShellScreen.locatingClaimId,
+      secondary: TorchSecondaryButton(
+        label: l10n.visitBackToRoute,
+        onPressed: () => context.go('/today'),
+      ),
+      children: <Widget>[
+        Semantics(
+          liveRegion: true,
+          label: l10n.visitCheckInFinding,
+          child: const SizedBox(width: double.infinity, height: 0),
+        ),
+        const CheckInRadar(
+          claimId: AuditShellScreen.locatingClaimId,
+          stalled: false,
+        ),
+        const SizedBox(height: TiqSpace.s6),
+        Semantics(
+          header: true,
+          child: Text(
+            l10n.visitCheckInFinding,
+            style: displayFor(
+              context,
+              l10n.visitCheckInFinding,
+            ).style(color: skin.palette.ink1),
           ),
         ),
-      ),
+        const SizedBox(height: TiqSpace.s3),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Text(
+            l10n.visitCheckInWithinHint,
+            style: skin.text.body.style(color: skin.palette.ink2),
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// The geofence failure. It used to be a bare sentence with a "Back to outlets"
-/// button — a dead end. It now shows the measured distance against the
-/// threshold, offers a way forward, and is honest that hammering retry from far
-/// away is itself a fraud signal (it is: `failed_attempts` carries up to 25
-/// risk points, and every attempt is recorded server-side).
-class _TooFar extends StatelessWidget {
+/// TOO FAR. How far away the agent actually is, and what retrying from the car
+/// park actually costs.
+class _TooFar extends ConsumerWidget {
   const _TooFar({
     required this.outlet,
     required this.distanceMeters,
+    required this.attempts,
     required this.onRetry,
   });
 
   final Outlet outlet;
   final double distanceMeters;
+  final int attempts;
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    return AgentScaffold(
+    final skin = context.skin;
+    final metres = distanceMeters.round();
+    final reported =
+        ref.watch(pinReportsProvider).valueOrNull?.contains(outlet.id) ?? false;
+
+    return VisitFrame(
+      phase: 'too-far',
       title: outlet.name,
-      subtitle: outlet.code,
+      facts: <String>[outlet.code],
       showSyncChip: false,
-      bottomAction: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AgentButton(
-            key: const ValueKey('checkin-retry'),
-            label: l10n.visitRetry,
-            onPressed: onRetry,
-          ),
-          const SizedBox(height: 8),
-          AgentButton(
-            label: l10n.visitBackToRoute,
-            secondary: true,
-            onPressed: () => context.go('/audit'),
-          ),
-        ],
-      ),
-      // Centred, but scrollable: with the glass stage and two actions below,
-      // a short phone would otherwise clip the fraud-signal note.
-      body: Center(
-        child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            colors.glass
-                ? _GlassBeacon(
-                    crit: true,
-                    child: Icon(
-                      Icons.location_off_outlined,
-                      size: 48,
-                      color: LumenStatus.crit.swatchOf(colors).ink,
-                    ),
-                  )
-                : Icon(Icons.location_off_outlined, size: 52, color: colors.crit),
-            const SizedBox(height: 20),
-            Text(
-              l10n.visitTooFarTitle,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: colors.ink1,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.visitTooFarBody,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: colors.ink2, height: 1.5),
-            ),
-            const SizedBox(height: 18),
-            Container(
-              key: const ValueKey('checkin-distance'),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              // critText on an opaque crit wash — the measured distance is the
-              // most important thing on this screen, so it must clear AA (raw
-              // crit-on-crit does not in dark).
-              decoration: BoxDecoration(
-                color: colors.glass
-                    ? Color.alphaBlend(
-                        LumenStatus.crit.swatchOf(colors).tint,
-                        colors.surface1,
-                      )
-                    : _wash(colors, colors.crit),
-                border: Border.all(
-                  color: colors.glass
-                      ? LumenStatus.crit.swatchOf(colors).rim
-                      : colors.crit.withValues(alpha: 0.4),
-                ),
-                borderRadius: BorderRadius.circular(colors.radiusControl),
-              ),
-              child: Text(
-                l10n.visitTooFarDistance(distanceMeters.round()),
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: colors.glass
-                      ? LumenStatus.crit.swatchOf(colors).ink
-                      : colors.critText,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              l10n.visitTooFarFraudNote,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.5),
-            ),
-          ],
-        ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NoLocation extends StatelessWidget {
-  const _NoLocation({
-    required this.outlet,
-    required this.message,
-    required this.onRetry,
-  });
-
-  final Outlet outlet;
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return AgentScaffold(
-      title: outlet.name,
-      subtitle: outlet.code,
-      showSyncChip: false,
-      bottomAction: AgentButton(
-        key: const ValueKey('checkin-retry'),
-        label: context.l10n.visitRetry,
+      claimSubmit: true,
+      claimId: AuditShellScreen.retryClaimId,
+      submit: TorchPrimaryButton(
+        key: const ValueKey<String>('checkin-retry'),
+        claimId: AuditShellScreen.retryClaimId,
+        label: l10n.visitRetry,
         onPressed: onRetry,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.gps_off_outlined, size: 52, color: colors.warn),
-            const SizedBox(height: 20),
-            Text(
-              context.l10n.visitNoLocationTitle,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: colors.ink1,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: colors.ink2, height: 1.5),
-            ),
-          ],
-        ),
+      secondary: TorchSecondaryButton(
+        label: l10n.visitBackToRoute,
+        onPressed: () => context.go('/today'),
       ),
-    );
-  }
-}
-
-/// The visit could not be started, for a reason that is not about location.
-///
-/// Distinct from [_NoLocation] on purpose: telling an agent to move or to
-/// check their GPS when the real fault is a database that will not open sends
-/// them walking around the car park for nothing. This screen says the app
-/// failed, not that they did.
-class _CheckInFailed extends StatelessWidget {
-  const _CheckInFailed({
-    required this.outlet,
-    required this.message,
-    required this.onRetry,
-  });
-
-  final Outlet outlet;
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final l10n = context.l10n;
-    return AgentScaffold(
-      title: outlet.name,
-      subtitle: outlet.code,
-      showSyncChip: false,
-      bottomAction: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AgentButton(
-            key: const ValueKey('checkin-retry'),
-            label: l10n.visitRetry,
-            onPressed: onRetry,
+      children: <Widget>[
+        Eyebrow(l10n.visitCheckInEyebrow),
+        const SizedBox(height: TiqSpace.s3),
+        Semantics(
+          header: true,
+          child: Text(
+            l10n.visitTooFarTitle,
+            style: displayFor(
+              context,
+              l10n.visitTooFarTitle,
+            ).style(color: skin.palette.ink1),
           ),
-          const SizedBox(height: 8),
-          AgentButton(
-            label: l10n.visitBackToRoute,
-            secondary: true,
-            onPressed: () => context.go('/audit'),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 52, color: colors.crit),
-            const SizedBox(height: 20),
-            Text(
-              l10n.visitCheckInFailedTitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: colors.ink1,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: colors.ink2, height: 1.5),
-            ),
-            const SizedBox(height: 18),
-            // Nothing was captured yet, so nothing can have been lost. Saying
-            // so is the difference between retrying and giving up on the shop.
-            Text(
-              l10n.visitCheckInFailedNothingLost,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.5),
-            ),
-          ],
         ),
-      ),
-    );
-  }
-}
+        const SizedBox(height: TiqSpace.s6),
 
-/// Concentric rings sweeping outward while we wait for a GPS fix.
-///
-/// This is the one place a longer, looping animation earns its keep: the agent
-/// is standing still, waiting, and the app has to show it is working. It stops
-/// the moment we have a fix.
-class _LocatingRadar extends StatefulWidget {
-  const _LocatingRadar();
+        // THE MEASURED DISTANCE as the hero.
+        _DistanceHero(metres: metres),
 
-  @override
-  State<_LocatingRadar> createState() => _LocatingRadarState();
-}
-
-class _LocatingRadarState extends State<_LocatingRadar>
-    with SingleTickerProviderStateMixin {
-  // Eager, not `late final`: a lazily-created controller would first be built by
-  // dispose() whenever build skipped it (reduced motion), and constructing a
-  // Ticker against a dead element throws.
-  late AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ping = context.colors.series1;
-    final pin = Icon(Icons.location_on_outlined, size: 40, color: ping);
-
-    if (reduceMotion(context)) {
-      return SizedBox(width: 120, height: 120, child: Center(child: pin));
-    }
-
-    return SizedBox(
-      width: 120,
-      height: 120,
-      child: AnimatedBuilder(
-        animation: _c,
-        builder: (context, child) => Stack(
-          alignment: Alignment.center,
-          children: [
-            // Two rings, half a cycle apart, so there is always one in flight.
-            for (final offset in [0.0, 0.5])
-              _Ring(t: (_c.value + offset) % 1.0, color: ping),
-            child!,
-          ],
+        const SizedBox(height: TiqSpace.s6),
+        Text(
+          // First and second attempt: the fact, with no threat attached. The
+          // penalty sentence arrives on the third, which is where the penalty
+          // actually starts — the app stops encouraging the behaviour at the
+          // same moment it starts charging for it.
+          attempts >= 2
+              ? l10n.visitTooFarFraudNote
+              : l10n.visitTooFarAttemptsRecorded,
+          style: skin.text.meta.style(color: skin.palette.ink3),
         ),
-        child: pin,
-      ),
-    );
-  }
-}
+        const SizedBox(height: TiqSpace.s6),
 
-class _Ring extends StatelessWidget {
-  const _Ring({required this.t, required this.color});
-
-  final double t;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40 + 80 * t,
-      height: 40 + 80 * t,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: color.withValues(alpha: 0.45 * (1 - t)),
-          width: 1.5,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Lumen Glass hub parts ─────────────────────────────────────────────────
-
-/// "n/8 SECTIONS CAPTURED", the readiness pill, and an accent bar that turns
-/// green the moment the visit can be submitted.
-class _GlassProgress extends StatelessWidget {
-  const _GlassProgress({required this.progress});
-
-  final VisitProgress progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final done = progress.doneCount;
-    final total = progress.captureCount;
-    final blocking = progress.blockingCount;
-    final ready = blocking == 0;
-
-    return GlassPane(
-      radius: LumenGlass.radiusCard,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        // THE THIRD, QUIETER ACTION (#386). An agent standing at the front
+        // door of a shop the app says is 180 m away is telling us something
+        // true. There is nowhere to send it yet, so it is recorded on the
+        // phone and the screen says exactly that — never "we'll look into it".
+        if (reported)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
+            key: const ValueKey<String>('pin-reported'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const RowMarkTile(mark: RowMark.square),
+              const SizedBox(width: TiqSpace.s3),
               Expanded(
-                child: Row(
-                  key: const ValueKey('visit-progress'),
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    AnimatedCount(value: done, style: LumenGlass.hero(color: context.lumen.ink, size: 40)),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        '/$total',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                          color: context.lumen.inkMuted,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Flexible(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 7),
-                        child: Kicker(
-                          context.l10n.visitSectionsCaptured,
-                          size: 9.5,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  l10n.visitPinReportedHeld,
+                  style: skin.text.body.style(color: skin.palette.ink2),
                 ),
               ),
-              const SizedBox(width: 8),
-              _StatusPill(
-                label: ready
-                    ? context.l10n.visitReadyToSubmit
-                    : context.l10n.visitStillRequired(blocking),
-                ready: ready,
+            ],
+          )
+        else
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchTertiaryButton(
+              key: const ValueKey<String>('pin-is-wrong'),
+              label: l10n.visitPinIsWrong,
+              onPressed: () =>
+                  ref.read(pinReportsProvider.notifier).report(outlet.id),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The distance, as the one thing this screen is about.
+///
+/// The FIGURE is ink-1. A severity-coded figure at 56px is a hue doing a
+/// number's job — the severity is the 3px bar, the filled triangle and the
+/// sentence, all three of which survive greyscale.
+class _DistanceHero extends StatelessWidget {
+  const _DistanceHero({required this.metres});
+
+  final int metres;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+
+    return Semantics(
+      container: true,
+      label: l10n.visitTooFarSemantics(metres),
+      excludeSemantics: true,
+      child: Container(
+        key: const ValueKey<String>('checkin-distance'),
+        decoration: BoxDecoration(
+          color: skin.palette.surface,
+          borderRadius: BorderRadius.circular(skin.radii.panel),
+          border: Border.all(
+            color: skin.palette.edgeStructure,
+            width: skin.depth.borderWidth,
+          ),
+          boxShadow: skin.depth.shadows,
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              SizedBox(
+                width: skin.mode == SkinMode.veld ? 4 : 3,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: skin.palette.bad,
+                    borderRadius: BorderRadius.horizontal(
+                      left: Radius.circular(skin.radii.panel),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(TiqSpace.s4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          TiqMark(
+                            shape: MarkShape.criticalTriangle,
+                            color: skin.palette.bad,
+                            size: MarkScale.glyph(context, 12),
+                          ),
+                          const SizedBox(width: TiqSpace.s2),
+                          Eyebrow(l10n.visitCheckInEyebrow),
+                        ],
+                      ),
+                      const SizedBox(height: TiqSpace.s3),
+                      FigureSlot(
+                        value: metres,
+                        role: skin.text.heroFigureCompact,
+                        fit: <TiqTypeToken>[
+                          skin.text.heroFigureCompact,
+                          skin.text.display,
+                          skin.text.figureL,
+                        ],
+                        unit: TiqUnit.worded(l10n.unitMetres),
+                        semanticsLabel: l10n.visitTooFarSemantics(metres),
+                      ),
+                      const SizedBox(height: TiqSpace.s3),
+                      Text(
+                        metres < 80
+                            ? l10n.visitTooFarClose
+                            : metres > 2000
+                            ? l10n.visitTooFarWrongStore
+                            : l10n.visitTooFarNeedWithin(metres),
+                        style: skin.text.body.style(color: skin.palette.ink2),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: total == 0 ? 0 : done / total),
-              duration: reduceMotion(context) ? Duration.zero : LumenGlass.progress,
-              curve: LumenGlass.riseCurve,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 8,
-                backgroundColor: context.lumen.track,
-                valueColor: AlwaysStoppedAnimation(
-                  ready ? LumenStatus.good.swatchOf(colors).fill : context.lumen.accent,
-                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// NO GPS. "Your phone cannot see the sky" is not "you are in the wrong
+/// place", and the fix is different.
+class _NoGps extends StatelessWidget {
+  const _NoGps({
+    required this.outlet,
+    required this.message,
+    required this.problem,
+    required this.onRetry,
+  });
+
+  final Outlet outlet;
+  final String message;
+  final CheckInLocationProblem? problem;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    // The fix, as its own paragraph, per cause. "Open settings" as a real deep
+    // link is a follow-up — there is no settings channel on this codebase
+    // today, and "go to settings" with no link is an instruction, not a fix —
+    // so the primary is the retry the app can actually perform. See the PR.
+    final fix = switch (problem) {
+      CheckInLocationProblem.permissionDenied => l10n.visitNoGpsFixPermission,
+      CheckInLocationProblem.servicesDisabled => l10n.visitNoGpsFixServices,
+      CheckInLocationProblem.timedOut => l10n.visitNoGpsFixTimedOut,
+      CheckInLocationProblem.failed || null => l10n.visitNoGpsFixGeneric,
+    };
+
+    return VisitFrame(
+      phase: 'no-gps',
+      title: outlet.name,
+      facts: <String>[outlet.code],
+      showSyncChip: false,
+      claimSubmit: true,
+      claimId: AuditShellScreen.retryClaimId,
+      submit: TorchPrimaryButton(
+        key: const ValueKey<String>('checkin-retry'),
+        claimId: AuditShellScreen.retryClaimId,
+        label: l10n.visitRetry,
+        onPressed: onRetry,
+      ),
+      secondary: TorchSecondaryButton(
+        label: l10n.visitBackToRoute,
+        onPressed: () => context.go('/today'),
+      ),
+      children: <Widget>[
+        // A line drawing, never a warning triangle: this is a missing
+        // capability, not a severity, and it is never red.
+        ExcludeSemantics(
+          child: Icon(
+            Icons.satellite_alt_outlined,
+            size: 64,
+            color: skin.palette.edgeControl,
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+        Semantics(
+          header: true,
+          child: Text(
+            l10n.visitNoLocationTitle,
+            style: displayFor(
+              context,
+              l10n.visitNoLocationTitle,
+            ).style(color: skin.palette.ink1),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s3),
+        // Reason and fix are separate paragraphs, so a reader can get the fix
+        // without re-hearing the diagnosis.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Text(
+            message,
+            style: skin.text.body.style(color: skin.palette.ink2),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s3),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Text(
+            fix,
+            style: skin.text.body.style(color: skin.palette.ink2),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+        Text(
+          l10n.visitCheckInFailedNothingLost,
+          style: skin.text.meta.style(color: skin.palette.ink3),
+        ),
+      ],
+    );
+  }
+}
+
+/// SOMETHING ELSE. The app failed, not the agent — and the failure is
+/// reportable.
+class _SomethingElse extends StatelessWidget {
+  const _SomethingElse({
+    required this.outlet,
+    required this.reason,
+    required this.failedAt,
+    required this.onRetry,
+  });
+
+  final Outlet outlet;
+  final HumanError reason;
+  final DateTime? failedAt;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+    final at = failedAt;
+    final code = 'checkin/${reason.name}${at == null ? '' : ' · ${_hhmm(at)}'}';
+
+    return VisitFrame(
+      phase: 'check-in-failed',
+      title: outlet.name,
+      facts: <String>[outlet.code],
+      showSyncChip: false,
+      claimSubmit: true,
+      claimId: AuditShellScreen.retryClaimId,
+      submit: TorchPrimaryButton(
+        key: const ValueKey<String>('checkin-retry'),
+        claimId: AuditShellScreen.retryClaimId,
+        label: l10n.visitRetry,
+        onPressed: onRetry,
+      ),
+      secondary: TorchSecondaryButton(
+        label: l10n.visitBackToRoute,
+        onPressed: () => context.go('/today'),
+      ),
+      children: <Widget>[
+        ExcludeSemantics(
+          child: Icon(Icons.link_off, size: 64, color: skin.palette.edgeControl),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+        Semantics(
+          header: true,
+          child: Text(
+            l10n.visitCheckInFailedTitle,
+            style: displayFor(
+              context,
+              l10n.visitCheckInFailedTitle,
+            ).style(color: skin.palette.ink1),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s3),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Text(
+            // The humanised message, never a stack trace.
+            reason.message(l10n),
+            style: skin.text.body.style(color: skin.palette.ink2),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s4),
+        // The one thing an agent can do for a failure they cannot fix is tell
+        // someone precisely.
+        _CodeBlock(code: code),
+        const SizedBox(height: TiqSpace.s6),
+        Text(
+          // The difference between retrying and giving up on the shop.
+          l10n.visitCheckInFailedNothingLost,
+          style: skin.text.meta.style(color: skin.palette.ink3),
+        ),
+      ],
+    );
+  }
+
+  static String _hhmm(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+}
+
+class _CodeBlock extends StatelessWidget {
+  const _CodeBlock({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+    return Container(
+      key: const ValueKey<String>('checkin-error-code'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: TiqSpace.s3,
+        vertical: TiqSpace.s2,
+      ),
+      decoration: BoxDecoration(
+        // Veld's `well` is white and its border is 2px #1B2632, so the block
+        // loses its fill and gains an edge without a branch here.
+        color: skin.palette.well,
+        borderRadius: BorderRadius.circular(skin.radii.control),
+        border: Border.all(
+          color: skin.palette.edgeStructure,
+          width: skin.depth.borderWidth,
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Semantics(
+              // Spelled character by character: a machine code read as a word
+              // is a code nobody can repeat down a phone.
+              label: l10n.visitErrorCodeSemantics(code.split('').join(' ')),
+              excludeSemantics: true,
+              child: Text(
+                code,
+                style: skin.text.monoIdent.style(color: skin.palette.ink2),
               ),
             ),
+          ),
+          const SizedBox(width: TiqSpace.s2),
+          TorchTertiaryButton(
+            label: l10n.visitCopyCode,
+            semanticLabel: l10n.visitCopyCodeSemantics,
+            onPressed: () => Clipboard.setData(ClipboardData(text: code)),
           ),
         ],
       ),
@@ -1261,156 +1314,92 @@ class _GlassProgress extends StatelessWidget {
   }
 }
 
-/// One audit section as a glass tile: its state as a glyph in a status tile,
-/// REQ while it still blocks the submit, then its name and what it holds.
-class _SectionTile extends StatelessWidget {
-  const _SectionTile({required this.entry});
+/// A drawing, a headline, a sentence and a way on. The whole-screen statement
+/// grammar: left-aligned to the gutter, never centred, and no animation.
+class _Statement extends StatelessWidget {
+  const _Statement({
+    required this.glyph,
+    required this.headline,
+    required this.body,
+    this.actionLabel,
+    this.onAction,
+  });
 
-  final _HubEntry entry;
-
-  SectionState get state => entry.state;
-  String? get detail => entry.detail;
-  VoidCallback? get onTap => entry.onTap;
+  final IconData glyph;
+  final String headline;
+  final String body;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    final isScore = entry.isScore;
-    final (status, glyph) = isScore
-        ? (LumenStatus.none, '—')
-        : switch (state) {
-            SectionState.done => (LumenStatus.good, '✓'),
-            SectionState.partial => (LumenStatus.warn, '◐'),
-            _ => (LumenStatus.none, '○'),
-          };
-    final required = entry.required && state != SectionState.done;
+    final skin = context.skin;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        ExcludeSemantics(
+          child: Icon(glyph, size: 64, color: skin.palette.edgeControl),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+        Semantics(
+          header: true,
+          child: Text(
+            headline,
+            style: displayFor(context, headline).style(color: skin.palette.ink1),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s3),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Text(
+            body,
+            style: skin.text.body.style(color: skin.palette.ink2),
+          ),
+        ),
+        if (actionLabel != null && onAction != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s6),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchSecondaryButton(
+              label: actionLabel!,
+              onPressed: onAction,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: ValueKey(entry.tileKey),
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(LumenGlass.radiusCard),
-        child: Opacity(
-          opacity: isScore ? 0.7 : 1,
-          child: GlassPane(
-            kind: GlassKind.tile,
-            blur: false,
-            radius: LumenGlass.radiusCard,
-            padding: const EdgeInsets.all(14),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 80),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      StatusTile(
-                        status: status,
-                        glyph: glyph,
-                        size: 28,
-                        radius: 10,
-                      ),
-                      const Spacer(),
-                      if (required) const _ReqPill(),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    entry.label,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      height: 1.25,
-                      fontWeight: FontWeight.w600,
-                      color: context.lumen.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    isScore
-                        ? context.l10n.visitScoreCalculatedOnSubmit
-                        : detail ??
-                              (entry.required
-                                  ? context.l10n.visitSectionNotStarted
-                                  : context.l10n.visitSectionOptional),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      height: 1.35,
-                      color: context.lumen.inkMuted,
-                    ),
-                  ),
-                ],
-              ),
+/// The skeleton: the real geometry, empty. Not a spinner.
+class _HubSkeleton extends StatelessWidget {
+  const _HubSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Container(
+          height: 140,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(skin.radii.panel),
+            border: Border.all(
+              color: skin.palette.edgeStructure,
+              width: skin.depth.borderWidth,
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// "REQ" — the section still blocks the submit. An opaque crit wash so the
-/// word clears AA on its own; a screen reader hears the whole phrase.
-class _ReqPill extends StatelessWidget {
-  const _ReqPill();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final crit = LumenStatus.crit.swatchOf(colors);
-    return Semantics(
-      label: context.l10n.visitRequiredToSubmit,
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-        decoration: BoxDecoration(
-          color: Color.alphaBlend(crit.tint, colors.surface1),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: crit.rim),
-        ),
-        child: Text(
-          context.l10n.visitRequiredShort,
-          style: TextStyle(
-            fontFamily: LumenGlass.mono,
-            fontSize: 8.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.85,
-            color: crit.ink,
+        const SizedBox(height: TiqSpace.s7),
+        for (var i = 0; i < 5; i++) ...<Widget>[
+          SizedBox(
+            height: TiqSpace.s5,
+            child: ColoredBox(color: skin.palette.edgeStructure),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The check-in stage: a breathing bloom, a round pane of glass, and the mark
-/// on top — accent while looking, crit when too far.
-class _GlassBeacon extends StatelessWidget {
-  const _GlassBeacon({required this.child, this.crit = false});
-
-  final Widget child;
-  final bool crit;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: 216,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          GlassBloom(
-            diameter: 216,
-            color: crit ? const Color(0xFFB3261E) : const Color(0xFF9184D9),
-            strength: crit ? 0.36 : 0.5,
-          ),
-          const SizedBox.square(
-            dimension: 152,
-            child: GlassPane(kind: GlassKind.pill, radius: 76, child: SizedBox.expand()),
-          ),
-          child,
+          const SizedBox(height: TiqSpace.s6),
         ],
-      ),
+      ],
     );
   }
 }
@@ -1432,7 +1421,8 @@ String sectionLabel(AppLocalizations l10n, AuditSection section) =>
 
 /// "In store 12 min" — how long since check-in, on the same scale as
 /// [formatAgo] (just now / min / h / d).
-String _inStore(AppLocalizations l10n, DateTime checkinTs) {
+String? _inStore(AppLocalizations l10n, DateTime? checkinTs) {
+  if (checkinTs == null) return null;
   final d = DateTime.now().difference(checkinTs);
   if (d.inSeconds < 60) return l10n.visitInStoreJustNow;
   if (d.inMinutes < 60) return l10n.visitInStoreMinutes(d.inMinutes);

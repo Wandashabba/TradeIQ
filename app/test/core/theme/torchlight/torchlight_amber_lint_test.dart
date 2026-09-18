@@ -65,14 +65,16 @@ void main() {
       }
       expect(
         TorchlightScanner.amberAllowlist,
-        hasLength(10),
+        hasLength(11),
         reason:
             'Pinned. Five in core/theme — the token source, the skin, the '
             'contrast contract and the two shims that map an old screen onto '
-            'the new palette — plus the five Phase 1 emitters: the primary '
-            'button, the nav pill, the nav circle, the keyboard focus ring '
-            'and the plate\'s strip light. Still to come: the chart focus '
-            'bar, argued in its own PR.',
+            'the new palette — plus the six Phase 1 emitters: the primary '
+            'button, the nav pill, the nav circle, the keyboard focus ring, '
+            'the plate\'s strip light and the check-in radar\'s leading ring '
+            '(TorchClaim.livePulse, the one rung the agent surface claims '
+            'that the console does not). Still to come: the chart focus bar, '
+            'argued in its own PR.',
       );
     });
   });

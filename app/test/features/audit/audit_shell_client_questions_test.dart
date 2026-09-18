@@ -104,15 +104,15 @@ ClientTemplate _template({bool required = true}) => ClientTemplate(
 );
 
 const _fixedDone = {
-  AuditSection.stock: SectionState.done,
-  AuditSection.visibility: SectionState.done,
-  AuditSection.pricing: SectionState.done,
-  AuditSection.capability: SectionState.done,
+  AuditSection.stock: CaptureState.done,
+  AuditSection.visibility: CaptureState.done,
+  AuditSection.pricing: CaptureState.done,
+  AuditSection.capability: CaptureState.done,
 };
 
 VisitProgress _progress({
   TemplateSectionProgress? template,
-  Map<AuditSection, SectionState> states = _fixedDone,
+  Map<AuditSection, CaptureState> states = _fixedDone,
 }) => VisitProgress(states: states, details: const {}, template: template);
 
 Widget _hub(

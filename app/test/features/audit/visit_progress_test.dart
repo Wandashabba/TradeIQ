@@ -103,8 +103,8 @@ void main() {
 
     // Outlet info is confirmed by the act of checking in — there is nothing to
     // capture, so it is the one section that starts done.
-    expect(p.stateOf(AuditSection.outletInfo), SectionState.done);
-    expect(p.stateOf(AuditSection.stock), SectionState.notStarted);
+    expect(p.stateOf(AuditSection.outletInfo), CaptureState.done);
+    expect(p.stateOf(AuditSection.stock), CaptureState.notStarted);
     expect(p.canSubmit, isFalse);
   });
 
@@ -149,7 +149,7 @@ void main() {
 
       final p = await progress();
 
-      expect(p.stateOf(AuditSection.pricing), SectionState.partial);
+      expect(p.stateOf(AuditSection.pricing), CaptureState.partial);
       expect(p.details[AuditSection.pricing], '2 of 4 SKUs');
       expect(p.blocking, contains(AuditSection.pricing));
     },
@@ -170,7 +170,7 @@ void main() {
 
       final p = await progress();
 
-      expect(p.stateOf(AuditSection.stock), SectionState.done);
+      expect(p.stateOf(AuditSection.stock), CaptureState.done);
       // Out-of-stock is the finding, so the hub says so rather than just "done".
       expect(p.details[AuditSection.stock], '4 SKUs · 2 out of stock');
     },
@@ -181,7 +181,7 @@ void main() {
 
     final p = await progress();
 
-    expect(p.stateOf(AuditSection.capability), SectionState.notStarted);
+    expect(p.stateOf(AuditSection.capability), CaptureState.notStarted);
   });
 
   test('finishing every required section unblocks submit', () async {

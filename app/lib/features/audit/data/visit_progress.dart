@@ -54,7 +54,37 @@ enum AuditSection {
   final bool required;
 }
 
-enum SectionState { notStarted, partial, done }
+/// Where one section stands.
+///
+/// Named `CaptureState` and not `SectionState` because the design system owns
+/// that name: `SectionStateGlyph` draws the four silhouettes and this enum is
+/// what the data layer maps onto them. Two `SectionState`s in one codebase,
+/// one of them the design system's, is a footgun with a rename attached.
+enum CaptureState {
+  notStarted,
+  partial,
+  done,
+
+  /// The app could not establish what this section holds — #389.
+  ///
+  /// Not a failure and not the agent's fault: the product list did not load,
+  /// or the client's questions could not be pinned to this visit. The
+  /// distinction that matters is that it is **not `done`**. Before this
+  /// existed, a stock section with the SKU list missing reported `done` on
+  /// zero captures, and a visit with nothing in it went through the gate
+  /// printing "This store is clean".
+  cantConfirm,
+}
+
+/// Why a section cannot be confirmed. A code, worded by the screen.
+enum CantConfirmReason {
+  /// `GET /outlets/:id/skus` did not answer. Without the list the app cannot
+  /// say what was counted, what was priced, or what was missed.
+  productListUnavailable,
+
+  /// The client's audit template could not be pinned to this visit.
+  clientTemplateUnavailable,
+}
 
 enum _SectionDetailKind {
   confirmedAtCheckIn,
@@ -177,10 +207,10 @@ class TemplateSectionProgress {
       // Saved with a required question still open is PARTIAL, never done:
       // that is the state the submit gate refuses.
       state: saved == null
-          ? SectionState.notStarted
+          ? CaptureState.notStarted
           : left > 0
-          ? SectionState.partial
-          : SectionState.done,
+          ? CaptureState.partial
+          : CaptureState.done,
       answered: schema.answeredCount(answers),
       questions: schema.questionCount(answers),
       requiredLeft: left,
@@ -189,7 +219,7 @@ class TemplateSectionProgress {
   }
 
   final ClientTemplate template;
-  final SectionState state;
+  final CaptureState state;
   final int answered;
   final int questions;
 
@@ -206,7 +236,7 @@ class TemplateSectionProgress {
 
   /// "Client questions · 2 of 5 answered" (or Not started / Optional).
   String detailIn(AppLocalizations l10n) => l10n.visitTemplateTileDetail(
-    state == SectionState.notStarted
+    state == CaptureState.notStarted
         ? (isRequired ? l10n.visitSectionNotStarted : l10n.visitSectionOptional)
         : l10n.visitTemplateProgressAnswered(answered, questions),
   );
@@ -218,9 +248,23 @@ class VisitProgress {
     required this.details,
     this.detailCodes = const {},
     this.template,
+    this.cantConfirm = const {},
+    this.templateCantConfirm,
   });
 
-  final Map<AuditSection, SectionState> states;
+  final Map<AuditSection, CaptureState> states;
+
+  /// Why each can't-confirm section cannot be confirmed. A section in
+  /// [CaptureState.cantConfirm] always has an entry here — the row names the
+  /// reason in words and the submit gate repeats it, because "can't confirm"
+  /// with no reason is indistinguishable from "did not bother".
+  final Map<AuditSection, CantConfirmReason> cantConfirm;
+
+  /// Set when the client's questions exist for this client but could not be
+  /// pinned to this visit. The row renders can't-confirm rather than
+  /// vanishing: a section that disappears when it fails to load is a section
+  /// nobody knows is missing.
+  final CantConfirmReason? templateCantConfirm;
 
   /// A short line per section — "12 SKUs · 2 out of stock" — so the hub says
   /// what was captured, not just that something was. English; screens use
@@ -238,16 +282,26 @@ class VisitProgress {
   String? detailIn(AuditSection s, AppLocalizations l10n) =>
       detailCodes[s]?.text(l10n) ?? details[s];
 
-  SectionState stateOf(AuditSection s) => states[s] ?? SectionState.notStarted;
+  CaptureState stateOf(AuditSection s) => states[s] ?? CaptureState.notStarted;
 
   /// Required sections that are not finished. The submit button is blocked on
   /// exactly this, and it names them rather than just going grey.
+  ///
+  /// A required section in [CaptureState.cantConfirm] blocks too, and that is
+  /// deliberate. unify §4 says a section the *agent* could not confirm drops
+  /// out of the readiness count rather than blocking — but the two reasons in
+  /// [CantConfirmReason] are not the agent declining a section, they are the
+  /// app failing to load one. #389: the fix for "silently reports Done" is a
+  /// named blocker, not a silent exclusion. When the skip-reason picker lands
+  /// (Phase 2) an agent-declared can't-confirm will carry its own reason and
+  /// stop blocking; these two never will.
   List<AuditSection> get blocking => AuditSection.values
-      .where((s) => s.required && stateOf(s) != SectionState.done)
+      .where((s) => s.required && stateOf(s) != CaptureState.done)
       .toList();
 
   /// Whether the client's required questions still block the submit.
-  bool get templateBlocking => template?.blocking ?? false;
+  bool get templateBlocking =>
+      templateCantConfirm != null || (template?.blocking ?? false);
 
   /// Everything that blocks the submit: the fixed sections in [blocking], plus
   /// the client-questions section when it has required questions left.
@@ -257,16 +311,44 @@ class VisitProgress {
 
   int get doneCount =>
       AuditSection.values
-          .where((s) => s.entityType != null && stateOf(s) == SectionState.done)
+          .where((s) => s.entityType != null && stateOf(s) == CaptureState.done)
           .length +
-      (template?.state == SectionState.done ? 1 : 0);
+      (template?.state == CaptureState.done ? 1 : 0);
 
   /// The eight capturable sections (score is an outcome, not a section), plus
   /// the client-questions section when there is one.
   int get captureCount =>
       AuditSection.values.where((s) => s.entityType != null).length +
-      (template == null ? 0 : 1);
+      (template == null && templateCantConfirm == null ? 0 : 1);
+
+  /// Sections the app could not establish. Counted and named separately from
+  /// the readiness numerator: "5 captured · 1 can't confirm" is two facts and
+  /// folding them into one figure loses the one that needs acting on.
+  int get cantConfirmCount =>
+      cantConfirm.length + (templateCantConfirm == null ? 0 : 1);
 }
+
+/// Whether pinning the client's audit template to this visit threw.
+///
+/// The hub calls `pinForVisit` once, at check-in, and it used to swallow the
+/// failure with a `catchError` and a `debugPrint` — so a client whose
+/// questions could not be loaded got a hub with the row silently absent and a
+/// submit that went straight through. This is the seam that makes the failure
+/// a *state* instead: the hub sets it, [visitProgressProvider] reads it, and
+/// the row renders can't-confirm.
+///
+/// Per visit draft, so a retry at a second store starts clean.
+class TemplatePinFailures extends FamilyNotifier<bool, String> {
+  @override
+  bool build(String visitDraftId) => false;
+
+  void failed() => state = true;
+}
+
+final templatePinFailedProvider =
+    NotifierProvider.family<TemplatePinFailures, bool, String>(
+      TemplatePinFailures.new,
+    );
 
 /// Reads the audit's progress straight out of the local outbox.
 ///
@@ -281,13 +363,25 @@ final visitProgressProvider =
       final db = ref.read(localDbProvider);
       // Item counts are only meaningful against the SKU list; without it we can
       // still say done/not-started, just not "7 of 12".
-      final skuCount = ref
-          .watch(skusListProvider(key.outletId))
-          .maybeWhen(data: (list) => list.length, orElse: () => 0);
+      final skus = ref.watch(skusListProvider(key.outletId));
+      final skuCount = skus.maybeWhen(data: (list) => list.length, orElse: () => 0);
+      // #389. A SKU list that FAILED is not a SKU list of length zero, and the
+      // difference is the whole bug: with `orElse: 0` a part-counted stock
+      // section fell through the `skuCount > 0` guard and reported *done*, so
+      // a visit that had counted three of forty SKUs submitted as complete.
+      // A failed read now makes the two per-SKU sections can't-confirm, which
+      // blocks the submit and names why.
+      final productListGone = skus.hasError;
       // The client template pinned to this visit — local, so offline too.
       final template = ref
           .watch(visitTemplateProvider(key.visitDraftId))
           .maybeWhen(data: (t) => t, orElse: () => null);
+      // Whether the pin at check-in failed outright. The hub tells us; the
+      // repository's own fallbacks (no signal → the last template this agent
+      // was given → nothing) are not failures and do not set it.
+      final templatePinFailed = ref.watch(
+        templatePinFailedProvider(key.visitDraftId),
+      );
 
       return db.select(db.syncQueueItems).watch().map((rows) {
         final payloads = <String, List<Map<String, dynamic>>>{};
@@ -302,12 +396,13 @@ final visitProgressProvider =
           payloads.putIfAbsent(row.entityType, () => []).add(payload);
         }
 
-        final states = <AuditSection, SectionState>{};
+        final states = <AuditSection, CaptureState>{};
         final details = <AuditSection, SectionDetail>{};
+        final unconfirmable = <AuditSection, CantConfirmReason>{};
 
         // Outlet info is confirmed by the act of checking in — there is nothing to
         // capture, so it is done the moment the agent is inside the fence.
-        states[AuditSection.outletInfo] = SectionState.done;
+        states[AuditSection.outletInfo] = CaptureState.done;
         details[AuditSection.outletInfo] =
             const SectionDetail.confirmedAtCheckIn();
 
@@ -315,9 +410,20 @@ final visitProgressProvider =
           final type = section.entityType;
           if (type == null) continue;
 
+          final perSku =
+              section == AuditSection.stock || section == AuditSection.pricing;
+
+          // Without the product list there is no denominator, so there is no
+          // honest answer about a per-SKU section — captured or not.
+          if (perSku && productListGone) {
+            states[section] = CaptureState.cantConfirm;
+            unconfirmable[section] = CantConfirmReason.productListUnavailable;
+            continue;
+          }
+
           final captured = payloads[type] ?? const [];
           if (captured.isEmpty) {
-            states[section] = SectionState.notStarted;
+            states[section] = CaptureState.notStarted;
             continue;
           }
 
@@ -328,13 +434,11 @@ final visitProgressProvider =
           // A per-SKU section that covers only some of the SKUs is PARTIAL, not
           // done. Saying "done" when five SKUs were never priced would quietly let
           // an incomplete visit through the submit gate.
-          final perSku =
-              section == AuditSection.stock || section == AuditSection.pricing;
           if (perSku && skuCount > 0 && items < skuCount) {
-            states[section] = SectionState.partial;
+            states[section] = CaptureState.partial;
             details[section] = SectionDetail.skusOfTotal(items, skuCount);
           } else {
-            states[section] = SectionState.done;
+            states[section] = CaptureState.done;
             final detail = _describe(section, captured, items);
             if (detail != null) details[section] = detail;
           }
@@ -347,6 +451,13 @@ final visitProgressProvider =
               key: value.text(englishLocalizations),
           },
           detailCodes: details,
+          cantConfirm: unconfirmable,
+          // A pin that failed outranks a template that is simply absent: the
+          // row renders can't-confirm and blocks, rather than disappearing and
+          // taking the client's questions with it.
+          templateCantConfirm: templatePinFailed && template == null
+              ? CantConfirmReason.clientTemplateUnavailable
+              : null,
           template: template == null
               ? null
               : TemplateSectionProgress.of(
