@@ -125,7 +125,7 @@ what makes Night look lit rather than switched off.
 | `badSolid` / `onBadSolid` | `#E23C55` + ground | `#7A0F22` + white | same as Day | Critical: solid block, filled triangle, 3px left bar. |
 | `comparison` | `#E08E71` | `#A35139` | `#A35139` | Competitor share, prior period, benchmark. Also the held/queued warm neutral. **Never a severity.** |
 | `comparisonWash` | `#7A3A28` | `#F7DCD2` | `#F7DCD2` | Wash behind a "held" chip; the 2px edge on an underexposed photo. |
-| `chartNeutral` | `#8B8271` | `#676052` | `#4A4437` | The fill of every non-focus bar and series. |
+| `chartNeutral` | `#A39887` | `#5C5648` | `#4A4437` | The fill of every non-focus bar and series. |
 | `plateCeiling` | `#474747` | — | — | The maximum luminance any pixel of a baked photographic plate may reach. Enforced server-side; a contrast floor, not a decoration. |
 
 `chartNeutral` exists because Burning Flame and Oatmeal have **identical**
@@ -217,7 +217,7 @@ the size, because that is the only form that survives a size change.
 | `body` | prose | 14 / 400 / 1.55 | **15** / 400 / 1.50 | **17** / 600 / 1.55 / +0.5% |
 | `bodyStrong` | prose | 14 / 600 / 1.55 | 15 / 600 / 1.50 | 17 / 700 / 1.55 / +0.5% |
 | `label` | prose | 13 / 500 / 1.35 / +0.5% | same | **16** / 600 / 1.40 / +1.0% |
-| `eyebrow` | prose | 11 / 700 / 1.10 / +8%, uppercase | same | 13 / 700 / 1.15 / +8% |
+| `eyebrow` | prose | 11 / 700 / 1.10 / **+4%**, uppercase | same | 13 / 700 / 1.15 / +4% |
 | `meta` | prose | 12 / 400 / 1.40 | same | **14** / 600 / 1.45 / +0.5% |
 | `axisLabel` | **figure** | 12 / 400 / 1.40 | same | 14 / 600 / 1.45 / +0.5% |
 | `monoIdent` | **identifier** | 13 / 500 / 1.30 / +1% | same | 16 / 600 / 1.35 / +1% |
@@ -226,8 +226,19 @@ the size, because that is the only form that survives a size change.
 numeral, and numerals are mono. `meta` keeps the prose jobs — timestamps read as
 language, source lines are language.
 
-The `eyebrow` has exactly two jobs: the plate kicker and the stat-tile label. A
-section marker is a knocked-out rule at `titleM`, not an uppercase kicker.
+The `eyebrow` is legal in **three** places and no others: a stat tile's label, a
+hero or plate figure's label, and a block label inside a panel ("WORST FIRST").
+A screen-level section marker is a knocked-out rule at `titleM` in sentence
+case, not an uppercase kicker.
+
+Its tracking moved from **+8% to +4%** in Phase 1 (unify §1.4). Uppercase plus
+tracking is the most space-hungry setting in the system and the eyebrow is a
+stat tile's only label channel; at +8% the Afrikaans "BESKIKBAARHEID OP RAK"
+took a third line on a 360dp phone at 1.0×, so the setting meant to make the
+label compact was costing the tile its fold. Use the `Eyebrow` widget, which
+uppercases for *display* and hands the sentence-case string to `Semantics` — a
+`toUpperCase()` at the call site puts the uppercase in the data, where a screen
+reader spells it out.
 
 Veld's steps are **declared scale members**, not "one stop up". A stop invents a
 17px that collides with two existing roles.
@@ -333,7 +344,7 @@ token — and nobody can "fix" the ban by reintroducing the pairing.
 
 | Skin | Pairing | Measures | Needs | Use instead |
 |---|---|---|---|---|
-| Night | `flame600` and `ink2` as adjacent bar fills | **1.00:1** | 3.0 | `chartNeutral` for every non-focus bar. |
+| Night | `flame600` and `ink2` as adjacent bar fills | **1.00:1** | 3.0 | `chartNeutral` `#A39887` for every non-focus bar. |
 | Night | `flame900` ink on a pressed `flame500` block | **2.00:1** | 4.5 | `onAmberPressed` — the ink stays dark through the press. |
 | Day | `flame600` as text on Palladian | **1.48:1** | 4.5 | `flame300`. |
 | Day | `edgeStructure` on the Day `well` | **2.99:1** | 3.0 | `edgeControl`, or move the container out of the well. |
@@ -626,8 +637,10 @@ greyscale plus Viénot–Brettel–Mollon deuteranopia and protanopia in
 `tiq_contrast.dart`, beside `contrastRatio`, so production and test cannot
 compute them differently. The implementation reproduces the ruling's own
 figures: Burning Flame against Truffle is **1.41:1** in deuteranopia, and `bad`
-against `chartNeutral` is **1.55:1** true and **1.26:1** in protanopia. Both are
-pinned.
+against `chartNeutral` is **1.16:1** true and **1.06:1** in protanopia. Both are
+pinned. (The `bad`/`chartNeutral` pair measured 1.55 and 1.26 before Phase 1
+moved the neutral to `#A39887`; the two hues converged, which makes the rising
+hatch on a diverging negative more load-bearing, not less.)
 
 Two findings worth keeping in mind:
 
@@ -787,3 +800,220 @@ screen is ported; Day follows per component; **Veld is sequenced last**, after
 Night and Day are shipped and stable, because it has the fewest users per day
 and the highest per-component tax — and shipping it third means its goldens are
 written against components that have stopped moving.
+
+---
+
+## 12. Phase 1 — marks and figures
+
+The things that carry state and the things that carry numbers. One import:
+
+```dart
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+```
+
+`lib/core/widgets/torchlight/mark/` holds the marks, `.../figure/` the figures.
+**No screen is migrated by the PR that added them**; nothing in `lib/features`
+changed. What follows is what a migrating screen has to know.
+
+### 12.1 What replaces what
+
+| New | Replaces |
+|---|---|
+| `StatusChip` | the status pills and `status_pill_colors.dart` |
+| `FlagChip` | nothing — new (#393) |
+| `SeverityMark` | ad-hoc coloured dots |
+| `SectionStateGlyph` | `agent_state_glyph.dart` (#375) |
+| `Delta` / `DeltaSlot` | `DeltaChip`, `DeltaPill`, `TileDelta.text` |
+| `StatTile` / `StatCluster` | the `rich_figures.dart` tiles |
+| `Meter` | nothing — new |
+| `NotMeasured` | a zero with no explanation |
+| `ProvisionalMarker`, `ReconciliationLine` | nothing — new (#377/#390/#398) |
+| `Eyebrow` | `Text(label.toUpperCase())` |
+
+The **person row is not here** — it belongs to the soft-row workstream.
+
+### 12.2 Unknown versus zero — what each state looks like on screen
+
+This is the heart of the work, so it is stated once, plainly, and every clause
+has a test behind it.
+
+| The data | The figure | The unit | The delta | The meter | The words |
+|---|---|---|---|---|---|
+| **A measured zero** | `0`, ink-1, full size, never suppressed | as normal | a **flat bar** (an 8×2 rectangle, not a triangle, not a dash) | no fill at all — a true zero draws nothing and the figure carries it | none needed |
+| **A null** | an **em dash**, ink-3, at the figure's own role and face | **suppressed** — "— %" is a unit measuring nothing | **none, and no gap held open** | outlined empty track, **no target tick** | mandatory: "No visits in this window", or the server's cause |
+| **Not measured** | an **em dash**, ink-3 | suppressed | none | a **full-width falling hatch** on the track | mandatory: "No competitor on shelf", or "Not measured in this visit" |
+| **A low sample** | the real figure at **ink-2**, same role, same size | as normal | **removed**, replaced by "too few visits to compare" | the fill draws as a **1.5dp outline**, not a solid | "from 3 visits", or "small sample" where the count is unknown |
+| **A thin baseline** | the real figure at **full ink-1** — it is a good figure | as normal | **removed**, replaced by "last week had too few visits — not compared" | normal fill | the same sentence |
+
+Four rules that follow, and none of them is negotiable:
+
+- **A tile is never hidden.** A cluster that silently drops a tile changes
+  shape, and the reader cannot tell whether the metric was bad or missing.
+- **A grey "Unknown" chip is never shown.** It is a claim that the system
+  looked. Where a level has not been computed, no chip renders.
+- **A delta never stands beside nothing.** `DeltaRule.resolve` returns
+  `DeltaSuppression.nullFigure` and `DeltaSlot` renders a `SizedBox.shrink` —
+  removed, not greyed, because a greyed delta is still a delta.
+- **An absence always has a sentence.** `StatTile` asserts on a null value with
+  no `noDataReason`; `Meter` asserts on a hatched track with no
+  `reasonForHatch`.
+
+### 12.3 The marks
+
+```dart
+StatusChip(level: StatusLevel.watch, detail: l10n.asAt('08:15'))
+```
+
+Five levels — `critical`, `watch`, `onTarget`, `held`, `live` — each binding a
+hue, a silhouette and a word in one `StatusLevelToken`, so a level cannot be
+given a colour without a shape and a label. Severity is **one hue at two
+commitment levels**: outlined for Watch with a half-filled triangle, solid for
+Critical with a filled one. `held` is Oatmeal `ink2` with a square, never
+Truffle. Staleness is `detail` — a word — never an opacity: a 0.6 Watch chip
+computes to 3.29:1 for 11px text and a contrast walk cannot see it.
+
+```dart
+FlagChip(kind: FlagKind.outOfFence, detail: '140 m', onTap: openTheMap)
+```
+
+Seven members: `outOfFence`, `forReview`, `unfinished`, `skipped`, `held`,
+`noGps` — all six in **one neutral treatment**, legible in greyscale by
+construction — plus `sentBack`, the only one carrying severity, because a human
+rejected the work. Out of fence is a measurement, not a verdict. Every flag
+chip should be tappable to its explanation; a flag the agent cannot interrogate
+is an accusation. `cleared: true` steps the ink to `ink3` and appends the word.
+
+```dart
+SeverityMark(kind: SeverityMarkKind.watch)
+```
+
+Five drawn marks: `critical` (filled triangle, `badSolid`), `watch` (half-filled
+triangle, `bad`), `onTarget` (filled circle, `good`), `held` (Oatmeal square)
+and `notMeasured` — **a barred square, not a hatched one**. No pattern goes
+inside a glyph. The word always renders beside the mark.
+
+```dart
+SectionStateGlyph(state: SectionState.cantConfirm)
+```
+
+Four states in a 28dp tile (48dp at 2.0×) holding a 16dp glyph (32dp at 2.0×):
+a ring, a half disc, a tick disc, and **a ring with a 2px diagonal bar**.
+"Can't confirm" is its own silhouette and not a hatch, because a 3dp stripe
+inside a 28dp tile aliases to a flat grey disc at 40% backlight — which is
+exactly what "in progress" looks like. `SectionStateToken.countsTowardReadiness`
+is false for `cantConfirm`: the readiness denominator drops rather than the
+numerator failing.
+
+```dart
+DeltaSlot(
+  data: delta,                 // DeltaData? — direction and sentiment, both from the server
+  figureState: tile.figureState,
+  sampling: FigureSampling(kind: MetricKind.rate, n: 20, baselineN: 1),
+)
+```
+
+The triangle is **drawn**, never typed: `TileDelta.text` built `▲`/`▼` as
+characters, Onest does not carry U+25B2/U+25BC once `pyftsubset` has run, and
+the PDF exporter rendered them as nothing (#401). `direction` is the shape and
+comes from the wire's `direction`; `sentiment` is the colour and comes from the
+wire's `sentiment`; neither is derived from the other, because a stock-out count
+going up is bad and a spoilage count going down is good. The wire's `warn`
+level maps to `neutral` — there is no amber warning in this system and a delta
+is never a severity carrier. A null magnitude is "up from none" in words, never
+`n/a` and never ∞.
+
+### 12.4 The figures
+
+```dart
+StatCluster(
+  tiles: [ StatTile(...), StatTile(...), StatTile(...) ],
+  footer: heldChipAndSeeTheNumbers,
+)
+```
+
+Four tiles maximum on a phone, three recommended, two in Veld. Cells are
+separated by a **12dp gap with a 1px rule centred in it** — `edgeStructure` in
+Night, the decorative hairline on paper, 2px in Veld. Both, not either: a
+hairline alone measures 1.72:1 and a gap alone loses because a tile's own rows
+are 8dp apart. Below 320dp of inner width (which is every phone) the cluster is
+one column of horizontal tiles; above it, a two-column grid of vertical cells,
+decided by `LayoutBuilder` and never by a text-scale guess.
+
+`StatTile`'s phone layout is **horizontal**: eyebrow `Expanded` left, figure
+right-aligned in a bounded box so `FigureSlot` can measure its candidate roles,
+meter beneath, delta beneath. Variants: `lead: true` with a `severity` draws the
+outline and a `subordinates` line; `provisional: true` adds the dotted rule and
+the word; `reconciliation:` hangs a `ReconciliationLine` under the figure.
+
+```dart
+Meter(value: 61, target: 80, semanticsValue: '61 out of 100, target 80')
+```
+
+Track 4dp Console / 6dp Field / 8dp Veld, scaling at half rate. **The target
+tick is ink-1 everywhere** and `TorchClaim.meterTick` does not exist: a target
+is an annotation, an annotation is a label, and — the load-bearing half — the
+amber budget is counted per *route*, where up to ten ticks can appear against a
+budget of zero. The tick's silhouette (2dp wide, breaking the track's top edge
+by 2dp) does the work the amber was there to do. `target: null` renders **no
+tick**: never one at 100, never one at the midpoint.
+
+```dart
+NotMeasured(reason: 'No competitor on shelf')
+ReconciliationLine(finalValue: 71, seenValue: 84, voice: ReconciliationVoice.console)
+```
+
+The reconciliation line has two string sets and shares none of them: the console
+says "Scored 71 — the phone showed 84", the agent app "Now scored 71 — it was 84
+when you saw it". Both figures set in mono at `figure.s`, so there are never two
+competing large numbers. The direction triangle is hollow and **ink-3 in every
+case** — never good or bad, because the arithmetic changed and the performance
+did not — and nothing is struck through. The agent app never shows a provisional
+score at all.
+
+### 12.5 Sample thresholds
+
+Declared once, in `sample_threshold.dart`, because "is three visits enough" is a
+property of the metric and not of the screen: rates and percentages need n ≥ 5,
+averages n ≥ 3, a score n ≥ 1 (a single visit's score is a fact about that
+visit, not an estimate). Exactly at the threshold is the normal treatment — the
+boundary is not a gradient. A **missing** `sampleSize` is not a low sample: the
+client does not know, and inventing a number to compare against marks good
+figures weak. Where the server says "thin" without saying how thin, pass
+`FigureSampling.unknownAndThin` and the meta line reads "small sample".
+
+`baselineSampleSize` is the field the low-sample rule originally missed.
+Gauteng North loses week 37 to a strike, gets one visit at 100%, then twenty
+visits at 84% in week 38: the figure is healthy, nothing about it is marked, and
+the delta reads "−16 pts vs week 37" — a hard verdict computed against a single
+visit, on which a manager reassigns an agent. On a load-shedding calendar this
+is the common case.
+
+### 12.6 No amber, and how that is enforced
+
+Not one component in these two folders names a flame token or declares a
+`TorchClaim`. `marks_amber_test.dart` renders **every state of every one of
+them in all three skins** through the amber census and requires zero lit
+regions, and then scans both folders for any spelling of an amber token. The
+`Live` status chip is a `well` dot and the word; the breathing amber pulse that
+can accompany presence is a separate emitter on the ladder, claimed by whatever
+owns the presence, and is not part of this component.
+
+### 12.7 Goldens
+
+There are no `matchesGoldenFile` PNGs here, deliberately and for the same reason
+the amber census has none: a byte golden fails on a font hint, passes on a
+semantic regression, and gets re-baselined by whoever is in a hurry. The
+goldens are **measurements**, Night first, then Day, Veld last:
+
+- `section_state_glyph_test.dart` renders each of the four states, converts to
+  luminance and requires that every pair differ — so "can't confirm" is proved
+  distinguishable from "in progress" **with the hue removed**, which is the
+  test a hatched fourth state would have failed;
+- `chips_test.dart` does the same for the six neutral flag silhouettes, which
+  have no colour difference between them at all;
+- `marks_amber_test.dart` counts lit pixels;
+- the per-state widget tests prove the words are on the screen.
+
+`mark_harness.dart` holds `paintMark`, `greyscaleDifference` and
+`inkedFraction`. The last one exists so a silhouette test cannot pass by
+comparing two blank frames.

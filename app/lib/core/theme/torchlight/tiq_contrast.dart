@@ -74,8 +74,10 @@ enum VisionFilter {
 /// accessibility tool in common use implements, so a number here is a number
 /// someone can reproduce. The ruling's own figures come out of it exactly:
 /// Burning Flame against Truffle is 1.40:1 in deuteranopia, and `bad` against
-/// `chartNeutral` is 1.26:1 in protanopia — both recomputed and pinned in
-/// `torchlight_separation_test.dart`.
+/// `chartNeutral` is 1.06:1 in protanopia — both recomputed and pinned in
+/// `torchlight_generated_contrast_test.dart`. (`bad`/`chartNeutral` was 1.26:1
+/// before Phase 1 moved the neutral to #A39887; the two hues converged, which
+/// makes the hatch on a diverging negative more load-bearing, not less.)
 const List<List<double>> _protanopia = <List<double>>[
   <double>[0.11238, 0.88762, 0.0],
   <double>[0.11238, 0.88762, 0.0],
@@ -1083,7 +1085,7 @@ class TorchlightContrast {
         background: n.ink2,
         wouldNeed: ContrastRole.graphic,
         instead:
-            'chart-neutral #8B8271 for every non-focus bar. Burning Flame and '
+            'chart-neutral #A39887 for every non-focus bar. Burning Flame and '
             'Oatmeal have the same relative luminance, so this pairing is one '
             'bar in greyscale, in deuteranopia and on a sun-washed panel.',
       ),
