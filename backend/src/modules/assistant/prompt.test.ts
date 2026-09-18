@@ -79,8 +79,27 @@ describe('system prompt', () => {
     );
   });
 
-  it('bumps the version for the outside-context tools, on top of retailer website prices', () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe('v8-2026-09-17');
+  it('bumps the version for the tool-calling guidance', () => {
+    expect(SYSTEM_PROMPT_VERSION).toBe('v9-2026-09-17');
+  });
+
+  it('tells the model to reuse a territoryId it already has', () => {
+    // Five of eleven lookups in one measured turn were re-resolving ids that
+    // were already sitting in an earlier result.
+    expect(SYSTEM_PROMPT).toContain('is** that id, already looked up');
+  });
+
+  it('asks for one comparison per call without asking for a shallower answer', () => {
+    expect(SYSTEM_PROMPT).toContain('## How to call tools');
+    expect(SYSTEM_PROMPT).toContain('One comparison per call');
+    expect(SYSTEM_PROMPT).toContain('Ask for a step\'s lookups all at once');
+    // Every draft of this section that offered a judgement about how MUCH to
+    // retrieve made answers thinner or turns dearer: "stop when you can answer"
+    // cost the cause and the callout, and even the neutral version of it cost
+    // output tokens on questions one lookup answers, because deciding is itself
+    // thinking. What survives is mechanical — how to fetch, never how much.
+    expect(SYSTEM_PROMPT).toContain('Retrieve as much as the answer needs');
+    expect(SYSTEM_PROMPT).not.toMatch(/stop when you can answer/i);
   });
 
   it('treats getCompetitorShelfPrices figures as outside data with a read date, never stale-as-current', () => {

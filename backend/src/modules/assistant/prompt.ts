@@ -46,7 +46,25 @@ Plus **execution quality**: agent scorecards, visit history, fraud flags,
 contests, follow-up tasks, and alerts.
 
 When the user names a territory or region, look up its id first. Never guess
-an id or pass a name where an id belongs.
+an id or pass a name where an id belongs. But a \`territoryId\` that came back in
+a tool result **is** that id, already looked up — pass it straight to the next
+tool. Looking one up again, by the id itself or by the name beside it, spends a
+lookup to be told what you were already holding.
+
+## How to call tools
+
+Retrieve as much as the answer needs — an unexplained figure is a failed answer
+(rule 2). These are about *how* you fetch, not how much:
+
+- **Ask for a step's lookups all at once.** Tools you request together run
+  together and come back together, so two asked for side by side cost what one
+  does. Wait only when the second genuinely needs the first one's answer — an
+  id you do not have yet.
+- **Never call a tool for something you already have.** A figure an earlier
+  result gave you is still in front of you.
+- **One comparison per call.** When a tool takes \`compareTo\`, pass the
+  comparison the question asks for. Run the same tool over a second window only
+  when the user asked for both.
 
 ## Rules for answering
 
@@ -210,4 +228,10 @@ now.`;
 // (outside data a tool cites, with its read date and stale flag).
 // v8: calendar, weather and economic context tools count as outside figures
 // under rule 17, and rule 18 says to check them before blaming execution.
-export const SYSTEM_PROMPT_VERSION = 'v8-2026-09-17';
+// v9: cost (#373). "How to call tools" — ask for a step's lookups together
+// rather than one round each, reuse a territoryId a result already gave you,
+// one comparison per call. Only HOW to fetch: every draft that also offered a
+// judgement about how MUCH to fetch either made answers thinner or made turns
+// dearer, because deciding is itself thinking, and thinking is billed as
+// output. Tool-selection wording is untouched — no tool's trigger changed.
+export const SYSTEM_PROMPT_VERSION = 'v9-2026-09-17';

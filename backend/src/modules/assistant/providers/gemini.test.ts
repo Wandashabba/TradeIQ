@@ -8,6 +8,7 @@ import {
   geminiSupportsSearchWithTools,
   sourcesFromGrounding,
   normaliseGeminiUsage,
+  thinkingConfigFor,
   toFunctionDeclarations,
   toGeminiContents,
   type GeminiClient,
@@ -220,6 +221,47 @@ describe('gemini adapter — vendor specifics', () => {
     );
   });
 
+  it('turns thinking down on the answer round alone', async () => {
+    // The largest single line on the bill — and the only round where turning it
+    // down cannot cost the answer anything, because by then nothing further can
+    // be retrieved. Every round that can still decide to fetch something keeps
+    // the vendor default.
+    const first = providerCapturing({ textChunks: ['x'] });
+    await collect(first.provider.runTurn(contractInput({ round: 0 }), new AbortController().signal));
+    expect(first.params().config?.thinkingConfig).toBeUndefined();
+
+    // Later tool rounds were turned down and turned back up: at `low`, two
+    // consecutive live runs stopped after one lookup where the default had run
+    // three, and answered without the cause the extra lookups had found.
+    const later = providerCapturing({ textChunks: ['x'] });
+    await collect(later.provider.runTurn(contractInput({ round: 2 }), new AbortController().signal));
+    expect(later.params().config?.thinkingConfig).toBeUndefined();
+
+    const answer = providerCapturing({ textChunks: ['x'] });
+    await collect(
+      answer.provider.runTurn(
+        contractInput({ toolChoice: 'none', round: 3 }),
+        new AbortController().signal,
+      ),
+    );
+    expect(answer.params().config?.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+  });
+
+  it('treats a caller that sends no round as the opening round', async () => {
+    // "Unknown round" must read as the setting that changes nothing about tool
+    // selection, or adding a field to the contract quietly re-tunes every
+    // caller written before it.
+    const { provider, params } = providerCapturing({ textChunks: ['x'] });
+    await collect(provider.runTurn(contractInput(), new AbortController().signal));
+    expect(params().config?.thinkingConfig).toBeUndefined();
+  });
+
+  it('caps one round\'s generation', async () => {
+    const { provider, params } = providerCapturing({ textChunks: ['x'] });
+    await collect(provider.runTurn(contractInput(), new AbortController().signal));
+    expect(params().config?.maxOutputTokens).toBeGreaterThan(0);
+  });
+
   it('forwards the abort signal to the SDK', async () => {
     const controller = new AbortController();
     const { provider, params } = providerCapturing({ textChunks: ['x'] });
@@ -305,6 +347,33 @@ describe('gemini adapter — vendor specifics', () => {
 
     const usage = events.find((e) => e.type === 'usage') as { usage: { inputTokens: number } };
     expect(usage.usage.inputTokens).toBe(100);
+  });
+});
+
+describe('thinkingConfigFor', () => {
+  it('turns down only the round that has nothing left to decide', () => {
+    // Measured on twenty golden questions: first-tool choice was 20/20 at the
+    // vendor default and 19/20 at `low`. The gate needs 90%, so 95% would pass
+    // — and is one sample from not passing, for a saving the measurement says
+    // is not there anyway (round zero thinks ~200 tokens at either level).
+    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'first')).toBeUndefined();
+    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'tool')).toBeUndefined();
+    expect(thinkingConfigFor('gemini-3.1-pro-preview', 'answer')).toEqual({ thinkingLevel: 'low' });
+  });
+
+  it('never configures the quarantine tier', () => {
+    // It summarises one string with no tools. There is nothing to reason about,
+    // and it is a different model whose levels nobody has measured.
+    expect(thinkingConfigFor('gemini-3.6-flash', 'quarantine')).toBeUndefined();
+  });
+
+  it('says nothing to a model that does not take the setting', () => {
+    // Sending `thinkingLevel` to a model that does not understand it is a 400,
+    // and a 400 on every turn is a worse outcome than a turn that thinks hard.
+    expect(thinkingConfigFor('gemini-2.5-flash', 'answer')).toBeUndefined();
+    expect(thinkingConfigFor('models/gemini-3.1-pro-preview', 'answer')).toEqual({
+      thinkingLevel: 'low',
+    });
   });
 });
 

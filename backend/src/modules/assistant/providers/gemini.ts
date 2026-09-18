@@ -7,6 +7,7 @@ import {
   type GenerateContentResponse,
   type GroundingMetadata,
   type Part,
+  type ThinkingConfig,
   type Tool,
   type ToolConfig,
 } from '@google/genai';
@@ -64,6 +65,63 @@ import {
 export const GEMINI_ORCHESTRATOR_MODEL =
   process.env.GEMINI_ORCHESTRATOR_MODEL ?? 'gemini-3.1-pro-preview';
 export const GEMINI_QUARANTINE_MODEL = process.env.GEMINI_QUARANTINE_MODEL ?? 'gemini-3.6-flash';
+
+/**
+ * How hard the model thinks, per kind of round.
+ *
+ * **The largest single line on the bill, and it was never set.** Left
+ * unspecified, Gemini 3 Pro thinks at its default high level on every request.
+ * Measured on one live turn: 5,644 output tokens, of which 3,539 came from the
+ * one round that had tools withdrawn and nothing to do but write a 719-character
+ * answer. At the output rate that round alone was 4.2 of the turn's 13.1 cents —
+ * more than every cached prefix read in the turn put together.
+ *
+ * Three kinds of round, because they are three different jobs carrying
+ * different risks:
+ *
+ * - The **opening round** picks the first tool from the user's words alone.
+ *   That is the choice the eval gate scores at 90%, the one a turn cannot
+ *   recover from, and — measured — the cheapest round in the turn at around 200
+ *   thinking tokens whatever the level. There is nothing to save here and
+ *   everything to lose, so it is left at the vendor default.
+ * - A **later tool round** decides whether to keep going and what to fetch
+ *   next. Expensive — measured at 1,640 output tokens on one round, because
+ *   thinking scales with the context it reasons over and the context has been
+ *   growing all turn — and **turned down anyway, then turned back up.** At
+ *   `low`, two consecutive live runs of the same question stopped after a
+ *   single lookup where the default had run three, and answered without the
+ *   cause the extra lookups had found. That is a cheaper answer, not a better
+ *   one, and "interpret, do not just report" is the product. Left at the
+ *   vendor default; the switch stays for anyone who measures otherwise.
+ * - The **answer round** runs with `toolChoice: 'none'`. Every figure it may
+ *   use is in front of it and no decision remains but how to phrase the
+ *   reading. It was spending 3,539 output tokens on 719 characters of prose.
+ *   This is the one that is turned down, and the depth of an answer cannot
+ *   depend on it, because by then nothing further can be retrieved.
+ *
+ * Round zero also keeps the default, for a second reason: measured on twenty
+ * golden questions, first-tool choice was 20/20 at the vendor default and
+ * 19/20 at `low`. A 95% clears the 90% gate and is one sample from not
+ * clearing it — for a saving that is not there, since round zero thinks around
+ * 200 tokens at either level.
+ *
+ * All three are overridable, and an empty string restores the vendor default
+ * for that kind of round.
+ */
+const THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
+const FIRST_THINKING_LEVEL = process.env.GEMINI_FIRST_THINKING_LEVEL ?? '';
+const THINKING_LEVEL = process.env.GEMINI_THINKING_LEVEL ?? '';
+const ANSWER_THINKING_LEVEL = process.env.GEMINI_ANSWER_THINKING_LEVEL ?? 'low';
+
+/**
+ * A ceiling on one round's generation, thinking included.
+ *
+ * A runaway guard rather than a cost dial — the thinking levels above are the
+ * dial. Generous enough that no answer a manager would read reaches it, low
+ * enough that a model looping inside its own reasoning stops costing money at
+ * some point instead of at the turn budget.
+ */
+const MAX_OUTPUT_TOKENS = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 8_192);
 
 /**
  * Dollars per million tokens.
@@ -326,6 +384,37 @@ export function geminiSupportsSearchWithTools(model: string): boolean {
   return /^(models\/)?gemini-3/i.test(model);
 }
 
+/**
+ * The thinking config for one round, or nothing at all.
+ *
+ * Returns `undefined` — rather than a config naming the vendor's own default —
+ * both when thinking is not configured for this kind of round and when the
+ * model is not one that takes the setting. Sending `thinkingLevel` to a model
+ * that does not understand it is a 400, and a 400 on every turn is a worse
+ * outcome than a turn that thinks too hard.
+ */
+export function thinkingConfigFor(
+  model: string,
+  kind: 'first' | 'tool' | 'answer' | 'quarantine',
+): ThinkingConfig | undefined {
+  // The quarantine tier summarises one string with no tools. It has nothing to
+  // reason about, and it is a different model whose levels we have not measured.
+  if (kind === 'quarantine') return undefined;
+  if (!/^(models\/)?gemini-3/i.test(model)) return undefined;
+  const level = (
+    kind === 'answer'
+      ? ANSWER_THINKING_LEVEL
+      : kind === 'first'
+        ? FIRST_THINKING_LEVEL
+        : THINKING_LEVEL
+  ).toLowerCase();
+  // An unrecognised value is treated as "unset" rather than forwarded. A typo in
+  // an env var should cost the discount, not every turn — and the vendor's
+  // answer to an unknown level is a 400 on every request.
+  if (!THINKING_LEVELS.includes(level as (typeof THINKING_LEVELS)[number])) return undefined;
+  return { thinkingLevel: level as ThinkingConfig['thinkingLevel'] };
+}
+
 /** The tool config a grounded, function-calling request needs. */
 export const GROUNDED_TOOL_CONFIG: ToolConfig = {
   functionCallingConfig: { mode: FunctionCallingConfigMode.VALIDATED },
@@ -411,6 +500,23 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
       const suppressTools = input.toolChoice === 'none' || input.model === 'quarantine';
       const declarations = suppressTools ? [] : toFunctionDeclarations(input.tools);
       const model = input.model === 'quarantine' ? quarantineModel : orchestratorModel;
+      // Tools withdrawn is precisely what "this is the answer round" means: the
+      // orchestrator sets `toolChoice: 'none'` on the last round and on no
+      // other. Reading it here rather than adding a flag to `TurnInput` keeps
+      // the contract the same for both adapters.
+      const thinking = thinkingConfigFor(
+        model,
+        input.model === 'quarantine'
+          ? 'quarantine'
+          : input.toolChoice === 'none'
+            ? 'answer'
+            : // No `round` at all means a caller that predates it, and the
+              // safe reading of "unknown round" is the one that changes
+              // nothing about tool selection.
+              (input.round ?? 0) === 0
+              ? 'first'
+              : 'tool',
+      );
       // Grounding rides beside the function declarations, never alone: a
       // search-only request would change what a tool-less round means.
       const grounded =
@@ -483,6 +589,11 @@ export function createGeminiProvider(options: GeminiProviderOptions = {}): LlmPr
                       },
                     },
               }),
+          // Neither of these is part of the cached prefix — they are generation
+          // settings, not content — so they ride alongside `cachedContent`
+          // without the 400 that `tools` or `systemInstruction` would draw.
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          ...(thinking ? { thinkingConfig: thinking } : {}),
           // ⚠️ Client-side only, per the SDK's own note: aborting stops us
           // reading the stream, it does not stop Google generating or billing
           // it. The plan's "client disconnect must not orphan a paid request"
