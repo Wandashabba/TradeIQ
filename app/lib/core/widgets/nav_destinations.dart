@@ -34,8 +34,14 @@ const managerDestinations = <NavDestination>[
   // Operate
   NavDestination(
     route: '/dashboard',
-    label: 'Dashboard',
+    label: 'The Floor',
     icon: Icons.dashboard_outlined,
+    group: NavGroup.operate,
+  ),
+  NavDestination(
+    route: '/dashboard/overview',
+    label: 'Execution overview',
+    icon: Icons.insights_outlined,
     group: NavGroup.operate,
   ),
   NavDestination(

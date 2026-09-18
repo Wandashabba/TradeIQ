@@ -33,7 +33,7 @@ void main() {
 
     // No bottom bar — navigation is always on screen in the sidebar.
     expect(find.byType(TiqBottomNavBar), findsNothing);
-    expect(find.text('Dashboard'), findsOneWidget);
+    expect(find.text('The Floor'), findsOneWidget);
     expect(find.text('Alerts'), findsOneWidget);
     // Grouped by verb, so the menu is scannable rather than a flat list of 20.
     expect(find.text('OPERATE'), findsOneWidget);

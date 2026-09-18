@@ -11,6 +11,7 @@ import '../../features/beatplans/presentation/today_screen.dart';
 import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
+import '../../features/dashboard/presentation/the_floor_screen.dart';
 import '../../features/outlets/presentation/create_outlet_screen.dart';
 import '../../features/outlets/presentation/outlets_list_screen.dart';
 import '../../features/tasks/presentation/tasks_screen.dart';
@@ -148,8 +149,18 @@ final routerProvider = Provider<GoRouter>((ref) {
               FadeTransition(opacity: animation, child: child),
         ),
       ),
+      // The manager's home, migrated to Torchlight (#412/#413 + The Floor).
       GoRoute(
         path: '/dashboard',
+        pageBuilder: (context, state) => managerPage(const TheFloorScreen()),
+      ),
+      // The old multi-panel console. The Floor replaces its KPI header and its
+      // needs-attention counters; it does NOT replace the trend, benchmark,
+      // agent-activity and sales-attainment panels, which are separate spec
+      // items and not yet migrated. Deleting it here would delete those, so it
+      // keeps a route and a nav destination until they land.
+      GoRoute(
+        path: '/dashboard/overview',
         pageBuilder: (context, state) =>
             managerPage(const DashboardShellScreen()),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/push/push_config.dart';
@@ -295,10 +296,13 @@ void main() {
     container.read(routerProvider).go('/login');
     await tester.pumpAndSettle();
 
-    // The dashboard's KPI grid now loads from GET /dashboard (unstubbed here,
+    // The Floor loads from GET /dashboard (unstubbed here, so it renders its
+    // error region); the screen's own type is the routing signal, because it
+    // carries no app header to read a title off — the plate is the header.
+    // (was: the KPI grid's title)
     // so it settles into the error state); the AppBar title is the stable
     // signal that routing landed on the dashboard.
-    expect(find.text('Execution overview'), findsOneWidget);
+    expect(find.byType(TheFloorScreen), findsOneWidget);
   });
 
   testWidgets('logging out from a protected route redirects back to login', (
@@ -320,7 +324,7 @@ void main() {
     );
     container.read(routerProvider).go('/dashboard');
     await tester.pumpAndSettle();
-    expect(find.text('Execution overview'), findsOneWidget);
+    expect(find.byType(TheFloorScreen), findsOneWidget);
 
     container.read(sessionControllerProvider.notifier).logout();
     await tester.pumpAndSettle();
@@ -354,7 +358,7 @@ void main() {
 
       // Guarded away from the manager dashboard, back to the audit outlet picker.
       expect(find.text('Today'), findsOneWidget);
-      expect(find.text('Execution overview'), findsNothing);
+      expect(find.byType(TheFloorScreen), findsNothing);
     },
   );
 
@@ -677,7 +681,7 @@ void main() {
       container.read(routerProvider).go('/audit/o1');
       await tester.pumpAndSettle();
 
-      expect(find.text('Execution overview'), findsOneWidget);
+      expect(find.byType(TheFloorScreen), findsOneWidget);
     },
   );
 
@@ -776,7 +780,7 @@ void main() {
     ) async {
       await goAs(tester, 'manager', '/today');
 
-      expect(find.text('Execution overview'), findsOneWidget);
+      expect(find.byType(TheFloorScreen), findsOneWidget);
       expect(find.byKey(const ValueKey('today-contests')), findsNothing);
     });
 
@@ -815,7 +819,7 @@ void main() {
       expect(find.text(title), findsOneWidget);
       expect(find.text('Overdue tasks'), findsOneWidget);
       expect(find.text('Today'), findsNothing);
-      expect(find.text('Execution overview'), findsNothing);
+      expect(find.byType(TheFloorScreen), findsNothing);
     });
   }
 }

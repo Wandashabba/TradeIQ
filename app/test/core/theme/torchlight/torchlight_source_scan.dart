@@ -166,6 +166,21 @@ class TorchlightScanner {
     'core/widgets/torchlight/button/torch_press.dart',
     'core/widgets/torchlight/chrome/nav_circle.dart',
     'core/widgets/torchlight/chrome/nav_pill.dart',
+    // Phase 1, the plate. The fifth emitter, and the only one that is not a
+    // control:
+    //
+    //   plate           the strip light — a 2px flame-600 line and the 48dp
+    //                   gradient bloom above it, counted as ONE object because
+    //                   that is what it looks like. TorchClaim.plateStripLight,
+    //                   rung 2. It asks TorchScope like the rest, and then
+    //                   declines the grant anyway when there is no photograph:
+    //                   a light needs something to be a light *on*, and a lit
+    //                   drawing is a decoration wearing the screen's one light.
+    //
+    // Note what is NOT here. `plate_fallback.dart` draws the no-photograph
+    // state and never names a flame token in any skin or state, which is the
+    // rule rather than an implementation detail.
+    'core/widgets/torchlight/plate/plate.dart',
   };
 
   /// Scan [root] (expected to be `lib/`) for amber tokens named outside the

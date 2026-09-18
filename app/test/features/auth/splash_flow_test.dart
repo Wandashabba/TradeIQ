@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
 
@@ -34,7 +35,8 @@ Widget _app(List<Override> overrides) => ProviderScope(
 // NOTE on asserted strings: 'Sign in' appears TWICE on the login screen
 // (headline + submit button), so the login marker here is its stable unique
 // string, 'Forgot password?' — the same marker the router tests use.
-// 'Execution overview' is the dashboard's AppBar title.
+// The Floor is the manager's home. It has no app header — the plate is the
+// header — so the screen's own type is the signal that routing landed.
 void main() {
   testWidgets('holds for 5 seconds, then advances to sign-in when logged out', (
     tester,
@@ -92,7 +94,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
     expect(
-      find.text('Execution overview'),
+      find.byType(TheFloorScreen),
       findsNothing,
       reason: 'dashboard must not appear during the 5s brand hold',
     );
@@ -107,7 +109,7 @@ void main() {
     // error state, exactly as the router tests do.
     await tester.pumpAndSettle();
     expect(find.text('Forgot password?'), findsNothing);
-    expect(find.text('Execution overview'), findsOneWidget);
+    expect(find.byType(TheFloorScreen), findsOneWidget);
   });
 
   testWidgets(
@@ -121,7 +123,7 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       // Restore never resolved → still on the splash, no navigation.
       expect(find.text('Forgot password?'), findsNothing);
-      expect(find.text('Execution overview'), findsNothing);
+      expect(find.byType(TheFloorScreen), findsNothing);
     },
   );
 }

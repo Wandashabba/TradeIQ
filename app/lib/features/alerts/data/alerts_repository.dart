@@ -13,6 +13,7 @@ class AlertItem {
     this.visitId,
     this.outletId,
     this.evidencePhotoId,
+    this.createdAt,
   });
   final String id;
   final String metric;
@@ -21,6 +22,15 @@ class AlertItem {
   final bool acknowledged;
   final String? visitId;
   final String? outletId;
+
+  /// When the rule fired. The column has always been on the wire — the list
+  /// arrives `createdAt desc` — and was simply dropped here until The Floor
+  /// needed to say how long a thing has been broken.
+  ///
+  /// Nullable rather than required, because an alert created before the field
+  /// was parsed is still an alert: a missing timestamp renders an em dash and
+  /// a sentence, never a zero and never "just now".
+  final DateTime? createdAt;
 
   /// The newest photo of the linked visit (batched server-side), or null when
   /// the alert has no visit or the visit has no photos. Null means the row
@@ -36,6 +46,7 @@ class AlertItem {
     visitId: json['visitId'] as String?,
     outletId: json['outletId'] as String?,
     evidencePhotoId: json['evidencePhotoId'] as String?,
+    createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
   );
 }
 
