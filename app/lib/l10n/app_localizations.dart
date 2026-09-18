@@ -1160,11 +1160,11 @@ abstract class AppLocalizations {
   /// **'Your real score — the one your manager sees — appears once this reaches the server.'**
   String get outcomeNoGuess;
 
-  /// The scorecard's rating band spelled out beside its coloured dot. 'band' is the wire value green/amber/red.
+  /// The scorecard's rating band spelled out beside its non-colour mark, on every surface that shows a band. 'band' is the wire value green/amber/red, which is unchanged — only the display name differs, because the design system reserves amber for the brand and cannot name a severity after it.
   ///
   /// In en, this message translates to:
-  /// **'{band, select, green{Green} amber{Amber} other{Red}}'**
-  String outcomeRatingBand(String band);
+  /// **'{band, select, green{Healthy} amber{Watch} other{Gap}}'**
+  String ratingBand(String band);
 
   /// Score is unchanged since the agent's last visit to this store. 'previous' is that visit's score.
   ///

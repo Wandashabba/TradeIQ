@@ -681,11 +681,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your real score — the one your manager sees — appears once this reaches the server.';
 
   @override
-  String outcomeRatingBand(String band) {
+  String ratingBand(String band) {
     String _temp0 = intl.Intl.selectLogic(band, {
-      'green': 'Green',
-      'amber': 'Amber',
-      'other': 'Red',
+      'green': 'Healthy',
+      'amber': 'Watch',
+      'other': 'Gap',
     });
     return '$_temp0';
   }
