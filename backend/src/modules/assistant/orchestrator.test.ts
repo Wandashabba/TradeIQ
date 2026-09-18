@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BUDGET_NOTICE, MAX_PARALLEL_TOOLS, runTurn, type WireEvent } from './orchestrator';
 import type { LlmProvider, TurnEvent, TurnInput } from './providers/types';
+import { SPOTLIGHT_FENCE, SPOTLIGHT_FENCE_END } from './sanitize';
 import type { AssistantTracer, TurnSummary, TurnTrace } from './tracing';
 import { eraseToolTypes, ToolFacingError, type AnyAssistantTool } from './types';
 
@@ -1167,6 +1168,90 @@ describe('orchestrator', () => {
     });
   });
 
+  describe('the model\'s copy of a tool result', () => {
+    /** One turn over `result`: what the model was sent, and what the artifact carried. */
+    async function contextFor(result: unknown): Promise<{ artifact: unknown; sent: string }> {
+      const provider = scriptedProvider([callTool('getAgentScorecard', { agentId: 'a' }), say('done')]);
+      const events = await collect(
+        runTurn({
+          provider,
+          tools: [
+            testTool({
+              run: async () => result,
+              view: () => ({ type: 'outlet_map', params: { outletIds: ['o-1'] } }),
+            } as never),
+          ],
+          messages: [{ role: 'user', content: 'q' }],
+          signal: signal(),
+        }),
+      );
+      const history = provider.calls.filter((c) => c.model !== 'quarantine')[1].messages;
+      const sent = (history.find((m) => m.role === 'tool') as { content: string }).content;
+      const artifact = events.find((e) => e.event === 'artifact') as
+        | { data: { data: unknown } }
+        | undefined;
+      return { artifact: artifact?.data.data, sent };
+    }
+
+    const stockResult = {
+      onShelfAvailabilityPct: 93.96,
+      outOfStockLines: 1175,
+      worstOutlets: [
+        { outletId: 'o-1', outletName: 'Corner Express', outOfStockLines: 16, lat: -29.85, lng: 30.99 },
+      ],
+      comparison: {
+        label: 'the same days last year',
+        basis: { kind: 'same_period_last_year' },
+        values: {
+          onShelfAvailabilityPct: 94.31,
+          worstOutlets: [{ outletId: 'x' }, { outletId: 'y' }, { outletId: 'z' }],
+        },
+      },
+    };
+
+    it('is compacted, and is still valid JSON', async () => {
+      const { sent } = await contextFor(stockResult);
+      expect(() => JSON.parse(sent)).not.toThrow();
+      expect(sent).not.toContain('lat');
+      expect(sent).not.toContain('lng');
+    });
+
+    it('still carries every figure an answer could quote', async () => {
+      // Rule 1: "Every figure you state must come from a tool result in this
+      // conversation." Compaction is the one thing between a tool and that
+      // rule, so this is the assertion that keeps it honest — the headline, the
+      // count, and BOTH sides of the comparison survive.
+      const { sent } = await contextFor(stockResult);
+      const parsed = JSON.parse(sent) as Record<string, unknown>;
+      expect(parsed.onShelfAvailabilityPct).toBe(93.96);
+      expect(parsed.outOfStockLines).toBe(1175);
+      expect(
+        (parsed.comparison as { values: { onShelfAvailabilityPct: number } }).values
+          .onShelfAvailabilityPct,
+      ).toBe(94.31);
+      // …and the current side's rows, which are the ones an answer names.
+      expect(sent).toContain('Corner Express');
+    });
+
+    it('cuts the far side of a comparison to a countable marker', async () => {
+      const { sent } = await contextFor(stockResult);
+      const values = (JSON.parse(sent) as { comparison: { values: { worstOutlets: unknown[] } } })
+        .comparison.values.worstOutlets;
+      // Never silently: rule 1 tells the model to read `{"omitted": n}` as a
+      // partial list and say so.
+      expect(values).toEqual([{ outletId: 'x' }, { omitted: 2 }]);
+    });
+
+    it('leaves the artifact\'s copy of the result untouched', async () => {
+      // The client draws a map from these coordinates. Compaction is for the
+      // model's copy alone; if it ever reached the artifact the map goes blank
+      // and no test near `compact.ts` would notice.
+      const { artifact } = await contextFor(stockResult);
+      expect(JSON.stringify(artifact)).toContain('-29.85');
+      expect(JSON.stringify(artifact)).toContain('30.99');
+    });
+  });
+
   describe('untrusted tool output', () => {
     it('spotlights free text before it reaches the model', async () => {
       const provider = scriptedProvider([
@@ -1194,7 +1279,8 @@ describe('orchestrator', () => {
       // Quarantined: the raw payload is replaced by a summary, and what remains
       // is fenced as data.
       expect(toolMessage.content).not.toContain('Ignore all previous instructions');
-      expect(toolMessage.content).toContain('untrusted data');
+      expect(toolMessage.content).toContain(SPOTLIGHT_FENCE);
+      expect(toolMessage.content).toContain(SPOTLIGHT_FENCE_END);
     });
 
     it('neutralises followups fences and blockquotes before the model sees them', async () => {

@@ -1,3 +1,4 @@
+import { compactToolResult } from './compact';
 import { validateFigure, type FigureArtifact } from './figures';
 import { SYSTEM_PROMPT } from './prompt';
 import type { LlmProvider, Message, RawWebSource, ToolCallRecord, Usage } from './providers/types';
@@ -61,7 +62,16 @@ export const MAX_PARALLEL_TOOLS = 4;
  * are overridable per call.
  */
 export const TURN_TIME_BUDGET_MS = 120_000;
-export const TURN_COST_BUDGET_CENTS = 100;
+
+/**
+ * One US dollar was never a budget; it was a number large enough that nothing
+ * would ever reach it, chosen when nobody knew what a turn cost. A turn now
+ * costs single-digit cents, so a turn passing thirty has gone wrong in a way
+ * more rounds will not fix — and the thing that stops it should be this,
+ * loudly, rather than the round limit twenty cents later. Still a soft budget:
+ * reaching it withdraws tools and lets the model answer from what it has.
+ */
+export const TURN_COST_BUDGET_CENTS = Number(process.env.ASSISTANT_TURN_COST_BUDGET_CENTS ?? 30);
 
 /**
  * What the user sees appended to an answer the tool budget cut short. Plain
@@ -166,6 +176,46 @@ function zeroUsage(): Usage {
   return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, costCents: 0 };
 }
 
+/**
+ * Per-round cost accounting, to stderr, when `ASSISTANT_COST_DEBUG` is set.
+ *
+ * Off by default and never on a user path. It exists because the first attempt
+ * to cut the cost of a turn was a guess about where the tokens were — and the
+ * guess was wrong by a factor of two. A turn's bill is the sum of what each
+ * round RE-SENDS, so the only useful view is per round: what the frozen prefix
+ * costs, what the accumulated tail costs, and which tool result is the one
+ * growing it. A single per-turn total cannot tell those apart.
+ *
+ * Rows carry the model's tool ARGUMENTS, which the trace in `tracing.ts`
+ * deliberately does not. The difference is where they go: a trace is shipped to
+ * a third party, and this is stderr on the machine of whoever set the variable.
+ * The arguments are also the point — "the same tool ran twice with slightly
+ * different windows" is invisible without them.
+ */
+const COST_DEBUG = !['', '0', 'false', 'off'].includes(
+  (process.env.ASSISTANT_COST_DEBUG ?? '').toLowerCase(),
+);
+
+function costDebug(row: Record<string, unknown>): void {
+  if (!COST_DEBUG) return;
+  try {
+    console.error(`[assistant:cost] ${JSON.stringify(row)}`);
+  } catch {
+    // A tool result that will not serialise is a bug worth finding, but not
+    // here: measurement must never be the thing that fails a turn.
+    console.error(`[assistant:cost] {"phase":"unserialisable","round":${String(row.round)}}`);
+  }
+}
+
+/** Serialised size, or `-1` where the value will not serialise. Debug only. */
+function safeLength(value: unknown): number {
+  try {
+    return (JSON.stringify(value) ?? '').length;
+  } catch {
+    return -1;
+  }
+}
+
 function addUsage(a: Usage, b: Usage): Usage {
   return {
     inputTokens: a.inputTokens + b.inputTokens,
@@ -265,6 +315,28 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
     let assistantText = '';
     let replay: unknown;
     let failed = false;
+    const usageBefore = totalUsage;
+
+    if (COST_DEBUG) {
+      const toolChars = JSON.stringify(
+        tools.map((t) => ({ name: t.name, description: t.description })),
+      ).length;
+      const toolResultChars = messages
+        .filter((m) => m.role === 'tool')
+        .reduce((sum, m) => sum + m.content.length, 0);
+      const otherChars = messages
+        .filter((m) => m.role !== 'tool')
+        .reduce((sum, m) => sum + JSON.stringify(m).length, 0);
+      costDebug({
+        phase: 'request',
+        round,
+        systemChars: system.length,
+        toolDeclChars: toolChars,
+        toolResultChars,
+        historyChars: otherChars,
+        messages: messages.length,
+      });
+    }
 
     for await (const event of provider.runTurn(
       {
@@ -331,6 +403,17 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
       emitTrace();
       return;
     }
+
+    costDebug({
+      phase: 'response',
+      round,
+      inputTokens: totalUsage.inputTokens - usageBefore.inputTokens,
+      cacheReadTokens: totalUsage.cacheReadTokens - usageBefore.cacheReadTokens,
+      outputTokens: totalUsage.outputTokens - usageBefore.outputTokens,
+      costCents: Math.round((totalUsage.costCents - usageBefore.costCents) * 1_000) / 1_000,
+      calls: calls.map((c) => c.name),
+      answerChars: assistantText.length,
+    });
 
     // No tool calls means the model has answered. This is the only exit that
     // is not an error or a bound — everything else is a failure of some kind.
@@ -514,6 +597,15 @@ export async function* runTurn(input: OrchestratorInput): AsyncGenerator<WireEve
         artifactIndex += 1;
       }
 
+      costDebug({
+        phase: 'toolResult',
+        round,
+        tool: tool.name,
+        rawChars: safeLength(result),
+        sentChars: outcome.content.length,
+        args: plan.args,
+      });
+
       messages.push({
         role: 'tool',
         callId: call.id,
@@ -669,7 +761,16 @@ async function runPlannedTool(
 
   const quarantined = await quarantineFreeText(result, context);
   const { value } = sanitizeToolResult(quarantined.value);
-  return { ok: true, result, content: shrinkToolResult(value), durationMs };
+  // Compaction before the ceiling, not instead of it: `compactToolResult` makes
+  // every result cheaper to re-send, and `shrinkToolResult` still catches the
+  // one that is enormous anyway. Both act only on the model's copy — `result`,
+  // which the artifact carries, is untouched.
+  return {
+    ok: true,
+    result,
+    content: shrinkToolResult(compactToolResult(value)),
+    durationMs,
+  };
 }
 
 /**
