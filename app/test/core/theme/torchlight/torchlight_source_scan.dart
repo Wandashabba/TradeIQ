@@ -148,6 +148,24 @@ class TorchlightScanner {
     'core/theme/torchlight/tiq_contrast.dart',
     'core/theme/tiq_colors.dart',
     'core/theme/app_theme.dart',
+    // Phase 1, the chrome and the button family. Four emitters, and every one
+    // of them asks TorchScope before it lights anything:
+    //
+    //   primary_button  the rim and the 2dp bleed in Night, the block in
+    //                   Day and Veld — TorchClaim.primaryCommit, rung 1.
+    //   nav_pill        the active tab in Night — TorchScope.navActiveTabId,
+    //                   which the allocator grants itself, counted not exempt.
+    //   nav_circle      the standing action — TorchClaim.navCircle, rung 4,
+    //                   and denied outright on any route with a primary.
+    //   torch_press     the keyboard focus ring, which is flame-700 in Night
+    //                   and ink in Day and Veld. It is the one amber the
+    //                   ladder does not count, by declaration: it renders only
+    //                   under FocusHighlightMode.traditional, so it never
+    //                   co-occurs with the touch frame the census measures.
+    'core/widgets/torchlight/button/primary_button.dart',
+    'core/widgets/torchlight/button/torch_press.dart',
+    'core/widgets/torchlight/chrome/nav_circle.dart',
+    'core/widgets/torchlight/chrome/nav_pill.dart',
   };
 
   /// Scan [root] (expected to be `lib/`) for amber tokens named outside the

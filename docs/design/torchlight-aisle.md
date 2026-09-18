@@ -787,3 +787,325 @@ screen is ported; Day follows per component; **Veld is sequenced last**, after
 Night and Day are shipped and stable, because it has the fewest users per day
 and the highest per-component tax — and shipping it third means its goldens are
 written against components that have stopped moving.
+
+---
+
+## 12. Phase 1 — the frame and the buttons
+
+The chrome and the button family. Nothing in `lib/features/**` changed when they
+landed: these are components with tests and no call sites, exactly as Phase 0
+was patterns with no pixels.
+
+```
+app/lib/core/widgets/torchlight/
+  button/
+    torch_press.dart        press, focus ring, haptics, the Abyssal helpers
+    torch_button.dart       heights, label roles, busy dots, BarNote, triangle
+    primary_button.dart     TorchPrimaryButton
+    secondary_button.dart   TorchSecondaryButton
+    tertiary_button.dart    TorchTertiaryButton
+    destructive_button.dart TorchDestructiveButton
+    icon_button.dart        TorchIconButton
+    buttons.dart            the barrel
+  chrome/
+    torch_shell.dart        TorchShell (agent / console)
+    app_header.dart         TorchAppHeader
+    nav_pill.dart           TorchNavPill, TorchNavSlot
+    nav_circle.dart         TorchNavCircle
+    skin_cycle.dart         TorchSkinCycle
+    thumb_zone.dart         TorchThumbZone
+    chip_wrap.dart          TorchChipWrap (the header's two-row cap)
+    chrome.dart             the barrel
+```
+
+### 12.1 The button family
+
+| | geometry | amber |
+|---|---|---|
+| `TorchPrimaryButton` | 56 Field / 44 Console / 64 Veld, radius 10, full width | `TorchClaim.primaryCommit`, rung 1 |
+| `TorchSecondaryButton` | the same, ghost | none |
+| `TorchTertiaryButton` | text + rule, 48dp target (56 Veld) | none |
+| `TorchDestructiveButton` | the same block, 2px crimson outline | none, categorically |
+| `TorchIconButton` | 48 square (44 Console, 56 Veld), 24dp glyph | none |
+
+Every height is a **minimum**. At 2.0× the label wraps and the button grows to
+intrinsic height with 16dp of vertical padding; nothing is pinned and nothing is
+ellipsised, because a verb the reader cannot read is not a verb.
+
+```dart
+TorchPrimaryButton(
+  claimId: 'submit-visit',     // the id the route declared to TorchScope
+  label: 'Send this visit',    // a verb phrase, never "OK"
+  onPressed: _submit,          // null disables it
+  blockedReason: 'Stock and Pricing still need finishing.',
+  busy: false,
+  icon: Icons.send,            // optional 18dp leading glyph
+)
+```
+
+`blockedReason` is **required when the button is disabled** — an assertion, not
+a convention. A disabled primary renders a `TorchBarNote` **above** it at meta
+12/400 ink-3, wrapping, never truncated, as a live region. Kit drew the note
+beneath the button; the agent surface drew it above and is right, because the
+primary lives at the bottom edge of a 96dp thumb zone and there is nothing under
+it to put a sentence in.
+
+The primary's label role is a lookup, not a new token: unify §1.7's **16/600
+Field, 14/600 Console, 18/700 Veld** lands exactly on Field `title.m`, Console
+`body.strong` and Veld `title.m`.
+
+**Night's granted form is a lit block, not an amber one.** `lifted` fill, a
+flame-600 rim, Palladian label, and a 2dp `TiqPalette.glowAmber` gradient bleed
+along the top inside edge. The rim is **2px** where the spec says 1: a 1px stroke
+on a radius-10 shoulder anti-aliases to about 72% value at the corners, under the
+census's 0.90 floor, so the census reads a 1px rim as four separate lights and a
+correctly built commit button fails the budget it obeys. A rim the enforcement
+mechanism cannot count is a rim that fails the law it exists to serve.
+
+**Day and Veld** are a solid `flame600` block carrying `onAmber`, with a real
+`ink1` edge — an amber block on Palladian is 1.6:1 against its own ground and
+nothing here is identified by a fill alone. **Pressed** floods to `amberPressed`
+with `onAmberPressed`: in Night that is flame-500 with `#0B1017` at 8.59:1,
+exactly as §1.7 asks. Veld does *not* lighten — `#0E141A` on flame-500 is 8.34:1,
+under the 9:1 floor Veld declares for every word it shows — so its press inverts
+to the ink block with white on it. That is the palette's own argued answer and it
+is read from the token rather than restated in the widget.
+
+`TorchIconButton` takes `semanticLabel` as a **required constructor argument**
+and asserts it is not empty. That is the whole reason it exists in a codebase
+that already had `IconButton`: the audit found 26 unlabelled ones. Toggled-on is
+a solid Abyssal block plus **the state word** (`stateWord`, required when
+`toggledOn`) plus `Semantics(toggled: true)` — never a colour, and never a fill
+step on its own. unify §1.23 is the one place the reconciled system corrects the
+spec's own text, and this is where that correction lives.
+
+### 12.2 Press, focus and haptics
+
+`TorchPressable` is the one gesture wrapper. **Press is two channels**: a scale
+to 0.98 (0.94 for a glyph target) at 120ms *plus* a fill change to a declared
+token — and under reduce-motion the scale is dropped, so the fill is the channel
+that always has to be there. Ghost controls also step their edge from 1px to 2px,
+because Night's fill step is 1.67:1 on the ground and that is not enough on a
+6-bit panel at 40% backlight.
+
+`torchPressSurface(skin)` is the fill-and-ink pair: Night steps up to `lifted`,
+Day steps down to `well`, and Veld — which has no fill steps at all, every one of
+its surface tokens being white — inverts to the ink block with white on it.
+
+`torchAbyssal(skin)` / `torchOnAbyssal(skin)` are the non-amber way this system
+says *this one*: `lifted` in all three skins, carrying Palladian in Night and Day
+(9.43:1) and white in Veld (15.33:1). `TiqSkin.onFill` cannot answer that,
+because `lifted` is a dark **ground** in Night and a dark **ink block** in Day.
+
+The keyboard focus ring is 2px flame-700 at a 2dp offset in Night, 2px ink-1 at
+2dp in Day, 3px ink-1 at 3dp in Veld. It renders only under
+`FocusHighlightMode.traditional` and is the one amber the ladder does not count,
+by declaration — it never co-occurs with a touch frame and never appears for a
+touch user.
+
+`TorchBuzz` has four members and nothing else vibrates: `tick` (every ordinary
+press), `success` (a completed commit), `warning` (a destructive first press, a
+failure toast), `finding` (a zero that raises a task).
+
+### 12.3 The chrome
+
+```dart
+TorchScope(
+  skin: context.skin,
+  phase: 'loaded',
+  navRenders: TorchShell.navWillRender(context, hasNav: true),
+  tabbedRoute: true,
+  claims: <TorchClaim>[TorchNavCircle.claim('raise-task')],
+  child: TorchShell(
+    profile: TorchShellProfile.console,
+    header: TorchAppHeader(
+      title: 'The Floor',
+      facts: <String>['Gauteng', '74 outlets', 'updated 09:12'],
+      back: TorchIconButton(…),          // at most one, optional
+      trailing: skinCycleButton,         // EXACTLY one, or none
+      flagChips: <Widget>[…],            // the mark set's chips go here
+    ),
+    navPill: TorchNavPill(slots: managerSlots, activeIndex: 0, onSelect: go),
+    navCircle: TorchNavCircle(claimId: 'raise-task', …),
+    children: <Widget>[…],               // the body
+  ),
+)
+```
+
+**`TorchShell`** — gutter, header, scroll frame, bottom region. The console
+profile paints the letterbox falloff (four stops, one gradient, one draw call;
+none in Veld) and widens the gutter past 1080dp. Three bottom regions, one of
+which always applies:
+
+1. **tab root** — a floating 64dp row, inset 16, 20dp above the safe area: the
+   pill, a 12dp gap, the 64dp circle. In Veld the bar **docks** and the circle
+   floats above its trailing end.
+2. **a screen with a primary** — a `TorchThumbZone`.
+3. **neither** — a 76dp zone holding the skin cycle alone.
+
+A nav and a thumb-zone primary on one route is an assertion failure: 64dp of nav
+plus 96dp of thumb zone plus a safe area is a quarter of a 640dp screen given to
+chrome. A primary that belongs on a tab root goes **in the body** ("Check in
+here" on the next-up row), which is exactly the arrangement the amber census
+measures.
+
+The bottom region is a **sibling** of the scroll view, not an overlay. Overlaying
+it would mean reserving a height computed from tokens, and at 2.0× the region is
+taller than those tokens — which is how the last row of a list ends up under a
+nav bar on exactly the devices whose readers need it most.
+
+**`TorchAppHeader`** — no `AppBar`, no elevation, no fill that changes on scroll.
+`trailing` is typed as a single `TorchIconButton` because the rule is *exactly
+one*; on a tab root that one is the skin cycle. `facts` are joined by middots on
+screen and read as a sentence by a screen reader.
+
+unify §4 says headers cap at 40% of the viewport and then scroll. That is not
+implemented as a runtime measurement that re-parents the header — it is four
+caps that between them make the header small enough (title two lines, facts two
+lines, chips two rows, and the header scrolls with the body so an *expanded* chip
+list simply scrolls). `chrome_scale_test.dart` asserts the resulting height
+against 256dp — Afrikaans, 2.0×, with a back button and four facts — so the
+ceiling is a tested property rather than a promise.
+
+`TorchChipWrap` is a real `RenderBox` rather than a `Wrap` in a clipped box,
+because clipping hides the overflow without counting it and the count is what the
+expander's label says. It publishes the hidden count through a `ValueNotifier`
+after layout; the listener sits outside it, so a label change can never relayout
+the rows that produced it. A chip that is not drawn is not announced either.
+
+**`TorchNavPill`** — radius 999, 64 tall, inset 16, 20dp above the safe area,
+`well` fully opaque, a 1px `edgeStructure` outline. **Four slots maximum**, which
+is an assertion: at 360dp the bar has 252dp once the insets and the circle are
+drawn, and five slots is 50dp each, under the tap-target floor before the active
+pill takes its 6dp inset. Manager: Floor · Work · Ask · Menu. Agent: Today · My
+work · Map · Me.
+
+The active tab is a solid pill inset 6dp, 48 tall, radius 999 — `flame600` with
+`#0B1017` at 10.65:1 in Night, a solid Abyssal block with Palladian or white ink
+on a light ground, **never amber there**. **Veld docks the bar**: full bleed,
+72dp, a 2px top border, radius 0, which also gives back 36dp of fold.
+
+`TorchNavSlot` requires **both** `icon` and `activeIcon`. That is not decoration:
+at 2.0× the bar goes icon-only, the label and its 700 weight disappear, and if
+the glyph did not change then *selected* would be carried by the amber fill and
+nothing else — a colour-only signal, on the screens whose readers asked for
+bigger text.
+
+**`TorchNavCircle`** — 64dp, outside the bar, a 12dp gap. It declares
+`TorchClaim.navCircle`, rung 4, and the allocator denies it **outright** on any
+route with a primary commit: a screen with a commit action on it is a screen
+about that commit action. Whether it is the expected next move is carried by the
+glyph (`icon` → `expectedIcon`, an outlined plus becoming a filled arrow) and by
+the spoken label, before any fill changes — so the state survives greyscale, a
+light ground where it is never amber at all, and a screen reader.
+
+**`TorchSkinCycle`** — 56dp (64 Veld, 72 at 2.0×), three positions, each a
+different glyph: sun is Veld, paper is Day, moon is Night. `TorchSkinCycle.next`
+is Day → Veld → Night → Day. Its `semanticLabel` names the **next** state, and it
+is a live region. Per unify §1.2 it is *not* on the nav row: on a tab root it is
+the header's single trailing icon button, and on every other screen it is at the
+leading end of the thumb zone.
+
+**`TorchThumbZone`** — 96dp (112 Veld, 160 with a second action), a rule across
+the full bleed, the cycle at the leading gutter and the primary beside it. The
+second action sits **above** the primary: the thumb rests at the bottom of the
+screen and a control that throws work away must never be the bottom-most thing
+under it.
+
+### 12.4 How amber is claimed rather than painted
+
+No component in this folder decides that it is lit. Each asks
+`TorchScope.lit(context, id)` and paints its granted or its denied form. The
+route declares the claims; the allocator resolves them once per route × phase.
+
+* `TorchPrimaryButton.claim(id)` → `TorchClaim.primaryCommit`, rung 1.
+* `TorchNavCircle.claim(id)` → `TorchClaim.navCircle`, rung 4, declared **only**
+  when the action is the expected next move.
+* The nav's active tab is not declared by anyone: `TorchScope` adds
+  `TorchScope.navActiveTabId` itself whenever `navRenders` is true, so no route
+  can forget to count the chrome it did not draw. The pill reads that same id.
+
+**The keyboard.** `TorchShell.navWillRender(context, hasNav:)` is the single
+answer the shell and the route's `TorchScope` both read. With the keyboard up it
+is false, the nav is not built, and the grant it was holding returns to the
+content — which is what makes "a focused text field plus a lit primary" exactly
+two rather than three.
+
+**The census.** `chrome_amber_test.dart` renders a Night tab root with the nav on
+screen, a primary in its body and a nav circle declared, and counts the flame-hued
+connected regions in the frame:
+
+| skin | lit objects | which |
+|---|---|---|
+| Night | **2** | the nav's active tab, and the primary's rim |
+| Day | **1** | the primary block; the tab is Abyssal |
+| Veld | **1** | the primary block; the bar is docked and its tab is ink |
+| any, beneath a sheet | **0** | every amber on the route goes out |
+
+The nav circle asked and lost with `TorchDenial.circleWithPrimary` in all three.
+
+Building that test found a real bug in the Phase 0 harness, and it is fixed here:
+dark ink on an amber block leaves amber showing through the counter of every `o`,
+the inside of every outlined glyph and the middle of the one in "10", and an
+eight-connected walk counted each of those as a separate light. A nav tab whose
+slot said "Today" counted as four. `censusOfPixels` now drops a region whose
+bounds are contained by another region's — *a lit object is not enclosed by
+another lit object* — while two lights that merely overlap still count as two.
+
+Four files are added to `TorchlightScanner.amberAllowlist`: `primary_button`,
+`nav_pill`, `nav_circle` and `torch_press`. Every one of them asks the allocator
+first.
+
+### 12.5 The nav bar at 2.0× text, and in Veld
+
+At build the bar lays out **every localised label** with a `TextPainter`, at the
+ambient scaler, against the slot width it actually has. If any one of them
+overflows, the whole bar goes **icon-only — all four, never a mixed bar and never
+a two-row grid**. A 132dp nav grid plus a circle plus a thumb zone is a third of
+a 640dp screen; and a bar that kept three labels and dropped one would have
+dropped the longest word, which is to say always the same language.
+
+The failure case is Afrikaans and it is real. `nav_afrikaans_test.dart` uses the
+app's own strings — Vandag, Jou werk, Kaart, Ek — and at 360dp they all go, at
+1.3× they all go, at 720dp they all come back, and a bar with three one-letter
+labels and one "Kompetisies" loses all four. Icon-only is a **layout** decision
+and never an accessibility one: each slot keeps its full
+`"Vandag, tab 1 of 4"` semantics and its selected flag.
+
+Glyphs scale with the text because in an icon-only bar the glyph is the only
+thing carrying the destination — 24dp up to a cap of 32, because the active pill
+is 48 and a 48dp glyph in a 48dp pill is a glyph with no pill around it. The bar
+is 64dp **minimum** and grows only when measured content will not fit.
+
+In Veld the bar docks: full bleed, 72dp, a 2px `#1B2632` top border, radius 0,
+its active slot a solid ink block with white on it at 15.33:1, targets at 56, no
+gradient, no shadow, no rim, no bloom. `chrome_golden_test.dart` asserts all
+three — no `BackdropFilter`, `ImageFiltered` or `ShaderMask` anywhere in the
+frame, no `BoxShadow` in Night or Veld, and no gradient at all in Veld.
+
+### 12.6 What a migrating screen has to do
+
+Phase 1 migrates no screens. When one is migrated, it does four things:
+
+1. **Wrap the route in a `TorchScope`** and declare its claims, with
+   `navRenders: TorchShell.navWillRender(context, hasNav: …)` and `tabbedRoute`
+   telling the truth. The claim set comes from the view model at construction and
+   per declared phase — never recomputed per frame, because a grant that is
+   recomputed while a thumb scrolls is a grant that blinks.
+2. **Replace `Scaffold` + `AppBar` with `TorchShell` + `TorchAppHeader`**, and
+   pick one bottom region: a nav pill (tab root), a primary in the thumb zone, or
+   the skin-cycle-only zone. Move any ad-hoc bottom button into the zone. A
+   primary that has to coexist with a nav goes in the body.
+3. **Replace every button.** `ElevatedButton`/`AgentButton` → `TorchPrimaryButton`
+   with a `claimId` and — for every disabled state — a `blockedReason`.
+   `OutlinedButton` → secondary, `TextButton` → tertiary, `IconButton` →
+   `TorchIconButton` with a real `semanticLabel` naming the destination
+   ("Back to Today", never "Back").
+4. **Add the screen to the amber census.** One fixture, one route × phase × skin,
+   `expectWithinAmberBudget`. A screen with no golden is a screen the law is not
+   enforced on.
+
+The two pieces the chrome deliberately does **not** own, and which a migrating
+screen gets from its siblings: the flag chips that go in
+`TorchAppHeader.flagChips` (the mark set) and the rows that go in
+`TorchShell.children` (the soft row).

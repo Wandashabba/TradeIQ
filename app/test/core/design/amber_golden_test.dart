@@ -153,6 +153,42 @@ void main() {
       );
     });
 
+    test('a hole in a lit block is not a second light', () {
+      // The nav's active tab: a solid amber pill with dark ink on it. Every
+      // counter of every `o`, and the inside of every outlined glyph, is an
+      // island of amber with a ring of ink around it — eight-connected, over
+      // the minimum area, and not a light. Before this rule a tab whose slot
+      // said "Today" counted as four.
+      final b = canvas(60, 60, p.ground);
+      paint(b, 60, const Rect.fromLTRB(4, 4, 56, 40), p.flame600);
+      // A ring of ink, enclosing a smaller square of the block's own fill.
+      paint(b, 60, const Rect.fromLTRB(20, 14, 40, 30), p.onAmber);
+      paint(b, 60, const Rect.fromLTRB(24, 18, 36, 26), p.flame600);
+
+      final census = censusOfPixels(b, width: 60, height: 60);
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'a lit object is not enclosed by another lit object\n'
+            '${census.describe()}',
+      );
+      expect(
+        census.litPixels,
+        greaterThan(0),
+        reason: 'the pixels are still counted; they are simply not a light',
+      );
+    });
+
+    test('two lights that merely overlap are still two', () {
+      // The containment test is on the bounds and it is strict on purpose: a
+      // rim whose box overlaps a circle's box is two lights, not one.
+      final b = canvas(60, 60, p.ground);
+      paint(b, 60, const Rect.fromLTRB(2, 2, 30, 30), p.flame600);
+      paint(b, 60, const Rect.fromLTRB(20, 34, 50, 50), p.flame500);
+      expect(censusOfPixels(b, width: 60, height: 60).objectCount, 2);
+    });
+
     test('a speck under the minimum area is not an object', () {
       final b = canvas(60, 60, p.ground);
       paint(b, 60, const Rect.fromLTRB(2, 2, 4, 4), p.flame600); // 4 px

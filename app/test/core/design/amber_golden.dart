@@ -262,11 +262,37 @@ AmberCensus censusOfPixels(
     }
   }
   regions.sort((a, b) => b.area.compareTo(a.area));
-  return AmberCensus(
-    regions: regions,
-    litPixels: lit,
-    totalPixels: total,
-  );
+
+  // A LIT OBJECT IS NOT ENCLOSED BY ANOTHER LIT OBJECT.
+  //
+  // Dark ink on an amber block leaves amber showing through the counter of
+  // every `o`, the inside of every outlined glyph, and the middle of the one
+  // in "10". Each of those is a separate eight-connected region and none of
+  // them is a separate light: they are the block, seen through its own label.
+  // Without this step a nav tab whose slot says "Today" counts as four.
+  //
+  // The test is containment of the BOUNDS, which is deliberately strict:
+  // two lights that merely overlap in their bounding boxes — a rim behind a
+  // circle, say — still count as two, because neither box contains the other.
+  final enclosed = <int>{};
+  for (var i = 0; i < regions.length; i++) {
+    for (var j = 0; j < i; j++) {
+      if (enclosed.contains(j)) continue;
+      if (regions[j].bounds.contains(regions[i].bounds.topLeft) &&
+          regions[j].bounds.contains(
+            regions[i].bounds.bottomRight - const Offset(1, 1),
+          )) {
+        enclosed.add(i);
+        break;
+      }
+    }
+  }
+  if (enclosed.isNotEmpty) {
+    for (final index in enclosed.toList()..sort((a, b) => b.compareTo(a))) {
+      regions.removeAt(index);
+    }
+  }
+  return AmberCensus(regions: regions, litPixels: lit, totalPixels: total);
 }
 
 /// Whether one pixel is emitted amber. See the table on [AmberRegion].
