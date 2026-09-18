@@ -40,8 +40,10 @@ enum HatchPattern {
   notMeasured,
 
   /// **Negative.** 45° rising stripes on a diverging bar's negative side.
-  /// `bad` against `chartNeutral` is 1.55:1 true and 1.26:1 in protanopia —
-  /// the stripe direction is what actually carries the sign.
+  /// `bad` against `chartNeutral` is 1.16:1 true and 1.06:1 in protanopia —
+  /// the stripe direction is what actually carries the sign. (It was 1.55 and
+  /// 1.26 until Phase 1 moved the neutral off the AA floor against its own
+  /// track; the hues converged and the stripe is now the whole of it.)
   negative,
 
   /// **Low sample.** No stripes: the fill is removed and only the outline

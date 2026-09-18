@@ -135,17 +135,27 @@ void main() {
             'Truffle 1.41:1 apart, which is why the solid/dashed stroke '
             'distinction is mandatory rather than nice.',
       );
+      // `bad` against `chart-neutral` was 1.55:1 true and 1.26:1 in
+      // protanopia when the neutral was #8B8271. Phase 1 moved it to #A39887
+      // (unify §1.4) to get the bar off the 3.01:1 AA floor against its own
+      // track, and the two hues converged: 1.16:1 true, 1.06:1 in protanopia.
+      //
+      // The ruling's conclusion did not change — it got stronger. A diverging
+      // negative is hatched with 45° RISING stripes and sits on the other side
+      // of a 1dp ink-1 axis, and at 1.06:1 the hue is now doing nothing at all
+      // rather than almost nothing. The stripe direction is the whole signal,
+      // which is what the design already said it was.
       expect(
         separationUnder(n.bad, n.chartNeutral, VisionFilter.protanopia),
-        closeTo(1.26, 0.02),
+        closeTo(1.06, 0.02),
         reason:
-            'The ruling says `bad` against `chart-neutral` is 1.55:1 true and '
-            '1.26:1 in protanopia, which is why a diverging negative is '
-            'hatched.',
+            'A diverging negative is hatched because its hue does not survive '
+            'protanopia. If this rises, someone has moved a data token and '
+            'the hatch rule needs re-arguing rather than re-pinning.',
       );
       expect(
         separationUnder(n.bad, n.chartNeutral, VisionFilter.trichromat),
-        closeTo(1.55, 0.02),
+        closeTo(1.16, 0.02),
       );
     });
 

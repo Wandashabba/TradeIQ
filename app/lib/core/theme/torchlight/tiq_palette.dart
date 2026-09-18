@@ -110,6 +110,14 @@ class TiqPalette {
   /// The fill of every non-focus ranked bar and non-focus series. Exists
   /// because Burning Flame and Oatmeal share a relative luminance (1.00:1) and
   /// are therefore the same bar in greyscale, in deuteranopia and in sun.
+  ///
+  /// **Moved in Phase 1** (unify §1.4). Night `#8B8271` → `#A39887`; Day
+  /// `#676052` → `#5C5648`. The old Night value measured 3.01:1 against the
+  /// `lifted` track — the product's most-drawn graphic sitting on the AA floor
+  /// with 0.01 of margin, which on a 6-bit panel at 40% backlight is a smudge.
+  /// The old Day value was byte-identical to Day [ink3], so a bar and a meta
+  /// line were the same token by accident. The floor did not move (a bar is a
+  /// graphic at 3:1, not text at 4.5:1); the margin did.
   final Color chartNeutral;
 
   // ── Amber — emitted light, never a label ─────────────────────────────
@@ -202,7 +210,7 @@ class TiqPalette {
     ink1: Color(0xFFEEE9DF),
     ink2: Color(0xFFC9C1B1),
     ink3: Color(0xFFA79E8C),
-    chartNeutral: Color(0xFF8B8271),
+    chartNeutral: Color(0xFFA39887),
     flame300: Color(0xFF8A4A12),
     flame500: Color(0xFFF79742),
     flame600: Color(0xFFFFB162),
@@ -239,7 +247,7 @@ class TiqPalette {
     ink1: Color(0xFF1B2632),
     ink2: Color(0xFF4A4437),
     ink3: Color(0xFF676052),
-    chartNeutral: Color(0xFF676052),
+    chartNeutral: Color(0xFF5C5648),
     flame300: Color(0xFF8A4A12),
     flame500: Color(0xFFF79742),
     flame600: Color(0xFFFFB162),
