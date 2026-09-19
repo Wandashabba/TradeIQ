@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/features/audit/data/tasks_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s9_action_plan_screen.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
@@ -57,9 +58,29 @@ void main() {
       await tester.pumpWidget(_today(const Locale('af')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Vandag'), findsOneWidget);
+      // "Today" is now on the screen twice — the header's title and the nav
+      // pill's first slot — so this names which is which. Both have to be
+      // Afrikaans: a bar that stays English under an Afrikaans header is the
+      // worst of both, and a bare `findsOneWidget` could not tell them apart.
+      expect(
+        find.descendant(
+          of: find.byType(TorchAppHeader),
+          matching: find.text('Vandag'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(TorchNavPill),
+          matching: find.text('Vandag'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Geen roete vir vandag beplan nie'), findsOneWidget);
-      expect(find.text('Alles is gestuur'), findsOneWidget);
+      // The Torchlight sync chip, whose copy is shorter than the banner's
+      // that used to say this ("Alles gestuur", not "Alles is gestuur") —
+      // it is a chip in the header now, not a line in the body.
+      expect(find.text('Alles gestuur'), findsOneWidget);
       // "Maandag, 14 September" — the weekday and month come from intl.
       final heading = DateFormat('EEEE, d MMMM', 'af').format(DateTime.now());
       expect(find.text(heading), findsOneWidget);
@@ -87,7 +108,21 @@ void main() {
       await tester.pumpWidget(_today(const Locale('zu', 'ZA')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Today'), findsOneWidget);
+      // The header's title and the nav pill's first slot, both in English.
+      expect(
+        find.descendant(
+          of: find.byType(TorchAppHeader),
+          matching: find.text('Today'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(TorchNavPill),
+          matching: find.text('Today'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('No route planned for today'), findsOneWidget);
       final heading = DateFormat('EEEE, d MMMM', 'en').format(DateTime.now());
       expect(find.text(heading), findsOneWidget);
