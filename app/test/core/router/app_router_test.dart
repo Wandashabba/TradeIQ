@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
+import 'package:tradeiq_app/features/agent_map/presentation/agent_map_screen.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/push/push_config.dart';
@@ -782,6 +783,9 @@ void main() {
           ),
           outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
           todayRouteProvider.overrideWith((ref) async => null),
+          myRecordRepositoryProvider.overrideWithValue(
+            _FakeMyRecordRepository(),
+          ),
           contestsRepositoryProvider.overrideWithValue(
             FakeContestsRepository(
               current: current,
@@ -825,8 +829,8 @@ void main() {
       });
     }
 
-    testWidgets('a field_agent reaches Contests from Today\'s nav, and comes '
-        'back to Today', (tester) async {
+    testWidgets('a field_agent reaches Contests from Today\'s nav, through Me, '
+        'and comes back to Me', (tester) async {
       await goAs(
         tester,
         'field_agent',
@@ -840,32 +844,50 @@ void main() {
         ],
       );
 
-      // Contests moved from the Today app bar into the agent's nav pill: the
+      // Contests moved from the Today app bar into the agent's nav pill — the
       // Torchlight header allows exactly one trailing icon button and on a tab
-      // root that one is the skin cycle (unify §1.2). The capability is
-      // unchanged — reach the standings, see how many are running, come back —
-      // so this asserts the capability, not the widget it used to be.
-      final action = find.descendant(
+      // root that one is the skin cycle (unify §1.2) — and then, when the
+      // agent's own record existed, from its own slot into Me. The capability
+      // is unchanged — see how many are running from Today, reach the
+      // standings, come back — so this asserts the capability, not the widget
+      // it used to be.
+      final me = find.descendant(
         of: find.byType(TorchNavPill),
-        matching: find.text('Contests'),
+        matching: find.text('Me'),
       );
-      expect(action, findsOneWidget);
+      expect(me, findsOneWidget);
       expect(
-        find.descendant(of: find.byType(TorchNavPill), matching: find.text('1')),
+        find.descendant(
+          of: find.byType(TorchNavPill),
+          matching: find.text('1'),
+        ),
         findsOneWidget,
       );
 
-      await tester.tap(action);
+      await tester.tap(me);
+      await tester.pumpAndSettle();
+      expect(find.byType(MyRecordScreen), findsOneWidget);
+      // The body is a lazy list; on a small surface the row is below the fold.
+      final row = find.byKey(const ValueKey<String>('me-contests'));
+      await tester.scrollUntilVisible(
+        row,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        find.descendant(of: row, matching: find.text('1 contest running')),
+        findsOneWidget,
+      );
+
+      await tester.tap(row);
       await tester.pumpAndSettle();
       expect(find.text('October Sprint'), findsOneWidget);
-      expect(find.text('1 contest running'), findsNothing);
 
-      // A nav slot `go`es, so the Contests screen has nothing to pop — its
-      // back has to take an agent home rather than to the leaderboard they
-      // never came from.
+      // The row pushes, so back is the record the agent came from — not the
+      // leaderboard they never saw, and not Today.
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(find.byType(TodayScreen), findsOneWidget);
+      expect(find.byType(MyRecordScreen), findsOneWidget);
       expect(find.text('October Sprint'), findsNothing);
     });
 
@@ -887,6 +909,17 @@ void main() {
         ),
         findsNothing,
       );
+    });
+
+    testWidgets('a manager sent to /map lands on their own home, not the '
+        'agent\'s map', (tester) async {
+      await goAs(tester, 'manager', '/map');
+
+      // The agent's map is one agent's stores. A manager has the territory
+      // map for the same question at the level they ask it, and the agent's
+      // frame — its nav, its check-in circle — is not theirs to be in.
+      expect(find.byType(TheFloorScreen), findsOneWidget);
+      expect(find.byType(AgentMapScreen), findsNothing);
     });
 
     testWidgets('a manager can open a contest\'s standings', (tester) async {

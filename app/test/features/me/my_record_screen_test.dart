@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
@@ -426,6 +428,67 @@ void main() {
     ) async {
       await pumpMe(tester, textScale: 2.0, locale: const Locale('af'));
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // Contests held the nav's fourth slot until Me took it back. The capability
+  // moved here rather than vanishing — the agent's Contests entry has
+  // vanished once before in this project and only a test caught it — so the
+  // same three promises the slot kept are asserted on the row that replaced
+  // it: it opens the standings, it wears the running count, and the count is
+  // a sentence.
+  group('the way to Contests', () {
+    testWidgets('a row opens the agent\'s standings, and back returns here', (
+      tester,
+    ) async {
+      await pumpMe(tester);
+      final row = find.byKey(const ValueKey<String>('me-contests'));
+      expect(row, findsOneWidget);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(find.text('Contests view'), findsOneWidget);
+      // Pushed, not gone: the agent came from their record, and back is
+      // their record.
+      final router = GoRouter.of(tester.element(find.text('Contests view')));
+      expect(router.canPop(), isTrue);
+    });
+
+    testWidgets('it wears the running count, in words', (tester) async {
+      await pumpMe(tester, runningContests: 2);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('me-contests')),
+          matching: find.text('2 contests running'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('nothing running: the row stays, without a count', (
+      tester,
+    ) async {
+      await pumpMe(tester);
+      expect(find.text('See where you stand'), findsOneWidget);
+      expect(find.textContaining('running'), findsNothing);
+    });
+
+    testWidgets('and the Me slot carries the badge Contests used to', (
+      tester,
+    ) async {
+      await pumpMe(tester, runningContests: 2);
+      final slot = tester
+          .widget<TorchNavPill>(find.byType(TorchNavPill))
+          .slots[TodayFrame.meSlot];
+      expect(slot.badgeCount, 2);
+      expect(slot.semanticLabel, '2 contests running');
+    });
+
+    testWidgets('and it survives a failed points read', (tester) async {
+      await pumpMe(
+        tester,
+        repository: FakeMyRecordRepository(earningsThrow: true),
+      );
+      expect(find.byKey(const ValueKey<String>('me-contests')), findsOneWidget);
     });
   });
 

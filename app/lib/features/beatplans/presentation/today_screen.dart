@@ -154,29 +154,30 @@ class TodayFrame extends ConsumerWidget {
 
   final List<Widget> children;
 
-  /// Today · My work · Contests · **Me**. Four slots, which is the maximum.
+  /// Today · My work · Map · Me. **The owner's four, exactly as approved.**
   ///
   /// ## The history, because it explains the set
   ///
   /// The owner approved Today · My work · Map · Me. The migration shipped
-  /// three, because neither Map nor Me had a destination: there was no agent
-  /// map route, and the agent's own record was #383/#384, unbuilt. A tab that
-  /// bounces the user back to where they already are is worse than an absent
-  /// tab — it reads as a broken app, and an agent taps it once and never
-  /// trusts the bar again. Contests took the freed slot rather than the
-  /// migration quietly *removing* a capability: the agent's standings used to
-  /// hang off the Today app bar (#124), and the new header carries the skin
-  /// cycle in its one trailing slot.
+  /// three, because neither Map nor Me had a destination, and a tab that
+  /// bounces the user back where they already are reads as a broken app — an
+  /// agent taps it once and never trusts the bar again. Contests took the
+  /// freed slot rather than the migration quietly *removing* a capability:
+  /// the agent's standings used to hang off the Today app bar (#124), and the
+  /// new header carries the skin cycle in its one trailing slot. Map came
+  /// back when `/map` existed, in the position it was approved in.
   ///
   /// **Me now exists** — `/me`, the agent's own visits and what they have
-  /// earned (#383/#384) — so the tab is back, and the bar is full at four.
+  /// earned (#383/#384) — so the fourth slot is Me, and Contests moves
+  /// *inside* it, next to the points and the reward it is part of. Four is
+  /// the maximum ([TorchNavPill] asserts it), so this was a move, not an
+  /// addition, and the capability goes with it rather than vanishing:
   ///
-  /// Map is still unbuilt and still absent. When it lands it does not simply
-  /// join: four is the ceiling (kit's 360dp arithmetic), so landing Map is a
-  /// decision about which of these four leaves — the owner's call, and not
-  /// one to make quietly. Whichever slot goes must first gain another way in,
-  /// or landing Map removes a capability, which is what Contests was put here
-  /// to prevent.
+  /// * Me carries a Contests row that opens the agent's standings
+  ///   (`/leaderboard/contests`), wearing the running count.
+  /// * The Me slot here wears the same running-contests badge and says it in
+  ///   words to a screen reader, so Today still tells an agent a contest is
+  ///   on without their having to go and look.
   static List<TorchNavSlot> slotsIn(
     AppLocalizations l10n, {
     int runningContests = 0,
@@ -192,23 +193,23 @@ class TodayFrame extends ConsumerWidget {
       label: l10n.navMyWork,
     ),
     TorchNavSlot(
-      icon: Icons.emoji_events_outlined,
-      activeIcon: Icons.emoji_events,
-      label: l10n.contestsTitle,
-      // The count the old app-bar action carried (#124). A zero is not a
-      // badge: nothing running is not news.
-      badgeCount: runningContests > 0 ? runningContests : null,
-      // The old action said the count in words in its tooltip, which was also
-      // its screen-reader label. A badge is a digit floating beside a glyph,
-      // so the sentence moves here or it is lost.
-      semanticLabel: runningContests > 0
-          ? l10n.contestsRunningHint(runningContests)
-          : null,
+      icon: Icons.map_outlined,
+      activeIcon: Icons.map,
+      label: l10n.navMap,
     ),
     TorchNavSlot(
       icon: Icons.person_outline,
       activeIcon: Icons.person,
       label: l10n.navMe,
+      // The count the old Contests action carried (#124), kept on the slot
+      // that now leads to Contests. A zero is not a badge: nothing running is
+      // not news.
+      badgeCount: runningContests > 0 ? runningContests : null,
+      // A badge is a digit floating beside a glyph, so the sentence the old
+      // tooltip said moves here or it is lost.
+      semanticLabel: runningContests > 0
+          ? l10n.contestsRunningHint(runningContests)
+          : null,
     ),
   ];
 
@@ -247,8 +248,8 @@ class TodayFrame extends ConsumerWidget {
             l10n,
             runningContests: ref.watch(runningContestsCountProvider).value ?? 0,
           ),
-          activeIndex: 0,
-          onSelect: (i) => goToTab(context, i),
+          activeIndex: todaySlot,
+          onSelect: (i) => go(context, i),
         ),
         navCircle: TorchNavCircle(
           claimId: TodayScreen.navCircleClaimId,
@@ -266,22 +267,29 @@ class TodayFrame extends ConsumerWidget {
     );
   }
 
-  /// Where each slot goes. One table, shared by every tab root, so the bar
-  /// cannot mean different things on different screens.
-  static void goToTab(BuildContext context, int index) {
+  /// The slot indices, named. Every agent tab root reads [slotsIn] and [go]
+  /// from here, so the bar is one list in one place — two screens that each
+  /// wrote their own `case 2:` is how a nav bar starts sending the same tab to
+  /// two destinations.
+  static const int todaySlot = 0;
+  static const int myWorkSlot = 1;
+  static const int mapSlot = 2;
+  static const int meSlot = 3;
+
+  /// Where each slot goes. `go`, never `push`: a tab is a destination, not a
+  /// page on top of the one the agent was reading.
+  static void go(BuildContext context, int index) {
     switch (index) {
-      case 0:
+      case todaySlot:
         context.go('/today');
-      case 1:
+      case myWorkSlot:
         context.go('/my-work');
-      // The agent's own contests view (#124). Not /contests, which is the
-      // manager's: every contests API but /contests/current is manager-only,
-      // so an agent sent there lands on a 403.
-      case 2:
-        context.go('/leaderboard/contests');
-      // The agent's own record (#383/#384). Self-scoped end to end: every
-      // endpoint behind it reads the agent id off the token.
-      case 3:
+      case mapSlot:
+        context.go('/map');
+      // The agent's own record (#383/#384), and inside it their contests
+      // (#124). Self-scoped end to end: every endpoint behind it reads the
+      // agent id off the token.
+      case meSlot:
         context.go('/me');
     }
   }

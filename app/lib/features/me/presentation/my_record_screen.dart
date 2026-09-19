@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/design/tiq_number.dart';
 import '../../../core/design/torch_scope.dart';
@@ -130,6 +131,12 @@ class _MyRecord extends ConsumerWidget {
         SectionRule(l10n.meEarnedHeading),
         const SizedBox(height: TiqSpace.s5),
         _Earned(earnings: earnings),
+        const SizedBox(height: TiqSpace.s5),
+        // Outside `earnings.when` on purpose: the way to the standings is not
+        // a figure, and a failed points read must not take it away.
+        _ContestsRow(
+          running: ref.watch(runningContestsCountProvider).value ?? 0,
+        ),
         const SizedBox(height: TiqSpace.s7),
         _Visits(visits: visits, sync: sync),
       ],
@@ -144,8 +151,8 @@ class MeFrame extends ConsumerWidget {
   final String phase;
   final List<Widget> children;
 
-  /// Nav slot index. Today · My work · Contests · **Me**.
-  static const int navIndex = 3;
+  /// Nav slot index. Today · My work · Map · **Me**.
+  static const int navIndex = TodayFrame.meSlot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -175,7 +182,7 @@ class MeFrame extends ConsumerWidget {
             runningContests: ref.watch(runningContestsCountProvider).value ?? 0,
           ),
           activeIndex: navIndex,
-          onSelect: (i) => TodayFrame.goToTab(context, i),
+          onSelect: (i) => TodayFrame.go(context, i),
         ),
         children: children,
       ),
@@ -242,6 +249,35 @@ class _Earned extends StatelessWidget {
           _HonestyLine(text: l10n.mePointsHonesty),
         ],
       ),
+    );
+  }
+}
+
+/// THE WAY TO CONTESTS (#124) — which lived in the nav's fourth slot until
+/// Me took it back, and lives here now, beside the points it is part of.
+///
+/// A move, not a loss: the row opens the same standings the slot did, and it
+/// wears the same running count, in words. The Me slot on the bar carries the
+/// badge, so Today still says a contest is on. Pushed rather than `go`ne, so
+/// back returns here instead of to Today.
+class _ContestsRow extends StatelessWidget {
+  const _ContestsRow({required this.running});
+
+  final int running;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return SoftRow(
+      key: const ValueKey<String>('me-contests'),
+      form: SoftRowForm.standalone,
+      title: l10n.contestsTitle,
+      subtitle: running > 0
+          ? l10n.contestsRunningHint(running)
+          : l10n.meContestsDetail,
+      trailing: const SoftRowChevron(),
+      separator: SoftRowSeparator.none,
+      onTap: () => context.push('/leaderboard/contests'),
     );
   }
 }

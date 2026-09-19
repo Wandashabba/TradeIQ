@@ -172,8 +172,9 @@ const Size mePhone = Size(360, 640);
 /// screen *lights*, which is the measurement that depends on the fold.
 const Size meTall = Size(360, 2400);
 
-/// Pump `/me` in [skin], with the nav's three sibling destinations stubbed so
-/// a tap on a tab can be asserted on.
+/// Pump `/me` in [skin], with the nav's three sibling destinations and the
+/// Contests view stubbed so a tap on a tab or on the Contests row can be
+/// asserted on.
 Future<void> pumpMe(
   WidgetTester tester, {
   FakeMyRecordRepository? repository,
@@ -184,6 +185,7 @@ Future<void> pumpMe(
   LocalDb? db,
   bool settle = true,
   Size size = meTall,
+  int runningContests = 0,
 }) async {
   final database = db ?? agentTestDb();
   await pumpAgentScreen(
@@ -191,7 +193,12 @@ Future<void> pumpMe(
     const MyRecordScreen(),
     path: '/me',
     overrides: <Override>[
-      ...agentBaseOverrides(db: database, skin: skin, sync: sync),
+      ...agentBaseOverrides(
+        db: database,
+        skin: skin,
+        sync: sync,
+        runningContests: runningContests,
+      ),
       myRecordRepositoryProvider.overrideWithValue(
         repository ?? FakeMyRecordRepository(),
       ),
@@ -203,6 +210,7 @@ Future<void> pumpMe(
     extraRoutes: <GoRoute>[
       GoRoute(path: '/today', builder: (c, s) => const Text('Today screen')),
       GoRoute(path: '/my-work', builder: (c, s) => const Text('My work')),
+      GoRoute(path: '/map', builder: (c, s) => const Text('Map view')),
       GoRoute(
         path: '/leaderboard/contests',
         builder: (c, s) => const Text('Contests view'),
