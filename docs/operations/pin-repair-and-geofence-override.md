@@ -64,6 +64,7 @@ Both live in `Client.kpiThresholds`, editable at runtime through
 | Key | Default | What it does |
 | --- | --- | --- |
 | `pinDisputeMaxDistanceM` | `25000` (25 km) | The furthest an agent may be from a pin and still claim the PIN is what is wrong. Beyond it the check-in is refused `422`, with the limit named. |
+| `pinDisputeDailyCap` | `3` | How many claims one agent may open in one CLIENT-LOCAL day. Past it the check-in is refused `429`, naming the manager's queue. Zero or negative is read as a typo and falls back — *no agent may ever report a wrong pin* reinstates the bug this feature exists for. |
 
 **Raise it carefully and lower it more carefully.** The default is deliberately
 generous, because the failure it exists for is generous: #386's own case is a
@@ -76,6 +77,56 @@ shop it says it is standing in*, which is not a pin error.
 
 The rejected `CheckInAttempt` row is written either way, so a run of refused
 overrides is as visible to the fraud engine as a run of ordinary retries.
+
+**Raise `pinDisputeDailyCap` for a tenant whose data really is that broken.**
+The depot-onboarding case puts several wrongly pinned outlets on one beat,
+which is why the default is not one. An agent filing a fourth in a day is
+either working a beat that needs a bulk fix from the office or is not where
+they say they are, and both want a person rather than a score.
+
+## The bounds on the override itself
+
+The distance cap bounds ONE claim. These bound the pattern, and they exist
+because scoring each visit alone could never see it: an agent sitting at home
+is inside 25 km of every outlet in their metro, and ten claims, one per outlet,
+each scored 30, reached no manager at all while every visit earned its points.
+
+**One claim per pin per day.** A second wrong-pin check-in by the same agent at
+the same outlet on the same client-local day is a `409` naming the visit that
+already exists, whether the first is still open or has been answered. A POST
+without a `clientVisitId` is deduplicated by nothing, so one failed position
+could otherwise be replayed into any number of visits, disputes and
+submitted-visit counts.
+
+**Three claims per agent per day** (`pinDisputeDailyCap`), refused `429`.
+
+**A storefront photo must come from the camera.** `POST /photos` carries an
+optional `source` (`camera` or `gallery`); for section `pin_dispute` it is
+required to be `camera`, the claim must still be open, and the upload must
+arrive within a day of the claim's server `created_at`. A photo's `timestamp`
+and `gpsTag` are stamped when the picker hands the file back, so a gallery pick
+carries the moment it was PICKED — a Street View screenshot chosen at home
+arrives with a fresh time and a home tag that agree with the claim perfectly
+and say nothing about the shop. The dispute view returns the photo's server
+`createdAt` and `source` beside the device's own account, and the console shows
+both.
+
+**A mocked or coarse fix cannot become a pin.** `POST /visits` accepts optional
+`accuracyM` and `isMocked` from the device; they are recorded on the
+`CheckInAttempt` and on the claim and can never make a failing check-in pass.
+`PATCH /outlets/:id` with `fromAttemptId` refuses (`400`) an attempt the
+platform reported as mocked, or one whose reported accuracy is worse than
+100 m: adopting a position moves the fence, and a fix good to ±500 m cannot say
+where a shop's door is. An attempt that reports NO accuracy is still adoptable
+— an older handset must not lock a manager out of fixing a pin — and is shown
+as unknown rather than as fine.
+
+**The ledger names the source.** An `agent_position` change records
+`from_attempt_id` and `from_agent_id`, so *whose phone* can be asked later. The
+dispute view also carries `agentIsOnlyVisitor`: true when the reporting agent
+is the only person who has ever visited that outlet, so nobody else's check-ins
+could disagree with a pin moved onto their position. A warning, never a
+refusal — a genuinely new store has exactly one visitor too.
 
 ## The fraud weight, and why it is 30
 
@@ -95,6 +146,32 @@ queue managers stop reading — which is how the flagged visit that mattered goe
 unread. The manager's real queue for these is
 `GET /outlets/pin-disputes`, where the claim arrives with its evidence whatever
 the score says.
+
+### The three signals that read the claim, not just the visit
+
+Thirty stays thirty. What changed is that it is no longer the only thing the
+engine has to say about an override. All three read the `pin_disputes` row, and
+deliberately by its SERVER `created_at` rather than the device's `checkinTs`:
+the whole attack is a device asserting things, and a backdated timestamp would
+otherwise walk straight out of a device-timed window.
+
+| Signal | Weight | Fires when |
+| --- | --- | --- |
+| `geofence_override_rejected` | 55 | A manager answered the claim with *the pin stands*. **Replaces** `geofence_override`. |
+| `geofence_override_rate` | 10 per claim past the first, capped at 40 | The agent made several claims in the 7 days ending at this one. |
+| `geofence_override_cluster` | 30 | Claims about DIFFERENT outlets were made from within 100 m of each other. |
+
+`geofence_override_rejected` is above the review threshold on its own, and
+`PATCH /outlets/:id` re-scores the visit in the same request that rules on the
+claim, so a rejection puts the visit into `GET /fraud/flagged` immediately
+rather than at the next nightly rescore. Before this, a manager's finding that
+the agent was not at the shop changed nothing about the visit at all: same
+score, same queue, same points.
+
+The rate signal leaves one report alone — that is the ordinary case this
+feature exists for — and carries the third over the threshold with the base 30.
+The cluster signal fires on the SECOND claim, because one position cannot be
+standing in two shops, and that is the home attack's actual signature.
 
 ## `outlets.status`
 
@@ -120,6 +197,12 @@ The hub then carries two neutral flag chips — **Out of fence · 180 m** and
 **Pin reported** — each opening a sheet that says what the manager sees. They
 are never crimson: out of fence is a measurement and a report is a claim, not a
 verdict.
+
+The capture for that photo offers the camera only. Everywhere else in the app
+the gallery sits beside it deliberately — a cracked camera in a dark aisle
+still has to be able to file evidence — but here the picture IS the claim, the
+server refuses a gallery image for this section, and a button that is not there
+is kinder than an error after the work.
 
 Beyond 25 km the action is replaced by a sentence telling the agent to ask their
 manager. The app mirrors the server's *default* cap only so it does not offer a
