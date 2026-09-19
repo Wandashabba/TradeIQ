@@ -19,5 +19,5 @@ nav.height = 72
 nav.docked = yes
 skin.cycle = header
 primary = none
-rows.onscreen = 2
+rows.onscreen = 3
 amber.objects = 0

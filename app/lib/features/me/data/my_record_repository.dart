@@ -189,6 +189,7 @@ class IncentiveScheme {
     required this.metric,
     required this.threshold,
     required this.rewardPoints,
+    this.active = true,
     this.rewardDetail,
   });
 
@@ -200,6 +201,21 @@ class IncentiveScheme {
   final double threshold;
   final int rewardPoints;
 
+  /// Whether the scheme is **running**.
+  ///
+  /// `GET /incentives` is the manager's list of every scheme they have ever
+  /// written, running or ended — deliberately, because a manager has to be
+  /// able to see a paused scheme in order to start it again. So the client
+  /// does the filtering, and this is the field it filters on: the payout read
+  /// (`computeEarnedIncentives`) only ever considers `active: true`, and a bar
+  /// that promised a reward the payout engine will not pay would be the worst
+  /// kind of number on this screen.
+  ///
+  /// Absent on the wire means running: `active` has a `@default(true)` in the
+  /// schema and predates nothing, so a response without it is older than the
+  /// manager's toggle, when every scheme was on.
+  final bool active;
+
   /// What the agent actually gets — "R 250 airtime". The end of the bar.
   final String? rewardDetail;
 
@@ -210,6 +226,7 @@ class IncentiveScheme {
         metric: json['metric'] as String? ?? '',
         threshold: (json['threshold'] as num?)?.toDouble() ?? 0,
         rewardPoints: (json['rewardPoints'] as num?)?.toInt() ?? 0,
+        active: json['active'] as bool? ?? true,
         rewardDetail: json['rewardDetail'] as String?,
       );
 }
@@ -221,12 +238,27 @@ class MyEarnings {
     required this.entry,
     required this.ledger,
     required this.schemes,
+    this.rank,
   });
 
-  /// The caller's own row. `rank` is 0 when nobody is ranked yet — fewer than
-  /// the leaderboard's floor of agents have points — which the screen says in
-  /// words rather than printing a zeroth place.
+  /// The caller's own row: their totals and the figures the bar measures.
+  ///
+  /// **Do not read `entry.rank` here.** `LeaderboardEntry` is the board's row
+  /// shape and its rank is non-null because every row of a board has a place;
+  /// the caller of `/gamification/me` may not be on the board at all, and that
+  /// case lives in [rank] below.
   final LeaderboardEntry entry;
+
+  /// The caller's place on the client's board, or **null** when they are not
+  /// on it.
+  ///
+  /// Null is the one genuinely unknown figure on this screen, and it has one
+  /// cause: the caller is not a field agent. `/me` is open to managers on
+  /// purpose, the board only ranks field agents, and the server used to answer
+  /// `leaderboard.length + 1` — a manager on a board of three was shown "4".
+  /// The screen printed it as a plain measured figure, because a number is all
+  /// it had to go on. It is null now, and the tile says so in words.
+  final int? rank;
 
   /// "How I earned these", newest first.
   final List<PointsEntry> ledger;
@@ -257,6 +289,12 @@ class MyEarnings {
     double? nearestGap;
     IncentiveScheme? reached;
     for (final scheme in schemes) {
+      // An ended scheme is not a scheme. `GET /incentives` returns the
+      // manager's whole list so they can restart a paused one; the payout read
+      // considers `active: true` alone. A bar driven by an ended scheme tells
+      // an agent over the threshold "Reward reached — R 250 airtime" for
+      // airtime nobody will send.
+      if (!scheme.active) continue;
       if (scheme.threshold <= 0) continue;
       final progress = progressFor(scheme);
       if (progress == null) continue;
@@ -292,6 +330,30 @@ class DioMyRecordRepository implements MyRecordRepository {
     return MyVisitsPage.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// THE WINDOW, AND WHY THERE ISN'T ONE.
+  ///
+  /// `GET /gamification/me` takes optional `from`/`to`. This call sends
+  /// neither, so every figure it returns — the points, the rank, the visit and
+  /// task counts, and the twenty `recentEntries` — is the agent's **whole
+  /// record**, not a month of it. That is a deliberate choice and the screen's
+  /// words are written to match it (`POINTS ALL TIME`, and an "All time" fact
+  /// in the header); it used to send no window and say "POINTS THIS MONTH" in
+  /// three places, which is a number an agent in their fourth month cannot
+  /// check against anything.
+  ///
+  /// The reason the window is not simply added is the reward bar. Its
+  /// threshold belongs to an incentive scheme, and the read that decides who
+  /// actually gets paid — `computeEarnedIncentives` in
+  /// `incentives.service.ts` — counts an agent's submitted visits, closed
+  /// tasks and scorecards over their whole record, with no window at all.
+  /// Windowing this call to the calendar month would leave the bar measuring
+  /// September against a threshold the payout engine measures a career
+  /// against: it would read "6 to go" to an agent who has already earned the
+  /// airtime. A screen whose job is a number the agent can check does not get
+  /// to disagree with the engine that pays.
+  ///
+  /// If the incentive engine ever gains a period, this is the call that gains
+  /// `from`/`to` with it, and the three strings change back in the same commit.
   @override
   Future<MyEarnings> myEarnings() async {
     // Two reads, in parallel. The schemes are the client's rules and the entry
@@ -307,6 +369,10 @@ class DioMyRecordRepository implements MyRecordRepository {
 
     return MyEarnings(
       entry: LeaderboardEntry.fromJson(me),
+      // Read off the raw body rather than through LeaderboardEntry, whose
+      // `rank` is a board row's non-null place. A caller who is not on the
+      // board at all answers null here, and null has to survive the parse.
+      rank: (me['rank'] as num?)?.toInt(),
       ledger: <PointsEntry>[
         for (final row in (me['recentEntries'] as List? ?? const <dynamic>[]))
           PointsEntry.fromJson(row as Map<String, dynamic>),

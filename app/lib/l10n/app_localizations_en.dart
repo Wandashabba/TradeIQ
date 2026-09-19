@@ -3388,7 +3388,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meLedgerHeading => 'How you earned it';
 
   @override
-  String get mePointsEyebrow => 'POINTS THIS MONTH';
+  String get mePointsEyebrow => 'POINTS ALL TIME';
+
+  @override
+  String get meAllTime => 'All time';
 
   @override
   String get meRankEyebrow => 'RANK';
@@ -3399,14 +3402,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meNotRanked =>
-      'Not ranked yet — too few agents have points this month.';
+      'Only field agents are ranked, so you do not have a place on this board.';
 
   @override
   String get meNoPointsYet =>
-      'No points yet this month. Points arrive when a visit is submitted or a task is closed.';
+      'No points yet. Points arrive when a visit is submitted or a task is closed.';
 
   @override
-  String get meNoScheme => 'No reward is running this month.';
+  String get meNoScheme => 'No reward is running.';
 
   @override
   String meRewardProgress(String value, String total) {
@@ -3439,7 +3442,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Points are worked out on the server. They can change if a visit is reviewed.';
 
   @override
-  String get meLedgerEmpty => 'Nothing has earned points yet this month.';
+  String get meLedgerEmpty => 'Nothing has earned points yet.';
 
   @override
   String get meVisitsEmpty => 'No visits yet';
@@ -3576,6 +3579,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meEarningsLoadError => 'Your points did not load';
+
+  @override
+  String get meReasonVisitSubmitted => 'Visit submitted';
+
+  @override
+  String get meReasonTaskClosed => 'Task closed';
+
+  @override
+  String get meReasonScorecard => 'Scorecard';
+
+  @override
+  String get meReasonPoints => 'Points';
+
+  @override
+  String meLedgerScoreRowSemantics(String reason, String day, String score) {
+    return '$reason, $day, scored $score';
+  }
 
   @override
   String get meContestsDetail => 'See where you stand';

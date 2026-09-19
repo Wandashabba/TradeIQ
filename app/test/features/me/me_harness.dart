@@ -70,9 +70,12 @@ MyVisit visitFixture({
 );
 
 /// The agent's standing, and the rules they are running against.
+/// [rank] is the agent's place, and **null is the server's answer for a
+/// caller who is not on the board at all** — a manager, since `/me` is open to
+/// them. There is no zeroth place and the server never sends one.
 MyEarnings earningsFixture({
   double points = 1840,
-  int rank = 4,
+  int? rank = 4,
   int visitsSubmitted = 14,
   int tasksClosed = 6,
   double avgScorecard = 78,
@@ -85,10 +88,13 @@ MyEarnings earningsFixture({
     displayName: 'Thandi Nkosi',
     visitsSubmitted: visitsSubmitted,
     tasksClosed: tasksClosed,
-    rank: rank,
+    // A board row always has a place; the "not on the board" case is `rank`
+    // beside it, and that is the one the screen reads.
+    rank: rank ?? 1,
     avgScorecard: avgScorecard,
     points: points,
   ),
+  rank: rank,
   ledger:
       ledger ??
       <PointsEntry>[
@@ -99,6 +105,23 @@ MyEarnings earningsFixture({
           sourceType: 'visit',
           sourceId: 'v1',
           occurredAt: DateTime(2026, 9, 17, 12),
+          outletName: 'Kasi Corner Spaza',
+        ),
+        // A SCORECARD ROW, IN THE DEFAULT LEDGER AND NOT ONLY IN ONE TEST.
+        //
+        // Roughly half of a real agent's ledger is these, and every one of
+        // them carries `points: 0` and a `score` (`pointsLedger.ts`:
+        // `scorecardEvent`). The fixture used to hold a grant and a reversal
+        // only, so 47 tests ran against a ledger no agent has and none of them
+        // saw the rising mint "+0" the scorecard rows were drawing.
+        PointsEntry(
+          id: 'p3',
+          points: 0,
+          reason: 'scorecard',
+          sourceType: 'scorecard',
+          sourceId: 'sc1',
+          score: 85,
+          occurredAt: DateTime(2026, 9, 17, 12, 30),
           outletName: 'Kasi Corner Spaza',
         ),
         PointsEntry(

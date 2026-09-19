@@ -5312,11 +5312,17 @@ abstract class AppLocalizations {
   /// **'How you earned it'**
   String get meLedgerHeading;
 
-  /// Stat tile label. Uppercase; the component does not upper-case it for you.
+  /// Stat tile label. Uppercase; the component does not upper-case it for you. `/gamification/me` is read with no from/to, so the figure is the agent's whole record and the label says so — see DioMyRecordRepository.myEarnings.
   ///
   /// In en, this message translates to:
-  /// **'POINTS THIS MONTH'**
+  /// **'POINTS ALL TIME'**
   String get mePointsEyebrow;
+
+  /// The header fact under 'Me': the period every figure on this screen covers. It is the agent's whole record, because the incentive payout engine has no period either.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get meAllTime;
 
   /// Stat tile label for the agent's place in the standings.
   ///
@@ -5330,22 +5336,22 @@ abstract class AppLocalizations {
   /// **'Your work is safe on this phone. This part comes from the server and fills in when it answers.'**
   String get meLoadErrorDetail;
 
-  /// Sentence in place of a rank figure. An em dash alone is a puzzle.
+  /// Sentence in place of a rank figure, shown when the server returns rank: null. An em dash alone is a puzzle. The only caller with no rank is one who is not a field agent — /me is open to managers — so the sentence names that rather than guessing at a thin board.
   ///
   /// In en, this message translates to:
-  /// **'Not ranked yet — too few agents have points this month.'**
+  /// **'Only field agents are ranked, so you do not have a place on this board.'**
   String get meNotRanked;
 
   /// Sentence under a null points figure.
   ///
   /// In en, this message translates to:
-  /// **'No points yet this month. Points arrive when a visit is submitted or a task is closed.'**
+  /// **'No points yet. Points arrive when a visit is submitted or a task is closed.'**
   String get meNoPointsYet;
 
   /// Body line in place of the progress bar. An empty bar would read as zero progress, which is a different and false statement.
   ///
   /// In en, this message translates to:
-  /// **'No reward is running this month.'**
+  /// **'No reward is running.'**
   String get meNoScheme;
 
   /// The fraction beside the reward bar.
@@ -5381,7 +5387,7 @@ abstract class AppLocalizations {
   /// Empty line on the ledger section rule.
   ///
   /// In en, this message translates to:
-  /// **'Nothing has earned points yet this month.'**
+  /// **'Nothing has earned points yet.'**
   String get meLedgerEmpty;
 
   /// Whole-screen empty headline when the agent has no visits at all.
@@ -5533,6 +5539,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your points did not load'**
   String get meEarningsLoadError;
+
+  /// Ledger row reason. The wire sends the machine value `visit_submitted`; this is the agent's word for it.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit submitted'**
+  String get meReasonVisitSubmitted;
+
+  /// Ledger row reason for the wire value `task_closed`.
+  ///
+  /// In en, this message translates to:
+  /// **'Task closed'**
+  String get meReasonTaskClosed;
+
+  /// Ledger row reason for the wire value `scorecard`. A scorecard earns no points of its own; it contributes a score to the average.
+  ///
+  /// In en, this message translates to:
+  /// **'Scorecard'**
+  String get meReasonScorecard;
+
+  /// Ledger row reason when the wire sends no reason at all.
+  ///
+  /// In en, this message translates to:
+  /// **'Points'**
+  String get meReasonPoints;
+
+  /// The whole spoken sentence for a scorecard ledger row. It contributed a score to the average rather than points, so it never says 'plus 0 points'.
+  ///
+  /// In en, this message translates to:
+  /// **'{reason}, {day}, scored {score}'**
+  String meLedgerScoreRowSemantics(String reason, String day, String score);
 
   /// Second line of the Contests row on Me when no contest is running. The row replaced the Contests nav slot; with contests running it shows the running count instead.
   ///

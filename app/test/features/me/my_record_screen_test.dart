@@ -253,20 +253,44 @@ void main() {
       expect(find.textContaining('no photos'), findsOneWidget);
     });
 
-    testWidgets('an unranked agent gets the em dash AND the sentence', (
-      tester,
-    ) async {
+    testWidgets(
+      'a caller who is not on the board gets the em dash AND the sentence — '
+      'never a place computed from a list they are not in',
+      (tester) async {
+        // `rank: null` is what `/gamification/me` answers for a manager, and
+        // /me is open to managers on purpose. It used to answer
+        // `leaderboard.length + 1`: a manager on a board of three field agents
+        // read "RANK 4", printed through StatTile as a plain measured figure
+        // with no caveat, while this sentence could never render at all.
+        await pumpMe(
+          tester,
+          repository: FakeMyRecordRepository(
+            earnings: earningsFixture(rank: null),
+          ),
+        );
+        expect(
+          find.text(
+            'Only field agents are ranked, so you do not have a place on '
+            'this board.',
+          ),
+          findsOneWidget,
+        );
+        // And no invented figure anywhere near the tile.
+        expect(find.text('4'), findsNothing);
+        expect(find.text('1'), findsNothing);
+      },
+    );
+
+    testWidgets('a real place is still printed as a figure', (tester) async {
       await pumpMe(
         tester,
-        repository: FakeMyRecordRepository(earnings: earningsFixture(rank: 0)),
+        repository: FakeMyRecordRepository(earnings: earningsFixture(rank: 4)),
       );
-      expect(
-        find.text('Not ranked yet — too few agents have points this month.'),
-        findsOneWidget,
-      );
+      expect(find.text('4'), findsOneWidget);
+      expect(find.textContaining('Only field agents are ranked'), findsNothing);
     });
 
-    testWidgets('and a zero-point month prints 0, with its sentence', (
+    testWidgets('and a record with no points prints 0, with its sentence', (
       tester,
     ) async {
       await pumpMe(
@@ -275,7 +299,32 @@ void main() {
           earnings: earningsFixture(points: 0),
         ),
       );
-      expect(find.textContaining('No points yet this month'), findsOneWidget);
+      expect(find.textContaining('No points yet'), findsOneWidget);
+    });
+
+    // ── The period, named ────────────────────────────────────────────────
+    //
+    // `/gamification/me` is read with no window, so every figure on this
+    // screen is the agent's whole record. The screen used to print the bare
+    // month name in the header and say "this month" in three more places, so
+    // an agent in their fourth month read a career total as September's.
+    testWidgets('no figure here is labelled as a month\'s', (tester) async {
+      await pumpMe(tester, repository: FakeMyRecordRepository());
+
+      expect(find.text('All time'), findsOneWidget);
+      expect(find.text('POINTS ALL TIME'), findsOneWidget);
+      // The header's fact used to be `formatMonthHeading(DateTime.now())`.
+      for (final month in <String>[
+        'January', 'February', 'March', 'April', 'May', 'June', 'July',
+        'August', 'September', 'October', 'November', 'December',
+      ]) {
+        expect(
+          find.textContaining(month),
+          findsNothing,
+          reason: '"$month" labels a lifetime figure as one month of it.',
+        );
+      }
+      expect(find.textContaining('this month'), findsNothing);
     });
   });
 
@@ -367,7 +416,7 @@ void main() {
           ),
         );
         expect(find.byType(TorchProgressBar), findsNothing);
-        expect(find.text('No reward is running this month.'), findsOneWidget);
+        expect(find.text('No reward is running.'), findsOneWidget);
       },
     );
 
@@ -401,6 +450,118 @@ void main() {
           .getSemantics(find.byKey(const ValueKey<String>('ledger-p1')))
           .label;
       expect(label, contains('plus 5 points'));
+    });
+
+    // ── A SCORECARD CONTRIBUTED A SCORE, NOT POINTS ────────────────────────
+    //
+    // Every `scorecard` ledger row carries `points: 0` and a `score`, because
+    // the board adds the AVERAGE of the scores rather than the rows. Drawn
+    // through the same Delta as a grant, each one rendered a rising triangle
+    // in the palette's `good` ink beside "0" and said "plus 0 points" aloud —
+    // a movement that did not happen, in the colour reserved for good news —
+    // while the 85 that actually fed the average never reached the screen.
+    testWidgets(
+      'a scorecard row shows the score it fed in, and never a rising +0',
+      (tester) async {
+        await pumpMe(tester);
+
+        final row = find.byKey(const ValueKey<String>('ledger-p3'));
+        expect(row, findsOneWidget);
+        // The figure it contributed, through FigureSlot like every other
+        // number on this screen.
+        expect(
+          find.descendant(of: row, matching: find.byType(FigureSlot)),
+          findsOneWidget,
+        );
+        expect(find.descendant(of: row, matching: find.text('85')), findsOneWidget);
+        // And no delta at all: a delta never stands beside nothing.
+        expect(
+          find.descendant(of: row, matching: find.byType(Delta)),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets('and a screen reader hears the score, not "plus 0 points"', (
+      tester,
+    ) async {
+      await pumpMe(tester);
+      final label = tester
+          .getSemantics(find.byKey(const ValueKey<String>('ledger-p3')))
+          .label;
+      expect(label, contains('Scorecard'));
+      expect(label, contains('85'));
+      expect(label, isNot(contains('plus 0 points')));
+      expect(label, isNot(contains('plus 0')));
+    });
+
+    // ── A DEACTIVATED SCHEME IS NOT A PROMISE ──────────────────────────────
+    //
+    // `GET /incentives` returns every scheme the manager has ever written,
+    // running or ended, because a manager has to see a paused one to start it
+    // again. The payout read considers `active: true` alone. A bar driven by
+    // an ended scheme tells an agent over the threshold that R 250 of airtime
+    // is theirs, for airtime nobody will send.
+    testWidgets('an ended scheme does not promise a reward', (tester) async {
+      await pumpMe(
+        tester,
+        repository: FakeMyRecordRepository(
+          earnings: earningsFixture(
+            visitsSubmitted: 22,
+            schemes: const <IncentiveScheme>[
+              IncentiveScheme(
+                id: 'ended',
+                name: 'Twenty stores',
+                metric: 'visits',
+                threshold: 20,
+                rewardPoints: 250,
+                rewardDetail: 'R 250 airtime',
+                active: false,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(find.byType(TorchProgressBar), findsNothing);
+      expect(find.textContaining('R 250 airtime'), findsNothing);
+      expect(find.textContaining('Reward reached'), findsNothing);
+      expect(find.text('No reward is running.'), findsOneWidget);
+    });
+
+    testWidgets('while a running one beside it still does', (tester) async {
+      await pumpMe(
+        tester,
+        repository: FakeMyRecordRepository(
+          earnings: earningsFixture(
+            schemes: const <IncentiveScheme>[
+              IncentiveScheme(
+                id: 'ended',
+                name: 'Ten stores',
+                metric: 'visits',
+                threshold: 10,
+                rewardPoints: 100,
+                rewardDetail: 'R 100 airtime',
+                active: false,
+              ),
+              IncentiveScheme(
+                id: 'running',
+                name: 'Twenty stores',
+                metric: 'visits',
+                threshold: 20,
+                rewardPoints: 250,
+                rewardDetail: 'R 250 airtime',
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // The ended scheme is the nearer threshold and already cleared, so it
+      // would have won the focus outright.
+      expect(find.byKey(const ValueKey<String>('reward-bar')), findsOneWidget);
+      expect(find.textContaining('R 250 airtime'), findsWidgets);
+      expect(find.textContaining('R 100 airtime'), findsNothing);
     });
   });
 
@@ -472,6 +633,37 @@ void main() {
     ) async {
       await pumpMe(tester, textScale: 2.0, locale: const Locale('af'));
       expect(tester.takeException(), isNull);
+    });
+
+    // ── THE LEDGER SPEAKS THE SCREEN'S LANGUAGE ────────────────────────────
+    //
+    // `PointsEntry.reasonLabel` is a Dart switch returning English literals —
+    // right for the manager console, which is English-only, and wrong here.
+    // Every other string on this screen was translated, and these rows drew
+    // "Visit submitted" inside an Afrikaans page and read it aloud inside an
+    // Afrikaans sentence. It also meant the overflow test above was measuring
+    // English widths for the rows it claims to measure Afrikaans ones for.
+    testWidgets('the ledger reasons are in the agent\'s language', (
+      tester,
+    ) async {
+      await pumpMe(tester, locale: const Locale('af'));
+
+      expect(find.text('Besoek ingedien'), findsWidgets);
+      expect(find.text('Telkaart'), findsWidgets);
+      expect(find.text('Visit submitted'), findsNothing);
+      expect(find.text('Scorecard'), findsNothing);
+    });
+
+    testWidgets('and a screen reader hears one language, not two', (
+      tester,
+    ) async {
+      await pumpMe(tester, locale: const Locale('af'));
+      final label = tester
+          .getSemantics(find.byKey(const ValueKey<String>('ledger-p1')))
+          .label;
+      expect(label, contains('Besoek ingedien'));
+      expect(label, contains('punte'));
+      expect(label, isNot(contains('Visit submitted')));
     });
   });
 
@@ -610,7 +802,23 @@ void main() {
       testWidgets('${mode.name} · loading lights ${expected[mode]}', (
         tester,
       ) async {
-        await pumpMe(tester, skin: mode, settle: false, size: mePhone);
+        // `hang: true`, and it is load-bearing. The default fake answers from
+        // a plain `async` body, which resolves in a microtask, and `pump()`
+        // flushes microtasks — so this row used to measure the LOADED frame
+        // and file it under `phase: 'loading'`. `expectWithinAmberBudget`
+        // reads `phase` only to build a failure message, so nothing caught it
+        // and a shimmer added to the skeleton would have shipped with a green
+        // census claiming to have checked it.
+        await pumpMe(
+          tester,
+          skin: mode,
+          settle: false,
+          size: mePhone,
+          repository: FakeMyRecordRepository(hang: true),
+        );
+        // The row can never silently stop being about loading.
+        expect(find.byType(SkeletonShell), findsWidgets);
+        expect(find.byKey(const ValueKey<String>('reward-bar')), findsNothing);
         final census = await amberCensus(tester);
         expectWithinAmberBudget(
           census,
@@ -619,7 +827,6 @@ void main() {
           phase: 'loading',
         );
         expect(census.objectCount, expected[mode], reason: census.describe());
-        await tester.pumpAndSettle();
       });
 
       testWidgets('${mode.name} · error lights ${expected[mode]}', (
