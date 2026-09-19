@@ -77,12 +77,18 @@ OutletDetail _detail({
       changes: changes,
     );
 
-CheckInAttemptEvidence _attempt({String id = 'a1'}) => CheckInAttemptEvidence(
+CheckInAttemptEvidence _attempt({
+  String id = 'a1',
+  double? accuracyM,
+  bool? isMocked,
+}) => CheckInAttemptEvidence(
       id: id,
       agentLabel: 'Nomsa Dlamini',
       lat: _shopLat,
       lng: _shopLng,
       distanceM: 8400,
+      accuracyM: accuracyM,
+      isMocked: isMocked,
       createdAt: DateTime.utc(2026, 9, 15, 8, 30),
     );
 
@@ -304,5 +310,120 @@ void main() {
     // The rule that matters: an agent standing at the door of a store the
     // office believes is closed must still be able to work.
     expect(find.textContaining('does not block check-in'), findsOneWidget);
+  });
+
+  // ── Deciding from evidence rather than decimals (#386 follow-up) ─────────
+  //
+  // "Use their position" moves the fence: from then on, check-ins from that
+  // coordinate pass cleanly. The card offered it beside two numbers and a
+  // count of photos, and nothing said whether the phone that reported the
+  // coordinate was telling the truth.
+
+  testWidgets('will not adopt a position the device called a mock location',
+      (tester) async {
+    await pump(
+      tester,
+      _detail(
+        attempts: [_attempt(isMocked: true)],
+        disputes: [_dispute(isMocked: true)],
+      ),
+    );
+
+    // Both ways in are shut, because both of them move the pin.
+    final adopt = tester.widget<TextButton>(
+      find.byKey(const ValueKey('adopt-d1')),
+    );
+    expect(adopt.onPressed, isNull);
+    final useThis = tester.widget<TextButton>(
+      find.byKey(const ValueKey('use-attempt-a1')),
+    );
+    expect(useThis.onPressed, isNull);
+    // And it says why, in words, rather than greying out in silence.
+    expect(find.textContaining('MOCK location'), findsWidgets);
+  });
+
+  testWidgets('will not adopt a fix too coarse to place a shop door',
+      (tester) async {
+    await pump(
+      tester,
+      _detail(attempts: [_attempt(accuracyM: 600)], disputes: [_dispute(accuracyM: 600)]),
+    );
+
+    final adopt = tester.widget<TextButton>(
+      find.byKey(const ValueKey('adopt-d1')),
+    );
+    expect(adopt.onPressed, isNull);
+    expect(find.textContaining('too coarse'), findsWidgets);
+  });
+
+  testWidgets('still adopts a good fix', (tester) async {
+    await pump(
+      tester,
+      _detail(attempts: [_attempt(accuracyM: 9)], disputes: [_dispute(accuracyM: 9)]),
+    );
+    expect(
+      tester.widget<TextButton>(find.byKey(const ValueKey('adopt-d1'))).onPressed,
+      isNotNull,
+    );
+    expect(find.textContaining('Accurate to about 9 m'), findsWidgets);
+  });
+
+  testWidgets('still adopts a fix that reported nothing, and says so',
+      (tester) async {
+    await pump(tester, _detail(attempts: [_attempt()], disputes: [_dispute()]));
+    // An older handset that reports no accuracy must not lock a manager out of
+    // fixing a pin — that is the bug this whole feature exists for. Unknown is
+    // shown as unknown, never as fine.
+    expect(
+      tester.widget<TextButton>(find.byKey(const ValueKey('adopt-d1'))).onPressed,
+      isNotNull,
+    );
+    expect(find.textContaining('did not report how accurate'), findsWidgets);
+  });
+
+  testWidgets('warns when the reporting agent is the outlet\'s only visitor',
+      (tester) async {
+    await pump(
+      tester,
+      _detail(
+        attempts: [_attempt()],
+        disputes: [_dispute(agentIsOnlyVisitor: true)],
+      ),
+    );
+    // Nobody else's check-ins can disagree with a pin moved onto this agent's
+    // position. Not a refusal: a genuinely new store has one visitor too.
+    expect(find.byKey(const ValueKey('dispute-sole-d1')), findsOneWidget);
+  });
+
+  testWidgets('stays quiet when other agents have worked the outlet',
+      (tester) async {
+    await pump(tester, _detail(attempts: [_attempt()], disputes: [_dispute()]));
+    expect(find.byKey(const ValueKey('dispute-sole-d1')), findsNothing);
+  });
+
+  testWidgets('shows a gallery photo as a gallery photo', (tester) async {
+    await pump(
+      tester,
+      _detail(
+        attempts: [_attempt()],
+        disputes: [
+          _dispute(
+            photos: [
+              _storefrontPhoto(
+                source: 'gallery',
+                // The laundering shape: stamped with the moment it was picked,
+                // a week after the claim reached the server.
+                timestamp: DateTime.utc(2026, 9, 22, 11),
+                receivedAt: DateTime.utc(2026, 9, 22, 11, 1),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('Chosen from the gallery'), findsOneWidget);
+    expect(find.textContaining('Phone said 2026-09-22'), findsOneWidget);
+    expect(find.textContaining('Received 2026-09-22'), findsOneWidget);
   });
 }

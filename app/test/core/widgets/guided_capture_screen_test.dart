@@ -69,11 +69,12 @@ Future<void> _pump(
   double textScale = 1.0,
   Locale locale = const Locale('en'),
   void Function(CapturedPhoto?)? onResult,
+  bool allowGallery = true,
 }) async {
   final db = agentTestDb();
   await pumpAgentScreen(
     tester,
-    _Host(onResult: onResult),
+    _Host(onResult: onResult, allowGallery: allowGallery),
     path: '/capture',
     overrides: <Override>[
       ...agentBaseOverrides(db: db, skin: skin),
@@ -90,9 +91,13 @@ Future<void> _pump(
 /// A host with a button that pushes the capture route onto a real Navigator,
 /// so the route can pop a value back the way the field awaits it.
 class _Host extends StatelessWidget {
-  const _Host({this.onResult});
+  const _Host({this.onResult, this.allowGallery = true});
 
   final void Function(CapturedPhoto?)? onResult;
+
+  /// Mirrors [GuidedCaptureScreen.allowGallery] so a test can open the one
+  /// capture where the gallery is not an option.
+  final bool allowGallery;
 
   static const String hint = 'Shoot the whole shelf, edge to edge';
 
@@ -103,8 +108,11 @@ class _Host extends StatelessWidget {
       onTap: () async {
         final photo = await Navigator.of(context).push<CapturedPhoto>(
           MaterialPageRoute<CapturedPhoto>(
-            builder: (_) =>
-                const GuidedCaptureScreen(label: 'Shelf photo', hint: hint),
+            builder: (_) => GuidedCaptureScreen(
+              label: 'Shelf photo',
+              hint: hint,
+              allowGallery: allowGallery,
+            ),
           ),
         );
         onResult?.call(photo);
@@ -203,6 +211,48 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('guided-gallery')));
       await tester.pumpAndSettle();
       expect(gateway.requested, ImageSource.gallery);
+    });
+
+    testWidgets('a capture that refuses the gallery does not offer it at all', (
+      tester,
+    ) async {
+      final gateway = _Gateway(file: _xfile(_bytes));
+      await _pump(tester, gateway: gateway, luma: _lit, allowGallery: false);
+      await _open(tester);
+
+      // The wrong-pin report's storefront photo (#386). A gallery image is
+      // stamped with the moment it was PICKED and the position at that moment,
+      // so a Street View screenshot chosen at home arrives with a fresh time
+      // and a home tag that agree with the claim perfectly. The server refuses
+      // one for that section; the button is gone so nobody spends the work
+      // first and is told afterwards.
+      expect(
+        find.byKey(const ValueKey<String>('guided-gallery'), skipOffstage: false),
+        findsNothing,
+      );
+      // The camera is still there — this narrows one capture, it does not
+      // break capture.
+      await _capture(tester);
+      expect(gateway.requested, ImageSource.camera);
+    });
+
+    testWidgets('a capture records which source it came from', (tester) async {
+      CapturedPhoto? result;
+      await _pump(
+        tester,
+        gateway: _Gateway(file: _xfile(_bytes)),
+        luma: _lit,
+        onResult: (photo) => result = photo,
+      );
+      await _open(tester);
+      await _capture(tester);
+      await tester.tap(find.byKey(const ValueKey<String>('guided-use-it')));
+      await tester.pumpAndSettle();
+
+      // Without this the upload cannot say where the image came from, and the
+      // server cannot tell storefront evidence from a picture of a storefront.
+      expect(result, isNotNull);
+      expect(result!.source, PhotoSource.camera);
     });
 
     testWidgets('a cancelled picker leaves the card up — not an error', (

@@ -298,6 +298,12 @@ void main() {
       expect(photos.queued.single.visitDraftId, 'visit-flagged');
       expect(photos.queued.single.section, 'pin_dispute');
       expect(photos.queued.single.dataUrl, _storefront.dataUrl);
+      // WHERE the picture came from travels with it. Without this the server
+      // cannot tell a photo of the shop from a screenshot picked at home —
+      // a gallery image is stamped with the time it was PICKED and the
+      // position at that moment, which agree with the claim perfectly and
+      // say nothing about the shop.
+      expect(photos.queued.single.source, 'camera');
     });
 
     testWidgets('no photo queues nothing — it is optional', (tester) async {
