@@ -3486,5 +3486,38 @@
         "type": "String"
       }
     }
+  },
+  "submitSectionsUnread": "Could not read which sections are done",
+  "@submitSectionsUnread": {
+    "description": "Submit gate captured block, in place of the section count, when the visit's sections could not be read. Never a zero."
+  },
+  "submitSectionsUnreadTask": "Your sections could not be read",
+  "@submitSectionsUnreadTask": {
+    "description": "Row on the submit gate's list when the visit's sections could not be read."
+  },
+  "submitSectionsUnreadRowLine": "Something may be missing from this list",
+  "@submitSectionsUnreadRowLine": {
+    "description": "Second line of the sections-could-not-be-read row on the submit gate."
+  },
+  "submitSectionsUnreadNote": "A section that could not be confirmed may be missing from this list. Go back and open your sections to check before you submit.",
+  "@submitSectionsUnreadNote": {
+    "description": "Sentence under the submit gate's list when the visit's sections could not be read."
+  },
+  "submitCapturedUnreadSemantics": "Could not read which sections are done. {line}",
+  "@submitCapturedUnreadSemantics": {
+    "description": "Screen-reader line for the submit gate's captured block when the sections could not be read.",
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "outcomePreviousUnknown": "Your last visit here could not be loaded, so there is nothing to compare this score with.",
+  "@outcomePreviousUnknown": {
+    "description": "Shown instead of a delta on the visit outcome when the score loaded but the history request failed. Whether there was an earlier visit is unknown, so this never claims a first visit."
+  },
+  "outboxSeeScore": "See how it scored",
+  "@outboxSeeScore": {
+    "description": "Ghost action on the outbox sheet for a submitted visit the server has: opens that visit's outcome again."
   }
 }

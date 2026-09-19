@@ -4255,6 +4255,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This phone has version {current}. A newer version is needed.'**
   String updateVersionNoMinimum(String current);
+
+  /// Submit gate captured block, in place of the section count, when the visit's sections could not be read. Never a zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read which sections are done'**
+  String get submitSectionsUnread;
+
+  /// Row on the submit gate's list when the visit's sections could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sections could not be read'**
+  String get submitSectionsUnreadTask;
+
+  /// Second line of the sections-could-not-be-read row on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Something may be missing from this list'**
+  String get submitSectionsUnreadRowLine;
+
+  /// Sentence under the submit gate's list when the visit's sections could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'A section that could not be confirmed may be missing from this list. Go back and open your sections to check before you submit.'**
+  String get submitSectionsUnreadNote;
+
+  /// Screen-reader line for the submit gate's captured block when the sections could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read which sections are done. {line}'**
+  String submitCapturedUnreadSemantics(String line);
+
+  /// Shown instead of a delta on the visit outcome when the score loaded but the history request failed. Whether there was an earlier visit is unknown, so this never claims a first visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your last visit here could not be loaded, so there is nothing to compare this score with.'**
+  String get outcomePreviousUnknown;
+
+  /// Ghost action on the outbox sheet for a submitted visit the server has: opens that visit's outcome again.
+  ///
+  /// In en, this message translates to:
+  /// **'See how it scored'**
+  String get outboxSeeScore;
 }
 
 class _AppLocalizationsDelegate

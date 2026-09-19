@@ -32,6 +32,7 @@ SyncItem _item(
   String? lastError,
   int? payloadBytes,
   int attempts = 1,
+  String? visitDraftId,
 }) => SyncItem(
   id: id,
   entityType: entityType,
@@ -43,7 +44,15 @@ SyncItem _item(
       ? DateTime(2026, 7, 20, 14, 20)
       : null,
   payloadBytes: payloadBytes,
+  visitDraftId: visitDraftId,
 );
+
+/// A submitted visit the server has — the row that has to lead back to the
+/// score, because My work is where the agent meets a finished visit again.
+final _submitted = _status(<SyncItem>[
+  _item(9, 'visit_submit', synced: true, visitDraftId: 'v1'),
+  _item(3, 'visit', synced: true),
+]);
 
 SyncStatus _status(List<SyncItem> items) {
   final pending = items.where((i) => !i.synced).toList();
@@ -189,6 +198,13 @@ Finder _row(int id) => find.byKey(ValueKey<String>('sync-item-$id'));
 
 OutboxRow _outboxRow(WidgetTester tester, int id) =>
     tester.widget<OutboxRow>(_row(id));
+
+/// Scroll to a row and open its sheet.
+Future<void> _openSheet(WidgetTester tester, int id) async {
+  await scrollAgentTo(tester, _row(id));
+  await tester.tap(_row(id));
+  await tester.pumpAndSettle();
+}
 
 /// The body is a lazy list, so a row below the summary on a 360×640 phone is
 /// genuinely not built until it is scrolled to — which is the point.
@@ -594,6 +610,40 @@ void main() {
         findsNothing,
       );
     });
+
+    // The reconciliation line ("Now scored 71 — it was 84 when you saw it")
+    // can only appear on a LATER open of a visit's outcome. Before this, the
+    // outcome was reachable from exactly one `context.go` after submit — so
+    // there was no later open, and the line could not render outside a test.
+    testWidgets('a submitted visit leads back to its score', (tester) async {
+      await _pump(tester, sync: _submitted);
+      await _openSheet(tester, 9);
+
+      expect(
+        find.byKey(const ValueKey<String>('outbox-see-score')),
+        findsOneWidget,
+      );
+      expect(find.text('See how it scored'), findsOneWidget);
+      // Still nothing to fix: a sent capture has no retry and no discard.
+      expect(
+        find.byKey(const ValueKey<String>('outbox-send-one')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('outbox-discard')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a capture that is not a submitted visit has no score to '
+        'open', (tester) async {
+      await _pump(tester, sync: _submitted);
+      await _openSheet(tester, 3);
+      expect(
+        find.byKey(const ValueKey<String>('outbox-see-score')),
+        findsNothing,
+      );
+    });
   });
 
   group('the states that are not a queue', () {
@@ -859,6 +909,26 @@ void main() {
         phase: 'stuck @2.0x',
       );
       expect(census.objectCount, 2, reason: census.describe());
+    });
+
+    testWidgets('the way back to a score is a ghost, never the amber', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _submitted, skin: SkinMode.day);
+      await _openSheet(tester, 9);
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        0,
+        reason:
+            'Reading a score you have already been shown is not the expected '
+            'next move, and a sheet with no commit lights nothing.\n\n'
+            '${census.describe()}',
+      );
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byKey(const ValueKey<String>('outbox-see-score'))),
+      )!;
+      expect(scope.allocation.granted, isEmpty);
     });
 
     testWidgets('a sheet puts out the screen beneath it and spends its own', (
