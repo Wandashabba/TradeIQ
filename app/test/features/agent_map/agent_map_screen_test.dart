@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Directory;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +17,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/features/agent_map/data/agent_map.dart';
 import 'package:tradeiq_app/features/agent_map/presentation/agent_map_screen.dart';
 import 'package:tradeiq_app/features/agent_map/presentation/outlet_map.dart';
+import 'package:tradeiq_app/features/agent_map/presentation/outlet_sheet.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
@@ -179,6 +182,30 @@ Future<void> _openSheet(WidgetTester tester, String outletId) async {
 }
 
 void main() {
+  // flutter_map 8 caches tiles on disk, and the cache asks path_provider for
+  // the OS cache directory the first time any tile layer is built. A widget
+  // test has no path_provider plugin, so that first ask throws a
+  // MissingPluginException asynchronously — and which test it lands in
+  // depends on how long the first map-drawing test happens to run. Run one
+  // census case on its own and it lands in that case. Answering the channel
+  // with a scratch directory makes the order of the tests irrelevant.
+  late final Directory cacheDir;
+  setUpAll(() {
+    cacheDir = Directory.systemTemp.createTempSync('agent-map-tiles');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async => cacheDir.path,
+        );
+  });
+  tearDownAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
+  });
+
   setUp(() {
     // `TorchSheets.openCount` is a static, and a test that ends with a sheet
     // up leaves it at 1 — which makes the NEXT test's route think it is
@@ -617,5 +644,84 @@ void main() {
             'for\n\n${census.describe()}',
       );
     });
+
+    // THE MATRIX. The cases above are the ones with a story; this is every
+    // phase in every skin, so no phase can go uncounted in a skin nobody
+    // thought to open it in. Night keeps the nav tab whenever the nav renders
+    // and nothing else is armed in these phases; Day and Veld have no primary
+    // commit on the route, so they are dark — until a sheet puts its own
+    // "Check in here" up, which is the one amber object in every skin.
+    const matrix = <String, Map<SkinMode, int>>{
+      'loading': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      'error': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      'empty': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      'loaded': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      'located-off': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      'offline': {SkinMode.night: 1, SkinMode.day: 0, SkinMode.veld: 0},
+      'sheet': {SkinMode.night: 1, SkinMode.day: 1, SkinMode.veld: 1},
+      'sheet-done': {SkinMode.night: 0, SkinMode.day: 0, SkinMode.veld: 0},
+    };
+
+    for (final MapEntry(key: phase, value: bySkin) in matrix.entries) {
+      for (final MapEntry(key: skin, value: expected) in bySkin.entries) {
+        testWidgets('matrix — $phase × ${skin.name}: $expected', (
+          tester,
+        ) async {
+          switch (phase) {
+            case 'loading':
+              await pumpAgentScreen(
+                tester,
+                const AgentMapScreen(),
+                path: '/map',
+                overrides: <Override>[
+                  ...agentBaseOverrides(db: agentTestDb(), skin: skin),
+                  agentMapProvider.overrideWith(
+                    (ref) => Completer<AgentMapView>().future,
+                  ),
+                ],
+                settle: false,
+              );
+              await _frames(tester);
+            case 'error':
+              await _pump(tester, error: true, skin: skin);
+            case 'empty':
+              await _pump(
+                tester,
+                skin: skin,
+                view: const AgentMapView(
+                  pins: <MapOutlet>[],
+                  here: null,
+                  problem: null,
+                  planName: null,
+                ),
+              );
+            case 'located-off':
+              await _pump(tester, view: _view(located: false), skin: skin);
+            case 'offline':
+              AgentOutletMap.debugFailureThreshold = 0;
+              await _pump(tester, skin: skin);
+            case 'sheet':
+              await _pump(tester, skin: skin);
+              await _openSheet(tester, 'o2');
+              expect(find.byType(OutletSheet), findsOneWidget);
+            case 'sheet-done':
+              await _pump(tester, skin: skin);
+              await _openSheet(tester, 'o1');
+              expect(find.byType(OutletSheet), findsOneWidget);
+            default:
+              await _pump(tester, skin: skin);
+          }
+          final census = await amberCensus(tester);
+
+          expectWithinAmberBudget(
+            census,
+            agentSkinFor(skin),
+            route: 'map',
+            phase: phase,
+          );
+          expect(census.objectCount, expected, reason: census.describe());
+        });
+      }
+    }
   });
 }

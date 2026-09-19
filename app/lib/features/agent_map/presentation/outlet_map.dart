@@ -244,11 +244,14 @@ class _Basemap extends StatelessWidget {
 
   /// A fingerprint of the plotted points, rounded to ~11 m so the same data
   /// fetched twice does not throw away a pan the agent just made.
+  ///
+  /// Integers of ten-thousandths rather than formatted decimals: this is a
+  /// key, not a figure, and a key has no business going near a formatter.
   static String _signature(List<LatLng> points) => points
       .map(
         (p) =>
-            '${p.latitude.toStringAsFixed(4)},'
-            '${p.longitude.toStringAsFixed(4)}',
+            '${(p.latitude * 1e4).round()},'
+            '${(p.longitude * 1e4).round()}',
       )
       .join(';');
 }
@@ -603,6 +606,24 @@ class MapLegend extends StatelessWidget {
 const _legendOutlet = Outlet(id: '', name: '', code: '', lat: 0, lng: 0);
 
 /// NO TILES. The normal case on a rural forecourt, not an error.
+///
+/// ## What "offline" means for the tiles
+///
+/// flutter_map 8's `NetworkTileProvider` keeps a disk cache of every tile it
+/// has fetched (`BuiltInMapCachingProvider`, on by default on phones, 1 GB,
+/// in the OS cache directory). A tile still fresh by Esri's own HTTP headers
+/// is drawn from disk with no connection at all, so a patch the agent opened
+/// the map over yesterday, in signal, still has a map today. A tile that has
+/// gone stale, or was never fetched, fails when there is no signal —
+/// flutter_map does not fall back to a stale copy — and those failures are
+/// what [AgentOutletMap] counts.
+///
+/// We deliberately do **not** stretch the cache's freshness past what Esri's
+/// headers say (`overrideFreshAge`): that would be keeping a licensed
+/// provider's tiles longer than it serves them, which is a licence question
+/// for the owner (see `basemap.dart`'s caveats), not a design one. The list
+/// beneath carries every store either way, so nothing the agent needs rides
+/// on the tiles arriving.
 ///
 /// It is an inline empty state rather than an error state on purpose: nothing
 /// has failed that the agent can act on, and a crimson block for "you are
