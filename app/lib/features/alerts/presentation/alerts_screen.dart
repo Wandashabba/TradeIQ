@@ -1,23 +1,61 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/brand_media.dart';
-import '../../../core/network/human_error.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_motion.dart' show Motion, reduceMotion;
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/evidence_thumb.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/evidence_thumb.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../data/alerts_repository.dart';
+import '../data/alerts_view.dart';
+import 'alert_detail_sheet.dart';
 
-/// The reference worklist: triage counts, one filter row, then rows sorted by
-/// consequence. Every other list screen copies this shape.
+/// ALERTS — everything a rule fired on, in the order a manager should deal
+/// with it.
+///
+/// ```text
+///   Alerts                                        [ ⟳ ]
+///   Rules evaluate on every visit submit.
+///   Manage rules
+///   ┌────────────────────────────────────────┐
+///   │ ▲  OPEN CRITICAL                    7  │   ← the lead indicator,
+///   │    9 warnings · 23 acknowledged        │     crimson-outlined
+///   └────────────────────────────────────────┘
+///   ( Open 7 )( Acknowledged )( All )  |  ( Critical )( Warning )
+///   ── Open 7 ───────────────────────────────
+///   ▌ Out of stock since Tuesday        [img]
+///   ▌ Kasi Corner Spaza
+///   ▌ OSA_BELOW_50
+///   ▌ View visit   Acknowledge
+///   …
+///   Showing the first 20. There are more.
+///   [ nav pill ]
+/// ```
+///
+/// ## The one amber, counted
+///
+/// A tab root: the nav pill's active tab is slot 1, and this screen nominates
+/// **no content amber at all**. Under the ruling that costs nothing — the
+/// selected filter chip is `lifted` here exactly as it is everywhere else, the
+/// severity bars are crimson at two commitment levels, and the lead figure
+/// carries the urgency with an outline, a triangle and a word. Day and Veld
+/// paint zero: the ladder has one rung on a light ground and it is the primary
+/// commit block, which a worklist does not have.
+///
+/// ## Acknowledging is optimistic, and it is never silent
+///
+/// The row starts closing on the tap itself — the receipt is the tap, not the
+/// round trip. If the PATCH fails the row stands back up and a toast names it.
+/// An unacknowledged alert never silently vanishes.
 class AlertsScreen extends ConsumerStatefulWidget {
   const AlertsScreen({super.key});
 
@@ -25,333 +63,318 @@ class AlertsScreen extends ConsumerStatefulWidget {
   ConsumerState<AlertsScreen> createState() => _AlertsScreenState();
 }
 
-enum _Tab { open, acknowledged, all }
-
 class _AlertsScreenState extends ConsumerState<AlertsScreen> {
-  _Tab _tab = _Tab.open;
+  AlertTab _tab = AlertTab.open;
+
+  /// The wire's own word, or null for every severity.
   String? _severity;
+
+  void _refresh() {
+    ref.invalidate(alertsViewProvider);
+    // The Floor reads the plain list; keeping the two in step means a manager
+    // who refreshes here does not walk back to a stale board.
+    ref.invalidate(alertsListProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final alerts = ref.watch(alertsListProvider);
+    final view = ref.watch(alertsViewProvider);
 
-    return ManagerScaffold(
-      title: 'Alerts',
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // What raises these rows is one hop away — a manager reading "a rule
-          // fired" should be able to go and see (or silence) the rule itself.
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Rules evaluate on every visit submit.',
-                  style: TextStyle(fontSize: 12, color: context.colors.ink3),
-                ),
-              ),
-              RowAction(
-                key: const ValueKey<String>('manage-rules'),
-                label: 'Manage rules',
-                onPressed: () => context.go('/alert-rules'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          AsyncSection<List<AlertItem>>(
-            value: alerts,
+    return view.when(
+      loading: () => _frame(
+        phase: 'loading',
+        children: <Widget>[
+          Skeleton(
             label: 'alerts',
-            onRetry: () => ref.invalidate(alertsListProvider),
-            builder: (list) {
-              final open = list.where((a) => !a.acknowledged).toList();
-              final acked = list.where((a) => a.acknowledged).toList();
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TriageStrip(
-                    counts: [
-                      (
-                        label: 'Critical',
-                        count: open
-                            .where((a) => a.severity == 'critical')
-                            .length,
-                        level: StatusLevel.critical,
-                      ),
-                      (
-                        label: 'Warning',
-                        count: open
-                            .where((a) => a.severity != 'critical')
-                            .length,
-                        level: StatusLevel.warning,
-                      ),
-                      (
-                        label: 'Acknowledged',
-                        count: acked.length,
-                        level: StatusLevel.neutral,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _Filters(
-                    tab: _tab,
-                    severity: _severity,
-                    openCount: open.length,
-                    onTab: (t) => setState(() => _tab = t),
-                    onSeverity: (s) => setState(() => _severity = s),
-                  ),
-                  const SizedBox(height: 12),
-                  _AlertList(alerts: _visible(list)),
-                ],
-              );
-            },
+            child: const SkeletonRows(count: 4, rowHeight: 76),
           ),
         ],
       ),
+      error: (error, stack) => _frame(
+        phase: 'error',
+        children: <Widget>[
+          TorchErrorRegion(
+            name: 'alerts',
+            child: ErrorState(
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('alerts-retry'),
+                label: 'Try again',
+                onPressed: _refresh,
+              ),
+            ),
+          ),
+        ],
+      ),
+      data: _loaded,
     );
   }
 
-  /// Sorted by consequence, then by state: unacknowledged criticals first,
-  /// acknowledged rows last. The list should read top-down as a to-do order.
-  List<AlertItem> _visible(List<AlertItem> all) {
-    final filtered = all.where((a) {
-      final byTab = switch (_tab) {
-        _Tab.open => !a.acknowledged,
-        _Tab.acknowledged => a.acknowledged,
-        _Tab.all => true,
-      };
-      final bySeverity = _severity == null || a.severity == _severity;
-      return byTab && bySeverity;
-    }).toList();
+  Widget _frame({required String phase, required List<Widget> children}) {
+    return ConsoleFrame(
+      phase: phase,
+      active: ConsoleSlot.work,
+      header: TorchAppHeader(
+        title: 'Alerts',
+        facts: const <String>['Rules evaluate on every visit submit.'],
+        trailing: TorchIconButton(
+          key: const ValueKey<String>('alerts-refresh'),
+          icon: Icons.refresh,
+          semanticLabel: 'Refresh the alerts list',
+          onPressed: _refresh,
+        ),
+      ),
+      children: children,
+    );
+  }
 
-    int rank(AlertItem a) => a.acknowledged
-        ? 2
-        : a.severity == 'critical'
-        ? 0
-        : 1;
-    filtered.sort((a, b) => rank(a).compareTo(rank(b)));
-    return filtered;
+  Widget _loaded(AlertsView view) {
+    final visible = view.visible(_tab, _severity);
+    final gutter = context.skin.space.gutter;
+
+    return _frame(
+      phase: view.rows.isEmpty
+          ? 'empty'
+          : visible.isEmpty
+          ? 'filtered-empty'
+          : 'loaded',
+      children: <Widget>[
+        // What raises these rows is one hop away — a manager reading "a rule
+        // fired" should be able to go and see, or silence, the rule itself.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchTertiaryButton(
+            key: const ValueKey<String>('manage-rules'),
+            label: 'Manage rules',
+            onPressed: () => context.go('/alert-rules'),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+
+        // THE LEAD INDICATOR. Not three equal cells: critical and
+        // acknowledged are not peers, and a rail that says so in its layout
+        // says it before a word is read.
+        _LeadIndicator(view: view),
+        const SizedBox(height: TiqSpace.s6),
+
+        // THE FILTER RAIL — never amber, on any screen, in any skin.
+        TorchBleed(extra: gutter * 2, child: _Filters(
+          tab: _tab,
+          severity: _severity,
+          view: view,
+          onTab: (t) => setState(() => _tab = t),
+          onSeverity: (s) => setState(() => _severity = s),
+        )),
+        const SizedBox(height: TiqSpace.s6),
+
+        // THE SECTION RULE, with the count it is actually showing.
+        // A section that vanishes when empty makes a manager think the feature
+        // is gone, so the rule and its name render whatever the count is.
+        SectionRule(
+          _sectionName(),
+          count: visible.isEmpty ? null : visible.length,
+        ),
+        const SizedBox(height: TiqSpace.s5),
+
+        if (view.rows.isEmpty)
+          const EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: 'Nothing to triage.',
+            body: 'Alerts appear here when a rule fires on a submitted visit.',
+          )
+        else if (visible.isEmpty)
+          EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: _filteredEmptyHeadline(),
+            body: 'Clear the filter to see the rest.',
+            action: TorchSecondaryButton(
+              key: const ValueKey<String>('clear-filters'),
+              label: 'Show all alerts',
+              onPressed: () => setState(() {
+                _tab = AlertTab.all;
+                _severity = null;
+              }),
+            ),
+          )
+        else
+          TorchBleed(
+            extra: gutter * 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (var i = 0; i < visible.length; i++)
+                  // Keyed by id so a row's collapse State can never be adopted
+                  // by a DIFFERENT alert sliding into its list position after
+                  // a refresh removes the one above it.
+                  _AlertRow(
+                    key: ValueKey<String>('alert-row-${visible[i].id}'),
+                    alert: visible[i],
+                    last: i == visible.length - 1,
+                    onAcknowledged: _refresh,
+                  ),
+              ],
+            ),
+          ),
+
+        // The footer only exists where the list was actually cut.
+        if (view.hasMore) ...<Widget>[
+          const SizedBox(height: TiqSpace.s6),
+          TorchBleed(
+            extra: gutter * 2,
+            child: PaginationFooter(
+              summary: 'Showing the first ${view.rows.length}. There are more.',
+              narrowLine: 'Narrow by severity to see the rest.',
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _sectionName() => switch (_tab) {
+    AlertTab.open => 'Open',
+    AlertTab.acknowledged => 'Acknowledged',
+    AlertTab.all => 'All alerts',
+  };
+
+  String _filteredEmptyHeadline() {
+    final severity = _severity;
+    if (severity != null) {
+      return 'No ${severity.toLowerCase()} alerts in ${_sectionName().toLowerCase()}.';
+    }
+    return switch (_tab) {
+      AlertTab.open => 'Nothing open.',
+      AlertTab.acknowledged => 'Nothing acknowledged yet.',
+      AlertTab.all => 'Nothing to triage.',
+    };
   }
 }
 
-/// Severity dropdown + Open/Acknowledged/All segmented control — deliberately
-/// NOT restyled to the tasks screen's pill chips (sub-4 note): `_FilterChips`
-/// is private to tasks_screen.dart and typed on its own enum, so "reuse"
-/// would mean lifting it shared and re-touching the tasks screen — not the
-/// trivial swap the plan gated this on. Revisit if the chips ever go shared.
-class _Filters extends StatelessWidget {
-  const _Filters({
-    required this.tab,
-    required this.severity,
-    required this.openCount,
-    required this.onTab,
-    required this.onSeverity,
-  });
+/// The open-critical count, as the one figure that sends somebody somewhere.
+///
+/// Three channels, none of them working alone: the crimson `bad` outline, the
+/// filled triangle beside it, and the word in the eyebrow. Never amber — a
+/// count of problems is the least lit thing on this screen, and the ladder's
+/// first rung is a commit action that this route does not have.
+class _LeadIndicator extends StatelessWidget {
+  const _LeadIndicator({required this.view});
 
-  final _Tab tab;
-  final String? severity;
-  final int openCount;
-  final ValueChanged<_Tab> onTab;
-  final ValueChanged<String?> onSeverity;
+  final AlertsView view;
 
   @override
   Widget build(BuildContext context) {
-    return FilterRow(
-      children: [
-        const SectionLabel('Severity'),
-        DropdownButton<String?>(
-          key: const ValueKey('filter-severity'),
-          value: severity,
-          hint: const Text('All severities'),
-          underline: const SizedBox.shrink(),
-          isDense: true,
-          style: TextStyle(fontSize: 12.5, color: context.colors.ink1),
-          dropdownColor: context.colors.surface2,
-          items: const [
-            DropdownMenuItem<String?>(
-              value: null,
-              child: Text('All severities'),
-            ),
-            DropdownMenuItem<String?>(
-              value: 'critical',
-              child: Text('Critical'),
-            ),
-            DropdownMenuItem<String?>(value: 'warning', child: Text('Warning')),
-          ],
-          onChanged: onSeverity,
+    final critical = view.openCritical;
+    final kind = critical > 0
+        ? SeverityMarkKind.critical
+        : SeverityMarkKind.onTarget;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(top: TiqSpace.s5),
+          child: SeverityMark(kind: kind),
         ),
-        const SizedBox(width: 4),
-        _Segmented(
-          segments: [
-            (label: 'Open · $openCount', value: _Tab.open),
-            (label: 'Acknowledged', value: _Tab.acknowledged),
-            (label: 'All', value: _Tab.all),
-          ],
-          selected: tab,
-          onChanged: onTab,
+        const SizedBox(width: TiqSpace.s3),
+        Expanded(
+          child: StatTile(
+            eyebrow: 'Open critical',
+            // A measured zero renders 0 and keeps its place. Nought open
+            // criticals is a fact worth reading, not an absence.
+            value: critical,
+            lead: true,
+            severity: critical > 0 ? SeverityMarkKind.critical : null,
+            subordinates:
+                '${view.openWarning} warnings · ${view.acknowledged} '
+                'acknowledged',
+          ),
         ),
       ],
     );
   }
 }
 
-class _Segmented<T> extends StatelessWidget {
-  const _Segmented({
-    required this.segments,
-    required this.selected,
-    required this.onChanged,
+/// Two axes in one rail: the state, then the severity.
+///
+/// Selected is `lifted` + a 1px ink-1 border + a tick + weight 700 — three
+/// channels, and never amber on any screen (unify §1.6). A disabled filter
+/// stays visible with its count at zero: hiding a filter because it is empty
+/// hides the fact that it is empty.
+class _Filters extends StatelessWidget {
+  const _Filters({
+    required this.tab,
+    required this.severity,
+    required this.view,
+    required this.onTab,
+    required this.onSeverity,
   });
 
-  final List<({String label, T value})> segments;
-  final T selected;
-  final ValueChanged<T> onChanged;
-
-  /// Glass: a bar track with the selected segment lifted onto a bright pill —
-  /// the dashboard filter bar's idiom. Both states share one padding (a
-  /// pane's rim paints over its edge, it adds no size), so a tap never
-  /// shifts the row.
-  Widget _glass() {
-    const pad = EdgeInsets.symmetric(horizontal: 11, vertical: 5);
-    const inner = LumenGlass.radiusControl - 3;
-    return GlassPane(
-      kind: GlassKind.bar,
-      radius: LumenGlass.radiusControl,
-      blur: false,
-      shadow: false,
-      specular: false,
-      padding: const EdgeInsets.all(3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final s in segments)
-            InkWell(
-              key: ValueKey('tab-${s.value}'),
-              onTap: () => onChanged(s.value),
-              borderRadius: BorderRadius.circular(inner),
-              child: s.value == selected
-                  ? GlassPane(
-                      kind: GlassKind.pill,
-                      radius: inner,
-                      padding: pad,
-                      child: _GlassSegmentLabel(s.label, selected: true),
-                    )
-                  : Padding(
-                      padding: pad,
-                      child: _GlassSegmentLabel(s.label, selected: false),
-                    ),
-            ),
-        ],
-      ),
-    );
-  }
+  final AlertTab tab;
+  final String? severity;
+  final AlertsView view;
+  final ValueChanged<AlertTab> onTab;
+  final ValueChanged<String?> onSeverity;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) return _glass();
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.lineStrong),
-        borderRadius: BorderRadius.circular(AppColors.radiusControl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < segments.length; i++)
-            InkWell(
-              key: ValueKey('tab-${segments[i].value}'),
-              onTap: () => onChanged(segments[i].value),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: segments[i].value == selected
-                      ? colors.surface3
-                      : Colors.transparent,
-                  border: Border(
-                    right: BorderSide(
-                      color: i == segments.length - 1
-                          ? Colors.transparent
-                          : colors.lineStrong,
-                    ),
-                  ),
-                ),
-                child: Text(
-                  segments[i].label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: segments[i].value == selected
-                        ? colors.ink1
-                        : colors.ink2,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
+    return TorchFilterRail(
+      semanticsLabel: 'Filters',
+      chips: <Widget>[
+        TorchFilterChip(
+          key: const ValueKey<String>('tab-open'),
+          label: 'Open',
+          count: view.open,
+          selected: tab == AlertTab.open,
+          onSelected: () => onTab(AlertTab.open),
+        ),
+        TorchFilterChip(
+          key: const ValueKey<String>('tab-acknowledged'),
+          label: 'Acknowledged',
+          count: view.acknowledged,
+          selected: tab == AlertTab.acknowledged,
+          onSelected: () => onTab(AlertTab.acknowledged),
+        ),
+        TorchFilterChip(
+          key: const ValueKey<String>('tab-all'),
+          label: 'All',
+          count: view.rows.length,
+          selected: tab == AlertTab.all,
+          onSelected: () => onTab(AlertTab.all),
+        ),
+        TorchFilterChip(
+          key: const ValueKey<String>('filter-critical'),
+          label: 'Critical',
+          selected: severity == 'critical',
+          onSelected: () => onSeverity(severity == 'critical' ? null : 'critical'),
+        ),
+        TorchFilterChip(
+          key: const ValueKey<String>('filter-warning'),
+          label: 'Warning',
+          selected: severity == 'warning',
+          onSelected: () => onSeverity(severity == 'warning' ? null : 'warning'),
+        ),
+      ],
     );
   }
 }
 
-class _AlertList extends StatelessWidget {
-  const _AlertList({required this.alerts});
-
-  final List<AlertItem> alerts;
-
-  @override
-  Widget build(BuildContext context) {
-    return PanelCard(
-      title: '${alerts.length} ${alerts.length == 1 ? 'alert' : 'alerts'}',
-      subtitle: 'Sorted by severity, then state',
-      padded: false,
-      child: alerts.isEmpty
-          ? const EmptyState(
-              message: 'Nothing to triage',
-              hint:
-                  'Alerts appear here when a rule fires on a submitted visit.',
-              illustration: BrandMedia.noAlerts,
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < alerts.length; i++)
-                  WorklistCascade(
-                    index: i,
-                    // Keyed by id so a row's collapse State can never be
-                    // adopted by a DIFFERENT alert sliding into its list
-                    // position after a refresh removes the one above it.
-                    child: _AlertRow(
-                      key: ValueKey('alert-row-${alerts[i].id}'),
-                      alert: alerts[i],
-                    ),
-                  ),
-              ],
-            ),
-    );
-  }
-}
-
-/// One alert as a worklist card.
+/// One alert, as a row.
 ///
-/// `View visit` opens the visit the rule fired on (`/visits/:id`, #208). It
-/// was dropped by the 2026-07-25 ruling because the console then had no
-/// visit-detail destination, and a link with nowhere real to go is dishonest
-/// chrome. The destination now exists, so the action is back, and only on rows
-/// that actually carry a `visitId`: an alert with no visit gets no link.
-///
-/// Acknowledging collapses the row closed IMMEDIATELY (optimistic,
-/// [Motion.base] SizeTransition — "a row settling"; instant under reduced
-/// motion) so the receipt is the tap, not the round trip — and if the PATCH
-/// fails, the row un-collapses and a SnackBar names the failure. An unacked
-/// alert never silently vanishes.
+/// Acknowledging collapses the row closed IMMEDIATELY (optimistic, a
+/// [Motion.base] `SizeTransition` — "a row settling"; instant under reduced
+/// motion) so the receipt is the tap rather than the round trip. If the PATCH
+/// fails the row un-collapses and a toast names the failure.
 class _AlertRow extends ConsumerStatefulWidget {
-  const _AlertRow({super.key, required this.alert});
+  const _AlertRow({
+    super.key,
+    required this.alert,
+    required this.last,
+    required this.onAcknowledged,
+  });
 
-  final AlertItem alert;
+  final AlertRow alert;
+  final bool last;
+  final VoidCallback onAcknowledged;
 
   @override
   ConsumerState<_AlertRow> createState() => _AlertRowState();
@@ -372,17 +395,16 @@ class _AlertRowState extends ConsumerState<_AlertRow>
   /// True from the Acknowledge tap until the PATCH resolves. A second tap
   /// mid-collapse must not fire a duplicate request: the server's ack is
   /// idempotent, so the repeat would be benign there, but a repeated FAILURE
-  /// would stack SnackBars — one tap, one receipt, one outcome.
+  /// would stack toasts — one tap, one receipt, one outcome.
   bool _acking = false;
 
   @override
   void didUpdateWidget(_AlertRow old) {
     super.didUpdateWidget(old);
-    // A refresh can re-deliver this same row as acknowledged (the All /
-    // Acknowledged tabs keep it on the page). The collapse was the receipt
-    // for the transition, not the state — the acked row stands back up,
-    // faded and pilled, instead of living on as an invisible zero-height
-    // card.
+    // A refresh can re-deliver this same row as acknowledged (the All and
+    // Acknowledged tabs keep it on the page). The collapse was the receipt for
+    // the transition, not the state — the acked row stands back up, at `ink2`
+    // with its mark intact, instead of living on as a zero-height ghost.
     if (widget.alert.acknowledged && !old.alert.acknowledged) {
       _height.value = 1;
     }
@@ -406,27 +428,33 @@ class _AlertRowState extends ConsumerState<_AlertRow>
     }
     try {
       await ref.read(alertsRepositoryProvider).acknowledge(widget.alert.id);
-      // The row may have been disposed under the pending PATCH (tab switch
+      // The row may have been disposed under the pending PATCH (a tab switch
       // filters it out of the list): a dead ref cannot invalidate, and the
-      // refresh it wanted is moot — whoever rebuilt the list already
-      // refetched or will.
+      // refresh it wanted is moot — whoever rebuilt the list already refetched
+      // or will.
       if (!mounted) return;
-      ref.invalidate(alertsListProvider);
-    } catch (err) {
+      widget.onAcknowledged();
+    } catch (error) {
       // Same dispose race, failure arm: no controller to un-collapse, no
-      // element to hang a SnackBar off — and no row left to be honest about.
+      // element to hang a toast off — and no row left to be honest about.
       if (!mounted) return;
-      // Honesty: the acknowledge did NOT happen, so the alert must come back
-      // — a vanished-but-unacked alert is the worklist lying.
+      // Honesty: the acknowledge did NOT happen, so the alert must come back.
+      // A vanished-but-unacked alert is the worklist lying.
       _acking = false;
       if (reduceMotion(context)) {
         _height.value = 1;
       } else {
         _height.forward();
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to acknowledge. ${humanErrorMessage(err)}'),
+      showTorchToast(
+        context,
+        message: 'That alert was not acknowledged. It is still open.',
+        kind: ToastKind.failure,
+        // A second toast replaces the first rather than stacking, so a retry
+        // that fails again reports once.
+        action: TorchTertiaryButton(
+          label: 'Try again',
+          onPressed: _acknowledge,
         ),
       );
     }
@@ -434,136 +462,84 @@ class _AlertRowState extends ConsumerState<_AlertRow>
 
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
     final alert = widget.alert;
-    final level = alert.acknowledged
-        ? StatusLevel.neutral
-        : alert.severity == 'critical'
-        ? StatusLevel.critical
-        : StatusLevel.warning;
 
     return SizeTransition(
-      key: ValueKey('collapse-${alert.id}'),
+      key: ValueKey<String>('collapse-${alert.id}'),
       sizeFactor: _sizeFactor,
-      // Anchored top: the card slides shut upward, the list closes over it.
+      // Anchored top: the row slides shut upward and the list closes over it.
       alignment: Alignment.topCenter,
-      child: WorklistRow(
-        key: ValueKey('alert-${alert.id}'),
+      child: SoftRow(
+        key: ValueKey<String>('alert-${alert.id}'),
+        density: SoftRowDensity.tall,
         title: alert.message,
+        subtitle: alert.acknowledged
+            ? '${alert.outletName} · acknowledged'
+            : alert.outletName,
+        severity: alert.severity,
+        severityLabel: alert.severityLabel,
         // The thumbnail IS the evidence — no photo, no thumb, no placeholder.
-        // evidencePhotoId implies a linked visit, but the guard keeps a
+        // `evidencePhotoId` implies a linked visit, but the guard keeps a
         // malformed row honest rather than crashing.
-        thumb: alert.evidencePhotoId != null && alert.visitId != null
-            ? EvidenceThumb(
+        trailing: alert.evidencePhotoId != null && alert.visitId != null
+            ? TorchEvidenceThumb(
                 photoId: alert.evidencePhotoId!,
-                visitId: alert.visitId!,
+                semanticLabel:
+                    'Shelf photograph from ${alert.outletName} for '
+                    '${alert.message}',
               )
             : null,
-        // The rule that fired is machine-facing, so it wears the mono token —
-        // a manager can quote it straight back into Scoring config.
-        meta: Row(
-          children: [
-            if (alert.acknowledged) ...[
-              const _AckedPill(),
-              const SizedBox(width: 8),
-            ],
-            CodeToken(alert.metric),
-            if (alert.outletId != null) ...[
-              const SizedBox(width: 6),
-              const Text('·'),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  'Outlet ${alert.outletId}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+        meta: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // The rule that fired is machine-facing, so it wears the
+            // identifier face — a manager can quote it straight back into the
+            // rules screen.
+            Text(
+              alert.rule,
+              style: skin.text.monoIdent.style(color: skin.palette.ink3),
+            ),
+            Wrap(
+              spacing: TiqSpace.s4,
+              children: <Widget>[
+                // A link with nowhere to go is dishonest chrome: an alert with
+                // no visit gets no action at all, not a disabled one.
+                if (alert.visitId != null)
+                  TorchTertiaryButton(
+                    key: ValueKey<String>('view-visit-${alert.id}'),
+                    label: 'View visit',
+                    // push, not go: back returns to this worklist with its tab
+                    // and filter intact.
+                    onPressed: () => context.push('/visits/${alert.visitId}'),
+                  ),
+                if (!alert.acknowledged)
+                  TorchTertiaryButton(
+                    key: ValueKey<String>('ack-${alert.id}'),
+                    label: 'Acknowledge',
+                    onPressed: _acknowledge,
+                  ),
+              ],
+            ),
           ],
         ),
-        level: level,
-        statusLabel: alert.acknowledged
-            ? 'Acknowledged'
-            : alert.severity == 'critical'
-            ? 'Critical'
-            : 'Warning',
-        // The fade: WorklistRow dims resolved rows to 0.6 — verified ≥4.5:1
-        // for the composited title on BOTH palettes (alerts_screen_test.dart
-        // holds the maths), so the shipped value stands and the row is not
-        // double-faded here.
-        resolved: alert.acknowledged,
-        actions: [
-          if (alert.visitId != null)
-            RowAction(
-              key: ValueKey<String>('view-visit-${alert.id}'),
-              label: 'View visit',
-              // push, not go: the back chip returns to this worklist with its
-              // tab and filter intact.
-              onPressed: () => context.push('/visits/${alert.visitId}'),
-            ),
-          if (!alert.acknowledged)
-            RowAction(
-              key: ValueKey<String>('ack-${alert.id}'),
-              label: 'Acknowledge',
-              onPressed: _acknowledge,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The muted `✓ ACKED` state pill — [SlaPill]'s chrome family (surface2 under
-/// ink2), NOT reused from it: an SLA verdict and an acknowledged state are
-/// different semantics that happen to share a wash. Words always — the fade
-/// alone would be colour-only state.
-class _AckedPill extends StatelessWidget {
-  const _AckedPill();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    return Container(
-      key: const ValueKey('acked-pill'),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        // Glass keeps the OPAQUE surface2 ground and gains the white rim and
-        // the status-pill cut.
-        color: colors.surface2,
-        borderRadius: BorderRadius.circular(glass ? 6 : AppColors.radiusPill),
-        border: glass ? Border.all(color: context.lumen.pillRim) : null,
-      ),
-      child: Text(
-        '✓ ACKED',
-        style: TextStyle(
-          fontFamily: glass ? LumenGlass.mono : null,
-          fontSize: glass ? 9.5 : 10.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: glass ? 0.85 : null,
-          // Glass's ink2 blended through the acked row's 0.7 fade drops under
-          // 4.5:1; ink1 still clears it (alerts_screen_test holds the maths).
-          color: glass ? colors.ink1 : colors.ink2,
+        onTap: () => showAlertDetailSheet(
+          context,
+          alert: alert,
+          onAcknowledge: _acknowledge,
         ),
+        separator: widget.last
+            ? SoftRowSeparator.none
+            : SoftRowSeparator.auto,
+        semanticsLabel: <String>[
+          alert.severityLabel,
+          alert.message,
+          alert.rule,
+          alert.outletName,
+          if (alert.acknowledged) 'acknowledged',
+        ].join('. '),
       ),
     );
   }
-}
-
-/// A glass segment's words: ink when selected, the muted ink otherwise — both
-/// clear 4.5:1 on the bar, and the lifted pill carries the state as well.
-class _GlassSegmentLabel extends StatelessWidget {
-  const _GlassSegmentLabel(this.label, {required this.selected});
-
-  final String label;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    label,
-    style: TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-      color: selected ? context.lumen.ink : context.lumen.inkMuted,
-    ),
-  );
 }
