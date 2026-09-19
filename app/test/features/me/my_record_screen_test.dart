@@ -254,11 +254,13 @@ void main() {
         expect(line, findsOneWidget);
         final label = tester.getSemantics(line).label;
         expect(label, contains('Now scored 71'));
-        expect(label, contains('it was 84'));
-        expect(label, contains('when you saw it'));
+        expect(label, contains('It was 84 when you saw it'));
         // And on the glass, not only in the screen reader: a sighted agent
-        // is owed the same sentence, or "it was 84" is a riddle about when.
-        expect(find.textContaining('when you saw it'), findsOneWidget);
+        // is owed the why, or "it was 84" is a riddle about when.
+        expect(
+          find.text('It was scored again after you saw it.'),
+          findsOneWidget,
+        );
       },
     );
 

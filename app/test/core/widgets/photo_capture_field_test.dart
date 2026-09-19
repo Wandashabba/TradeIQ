@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/camera/photo_exposure.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
@@ -40,12 +41,17 @@ const _hint = 'Shoot the whole shelf, edge to edge';
 Widget _app(
   ThemeMode mode, {
   XFile? file,
+  double? luma,
   void Function(String?)? onCaptured,
 }) => ProviderScope(
   overrides: [
     photoCaptureServiceProvider.overrideWithValue(
       PhotoCaptureService(gateway: _FakeGateway(file: file)),
     ),
+    // The capture route measures the returned frame's exposure, and decoding
+    // an image does not complete on `FakeAsync`'s clock — see
+    // `photo_exposure_test.dart`. Scripted here; measured for real there.
+    photoExposureProvider.overrideWithValue((String dataUrl) async => luma),
   ],
   child: MaterialApp(
     theme: AppTheme.light(),
@@ -172,6 +178,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-capture')));
       await tester.pumpAndSettle();
+      // Capture no longer pops straight back: the frame is reviewed first, so
+      // a dark shot is never kept silently. Accepting it is what pops.
+      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('photo-preview')), findsOneWidget);
       expect(captured, startsWith('data:image/jpeg;base64,'));
@@ -187,6 +197,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('photo-add')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-capture')));
+      await tester.pumpAndSettle();
+      // Capture no longer pops straight back: the frame is reviewed first, so
+      // a dark shot is never kept silently. Accepting it is what pops.
+      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
       await tester.pumpAndSettle();
 
       final rim = tester.widget<DecoratedBox>(
@@ -216,12 +230,67 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-capture')));
       await tester.pumpAndSettle();
+      // Capture no longer pops straight back: the frame is reviewed first, so
+      // a dark shot is never kept silently. Accepting it is what pops.
+      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
+      await tester.pumpAndSettle();
 
       // Now in the captured state — Retake goes back into the guide.
       await tester.tap(find.byKey(const ValueKey('photo-remove')));
       await tester.pumpAndSettle();
 
       expect(find.byType(GuidedCaptureScreen), findsOneWidget);
+    });
+
+    testWidgets('a dark frame the agent chose to keep is still marked in the '
+        'section body', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          ThemeMode.light,
+          file: _xfile(Uint8List.fromList([1, 2, 3, 4])),
+          // 8% mean luma: an aisle with the lights off.
+          luma: 0.08,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('photo-add')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-capture')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
+      await tester.pumpAndSettle();
+
+      // The photo is KEPT — during Stage 6 it may be the only obtainable
+      // evidence — and the fact travels with it rather than being forgotten
+      // the moment the capture route pops.
+      expect(find.byKey(const ValueKey('photo-preview')), findsOneWidget);
+      // The console's status chip sets its label in caps.
+      expect(find.text('DARK — RETAKE?'), findsOneWidget);
+      expect(find.text('CAPTURED'), findsNothing);
+    });
+
+    testWidgets('a lit frame reads as captured, not as a question', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          ThemeMode.light,
+          file: _xfile(Uint8List.fromList([1, 2, 3, 4])),
+          luma: 0.62,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('photo-add')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-capture')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('CAPTURED'), findsOneWidget);
+      expect(find.text('DARK — RETAKE?'), findsNothing);
     });
 
     testWidgets('a cancelled guided capture leaves the empty tile up', (
@@ -262,6 +331,7 @@ void main() {
             clock: () => shutter,
           ),
         ),
+        photoExposureProvider.overrideWithValue((String dataUrl) async => null),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),
@@ -279,6 +349,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('photo-add')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-capture')));
+      await tester.pumpAndSettle();
+      // Capture no longer pops straight back: the frame is reviewed first, so
+      // a dark shot is never kept silently. Accepting it is what pops.
+      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
       await tester.pumpAndSettle();
     }
 

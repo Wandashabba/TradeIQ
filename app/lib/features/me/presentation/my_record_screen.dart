@@ -41,7 +41,8 @@ import '../data/my_record_repository.dart';
 ///   ── My visits ─────────────────────────────────────
 ///   ◧  Kasi Corner Spaza                          71
 ///      Thu 18 Sep · 41 min · 3 tasks raised
-///      ▪ Now scored 71 ▽ — when you saw it, it was 84
+///      ▪ Now scored 71 ▽ — it was 84
+///        It was scored again after you saw it.
 ///   [ nav pill ]
 /// ```
 ///
@@ -78,7 +79,7 @@ import '../data/my_record_repository.dart';
 /// What this screen shows is the **authoritative** number, every time. Where
 /// the server's number differs from the one the agent already read on the way
 /// out of the shop, a [ReconciliationLine] says so in the agent's own voice —
-/// "Now scored 71 — when you saw it, it was 84" — rather than one number
+/// "Now scored 71 — it was 84", and why — rather than one number
 /// silently replacing another.
 ///
 /// It does **not** carry a [ProvisionalMarker]. unify §1.20 rules that the
@@ -616,13 +617,18 @@ class _VisitRow extends StatelessWidget {
             seenValue: score.seen!.weightedTotal.round(),
             voice: ReconciliationVoice.agent,
             decimals: 0,
+            // The same agent string set the visit outcome screen speaks
+            // (unify §1.20: one component, two string sets), so a score that
+            // moved reads the same on the way out of the shop and a month on.
+            reason: l10n.outcomeReconciledReason,
             strings: ReconciliationStrings(
-              agentLead: l10n.meScoreChangedLead,
-              agentTail: l10n.meScoreChangedTail,
+              agentLead: l10n.outcomeReconciledLead,
+              agentTail: l10n.outcomeReconciledTail,
             ),
-            // No semanticsLabel: the line composes its own from the same two
-            // strings and both figures through TiqNumber, so what is read
-            // aloud is what is drawn, grouping and all.
+            semanticsLabel: l10n.outcomeReconciledSemantics(
+              score.weightedTotal.round(),
+              score.seen!.weightedTotal.round(),
+            ),
           ),
         ),
       ],
