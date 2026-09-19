@@ -94,6 +94,9 @@ class _S9State extends ConsumerState<S9ActionPlanScreen> {
       intro: l10n.s9Intro,
       dirty: _dirty,
       onSave: _addTask,
+      // Each commit queues ONE task and clears the form for the next, so the
+      // verb says so: "Save" on a form that then empties itself reads as lost.
+      saveLabel: l10n.s9AddButton,
       savedLine: l10n.s9Saved,
       children: <Widget>[
         SectionFieldGroup(

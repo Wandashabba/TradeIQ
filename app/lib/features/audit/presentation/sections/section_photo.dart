@@ -63,7 +63,7 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
     return hour < 6 || hour >= 18;
   }
 
-  Future<void> _capture() async {
+  Future<void> _capture([PhotoSource source = PhotoSource.camera]) async {
     if (_busy) return;
     setState(() {
       _busy = true;
@@ -73,7 +73,7 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
     try {
       final photo = await ref
           .read(photoCaptureServiceProvider)
-          .capture(PhotoSource.camera, geotag: true);
+          .capture(source, geotag: true);
       if (!mounted) return;
       setState(() => _busy = false);
       // A cancel returns null — the field keeps whatever it already had, so a
@@ -173,6 +173,19 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
             icon: Icons.photo_camera_outlined,
             busy: _busy,
             onPressed: _busy ? null : _capture,
+          ),
+        ),
+        // The gallery is not a convenience. A cracked camera in a dark aisle
+        // still has to be able to file evidence — the guided capture screen
+        // this field replaced offered it, and a migration does not take a
+        // capability away.
+        const SizedBox(height: TiqSpace.s2),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TorchTertiaryButton(
+            key: const ValueKey<String>('photo-gallery'),
+            label: l10n.captureGalleryButton,
+            onPressed: _busy ? null : () => _capture(PhotoSource.gallery),
           ),
         ),
       ],

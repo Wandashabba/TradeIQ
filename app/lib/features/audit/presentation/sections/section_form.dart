@@ -229,10 +229,24 @@ class SectionFormState extends ConsumerState<SectionForm> {
     final result = await showTorchSheet<SkipReasonResult>(
       context,
       builder: (sheetContext) => SkipReasonPicker(
+        key: const ValueKey<String>('section-skip-picker'),
         title: l10n.sectionCantConfirmWhy,
         subtitle: widget.title,
+        reasons: sectionSkipReasons(l10n),
         initial: existing?.reason,
         initialNote: existing?.note,
+        // What this produces, said before it is chosen. The picker's
+        // consequence lines ("the manager is told…") describe a wire that does
+        // not exist yet, and a consequence the agent is promised and never
+        // gets is worse than none — so the reasons carry no consequence and
+        // this one true sentence stands in for all of them.
+        thresholdLine: l10n.sectionCantConfirmHeld,
+        noteLabel: l10n.skipReasonNoteLabel,
+        saveLabel: l10n.skipReasonSave,
+        changeLabel: l10n.skipReasonChange,
+        cancelLabel: l10n.skipReasonCancel,
+        chooseFirstNote: l10n.skipReasonChooseFirst,
+        sayWhatHappenedNote: l10n.skipReasonSayWhatHappened,
       ),
     );
     if (result == null || !mounted) return;
@@ -755,6 +769,35 @@ class _Entry extends StatelessWidget {
 }
 
 // ── The agent-declared "can't confirm", held on this phone ─────────────────
+
+/// The standard reasons, in the screen's language.
+///
+/// The ids are [SkipReason.standard]'s, so a reason recorded here is the same
+/// reason the day the wire carries it. No consequence lines yet — see
+/// [SectionFormState._openSkipPicker]; the `skipReason…Consequence` strings are
+/// translated and waiting for the field that makes them true.
+List<SkipReason> sectionSkipReasons(AppLocalizations l10n) => <SkipReason>[
+  SkipReason(
+    id: SkipReason.storeRefused.id,
+    label: l10n.skipReasonStoreRefused,
+    consequence: '',
+  ),
+  SkipReason(
+    id: SkipReason.notStocked.id,
+    label: l10n.skipReasonNotStocked,
+    consequence: '',
+  ),
+  SkipReason(
+    id: SkipReason.equipmentUnavailable.id,
+    label: l10n.skipReasonEquipment,
+    consequence: '',
+  ),
+  SkipReason(
+    id: SkipReason.somethingElse.id,
+    label: l10n.skipReasonSomethingElse,
+    consequence: '',
+  ),
+];
 
 /// Which section of which visit a skip belongs to.
 @immutable
