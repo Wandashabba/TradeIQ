@@ -44,6 +44,8 @@ export const PIN_DISPUTE_MAX_DISTANCE_M_KEY = 'pinDisputeMaxDistanceM';
  * one.
  */
 export const DEFAULT_PIN_DISPUTE_MAX_DISTANCE_M = 25_000;
+// Operator-facing notes on both of these, and on the fraud weight they feed:
+// docs/operations/pin-repair-and-geofence-override.md
 /** Longest note an agent may attach to a pin dispute. */
 export const MAX_PIN_DISPUTE_NOTE_LENGTH = 1000;
 

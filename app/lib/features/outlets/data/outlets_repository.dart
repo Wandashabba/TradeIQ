@@ -9,6 +9,8 @@ class Outlet {
     required this.code,
     required this.lat,
     required this.lng,
+    this.channelType = '',
+    this.status = 'active',
     this.visited = false,
   });
   final String id;
@@ -16,6 +18,15 @@ class Outlet {
   final String code;
   final double lat;
   final double lng;
+
+  /// Empty when the response that built this outlet did not carry it — the
+  /// coverage endpoint returns a narrower shape than `/outlets` does.
+  final String channelType;
+
+  /// `active` or `closed` (#386). Defaults to active rather than being
+  /// nullable: a backend that predates the field is not telling us the outlet
+  /// is in some unknown state, it is telling us every outlet is as it was.
+  final String status;
 
   /// Whether this outlet had at least one submitted visit within the
   /// coverage query's date window. Only meaningful on an `Outlet` that came
@@ -29,7 +40,184 @@ class Outlet {
         code: json['code'] as String,
         lat: (json['lat'] as num).toDouble(),
         lng: (json['lng'] as num).toDouble(),
+        channelType: json['channelType'] as String? ?? '',
+        status: json['status'] as String? ?? 'active',
         visited: json['visited'] as bool? ?? false,
+      );
+}
+
+/// A rejected check-in — an agent who stood somewhere and was told they were
+/// not at the shop, with where they actually were (#386).
+///
+/// This is the evidence a manager judges a pin by. Several of these clustered
+/// on one spot hundreds of metres from the pin is what a wrong pin looks like.
+class CheckInAttemptEvidence {
+  const CheckInAttemptEvidence({
+    required this.id,
+    required this.agentLabel,
+    required this.lat,
+    required this.lng,
+    required this.distanceM,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String agentLabel;
+  final double lat;
+  final double lng;
+  final double distanceM;
+  final DateTime createdAt;
+
+  factory CheckInAttemptEvidence.fromJson(Map<String, dynamic> json) =>
+      CheckInAttemptEvidence(
+        id: json['id'] as String,
+        agentLabel: json['agentLabel'] as String? ?? '',
+        lat: (json['lat'] as num).toDouble(),
+        lng: (json['lng'] as num).toDouble(),
+        distanceM: (json['distanceM'] as num).toDouble(),
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+/// An agent's explicit "the pin is wrong" claim (#386).
+class PinDispute {
+  const PinDispute({
+    required this.id,
+    required this.outletId,
+    required this.outletName,
+    required this.outletCode,
+    required this.visitId,
+    required this.agentLabel,
+    required this.lat,
+    required this.lng,
+    required this.distanceM,
+    required this.outletLat,
+    required this.outletLng,
+    required this.note,
+    required this.status,
+    required this.resolvedByLabel,
+    required this.resolvedAt,
+    required this.createdAt,
+    required this.photoIds,
+  });
+
+  final String id;
+  final String outletId;
+  final String outletName;
+  final String outletCode;
+  final String visitId;
+  final String agentLabel;
+  final double lat;
+  final double lng;
+  final double distanceM;
+
+  /// The pin AS IT READ when the claim was made, not as it reads now. A claim
+  /// reviewed after someone corrected the pin must still show what the agent
+  /// was arguing with, or it reads as a complaint about coordinates nobody
+  /// ever had.
+  final double outletLat;
+  final double outletLng;
+
+  final String? note;
+
+  /// `open`, `applied` or `rejected`.
+  final String status;
+  final String? resolvedByLabel;
+  final DateTime? resolvedAt;
+  final DateTime createdAt;
+
+  /// Storefront evidence the agent attached, as photo ids — the bytes are
+  /// fetched separately through `GET /photos/:id/thumbnail`.
+  final List<String> photoIds;
+
+  bool get isOpen => status == 'open';
+
+  factory PinDispute.fromJson(Map<String, dynamic> json) => PinDispute(
+        id: json['id'] as String,
+        outletId: json['outletId'] as String,
+        outletName: json['outletName'] as String? ?? '',
+        outletCode: json['outletCode'] as String? ?? '',
+        visitId: json['visitId'] as String,
+        agentLabel: json['agentLabel'] as String? ?? '',
+        lat: (json['lat'] as num).toDouble(),
+        lng: (json['lng'] as num).toDouble(),
+        distanceM: (json['distanceM'] as num).toDouble(),
+        outletLat: (json['outletLat'] as num).toDouble(),
+        outletLng: (json['outletLng'] as num).toDouble(),
+        note: json['note'] as String?,
+        status: json['status'] as String? ?? 'open',
+        resolvedByLabel: json['resolvedByLabel'] as String?,
+        resolvedAt: json['resolvedAt'] == null
+            ? null
+            : DateTime.parse(json['resolvedAt'] as String),
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        photoIds: [
+          for (final p in (json['photos'] as List<dynamic>? ?? const []))
+            (p as Map<String, dynamic>)['id'] as String,
+        ],
+      );
+}
+
+/// One change somebody made to an outlet, and what it was before (#386).
+class OutletChange {
+  const OutletChange({
+    required this.id,
+    required this.userLabel,
+    required this.before,
+    required this.after,
+    required this.pinSource,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String userLabel;
+  final Map<String, dynamic> before;
+  final Map<String, dynamic> after;
+
+  /// `manual`, `agent_position`, or null when the change did not move the pin.
+  final String? pinSource;
+  final DateTime createdAt;
+
+  factory OutletChange.fromJson(Map<String, dynamic> json) => OutletChange(
+        id: json['id'] as String,
+        userLabel: json['userLabel'] as String? ?? '',
+        before: Map<String, dynamic>.from(
+            json['before'] as Map? ?? const <String, dynamic>{}),
+        after: Map<String, dynamic>.from(
+            json['after'] as Map? ?? const <String, dynamic>{}),
+        pinSource: json['pinSource'] as String?,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+/// GET /outlets/:id — the pin plus everything a manager needs to judge it.
+class OutletDetail {
+  const OutletDetail({
+    required this.outlet,
+    required this.failedAttempts,
+    required this.disputes,
+    required this.changes,
+  });
+
+  final Outlet outlet;
+  final List<CheckInAttemptEvidence> failedAttempts;
+  final List<PinDispute> disputes;
+  final List<OutletChange> changes;
+
+  factory OutletDetail.fromJson(Map<String, dynamic> json) => OutletDetail(
+        outlet: Outlet.fromJson(json['outlet'] as Map<String, dynamic>),
+        failedAttempts: [
+          for (final a in (json['failedAttempts'] as List<dynamic>? ?? const []))
+            CheckInAttemptEvidence.fromJson(a as Map<String, dynamic>),
+        ],
+        disputes: [
+          for (final d in (json['disputes'] as List<dynamic>? ?? const []))
+            PinDispute.fromJson(d as Map<String, dynamic>),
+        ],
+        changes: [
+          for (final c in (json['changes'] as List<dynamic>? ?? const []))
+            OutletChange.fromJson(c as Map<String, dynamic>),
+        ],
       );
 }
 
@@ -55,6 +243,50 @@ abstract class OutletsRepository {
   });
 }
 
+/// The manager's half of outlet administration (#386): reading one outlet's
+/// pin evidence, correcting it, and working the queue of agents' reports.
+///
+/// Deliberately a SEPARATE interface rather than three more members on
+/// [OutletsRepository]. Every screen that picks an outlet from a list — beat
+/// plans, campaigns, orders, reports, the dashboard — has a fake of that
+/// interface in its tests, and widening it would make all of them stop
+/// compiling for methods none of them will ever call. It is also an honest
+/// split: these are supervisory, manager/admin-only operations, and the
+/// backend enforces exactly that boundary.
+abstract class OutletAdminRepository {
+  /// GET /outlets/:id — one outlet with the evidence about its pin (#386).
+  Future<OutletDetail> getOutlet(String id);
+
+  /// PATCH /outlets/:id — correct a wrongly pinned outlet (#386).
+  ///
+  /// The pin has ONE source and the request says which: [lat]/[lng] typed in,
+  /// or [fromAttemptId] — the agent's recorded position, whose coordinates the
+  /// server reads out of that check-in attempt itself. Sending both is a 400,
+  /// so callers must not try to be helpful by sending the numbers alongside
+  /// the attempt id.
+  ///
+  /// [disputeId] resolves that claim in the same transaction: applied when the
+  /// pin moved, rejected when it did not.
+  Future<Outlet> updateOutlet({
+    required String id,
+    String? name,
+    double? lat,
+    double? lng,
+    String? status,
+    String? fromAttemptId,
+    String? disputeId,
+    String? resolutionNote,
+  });
+
+  /// GET /outlets/pin-disputes — the manager's queue, open claims by default.
+  Future<PaginatedResponse<PinDispute>> listPinDisputes({
+    String? status,
+    String? outletId,
+    int? limit,
+    String? cursor,
+  });
+}
+
 /// The highest `?limit=` the backend's `parsePagination` accepts (see
 /// `backend/src/lib/pagination.ts`'s `MAX_LIMIT`). `_fetchAllOutlets` below
 /// requests pages at this size purely to minimise round trips over a field
@@ -71,7 +303,7 @@ const _maxPageSize = 200;
 /// server is misbehaving, and failing loudly beats hanging silently.
 const _maxFetchAllPages = 50;
 
-class DioOutletsRepository implements OutletsRepository {
+class DioOutletsRepository implements OutletsRepository, OutletAdminRepository {
   @override
   Future<PaginatedResponse<Outlet>> listOutlets({
     bool mine = false,
@@ -111,9 +343,80 @@ class DioOutletsRepository implements OutletsRepository {
     });
     return Outlet.fromJson(response.data as Map<String, dynamic>);
   }
+
+  @override
+  Future<OutletDetail> getOutlet(String id) async {
+    final response = await dio.get('/outlets/$id');
+    return OutletDetail.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Outlet> updateOutlet({
+    required String id,
+    String? name,
+    double? lat,
+    double? lng,
+    String? status,
+    String? fromAttemptId,
+    String? disputeId,
+    String? resolutionNote,
+  }) async {
+    // The backend rejects unknown fields, so only the ones actually being
+    // changed are sent — an explicit null would be an unknown-shaped value,
+    // not "leave it alone".
+    final response = await dio.patch('/outlets/$id', data: {
+      'name': ?name,
+      'lat': ?lat,
+      'lng': ?lng,
+      'status': ?status,
+      'fromAttemptId': ?fromAttemptId,
+      'disputeId': ?disputeId,
+      'resolutionNote': ?resolutionNote,
+    });
+    return Outlet.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<PaginatedResponse<PinDispute>> listPinDisputes({
+    String? status,
+    String? outletId,
+    int? limit,
+    String? cursor,
+  }) async {
+    final response = await dio.get(
+      '/outlets/pin-disputes',
+      queryParameters: {
+        'status': ?status,
+        'outletId': ?outletId,
+        'limit': ?limit?.toString(),
+        'cursor': ?cursor,
+      },
+    );
+    return PaginatedResponse<PinDispute>.fromJson(
+      response.data as Map<String, dynamic>,
+      (e) => PinDispute.fromJson(e as Map<String, dynamic>),
+    );
+  }
 }
 
 final outletsRepositoryProvider = Provider<OutletsRepository>((ref) => DioOutletsRepository());
+
+final outletAdminRepositoryProvider =
+    Provider<OutletAdminRepository>((ref) => DioOutletsRepository());
+
+/// One outlet's detail, by id (#386). `autoDispose` and family: a manager
+/// opens one store, fixes it, and leaves — keeping every store they have ever
+/// looked at in memory serves nobody.
+final outletDetailProvider =
+    FutureProvider.autoDispose.family<OutletDetail, String>((ref, id) {
+  return ref.read(outletAdminRepositoryProvider).getOutlet(id);
+});
+
+/// The open "the pin is wrong" queue (#386).
+final openPinDisputesProvider = FutureProvider.autoDispose<List<PinDispute>>((ref) async {
+  final page = await ref.read(outletAdminRepositoryProvider).listPinDisputes();
+  return page.data;
+});
 
 /// Walks every page of GET /outlets and concatenates them.
 ///
