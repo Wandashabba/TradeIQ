@@ -274,8 +274,18 @@ class _LeadIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final critical = view.openCritical;
+    // The page was cut, so this is a count of what was loaded. The server
+    // sends alerts newest-first, so an open critical raised last month sits
+    // unloaded on page 2 — which makes a zero here an UNKNOWN rather than a
+    // measured nought, and the green on-target circle a verdict nobody
+    // measured.
+    final partial = view.hasMore;
+    final unknown = partial && critical == 0;
+    final loaded = TiqNumber.of(context).format(view.rows.length);
     final kind = critical > 0
         ? SeverityMarkKind.critical
+        : partial
+        ? SeverityMarkKind.notMeasured
         : SeverityMarkKind.onTarget;
 
     return Row(
@@ -290,8 +300,17 @@ class _LeadIndicator extends StatelessWidget {
           child: StatTile(
             eyebrow: 'Open critical',
             // A measured zero renders 0 and keeps its place. Nought open
-            // criticals is a fact worth reading, not an absence.
-            value: critical,
+            // criticals is a fact worth reading, not an absence — but a zero
+            // over a cut page is not that zero, and it renders as the em dash
+            // and the reason.
+            value: unknown ? null : critical,
+            noDataReason: unknown
+                ? 'None among the $loaded alerts loaded. The rest of the list '
+                      'was not fetched.'
+                : null,
+            stateLine: partial && critical > 0
+                ? 'At least this many: counted over the $loaded alerts loaded.'
+                : null,
             lead: true,
             severity: critical > 0 ? SeverityMarkKind.critical : null,
             subordinates:
@@ -477,6 +496,25 @@ class _AlertRowState extends ConsumerState<_AlertRow>
     final skin = context.skin;
     final alert = widget.alert;
 
+    final verbs = <Widget>[
+      // A link with nowhere to go is dishonest chrome: an alert with no visit
+      // gets no action at all, not a disabled one.
+      if (alert.visitId != null)
+        TorchTertiaryButton(
+          key: ValueKey<String>('view-visit-${alert.id}'),
+          label: 'View visit',
+          // push, not go: back returns to this worklist with its tab and
+          // filter intact.
+          onPressed: () => context.push('/visits/${alert.visitId}'),
+        ),
+      if (!alert.acknowledged)
+        TorchTertiaryButton(
+          key: ValueKey<String>('ack-${alert.id}'),
+          label: 'Acknowledge',
+          onPressed: _acknowledge,
+        ),
+    ];
+
     return SizeTransition(
       key: ValueKey<String>('collapse-${alert.id}'),
       sizeFactor: _sizeFactor,
@@ -513,29 +551,14 @@ class _AlertRowState extends ConsumerState<_AlertRow>
               alert.rule,
               style: skin.text.monoIdent.style(color: skin.palette.ink3),
             ),
-            Wrap(
-              spacing: TiqSpace.s4,
-              children: <Widget>[
-                // A link with nowhere to go is dishonest chrome: an alert with
-                // no visit gets no action at all, not a disabled one.
-                if (alert.visitId != null)
-                  TorchTertiaryButton(
-                    key: ValueKey<String>('view-visit-${alert.id}'),
-                    label: 'View visit',
-                    // push, not go: back returns to this worklist with its tab
-                    // and filter intact.
-                    onPressed: () => context.push('/visits/${alert.visitId}'),
-                  ),
-                if (!alert.acknowledged)
-                  TorchTertiaryButton(
-                    key: ValueKey<String>('ack-${alert.id}'),
-                    label: 'Acknowledge',
-                    onPressed: _acknowledge,
-                  ),
-              ],
-            ),
           ],
         ),
+        // The verbs sit in the row's action slot, not in `meta`: `meta` is
+        // inside the row's excluded label, so a button there is painted and
+        // announced nowhere.
+        actions: verbs.isEmpty
+            ? null
+            : Wrap(spacing: TiqSpace.s4, children: verbs),
         onTap: () => showAlertDetailSheet(
           context,
           alert: alert,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
@@ -109,12 +110,125 @@ void main() {
     ) async {
       await _pump(tester, rules: <AlertRule>[_rule(severity: 'warning')]);
 
-      await scrollWorklistTo(tester, find.text('Watch'));
-      expect(find.text('Watch'), findsOneWidget);
+      // The FORM's word, not the mark's. A rule configured as Warning reads
+      // "Warning" on the list; "Watch" is the severity mark's own vocabulary
+      // and no screen in this feature offers it.
+      await scrollWorklistTo(tester, find.text('Warning'));
+      expect(find.text('Warning'), findsOneWidget);
+      expect(find.text('Watch'), findsNothing);
       final row = tester.widget<SoftRow>(find.byType(SoftRow).first);
       // The row itself carries no severity bar: a configured severity is a
       // fact about future alerts, not a verdict about this row.
       expect(row.severity, SoftRowSeverity.none);
+    });
+
+    testWidgets('a normal rule is never Held — Held means queued work', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rules: <AlertRule>[
+          _rule(severity: 'normal'),
+          _rule(id: 'r2'),
+        ],
+      );
+
+      await scrollWorklistTo(tester, find.text('Normal'));
+      // The word the form offered, and NOT the held vocabulary: "Held" beside
+      // a live On toggle reads as a paused rule, and unify §1.13 reserves the
+      // Oatmeal square for queued work.
+      expect(find.text('Normal'), findsOneWidget);
+      expect(find.text('Held'), findsNothing);
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.byType(SeverityMark))
+            .where((m) => m.kind == SeverityMarkKind.held),
+        isEmpty,
+        reason: 'the Oatmeal square means queued, never "normal severity"',
+      );
+      // The critical rule keeps its mark: dropping Held is not dropping the
+      // marks that are real.
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.byType(SeverityMark))
+            .where((m) => m.kind == SeverityMarkKind.critical)
+            .length,
+        1,
+      );
+    });
+
+    testWidgets('an off rule is still editable: the row opens the form', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rules: <AlertRule>[
+          _rule(id: 'r2', name: 'Price drift', active: false, threshold: 12),
+        ],
+      );
+
+      final row = find.byKey(const ValueKey<String>('rule-row-r2'));
+      await scrollWorklistTo(tester, row);
+      // `enabled: false` would make this tap do nothing, and the only way to
+      // change a switched-off rule's threshold would be to turn it back on
+      // first — which fires it on the next submit with the old threshold.
+      expect(
+        tester.widget<SoftRow>(find.byType(SoftRow).first).enabled,
+        isTrue,
+      );
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(find.byType(TorchSheet), findsOneWidget);
+      expect(find.text('Price drift'), findsWidgets);
+    });
+
+    testWidgets('an off rule says Off in words, not only by its glyph', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rules: <AlertRule>[_rule(id: 'r2', name: 'Price drift', active: false)],
+      );
+
+      final row = find.byKey(const ValueKey<String>('rule-row-r2'));
+      await scrollWorklistTo(tester, row);
+      // On the row itself, not only in the section header far above it: the
+      // toggle's off state is a glyph, and a glyph is not a word.
+      expect(
+        find.descendant(of: row, matching: find.text('Off')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the toggle reaches the semantics tree, on and off', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        rules: <AlertRule>[
+          _rule(),
+          _rule(
+            id: 'r2',
+            name: 'Price drift',
+            metric: 'price_deviation',
+            active: false,
+          ),
+        ],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('toggle-r2')),
+      );
+      // The row's label is excluded content, so a toggle that lives inside it
+      // is a rule a TalkBack manager can hear and cannot switch.
+      expect(
+        find.bySemanticsLabel('Turn Out of stock alert off'),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('Turn Price drift on'), findsOneWidget);
+      handle.dispose();
     });
 
     testWidgets('no threshold says whose default it is, never a null', (
@@ -219,8 +333,9 @@ void main() {
         find.byKey(const ValueKey<String>('toggle-r1')),
       );
       // The toggled-on icon button is an Abyssal block plus the word ON, and
-      // its label names where the press GOES, not where it is.
-      expect(find.text('On'), findsOneWidget);
+      // its label names where the press GOES, not where it is. The row's meta
+      // line says "On" as well, which is the second of the two.
+      expect(find.text('On'), findsNWidgets(2));
       final button = tester.widget<TorchIconButton>(
         find.byKey(const ValueKey<String>('toggle-r1')),
       );

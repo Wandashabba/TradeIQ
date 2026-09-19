@@ -23,6 +23,28 @@ import '../data/alerts_repository.dart';
 /// fourth would produce alerts no screen has a word for.
 const List<String> _severities = <String>['critical', 'warning', 'normal'];
 
+/// The rule's configured severity, in the form's own words.
+///
+/// A rule row says what the form says: a rule created as "Normal" reads
+/// "Normal" on the list. It does NOT borrow the severity mark's vocabulary —
+/// `warning` is not "Watch" here, and `normal` is emphatically not "Held",
+/// which unify §1.13 reserves for queued work and which beside a live On
+/// toggle reads as a paused rule.
+String _severityLabel(String severity) => severity.isEmpty
+    ? severity
+    : severity[0].toUpperCase() + severity.substring(1);
+
+/// The mark for a configured severity, where there is one.
+///
+/// Critical and warning have marks. `normal` has none: it is the absence of a
+/// severity, and the system has no mark for "nothing in particular" — the one
+/// that looks like it (the Oatmeal square) means queued.
+SeverityMarkKind? _severityMark(String severity) => switch (severity) {
+  'critical' => SeverityMarkKind.critical,
+  'warning' => SeverityMarkKind.watch,
+  _ => null,
+};
+
 String _metricLabel(String metric) => switch (metric) {
   'out_of_stock' => 'Out of stock',
   'price_deviation' => 'Price deviation',
@@ -340,12 +362,8 @@ class _RuleRowState extends ConsumerState<_RuleRow> {
     final skin = context.skin;
     final p = skin.palette;
     final rule = widget.rule;
-    final severity = switch (rule.severity) {
-      'critical' => SeverityMarkKind.critical,
-      'warning' => SeverityMarkKind.watch,
-      _ => SeverityMarkKind.held,
-    };
-    final word = SeverityMarkToken.of(skin, severity).word;
+    final mark = _severityMark(rule.severity);
+    final word = _severityLabel(rule.severity);
     final metaInk = rule.active ? p.ink3 : p.inkMute;
 
     return SoftRow(
@@ -353,12 +371,22 @@ class _RuleRowState extends ConsumerState<_RuleRow> {
       density: SoftRowDensity.tall,
       title: rule.name,
       subtitle: _conditionSentence(rule),
-      enabled: rule.active,
+      // NEVER `enabled: false` for an off rule. A rule that is switched off is
+      // still configuration a manager edits — usually the threshold, before
+      // turning it back on — and `enabled: false` means the control is dead.
+      // Off is carried by the word, the section and the toggle's own state.
       meta: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: TiqSpace.s2,
         children: <Widget>[
-          SeverityMark(kind: severity),
+          // The state in words, because the toggle's glyph is a shape and the
+          // section header is far away by the time a manager is reading row
+          // eleven.
+          Text(
+            rule.active ? 'On' : 'Off',
+            style: skin.text.meta.style(color: metaInk),
+          ),
+          if (mark != null) SeverityMark(kind: mark),
           Text(word, style: skin.text.meta.style(color: metaInk)),
           // The metric is what the evaluator matches on, so it wears the
           // identifier face — a manager can quote it straight back at the API.
@@ -391,6 +419,10 @@ class _RuleRowState extends ConsumerState<_RuleRow> {
             ),
         ],
       ),
+      // A control, so it keeps its own semantics node beneath the row's: the
+      // row's label is excluded content, and a toggle nobody can reach is a
+      // rule a TalkBack manager cannot turn off.
+      trailingIsControl: true,
       trailing: TorchIconButton(
         key: ValueKey<String>('toggle-${rule.id}'),
         icon: rule.active
@@ -569,7 +601,7 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
               for (final severity in _severities)
                 ChoiceOption<String>(
                   value: severity,
-                  label: severity[0].toUpperCase() + severity.substring(1),
+                  label: _severityLabel(severity),
                 ),
             ],
             onChanged: (value) => setState(() => _severity = value),
