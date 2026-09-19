@@ -120,6 +120,11 @@ class _AgentMapScreenState extends ConsumerState<AgentMapScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref.invalidate(currentFixProvider);
+        // Rebuild the view model here, between frames, rather than letting
+        // the first `watch` below do it mid-build: a dirty fix flushed during
+        // a build notifies the map's provider, which asks the ProviderScope
+        // to rebuild while Flutter is still building.
+        ref.read(agentMapProvider);
         setState(() => _fixIsFromBefore = false);
       });
     }
@@ -258,7 +263,8 @@ class AgentMapFrame extends ConsumerWidget {
           navPill: TorchNavPill(
             slots: TodayFrame.slotsIn(
               l10n,
-              runningContests: ref.watch(runningContestsCountProvider).value ?? 0,
+              runningContests:
+                  ref.watch(runningContestsCountProvider).value ?? 0,
             ),
             activeIndex: TodayFrame.mapSlot,
             onSelect: (i) => TodayFrame.go(context, i),
@@ -298,10 +304,12 @@ class _Stores extends ConsumerWidget {
     final skin = context.skin;
     final drawn = view.drawn;
     final planned = <MapOutlet>[
-      for (final pin in drawn) if (pin.state != MapPinState.territory) pin,
+      for (final pin in drawn)
+        if (pin.state != MapPinState.territory) pin,
     ];
     final rest = <MapOutlet>[
-      for (final pin in drawn) if (pin.state == MapPinState.territory) pin,
+      for (final pin in drawn)
+        if (pin.state == MapPinState.territory) pin,
     ];
     final bleed = skin.space.gutter * 2;
 
@@ -318,15 +326,12 @@ class _Stores extends ConsumerWidget {
         // Why the phone will not say where things are. One sentence, once —
         // not an em dash on every row.
         if (view.problem != null) ...<Widget>[
-          Text(
-            switch (view.problem!) {
-              MapLocationProblem.denied => l10n.mapLocationDenied,
-              MapLocationProblem.servicesOff => l10n.mapLocationServicesOff,
-              MapLocationProblem.timedOut ||
-              MapLocationProblem.failed => l10n.mapLocationNoFix,
-            },
-            style: skin.text.body.style(color: skin.palette.ink2),
-          ),
+          Text(switch (view.problem!) {
+            MapLocationProblem.denied => l10n.mapLocationDenied,
+            MapLocationProblem.servicesOff => l10n.mapLocationServicesOff,
+            MapLocationProblem.timedOut ||
+            MapLocationProblem.failed => l10n.mapLocationNoFix,
+          }, style: skin.text.body.style(color: skin.palette.ink2)),
           const SizedBox(height: TiqSpace.s5),
         ],
 
