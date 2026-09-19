@@ -45,9 +45,11 @@ import 'outbox_item_sheet.dart';
 /// Towers go down with the grid, a back aisle is a Faraday cage, and "12 held"
 /// is a normal Tuesday. So the held summary is **Oatmeal plus a square plus a
 /// word** — never crimson, never a severity, and never the word "error". Only
-/// [SyncItem.needsAttention] — a capture that will not send *on its own* —
-/// raises a colour, and even then it raises it on that capture and not on the
-/// screen.
+/// [SyncStatus.stuck] — a capture that will not send *on its own* — raises a
+/// colour, and even then it raises it on that capture and not on the screen.
+/// A capture held because the session ended is held, not stuck (unify §1.13):
+/// signing in sends it, so it is Oatmeal like the rest and the "Sign in"
+/// amber carries the call to action.
 ///
 /// ## The amber, counted
 ///
@@ -191,7 +193,6 @@ class _MyWorkFrame extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 /// The queue itself, in three groups.
@@ -220,8 +221,10 @@ class _QueueState extends ConsumerState<_Queue> {
     final skin = context.skin;
     final sending = ref.watch(syncingProvider) && status.pending.isNotEmpty;
 
-    final needsYou = status.needsAttention;
-    final waiting = status.waiting;
+    // Stuck, not needsAttention: a session-ended capture is held, and it is
+    // listed with the rest of the held work rather than under "Needs you".
+    final needsYou = status.stuck;
+    final waiting = status.held;
     final sent = status.sent;
     final sessionEnded = status.sessionEnded;
 
@@ -351,22 +354,25 @@ class _Summary extends ConsumerWidget {
     final skin = context.skin;
     final l10n = context.l10n;
 
+    final stuck = status.stuck;
+    // A queue held because the session ended does not "send itself" — it
+    // sends when the agent signs in, and the summary says so.
+    final signedOut = status.sessionEnded.isNotEmpty;
+
     final (
       MarkShape shape,
       Color ink,
       String title,
       String subtitle,
-    ) = switch ((
-      status.needsAttention.isNotEmpty,
-      sending,
-      status.pending.isNotEmpty,
-    )) {
+    ) = switch ((stuck.isNotEmpty, sending, status.pending.isNotEmpty)) {
       // The one state that raises a colour, because it is the one state where
-      // something is actually wrong.
+      // something is actually wrong. Session-ended captures are not in it:
+      // they are held (unify §1.13), and counting them here painted work
+      // that sends itself after sign-in as a failure.
       (true, _, _) => (
         MarkShape.criticalTriangle,
         skin.palette.bad,
-        l10n.myWorkFailedTitle(status.needsAttention.length),
+        l10n.myWorkFailedTitle(stuck.length),
         l10n.myWorkFailedSubtitle,
       ),
       // Sending is Oatmeal and a word. The motion-coded amber "live" mark is
@@ -383,7 +389,9 @@ class _Summary extends ConsumerWidget {
         MarkShape.heldSquare,
         skin.palette.ink2,
         l10n.myWorkHeldTitle(status.pendingCount),
-        status.lastSentAt == null
+        signedOut
+            ? l10n.outboxHeldUntilSignIn
+            : status.lastSentAt == null
             ? l10n.myWorkHeldSubtitle
             : l10n.syncLastSent(formatAgo(status.lastSentAt!, l10n)),
       ),
@@ -477,7 +485,9 @@ class _Summary extends ConsumerWidget {
 }
 
 /// The session ended under the queue. Not a load failure and not a stuck
-/// capture: the work is fine, the token is not.
+/// capture: the work is fine, the token is not. So the block wears the
+/// structural edge like every other surface — never crimson — and the "Sign
+/// in" amber inside it is the call to action (unify §1.13).
 class _SignedOutBlock extends StatelessWidget {
   const _SignedOutBlock({required this.count});
 
@@ -494,7 +504,7 @@ class _SignedOutBlock extends StatelessWidget {
         color: skin.palette.surface,
         borderRadius: BorderRadius.circular(skin.radii.panel),
         border: Border.all(
-          color: skin.palette.bad,
+          color: skin.palette.edgeStructure,
           width: skin.depth.borderWidth,
         ),
       ),
@@ -538,7 +548,7 @@ class _Row extends ConsumerWidget {
       key: ValueKey<String>('sync-item-${item.id}'),
       state: state,
       title: label,
-      stateWord: outboxStateWord(state, l10n),
+      stateWord: outboxStateWord(state, l10n, item: item),
       sentence: outboxSentence(item, state, l10n),
       ageLine: outboxAgeLine(context, item, state),
       payloadBytes: item.payloadBytes,

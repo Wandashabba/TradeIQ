@@ -795,6 +795,52 @@ SoftRow(
 )
 ```
 
+### A row's own verbs — `actions` and `trailingIsControl`
+
+A `SoftRow` is **one semantics node**: it composes the label and excludes
+everything beneath it, so a worklist is one utterance per row rather than
+four. That exclusion is also how a screen-reader user loses a button — a
+`TorchTertiaryButton` dropped into `meta` paints, hit-tests and is announced
+nowhere. The worklists shipped that way, and a semantics dump found zero
+nodes for "Close with photo", "Verify" or the alert rules toggle.
+
+So a row's verbs have two declared homes, and `meta` is neither:
+
+```dart
+SoftRow(
+  title: task.title,
+  subtitle: task.outletName,
+  meta: Text('${task.slaPhrase} · ${task.requiredFix}'),   // words only
+  // Ghost buttons beneath the text column, inset to it. They keep their own
+  // nodes, and a `Wrap` stacks them at 2.0× by itself.
+  actions: Wrap(spacing: TiqSpace.s4, children: <Widget>[
+    TorchTertiaryButton(label: 'Close with photo', onPressed: _close),
+  ]),
+)
+
+SoftRow(
+  title: rule.name,
+  trailingIsControl: true,     // this trailing is operated, not read
+  trailing: TorchIconButton(
+    icon: Icons.notifications_active_outlined,
+    toggledOn: rule.active,
+    stateWord: 'On',
+    semanticLabel: 'Turn ${rule.name} off',
+    onPressed: () => _setActive(!rule.active),
+  ),
+)
+```
+
+A plain `trailing` — a figure, a state word, a chevron — stays excluded,
+because the row's own label already says it. And the row's `onTap` is a real
+`Semantics.onTap`: a `GestureDetector` under an excluding node carries no tap
+action, so `button: true` alone gives a node a reader can focus and cannot
+activate.
+
+**`enabled: false` is not a way to grey a row.** It means the control is dead,
+and it makes `onTap` unreachable. A row that is *off* but still editable — an
+inactive alert rule — carries the word, not the flag.
+
 The rule's **colour is not a parameter**: `edgeStructure` (3.73:1) between
 tappable rows because 1.4.11 wants a perceivable boundary around a UI
 component, `hairline` between non-tappable ones because there it is decoration.
@@ -2084,6 +2130,25 @@ Two rules make it work rather than cancel itself out:
 
 The screen takes no latch and keeps no copy: it reads the watched map every
 build, and the no-overwrite rule is what keeps the line stable.
+
+Two more things have to be true, or the line is a component nobody can be on
+the right screen to read. It only ever appears on a **later** open — on the
+first one, what the phone recorded is what the phone is showing — so:
+
+* **`visitOutcomeProvider` is auto-dispose.** Kept alive it was fetched once
+  per session, and a second open replayed the number from the walk out of the
+  shop. Every open of a submitted visit's outcome asks the server again.
+* **A submitted visit is re-openable from My work.** The outbox sheet for a
+  sent `visit_submit` row carries a ghost "See how it scored" (never the
+  amber: reading a score you have already been shown is not the expected next
+  move), which resolves the draft's outlet from drift and goes to
+  `/audit/:outletId/done`. `SyncItem.visitDraftId` decodes that row's payload
+  so the sheet knows which visit it is looking at. The outlet's *name* comes
+  from `outletsListProvider` only when it is already in memory — opening a
+  score must not send a phone in a shop after an outlet list.
+
+`outcome_reopen_test.dart` walks that route: submit, My work, the row, the
+sheet, the score — and the line, once the server total has changed.
 
 ### 16.5 Can't confirm is something to raise
 

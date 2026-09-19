@@ -110,7 +110,18 @@ class TodayRoute {
 /// Called when a submitted visit reaches the server: the server marks the
 /// matching stop visited (#52), and Today must show that when the agent comes
 /// back to it rather than the route as it was this morning.
+///
+/// It drops the **location fix** too. The distances on this route are from
+/// wherever the phone was when the route was last built, and an agent who has
+/// just submitted a visit has, by definition, moved since then: a route that
+/// refetches its stops but keeps the 07:00 fix says every store is as far away
+/// as it was from the depot. Before the fix was shared with the map, this
+/// route asked the phone afresh every time it was rebuilt, and this line is
+/// what keeps that true. It also means a refusal or a timed-out fix is asked
+/// again, so an agent who turns location on gets distances back without
+/// restarting the app.
 void invalidateRouteProgress(Ref ref) {
+  ref.invalidate(currentFixProvider);
   ref.invalidate(beatPlansListProvider);
   ref.invalidate(beatPlanDetailProvider);
   ref.invalidate(todayRouteProvider);
@@ -156,7 +167,9 @@ final todayRouteProvider = FutureProvider<TodayRoute?>((ref) async {
   // route still works, it just cannot tell them how far away anything is.
   // Through `currentFixProvider`, not the service directly: the map of the
   // agent's stores reads the same fix, and a phone that takes fifteen seconds
-  // to see the sky should not take them once per screen.
+  // to see the sky should not take them once per screen. That provider keeps
+  // its answer until somebody drops it — `invalidateRouteProgress` does, so a
+  // rebuilt route is a re-asked phone.
   final position = await ref.watch(currentFixProvider.future);
   final here = position is LocationGranted
       ? Coordinates(lat: position.lat, lng: position.lng)

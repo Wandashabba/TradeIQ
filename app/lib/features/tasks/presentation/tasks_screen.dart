@@ -260,6 +260,15 @@ class _LeadIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final overdue = view.overdue;
+    // The page was cut, so every count here is a count of what was loaded.
+    // The server orders tasks by deadline across all statuses, so overdue
+    // work can sit unloaded on page 2 — which makes a zero here an UNKNOWN,
+    // not a measured nought, and a green on-target circle over it a claim
+    // nobody measured.
+    final partial = view.hasMore;
+    final unknown = partial && overdue == 0;
+    final loaded = TiqNumber.of(context).format(view.rows.length);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -268,6 +277,8 @@ class _LeadIndicator extends StatelessWidget {
           child: SeverityMark(
             kind: overdue > 0
                 ? SeverityMarkKind.critical
+                : partial
+                ? SeverityMarkKind.notMeasured
                 : SeverityMarkKind.onTarget,
           ),
         ),
@@ -276,8 +287,16 @@ class _LeadIndicator extends StatelessWidget {
           child: StatTile(
             eyebrow: 'Overdue',
             // A measured zero renders 0 and keeps its place: nothing overdue
-            // is a fact worth reading, not an absence.
-            value: overdue,
+            // is a fact worth reading, not an absence. A zero over a cut page
+            // is not that zero, and it renders as the em dash and the reason.
+            value: unknown ? null : overdue,
+            noDataReason: unknown
+                ? 'None among the $loaded tasks loaded. The rest of the list '
+                      'was not fetched.'
+                : null,
+            stateLine: partial && overdue > 0
+                ? 'At least this many: counted over the $loaded tasks loaded.'
+                : null,
             lead: true,
             severity: overdue > 0 ? SeverityMarkKind.critical : null,
             subordinates:
@@ -453,6 +472,26 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
       _ => skin.palette.ink2,
     };
 
+    final verbs = <Widget>[
+      // Closure uploads the photo against the visit, so a task with no visit
+      // gets no closure action at all — not a disabled one that would fail
+      // afterwards.
+      if (!task.isClosed && task.visitId != null)
+        TorchTertiaryButton(
+          key: ValueKey<String>('close-${task.id}'),
+          label: 'Close with photo',
+          busy: _busy,
+          onPressed: _close,
+        ),
+      if (task.slaState == TaskSlaState.closed)
+        TorchTertiaryButton(
+          key: ValueKey<String>('verify-${task.id}'),
+          label: 'Verify',
+          busy: _busy,
+          onPressed: _verify,
+        ),
+    ];
+
     return SoftRow(
       key: ValueKey<String>('task-${task.id}'),
       density: SoftRowDensity.tall,
@@ -494,6 +533,16 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
               ),
             ],
           ),
+          // The priority, as a word on the row. The bar is the SLA — a High
+          // and a Normal task both due on Friday carry the same watch bar —
+          // so without this line the axis the list is SORTED by is invisible,
+          // and the severity word only exists for a screen reader.
+          if (!task.isClosed)
+            Text(
+              task.priorityPhrase,
+              key: ValueKey<String>('priority-${task.id}'),
+              style: skin.text.meta.style(color: skin.palette.ink2),
+            ),
           // Who owns the fix, by name. An owner the roster cannot name is
           // left out rather than printed as an id (#399/#400).
           if (task.owner != null)
@@ -502,34 +551,19 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
               key: ValueKey<String>('owner-${task.id}'),
               style: skin.text.meta.style(color: skin.palette.ink2),
             ),
-          Wrap(
-            spacing: TiqSpace.s4,
-            children: <Widget>[
-              // Closure uploads the photo against the visit, so a task with no
-              // visit gets no closure action at all — not a disabled one that
-              // would fail afterwards.
-              if (!task.isClosed && task.visitId != null)
-                TorchTertiaryButton(
-                  key: ValueKey<String>('close-${task.id}'),
-                  label: 'Close with photo',
-                  busy: _busy,
-                  onPressed: _close,
-                ),
-              if (task.slaState == TaskSlaState.closed)
-                TorchTertiaryButton(
-                  key: ValueKey<String>('verify-${task.id}'),
-                  label: 'Verify',
-                  busy: _busy,
-                  onPressed: _verify,
-                ),
-            ],
-          ),
         ],
       ),
+      // The verbs, beneath the reason and outside the row's excluded label:
+      // a button in `meta` is painted and announced nowhere, which is a
+      // manager on TalkBack who can hear the task and cannot close it.
+      actions: verbs.isEmpty
+          ? null
+          : Wrap(spacing: TiqSpace.s4, children: verbs),
       separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
       semanticsLabel: <String>[
         if (task.severity != SoftRowSeverity.none) task.severityLabel,
         task.slaPhrase,
+        if (!task.isClosed) task.priorityPhrase,
         task.title,
         task.requiredFix,
         task.outletName,

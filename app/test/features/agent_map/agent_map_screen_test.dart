@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/geo/geofence.dart';
+import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -18,6 +19,7 @@ import 'package:tradeiq_app/features/agent_map/data/agent_map.dart';
 import 'package:tradeiq_app/features/agent_map/presentation/agent_map_screen.dart';
 import 'package:tradeiq_app/features/agent_map/presentation/outlet_map.dart';
 import 'package:tradeiq_app/features/agent_map/presentation/outlet_sheet.dart';
+import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
@@ -46,11 +48,31 @@ const _khumalo = Outlet(
   lng: 27.8580,
 );
 
+/// A phone that gives the next answer each time it is asked, and remembers
+/// how often that was. The last answer repeats.
+class _WalkingPhone extends LocationService {
+  _WalkingPhone(this.answers);
+
+  final List<LocationResult> answers;
+  int calls = 0;
+
+  @override
+  Future<LocationResult> getCurrentPosition() async {
+    calls += 1;
+    return answers[(calls - 1).clamp(0, answers.length - 1)];
+  }
+}
+
 /// The ordinary frame: one stop done, one next, one store in the patch, and a
 /// fix that is 1,2 km from anything — so nothing is at the door.
+///
+/// [atDoor] stands the agent 12 m from Sunrise, the stop that is **next** — a
+/// store a check-in is owed at. [atVisitedDoor] stands them 12 m from Kasi,
+/// the stop already done today, where a second check-in is not the move.
 AgentMapView _view({
   bool located = true,
   bool atDoor = false,
+  bool atVisitedDoor = false,
   bool disputed = false,
   int patch = 1,
 }) {
@@ -61,13 +83,13 @@ AgentMapView _view({
         outlet: _kasi,
         state: MapPinState.doneToday,
         sequence: 1,
-        distanceMeters: metres(atDoor ? 12 : 1200),
+        distanceMeters: metres(atVisitedDoor ? 12 : 1200),
       ),
       MapOutlet(
         outlet: _sunrise,
         state: MapPinState.nextUp,
         sequence: 2,
-        distanceMeters: metres(1330),
+        distanceMeters: metres(atDoor ? 12 : 1330),
         disputed: disputed,
       ),
       for (var i = 0; i < patch; i++)
@@ -85,7 +107,11 @@ AgentMapView _view({
           distanceMeters: metres(2400.0 + i),
         ),
     ],
-    here: located ? const Coordinates(lat: -26.2399, lng: 27.858) : null,
+    here: !located
+        ? null
+        : atDoor
+        ? const Coordinates(lat: -26.2519, lng: 27.858)
+        : const Coordinates(lat: -26.2399, lng: 27.858),
     problem: located ? null : MapLocationProblem.denied,
     planName: 'Naledi · Soweto East',
   );
@@ -319,7 +345,10 @@ void main() {
       await _pump(tester, skin: SkinMode.veld);
 
       expect(find.byType(FlutterMap), findsNothing);
-      expect(find.textContaining('The map is off in bright sun'), findsOneWidget);
+      expect(
+        find.textContaining('The map is off in bright sun'),
+        findsOneWidget,
+      );
       expect(find.text('Kasi Corner Spaza'), findsWidgets);
     });
 
@@ -374,7 +403,9 @@ void main() {
       await _pump(tester);
 
       await _openSheet(tester, 'o2');
-      await tester.tap(find.byKey(const ValueKey<String>('map-sheet-check-in')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('map-sheet-check-in')),
+      );
       await _frames(tester, count: 8);
 
       expect(find.text('Visit o2'), findsOneWidget);
@@ -405,14 +436,127 @@ void main() {
 
       await _openSheet(tester, 'o2');
 
-      expect(
-        find.textContaining('reported this pin as wrong'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('reported this pin as wrong'), findsOneWidget);
       expect(
         find.text('Next up'),
         findsWidgets,
         reason: 'a disputed pin is still the next stop',
+      );
+    });
+  });
+
+  // The fix is shared with Today and kept until somebody drops it. The map is
+  // where an agent asks *where am I now*, and its circle routes to the store
+  // the fix puts them in — so a fix taken at the first store must not still be
+  // the answer when they open the map at the second.
+  group('coming back to the map asks where the phone is again', () {
+    Future<_WalkingPhone> pumpLive(
+      WidgetTester tester,
+      List<LocationResult> answers,
+    ) async {
+      final phone = _WalkingPhone(answers);
+      await pumpAgentScreen(
+        tester,
+        const AgentMapScreen(),
+        path: '/map',
+        overrides: <Override>[
+          ...agentBaseOverrides(db: agentTestDb()),
+          // The real view model, on a stubbed route, patch and phone — the
+          // thing under test is which fix it is built from.
+          todayRouteProvider.overrideWith(
+            (ref) async => const TodayRoute(
+              planName: 'Naledi · Soweto East',
+              hasLocation: true,
+              stops: <RouteStop>[
+                RouteStop(
+                  sequence: 1,
+                  outlet: _kasi,
+                  visited: false,
+                  distanceMeters: null,
+                ),
+                RouteStop(
+                  sequence: 2,
+                  outlet: _sunrise,
+                  visited: false,
+                  distanceMeters: null,
+                ),
+              ],
+            ),
+          ),
+          myTerritoryOutletsProvider.overrideWith(
+            (ref) async => const <Outlet>[_kasi, _sunrise, _khumalo],
+          ),
+          locationServiceProvider.overrideWithValue(phone),
+        ],
+        settle: false,
+        extraRoutes: <GoRoute>[
+          GoRoute(path: '/today', builder: (c, s) => const Text('Today')),
+        ],
+      );
+      await _frames(tester);
+      return phone;
+    }
+
+    Future<void> leaveAndComeBack(WidgetTester tester) async {
+      // A page transition keeps the outgoing route mounted while it runs, so
+      // each hop waits it out: "left" has to mean the map's state is gone.
+      GoRouter.of(tester.element(find.byType(AgentMapFrame))).go('/today');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byType(AgentMapScreen), findsNothing);
+      GoRouter.of(tester.element(find.text('Today'))).go('/map');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await _frames(tester, count: 8);
+    }
+
+    MapOutlet? door(WidgetTester tester) =>
+        tester.widget<AgentMapFrame>(find.byType(AgentMapFrame)).atDoor;
+
+    testWidgets('the circle follows the agent to the next store', (
+      tester,
+    ) async {
+      final phone = await pumpLive(tester, <LocationResult>[
+        LocationGranted(_kasi.lat, _kasi.lng),
+        LocationGranted(_sunrise.lat, _sunrise.lng),
+      ]);
+      expect(phone.calls, 1);
+      expect(door(tester)?.outlet.id, 'o1');
+
+      await leaveAndComeBack(tester);
+
+      expect(
+        phone.calls,
+        2,
+        reason: 'opening the map again must ask the phone again',
+      );
+      expect(
+        door(tester)?.outlet.id,
+        'o2',
+        reason:
+            'a cached fix would still arm "check in here" for Kasi, and '
+            'route the circle to /audit/o1, while the agent stands in Sunrise',
+      );
+    });
+
+    testWidgets('a refusal is asked again, not kept for the session', (
+      tester,
+    ) async {
+      final phone = await pumpLive(tester, <LocationResult>[
+        LocationDenied(),
+        LocationGranted(_kasi.lat, _kasi.lng),
+      ]);
+      expect(door(tester), isNull);
+
+      await leaveAndComeBack(tester);
+
+      expect(phone.calls, 2);
+      expect(
+        door(tester)?.outlet.id,
+        'o1',
+        reason:
+            'an agent who turned location on and came back must not need '
+            'to restart the app to be located',
       );
     });
   });
@@ -459,7 +603,9 @@ void main() {
         overrides: <Override>[
           ...agentBaseOverrides(db: db),
           // Never completes: the loading frame is the subject.
-          agentMapProvider.overrideWith((ref) => Completer<AgentMapView>().future),
+          agentMapProvider.overrideWith(
+            (ref) => Completer<AgentMapView>().future,
+          ),
         ],
         settle: false,
       );
@@ -571,6 +717,53 @@ void main() {
             'inside a store\'s own fence, "check in here" is the move — and '
             'it is the screen\'s one content grant\n\n${census.describe()}',
       );
+      expect(
+        tester
+            .widget<AgentMapFrame>(find.byType(AgentMapFrame))
+            .atDoor
+            ?.outlet
+            .id,
+        'o2',
+        reason: 'the store lit for is the one a check-in is owed at: next up',
+      );
+    });
+
+    testWidgets('Night, still standing in a shop already visited: one — the '
+        'tab, and the circle is not lit', (tester) async {
+      // Visit submitted, agent still at the till. The store's own sheet says
+      // a second check-in is not the expected move; the circle must agree.
+      await _pump(tester, view: _view(atVisitedDoor: true));
+      final census = await amberCensus(tester);
+
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'map',
+        phase: 'loaded',
+      );
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'a store done today is not armed, so the nav tab is the only lit '
+            'object\n\n${census.describe()}',
+      );
+      final frame = tester.widget<AgentMapFrame>(find.byType(AgentMapFrame));
+      expect(frame.atDoor, isNull);
+      expect(
+        find.bySemanticsLabel('Check in at Kasi Corner Spaza'),
+        findsNothing,
+        reason: 'the circle must not name a visited store as the next move',
+      );
+
+      await tester.tap(find.byType(TorchNavCircle));
+      await _frames(tester, count: 8);
+      expect(
+        find.text('Visit o1'),
+        findsNothing,
+        reason: 'one tap must not start a second visit at a store already done',
+      );
+      expect(find.text('Outlet picker'), findsOneWidget);
     });
 
     for (final skin in <SkinMode>[SkinMode.day, SkinMode.veld]) {
@@ -606,7 +799,9 @@ void main() {
         path: '/map',
         overrides: <Override>[
           ...agentBaseOverrides(db: db),
-          agentMapProvider.overrideWith((ref) => Completer<AgentMapView>().future),
+          agentMapProvider.overrideWith(
+            (ref) => Completer<AgentMapView>().future,
+          ),
         ],
         settle: false,
       );

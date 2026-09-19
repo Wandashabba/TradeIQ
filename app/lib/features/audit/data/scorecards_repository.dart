@@ -117,14 +117,28 @@ final scorecardsRepositoryProvider = Provider<ScorecardsRepository>(
 
 /// How the visit ended.
 class VisitOutcome {
-  const VisitOutcome({required this.score, required this.previous});
+  const VisitOutcome({
+    required this.score,
+    required this.previous,
+    this.previousUnknown = false,
+  });
 
   /// Null means the visit has not reached the server yet — so there is no score
   /// to show, and we say so instead of inventing one.
   final ServerScorecard? score;
 
   /// This agent's last score at this outlet, if they have been here before.
+  ///
+  /// Null means one of two different things, and [previousUnknown] says
+  /// which: the history loaded and held no earlier card (a first scored
+  /// visit), or the history could not be read at all.
   final ServerScorecard? previous;
+
+  /// True when the history request failed, so whether there *was* an earlier
+  /// visit is not known. Unknown is not absent: "First scored visit here" is
+  /// a claim, and on a dropped request at a store they have scored before it
+  /// is a false one.
+  final bool previousUnknown;
 
   bool get isHeldOnPhone => score == null;
 
@@ -138,13 +152,21 @@ class VisitOutcome {
   }
 }
 
-/// Everything the outcome screen needs, fetched once when it opens.
+/// Everything the outcome screen needs, fetched when it opens.
 ///
 /// Flushes the outbox first, because the visit and its scorecard marker are
 /// sitting in it — without that, a visit submitted on good signal would still
 /// say "held on this phone" for as long as it took the next flush to come round.
+///
+/// **Auto-dispose, and that is the whole of the reconciliation line working.**
+/// A score the agent read that is later changed on review is the event this
+/// screen exists to catch, and it can only be caught on a LATER open. Kept
+/// alive, the second open would be served the number from the first one —
+/// which always equals what the phone recorded, so the line could never
+/// render outside a test. Every open of a submitted visit's outcome now asks
+/// the server again.
 final visitOutcomeProvider =
-    FutureProvider.family<
+    FutureProvider.autoDispose.family<
       VisitOutcome,
       ({String visitDraftId, String outletId})
     >((ref, args) async {
@@ -174,7 +196,15 @@ final visitOutcomeProvider =
       } on DioException {
         // The captures are safe in the outbox either way. A network failure here
         // costs the agent a number on a screen, not their work.
-        return VisitOutcome(score: score, previous: null);
+        //
+        // When the score arrived and only the history dropped, the previous
+        // visit is UNKNOWN, not absent — and the screen must not turn that
+        // into "first scored visit here".
+        return VisitOutcome(
+          score: score,
+          previous: null,
+          previousUnknown: score != null,
+        );
       }
 
       // The visit that just ended is in its own history — the comparison is against

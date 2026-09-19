@@ -101,6 +101,8 @@ Future<void> _pump(
   bool offline = false,
   bool reviewThrows = false,
   bool reviewPends = false,
+  bool progressThrows = false,
+  bool progressPends = false,
   SkinMode skin = SkinMode.night,
   double textScale = 1.0,
   Locale locale = const Locale('en'),
@@ -138,17 +140,34 @@ Future<void> _pump(
         visitReviewProvider.overrideWith(
           (ref, arg) => Stream<VisitReview>.value(review),
         ),
-      visitProgressProvider.overrideWith(
-        (ref, arg) => Stream<VisitProgress>.value(progress),
-      ),
+      if (progressThrows)
+        visitProgressProvider.overrideWith(
+          (ref, arg) => Stream<VisitProgress>.error(StateError('no read')),
+        )
+      else if (progressPends)
+        visitProgressProvider.overrideWith(
+          (ref, arg) => const Stream<VisitProgress>.empty(),
+        )
+      else
+        visitProgressProvider.overrideWith(
+          (ref, arg) => Stream<VisitProgress>.value(progress),
+        ),
     ],
     textScale: textScale,
     locale: locale,
     // The skeleton's own appear/slow timers are `Timer`s, not animations, so
     // a pending phase settles; the loading test pumps by hand instead.
-    settle: !reviewPends,
+    settle: !reviewPends && !progressPends,
   );
 }
+
+bool _primaryArmed(WidgetTester tester) =>
+    tester
+        .widget<TorchPrimaryButton>(
+          find.byKey(const ValueKey<String>('confirm-submit')),
+        )
+        .onPressed !=
+    null;
 
 void main() {
   group('what the gate says', () {
@@ -315,6 +334,107 @@ void main() {
       });
     },
   );
+
+  // Unknown is not zero. The gate used to read an unloaded or unreadable
+  // progress as "0 of 0 sections complete" and a visit with nothing
+  // can't-confirm in it — so a clean review printed "this store is in good
+  // shape" over a section nobody could confirm, and the manager was never told.
+  group('sections that have not been read are unknown, not zero', () {
+    testWidgets('an unreadable progress never prints "0 of 0" or a clean '
+        'verdict', (tester) async {
+      await _pump(tester, review: _reviewClean, progressThrows: true);
+
+      expect(find.text('0 of 0 sections complete'), findsNothing);
+      expect(find.textContaining('0 of '), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('submit-clean')),
+        findsNothing,
+        reason:
+            'a store is not in good shape because the app could not read '
+            'its sections',
+      );
+      expect(find.textContaining('this store is in good shape'), findsNothing);
+
+      // The count is a sentence in words, not a figure.
+      final block = find.byKey(const ValueKey<String>('submit-captured'));
+      expect(
+        find.descendant(
+          of: block,
+          matching: find.text('Could not read which sections are done'),
+        ),
+        findsOneWidget,
+      );
+      // A tick would claim the sections are done.
+      expect(
+        find.descendant(of: block, matching: find.byType(SectionStateGlyph)),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an unreadable progress is a row in the list, in words, and '
+        'the primary stays armed', (tester) async {
+      await _pump(tester, review: _reviewClean, progressThrows: true);
+
+      await scrollAgentTo(
+        tester,
+        find.byKey(const ValueKey<String>('submit-sections-unread')),
+      );
+      expect(find.text('Your sections could not be read'), findsOneWidget);
+      await scrollAgentTo(
+        tester,
+        find.byKey(const ValueKey<String>('submit-sections-unread-note')),
+      );
+      expect(
+        find.textContaining('may be missing from this list'),
+        findsWidgets,
+      );
+      // Failing to read the sections is not failing to submit.
+      expect(_primaryArmed(tester), isTrue);
+    });
+
+    testWidgets('an unreadable progress keeps the tasks the review did raise', (
+      tester,
+    ) async {
+      await _pump(tester, progressThrows: true);
+
+      await scrollAgentTo(tester, find.text('Fanta Orange 2L is out of stock'));
+      expect(find.text('Fanta Orange 2L is out of stock'), findsOneWidget);
+      await scrollAgentTo(
+        tester,
+        find.byKey(const ValueKey<String>('submit-sections-unread')),
+      );
+      expect(
+        find.byKey(const ValueKey<String>('submit-sections-unread')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a progress still loading is the skeleton, never "0 of 0" '
+        'and never clean', (tester) async {
+      await _pump(tester, review: _reviewClean, progressPends: true);
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.textContaining('0 of '), findsNothing);
+      expect(find.byKey(const ValueKey<String>('submit-clean')), findsNothing);
+      expect(find.byType(SkeletonRows), findsOneWidget);
+      expect(_primaryArmed(tester), isTrue);
+    });
+
+    testWidgets('a reader hears that the sections could not be read', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, review: _reviewClean, progressThrows: true);
+      expect(
+        find.bySemanticsLabel(
+          RegExp(r'^Could not read which sections are done\. '),
+        ),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel(RegExp(r'0 of 0')), findsNothing);
+      handle.dispose();
+    });
+  });
 
   group('the states', () {
     testWidgets('a clean store is a result, not an empty screen', (
@@ -492,11 +612,53 @@ void main() {
       final census = await amberCensus(tester);
       expect(census.objectCount, 1, reason: census.describe());
     });
+
+    for (final mode in agentSkinModes) {
+      testWidgets('${mode.name}: unreadable sections light exactly the '
+          'primary', (tester) async {
+        await _pump(
+          tester,
+          review: _reviewClean,
+          progressThrows: true,
+          skin: mode,
+        );
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(mode),
+          route: 'submit-gate',
+          phase: 'sections-unread',
+        );
+        expect(
+          census.objectCount,
+          1,
+          reason:
+              'The unread row and its square are labels.\n\n'
+              '${census.describe()}',
+        );
+      });
+    }
   });
 
   group('2.0× and Afrikaans', () {
     testWidgets('Afrikaans at 2.0× still lays out', (tester) async {
       await _pump(tester, textScale: 2.0, locale: const Locale('af'));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Afrikaans at 2.0× lays out with the sections unread', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        textScale: 2.0,
+        locale: const Locale('af'),
+        progressThrows: true,
+      );
+      expect(tester.takeException(), isNull);
+      final unread = find.text('Kon nie lees watter afdelings klaar is nie');
+      await scrollAgentTo(tester, unread);
+      expect(unread, findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

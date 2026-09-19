@@ -1,6 +1,37 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { clientIp } from '../lib/clientIp';
 import { normalizeEmail } from '../lib/email';
 import type { AuthedRequest } from './auth';
+
+/**
+ * The shape for the limiters keyed on **where the request came from** rather
+ * than on who is signed in.
+ *
+ * The key is NOT `req.ip`. Behind Fly's proxy `req.ip` is the proxy, identical
+ * for every caller, which put the whole fleet in one bucket — a global 10/15min
+ * cap on login. `lib/clientIp.ts` has the full account, including why
+ * `trust proxy` is deliberately still off and why setting it to 1 or 2 is a
+ * trap rather than the fix.
+ *
+ * `ipKeyGenerator` masks IPv6 addresses to a /56. Without it an IPv6 caller
+ * gets a fresh bucket per address and can simply walk out of its own subnet's
+ * limit; the library validates for this and would refuse the config.
+ */
+function ipLimiter(opts: { windowMs: number; limit: number; message: string }) {
+  return rateLimit({
+    windowMs: opts.windowMs,
+    limit: opts.limit,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: opts.message },
+    keyGenerator: (req) => {
+      const ip = clientIp(req);
+      // Fail closed onto one shared bucket. A caller we cannot place is given
+      // the strictest treatment available, never a free pass.
+      return ip ? ipKeyGenerator(ip) : 'unknown';
+    },
+  });
+}
 
 /**
  * Rate limiter for the login endpoint to blunt credential brute-force and
@@ -9,12 +40,10 @@ import type { AuthedRequest } from './auth';
  * tests exercise the limiter deterministically with a tiny limit.
  */
 export function createLoginRateLimiter(options?: { windowMs?: number; limit?: number }) {
-  return rateLimit({
+  return ipLimiter({
     windowMs: options?.windowMs ?? Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000),
     limit: options?.limit ?? Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 10),
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many login attempts, please try again later' },
+    message: 'Too many login attempts, please try again later',
   });
 }
 
@@ -167,15 +196,16 @@ export function createResetRedeemEmailRateLimiter(options?: { windowMs?: number;
  * The companion to the per-email limiter: that one stops a thousand guesses at
  * one account, this one stops one guess each at a thousand accounts. Looser,
  * because a whole depot behind one NAT legitimately shares this key.
+ *
+ * "Per attacker" only holds if the key is the attacker's address and not the
+ * proxy's — see `ipLimiter` above and `lib/clientIp.ts`.
  */
 export function createResetRedeemIpRateLimiter(options?: { windowMs?: number; limit?: number }) {
-  return rateLimit({
+  return ipLimiter({
     windowMs:
       options?.windowMs ?? Number(process.env.RESET_REDEEM_IP_RATE_WINDOW_MS ?? 15 * 60 * 1000),
     limit: options?.limit ?? Number(process.env.RESET_REDEEM_IP_RATE_MAX ?? 60),
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many password reset attempts, please try again later' },
+    message: 'Too many password reset attempts, please try again later',
   });
 }
 
