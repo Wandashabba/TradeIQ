@@ -1,41 +1,61 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
+import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
 import 'package:tradeiq_app/features/audit/data/visit_review.dart';
 import 'package:tradeiq_app/features/audit/presentation/submit_gate_screen.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../agent_harness.dart';
+
+/// THE SUBMIT GATE, on Torchlight.
+///
+/// The gate is the one moment the agent accuses a store of something, so what
+/// is asserted here is what it *says* — the count, the findings, every
+/// can't-confirm section by name, and the fact that submitting still works
+/// with no signal — plus the amber census per phase × skin.
 
 /// Four scored sections done — so the gate reads "4 of 7 sections complete".
 const _progress = VisitProgress(
-  states: {
+  states: <AuditSection, CaptureState>{
     AuditSection.stock: CaptureState.done,
     AuditSection.visibility: CaptureState.done,
     AuditSection.pricing: CaptureState.done,
     AuditSection.capability: CaptureState.done,
   },
-  details: {},
+  details: <AuditSection, String>{},
 );
 
-/// A visit that will raise two tasks: one urgent (crit), one routine (warn) —
-/// so both indicator tints are on screen to measure.
+/// The same visit with the product list gone: a required section the app
+/// could not establish (#389). The gate must name it.
+const _progressCantConfirm = VisitProgress(
+  states: <AuditSection, CaptureState>{
+    AuditSection.stock: CaptureState.cantConfirm,
+    AuditSection.visibility: CaptureState.done,
+    AuditSection.pricing: CaptureState.done,
+    AuditSection.capability: CaptureState.done,
+  },
+  details: <AuditSection, String>{},
+  cantConfirm: <AuditSection, CantConfirmReason>{
+    AuditSection.stock: CantConfirmReason.productListUnavailable,
+  },
+);
+
+/// A visit that will raise two tasks: one urgent, one routine.
 const _reviewWithTasks = VisitReview(
   skusCounted: 12,
   outOfStock: 1,
   skusPriced: 12,
   competitors: 2,
   photos: 1,
-  willRaise: [
+  willRaise: <RaisedTask>[
     RaisedTask(
       title: 'Fanta Orange 2L is out of stock',
       reason: 'You counted zero on shelf',
@@ -56,12 +76,12 @@ const _reviewClean = VisitReview(
   skusPriced: 12,
   competitors: 0,
   photos: 0,
-  willRaise: [],
+  willRaise: <RaisedTask>[],
 );
 
 /// A single pending capture, so the gate reads as offline.
 final _offlineStatus = SyncStatus(
-  pending: [
+  pending: <SyncItem>[
     SyncItem(
       id: 1,
       entityType: 'stock',
@@ -70,383 +90,432 @@ final _offlineStatus = SyncStatus(
       attempts: 0,
     ),
   ],
-  sent: const [],
-  needsAttention: const [],
+  sent: const <SyncItem>[],
+  needsAttention: const <SyncItem>[],
 );
 
-List<Override> _overrides({
-  required VisitReview review,
+Future<void> _pump(
+  WidgetTester tester, {
+  VisitReview review = _reviewWithTasks,
   VisitProgress progress = _progress,
   bool offline = false,
-}) => [
-  visitReviewProvider.overrideWith((ref, arg) => Stream.value(review)),
-  visitProgressProvider.overrideWith((ref, arg) => Stream.value(progress)),
-  syncStatusProvider.overrideWith(
-    (ref) => Stream.value(offline ? _offlineStatus : SyncStatus.empty),
-  ),
-];
-
-Widget _gate({
-  required VisitReview review,
-  VisitProgress progress = _progress,
-  bool offline = false,
+  bool reviewThrows = false,
+  bool reviewPends = false,
+  SkinMode skin = SkinMode.night,
+  double textScale = 1.0,
+  Locale locale = const Locale('en'),
   VoidCallback? onConfirm,
-  ThemeData? theme,
-}) => routedApp(
-  SubmitGateScreen(
-    visitDraftId: 'visit-1',
-    outletId: 'o1',
-    outletName: 'Test Outlet',
-    checkinTs: null,
-    onConfirm: onConfirm ?? () {},
-  ),
-  overrides: _overrides(review: review, progress: progress, offline: offline),
-  theme: theme,
-);
-
-const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
-
-ThemeData _themeFor(String name) =>
-    name == 'light' ? AppTheme.light() : AppTheme.dark();
-
-/// A no-blur Lumen Glass tile — the pane every checklist item sits on.
-final _glassTile = find.byWidgetPredicate(
-  (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
-);
-
-/// The decoration of the nearest ancestor Container of [inner] that carries a
-/// BoxDecoration colour — the console card / wash the element sits on.
-BoxDecoration _cardDecoration(WidgetTester tester, Finder inner) {
-  final container = find
-      .ancestor(
-        of: inner,
-        matching: find.byWidgetPredicate(
-          (w) =>
-              w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration! as BoxDecoration).color != null,
+}) async {
+  final db = agentTestDb();
+  await pumpAgentScreen(
+    tester,
+    SubmitGateScreen(
+      visitDraftId: 'visit-1',
+      outletId: 'o1',
+      outletName: 'Kasi Corner Spaza',
+      checkinTs: null,
+      onConfirm: onConfirm ?? () {},
+    ),
+    path: '/audit/o1/submit',
+    overrides: <Override>[
+      ...agentBaseOverrides(
+        db: db,
+        skin: skin,
+        sync: offline ? _offlineStatus : SyncStatus.empty,
+      ),
+      // Drift's `watch()` reschedules a zero-duration timer on every tick, so
+      // every derived stream on this route is stubbed with `Stream.value`.
+      // `sync_status_test` and `visit_review_test` cover the real queries.
+      if (reviewThrows)
+        visitReviewProvider.overrideWith(
+          (ref, arg) => Stream<VisitReview>.error(StateError('no read')),
+        )
+      else if (reviewPends)
+        visitReviewProvider.overrideWith(
+          (ref, arg) => const Stream<VisitReview>.empty(),
+        )
+      else
+        visitReviewProvider.overrideWith(
+          (ref, arg) => Stream<VisitReview>.value(review),
         ),
-      )
-      .first;
-  return tester.widget<Container>(container).decoration! as BoxDecoration;
-}
-
-/// The wash/glyph pair of the [icon] indicator, read off the RENDERED tree — so
-/// AA is measured on what actually paints. A critText→crit self-tint (raw crit
-/// fails AA in dark) collapses this ratio and fails on its own merits.
-(Color bg, Color fg) indicatorColours(WidgetTester tester, IconData icon) {
-  final iconFinder = find.byIcon(icon);
-  final bg = _cardDecoration(tester, iconFinder).color!;
-  final fg = tester.widget<Icon>(iconFinder).color!;
-  return (bg, fg);
+      visitProgressProvider.overrideWith(
+        (ref, arg) => Stream<VisitProgress>.value(progress),
+      ),
+    ],
+    textScale: textScale,
+    locale: locale,
+    // The skeleton's own appear/slow timers are `Timer`s, not animations, so
+    // a pending phase settles; the loading test pumps by hand instead.
+    settle: !reviewPends,
+  );
 }
 
 void main() {
-  testWidgets('the captured card is a console card with the count + line', (
-    tester,
-  ) async {
-    for (final (name, palette) in _bothThemes) {
-      await tester.pumpWidget(
-        _gate(review: _reviewWithTasks, theme: _themeFor(name)),
-      );
-      await tester.pumpAndSettle();
+  group('what the gate says', () {
+    testWidgets('the captured block carries the count and the captured line', (
+      tester,
+    ) async {
+      await _pump(tester);
 
-      final count = find.text('4 of 7 sections complete');
-      expect(count, findsOneWidget, reason: '$name count');
-      // The one-line capture summary is verbatim from the review.
+      final block = find.byKey(const ValueKey<String>('submit-captured'));
+      expect(block, findsOneWidget);
       expect(
-        find.text('12 SKUs counted · 2 competitors · 1 photo'),
+        find.descendant(of: block, matching: find.text('4 of 7 sections complete')),
         findsOneWidget,
-        reason: '$name captured line',
+      );
+      // Verbatim from the review — nothing on this screen is added by the app.
+      expect(
+        find.descendant(
+          of: block,
+          matching: find.text('12 SKUs counted · 2 competitors · 1 photo'),
+        ),
+        findsOneWidget,
+      );
+      // A done block is the tick disc, never a bare block of text.
+      expect(
+        find.descendant(of: block, matching: find.byType(SectionStateGlyph)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the intro says nothing was added by the app', (tester) async {
+      await _pump(tester);
+      expect(
+        find.text(
+          'Check this before it goes to your manager — you cannot change it '
+          'after.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('each raised task pairs its severity with the priority WORD', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await scrollAgentTo(tester, find.text('Aisle blocked by delivery'));
+
+      // Urgency is never colour-alone. The severity is the bar AND the
+      // silhouette AND the word — three channels, all of which survive
+      // greyscale, deuteranopia and a sun-washed panel.
+      expect(find.text('Task for the manager · high'), findsOneWidget);
+      expect(find.text('Task for the manager · normal'), findsOneWidget);
+
+      final urgent = tester.widget<SoftRow>(
+        find.ancestor(
+          of: find.text('Fanta Orange 2L is out of stock'),
+          matching: find.byType(SoftRow),
+        ),
+      );
+      expect(urgent.severity, SoftRowSeverity.critical);
+      final routine = tester.widget<SoftRow>(
+        find.ancestor(
+          of: find.text('Aisle blocked by delivery'),
+          matching: find.byType(SoftRow),
+        ),
+      );
+      expect(routine.severity, SoftRowSeverity.watch);
+    });
+
+    testWidgets('a reader hears the severity before the finding', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester);
+      await scrollAgentTo(
+        tester,
+        find.text('Fanta Orange 2L is out of stock'),
       );
 
-      if (palette.glass) {
-        // Lumen Glass: the first checklist tile, its ✓ in a good status tile.
-        final tile = find.ancestor(of: count, matching: _glassTile);
-        expect(tile, findsOneWidget, reason: '$name captured tile');
-        final tick = tester.widget<StatusTile>(
-          find.descendant(of: tile, matching: find.byType(StatusTile)),
-        );
-        expect(tick.status, LumenStatus.good, reason: '$name tick status');
-        expect(tick.glyph, '✓', reason: '$name tick glyph');
-      } else {
-        // The captured summary reads as a console card: surface1 under the
-        // line hairline, panel radius — not a bare block of text.
-        final deco = _cardDecoration(tester, count);
-        expect(deco.color, palette.surface1, reason: '$name card surface');
-        expect(
-          (deco.border! as Border).top.color,
-          palette.line,
-          reason: '$name card hairline',
-        );
-      }
-    }
+      expect(
+        find.bySemanticsLabel(
+          'Urgent. Fanta Orange 2L is out of stock. Task for the manager · '
+          'high',
+        ),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('the section rule counts what will be raised', (tester) async {
+      await _pump(tester);
+      expect(find.text('This will raise'), findsOneWidget);
+      expect(find.text('2'), findsWidgets);
+    });
   });
 
-  testWidgets(
-    'each raised task pairs its colour with the priority WORD, and the '
-    'indicator glyph clears AA in both themes',
-    (tester) async {
-      for (final (name, palette) in _bothThemes) {
-        await tester.pumpWidget(
-          _gate(review: _reviewWithTasks, theme: _themeFor(name)),
-        );
-        await tester.pumpAndSettle();
-
-        // Urgency is never colour-alone: the priority is spelled out in words
-        // next to the indicator, so a colour-blind agent in bad light can read
-        // it.
-        expect(
-          find.text('Task for the manager · high'),
-          findsOneWidget,
-          reason: '$name urgent word',
-        );
-        expect(
-          find.text('Task for the manager · normal'),
-          findsOneWidget,
-          reason: '$name routine word',
-        );
-
-        if (palette.glass) {
-          // Lumen Glass: each task is its own checklist tile, rimmed in its
-          // status, with its glyph in a status tile.
-          for (final (title, word, status, glyph) in [
-            (
-              'Fanta Orange 2L is out of stock',
-              'Task for the manager · high',
-              LumenStatus.crit,
-              '!',
-            ),
-            (
-              'Aisle blocked by delivery',
-              'Task for the manager · normal',
-              LumenStatus.warn,
-              '•',
-            ),
-          ]) {
-            final sw = status.swatchOf(palette);
-            final tile = find.ancestor(
-              of: find.text(title),
-              matching: _glassTile,
-            );
-            expect(
-              tester.widget<GlassPane>(tile).rimColor,
-              sw.rim,
-              reason: '$name $status rim',
-            );
-            final mark = tester.widget<StatusTile>(
-              find.descendant(of: tile, matching: find.byType(StatusTile)),
-            );
-            expect(mark.status, status, reason: '$name $status mark');
-            expect(mark.glyph, glyph, reason: '$name $status glyph');
-            // The glyph's ink on its own tint, composited opaque over the pane.
-            expect(
-              contrastRatio(
-                sw.ink,
-                Color.alphaBlend(sw.tint, palette.surface1),
-              ),
-              greaterThanOrEqualTo(4.5),
-              reason: '$name $status glyph AA',
-            );
-            // The priority word takes the status ink and clears AA on the pane.
-            final fg = tester.widget<Text>(find.text(word)).style!.color!;
-            expect(fg, sw.ink, reason: '$name $status word ink');
-            expect(
-              contrastRatio(fg, palette.surface1),
-              greaterThanOrEqualTo(4.5),
-              reason: '$name $status word AA',
-            );
-          }
-          continue;
-        }
-
-        // The urgent indicator carries critText on a crit wash; the routine one
-        // warn on a warn wash. Both are glyphs, so both clear 4.5:1 measured on
-        // the rendered pair.
-        final (critBg, critFg) = indicatorColours(tester, Icons.priority_high);
-        expect(critFg, palette.critText, reason: '$name urgent glyph');
-        expect(
-          contrastRatio(critFg, critBg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name urgent indicator AA (rendered pair)',
-        );
-
-        final (warnBg, warnFg) = indicatorColours(tester, Icons.adjust);
-        expect(warnFg, palette.warn, reason: '$name routine glyph');
-        expect(
-          contrastRatio(warnFg, warnBg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name routine indicator AA (rendered pair)',
-        );
-      }
-    },
-  );
-
-  testWidgets('the offline note keeps the "submitting still works" copy', (
-    tester,
-  ) async {
-    for (final (name, _) in _bothThemes) {
-      await tester.pumpWidget(
-        _gate(review: _reviewWithTasks, offline: true, theme: _themeFor(name)),
+  group('a section the app could not establish is something to raise (#389)', () {
+    testWidgets('it gets its own row, named, with the reason in words', (
+      tester,
+    ) async {
+      await _pump(tester, progress: _progressCantConfirm);
+      await scrollAgentTo(
+        tester,
+        find.byKey(
+          const ValueKey<String>('cant-confirm-Stock & availability'),
+          skipOffstage: false,
+        ),
       );
-      await tester.pumpAndSettle();
 
-      // Offline is the normal state in a shop with no signal — the reassurance
-      // that submitting still works must survive the restyle, verbatim.
+      // The old gate listed nothing here, so a store that refused four counts
+      // produced a gate printing "this store is in good shape" — the cleanest
+      // fraud path in the app.
       expect(
-        find.textContaining(
+        find.text('Stock & availability could not be confirmed'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('The product list did not load'),
+        findsOneWidget,
+      );
+      expect(find.text('The manager is told · not confirmed'), findsOneWidget);
+    });
+
+    testWidgets('the captured block names how many were not confirmed', (
+      tester,
+    ) async {
+      await _pump(tester, progress: _progressCantConfirm);
+      expect(
+        find.text('1 section could not be confirmed — the manager is told'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a store that refused everything is never "clean"', (
+      tester,
+    ) async {
+      await _pump(tester, review: _reviewClean, progress: _progressCantConfirm);
+      expect(
+        find.byKey(const ValueKey<String>('submit-clean'), skipOffstage: false),
+        findsNothing,
+      );
+      await scrollAgentTo(
+        tester,
+        find.text(
+          'Stock & availability could not be confirmed',
+          skipOffstage: false,
+        ),
+      );
+      expect(
+        find.text('Stock & availability could not be confirmed'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('the states', () {
+    testWidgets('a clean store is a result, not an empty screen', (
+      tester,
+    ) async {
+      await _pump(tester, review: _reviewClean);
+      final block = find.byKey(const ValueKey<String>('submit-clean'));
+      expect(block, findsOneWidget);
+      expect(
+        find.descendant(of: block, matching: find.text('Nothing to raise')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: block,
+          matching: find.textContaining('this store is in good shape'),
+        ),
+        findsOneWidget,
+      );
+      // The mark, not the hue alone.
+      expect(
+        find.descendant(of: block, matching: find.byType(SeverityMark)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('offline keeps the "submitting still works" promise, and the '
+        'primary', (tester) async {
+      await _pump(tester, offline: true);
+
+      expect(
+        find.text(
           'No signal? Submitting still works — it saves on the phone and '
           'sends itself.',
         ),
         findsOneWidget,
-        reason: '$name offline copy',
       );
-    }
-  });
-
-  testWidgets('a clean store reads as a good wash, not an empty screen', (
-    tester,
-  ) async {
-    for (final (name, palette) in _bothThemes) {
-      await tester.pumpWidget(
-        _gate(review: _reviewClean, theme: _themeFor(name)),
+      // Held work is never an error: an Oatmeal square, never a crimson
+      // triangle, and never a disabled primary.
+      final note = find.byKey(const ValueKey<String>('submit-offline-note'));
+      expect(
+        find.descendant(of: note, matching: find.byType(RowMarkTile)),
+        findsOneWidget,
       );
-      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: note, matching: find.byType(SeverityMark)),
+        findsNothing,
+      );
+      expect(
+        tester
+            .widget<TorchPrimaryButton>(
+              find.byKey(const ValueKey<String>('confirm-submit')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    });
 
-      final copy = find.textContaining('Nothing to raise');
-      expect(copy, findsOneWidget, reason: '$name clean copy');
-      // A clean store is a real result: it wears a good wash, so it does not
-      // read as a blank screen.
-      final deco = _cardDecoration(tester, copy);
-      if (palette.glass) {
-        // Lumen Glass: an OPAQUE good wash, its words in the good ink.
-        final good = LumenStatus.good.swatchOf(palette);
-        expect(
-          deco.color,
-          Color.alphaBlend(good.tint, palette.surface1),
-          reason: '$name opaque good wash',
+    testWidgets('a review that cannot be read still submits, and says so', (
+      tester,
+    ) async {
+      await _pump(tester, reviewThrows: true);
+
+      // Failing to READ what the visit will raise is not failing to submit:
+      // the captures are already on the phone, and a gate that took the
+      // primary away here would strand an agent with a finished visit.
+      expect(
+        find.byKey(const ValueKey<String>('gate-review-error')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<TorchPrimaryButton>(
+              find.byKey(const ValueKey<String>('confirm-submit')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    });
+
+    testWidgets('loading is the real geometry, not a spinner', (tester) async {
+      await _pump(tester, reviewPends: true);
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SkeletonRows), findsOneWidget);
+    });
+  });
+
+  group('the gate only confirms', () {
+    testWidgets('tapping the primary fires the hub\'s callback', (
+      tester,
+    ) async {
+      var confirmed = 0;
+      await _pump(tester, onConfirm: () => confirmed++);
+
+      await tester.tap(find.byKey(const ValueKey<String>('confirm-submit')));
+      await tester.pump();
+
+      // The gate does not submit — it confirms. The hub's callback is what
+      // runs `submitVisit`, and it is the second deliberate step, so there is
+      // no third dialog.
+      expect(confirmed, 1);
+    });
+
+    testWidgets('the primary announces the whole sentence', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester);
+      // Nobody is ever asked to confirm the word "Submit".
+      expect(
+        find.bySemanticsLabel('Submit this visit to your manager'),
+        findsWidgets,
+      );
+      handle.dispose();
+    });
+  });
+
+  group('the amber census', () {
+    for (final (mode, expected) in <(SkinMode, int)>[
+      (SkinMode.night, 1),
+      (SkinMode.day, 1),
+      (SkinMode.veld, 1),
+    ]) {
+      testWidgets('${mode.name}: one object — the primary', (tester) async {
+        await _pump(tester, skin: mode);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(mode),
+          route: 'submit-gate',
+          phase: 'will-raise',
         );
-        final fg = tester.widget<Text>(copy).style!.color!;
-        expect(fg, good.ink, reason: '$name good ink');
         expect(
-          contrastRatio(fg, deco.color!),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name clean copy AA (rendered pair)',
+          census.objectCount,
+          expected,
+          reason:
+              'An untabbed route has two content grants in Night and this '
+              'screen spends one. The severity bars, the task glyphs, the '
+              'section rule and the offline note are labels.\n\n'
+              '${census.describe()}',
         );
-      } else {
-        expect(
-          deco.color,
-          palette.good.withValues(alpha: 0.10),
-          reason: '$name good wash',
-        );
-      }
+      });
     }
+
+    testWidgets('a clean store still lights exactly the primary', (
+      tester,
+    ) async {
+      await _pump(tester, review: _reviewClean);
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'submit-gate',
+        phase: 'clean',
+      );
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('an unreadable review does not change the count', (
+      tester,
+    ) async {
+      await _pump(tester, reviewThrows: true);
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'submit-gate',
+        phase: 'review-failed',
+      );
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('at 2.0× the count does not change', (tester) async {
+      await _pump(tester, textScale: 2.0);
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
   });
 
-  testWidgets('Lumen Glass: the submit is the glass primary action', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _gate(review: _reviewWithTasks, theme: AppTheme.light()),
-    );
-    await tester.pumpAndSettle();
+  group('2.0× and Afrikaans', () {
+    testWidgets('Afrikaans at 2.0× still lays out', (tester) async {
+      await _pump(tester, textScale: 2.0, locale: const Locale('af'));
+      expect(tester.takeException(), isNull);
+    });
 
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('confirm-submit')),
-        matching: find.byType(GlassPrimaryButton),
-      ),
-      findsOneWidget,
-    );
-    // The heading is the mono kicker.
-    expect(
-      tester.widget<Text>(find.text('THIS WILL RAISE')).style?.fontFamily,
-      LumenGlass.mono,
-    );
-  });
-
-  testWidgets('the confirm-submit button invokes onConfirm on tap', (
-    tester,
-  ) async {
-    var confirmed = 0;
-    await tester.pumpWidget(
-      _gate(review: _reviewWithTasks, onConfirm: () => confirmed++),
-    );
-    await tester.pumpAndSettle();
-
-    final button = find.byKey(const ValueKey('confirm-submit'));
-    expect(button, findsOneWidget);
-
-    await tester.tap(button);
-    await tester.pump();
-
-    // The gate only confirms — it does not submit. Tapping fires the callback
-    // the hub handed in, which is what runs submitVisit.
-    expect(confirmed, 1);
-  });
-
-  test('no non-geometry AppColors. remain in the submit gate source', () {
-    // Geometry (radii) stays on AppColors; every colour reads from the ambient
-    // theme via context.colors, so both themes render.
-    final src = File(
-      'lib/features/audit/presentation/submit_gate_screen.dart',
-    ).readAsStringSync();
-    final offenders = RegExp(
-      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
-    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
-    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
-  });
-
-  testWidgets('a raised-task title renders in Afrikaans', (tester) async {
-    final review = VisitReview(
-      skusCounted: 12,
-      outOfStock: 1,
-      skusPriced: 12,
-      competitors: 2,
-      photos: 1,
-      willRaise: [
-        RaisedTask.stockout(skuName: 'Fanta Orange 2L'),
-        RaisedTask.actionPlan(priority: 'normal'),
-      ],
-    );
-    await tester.pumpWidget(
-      routedApp(
-        const SubmitGateScreen(
-          visitDraftId: 'visit-1',
-          outletId: 'o1',
-          outletName: 'Test Outlet',
-          checkinTs: null,
-          onConfirm: _noop,
-        ),
-        overrides: _overrides(review: review),
+    testWidgets('the findings are translated, not the agent\'s own words', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
         locale: const Locale('af'),
-      ),
-    );
-    await tester.pumpAndSettle();
+        review: VisitReview(
+          skusCounted: 12,
+          outOfStock: 1,
+          skusPriced: 12,
+          competitors: 2,
+          photos: 1,
+          willRaise: <RaisedTask>[
+            RaisedTask.stockout(skuName: 'Fanta Orange 2L'),
+            RaisedTask.actionPlan(priority: 'normal'),
+          ],
+        ),
+      );
+      // The captured line is above the fold, so it is read before the list is
+      // scrolled out from under it.
+      expect(
+        find.text('12 SKU’s getel · 2 mededingers · 1 foto'),
+        findsOneWidget,
+      );
+      await scrollAgentTo(tester, find.text('Fanta Orange 2L is uit voorraad'));
 
-    expect(find.text('Fanta Orange 2L is uit voorraad'), findsOneWidget);
-    expect(find.text('Aksie waarvoor jy gevra het'), findsOneWidget);
-    expect(find.text('12 SKU’s getel · 2 mededingers · 1 foto'), findsOneWidget);
-    expect(find.text('Fanta Orange 2L is out of stock'), findsNothing);
-  });
-
-  testWidgets('a coded raised task still reads in English by default', (
-    tester,
-  ) async {
-    final review = VisitReview(
-      skusCounted: 1,
-      outOfStock: 1,
-      skusPriced: 1,
-      competitors: 0,
-      photos: 0,
-      willRaise: [RaisedTask.stockout(skuName: 'Fanta Orange 2L')],
-    );
-    await tester.pumpWidget(_gate(review: review));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Fanta Orange 2L is out of stock'), findsOneWidget);
-    expect(find.text('1 SKU counted'), findsOneWidget);
+      // The SKU's name is never translated; the sentence around it is.
+      expect(find.text('Fanta Orange 2L is uit voorraad'), findsOneWidget);
+      expect(find.text('Fanta Orange 2L is out of stock'), findsNothing);
+    });
   });
 }
-
-void _noop() {}

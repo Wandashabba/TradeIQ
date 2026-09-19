@@ -8,6 +8,8 @@ import '../../../core/camera/photo_capture_service.dart';
 import '../../../core/design/tiq_number.dart';
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/agent_motion.dart' show agentSectionRoute;
+import '../../../core/widgets/guided_capture_screen.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
@@ -50,13 +52,18 @@ import '../data/tasks_view.dart';
 /// The pre-capture card is a 2px `edgeControl` outline and a drawing; nothing
 /// else on this sheet asks for light.
 ///
+/// ## The capture is the guided one
+///
+/// `Take a photo` opens the same full-screen [GuidedCaptureScreen] the closure
+/// dialog used before this migration, so nothing it offered is lost: the
+/// framing line, the **gallery** fallback (a cracked camera in a dark aisle
+/// still has to be able to file evidence), and the review step that measures
+/// the frame. A dark frame the manager chose to keep says so on the strip —
+/// "Dark frame — mean brightness 11%" — behind a watch mark, because the
+/// evidence travels with that fact rather than losing it when the route pops.
+///
 /// ## What is not built, and why
 ///
-/// * **The dark-frame measurement.** The spec's `Dark frame — mean brightness
-///   11%` needs the photo's mean luma. Computing it here means decoding the
-///   full image on the UI isolate of a phone that has just taken it; the audit
-///   pipeline computes it server-side and the console does not receive it.
-///   The state is designed and unbuilt rather than guessed at.
 /// * **Hold and send later.** The console has no outbox — held work is the
 ///   agent app's queue. A failed upload keeps the photo and the sheet, which
 ///   is the honest console answer: nothing is lost and nothing is promised.
@@ -94,9 +101,20 @@ class _CloseWithPhotoSheetState extends ConsumerState<_CloseWithPhotoSheet> {
       _failure = null;
     });
     try {
-      final photo = await ref
-          .read(photoCaptureServiceProvider)
-          .capture(PhotoSource.camera, geotag: true);
+      // The guided screen owns the capture — camera or gallery, the exposure
+      // measurement and its own inline errors — and pops the photo, or null
+      // when the manager backs out. This only guards the handoff.
+      final photo = await Navigator.of(context).push<CapturedPhoto>(
+        agentSectionRoute(
+          const GuidedCaptureScreen(
+            label: 'Closure evidence',
+            hint:
+                'The photo is what makes the closure verifiable — a manager '
+                'has to be able to see the fix, not take your word for it.',
+            geotag: true,
+          ),
+        ),
+      );
       if (!mounted) return;
       // Backing out of the camera is a normal outcome, not an error, and it
       // keeps whatever photo was already taken.
@@ -330,6 +348,30 @@ class _CapturedStrip extends StatelessWidget {
                 _stamp(photo.capturedAt),
                 style: skin.text.monoIdent.style(color: p.ink3),
               ),
+              if (photo.isUnderexposed) ...<Widget>[
+                const SizedBox(height: TiqSpace.s2),
+                Semantics(
+                  label:
+                      'Dark frame, mean brightness '
+                      '${_brightness(context, photo.meanLuma!)}.',
+                  excludeSemantics: true,
+                  child: Row(
+                    key: const ValueKey<String>('closure-dark'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const SeverityMark(kind: SeverityMarkKind.watch),
+                      const SizedBox(width: TiqSpace.s2),
+                      Expanded(
+                        child: Text(
+                          'Dark frame — mean brightness '
+                          '${_brightness(context, photo.meanLuma!)}',
+                          style: skin.text.meta.style(color: p.ink2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: TiqSpace.s2),
               if (hasFix)
                 Text(
@@ -380,6 +422,10 @@ class _CapturedStrip extends StatelessWidget {
     return '${numbers.format(lat, decimals: 5)}, '
         '${numbers.format(lng, decimals: 5)}';
   }
+
+  /// Mean luma as a whole percentage, through the one formatter.
+  static String _brightness(BuildContext context, double luma) =>
+      TiqNumber.of(context).format((luma * 100).round(), unit: TiqUnit.percent);
 
   static String _stamp(DateTime t) {
     final hh = t.hour.toString().padLeft(2, '0');

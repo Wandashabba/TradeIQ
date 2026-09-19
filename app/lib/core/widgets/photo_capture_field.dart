@@ -55,6 +55,15 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
   String? _dataUrl;
   String? _error;
 
+  /// Whether the kept frame came back underexposed.
+  ///
+  /// The review step in [GuidedCaptureScreen] already asked about it and the
+  /// agent said keep it — during Stage 6 a dark photo may be the only
+  /// obtainable evidence, so it is never dropped. The mark survives into the
+  /// section body so the fact travels with the evidence rather than being
+  /// forgotten the moment the capture route pops.
+  bool _dark = false;
+
   /// The tile is now a single affordance that hands off to the full-screen
   /// [GuidedCaptureScreen]. That screen owns the capture — it drives the
   /// unchanged [PhotoCaptureService] and surfaces its own errors inline — and
@@ -81,6 +90,7 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
       if (photo == null) return;
       setState(() {
         _dataUrl = photo.dataUrl;
+        _dark = photo.isUnderexposed;
         _error = null;
       });
       widget.onCaptured?.call(photo.dataUrl);
@@ -138,7 +148,11 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
         ],
         const SizedBox(height: 8),
         if (_dataUrl != null)
-          _Preview(dataUrl: _dataUrl!, onRetake: _openGuidedCapture),
+          _Preview(
+            dataUrl: _dataUrl!,
+            dark: _dark,
+            onRetake: _openGuidedCapture,
+          ),
         if (_dataUrl == null && colors.glass)
           // Glass: a no-blur tile (a section can carry several of these),
           // its ink well inside the pane so the ripple shows over the fill.
@@ -195,9 +209,17 @@ class _PhotoCaptureFieldState extends ConsumerState<PhotoCaptureField> {
 }
 
 class _Preview extends StatelessWidget {
-  const _Preview({required this.dataUrl, required this.onRetake});
+  const _Preview({
+    required this.dataUrl,
+    required this.dark,
+    required this.onRetake,
+  });
 
   final String dataUrl;
+
+  /// A frame the exposure check called dark. Marked and questioned here, never
+  /// deleted: the agent already chose to keep it.
+  final bool dark;
 
   /// Retake re-opens the guided screen; the current photo survives until a new
   /// one is captured, so a backed-out retake loses nothing.
@@ -268,8 +290,10 @@ class _Preview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             StatusChip(
-              label: context.l10n.photoFieldCaptured,
-              level: StatusLevel.good,
+              label: dark
+                  ? context.l10n.captureDarkCaption
+                  : context.l10n.photoFieldCaptured,
+              level: dark ? StatusLevel.warning : StatusLevel.good,
             ),
             const SizedBox(height: 6),
             OutlinedButton(

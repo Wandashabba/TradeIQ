@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/camera/photo_exposure.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
@@ -180,6 +181,10 @@ void main() {
               clock: () => shutter,
             ),
           ),
+          // Decoding an image does not complete on FakeAsync's clock, so the
+          // capture route's exposure check is scripted here; the real
+          // measurement is `photo_exposure_test.dart`.
+          photoExposureProvider.overrideWithValue((String url) async => null),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -196,6 +201,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('photo-add')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('guided-capture')));
+    await tester.pumpAndSettle();
+    // Capture now lands on the review step — a dark shot is never kept
+    // silently — so accepting the frame is what pops it back to the section.
+    await tester.tap(find.byKey(const ValueKey('guided-use-it')));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Save stock'));

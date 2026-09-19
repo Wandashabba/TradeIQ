@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/camera/photo_exposure.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -131,6 +132,7 @@ Future<_Harness> _pump(
   Object? closeFailure,
   bool listPending = false,
   bool cameraCancels = false,
+  double? luma,
   LocationService? location,
   TiqSkin? skin,
   double textScale = 1.0,
@@ -156,6 +158,11 @@ Future<_Harness> _pump(
       outletsRepositoryProvider.overrideWithValue(
         FakeOutletsRepository(outlets),
       ),
+      // The guided capture measures the frame's exposure, and decoding an
+      // image does not complete on FakeAsync's clock — see
+      // `photo_exposure_test.dart`, which measures the real thing inside
+      // `tester.runAsync`. Null is "nobody measured", never "bright".
+      photoExposureProvider.overrideWithValue((String dataUrl) async => luma),
       photoCaptureServiceProvider.overrideWithValue(
         PhotoCaptureService(
           gateway: _FakeGateway(cancels: cameraCancels),
@@ -170,6 +177,24 @@ Future<_Harness> _pump(
   return harness;
 }
 
+/// Take the closure photograph through the guided capture: the sheet's
+/// "Take a photo" opens it, [source] is the camera or the gallery, and the
+/// review step's "Use it" hands the frame back to the sheet.
+Future<void> _takePhoto(
+  WidgetTester tester, {
+  String source = 'guided-capture',
+  bool accept = true,
+}) async {
+  await tester.tap(find.byKey(const ValueKey<String>('take-closure-photo')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey<String>(source)));
+  await tester.pumpAndSettle();
+  if (accept) {
+    await tester.tap(find.byKey(const ValueKey<String>('guided-use-it')));
+    await tester.pumpAndSettle();
+  }
+}
+
 /// Open the closure gate, optionally with a photograph already taken.
 Future<void> _openClosureSheet(
   WidgetTester tester, {
@@ -181,10 +206,7 @@ Future<void> _openClosureSheet(
   );
   await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
   await tester.pumpAndSettle();
-  if (capture) {
-    await tester.tap(find.byKey(const ValueKey<String>('take-closure-photo')));
-    await tester.pumpAndSettle();
-  }
+  if (capture) await _takePhoto(tester);
 }
 
 void main() {
@@ -440,10 +462,7 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('take-closure-photo')),
-      );
-      await tester.pumpAndSettle();
+      await _takePhoto(tester);
       await tester.tap(find.byKey(const ValueKey<String>('confirm-closure')));
       await tester.pumpAndSettle();
 
@@ -479,10 +498,7 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('take-closure-photo')),
-      );
-      await tester.pumpAndSettle();
+      await _takePhoto(tester);
 
       expect(find.text('The closure will record without one.'), findsOneWidget);
 
@@ -507,15 +523,90 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey<String>('take-closure-photo')),
-      );
+      await _takePhoto(tester, accept: false);
+      // A cancelled camera never reaches the review step: there is nothing to
+      // review. Closing the guided screen lands back on the gate, still
+      // blocked, with no photo.
+      expect(find.byKey(const ValueKey<String>('guided-use-it')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey<String>('guided-close')));
       await tester.pumpAndSettle();
+      expect(find.text('A photo is required.'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey<String>('cancel-closure')));
       await tester.pumpAndSettle();
 
       expect(harness.photos.uploadCount, 0);
       expect(harness.tasks.closedId, isNull);
+    });
+
+    testWidgets('the gallery is still a way to file the evidence', (
+      tester,
+    ) async {
+      // A cracked camera in a dark aisle still has to be able to close a
+      // task. The closure dialog this sheet replaced offered the gallery
+      // through the guided capture, and the migration must not drop it.
+      final harness = await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+      await tester.pumpAndSettle();
+      await _takePhoto(tester, source: 'guided-gallery');
+      await tester.tap(find.byKey(const ValueKey<String>('confirm-closure')));
+      await tester.pumpAndSettle();
+
+      expect(harness.photos.uploadCount, 1);
+      expect(harness.tasks.closedId, 't-open');
+      await settleToasts(tester);
+    });
+
+    testWidgets('a dark frame the manager keeps says so on the gate', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        luma: 0.11,
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+      await tester.pumpAndSettle();
+      await _takePhoto(tester);
+
+      expect(
+        find.byKey(const ValueKey<String>('closure-dark')),
+        findsOneWidget,
+      );
+      expect(find.text('Dark frame — mean brightness 11%'), findsOneWidget);
+      // Kept, not refused: a dark photo may be the only evidence there is.
+      final confirm = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('confirm-closure')),
+      );
+      expect(confirm.onPressed, isNotNull);
+    });
+
+    testWidgets('an unmeasured frame is never called dark', (tester) async {
+      await _pump(tester, outlets: _outlets, tasks: <TaskItem>[_task()]);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+      await tester.pumpAndSettle();
+      await _takePhoto(tester);
+
+      expect(find.byKey(const ValueKey<String>('closure-dark')), findsNothing);
     });
 
     testWidgets('a task with no visit offers no closure action at all', (
