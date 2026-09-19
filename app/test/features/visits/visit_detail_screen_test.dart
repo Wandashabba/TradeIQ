@@ -147,6 +147,7 @@ class _Photos implements PhotosRepository {
     required String dataUrl,
     required Map<String, dynamic> gpsTag,
     required String timestamp,
+    String? source,
   }) => throw UnimplementedError();
 
   @override

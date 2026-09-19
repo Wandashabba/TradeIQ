@@ -10,6 +10,8 @@ import {
   getPhotoThumbnail,
   listPhotosForVisit,
   MESSAGE_ATTACHMENT_SECTION,
+  PHOTO_SOURCES,
+  type PhotoSource,
 } from './photos.service';
 import { ThumbnailSourceError } from './thumbnails';
 
@@ -29,13 +31,14 @@ function viewerOf(req: AuthedRequest): PhotoViewer {
 }
 
 photosRouter.post('/', async (req: AuthedRequest, res) => {
-  const { visitId, section, dataUrl, gpsTag, timestamp, purpose } = req.body as {
+  const { visitId, section, dataUrl, gpsTag, timestamp, purpose, source } = req.body as {
     visitId?: unknown;
     section?: unknown;
     dataUrl?: unknown;
     gpsTag?: unknown;
     timestamp?: unknown;
     purpose?: unknown;
+    source?: unknown;
   };
 
   if (purpose !== undefined && purpose !== MESSAGE_ATTACHMENT_SECTION) {
@@ -105,6 +108,15 @@ photosRouter.post('/', async (req: AuthedRequest, res) => {
     return;
   }
 
+  // How the image was obtained (#386 follow-up). Optional for the audit
+  // sections, so an older build is unaffected; required to be `camera` for a
+  // pin dispute's storefront photo, which createPhoto enforces — the rule
+  // belongs beside the row it protects, not only at the door.
+  if (source !== undefined && !PHOTO_SOURCES.includes(source as PhotoSource)) {
+    res.status(400).json({ error: `source must be one of ${PHOTO_SOURCES.join(', ')} when given` });
+    return;
+  }
+
   const photo = await createPhoto({
     visitId,
     clientId: req.user!.clientId,
@@ -113,6 +125,7 @@ photosRouter.post('/', async (req: AuthedRequest, res) => {
     dataUrl,
     gpsTag: gpsTag as Prisma.InputJsonValue,
     timestamp,
+    source: source as PhotoSource | undefined,
   });
   res.status(201).json(photo);
 });

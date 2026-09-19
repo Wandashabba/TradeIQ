@@ -164,6 +164,7 @@ class _FakePhotosRepository implements PhotosRepository {
     required String dataUrl,
     required Map<String, dynamic> gpsTag,
     required String timestamp,
+    String? source,
   }) async =>
       throw UnimplementedError();
 }

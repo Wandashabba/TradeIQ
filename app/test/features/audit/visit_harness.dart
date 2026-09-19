@@ -133,6 +133,8 @@ class ScriptedVisits implements VisitsRepository {
     required double lng,
     required double distanceMeters,
     String? note,
+    double? accuracyM,
+    bool? isMocked,
   }) async {
     disputes.add((
       outletId: outletId,

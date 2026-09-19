@@ -137,6 +137,49 @@ const WEIGHT_GEOFENCE = 20;
 // wrong, and scoring every honest use of it as reviewable fraud would fill the
 // queue with the ordinary case. See the signal itself for the full reasoning.
 const WEIGHT_GEOFENCE_OVERRIDE = 30;
+// ── Bounding the override: the PATTERN, not just the visit (#386 follow-up) ──
+//
+// Scoring each override on its own was the hole. Thirty is under the review
+// threshold by design — an honest override must not read as fraud — but three
+// signals summed nothing, because nothing ever looked at more than one visit.
+// An agent at home could claim a wrong pin at every outlet in the metro, one
+// each, and every one of them stayed at 30 and reached no manager.
+//
+// These three read the CLAIM beside the visit: the PinDispute row, and the
+// agent's other claims around it. They are deliberately the only signals in
+// this file that reason over server `created_at` rather than the device's
+// checkinTs. The whole attack is a device asserting things, and an agent who
+// backdates checkinTs would otherwise walk straight out of the window — which
+// is exactly how failed_attempts came to miss the dispute's own attempt row.
+//
+// A manager looked, and said the agent was not there. That is the strongest
+// statement anyone makes about a visit, and it was previously worth nothing:
+// the dispute row turned 'rejected' and the visit kept its 30, its points and
+// its place out of the flagged queue. Above the threshold on its own, so a
+// rejection puts the visit in front of a reviewer by itself.
+const WEIGHT_GEOFENCE_OVERRIDE_REJECTED = 55;
+// Per override beyond the first in the window, capped. One is the ordinary
+// case this feature exists for; two in a week is a beat with bad data; the
+// third crosses the review threshold when added to the base 30 (30 + 20 = 50),
+// which is a look, not a verdict. Capped at 40 so the rate alone can never
+// reach 100 and drown the signals that describe what actually happened.
+const WEIGHT_GEOFENCE_OVERRIDE_RATE_PER = 10;
+const WEIGHT_GEOFENCE_OVERRIDE_RATE_MAX = 40;
+// Claims about DIFFERENT outlets made from the same spot. A wrongly pinned
+// outlet is a fact about one outlet; one position that disputes the pins of two
+// different shops is a fact about the phone. Alone with the base it is 60 —
+// over the threshold on the second claim, which is the intent: the attack's
+// signature is its second visit, not its tenth.
+const WEIGHT_GEOFENCE_OVERRIDE_CLUSTER = 30;
+// The window both pattern signals read, ending at this claim. Seven days: long
+// enough that a Monday and a Friday claim are one pattern, short enough that an
+// agent is not still being scored in March for a fortnight in January.
+const OVERRIDE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+// How close two claimed positions must be to count as "the same spot". 100m is
+// a building and its pavement — wider than any honest GPS scatter inside one
+// shop, far narrower than the distance between two shops that both need
+// visiting.
+export const OVERRIDE_CLUSTER_RADIUS_M = 100;
 const WEIGHT_FAILED_ATTEMPTS = 25;
 const WEIGHT_FAILED_ATTEMPT_PER = 10;
 const WEIGHT_PHOTO_DIVERGENCE = 25;
@@ -404,6 +447,36 @@ export interface FraudRelatedInput {
   // (#248) — see loadNearbyOutlets(). Absent, or without the visit's own outlet
   // → no stock_outside_outlet.
   nearbyOutlets?: FraudOutletLocation[];
+  // This visit's own "the pin is wrong" claim (#386), when it had one. Absent
+  // → the override signals fall back to the bare geofence_override: a visit
+  // outside the fence with no claim loaded is still an override, it just has
+  // no pattern to be read against.
+  pinDispute?: FraudPinDispute | null;
+  // Every claim by the SAME agent that the loader read around this one,
+  // including this one. The window is applied here, inside computeFraudSignals,
+  // so this heuristic owns it — the same arrangement as failed_attempts.
+  agentPinDisputes?: FraudPinDispute[];
+}
+
+/**
+ * One "the pin is wrong" claim, as the override signals see it (#386).
+ *
+ * `createdAt` is the SERVER's, not the device's. Every other date in this file
+ * is the device clock on purpose — an outbox that flushed a week late must not
+ * reorder a week of visits — but these two signals exist to bound an attack
+ * whose only tool is what the device asserts, and a backdated `checkinTs` would
+ * walk straight out of a device-timed window.
+ */
+export interface FraudPinDispute {
+  visitId: string;
+  agentId: string;
+  outletId: string;
+  /** Where the agent said they were standing. */
+  lat: number;
+  lng: number;
+  /** open · applied · rejected. */
+  status: string;
+  createdAt: Date;
 }
 
 /** One rejected check-in attempt, as the heuristics see it. */
@@ -966,14 +1039,81 @@ export function computeFraudSignals(
   //    The manager's own queue for these is GET /outlets/pin-disputes, where
   //    the claim arrives with its evidence whatever this score says.
   const geofenceOverridden = visit.geofencePass === false;
+  const claim = related.pinDispute ?? null;
   if (geofenceOverridden) {
-    signals.push({
-      code: 'geofence_override',
-      detail:
-        `Check-in was ${visit.checkinDistanceM ?? '?'}m from the outlet, outside its ` +
-        `${GEOFENCE_RADIUS_M}m fence, and went ahead on the agent's report that the pin is wrong`,
-      weight: WEIGHT_GEOFENCE_OVERRIDE,
-    });
+    // 0a. The manager's own ruling, when there is one. A rejection is a person
+    //     saying they looked and the agent was not at the shop; scoring that
+    //     the same as an unanswered claim is how the ruling came to mean
+    //     nothing. It REPLACES the base signal rather than stacking: there is
+    //     one fact here — the check-in was outside the fence — and the
+    //     rejection is the strongest reading of it, not a second one.
+    const rejected = claim?.status === 'rejected';
+    signals.push(
+      rejected
+        ? {
+            code: 'geofence_override_rejected',
+            detail:
+              `Check-in was ${visit.checkinDistanceM ?? '?'}m from the outlet, outside its ` +
+              `${GEOFENCE_RADIUS_M}m fence, and a manager REJECTED the agent's report that ` +
+              'the pin is wrong — the pin stands, so this check-in was made away from the outlet',
+            weight: WEIGHT_GEOFENCE_OVERRIDE_REJECTED,
+          }
+        : {
+            code: 'geofence_override',
+            detail:
+              `Check-in was ${visit.checkinDistanceM ?? '?'}m from the outlet, outside its ` +
+              `${GEOFENCE_RADIUS_M}m fence, and went ahead on the agent's report that the pin is wrong`,
+            weight: WEIGHT_GEOFENCE_OVERRIDE,
+          },
+    );
+
+    // 0b/0c. The PATTERN. Both read the agent's own claims in the 7 days
+    //        ending at this one, by server clock — see FraudPinDispute.
+    if (claim) {
+      const peers = (related.agentPinDisputes ?? []).filter(
+        (other) =>
+          other.agentId === claim.agentId &&
+          other.createdAt.getTime() <= claim.createdAt.getTime() &&
+          other.createdAt.getTime() >= claim.createdAt.getTime() - OVERRIDE_WINDOW_MS,
+      );
+      // This claim counts itself once, however the loader read it.
+      const inWindow = new Map(peers.map((other) => [other.visitId, other]));
+      inWindow.set(claim.visitId, claim);
+
+      const overrides = inWindow.size;
+      if (overrides > 1) {
+        signals.push({
+          code: 'geofence_override_rate',
+          detail:
+            `This agent reported a wrong pin ${overrides} times in the 7 days to this check-in; ` +
+            'one wrongly pinned outlet is the ordinary case this override exists for, a run of them is a pattern',
+          weight: Math.min(
+            WEIGHT_GEOFENCE_OVERRIDE_RATE_MAX,
+            WEIGHT_GEOFENCE_OVERRIDE_RATE_PER * (overrides - 1),
+          ),
+        });
+      }
+
+      // Claims about DIFFERENT outlets from the same spot. One position cannot
+      // be standing in two shops.
+      const cluster = [...inWindow.values()].filter(
+        (other) =>
+          other.visitId !== claim.visitId &&
+          other.outletId !== claim.outletId &&
+          haversineDistanceMeters(claim, other) <= OVERRIDE_CLUSTER_RADIUS_M,
+      );
+      if (cluster.length > 0) {
+        const outlets = new Set(cluster.map((other) => other.outletId)).size;
+        signals.push({
+          code: 'geofence_override_cluster',
+          detail:
+            `The position this claim was made from is within ${OVERRIDE_CLUSTER_RADIUS_M}m of ` +
+            `${cluster.length} other wrong-pin report(s) by this agent, about ${outlets} different ` +
+            'outlet(s), in the 7 days to this check-in — one spot cannot be inside several shops',
+          weight: WEIGHT_GEOFENCE_OVERRIDE_CLUSTER,
+        });
+      }
+    }
   }
 
   // 1. Borderline geofence — inside the 50m fence but hugging its edge.
@@ -1604,6 +1744,79 @@ export async function loadNearbyOutlets(
   return byVisit;
 }
 
+const overrideClaimSelect = {
+  visitId: true,
+  agentId: true,
+  outletId: true,
+  lat: true,
+  lng: true,
+  status: true,
+  createdAt: true,
+} as const satisfies Prisma.PinDisputeSelect;
+
+/**
+ * The pin-dispute rows the override signals read (#386 follow-up): each
+ * override visit's OWN claim, and every claim by the same agents inside the
+ * window around those claims.
+ *
+ * Two queries, and only when the batch contains an override — a visit stored
+ * `geofence_pass = false`. On a tenant whose pins are right that is never, and
+ * this costs nothing.
+ *
+ * The window is widened here only to BOUND the read; every reader applies it
+ * again per visit inside computeFraudSignals, so a visit's score never depends
+ * on which batch it was scored in.
+ */
+async function loadOverrideClaims(
+  clientId: string,
+  visits: FraudVisitPayload[],
+): Promise<{
+  claimByVisit: Map<string, FraudPinDispute>;
+  claimsByAgent: Map<string, FraudPinDispute[]>;
+}> {
+  const claimByVisit = new Map<string, FraudPinDispute>();
+  const claimsByAgent = new Map<string, FraudPinDispute[]>();
+
+  const overrideVisitIds = visits.filter((visit) => visit.geofencePass === false).map((v) => v.id);
+  if (overrideVisitIds.length === 0) {
+    return { claimByVisit, claimsByAgent };
+  }
+
+  const own = await prisma.pinDispute.findMany({
+    where: { clientId, visitId: { in: overrideVisitIds } },
+    select: overrideClaimSelect,
+  });
+  if (own.length === 0) {
+    // An override with no claim beside it should not exist — the visit and the
+    // dispute are written in one transaction — but a visit that predates the
+    // pin-repair path, or one restored from a partial backup, can be one. It
+    // still scores geofence_override; it simply has no pattern to read.
+    return { claimByVisit, claimsByAgent };
+  }
+  for (const claim of own) {
+    claimByVisit.set(claim.visitId, claim);
+  }
+
+  const anchors = own.map((claim) => claim.createdAt.getTime());
+  const peers = await prisma.pinDispute.findMany({
+    where: {
+      clientId,
+      agentId: { in: [...new Set(own.map((claim) => claim.agentId))] },
+      createdAt: {
+        gte: new Date(Math.min(...anchors) - OVERRIDE_WINDOW_MS),
+        lte: new Date(Math.max(...anchors)),
+      },
+    },
+    select: overrideClaimSelect,
+  });
+  for (const claim of peers) {
+    const list = claimsByAgent.get(claim.agentId) ?? [];
+    list.push(claim);
+    claimsByAgent.set(claim.agentId, list);
+  }
+  return { claimByVisit, claimsByAgent };
+}
+
 /**
  * Score many loaded visits of ONE client, in a fixed number of queries (#236).
  *
@@ -1650,6 +1863,12 @@ export async function scoreFraudBatch(clientId: string, visits: FraudVisitPayloa
     ]),
   );
 
+  // The "the pin is wrong" claims behind any override in this batch, and the
+  // agent's other claims around them (#386 follow-up). Two reads, both skipped
+  // entirely when nothing in the batch is an override — which is every batch
+  // on a tenant whose pins are right.
+  const { claimByVisit, claimsByAgent } = await loadOverrideClaims(clientId, visits);
+
   const [priorByVisit, photoMatchesByVisit, nearbyOutletsByVisit] = await Promise.all([
     // Only a submitted visit with counts can repeat anything.
     loadPriorStockVisits(
@@ -1686,6 +1905,8 @@ export async function scoreFraudBatch(clientId: string, visits: FraudVisitPayloa
         priorStockVisits: priorByVisit.get(visit.id) ?? [],
         photoMatches: photoMatchesByVisit.get(visit.id) ?? [],
         nearbyOutlets: nearbyOutletsByVisit.get(visit.id) ?? [],
+        pinDispute: claimByVisit.get(visit.id) ?? null,
+        agentPinDisputes: claimsByAgent.get(visit.agentId) ?? [],
       },
       kpiThresholds,
       timeZone,

@@ -8,7 +8,13 @@ import 'geolocator_gateway.dart';
 sealed class LocationResult {}
 
 class LocationGranted extends LocationResult {
-  LocationGranted(this.lat, this.lng, {this.accuracy, this.fixedAt});
+  LocationGranted(
+    this.lat,
+    this.lng, {
+    this.accuracy,
+    this.fixedAt,
+    this.isMocked = false,
+  });
   final double lat;
   final double lng;
 
@@ -18,6 +24,16 @@ class LocationGranted extends LocationResult {
   /// When the platform took this fix. A cached last-known fix can be minutes
   /// old, so this is what lets a reader judge staleness.
   final DateTime? fixedAt;
+
+  /// Whether the PLATFORM says this fix came from a mock provider (#386).
+  ///
+  /// Reported, never enforced here: a mocked fix still checks in, because a
+  /// client-side refusal is a refusal the client can simply not perform. It
+  /// travels to the server, which records it on the attempt, and a manager is
+  /// then refused when they try to adopt that coordinate as an outlet's pin.
+  /// Defaults false because the platform defaults it false; iOS never reports
+  /// true, which is why the server treats it as evidence and not as a verdict.
+  final bool isMocked;
 }
 
 class LocationDenied extends LocationResult {}
@@ -109,6 +125,7 @@ class LocationService {
         position.longitude,
         accuracy: position.accuracy,
         fixedAt: position.timestamp,
+        isMocked: position.isMocked,
       );
     } on TimeoutException {
       return LocationError(

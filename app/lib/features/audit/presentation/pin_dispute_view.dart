@@ -35,6 +35,14 @@ final storefrontPhotoPickerProvider = Provider<StorefrontPhotoPicker>(
           // Evidence: where the phone was at the shutter is half of what makes
           // a storefront photo worth anything to the manager reading it.
           geotag: true,
+          // ...and the other half is that the shutter was pressed HERE. A
+          // gallery pick carries the time it was picked and the position at
+          // that moment, so a Street View screenshot chosen at home would
+          // arrive with a fresh time and a home tag agreeing exactly with the
+          // claimed position. The server refuses one for this section
+          // (photos.service); the button is gone so nobody spends the work
+          // first.
+          allowGallery: false,
         ),
       ),
     );

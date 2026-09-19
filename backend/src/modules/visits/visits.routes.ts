@@ -42,15 +42,18 @@ const CLIENT_VISIT_ID_RE = /^[A-Za-z0-9._:-]+$/;
 // bodies are a visit with an `id`, so an older client — which sends no key and
 // only reads `id` — is unaffected in either direction.
 visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {
-  const { outletId, lat, lng, checkinTs, clientVisitId, resumed, pinDispute } = req.body as {
-    outletId?: string;
-    lat?: number;
-    lng?: number;
-    checkinTs?: string;
-    clientVisitId?: unknown;
-    resumed?: unknown;
-    pinDispute?: unknown;
-  };
+  const { outletId, lat, lng, checkinTs, clientVisitId, resumed, pinDispute, accuracyM, isMocked } =
+    req.body as {
+      outletId?: string;
+      lat?: number;
+      lng?: number;
+      checkinTs?: string;
+      clientVisitId?: unknown;
+      resumed?: unknown;
+      pinDispute?: unknown;
+      accuracyM?: unknown;
+      isMocked?: unknown;
+    };
 
   if (!outletId || lat === undefined || lng === undefined) {
     res.status(400).json({ error: 'outletId, lat, and lng are required' });
@@ -74,6 +77,22 @@ visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
 
   if (resumed !== undefined && typeof resumed !== 'boolean') {
     res.status(400).json({ error: 'resumed must be a boolean when given' });
+    return;
+  }
+
+  // What the device says about the fix it just sent (#386 follow-up). Recorded,
+  // never obeyed: neither value can make a failing check-in pass, and both are
+  // optional so an older build is unaffected. A negative accuracy is not a
+  // reading, and a non-finite one is not a number.
+  if (
+    accuracyM !== undefined &&
+    (typeof accuracyM !== 'number' || !Number.isFinite(accuracyM) || accuracyM < 0)
+  ) {
+    res.status(400).json({ error: 'accuracyM must be a non-negative number of metres when given' });
+    return;
+  }
+  if (isMocked !== undefined && typeof isMocked !== 'boolean') {
+    res.status(400).json({ error: 'isMocked must be a boolean when given' });
     return;
   }
 
@@ -116,6 +135,8 @@ visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
     clientVisitId: clientVisitId as string | undefined,
     resumed: resumed as boolean | undefined,
     pinDispute: pinDisputeInput,
+    accuracyM: accuracyM as number | undefined,
+    isMocked: isMocked as boolean | undefined,
     clientId: req.user!.clientId,
     agentId: req.user!.userId,
   });

@@ -90,6 +90,7 @@ class _S3S4State extends ConsumerState<S3S4VisibilityDisplayScreen> {
             dataUrl: photo.dataUrl,
             gpsTag: photo.gpsTag,
             capturedAt: photo.capturedAt,
+            source: photo.source.name,
           );
       _photo = null;
     }

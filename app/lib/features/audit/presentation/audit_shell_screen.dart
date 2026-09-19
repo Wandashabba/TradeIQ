@@ -231,6 +231,10 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
             lng: lng,
             distanceMeters: failure.distanceMeters,
             note: filing.note,
+            // The fix's own quality travels with the claim: a manager may end
+            // up moving the outlet's pin onto this coordinate (#386).
+            accuracyM: failure.accuracyM,
+            isMocked: failure.isMocked,
           );
     } catch (error) {
       result = CheckInFailed(HumanError.of(error));
@@ -258,6 +262,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
               dataUrl: photo.dataUrl,
               gpsTag: photo.gpsTag,
               capturedAt: photo.capturedAt,
+            source: photo.source.name,
             );
       } catch (error) {
         debugPrint('Storefront photo not queued for ${result.visitId}: $error');

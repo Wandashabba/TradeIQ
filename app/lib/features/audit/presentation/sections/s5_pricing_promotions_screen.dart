@@ -147,6 +147,7 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
             dataUrl: photo.dataUrl,
             gpsTag: photo.gpsTag,
             capturedAt: photo.capturedAt,
+            source: photo.source.name,
           );
       _photo = null;
     }

@@ -53,6 +53,7 @@ abstract class PhotosRepository {
     required String dataUrl,
     required Map<String, dynamic> gpsTag,
     required String timestamp,
+    String? source,
   });
 
   /// `GET /photos?visitId` — newest first, as the backend orders it.
@@ -104,6 +105,7 @@ class DioPhotosRepository implements PhotosRepository {
     required String dataUrl,
     required Map<String, dynamic> gpsTag,
     required String timestamp,
+    String? source,
   }) async {
     final response = await _client.post(
       '/photos',
@@ -113,6 +115,7 @@ class DioPhotosRepository implements PhotosRepository {
         'dataUrl': dataUrl,
         'gpsTag': gpsTag,
         'timestamp': timestamp,
+        'source': ?source,
       },
     );
     return PhotoUploadResult.fromJson(response.data as Map<String, dynamic>);
@@ -240,6 +243,7 @@ abstract class QueuedPhotosRepository {
     required String dataUrl,
     Map<String, dynamic> gpsTag,
     DateTime? capturedAt,
+    String? source,
   });
 }
 
@@ -257,6 +261,7 @@ class DriftQueuedPhotosRepository implements QueuedPhotosRepository {
     required String dataUrl,
     Map<String, dynamic> gpsTag = const {},
     DateTime? capturedAt,
+    String? source,
   }) async {
     await db.enqueue(
       entityType: 'photo',
@@ -269,6 +274,12 @@ class DriftQueuedPhotosRepository implements QueuedPhotosRepository {
         // UTC with its `Z`: a bare local ISO string has no offset, and the
         // server would read it in its own zone, shifting the capture by hours.
         'timestamp': (capturedAt ?? DateTime.now()).toUtc().toIso8601String(),
+        // `camera` or `gallery`, when the caller knows. It rides in the
+        // payload rather than being re-derived at send time for the same
+        // reason the timestamp does: by then the picker is long gone. The
+        // server requires `camera` for a wrong-pin report's storefront photo
+        // (#386) and shows every photo's source to the manager reading it.
+        'source': ?source,
       }),
     );
 

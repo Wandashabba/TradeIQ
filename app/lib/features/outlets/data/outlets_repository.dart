@@ -59,6 +59,8 @@ class CheckInAttemptEvidence {
     required this.lng,
     required this.distanceM,
     required this.createdAt,
+    this.accuracyM,
+    this.isMocked,
   });
 
   final String id;
@@ -66,6 +68,15 @@ class CheckInAttemptEvidence {
   final double lat;
   final double lng;
   final double distanceM;
+
+  /// What the device said about this fix: its reported horizontal accuracy in
+  /// metres, and whether the platform called it a mock location. Null means
+  /// the device did not say — not that it was fine, and the card says so.
+  ///
+  /// They matter because "use their position" adopts this coordinate as the
+  /// outlet's pin: from then on, check-ins from this spot pass cleanly.
+  final double? accuracyM;
+  final bool? isMocked;
   final DateTime createdAt;
 
   factory CheckInAttemptEvidence.fromJson(Map<String, dynamic> json) =>
@@ -75,8 +86,16 @@ class CheckInAttemptEvidence {
         lat: (json['lat'] as num).toDouble(),
         lng: (json['lng'] as num).toDouble(),
         distanceM: (json['distanceM'] as num).toDouble(),
+        accuracyM: (json['accuracyM'] as num?)?.toDouble(),
+        isMocked: json['isMocked'] as bool?,
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
+
+  /// Whether this fix may become an outlet's pin. A mocked position never can;
+  /// an unknown one still can, because an older handset that reports nothing
+  /// must not lock a manager out of fixing a pin. Mirrors the server's rule
+  /// (outlets.service), which is the one that actually decides.
+  bool get isAdoptable => isMocked != true && (accuracyM == null || accuracyM! <= 100);
 }
 
 /// An agent's explicit "the pin is wrong" claim (#386).
@@ -98,7 +117,10 @@ class PinDispute {
     required this.resolvedByLabel,
     required this.resolvedAt,
     required this.createdAt,
-    required this.photoIds,
+    required this.photos,
+    this.accuracyM,
+    this.isMocked,
+    this.agentIsOnlyVisitor = false,
   });
 
   final String id;
@@ -126,9 +148,23 @@ class PinDispute {
   final DateTime? resolvedAt;
   final DateTime createdAt;
 
-  /// Storefront evidence the agent attached, as photo ids — the bytes are
-  /// fetched separately through `GET /photos/:id/thumbnail`.
-  final List<String> photoIds;
+  /// What the device said about the fix behind this claim. See
+  /// [CheckInAttemptEvidence.accuracyM].
+  final double? accuracyM;
+  final bool? isMocked;
+
+  /// True when the agent who filed this is the only person who has ever
+  /// visited the outlet — so no other agent's visits can contradict a pin
+  /// moved onto their position. A warning, not a verdict: a genuinely new
+  /// store has exactly one visitor too.
+  final bool agentIsOnlyVisitor;
+
+  /// Storefront evidence the agent attached — the bytes are fetched separately
+  /// through `GET /photos/:id/thumbnail`.
+  final List<PinDisputePhoto> photos;
+
+  /// The photo ids alone, for callers that only need to count or fetch them.
+  List<String> get photoIds => [for (final p in photos) p.id];
 
   bool get isOpen => status == 'open';
 
@@ -151,10 +187,48 @@ class PinDispute {
             ? null
             : DateTime.parse(json['resolvedAt'] as String),
         createdAt: DateTime.parse(json['createdAt'] as String),
-        photoIds: [
+        accuracyM: (json['accuracyM'] as num?)?.toDouble(),
+        isMocked: json['isMocked'] as bool?,
+        agentIsOnlyVisitor: json['agentIsOnlyVisitor'] as bool? ?? false,
+        photos: [
           for (final p in (json['photos'] as List<dynamic>? ?? const []))
-            (p as Map<String, dynamic>)['id'] as String,
+            PinDisputePhoto.fromJson(p as Map<String, dynamic>),
         ],
+      );
+}
+
+/// One storefront photo offered as evidence for a wrong-pin claim (#386).
+///
+/// [timestamp] is the DEVICE clock and the agent's own account of the photo.
+/// [receivedAt] is when this server took delivery of it and [source] is how it
+/// was obtained, and those two are the ones a manager can lean on: a picture
+/// chosen from the gallery carries the time it was PICKED, so a screenshot
+/// taken at home arrives with a fresh timestamp and a matching home position
+/// and nothing contradicts it. The server refuses a gallery image for this
+/// section; an older row may still carry no source at all, which reads as
+/// unknown.
+class PinDisputePhoto {
+  const PinDisputePhoto({
+    required this.id,
+    required this.timestamp,
+    required this.receivedAt,
+    required this.source,
+  });
+
+  final String id;
+  final DateTime timestamp;
+  final DateTime receivedAt;
+  final String? source;
+
+  bool get fromCamera => source == 'camera';
+
+  factory PinDisputePhoto.fromJson(Map<String, dynamic> json) => PinDisputePhoto(
+        id: json['id'] as String,
+        timestamp: DateTime.parse(json['timestamp'] as String),
+        receivedAt: DateTime.parse(
+          (json['createdAt'] ?? json['timestamp']) as String,
+        ),
+        source: json['source'] as String?,
       );
 }
 
@@ -167,6 +241,8 @@ class OutletChange {
     required this.after,
     required this.pinSource,
     required this.createdAt,
+    this.fromAgentId,
+    this.fromAttemptId,
   });
 
   final String id;
@@ -176,6 +252,12 @@ class OutletChange {
 
   /// `manual`, `agent_position`, or null when the change did not move the pin.
   final String? pinSource;
+
+  /// For `agent_position`: whose position it was, and which attempt row it was
+  /// read from. Null on every change that did not adopt one, and on rows
+  /// written before the ledger recorded it.
+  final String? fromAgentId;
+  final String? fromAttemptId;
   final DateTime createdAt;
 
   factory OutletChange.fromJson(Map<String, dynamic> json) => OutletChange(
@@ -186,6 +268,8 @@ class OutletChange {
         after: Map<String, dynamic>.from(
             json['after'] as Map? ?? const <String, dynamic>{}),
         pinSource: json['pinSource'] as String?,
+        fromAgentId: json['fromAgentId'] as String?,
+        fromAttemptId: json['fromAttemptId'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 }

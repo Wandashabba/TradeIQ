@@ -141,12 +141,14 @@ class SpyQueuedPhotos implements QueuedPhotosRepository {
     required String dataUrl,
     Map<String, dynamic> gpsTag = const <String, dynamic>{},
     DateTime? capturedAt,
+    String? source,
   }) async => calls.add(<String, Object?>{
     'visitDraftId': visitDraftId,
     'section': section,
     'dataUrl': dataUrl,
     'gpsTag': gpsTag,
     'capturedAt': capturedAt,
+    'source': source,
   });
 }
 

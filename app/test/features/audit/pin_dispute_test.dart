@@ -25,7 +25,8 @@ import 'visit_harness.dart';
 /// clear.
 
 class _QueuedPhotos implements QueuedPhotosRepository {
-  final queued = <({String visitDraftId, String section, String dataUrl})>[];
+  final queued =
+      <({String visitDraftId, String section, String dataUrl, String? source})>[];
 
   @override
   Future<void> queuePhoto({
@@ -34,10 +35,12 @@ class _QueuedPhotos implements QueuedPhotosRepository {
     required String dataUrl,
     Map<String, dynamic> gpsTag = const <String, dynamic>{},
     DateTime? capturedAt,
+    String? source,
   }) async => queued.add((
     visitDraftId: visitDraftId,
     section: section,
     dataUrl: dataUrl,
+    source: source,
   ));
 }
 
@@ -45,6 +48,7 @@ final _storefront = CapturedPhoto(
   dataUrl: 'data:image/jpeg;base64,AAAA',
   byteLength: 4,
   capturedAt: DateTime.utc(2026, 9, 19, 8, 30),
+  source: PhotoSource.camera,
   gpsTag: const <String, dynamic>{'lat': -26.2059, 'lng': 28.046},
 );
 
@@ -294,6 +298,12 @@ void main() {
       expect(photos.queued.single.visitDraftId, 'visit-flagged');
       expect(photos.queued.single.section, 'pin_dispute');
       expect(photos.queued.single.dataUrl, _storefront.dataUrl);
+      // WHERE the picture came from travels with it. Without this the server
+      // cannot tell a photo of the shop from a screenshot picked at home —
+      // a gallery image is stamped with the time it was PICKED and the
+      // position at that moment, which agree with the claim perfectly and
+      // say nothing about the shop.
+      expect(photos.queued.single.source, 'camera');
     });
 
     testWidgets('no photo queues nothing — it is optional', (tester) async {
