@@ -2995,6 +2995,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Photo taken {time}, held on this phone.'**
   String capturePhotoSemantics(String time);
+
+  /// Title of the agent's map screen. The same word as the nav slot (navMap), deliberately: the tab and the screen are one destination.
+  ///
+  /// In en, this message translates to:
+  /// **'Map'**
+  String get mapTitle;
+
+  /// Header fact: how many of the agent's stores this screen is about.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 store} other{{count} stores}}'**
+  String mapStoresFact(int count);
+
+  /// Section rule above the stores that are on today's beat plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Today’s route'**
+  String get mapRouteHeading;
+
+  /// Under the route section rule when there is no plan. The section still renders — a section that vanishes reads as a missing feature.
+  ///
+  /// In en, this message translates to:
+  /// **'No route planned for today.'**
+  String get mapRouteEmptyLine;
+
+  /// Section rule above the agent's other outlets — in their territories, not on today's plan.
+  ///
+  /// In en, this message translates to:
+  /// **'The rest of your patch'**
+  String get mapPatchHeading;
+
+  /// Pin and row state: a stop on today's route that is already done.
+  ///
+  /// In en, this message translates to:
+  /// **'Visited today'**
+  String get mapStateDone;
+
+  /// Pin and row state: the next stop on today's route.
+  ///
+  /// In en, this message translates to:
+  /// **'Next up'**
+  String get mapStateNext;
+
+  /// Pin and row state: on the plan, further down it.
+  ///
+  /// In en, this message translates to:
+  /// **'On today’s route'**
+  String get mapStatePlanned;
+
+  /// Pin and row state: one of the agent's stores, not on today's plan.
+  ///
+  /// In en, this message translates to:
+  /// **'In your patch'**
+  String get mapStateTerritory;
+
+  /// Extra state word on a store whose coordinates are disputed (#386). Never replaces the other state word — it is added to it.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin under review'**
+  String get mapStateDisputed;
+
+  /// Sentence in the store's sheet when its pin is under review.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone has reported this pin as wrong, so the position on the map may not be the shop.'**
+  String get mapDisputedLine;
+
+  /// The marker for the phone's own position. Only ever drawn when there is a fix.
+  ///
+  /// In en, this message translates to:
+  /// **'You are here'**
+  String get mapYouAreHere;
+
+  /// Location permission refused. Not an error, and not a broken map.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is off for this app, so there are no distances and no dot for where you are. The stores are still right.'**
+  String get mapLocationDenied;
+
+  /// Device location services are off.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is switched off on this phone, so there are no distances and no dot for where you are. The stores are still right.'**
+  String get mapLocationServicesOff;
+
+  /// The radio is on and no fix arrived. Also used for a platform failure we have no code for.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone cannot get a fix yet, so there are no distances and no dot for where you are. The stores are still right.'**
+  String get mapLocationNoFix;
+
+  /// Headline in the map's own region when the tiles will not load.
+  ///
+  /// In en, this message translates to:
+  /// **'No map here'**
+  String get mapTilesOffTitle;
+
+  /// Body under mapTilesOffTitle. Offline on a rural forecourt is the normal case, not an error.
+  ///
+  /// In en, this message translates to:
+  /// **'The map will not load — there is nothing to fetch it with. Your stores are listed below, and the list needs no connection.'**
+  String get mapTilesOffBody;
+
+  /// Shown instead of the map in the Veld skin, where maps do not render.
+  ///
+  /// In en, this message translates to:
+  /// **'The map is off in bright sun. Your stores are listed below, nearest first.'**
+  String get mapVeldNote;
+
+  /// Whole-screen empty state: no route today and nothing in the agent's territories.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores yet'**
+  String get mapEmptyTitle;
+
+  /// Body of the empty state. It names who fixes it.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no route for today and no store in your patch. A manager assigns both.'**
+  String get mapEmptyBody;
+
+  /// Whole-screen error headline on the map.
+  ///
+  /// In en, this message translates to:
+  /// **'Your stores did not load'**
+  String get mapLoadErrorTitle;
+
+  /// Body of the error state. It offers the action that still works.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not reach the server. Your day still works — pick a store and check in.'**
+  String get mapLoadErrorDetail;
+
+  /// Pagination footer when the marker budget cuts the list and there is a fix to sort by.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} nearest of {total} stores.'**
+  String mapShowingNearest(int shown, int total);
+
+  /// Pagination footer when there is no fix, so the list is by name and nearest means nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} stores.'**
+  String mapShowingFirst(int shown, int total);
+
+  /// Action in the sheet for a store already visited today. Deliberately not the primary — going back is allowed, not expected.
+  ///
+  /// In en, this message translates to:
+  /// **'Check in again'**
+  String get mapCheckInAgain;
+
+  /// Sentence in the sheet for a store already visited today.
+  ///
+  /// In en, this message translates to:
+  /// **'You checked in here today.'**
+  String get mapVisitedTodayLine;
+
+  /// The nav circle when the agent is standing inside a store's check-in fence.
+  ///
+  /// In en, this message translates to:
+  /// **'Check in at {name}'**
+  String mapCircleAtDoor(String name);
+
+  /// Screen-reader label for a marker on the map.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {state}. Double-tap for what you can do here.'**
+  String mapPinHint(String name, String state);
+
+  /// Spoken label for the map's legend row.
+  ///
+  /// In en, this message translates to:
+  /// **'What the pins mean'**
+  String get mapLegendLabel;
+
+  /// The close action on a bottom sheet, and the 56dp close row of the full-screen route it becomes in Veld.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get sheetClose;
 }
 
 class _AppLocalizationsDelegate

@@ -38,15 +38,7 @@ class RouteStop {
   /// location gets a sentence, never a wrong number.
   RouteDistance? get distance {
     final metres = distanceMeters;
-    if (metres == null) return null;
-    if (metres < 950) {
-      return RouteDistance(value: metres.round(), decimals: 0, kilometres: false);
-    }
-    return RouteDistance(
-      value: metres / 1000,
-      decimals: 1,
-      kilometres: true,
-    );
+    return metres == null ? null : RouteDistance.fromMetres(metres);
   }
 }
 
@@ -68,6 +60,17 @@ class RouteDistance {
   /// translated by the screen and passed as a `TiqUnit.worded` — this class
   /// does not own language.
   final bool kilometres;
+
+  /// The one rule for turning metres into a figure: near enough is a walk and
+  /// is whole metres, far enough is a drive and is kilometres to one place.
+  ///
+  /// It lives here rather than in a screen because two screens now read the
+  /// same distances — the day's route and the map — and a store that is
+  /// "980 m" on one and "1,0 km" on the other is a store the agent has to
+  /// think about twice.
+  factory RouteDistance.fromMetres(double metres) => metres < 950
+      ? RouteDistance(value: metres.round(), decimals: 0, kilometres: false)
+      : RouteDistance(value: metres / 1000, decimals: 1, kilometres: true);
 }
 
 /// The agent's day, as planned for them.
@@ -151,7 +154,10 @@ final todayRouteProvider = FutureProvider<TodayRoute?>((ref) async {
 
   // Where the phone is, if it will say. A refusal is not an error here: the
   // route still works, it just cannot tell them how far away anything is.
-  final position = await ref.read(locationServiceProvider).getCurrentPosition();
+  // Through `currentFixProvider`, not the service directly: the map of the
+  // agent's stores reads the same fix, and a phone that takes fifteen seconds
+  // to see the sky should not take them once per screen.
+  final position = await ref.watch(currentFixProvider.future);
   final here = position is LocationGranted
       ? Coordinates(lat: position.lat, lng: position.lng)
       : null;

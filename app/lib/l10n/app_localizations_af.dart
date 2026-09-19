@@ -1915,4 +1915,118 @@ class AppLocalizationsAf extends AppLocalizations {
   String capturePhotoSemantics(String time) {
     return 'Foto geneem $time, op hierdie foon gehou.';
   }
+
+  @override
+  String get mapTitle => 'Kaart';
+
+  @override
+  String mapStoresFact(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count winkels',
+      one: '1 winkel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mapRouteHeading => 'Vandag se roete';
+
+  @override
+  String get mapRouteEmptyLine => 'Geen roete vir vandag beplan nie.';
+
+  @override
+  String get mapPatchHeading => 'Die res van jou gebied';
+
+  @override
+  String get mapStateDone => 'Vandag besoek';
+
+  @override
+  String get mapStateNext => 'Volgende';
+
+  @override
+  String get mapStatePlanned => 'Op vandag se roete';
+
+  @override
+  String get mapStateTerritory => 'In jou gebied';
+
+  @override
+  String get mapStateDisputed => 'Speld word nagegaan';
+
+  @override
+  String get mapDisputedLine =>
+      'Iemand het gemeld dat hierdie speld verkeerd is, so die plek op die kaart is dalk nie die winkel nie.';
+
+  @override
+  String get mapYouAreHere => 'Jy is hier';
+
+  @override
+  String get mapLocationDenied =>
+      'Ligging is af vir hierdie app, so daar is geen afstande en geen kolletjie vir waar jy is nie. Die winkels is steeds reg.';
+
+  @override
+  String get mapLocationServicesOff =>
+      'Ligging is op hierdie foon afgeskakel, so daar is geen afstande en geen kolletjie vir waar jy is nie. Die winkels is steeds reg.';
+
+  @override
+  String get mapLocationNoFix =>
+      'Hierdie foon kry nog nie ’n ligging nie, so daar is geen afstande en geen kolletjie vir waar jy is nie. Die winkels is steeds reg.';
+
+  @override
+  String get mapTilesOffTitle => 'Geen kaart hier nie';
+
+  @override
+  String get mapTilesOffBody =>
+      'Die kaart laai nie — daar is niks om dit mee te haal nie. Jou winkels is hieronder gelys, en die lys het geen verbinding nodig nie.';
+
+  @override
+  String get mapVeldNote =>
+      'Die kaart is af in helder son. Jou winkels is hieronder gelys, naaste eerste.';
+
+  @override
+  String get mapEmptyTitle => 'Nog geen winkels nie';
+
+  @override
+  String get mapEmptyBody =>
+      'Daar is geen roete vir vandag nie en geen winkel in jou gebied nie. ’n Bestuurder ken albei toe.';
+
+  @override
+  String get mapLoadErrorTitle => 'Jou winkels het nie gelaai nie';
+
+  @override
+  String get mapLoadErrorDetail =>
+      'Ons kon nie by die bediener uitkom nie. Jou dag werk steeds — kies ’n winkel en teken in.';
+
+  @override
+  String mapShowingNearest(int shown, int total) {
+    return 'Wys die $shown naaste van $total winkels.';
+  }
+
+  @override
+  String mapShowingFirst(int shown, int total) {
+    return 'Wys $shown van $total winkels.';
+  }
+
+  @override
+  String get mapCheckInAgain => 'Teken weer in';
+
+  @override
+  String get mapVisitedTodayLine => 'Jy het vandag hier ingeteken.';
+
+  @override
+  String mapCircleAtDoor(String name) {
+    return 'Teken in by $name';
+  }
+
+  @override
+  String mapPinHint(String name, String state) {
+    return '$name, $state. Dubbeltik vir wat jy hier kan doen.';
+  }
+
+  @override
+  String get mapLegendLabel => 'Wat die spelde beteken';
+
+  @override
+  String get sheetClose => 'Maak toe';
 }
