@@ -2341,6 +2341,39 @@
   "@askStepsStillWorking": {
     "description": "Shown under a step that has run for more than twelve seconds."
   },
+  "askStepsStarting": "Reading your question",
+  "@askStepsStarting": {
+    "description": "The rail header before the first lookup starts: the model is deciding what to look up."
+  },
+  "askStepsStillWorkingOn": "Still working on {label}.",
+  "@askStepsStillWorkingOn": {
+    "description": "Announced once to a screen reader when a step has been silent for twelve seconds.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "askStopShort": "Stop",
+  "@askStopShort": {
+    "description": "The ghost button offered under the rail after thirty silent seconds. Stopping keeps what is already written."
+  },
+  "askNavFloor": "Floor",
+  "@askNavFloor": {
+    "description": "Manager nav slot 1: The Floor, the dashboard."
+  },
+  "askNavWork": "Work",
+  "@askNavWork": {
+    "description": "Manager nav slot 2: alerts and tasks."
+  },
+  "askNavAsk": "Ask",
+  "@askNavAsk": {
+    "description": "Manager nav slot 3: Ask TradeIQ."
+  },
+  "askNavMenu": "Menu",
+  "@askNavMenu": {
+    "description": "Manager nav slot 4: everything else."
+  },
   "askStepsLive": "Live",
   "@askStepsLive": {
     "description": "The word that carries the live pulse when it is not amber, and under reduce-motion."

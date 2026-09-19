@@ -2978,6 +2978,48 @@ abstract class AppLocalizations {
   /// **'This one is taking a while'**
   String get askStepsStillWorking;
 
+  /// The rail header before the first lookup starts: the model is deciding what to look up.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your question'**
+  String get askStepsStarting;
+
+  /// Announced once to a screen reader when a step has been silent for twelve seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Still working on {label}.'**
+  String askStepsStillWorkingOn(String label);
+
+  /// The ghost button offered under the rail after thirty silent seconds. Stopping keeps what is already written.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get askStopShort;
+
+  /// Manager nav slot 1: The Floor, the dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Floor'**
+  String get askNavFloor;
+
+  /// Manager nav slot 2: alerts and tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get askNavWork;
+
+  /// Manager nav slot 3: Ask TradeIQ.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get askNavAsk;
+
+  /// Manager nav slot 4: everything else.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu'**
+  String get askNavMenu;
+
   /// The word that carries the live pulse when it is not amber, and under reduce-motion.
   ///
   /// In en, this message translates to:

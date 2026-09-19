@@ -84,9 +84,11 @@ class ChatMessage {
     this.error,
     this.errorCode,
     this.notice,
+    this.focus = const <String, int>{},
     this.streaming = false,
     this.stopped = false,
     this.askedAt,
+    this.lastEventAt,
   });
 
   final ChatRole role;
@@ -114,6 +116,11 @@ class ChatMessage {
   /// below the answer, never as prose in the model's own voice.
   final NoticeEvent? notice;
 
+  /// The server's `focus` events: artifact id → the index of the one figure
+  /// in it the sentence is about. Not every artifact has one, and an artifact
+  /// with none lights nothing.
+  final Map<String, int> focus;
+
   final bool streaming;
 
   /// The manager pressed Stop. Not an error: the partial answer stays exactly
@@ -124,6 +131,13 @@ class ChatMessage {
   /// only thing on this surface that needs a wall clock.
   final DateTime? askedAt;
 
+  /// When this client last heard anything about this turn — any event at all.
+  ///
+  /// The stall thresholds are measured from here, on the client, because
+  /// what a manager waited is what the surface should describe: a lookup that
+  /// streams a token every second is not stalled however long it runs.
+  final DateTime? lastEventAt;
+
   ChatMessage copyWith({
     String? text,
     List<ChatArtifact>? artifacts,
@@ -132,8 +146,10 @@ class ChatMessage {
     String? error,
     String? errorCode,
     NoticeEvent? notice,
+    Map<String, int>? focus,
     bool? streaming,
     bool? stopped,
+    DateTime? lastEventAt,
   }) =>
       ChatMessage(
         role: role,
@@ -144,9 +160,11 @@ class ChatMessage {
         error: error ?? this.error,
         errorCode: errorCode ?? this.errorCode,
         notice: notice ?? this.notice,
+        focus: focus ?? this.focus,
         streaming: streaming ?? this.streaming,
         stopped: stopped ?? this.stopped,
         askedAt: askedAt,
+        lastEventAt: lastEventAt ?? this.lastEventAt,
       );
 }
 
@@ -271,7 +289,12 @@ class ChatController extends Notifier<ChatState> {
           text: trimmed,
           askedAt: ref.read(assistantClockProvider)(),
         ),
-        const ChatMessage(role: ChatRole.assistant, text: '', streaming: true),
+        ChatMessage(
+          role: ChatRole.assistant,
+          text: '',
+          streaming: true,
+          lastEventAt: ref.read(assistantClockProvider)(),
+        ),
       ],
       sending: true,
     );
@@ -335,7 +358,10 @@ class ChatController extends Notifier<ChatState> {
     final messages = [...state.messages];
     if (messages.isEmpty) return;
     final index = messages.length - 1;
-    final current = messages[index];
+    // Every event is a sign of life, whatever it carries.
+    final current = messages[index].copyWith(
+      lastEventAt: ref.read(assistantClockProvider)(),
+    );
 
     switch (event) {
       case ConversationEvent(:final id):
@@ -397,6 +423,13 @@ class ChatController extends Notifier<ChatState> {
           artifacts[at] = artifact;
         }
         messages[index] = current.copyWith(artifacts: artifacts);
+      case FocusEvent(:final artifactId, :final index):
+        // Held beside the artifacts rather than written into one: the
+        // artifact's data is the tool's result, and a focus that arrives
+        // before its artifact (it never should) still lands.
+        messages[index] = current.copyWith(
+          focus: <String, int>{...current.focus, artifactId: index},
+        );
       case SourcesEvent(:final sources):
         // One per turn by contract; a repeat replaces rather than duplicates.
         messages[index] = current.copyWith(sources: sources);
@@ -436,7 +469,10 @@ class ChatController extends Notifier<ChatState> {
       if (last.streaming) {
         messages[index] = last.copyWith(
           streaming: false,
-          stopped: _stopping,
+          // A stream that died after prose arrived keeps its prose and takes
+          // the "Stopped." line: half an answer is worth more than an error
+          // that erases it, and presenting it as finished would be a lie.
+          stopped: _stopping || last.text.isNotEmpty,
           // A turn the manager stopped is not a failure and never takes the
           // error block: half an answer she asked to keep is worth more than
           // a message that erases it.

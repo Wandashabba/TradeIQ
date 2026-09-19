@@ -3,13 +3,13 @@ import 'package:flutter/widgets.dart';
 import '../../../core/design/figure_slot.dart';
 import '../../../core/design/motion_budget.dart';
 import '../../../core/design/tiq_number.dart';
-import '../../../core/design/torch_scope.dart';
 import '../../../core/format/period_label.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../l10n/l10n.dart';
 import '../answer/answer_motion.dart';
 import '../answer/ask_light.dart';
 import '../data/chat_controller.dart';
+import 'answer_focus.dart';
 
 /// One plotted point.
 typedef TrendPoint = ({String label, double value});
@@ -123,7 +123,9 @@ class TrendChartCard extends StatelessWidget {
     final comparison = _points(_comparison['points']);
     final points = _points(_data['points']);
     final percent = metric != null && percentMetrics.contains(metric);
-    final lit = TorchScope.lit(context, AskLight.focusClaimId);
+    // The primary series is the route's one lit object only when this chart
+    // is the turn's target — which it is only when the answer has no ranking.
+    final lit = AnswerFocusScope.isLit(context, artifact);
 
     // Fewer than two readable points is not a chart. One honest line in the
     // block's slot, and the legend is dropped with it — naming a line that is

@@ -1879,6 +1879,29 @@ class AppLocalizationsAf extends AppLocalizations {
   String get askStepsStillWorking => 'Hierdie een neem ’n rukkie';
 
   @override
+  String get askStepsStarting => 'Lees jou vraag';
+
+  @override
+  String askStepsStillWorkingOn(String label) {
+    return 'Werk nog aan $label.';
+  }
+
+  @override
+  String get askStopShort => 'Stop';
+
+  @override
+  String get askNavFloor => 'Vloer';
+
+  @override
+  String get askNavWork => 'Werk';
+
+  @override
+  String get askNavAsk => 'Vra';
+
+  @override
+  String get askNavMenu => 'Kieslys';
+
+  @override
   String get askStepsLive => 'Besig';
 
   @override

@@ -23,6 +23,7 @@ import '../answer/composer.dart';
 import '../answer/web_sources.dart';
 import '../answer/working_steps.dart';
 import '../data/chat_controller.dart';
+import '../view_specs/answer_focus.dart';
 import '../view_specs/instrument_panel.dart';
 import '../view_specs/outside_band.dart';
 import '../view_specs/view_spec_registry.dart';
@@ -262,7 +263,12 @@ class _AskState extends ConsumerState<_Ask> {
     final answer = last?.role == ChatRole.assistant ? last : null;
     final toolRunning =
         answer != null && answer.tools.any((t) => t.ok == null);
-    final focusArtifact = answer != null && _hasFocusObject(answer);
+    // Resolved once per build from the server's word, and handed to exactly
+    // one turn: the claim and the paint read the same target, so they cannot
+    // disagree about whether — or where — the answer is lit.
+    final focusTarget =
+        answer == null ? null : AnswerFocusTarget.resolve(answer);
+    final focusArtifact = focusTarget != null;
 
     final phase = resolveAskPhase(
       transcriptEmpty: state.messages.isEmpty,
@@ -327,12 +333,18 @@ class _AskState extends ConsumerState<_Ask> {
               : <Widget>[
                   for (var i = 0; i < state.messages.length; i++) ...<Widget>[
                     if (i > 0) SizedBox(height: skin.space.blockGap + 8),
-                    _Turn(
+                    AnswerFocusScope(
                       key: ValueKey<int>(i),
-                      message: state.messages[i],
-                      previous: i >= 2 ? state.messages[i - 2] : null,
-                      phase: phase,
-                      onAsk: _send,
+                      focus: state.messages[i].focus,
+                      target: i == state.messages.length - 1
+                          ? focusTarget
+                          : null,
+                      child: _Turn(
+                        message: state.messages[i],
+                        previous: i >= 2 ? state.messages[i - 2] : null,
+                        phase: phase,
+                        onAsk: _send,
+                      ),
                     ),
                   ],
                 ],
@@ -344,23 +356,27 @@ class _AskState extends ConsumerState<_Ask> {
   /// Floor · Work · Ask · Menu. Four slots, because five do not fit the 360dp
   /// arithmetic, and Ask is the third.
   static List<TorchNavSlot> askNavSlots(AppLocalizations l10n) =>
-      const <TorchNavSlot>[
+      <TorchNavSlot>[
         TorchNavSlot(
           icon: Icons.inventory_2_outlined,
           activeIcon: Icons.inventory_2,
-          label: 'Floor',
+          label: l10n.askNavFloor,
         ),
         TorchNavSlot(
           icon: Icons.checklist_outlined,
           activeIcon: Icons.checklist,
-          label: 'Work',
+          label: l10n.askNavWork,
         ),
         TorchNavSlot(
           icon: Icons.forum_outlined,
           activeIcon: Icons.forum,
-          label: 'Ask',
+          label: l10n.askNavAsk,
         ),
-        TorchNavSlot(icon: Icons.menu, activeIcon: Icons.menu_open, label: 'Menu'),
+        TorchNavSlot(
+          icon: Icons.menu,
+          activeIcon: Icons.menu_open,
+          label: l10n.askNavMenu,
+        ),
       ];
 
   static void _go(BuildContext context, int index) {
@@ -392,30 +408,11 @@ class _AskState extends ConsumerState<_Ask> {
       _ => null,
     };
   }
-
-  /// Whether a landed answer has something the arbiter could light.
-  ///
-  /// It reads the **server's** `focusIndex` through the same path the bars
-  /// and the chart do, so the claim and the paint cannot disagree: no focus
-  /// field, no claim, no light.
-  static bool _hasFocusObject(ChatMessage message) {
-    final figures = AnswerFigures.of(message);
-    if (figures.suppressed) return false;
-    for (final artifact in figures.internal) {
-      if (artifact.type == 'ranked_bars') {
-        final data = artifact.data;
-        if (data is Map && data['focusIndex'] is int) return true;
-      }
-      if (artifact.type == 'trend_chart') return true;
-    }
-    return false;
-  }
 }
 
 /// One turn in the transcript.
 class _Turn extends ConsumerWidget {
   const _Turn({
-    super.key,
     required this.message,
     required this.previous,
     required this.phase,
@@ -455,15 +452,22 @@ class _Turn extends ConsumerWidget {
       // The rail sits above the answer: its whole job is to explain a pause
       // before there is any text to show, and afterwards to say what the
       // answer was built from.
-      if (message.tools.isNotEmpty)
-        message.streaming
-            ? WorkingSteps(
-                tools: message.tools,
-                streaming: true,
-                animate: animate,
-                writing: writing,
-              )
-            : StepsSummaryRow(tools: message.tools),
+      //
+      // It also stands in the gap before the first event, header only, so a
+      // question never sits above a blank space that reads as a dropped send.
+      if (message.streaming &&
+          (message.tools.isNotEmpty || message.text.isEmpty))
+        WorkingSteps(
+          tools: message.tools,
+          streaming: true,
+          animate: animate,
+          writing: writing,
+          lastEventAt: message.lastEventAt,
+          now: ref.read(assistantClockProvider),
+          onStop: () => ref.read(chatControllerProvider.notifier).stop(),
+        )
+      else if (message.tools.isNotEmpty)
+        StepsSummaryRow(tools: message.tools),
       if (message.error != null)
         AnswerErrorBlock(
           message: message.error!,

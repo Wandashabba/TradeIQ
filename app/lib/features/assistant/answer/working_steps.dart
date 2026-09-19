@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 
@@ -6,6 +8,8 @@ import '../../../core/design/motion_budget.dart';
 import '../../../core/design/tiq_number.dart';
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/secondary_button.dart';
+import '../../../core/widgets/torchlight/button/torch_button.dart';
 import '../../../core/widgets/torchlight/button/torch_press.dart';
 import '../../../core/widgets/torchlight/mark/tiq_mark.dart';
 import '../../../l10n/l10n.dart';
@@ -136,13 +140,16 @@ enum StepState {
 /// Under reduce-motion, in Day and in Veld the running dot is a `lifted` disc
 /// plus the word "Live" — through the same code path, so the two cannot rot
 /// apart.
-class WorkingSteps extends StatelessWidget {
+class WorkingSteps extends StatefulWidget {
   const WorkingSteps({
     super.key,
     required this.tools,
     required this.streaming,
     this.animate = false,
     this.writing = false,
+    this.lastEventAt,
+    this.now = DateTime.now,
+    this.onStop,
   });
 
   final List<ToolActivity> tools;
@@ -155,21 +162,115 @@ class WorkingSteps extends StatelessWidget {
   /// and the amber is already out.
   final bool writing;
 
+  /// When the client last heard anything about this turn. The stall
+  /// thresholds are measured from here — wall clock, on this phone — because
+  /// what a manager waited is what the rail should describe.
+  final DateTime? lastEventAt;
+
+  /// The clock the thresholds read. A seam so a test can stand at 31s.
+  final DateTime Function() now;
+
+  /// Stop, offered beneath the rail once a step has been silent for
+  /// [verySlow]. Keeps everything already written.
+  final VoidCallback? onStop;
+
   /// Past this the middle of the rail collapses to one row.
   static const int shownSteps = 8;
+
+  /// No event for this long while a step runs: "This one is taking a while."
+  static const Duration slow = Duration(seconds: 12);
+
+  /// No event for this long: Stop is offered beneath the rail.
+  static const Duration verySlow = Duration(seconds: 30);
+
+  @override
+  State<WorkingSteps> createState() => _WorkingStepsState();
+}
+
+/// How long the live turn has been silent, as the rail describes it.
+enum StallLevel {
+  /// Under 12s. Nothing extra — a normal wait is not news.
+  none,
+
+  /// 12–30s. One line under the running step.
+  slow,
+
+  /// Over 30s. The line, and Stop beneath the rail.
+  verySlow;
+
+  static StallLevel of(Duration silent) => silent >= WorkingSteps.verySlow
+      ? StallLevel.verySlow
+      : (silent >= WorkingSteps.slow ? StallLevel.slow : StallLevel.none);
+}
+
+class _WorkingStepsState extends State<WorkingSteps> {
+  /// One one-shot timer, armed for the next threshold only. Never periodic:
+  /// a rail that ticked every second would rebuild a transcript every second
+  /// to say nothing had changed.
+  Timer? _next;
+
+  @override
+  void initState() {
+    super.initState();
+    _arm();
+  }
+
+  @override
+  void didUpdateWidget(WorkingSteps old) {
+    super.didUpdateWidget(old);
+    if (old.lastEventAt != widget.lastEventAt ||
+        old.streaming != widget.streaming) {
+      _arm();
+    }
+  }
+
+  @override
+  void dispose() {
+    _next?.cancel();
+    super.dispose();
+  }
+
+  Duration get _silent {
+    final last = widget.lastEventAt;
+    if (last == null) return Duration.zero;
+    final silent = widget.now().difference(last);
+    return silent.isNegative ? Duration.zero : silent;
+  }
+
+  void _arm() {
+    _next?.cancel();
+    _next = null;
+    if (!widget.streaming || widget.lastEventAt == null) return;
+    final silent = _silent;
+    final Duration? wait = silent < WorkingSteps.slow
+        ? WorkingSteps.slow - silent
+        : (silent < WorkingSteps.verySlow
+              ? WorkingSteps.verySlow - silent
+              : null);
+    if (wait == null) return;
+    _next = Timer(wait, () {
+      if (!mounted) return;
+      setState(() {});
+      _arm();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
     final p = skin.palette;
+    final tools = widget.tools;
+    final streaming = widget.streaming;
+    final writing = widget.writing;
     final running = tools.indexWhere((t) => t.ok == null && streaming);
+    final stall = streaming ? StallLevel.of(_silent) : StallLevel.none;
 
     // First 2 and last 5, with one row between them saying how many are
     // hidden. Never a scroll region inside a transcript.
     final visible = <int>[];
     var hidden = 0;
-    if (tools.length <= shownSteps) {
+    if (tools.length <= WorkingSteps.shownSteps) {
       visible.addAll(List<int>.generate(tools.length, (i) => i));
     } else {
       visible.addAll(<int>[0, 1]);
@@ -179,25 +280,65 @@ class WorkingSteps extends StatelessWidget {
       );
     }
 
+    // Before the first tool — the model is reading the question. The old
+    // build showed three dots here; a blank gap under the question bubble
+    // reads as a dropped send.
+    final header = tools.isEmpty && streaming
+        ? l10n.askStepsStarting
+        : (writing ? l10n.askStepsWriting : l10n.askStepsLookingUp);
+
+    final stallLine = stall == StallLevel.none
+        ? null
+        : Padding(
+            key: const ValueKey<String>('working-steps-stalled'),
+            padding: EdgeInsets.only(
+              left: _StepRow.labelInset(context),
+              top: TiqSpace.s1,
+            ),
+            child: Text(
+              l10n.askStepsStillWorking,
+              style: skin.text.meta.style(color: p.ink3),
+            ),
+          );
+
     return Semantics(
       liveRegion: streaming,
       label: streaming && running != -1
-          ? l10n.askStepProgress(
-              running + 1,
-              tools.length,
-              stepLabel(tools[running]),
-            )
+          ? (stall == StallLevel.none
+                ? l10n.askStepProgress(
+                    running + 1,
+                    tools.length,
+                    stepLabel(tools[running]),
+                  )
+                : l10n.askStepsStillWorkingOn(stepLabel(tools[running])))
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Text(
-            writing ? l10n.askStepsWriting : l10n.askStepsLookingUp,
-            key: const ValueKey<String>('working-steps-header'),
-            style: skin.text.label.style(color: p.ink2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Flexible(
+                child: Text(
+                  header,
+                  key: const ValueKey<String>('working-steps-header'),
+                  style: skin.text.label.style(color: p.ink2),
+                ),
+              ),
+              if (tools.isEmpty && streaming) ...<Widget>[
+                const SizedBox(width: TiqSpace.s2),
+                // Oatmeal, never amber: nothing is being looked up yet, and
+                // a breathing amber would say something is.
+                ExcludeSemantics(
+                  child: TorchBusyDots(color: p.ink2, size: 4, gap: 6),
+                ),
+              ],
+            ],
           ),
-          SizedBox(height: skin.space.intraBlock - TiqSpace.s1 * 2),
+          if (tools.isEmpty && stallLine != null) stallLine,
+          if (tools.isNotEmpty)
+            SizedBox(height: skin.space.intraBlock - TiqSpace.s1 * 2),
           for (var v = 0; v < visible.length; v++) ...<Widget>[
             if (v == 2 && hidden > 0)
               Padding(
@@ -214,7 +355,7 @@ class WorkingSteps extends StatelessWidget {
               padding: EdgeInsets.only(top: v == 0 ? 0 : TiqSpace.s1),
               child: Arrive(
                 key: ValueKey<String>('step-${visible[v]}'),
-                enabled: animate,
+                enabled: widget.animate,
                 offset: 6,
                 duration: const Duration(milliseconds: 280),
                 child: _StepRow(
@@ -222,6 +363,20 @@ class WorkingSteps extends StatelessWidget {
                   running: streaming && visible[v] == running && !writing,
                 ),
               ),
+            ),
+            // Indented under the step that has gone quiet — or under the
+            // last one, when the silence is the model composing.
+            if (stallLine != null &&
+                visible[v] == (running == -1 ? tools.length - 1 : running))
+              stallLine,
+          ],
+          if (stall == StallLevel.verySlow && widget.onStop != null) ...<Widget>[
+            const SizedBox(height: TiqSpace.s3),
+            TorchSecondaryButton(
+              key: const ValueKey<String>('working-steps-stop'),
+              label: l10n.askStopShort,
+              semanticLabel: l10n.askStop,
+              onPressed: widget.onStop,
             ),
           ],
         ],

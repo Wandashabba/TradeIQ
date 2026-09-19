@@ -3,7 +3,6 @@ import 'package:flutter/widgets.dart';
 import '../../../core/design/figure_slot.dart';
 import '../../../core/design/hatch_paint.dart';
 import '../../../core/design/tiq_number.dart';
-import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/mark/tiq_mark.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -11,8 +10,9 @@ import '../../../l10n/l10n.dart';
 import '../answer/answer_motion.dart';
 import '../answer/ask_light.dart';
 import '../data/chat_controller.dart';
-import 'stat_tiles_card.dart' show askUnitFor;
+import 'answer_focus.dart';
 import 'rich_figures.dart';
+import 'stat_tiles_card.dart' show askUnitFor;
 
 /// THE `ranked_bars` SPEC — a ranking, worst first.
 ///
@@ -64,8 +64,10 @@ class _RankedBarsCardState extends State<RankedBarsCard> {
     if (data.items.isEmpty) return const SizedBox.shrink();
 
     final max = data.maxAbs;
-    final focus = data.focusIndex;
-    final lit = TorchScope.lit(context, AskLight.focusClaimId);
+    // The server's choice, through the turn's `focus` events; lit only when
+    // this block is the route's one target and the route holds the grant.
+    final focus = AnswerFocusScope.focusIndexFor(context, widget.artifact);
+    final lit = AnswerFocusScope.isLit(context, widget.artifact);
     final shown = _all
         ? data.items.length
         : (data.items.length <= RankedBarsCard.shownRows
@@ -224,7 +226,9 @@ class _BarRow extends StatelessWidget {
         item.label,
         valueLabel,
         l10n.askBarSemantic(item.label, valueLabel, index + 1, total),
-        if (index == 0) l10n.askBarWorst,
+        // The server orders worst first and names the bar the sentence is
+        // about; "worst" is said of that bar, not guessed from position.
+        if (focus) l10n.askBarWorst,
       ].skip(2).join(', '),
       excludeSemantics: true,
       child: RepaintBoundary(

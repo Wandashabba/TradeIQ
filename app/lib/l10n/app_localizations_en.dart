@@ -1855,6 +1855,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askStepsStillWorking => 'This one is taking a while';
 
   @override
+  String get askStepsStarting => 'Reading your question';
+
+  @override
+  String askStepsStillWorkingOn(String label) {
+    return 'Still working on $label.';
+  }
+
+  @override
+  String get askStopShort => 'Stop';
+
+  @override
+  String get askNavFloor => 'Floor';
+
+  @override
+  String get askNavWork => 'Work';
+
+  @override
+  String get askNavAsk => 'Ask';
+
+  @override
+  String get askNavMenu => 'Menu';
+
+  @override
   String get askStepsLive => 'Live';
 
   @override
