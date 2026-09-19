@@ -97,6 +97,7 @@ class ScriptedVisits implements VisitsRepository {
 
   factory ScriptedVisits.succeeds() =>
       ScriptedVisits(() => CheckInSucceeded('visit-1'));
+
   /// A failed fence, measured from a real position — so the wrong-pin
   /// report (#386) has evidence to carry.
   factory ScriptedVisits.tooFar([double metres = 180]) => ScriptedVisits(

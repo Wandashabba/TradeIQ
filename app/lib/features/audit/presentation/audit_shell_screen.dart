@@ -426,40 +426,59 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
           );
         }
 
+        // Each screen of the check-in gets its own subtree. They all wear a
+        // VisitFrame, so without a key Flutter reuses one shell's state across
+        // them — and its scroll offset with it: the report, opened from a
+        // too-far screen scrolled down to its third action, arrived scrolled,
+        // and the hub after it opened with its flags above the fold (#386).
         final disputing = _disputing;
         if (disputing != null && _checkInResult is CheckInGeofenceFailed) {
-          return PinDisputeView(
-            outlet: outlet,
-            failure: disputing,
-            error: _disputeError,
-            onFile: _fileDispute,
-            onCancel: _cancelDispute,
+          return KeyedSubtree(
+            key: const ValueKey<String>('visit-screen-pin-dispute'),
+            child: PinDisputeView(
+              outlet: outlet,
+              failure: disputing,
+              error: _disputeError,
+              onFile: _fileDispute,
+              onCancel: _cancelDispute,
+            ),
           );
         }
 
-        return switch (_checkInResult) {
-          null => _CheckingIn(outlet: outlet),
-          CheckInSucceeded() => _hub(outlet),
-          final CheckInGeofenceFailed failure => _TooFar(
-            outlet: outlet,
-            failure: failure,
-            attempts: _attempts,
-            onRetry: _retry,
-            onDisputePin: () => _openDispute(failure),
-          ),
-          final CheckInLocationUnavailable unavailable => _NoGps(
-            outlet: outlet,
-            message: unavailable.messageIn(l10n),
-            problem: unavailable.problem,
-            onRetry: _retry,
-          ),
-          CheckInFailed(:final reason) => _SomethingElse(
-            outlet: outlet,
-            reason: reason,
-            failedAt: _failedAt,
-            onRetry: _retry,
-          ),
-        };
+        final result = _checkInResult;
+        return KeyedSubtree(
+          key: ValueKey<String>(switch (result) {
+            null => 'visit-screen-locating',
+            CheckInOverridden() => 'visit-screen-hub-flagged',
+            CheckInSucceeded() => 'visit-screen-hub',
+            CheckInGeofenceFailed() => 'visit-screen-too-far',
+            CheckInLocationUnavailable() => 'visit-screen-no-gps',
+            CheckInFailed() => 'visit-screen-failed',
+          }),
+          child: switch (result) {
+            null => _CheckingIn(outlet: outlet),
+            CheckInSucceeded() => _hub(outlet),
+            final CheckInGeofenceFailed failure => _TooFar(
+              outlet: outlet,
+              failure: failure,
+              attempts: _attempts,
+              onRetry: _retry,
+              onDisputePin: () => _openDispute(failure),
+            ),
+            final CheckInLocationUnavailable unavailable => _NoGps(
+              outlet: outlet,
+              message: unavailable.messageIn(l10n),
+              problem: unavailable.problem,
+              onRetry: _retry,
+            ),
+            CheckInFailed(:final reason) => _SomethingElse(
+              outlet: outlet,
+              reason: reason,
+              failedAt: _failedAt,
+              onRetry: _retry,
+            ),
+          },
+        );
       },
     );
   }

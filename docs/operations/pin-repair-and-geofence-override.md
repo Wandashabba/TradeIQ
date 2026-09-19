@@ -106,6 +106,28 @@ closed but whose shutters an agent is standing in front of must still be
 visitable. Adding a second way to strand an agent while fixing the first would
 be absurd.
 
+## What the agent sees
+
+On the too-far screen, under the distance and below *Try again*, sits a quiet
+third action: **The pin is wrong**. It opens a report that lists what goes with
+it — the distance and the position the failed check-in measured, not a second
+fix taken later — takes an optional note and an optional storefront photo, and
+says in words that the visit starts outside the fence, stays flagged, and is not
+the agent's to clear. *Start the visit, flagged* writes the local draft with
+`geofencePass: false` and queues `POST /visits` with `pinDispute`.
+
+The hub then carries two neutral flag chips — **Out of fence · 180 m** and
+**Pin reported** — each opening a sheet that says what the manager sees. They
+are never crimson: out of fence is a measurement and a report is a claim, not a
+verdict.
+
+Beyond 25 km the action is replaced by a sentence telling the agent to ask their
+manager. The app mirrors the server's *default* cap only so it does not offer a
+claim the default would refuse: a queued check-in the server rejects would
+strand the whole visit behind it. A tenant that lowers
+`pinDisputeMaxDistanceM` below 25 km should know that an agent between the two
+numbers can still file, and that the check-in will then be refused on sync.
+
 ## Evidence photos
 
 A storefront photo offered with a dispute rides the ordinary photo pipeline
