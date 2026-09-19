@@ -140,15 +140,32 @@ export async function computeLeaderboard(
 }
 
 /**
+ * The caller's own entry, whose `rank` can be **null**.
+ *
+ * Every row of `computeLeaderboard` has a place, so `/gamification/leaderboard`
+ * keeps a `number`. `/gamification/me` is the one read where the caller may not
+ * be on the board at all, and that is an absence rather than a last place.
+ */
+export type OwnLeaderboardEntry = Omit<LeaderboardEntry, 'rank'> & { rank: number | null };
+
+/**
  * The caller's own leaderboard entry. Field agents resolve to their computed
  * row; callers with no field activity (e.g. managers/admins, who never appear
- * on the leaderboard) get a zeroed entry ranked last.
+ * on the leaderboard) get a zeroed entry with **no rank**.
+ *
+ * `rank: null`, and deliberately. This used to return `leaderboard.length + 1`
+ * — a manager opening their own record on a board of three agents was told
+ * "4", a place that exists nowhere, computed from a list they are not in. A
+ * fabricated figure is worse than an absent one, because the client cannot
+ * tell it from a measured one: `/me` is open to managers (app_router.dart),
+ * and the screen prints what it is given. Null is the fact, and the client
+ * says it in words.
  */
 export async function getAgentLeaderboardEntry(
   clientId: string,
   userId: string,
   opts: LeaderboardOptions = {},
-): Promise<LeaderboardEntry> {
+): Promise<OwnLeaderboardEntry> {
   const leaderboard = await computeLeaderboard(clientId, opts);
   const own = leaderboard.find((entry) => entry.agentId === userId);
   if (own) {
@@ -168,7 +185,7 @@ export async function getAgentLeaderboardEntry(
     tasksClosed: 0,
     avgScorecard: 0,
     points: 0,
-    rank: leaderboard.length + 1,
+    rank: null,
   };
 }
 

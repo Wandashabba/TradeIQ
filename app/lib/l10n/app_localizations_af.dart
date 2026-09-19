@@ -3416,7 +3416,10 @@ class AppLocalizationsAf extends AppLocalizations {
   String get meLedgerHeading => 'Hoe jy dit verdien het';
 
   @override
-  String get mePointsEyebrow => 'PUNTE HIERDIE MAAND';
+  String get mePointsEyebrow => 'PUNTE ALTESAAM';
+
+  @override
+  String get meAllTime => 'Van die begin af';
 
   @override
   String get meRankEyebrow => 'PLEK';
@@ -3427,14 +3430,14 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get meNotRanked =>
-      'Nog nie gerangskik nie — te min agente het hierdie maand punte.';
+      'Net veldagente word gerangskik, so jy het nie \'n plek op hierdie ranglys nie.';
 
   @override
   String get meNoPointsYet =>
-      'Nog geen punte hierdie maand nie. Punte kom wanneer \'n besoek ingedien of \'n taak gesluit word.';
+      'Nog geen punte nie. Punte kom wanneer \'n besoek ingedien of \'n taak gesluit word.';
 
   @override
-  String get meNoScheme => 'Geen beloning loop hierdie maand nie.';
+  String get meNoScheme => 'Geen beloning loop tans nie.';
 
   @override
   String meRewardProgress(String value, String total) {
@@ -3467,7 +3470,7 @@ class AppLocalizationsAf extends AppLocalizations {
       'Punte word op die bediener bereken. Hulle kan verander as \'n besoek hersien word.';
 
   @override
-  String get meLedgerEmpty => 'Niks het hierdie maand nog punte verdien nie.';
+  String get meLedgerEmpty => 'Niks het nog punte verdien nie.';
 
   @override
   String get meVisitsEmpty => 'Nog geen besoeke nie';
@@ -3604,6 +3607,23 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get meEarningsLoadError => 'Jou punte het nie gelaai nie';
+
+  @override
+  String get meReasonVisitSubmitted => 'Besoek ingedien';
+
+  @override
+  String get meReasonTaskClosed => 'Taak gesluit';
+
+  @override
+  String get meReasonScorecard => 'Telkaart';
+
+  @override
+  String get meReasonPoints => 'Punte';
+
+  @override
+  String meLedgerScoreRowSemantics(String reason, String day, String score) {
+    return '$reason, $day, $score behaal';
+  }
 
   @override
   String get meContestsDetail => 'Kyk waar jy staan';
