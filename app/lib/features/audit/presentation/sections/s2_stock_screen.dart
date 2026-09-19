@@ -302,8 +302,8 @@ class _StockFormState extends ConsumerState<_StockForm> {
 /// reader's font setting is touched at all, which is over the ceiling already.
 /// The glare skin is built, not declared, and this is one of the places that
 /// costs something — the band keeps the one line that has to be true at a
-/// glance, and the sentence and the jump land first in the body, still above
-/// the fold.
+/// glance, and the sentence and the jump land first in the body, ahead of the
+/// first product rather than somewhere down a 60-SKU shelf.
 ///
 /// Both halves read this: the band drops what it will not keep, and
 /// [_SummaryDetail] picks up exactly what the band dropped. It is asked in the
@@ -326,6 +326,11 @@ const double _bandScaleProbe = 10;
 /// region: it is the only place the agent can see what a Save would record.
 /// Pinned beneath the header with a hairline under it; past twelve products
 /// with any still uncounted it carries a ghost that jumps to the first.
+///
+/// When [_bandCollapsed] says so, the counted line travels alone and
+/// [_SummaryDetail] carries the sentence and the ghost at the top of the body.
+/// The spoken label does not change: a screen reader hears the count and what
+/// is still to go as one sentence either way.
 class _SummaryRule extends StatelessWidget {
   const _SummaryRule({
     required this.counted,
