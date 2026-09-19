@@ -8,6 +8,7 @@ import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/features/contests/data/contests_repository.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
 /// The two migrated agent routes, stood up in a chosen skin at a pinned size.
@@ -55,6 +56,7 @@ List<Override> agentBaseOverrides({
   required LocalDb db,
   SkinMode skin = SkinMode.night,
   SyncStatus sync = SyncStatus.empty,
+  int runningContests = 0,
 }) => <Override>[
   localDbProvider.overrideWithValue(db),
   agentSkinProvider.overrideWith(() => PinnedAgentSkin(skin)),
@@ -62,6 +64,9 @@ List<Override> agentBaseOverrides({
   // `pumpAndSettle` never settles against a real stream. The derived provider
   // is stubbed here; `sync_status_test` covers the real query.
   syncStatusProvider.overrideWith((ref) => Stream<SyncStatus>.value(sync)),
+  // The Contests slot's badge (#124). Pinned so no agent screen test reaches
+  // for the session and the contests API to draw a number.
+  runningContestsCountProvider.overrideWith((ref) async => runningContests),
 ];
 
 /// The key the amber census reads its pixels back from.
@@ -126,6 +131,35 @@ Future<void> pumpAgentScreen(
   } else {
     await tester.pump();
   }
+}
+
+/// Unmount the tree **inside the test body**, and flush what disposing it
+/// schedules.
+///
+/// ## The drift-`watch()` / `pumpAndSettle` trap, and its other half
+///
+/// Drift's `watch()` reschedules a zero-duration timer on every tick, so
+/// `pumpAndSettle` never settles against a real stream — the test hangs with
+/// no output. The usual answer is to override the derived provider with
+/// `Stream.value(...)` ([agentBaseOverrides] does it for `syncStatusProvider`).
+///
+/// A test that is *about* the derivation cannot do that, and then the second
+/// half of the trap fires. Cancelling a drift query stream schedules one more
+/// zero-duration timer (`StreamQueryStore.markAsClosed`). flutter_test
+/// unmounts the tree for you after the body and then calls `pump()` with **no
+/// duration** — which flushes microtasks but never elapses the fake clock — so
+/// that timer is still pending when `_verifyInvariants` runs, and the test
+/// dies on *"A Timer is still pending even after the widget tree was
+/// disposed."* The next test in the file then hangs in `db.close()`, waiting
+/// on a stream store that a dead `FakeAsync` will never drain.
+///
+/// So a test that stands a screen up against a real drift-backed provider
+/// unmounts it itself and pumps **with** a duration. Call this last.
+Future<void> disposeAgentScreen(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  // With a duration, so the fake clock actually elapses and the cancellation
+  // timer runs. `pump()` with no argument would not.
+  await tester.pump(Duration.zero);
 }
 
 /// Scroll until [finder] is on screen. The body is a lazy `ListView`, which

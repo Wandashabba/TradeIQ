@@ -262,6 +262,11 @@ Future<void> pumpVisit(
 /// be stubbed. Drift's `watch()` reschedules a zero-duration timer forever, so
 /// this never calls `pumpAndSettle`: it pumps a fixed number of frames, which
 /// is enough for the post-frame check-in, the pin and the first stream event.
+///
+/// A test that uses this must end with `await disposeAgentScreen(tester)` —
+/// cancelling the query stream schedules one last zero-duration timer, and
+/// flutter_test's own teardown pump does not elapse the clock far enough to
+/// run it. See [disposeAgentScreen].
 Future<void> pumpVisitLive(
   WidgetTester tester, {
   required VisitsRepository visits,

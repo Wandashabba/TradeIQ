@@ -23,11 +23,32 @@ void main() {
       await pumpVisit(tester, visits: ScriptedVisits.succeeds());
 
       expect(find.text('Kasi Corner Spaza'), findsWidgets);
+
+      // The hint is ABOVE the ladder, not meta at the bottom: the agent needs
+      // it before they start choosing, not after they have finished — so it
+      // is on the first screen and the ladder is the thing you scroll to.
+      final hint = find.textContaining('Any order.');
+      expect(hint, findsOneWidget);
+      expect(
+        tester
+            .getRect(
+              find.byKey(
+                const ValueKey<String>('section-stock'),
+                skipOffstage: false,
+              ),
+            )
+            .top,
+        greaterThan(tester.getRect(hint).bottom),
+        reason: 'the hint must sit above the first rung, not under the last',
+      );
+
+      // The ladder itself: named rungs, each exactly once. On a 360×640 phone
+      // the header, the readiness block and the hint fill the first screen, so
+      // the rungs are one flick down — which is the geometry a real agent has,
+      // and the reason this scrolls rather than pumping a 2000dp viewport.
+      await scrollAgentTo(tester, find.text('Stock & availability'));
       expect(find.text('Stock & availability'), findsOneWidget);
       expect(find.text('Pricing & promotions'), findsOneWidget);
-      // The hint is ABOVE the ladder, not meta at the bottom: the agent needs
-      // it before they start choosing, not after they have finished.
-      expect(find.textContaining('Any order.'), findsOneWidget);
     });
 
     testWidgets('no tabs — one primary in the thumb zone', (tester) async {
@@ -176,6 +197,7 @@ void main() {
           find.textContaining('The product list did not load'),
           findsWidgets,
         );
+        await disposeAgentScreen(tester);
       },
     );
 
@@ -202,6 +224,7 @@ void main() {
         button.blockedReason!.contains('Stock & availability'),
         isTrue,
       );
+      await disposeAgentScreen(tester);
     });
 
     testWidgets('a template pin that fails leaves a row, not a silence', (
@@ -222,6 +245,7 @@ void main() {
         find.textContaining('The client’s questions did not load'),
         findsWidgets,
       );
+      await disposeAgentScreen(tester);
     });
 
     testWidgets('the readiness line counts it separately', (tester) async {
@@ -281,13 +305,24 @@ void main() {
 
     testWidgets('the first attempt is a fact, not a threat', (tester) async {
       await pumpVisit(tester, visits: ScriptedVisits.tooFar(180));
+      // The hero is the measured distance; the note about what retrying costs
+      // sits under it and is past the fold on a 360×640 phone. The claim here
+      // is WHICH sentence the screen renders, so both finders read the whole
+      // built frame — and the negative one has to, or it passes on any screen
+      // that simply scrolled the sentence out of sight.
       expect(
-        find.text('Every attempt is recorded with where you were.'),
+        find.text(
+          'Every attempt is recorded with where you were.',
+          skipOffstage: false,
+        ),
         findsOneWidget,
       );
       // The penalty sentence does NOT appear here: the penalty has not
       // started, and the app must not threaten before it charges.
-      expect(find.textContaining('fraud signal'), findsNothing);
+      expect(
+        find.textContaining('fraud signal', skipOffstage: false),
+        findsNothing,
+      );
     });
 
     testWidgets('the third attempt is where the honest warning arrives', (
@@ -300,7 +335,10 @@ void main() {
         await tester.tap(find.byKey(const ValueKey<String>('checkin-retry')));
         await tester.pumpAndSettle();
       }
-      expect(find.textContaining('fraud signal'), findsOneWidget);
+      expect(
+        find.textContaining('fraud signal', skipOffstage: false),
+        findsOneWidget,
+      );
       // Retry must reset the started flag or the post-frame call never fires
       // again — which is how a retry button that did nothing shipped once.
       expect(visits.calls, 3);

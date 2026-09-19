@@ -71,7 +71,7 @@ List<String> _sectionKeys(WidgetTester tester) => tester
 
 void main() {
   for (final skin in <SkinMode>[SkinMode.night, SkinMode.day, SkinMode.veld]) {
-    group('${skin.name}', () {
+    group(skin.name, () {
       testWidgets('no template: the hub is exactly the fixed audit', (
         tester,
       ) async {
@@ -227,13 +227,16 @@ void main() {
       ),
       locale: const Locale('af'),
     );
+    // Our own words are Afrikaans. Asserted at rest, before the scroll: the
+    // hint sits above the ladder and the client's section is the last row but
+    // one, so no single scroll offset has both on screen at 360×640.
+    expect(find.textContaining('Enige volgorde'), findsOneWidget);
+
     await scrollAgentTo(
       tester,
       find.byKey(const ValueKey<String>('section-clientQuestions')),
     );
     // The client named their own template; we do not translate it.
     expect(find.text('Promo Check'), findsOneWidget);
-    // Our own words around it are Afrikaans.
-    expect(find.textContaining('Enige volgorde'), findsOneWidget);
   });
 }
