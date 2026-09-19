@@ -179,7 +179,10 @@ void main() {
       final block = find.byKey(const ValueKey<String>('submit-captured'));
       expect(block, findsOneWidget);
       expect(
-        find.descendant(of: block, matching: find.text('4 of 7 sections complete')),
+        find.descendant(
+          of: block,
+          matching: find.text('4 of 7 sections complete'),
+        ),
         findsOneWidget,
       );
       // Verbatim from the review — nothing on this screen is added by the app.
@@ -241,10 +244,7 @@ void main() {
     ) async {
       final handle = tester.ensureSemantics();
       await _pump(tester);
-      await scrollAgentTo(
-        tester,
-        find.text('Fanta Orange 2L is out of stock'),
-      );
+      await scrollAgentTo(tester, find.text('Fanta Orange 2L is out of stock'));
 
       expect(
         find.bySemanticsLabel(
@@ -263,64 +263,77 @@ void main() {
     });
   });
 
-  group('a section the app could not establish is something to raise (#389)', () {
-    testWidgets('it gets its own row, named, with the reason in words', (
-      tester,
-    ) async {
-      await _pump(tester, progress: _progressCantConfirm);
-      await scrollAgentTo(
+  group(
+    'a section the app could not establish is something to raise (#389)',
+    () {
+      testWidgets('it gets its own row, named, with the reason in words', (
         tester,
-        find.byKey(
-          const ValueKey<String>('cant-confirm-Stock & availability'),
-          skipOffstage: false,
-        ),
-      );
+      ) async {
+        await _pump(tester, progress: _progressCantConfirm);
+        await scrollAgentTo(
+          tester,
+          find.byKey(
+            const ValueKey<String>('cant-confirm-Stock & availability'),
+            skipOffstage: false,
+          ),
+        );
 
-      // The old gate listed nothing here, so a store that refused four counts
-      // produced a gate printing "this store is in good shape" — the cleanest
-      // fraud path in the app.
-      expect(
-        find.text('Stock & availability could not be confirmed'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('The product list did not load'),
-        findsOneWidget,
-      );
-      expect(find.text('The manager is told · not confirmed'), findsOneWidget);
-    });
+        // The old gate listed nothing here, so a store that refused four counts
+        // produced a gate printing "this store is in good shape" — the cleanest
+        // fraud path in the app.
+        expect(
+          find.text('Stock & availability could not be confirmed'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('The product list did not load'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('The manager is told · not confirmed'),
+          findsOneWidget,
+        );
+      });
 
-    testWidgets('the captured block names how many were not confirmed', (
-      tester,
-    ) async {
-      await _pump(tester, progress: _progressCantConfirm);
-      expect(
-        find.text('1 section could not be confirmed — the manager is told'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('a store that refused everything is never "clean"', (
-      tester,
-    ) async {
-      await _pump(tester, review: _reviewClean, progress: _progressCantConfirm);
-      expect(
-        find.byKey(const ValueKey<String>('submit-clean'), skipOffstage: false),
-        findsNothing,
-      );
-      await scrollAgentTo(
+      testWidgets('the captured block names how many were not confirmed', (
         tester,
-        find.text(
-          'Stock & availability could not be confirmed',
-          skipOffstage: false,
-        ),
-      );
-      expect(
-        find.text('Stock & availability could not be confirmed'),
-        findsOneWidget,
-      );
-    });
-  });
+      ) async {
+        await _pump(tester, progress: _progressCantConfirm);
+        expect(
+          find.text('1 section could not be confirmed — the manager is told'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('a store that refused everything is never "clean"', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          review: _reviewClean,
+          progress: _progressCantConfirm,
+        );
+        expect(
+          find.byKey(
+            const ValueKey<String>('submit-clean'),
+            skipOffstage: false,
+          ),
+          findsNothing,
+        );
+        await scrollAgentTo(
+          tester,
+          find.text(
+            'Stock & availability could not be confirmed',
+            skipOffstage: false,
+          ),
+        );
+        expect(
+          find.text('Stock & availability could not be confirmed'),
+          findsOneWidget,
+        );
+      });
+    },
+  );
 
   // Unknown is not zero. The gate used to read an unloaded or unreadable
   // progress as "0 of 0 sections complete" and a visit with nothing

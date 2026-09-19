@@ -65,24 +65,25 @@ class _FakeOutletsRepository implements OutletsRepository {
   }) async => throw UnimplementedError();
 }
 
-TodayRoute _route({bool sunriseVisited = false}) => TodayRoute(
-  planName: 'Naledi · Soweto East',
-  hasLocation: true,
-  stops: <RouteStop>[
-    const RouteStop(
-      sequence: 1,
-      outlet: _kasi,
-      visited: true,
-      distanceMeters: 11,
-    ),
-    RouteStop(
-      sequence: 2,
-      outlet: _sunrise,
-      visited: sunriseVisited,
-      distanceMeters: 1330,
-    ),
-  ],
-);
+TodayRoute _route({bool kasiVisited = true, bool sunriseVisited = false}) =>
+    TodayRoute(
+      planName: 'Naledi · Soweto East',
+      hasLocation: true,
+      stops: <RouteStop>[
+        RouteStop(
+          sequence: 1,
+          outlet: _kasi,
+          visited: kasiVisited,
+          distanceMeters: 11,
+        ),
+        RouteStop(
+          sequence: 2,
+          outlet: _sunrise,
+          visited: sunriseVisited,
+          distanceMeters: 1330,
+        ),
+      ],
+    );
 
 ProviderContainer _container({
   TodayRoute? route,
@@ -105,22 +106,24 @@ ProviderContainer _container({
 
 void main() {
   group('what a store is on this map', () {
-    test('the plan decides done, next and later; the patch is the rest',
-        () async {
-      final view = await _container(route: _route()).read(
-        agentMapProvider.future,
-      );
+    test(
+      'the plan decides done, next and later; the patch is the rest',
+      () async {
+        final view = await _container(
+          route: _route(),
+        ).read(agentMapProvider.future);
 
-      expect(
-        view.pins.map((p) => p.outlet.id),
-        <String>['o1', 'o2', 'o3'],
-        reason: 'planned stops come first, in route order',
-      );
-      expect(view.pins[0].state, MapPinState.doneToday);
-      expect(view.pins[1].state, MapPinState.nextUp);
-      expect(view.pins[2].state, MapPinState.territory);
-      expect(view.pins[2].sequence, isNull);
-    });
+        expect(
+          view.pins.map((p) => p.outlet.id),
+          <String>['o1', 'o2', 'o3'],
+          reason: 'planned stops come first, in route order',
+        );
+        expect(view.pins[0].state, MapPinState.doneToday);
+        expect(view.pins[1].state, MapPinState.nextUp);
+        expect(view.pins[2].state, MapPinState.territory);
+        expect(view.pins[2].sequence, isNull);
+      },
+    );
 
     test('a third planned stop is "on today\'s route", not "next"', () async {
       final route = TodayRoute(
@@ -151,14 +154,19 @@ void main() {
       );
     });
 
-    test('no plan at all is not an empty screen — the patch still is one',
-        () async {
-      final view = await _container().read(agentMapProvider.future);
+    test(
+      'no plan at all is not an empty screen — the patch still is one',
+      () async {
+        final view = await _container().read(agentMapProvider.future);
 
-      expect(view.planned, isEmpty);
-      expect(view.territory.length, 3);
-      expect(view.pins.every((p) => p.state == MapPinState.territory), isTrue);
-    });
+        expect(view.planned, isEmpty);
+        expect(view.territory.length, 3);
+        expect(
+          view.pins.every((p) => p.state == MapPinState.territory),
+          isTrue,
+        );
+      },
+    );
 
     test('a pin under review keeps the state it had', () {
       const pin = MapOutlet(
@@ -188,40 +196,44 @@ void main() {
   });
 
   group('distances, and the refusal to guess one', () {
-    test('a fix gives every store a distance, nearest first in the patch',
-        () async {
-      final view = await _container(route: _route()).read(
-        agentMapProvider.future,
-      );
+    test(
+      'a fix gives every store a distance, nearest first in the patch',
+      () async {
+        final view = await _container(
+          route: _route(),
+        ).read(agentMapProvider.future);
 
-      expect(view.hasLocation, isTrue);
-      expect(view.problem, isNull);
-      expect(view.pins[0].distanceMeters, lessThan(50));
-      expect(view.pins[0].distance!.kilometres, isFalse);
-      expect(view.pins[1].distance!.kilometres, isTrue);
-      expect(view.pins[1].distance!.decimals, 1);
-    });
+        expect(view.hasLocation, isTrue);
+        expect(view.problem, isNull);
+        expect(view.pins[0].distanceMeters, lessThan(50));
+        expect(view.pins[0].distance!.kilometres, isFalse);
+        expect(view.pins[1].distance!.kilometres, isTrue);
+        expect(view.pins[1].distance!.decimals, 1);
+      },
+    );
 
-    test('no fix means no distance anywhere, and the patch sorts by name',
-        () async {
-      final view = await _container(
-        outlets: const <Outlet>[_sunrise, _khumalo, _kasi],
-        fix: LocationDenied(),
-      ).read(agentMapProvider.future);
+    test(
+      'no fix means no distance anywhere, and the patch sorts by name',
+      () async {
+        final view = await _container(
+          outlets: const <Outlet>[_sunrise, _khumalo, _kasi],
+          fix: LocationDenied(),
+        ).read(agentMapProvider.future);
 
-      expect(view.hasLocation, isFalse);
-      expect(view.problem, MapLocationProblem.denied);
-      expect(view.pins.every((p) => p.distanceMeters == null), isTrue);
-      expect(view.pins.every((p) => p.distance == null), isTrue);
-      expect(view.atDoor, isNull, reason: 'nowhere is "here" without a fix');
-      expect(
-        view.pins.map((p) => p.outlet.name),
-        <String>['Kasi Corner Spaza', 'Khumalo Superette', 'Sunrise Spaza'],
-        reason:
-            'a list half-ordered by a number nobody has is worse than one '
-            'ordered by name',
-      );
-    });
+        expect(view.hasLocation, isFalse);
+        expect(view.problem, MapLocationProblem.denied);
+        expect(view.pins.every((p) => p.distanceMeters == null), isTrue);
+        expect(view.pins.every((p) => p.distance == null), isTrue);
+        expect(view.atDoor, isNull, reason: 'nowhere is "here" without a fix');
+        expect(
+          view.pins.map((p) => p.outlet.name),
+          <String>['Kasi Corner Spaza', 'Khumalo Superette', 'Sunrise Spaza'],
+          reason:
+              'a list half-ordered by a number nobody has is worse than one '
+              'ordered by name',
+        );
+      },
+    );
 
     test('each refusal keeps its own reason', () async {
       Future<MapLocationProblem?> problemFor(LocationResult fix) async =>
@@ -235,7 +247,9 @@ void main() {
         MapLocationProblem.servicesOff,
       );
       expect(
-        await problemFor(LocationError('slow', kind: LocationErrorKind.timedOut)),
+        await problemFor(
+          LocationError('slow', kind: LocationErrorKind.timedOut),
+        ),
         MapLocationProblem.timedOut,
       );
       expect(
@@ -247,12 +261,53 @@ void main() {
 
   group('standing in a shop', () {
     test('the nearest store inside its own fence is where you are', () async {
-      final view = await _container(route: _route()).read(
-        agentMapProvider.future,
-      );
+      final view = await _container(
+        route: _route(kasiVisited: false),
+      ).read(agentMapProvider.future);
 
+      expect(view.pins.first.state, MapPinState.nextUp);
       expect(view.atDoor?.outlet.id, 'o1');
     });
+
+    test('a store already visited today is not "check in here"', () async {
+      // Visit submitted, agent still standing 11 m from the till. The store's
+      // own sheet demotes a second check-in to a ghost "Check in again"; the
+      // nav circle must not light amber for it as the expected next move.
+      final view = await _container(
+        route: _route(),
+      ).read(agentMapProvider.future);
+
+      expect(view.pins.first.outlet.id, 'o1');
+      expect(view.pins.first.state, MapPinState.doneToday);
+      expect(view.pins.first.atDoor, isTrue, reason: 'it is inside the fence');
+      expect(
+        view.atDoor,
+        isNull,
+        reason: 'nothing is armed when the only store in range is done',
+      );
+    });
+
+    test(
+      'an unvisited store in range wins over a nearer visited one',
+      () async {
+        // ~22 m south of Kasi, ~33 m from where the agent stands: both fences
+        // cover the agent, and Kasi is nearer, but Kasi is done.
+        const nextDoor = Outlet(
+          id: 'o4',
+          name: 'Next Door Tuck Shop',
+          code: 'ND-0001',
+          lat: -26.2402,
+          lng: 27.8580,
+        );
+        final view = await _container(
+          route: _route(),
+          outlets: const <Outlet>[_kasi, _sunrise, _khumalo, nextDoor],
+        ).read(agentMapProvider.future);
+
+        expect(view.atDoor?.outlet.id, 'o4');
+        expect(view.atDoor?.state, MapPinState.territory);
+      },
+    );
 
     test('a hundred metres away is not standing in it', () async {
       final view = await _container(
@@ -283,9 +338,10 @@ void main() {
             lng: 27.8580,
           ),
       ];
-      final view = await _container(route: _route(), outlets: many).read(
-        agentMapProvider.future,
-      );
+      final view = await _container(
+        route: _route(),
+        outlets: many,
+      ).read(agentMapProvider.future);
 
       expect(view.drawn.length, agentMapMarkerBudget);
       expect(view.hidden, view.pins.length - agentMapMarkerBudget);
@@ -302,9 +358,9 @@ void main() {
     });
 
     test('a small patch draws everything and hides nothing', () async {
-      final view = await _container(route: _route()).read(
-        agentMapProvider.future,
-      );
+      final view = await _container(
+        route: _route(),
+      ).read(agentMapProvider.future);
 
       expect(view.hidden, 0);
       expect(view.drawn.length, view.pins.length);
