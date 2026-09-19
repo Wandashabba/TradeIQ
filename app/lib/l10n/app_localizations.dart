@@ -3871,6 +3871,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not read which sections are done. {line}'**
   String submitCapturedUnreadSemantics(String line);
+
+  /// Shown instead of a delta on the visit outcome when the score loaded but the history request failed. Whether there was an earlier visit is unknown, so this never claims a first visit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your last visit here could not be loaded, so there is nothing to compare this score with.'**
+  String get outcomePreviousUnknown;
 }
 
 class _AppLocalizationsDelegate

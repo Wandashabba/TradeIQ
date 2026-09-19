@@ -2471,4 +2471,8 @@ class AppLocalizationsAf extends AppLocalizations {
   String submitCapturedUnreadSemantics(String line) {
     return 'Kon nie lees watter afdelings klaar is nie. $line';
   }
+
+  @override
+  String get outcomePreviousUnknown =>
+      'Jou vorige besoek hier kon nie gelaai word nie, so daar is niks om hierdie telling mee te vergelyk nie.';
 }

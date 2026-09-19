@@ -2444,4 +2444,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String submitCapturedUnreadSemantics(String line) {
     return 'Could not read which sections are done. $line';
   }
+
+  @override
+  String get outcomePreviousUnknown =>
+      'Your last visit here could not be loaded, so there is nothing to compare this score with.';
 }

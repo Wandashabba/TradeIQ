@@ -257,6 +257,53 @@ void main() {
       );
     });
 
+    // A delta never stands beside nothing, and a sentence never stands beside
+    // something false. A history request that dropped leaves the previous
+    // visit UNKNOWN; the screen used to print "First scored visit here." over
+    // it, at a store the agent had scored before.
+    testWidgets('a history that could not be read is never "first scored '
+        'visit here"', (tester) async {
+      await _pump(
+        tester,
+        outcome: const VisitOutcome(
+          score: _visit,
+          previous: null,
+          previousUnknown: true,
+        ),
+      );
+
+      expect(
+        find.text('First scored visit here.'),
+        findsNothing,
+        reason: 'unknown is not absent — that sentence is a false claim about '
+            'their own record',
+      );
+      expect(
+        find.byKey(const ValueKey<String>('outcome-delta')),
+        findsNothing,
+        reason: 'a delta never stands beside nothing',
+      );
+      expect(
+        find.text(
+          'Your last visit here could not be loaded, so there is nothing to '
+          'compare this score with.',
+        ),
+        findsOneWidget,
+      );
+      // The score itself still stands.
+      expect(find.text('72'), findsOneWidget);
+    });
+
+    testWidgets('a history that loaded and held nothing is still the first '
+        'visit sentence', (tester) async {
+      await _pump(tester);
+      expect(find.text('First scored visit here.'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('outcome-previous-unknown')),
+        findsNothing,
+      );
+    });
+
     testWidgets('a flat move says so in words', (tester) async {
       await _pump(
         tester,
@@ -540,6 +587,19 @@ void main() {
 
     testWidgets('at 2.0× the count does not change', (tester) async {
       await _pump(tester, textScale: 2.0);
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('an unknown history does not change the count', (tester) async {
+      await _pump(
+        tester,
+        outcome: const VisitOutcome(
+          score: _visit,
+          previous: null,
+          previousUnknown: true,
+        ),
+      );
       final census = await amberCensus(tester);
       expect(census.objectCount, 1, reason: census.describe());
     });

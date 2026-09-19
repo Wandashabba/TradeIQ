@@ -628,5 +628,6 @@
   "submitSectionsUnreadTask": "Jou afdelings kon nie gelees word nie",
   "submitSectionsUnreadRowLine": "Iets ontbreek dalk op hierdie lys",
   "submitSectionsUnreadNote": "’n Afdeling wat nie bevestig kon word nie, ontbreek dalk op hierdie lys. Gaan terug en maak jou afdelings oop om seker te maak voordat jy indien.",
-  "submitCapturedUnreadSemantics": "Kon nie lees watter afdelings klaar is nie. {line}"
+  "submitCapturedUnreadSemantics": "Kon nie lees watter afdelings klaar is nie. {line}",
+  "outcomePreviousUnknown": "Jou vorige besoek hier kon nie gelaai word nie, so daar is niks om hierdie telling mee te vergelyk nie."
 }

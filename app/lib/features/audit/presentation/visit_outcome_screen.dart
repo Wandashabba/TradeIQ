@@ -329,6 +329,18 @@ class _DeltaLine extends StatelessWidget {
     final skin = context.skin;
     final previous = outcome.previous;
 
+    // The history could not be read: whether there was a last visit here is
+    // unknown, so the screen says that in words. Never "first scored visit" —
+    // that is a claim about their record the app cannot make — and never a
+    // delta beside nothing.
+    if (outcome.previousUnknown) {
+      return Text(
+        l10n.outcomePreviousUnknown,
+        key: const ValueKey<String>('outcome-previous-unknown'),
+        style: skin.text.meta.style(color: skin.palette.ink3),
+      );
+    }
+
     // No previous visit: a sentence, never a delta beside nothing.
     if (outcome.delta == null || previous == null) {
       return Text(

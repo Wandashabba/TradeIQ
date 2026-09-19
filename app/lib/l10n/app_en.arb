@@ -3154,5 +3154,9 @@
         "type": "String"
       }
     }
+  },
+  "outcomePreviousUnknown": "Your last visit here could not be loaded, so there is nothing to compare this score with.",
+  "@outcomePreviousUnknown": {
+    "description": "Shown instead of a delta on the visit outcome when the score loaded but the history request failed. Whether there was an earlier visit is unknown, so this never claims a first visit."
   }
 }
