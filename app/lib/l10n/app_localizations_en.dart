@@ -2281,6 +2281,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String s2StockSavedPartial(int counted, int total) {
+    return 'Saved $counted of $total — the rest are not counted, never empty';
+  }
+
+  @override
+  String get s2JumpToUncounted => 'Jump to the first uncounted';
+
+  @override
   String get s10NotFinal =>
       'Worked out on this phone. The final score comes back when the visit sends.';
 

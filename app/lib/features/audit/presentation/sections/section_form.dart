@@ -77,6 +77,7 @@ class SectionForm extends ConsumerStatefulWidget {
     this.readOnlyActions = const <Widget>[],
     this.saveLabel,
     this.saveAndBackLabel,
+    this.pinned,
   });
 
   /// The section's name. The header's title, and the sheet's subject.
@@ -124,6 +125,11 @@ class SectionForm extends ConsumerStatefulWidget {
 
   /// The same word, for the thumb zone's ghost.
   final String? saveAndBackLabel;
+
+  /// A band that stays under the header while the body scrolls — the stock
+  /// counter's summary rule, the only fixed chrome on a 60-SKU shelf. It is
+  /// status, never a commit, so it can hold no amber.
+  final Widget? pinned;
 
   /// The one claim id a section route ever declares.
   static const String saveClaimId = 'section-save';
@@ -296,6 +302,9 @@ class SectionFormState extends ConsumerState<SectionForm> {
                     onPressed: _locked || _saving ? null : _saveAndBack,
                     blockedReason: _locked ? l10n.sectionLockedBlock : null,
                   ),
+            pinned: widget.pinned == null
+                ? null
+                : IgnorePointer(ignoring: _locked, child: widget.pinned),
             children: _body(skin, l10n, state),
           ),
         ),

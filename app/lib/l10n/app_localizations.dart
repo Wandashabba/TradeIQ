@@ -3644,6 +3644,18 @@ abstract class AppLocalizations {
   /// **'{counted} of {total} counted'**
   String s2CountedOf(int counted, int total);
 
+  /// The saved line after a part-finished stock count. Names how many were saved and that the others travel as not counted (null), never as zero.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {counted} of {total} — the rest are not counted, never empty'**
+  String s2StockSavedPartial(int counted, int total);
+
+  /// Ghost in the sticky stock summary, shown past 12 products while any is uncounted. Scrolls to the first product with no count.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to the first uncounted'**
+  String get s2JumpToUncounted;
+
   /// The agent app never shows a provisional score as though it were final.
   ///
   /// In en, this message translates to:

@@ -114,12 +114,24 @@ class _StockFormState extends ConsumerState<_StockForm> {
   /// `stock_outside_outlet` (#248).
   CapturedPhoto? _photo;
 
+  /// How many products carried a count at the last successful save, so the
+  /// saved line can say "Saved 7 of 12" instead of implying the shelf is done.
+  int? _savedCounted;
+
+  /// One key per SKU block, so "Jump to the first uncounted" can scroll to it.
+  final _blockKeys = <String, GlobalKey>{};
+
+  /// Past this many products the summary rule offers a jump to the first one
+  /// still uncounted — a shorter list is one flick from end to end.
+  static const int jumpThreshold = 12;
+
   @override
   void initState() {
     super.initState();
     for (final sku in widget.skus) {
       _units[sku.id] = null;
       _lastStockin[sku.id] = DateTime.now();
+      _blockKeys[sku.id] = GlobalKey(debugLabel: 'sku-${sku.id}');
     }
   }
 
@@ -132,7 +144,27 @@ class _StockFormState extends ConsumerState<_StockForm> {
   int get _outOfStock => _units.values.where((v) => v == 0).length;
   int get _toGo => widget.skus.length - _counted;
 
+  /// Scrolls the first product with no count into view, below the pinned
+  /// summary rule rather than under it.
+  void _jumpToFirstUncounted() {
+    for (final sku in widget.skus) {
+      if (_units[sku.id] != null) continue;
+      final target = _blockKeys[sku.id]?.currentContext;
+      if (target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.25,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
+      return;
+    }
+  }
+
   Future<void> _save() async {
+    final counted = _counted;
     final entries = widget.skus.map((sku) {
       return StockEntry(
         skuId: sku.id,
@@ -162,7 +194,12 @@ class _StockFormState extends ConsumerState<_StockForm> {
       // Queued once. A second Save re-sends the counts, not a duplicate photo.
       _photo = null;
     }
-    if (mounted) setState(() => _dirty = false);
+    if (mounted) {
+      setState(() {
+        _dirty = false;
+        _savedCounted = counted;
+      });
+    }
   }
 
   /// "selling ~4/day · 12 days cover" — read-only server context, not agent
@@ -196,12 +233,29 @@ class _StockFormState extends ConsumerState<_StockForm> {
       );
     }
 
+    final total = widget.skus.length;
+    final savedCounted = _savedCounted;
     return SectionForm(
       title: l10n.visitSectionStock,
       phase: 'stock',
       dirty: _dirty,
       onSave: _save,
-      savedLine: l10n.s2StockSaved,
+      // "Saved 7 of 12" when the save was part-finished: the section's promise
+      // is "saves as you go", and the line must not read as a finished shelf.
+      savedLine: savedCounted != null && savedCounted < total
+          ? l10n.s2StockSavedPartial(savedCounted, total)
+          : l10n.s2StockSaved,
+      // The summary is the only fixed chrome: on a 60-SKU shelf it is the one
+      // place that says what a Save would record, so it never scrolls away.
+      pinned: _SummaryRule(
+        counted: _counted,
+        outOfStock: _outOfStock,
+        toGo: _toGo,
+        total: total,
+        onJump: total > jumpThreshold && _toGo > 0
+            ? _jumpToFirstUncounted
+            : null,
+      ),
       skip: SectionSkipTarget(widget.visitDraftId, AuditSection.stock),
       photo: SectionPhotoField(
         label: l10n.s34PhotoLabel,
@@ -212,14 +266,9 @@ class _StockFormState extends ConsumerState<_StockForm> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _SummaryRule(
-              counted: _counted,
-              outOfStock: _outOfStock,
-              toGo: _toGo,
-              total: widget.skus.length,
-            ),
             for (final (i, sku) in widget.skus.indexed)
               _SkuBlock(
+                key: _blockKeys[sku.id],
                 sku: sku,
                 value: _units[sku.id],
                 contextLine: _contextLine(l10n, TiqNumber.of(context), sku),
@@ -235,50 +284,77 @@ class _StockFormState extends ConsumerState<_StockForm> {
 
 /// "4 counted · 1 out of stock · 8 to go". A rule, not a card, and a live
 /// region: it is the only place the agent can see what a Save would record.
+/// Pinned beneath the header with a hairline under it; past twelve products
+/// with any still uncounted it carries a ghost that jumps to the first.
 class _SummaryRule extends StatelessWidget {
   const _SummaryRule({
     required this.counted,
     required this.outOfStock,
     required this.toGo,
     required this.total,
+    this.onJump,
   });
 
   final int counted;
   final int outOfStock;
   final int toGo;
   final int total;
+  final VoidCallback? onJump;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    return Semantics(
-      liveRegion: true,
-      label: l10n.s2CountedOf(counted, total),
-      excludeSemantics: true,
-      child: Padding(
-        key: const ValueKey<String>('stock-summary'),
-        padding: const EdgeInsets.only(bottom: TiqSpace.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              l10n.s2Summary(counted, outOfStock, toGo),
-              style: skin.text.bodyStrong.style(color: skin.palette.ink1),
-            ),
-            if (toGo > 0) ...<Widget>[
-              const SizedBox(height: TiqSpace.s1),
-              // What a Save would record, said before it is pressed. Null is a
-              // first-class count now (#410), and the sentence is what stops
-              // an agent believing a part-finished save accuses the store.
+    final jump = onJump;
+    return Column(
+      key: const ValueKey<String>('stock-summary'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const SizedBox(height: TiqSpace.s2),
+        Semantics(
+          liveRegion: true,
+          label: toGo > 0
+              ? '${l10n.s2CountedOf(counted, total)}. ${l10n.s2PartCounted(toGo)}'
+              : l10n.s2CountedOf(counted, total),
+          excludeSemantics: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
               Text(
-                l10n.s2PartCounted(toGo),
-                style: skin.text.meta.style(color: skin.palette.ink3),
+                l10n.s2Summary(counted, outOfStock, toGo),
+                style: skin.text.bodyStrong.style(color: skin.palette.ink1),
               ),
+              if (toGo > 0) ...<Widget>[
+                const SizedBox(height: TiqSpace.s1),
+                // What a Save would record, said before it is pressed. Null is
+                // a first-class count now (#410), and the sentence is what
+                // stops an agent believing a part-finished save accuses the
+                // store.
+                Text(
+                  l10n.s2PartCounted(toGo),
+                  style: skin.text.meta.style(color: skin.palette.ink3),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
+        if (jump != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TorchTertiaryButton(
+              key: const ValueKey<String>('stock-jump-uncounted'),
+              label: l10n.s2JumpToUncounted,
+              onPressed: jump,
+            ),
+          ),
+        const SizedBox(height: TiqSpace.s2),
+        // The hairline that makes the band a rule rather than a card, and
+        // what the scrolled blocks disappear beneath.
+        Container(
+          height: skin.depth.borderWidth,
+          color: skin.palette.edgeStructure,
+        ),
+      ],
     );
   }
 }
@@ -289,6 +365,7 @@ class _SummaryRule extends StatelessWidget {
 /// what the row grammar uses everywhere else.
 class _SkuBlock extends StatelessWidget {
   const _SkuBlock({
+    super.key,
     required this.sku,
     required this.value,
     required this.contextLine,

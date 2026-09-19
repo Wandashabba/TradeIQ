@@ -2971,6 +2971,22 @@
       }
     }
   },
+  "s2StockSavedPartial": "Saved {counted} of {total} — the rest are not counted, never empty",
+  "@s2StockSavedPartial": {
+    "description": "The saved line after a part-finished stock count. Names how many were saved and that the others travel as not counted (null), never as zero.",
+    "placeholders": {
+      "counted": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "s2JumpToUncounted": "Jump to the first uncounted",
+  "@s2JumpToUncounted": {
+    "description": "Ghost in the sticky stock summary, shown past 12 products while any is uncounted. Scrolls to the first product with no count."
+  },
   "s10NotFinal": "Worked out on this phone. The final score comes back when the visit sends.",
   "@s10NotFinal": {
     "description": "The agent app never shows a provisional score as though it were final."

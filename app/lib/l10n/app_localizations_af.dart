@@ -2310,6 +2310,14 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String s2StockSavedPartial(int counted, int total) {
+    return '$counted van $total gestoor — die res is nie getel nie, nooit leeg nie';
+  }
+
+  @override
+  String get s2JumpToUncounted => 'Spring na die eerste ongetelde';
+
+  @override
   String get s10NotFinal =>
       'Op hierdie foon uitgewerk. Die finale telling kom terug wanneer die besoek stuur.';
 

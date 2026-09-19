@@ -189,6 +189,138 @@ void main() {
     });
   });
 
+  group('the summary rule', () {
+    List<Sku> shelf(int n) => <Sku>[
+      for (var i = 1; i <= n; i++)
+        Sku(
+          id: 'k$i',
+          name: 'Product $i',
+          category: 'Beverages',
+          minFacingsStandard: 2,
+          rrp: 10,
+          daysOutOfStock: 0,
+          velocityAvg: 1,
+          effectivePrice: 10,
+        ),
+    ];
+
+    Finder summary() => find.byKey(const ValueKey<String>('stock-summary'));
+    Finder jump() => find.byKey(const ValueKey<String>('stock-jump-uncounted'));
+
+    testWidgets('stays on screen while the shelf scrolls beneath it', (
+      tester,
+    ) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: _SpyStock(), skus: shelf(8)),
+      );
+      final before = tester.getTopLeft(summary()).dy;
+      await scrollAgentTo(tester, _stepper('k8'));
+      // The header has scrolled away; the summary has not, and it now sits at
+      // the top of the viewport as the one fixed chrome.
+      expect(summary().hitTestable(), findsOneWidget);
+      expect(tester.getTopLeft(summary()).dy, lessThan(before));
+      expect(find.text('0 counted · 0 out of stock · 8 to go'), findsOneWidget);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets(
+      'twelve products or fewer offer no jump — one flick is enough',
+      (tester) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(stock: _SpyStock(), skus: shelf(12)),
+        );
+        expect(jump(), findsNothing);
+        await disposeAgentScreen(tester);
+      },
+    );
+
+    testWidgets('past twelve, the jump lands on the first uncounted product, '
+        'and goes once all are counted', (tester) async {
+      final skus = shelf(14);
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: _SpyStock(), skus: skus),
+      );
+      expect(jump(), findsOneWidget);
+
+      // Count the first three; the jump must pass over them.
+      for (final id in <String>['k1', 'k2', 'k3']) {
+        await tapInSection(tester, _step(id, 'One more'));
+      }
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, 4000));
+      await tester.pumpAndSettle();
+      await tester.tap(jump());
+      await tester.pumpAndSettle();
+      // Visible and not hidden under the pinned band.
+      expect(_step('k4', 'One more').hitTestable(), findsOneWidget);
+      final band = tester.getBottomLeft(summary()).dy;
+      expect(tester.getTopLeft(_stepper('k4')).dy, greaterThan(band));
+
+      for (final sku in skus.skip(3)) {
+        await tapInSection(tester, _step(sku.id, 'One more'));
+      }
+      expect(jump(), findsNothing);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('a part-finished save says "Saved 1 of 2", a full one does '
+        'not', (tester) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(
+          stock: _SpyStock(),
+          skus: const <Sku>[_cola, _chips],
+        ),
+      );
+      await tapInSection(tester, _step('s1', 'One more'));
+      await saveSection(tester);
+      expect(
+        find.textContaining(
+          'Saved 1 of 2 — the rest are not counted, never empty',
+        ),
+        findsOneWidget,
+      );
+
+      await tapInSection(tester, _step('s2', 'One more'));
+      await saveSection(tester);
+      expect(find.textContaining('Saved 1 of 2'), findsNothing);
+      expect(
+        find.textContaining('Stock saved — queued for sync'),
+        findsOneWidget,
+      );
+      await disposeAgentScreen(tester);
+    });
+
+    for (final skin in agentSkinModes) {
+      testWidgets(
+        'the pinned band and its jump paint no amber — ${skin.name}',
+        (tester) async {
+          await pumpSection(
+            tester,
+            _screen,
+            overrides: _overrides(stock: _SpyStock(), skus: shelf(14)),
+            skin: skin,
+          );
+          expect(jump(), findsOneWidget);
+          await expectAmber(
+            tester,
+            skin: skin,
+            route: 'stock',
+            phase: 'untouched, pinned summary',
+            expected: 0,
+          );
+          await disposeAgentScreen(tester);
+        },
+      );
+    }
+  });
+
   group('the number sheet', () {
     testWidgets('typing opens a sheet titled with the product; Set lands the '
         'count', (tester) async {

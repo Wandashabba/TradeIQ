@@ -591,6 +591,8 @@
   "s2OneMore": "Een meer",
   "s2PartCounted": "Om nou te stoor merk {toGo} produkte as nie getel nie — nooit as leeg nie.",
   "s2CountedOf": "{counted} van {total} getel",
+  "s2StockSavedPartial": "{counted} van {total} gestoor — die res is nie getel nie, nooit leeg nie",
+  "s2JumpToUncounted": "Spring na die eerste ongetelde",
   "s10NotFinal": "Op hierdie foon uitgewerk. Die finale telling kom terug wanneer die besoek stuur.",
   "s10NotMeasured": "Nie op hierdie besoek gemeet nie",
   "s10ScoreSemantics": "Geweegde totaal {score} uit 100, {band}",
