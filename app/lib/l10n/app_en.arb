@@ -2203,5 +2203,159 @@
         "type": "int"
       }
     }
+  },
+  "mapTitle": "Map",
+  "@mapTitle": {
+    "description": "Title of the agent's map screen. The same word as the nav slot (navMap), deliberately: the tab and the screen are one destination."
+  },
+  "mapStoresFact": "{count, plural, =1{1 store} other{{count} stores}}",
+  "@mapStoresFact": {
+    "description": "Header fact: how many of the agent's stores this screen is about.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mapRouteHeading": "Today’s route",
+  "@mapRouteHeading": {
+    "description": "Section rule above the stores that are on today's beat plan."
+  },
+  "mapRouteEmptyLine": "No route planned for today.",
+  "@mapRouteEmptyLine": {
+    "description": "Under the route section rule when there is no plan. The section still renders — a section that vanishes reads as a missing feature."
+  },
+  "mapPatchHeading": "The rest of your patch",
+  "@mapPatchHeading": {
+    "description": "Section rule above the agent's other outlets — in their territories, not on today's plan."
+  },
+  "mapStateDone": "Visited today",
+  "@mapStateDone": {
+    "description": "Pin and row state: a stop on today's route that is already done."
+  },
+  "mapStateNext": "Next up",
+  "@mapStateNext": {
+    "description": "Pin and row state: the next stop on today's route."
+  },
+  "mapStatePlanned": "On today’s route",
+  "@mapStatePlanned": {
+    "description": "Pin and row state: on the plan, further down it."
+  },
+  "mapStateTerritory": "In your patch",
+  "@mapStateTerritory": {
+    "description": "Pin and row state: one of the agent's stores, not on today's plan."
+  },
+  "mapStateDisputed": "Pin under review",
+  "@mapStateDisputed": {
+    "description": "Extra state word on a store whose coordinates are disputed (#386). Never replaces the other state word — it is added to it."
+  },
+  "mapDisputedLine": "Someone has reported this pin as wrong, so the position on the map may not be the shop.",
+  "@mapDisputedLine": {
+    "description": "Sentence in the store's sheet when its pin is under review."
+  },
+  "mapYouAreHere": "You are here",
+  "@mapYouAreHere": {
+    "description": "The marker for the phone's own position. Only ever drawn when there is a fix."
+  },
+  "mapLocationDenied": "Location is off for this app, so there are no distances and no dot for where you are. The stores are still right.",
+  "@mapLocationDenied": {
+    "description": "Location permission refused. Not an error, and not a broken map."
+  },
+  "mapLocationServicesOff": "Location is switched off on this phone, so there are no distances and no dot for where you are. The stores are still right.",
+  "@mapLocationServicesOff": {
+    "description": "Device location services are off."
+  },
+  "mapLocationNoFix": "This phone cannot get a fix yet, so there are no distances and no dot for where you are. The stores are still right.",
+  "@mapLocationNoFix": {
+    "description": "The radio is on and no fix arrived. Also used for a platform failure we have no code for."
+  },
+  "mapTilesOffTitle": "No map here",
+  "@mapTilesOffTitle": {
+    "description": "Headline in the map's own region when the tiles will not load."
+  },
+  "mapTilesOffBody": "The map will not load — there is nothing to fetch it with. Your stores are listed below, and the list needs no connection.",
+  "@mapTilesOffBody": {
+    "description": "Body under mapTilesOffTitle. Offline on a rural forecourt is the normal case, not an error."
+  },
+  "mapVeldNote": "The map is off in bright sun. Your stores are listed below, nearest first.",
+  "@mapVeldNote": {
+    "description": "Shown instead of the map in the Veld skin, where maps do not render."
+  },
+  "mapEmptyTitle": "No stores yet",
+  "@mapEmptyTitle": {
+    "description": "Whole-screen empty state: no route today and nothing in the agent's territories."
+  },
+  "mapEmptyBody": "There is no route for today and no store in your patch. A manager assigns both.",
+  "@mapEmptyBody": {
+    "description": "Body of the empty state. It names who fixes it."
+  },
+  "mapLoadErrorTitle": "Your stores did not load",
+  "@mapLoadErrorTitle": {
+    "description": "Whole-screen error headline on the map."
+  },
+  "mapLoadErrorDetail": "We could not reach the server. Your day still works — pick a store and check in.",
+  "@mapLoadErrorDetail": {
+    "description": "Body of the error state. It offers the action that still works."
+  },
+  "mapShowingNearest": "Showing the {shown} nearest of {total} stores.",
+  "@mapShowingNearest": {
+    "description": "Pagination footer when the marker budget cuts the list and there is a fix to sort by.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "mapShowingFirst": "Showing {shown} of {total} stores.",
+  "@mapShowingFirst": {
+    "description": "Pagination footer when there is no fix, so the list is by name and nearest means nothing.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "mapCheckInAgain": "Check in again",
+  "@mapCheckInAgain": {
+    "description": "Action in the sheet for a store already visited today. Deliberately not the primary — going back is allowed, not expected."
+  },
+  "mapVisitedTodayLine": "You checked in here today.",
+  "@mapVisitedTodayLine": {
+    "description": "Sentence in the sheet for a store already visited today."
+  },
+  "mapCircleAtDoor": "Check in at {name}",
+  "@mapCircleAtDoor": {
+    "description": "The nav circle when the agent is standing inside a store's check-in fence.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mapPinHint": "{name}, {state}. Double-tap for what you can do here.",
+  "@mapPinHint": {
+    "description": "Screen-reader label for a marker on the map.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "mapLegendLabel": "What the pins mean",
+  "@mapLegendLabel": {
+    "description": "Spoken label for the map's legend row."
+  },
+  "sheetClose": "Close",
+  "@sheetClose": {
+    "description": "The close action on a bottom sheet, and the 56dp close row of the full-screen route it becomes in Veld."
   }
 }

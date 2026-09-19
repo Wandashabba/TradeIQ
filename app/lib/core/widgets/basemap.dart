@@ -36,7 +36,18 @@ import '../theme/tiq_colors.dart';
 /// Dark Matter, Esri splits terrain and place names into two tile services. A
 /// map drawn without the labels layer has no place names at all.
 class TiqTileLayer extends StatelessWidget {
-  const TiqTileLayer({super.key});
+  const TiqTileLayer({super.key, this.onTileError});
+
+  /// Called when a tile fails to load.
+  ///
+  /// There is no connectivity API in this app, and on the forecourt where the
+  /// agent map is used there does not need to be one: a tile request that
+  /// fails **is** the offline signal, and it is the only one that is about
+  /// this screen rather than about the phone in general. A caller that wants
+  /// to say "no map here, you are offline" counts these and says it; every
+  /// other map ignores it and gets flutter_map's own behaviour, which is a
+  /// blank grey square that explains nothing.
+  final void Function()? onTileError;
 
   /// Note the axis order: Esri serves `{z}/{y}/{x}`, not the `{z}/{x}/{y}`
   /// that CARTO and OpenStreetMap use. There is no `{r}` retina variant, so
@@ -50,6 +61,9 @@ class TiqTileLayer extends StatelessWidget {
     return TileLayer(
       urlTemplate: _url,
       userAgentPackageName: 'com.tradeiq.tradeiq_app',
+      errorTileCallback: onTileError == null
+          ? null
+          : (tile, error, stackTrace) => onTileError!(),
     );
   }
 }

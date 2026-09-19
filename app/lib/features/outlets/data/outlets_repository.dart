@@ -56,7 +56,7 @@ abstract class OutletsRepository {
 }
 
 /// The highest `?limit=` the backend's `parsePagination` accepts (see
-/// `backend/src/lib/pagination.ts`'s `MAX_LIMIT`). `_fetchAllOutlets` below
+/// `backend/src/lib/pagination.ts`'s `MAX_LIMIT`). `fetchAllOutlets` below
 /// requests pages at this size purely to minimise round trips over a field
 /// agent's connection — the backend still enforces its own cap regardless of
 /// what is asked for.
@@ -132,7 +132,7 @@ final outletsRepositoryProvider = Provider<OutletsRepository>((ref) => DioOutlet
 /// itself. The backend request is still bounded per call (the OOM concern
 /// pagination#141 exists to fix); only the app-side reassembly is unbounded,
 /// and only where completeness is a correctness requirement, not a UX nicety.
-Future<List<Outlet>> _fetchAllOutlets(
+Future<List<Outlet>> fetchAllOutlets(
   OutletsRepository repo, {
   required bool mine,
 }) async {
@@ -166,7 +166,7 @@ Future<List<Outlet>> _fetchAllOutlets(
 }
 
 final outletsListProvider = FutureProvider<List<Outlet>>((ref) {
-  return _fetchAllOutlets(ref.read(outletsRepositoryProvider), mine: false);
+  return fetchAllOutlets(ref.read(outletsRepositoryProvider), mine: false);
 });
 
 /// Whether the agent's picker is currently narrowed to their own territories.
@@ -195,5 +195,5 @@ final onlyMyTerritoriesProvider =
 /// would strand them somewhere they cannot fix it from.
 final assignedOutletsProvider = FutureProvider<List<Outlet>>((ref) {
   final mine = ref.watch(onlyMyTerritoriesProvider);
-  return _fetchAllOutlets(ref.read(outletsRepositoryProvider), mine: mine);
+  return fetchAllOutlets(ref.read(outletsRepositoryProvider), mine: mine);
 });
