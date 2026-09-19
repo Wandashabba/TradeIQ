@@ -572,6 +572,14 @@ model Photo {
   url                 String
   gpsTag              Json               @map("gps_tag")
   timestamp           DateTime
+  /// Where the image came from: `camera` · `gallery` · null when the client
+  /// did not say (every row written before this existed, and older builds).
+  /// `timestamp` is the DEVICE clock at the moment the picker handed the file
+  /// back, which for a gallery pick is when it was PICKED, not when the scene
+  /// was photographed — so a screenshot chosen at home carries a fresh time
+  /// and a home gpsTag. Storefront evidence for a pin dispute therefore
+  /// requires `camera` (see photos.service).
+  source              String?
   createdAt           DateTime           @default(now()) @map("created_at")
   messageAttachment   MessageAttachment?
   /// SHA-256 (hex) of the decoded image bytes, computed at upload (#244).
@@ -849,6 +857,17 @@ model CheckInAttempt {
   lng       Float
   distanceM Float    @map("distance_m")
   passed    Boolean
+  /// The fix's reported horizontal accuracy in metres, as the device gave it
+  /// (#386 follow-up). Null on every row written before this existed and on
+  /// any build that does not send it — which is why "use their position"
+  /// treats null as unknown and warns rather than refusing: a pin that cannot
+  /// be repaired from an older handset is the bug this feature exists for.
+  accuracyM Float?   @map("accuracy_m")
+  /// Whether the platform reported the fix as coming from a mock provider.
+  /// Null means the device did not say. A TRUE here is the one value that
+  /// BLOCKS adopting the position as an outlet's pin: a manager cannot be
+  /// asked to tell a spoofed coordinate from a real one by reading decimals.
+  isMocked  Boolean? @map("is_mocked")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([clientId, passed])
@@ -903,6 +922,12 @@ model PinDispute {
   lng         Float
   /// Metres from the stored pin, measured here, never accepted from the device.
   distanceM   Float    @map("distance_m")
+  /// The claimed fix's reported accuracy in metres, and whether the platform
+  /// called it mocked — copied from the check-in that raised the claim so the
+  /// manager judging it sees the quality of the coordinate, not just the
+  /// coordinate. Null means the device did not say.
+  accuracyM   Float?   @map("accuracy_m")
+  isMocked    Boolean? @map("is_mocked")
   /// The pin as it read when the claim was made.
   outletLat   Float    @map("outlet_lat")
   outletLng   Float    @map("outlet_lng")
@@ -924,6 +949,11 @@ model PinDispute {
   /// keyset-paged on exactly this sort.
   @@index([clientId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([outletId, createdAt(sort: Desc)])
+  /// The two rate rules read exactly this range: one agent's claims, newest
+  /// first. "Is one already open at this outlet?", "how many today?", and the
+  /// 7-day override-rate and override-cluster fraud signals are all one index
+  /// scan over an agent's recent disputes.
+  @@index([clientId, agentId, createdAt(sort: Desc)])
   @@map("pin_disputes")
 }
 
@@ -954,6 +984,14 @@ model OutletChangeAudit {
   pinSource String?  @map("pin_source")
   /// The dispute this change was made in answer to, when it was.
   disputeId String?  @map("dispute_id")
+  /// WHICH check-in attempt the new coordinates were copied from, and WHOSE.
+  /// `pin_source = 'agent_position'` without these said only that a pin had
+  /// been moved to a position some phone once claimed — with no way, later, to
+  /// ask whose phone or to re-read the attempt. An adopted position is an
+  /// access boundary moved on one person's word, so the ledger names them.
+  /// Both null when the change did not adopt an attempt.
+  fromAttemptId String? @map("from_attempt_id")
+  fromAgentId   String? @map("from_agent_id")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([clientId, createdAt(sort: Desc), id(sort: Desc)])

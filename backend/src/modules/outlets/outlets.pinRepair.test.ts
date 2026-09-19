@@ -27,7 +27,18 @@ describe('outlet pin repair (#386)', () => {
 
   beforeAll(async () => {
     const client = await prisma.client.create({
-      data: { name: 'Pin Repair Client', industry: 'FMCG', scorecardWeights: {}, kpiThresholds: {} },
+      data: {
+        name: 'Pin Repair Client',
+        industry: 'FMCG',
+        scorecardWeights: {},
+        // One agent files a claim in most of the tests below, and they all land
+        // on one calendar day, so the per-agent daily cap would refuse the
+        // fourth and the suite would be testing the cap instead of the thing
+        // each test is about. Raised HERE only, as a tenant may raise it: the
+        // cap at its default is held by outlets.pinOverrideBounds.test.ts,
+        // which is where refusing the fourth claim belongs.
+        kpiThresholds: { pinDisputeDailyCap: 50 },
+      },
     });
     clientId = client.id;
     managerToken = (await userIn(clientId, 'manager', { displayName: 'Thandi Mokoena' })).token;
