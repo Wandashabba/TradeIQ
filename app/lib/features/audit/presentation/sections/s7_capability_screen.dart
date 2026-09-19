@@ -51,7 +51,8 @@ class _S7State extends ConsumerState<S7CapabilityScreen> {
         .saveCapability(
           visitDraftId: widget.visitDraftId,
           capture: CapabilityCapture(
-            staffHeadcountConfirmed: numbers.parse(_headcount.text)?.toInt() ?? 0,
+            staffHeadcountConfirmed:
+                numbers.parse(_headcount.text)?.toInt() ?? 0,
             repTrainingStatus: Map<String, bool>.from(_training),
             quizScore: numbers.parse(_quiz.text)?.toInt() ?? 0,
           ),

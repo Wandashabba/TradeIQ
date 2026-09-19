@@ -116,13 +116,16 @@ class _S8State extends ConsumerState<S8RisksScreen> {
                     onChanged: (_) => _touch(() {}),
                   ),
                   const SizedBox(height: TiqSpace.s4),
-                  ChoiceRow<String>(
-                    key: ValueKey<String>('risk-severity-$i'),
+                  SectionChoice(
                     label: l10n.s8SeverityLabel,
-                    options: severityOptions,
-                    value: entry.severity,
-                    notAnsweredLine: l10n.sectionNotAnsweredYet,
-                    onChanged: (v) => _touch(() => entry.severity = v),
+                    child: ChoiceRow<String>(
+                      key: ValueKey<String>('risk-severity-$i'),
+                      label: l10n.s8SeverityLabel,
+                      options: severityOptions,
+                      value: entry.severity,
+                      notAnsweredLine: l10n.sectionNotAnsweredYet,
+                      onChanged: (v) => _touch(() => entry.severity = v),
+                    ),
                   ),
                   if (entry.severity != 'normal') ...<Widget>[
                     const SizedBox(height: TiqSpace.s3),

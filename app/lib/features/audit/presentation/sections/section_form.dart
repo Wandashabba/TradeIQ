@@ -303,7 +303,11 @@ class SectionFormState extends ConsumerState<SectionForm> {
     );
   }
 
-  List<Widget> _body(TiqSkin skin, AppLocalizations l10n, SectionSavePhase state) {
+  List<Widget> _body(
+    TiqSkin skin,
+    AppLocalizations l10n,
+    SectionSavePhase state,
+  ) {
     final skip = _skip;
     return <Widget>[
       if (widget.intro != null) ...<Widget>[
@@ -339,10 +343,7 @@ class SectionFormState extends ConsumerState<SectionForm> {
       if (widget.readOnlyActions.isNotEmpty) ...<Widget>[
         const SizedBox(height: TiqSpace.s7),
         for (final action in widget.readOnlyActions) ...<Widget>[
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: action,
-          ),
+          Align(alignment: AlignmentDirectional.centerStart, child: action),
           const SizedBox(height: TiqSpace.s3),
         ],
       ],
@@ -353,7 +354,8 @@ class SectionFormState extends ConsumerState<SectionForm> {
           onSave: _save,
           label: widget.saveLabel ?? l10n.sectionSave,
         ),
-        if (state == SectionSavePhase.saved && widget.savedLine != null) ...<Widget>[
+        if (state == SectionSavePhase.saved &&
+            widget.savedLine != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s3),
           _SavedLine(line: widget.savedLine!, at: _savedAt!),
         ],
@@ -395,7 +397,8 @@ class _SaveAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state == SectionSavePhase.untouched || state == SectionSavePhase.saved) {
+    if (state == SectionSavePhase.untouched ||
+        state == SectionSavePhase.saved) {
       return TorchSecondaryButton(
         key: const ValueKey<String>('section-save'),
         label: label,
@@ -562,7 +565,9 @@ class _LeaveSheet extends StatelessWidget {
     return TorchSheet(
       title: l10n.sectionLeaveTitle,
       subtitle: title,
-      claims: const <TorchClaim>[TorchClaim.primaryCommit('section-leave-save')],
+      claims: const <TorchClaim>[
+        TorchClaim.primaryCommit('section-leave-save'),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -616,6 +621,41 @@ class SectionFieldGroup extends StatelessWidget {
           if (i > 0) const SizedBox(height: TiqSpace.s4),
           child,
         ],
+      ],
+    );
+  }
+}
+
+/// A CHOICE ROW WITH ITS QUESTION ABOVE IT.
+///
+/// `ChoiceRow` names its question to a screen reader and draws nothing above
+/// the options — a sheet puts the question in its title. Inside a section the
+/// question has to be on the page, above the chips, where every other field in
+/// the grammar keeps its label: three chips reading "Critical · High · Normal"
+/// with nothing saying *of what* is a question the agent has to guess. The
+/// visible line is excluded from semantics because the row already speaks it.
+class SectionChoice extends StatelessWidget {
+  const SectionChoice({super.key, required this.label, required this.child});
+
+  final String label;
+
+  /// The `ChoiceRow`, carrying the same [label].
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        ExcludeSemantics(
+          child: Text(
+            label,
+            style: skin.text.label.style(color: skin.palette.ink2),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s2),
+        child,
       ],
     );
   }

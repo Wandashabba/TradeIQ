@@ -62,10 +62,7 @@ class S5PricingPromotionsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      data: (list) => _PricingForm(
-        visitDraftId: visitDraftId,
-        skus: list,
-      ),
+      data: (list) => _PricingForm(visitDraftId: visitDraftId, skus: list),
     );
   }
 }
@@ -99,7 +96,10 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
 
   @override
   void dispose() {
-    for (final c in <TextEditingController>[..._price.values, ..._comms.values]) {
+    for (final c in <TextEditingController>[
+      ..._price.values,
+      ..._comms.values,
+    ]) {
       c.dispose();
     }
     super.dispose();

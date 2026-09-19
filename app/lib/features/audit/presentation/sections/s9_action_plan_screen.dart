@@ -115,13 +115,16 @@ class _S9State extends ConsumerState<S9ActionPlanScreen> {
               hint: l10n.s9RequiredFixHint,
               onChanged: (_) => _touch(() {}),
             ),
-            ChoiceRow<String>(
-              key: const ValueKey<String>('task-priority'),
+            SectionChoice(
               label: l10n.s9PriorityLabel,
-              options: priorityOptions,
-              value: _priority,
-              notAnsweredLine: l10n.sectionNotAnsweredYet,
-              onChanged: (v) => _touch(() => _priority = v),
+              child: ChoiceRow<String>(
+                key: const ValueKey<String>('task-priority'),
+                label: l10n.s9PriorityLabel,
+                options: priorityOptions,
+                value: _priority,
+                notAnsweredLine: l10n.sectionNotAnsweredYet,
+                onChanged: (v) => _touch(() => _priority = v),
+              ),
             ),
           ],
         ),

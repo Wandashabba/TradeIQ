@@ -191,10 +191,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
         phase: 'stock-empty',
         skip: SectionSkipTarget(widget.visitDraftId, AuditSection.stock),
         children: <Widget>[
-          EmptyState(
-            scope: EmptyScope.inPanel,
-            headline: l10n.s2NoSkus,
-          ),
+          EmptyState(scope: EmptyScope.inPanel, headline: l10n.s2NoSkus),
         ],
       );
     }

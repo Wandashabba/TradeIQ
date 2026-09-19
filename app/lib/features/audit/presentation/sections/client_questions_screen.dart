@@ -239,16 +239,19 @@ class _TemplateFieldControl extends StatelessWidget {
             : null;
         // Two to four is a choice row; five is a list, and a list is a sheet.
         if (field.options.length >= 2 && field.options.length <= 4) {
-          return ChoiceRow<String>(
+          return SectionChoice(
             label: field.label,
-            options: <ChoiceOption<String>>[
-              for (final option in field.options)
-                ChoiceOption<String>(value: option, label: option),
-            ],
-            value: selected,
-            notAnsweredLine: help ?? l10n.sectionNotAnsweredYet,
-            error: error,
-            onChanged: onChanged,
+            child: ChoiceRow<String>(
+              label: field.label,
+              options: <ChoiceOption<String>>[
+                for (final option in field.options)
+                  ChoiceOption<String>(value: option, label: option),
+              ],
+              value: selected,
+              notAnsweredLine: help ?? l10n.sectionNotAnsweredYet,
+              error: error,
+              onChanged: onChanged,
+            ),
           );
         }
         return _TemplateChoiceSheet(
@@ -416,15 +419,13 @@ class _TemplateChoiceSheet extends StatelessWidget {
         TorchSecondaryButton(
           key: ValueKey<String>('choice-open-${field.id}'),
           label: selected ?? (help ?? l10n.sectionNotAnsweredYet),
-          semanticLabel: '${field.label}. ${selected ?? l10n.sectionNotAnsweredYet}',
+          semanticLabel:
+              '${field.label}. ${selected ?? l10n.sectionNotAnsweredYet}',
           onPressed: () => _open(context),
         ),
         if (error != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s2),
-          Text(
-            error!,
-            style: skin.text.meta.style(color: skin.palette.bad),
-          ),
+          Text(error!, style: skin.text.meta.style(color: skin.palette.bad)),
         ],
       ],
     );

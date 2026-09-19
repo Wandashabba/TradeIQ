@@ -109,10 +109,7 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
         if (photo == null)
           _FramingCard(line: widget.framingLine ?? l10n.sectionPhotoFraming)
         else
-          _CapturedTile(
-            photo: photo,
-            onRemove: () => widget.onCaptured(null),
-          ),
+          _CapturedTile(photo: photo, onRemove: () => widget.onCaptured(null)),
         if (photo == null && _darkOutside) ...<Widget>[
           const SizedBox(height: TiqSpace.s4),
           Semantics(
@@ -258,12 +255,13 @@ class _BayPainter extends CustomPainter {
     final arm = size.width * 0.28;
     final r = Offset.zero & size;
     // Corner brackets.
-    for (final (Offset corner, double dx, double dy) in <(Offset, double, double)>[
-      (r.topLeft, 1, 1),
-      (r.topRight, -1, 1),
-      (r.bottomLeft, 1, -1),
-      (r.bottomRight, -1, -1),
-    ]) {
+    for (final (Offset corner, double dx, double dy)
+        in <(Offset, double, double)>[
+          (r.topLeft, 1, 1),
+          (r.topRight, -1, 1),
+          (r.bottomLeft, 1, -1),
+          (r.bottomRight, -1, -1),
+        ]) {
       final start = corner.translate(dx * stroke / 2, dy * stroke / 2);
       canvas
         ..drawLine(start, start.translate(dx * arm, 0), paint)

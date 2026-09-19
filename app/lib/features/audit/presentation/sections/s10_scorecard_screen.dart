@@ -232,11 +232,7 @@ class _ScoreHero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: TiqSpace.s4),
-          Meter(
-            value: total,
-            target: 80,
-            semanticsValue: spoken,
-          ),
+          Meter(value: total, target: 80, semanticsValue: spoken),
           const SizedBox(height: TiqSpace.s4),
           // The whole reason this screen is not a verdict.
           Text(

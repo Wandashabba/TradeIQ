@@ -47,6 +47,8 @@ void main() {
     await pumpSection(tester, _screen, overrides: _overrides(spy));
 
     await _add(tester);
+    // The question is on the page above its chips, not only in semantics.
+    expect(find.text('Severity'), findsOneWidget);
     await typeInSection(tester, _key('risk-type-0'), 'Expired stock');
     await _severity(tester, 0, 'Critical');
     await typeInSection(tester, _key('risk-note-0'), 'Two cases on the floor');
