@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/torch_scope.dart';
+import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../l10n/l10n.dart';
+import '../../outlets/data/outlets_repository.dart';
 
 /// Which of the six outbox states a queued row is in.
 ///
@@ -16,10 +18,14 @@ import '../../../l10n/l10n.dart';
 /// derivation. The order matters: *sent* first because a synced row is
 /// finished whatever else is stored on it, then the ordering dependency —
 /// which throws and therefore has a `lastError`, but is not a fault and must
-/// never be shown as one.
+/// never be shown as one. Then the ended session, for the same reason: the
+/// capture is fine and signing in sends it, so it is **held** — an Oatmeal
+/// square and a word, never the crimson stuck state (unify §1.13). A flush
+/// in flight does not move it either: with no session it sends nothing.
 OutboxState outboxStateFor(SyncItem item, {required bool sending}) {
   if (item.synced) return OutboxState.sent;
   if (item.waitsForVisit) return OutboxState.waitingForVisit;
+  if (item.sessionEnded) return OutboxState.queued;
   if (item.needsAttention) return OutboxState.stuck;
   if (sending) return OutboxState.sending;
   // A failure that clears itself — no signal, a 5xx. It is retrying, not
@@ -31,15 +37,22 @@ OutboxState outboxStateFor(SyncItem item, {required bool sending}) {
 /// The state in one or two words. Sentence case at the `label` role: unify
 /// §1.17 legalises the uppercase eyebrow in three places and a queue row's
 /// trailing word is not one of them.
-String outboxStateWord(OutboxState state, AppLocalizations l10n) =>
-    switch (state) {
-      OutboxState.queued => l10n.outboxWaiting,
-      OutboxState.sending => l10n.outboxSending,
-      OutboxState.retrying => l10n.outboxRetrying,
-      OutboxState.sent => l10n.outboxSent,
-      OutboxState.stuck => l10n.outboxNeedsYou,
-      OutboxState.waitingForVisit => l10n.outboxWaitingTurn,
-    };
+///
+/// Pass [item] where there is one: a capture held because the session ended
+/// is queued, and its word is "Held" rather than "Waiting".
+String outboxStateWord(
+  OutboxState state,
+  AppLocalizations l10n, {
+  SyncItem? item,
+}) => switch (state) {
+  OutboxState.queued when item?.sessionEnded ?? false => l10n.outboxHeld,
+  OutboxState.queued => l10n.outboxWaiting,
+  OutboxState.sending => l10n.outboxSending,
+  OutboxState.retrying => l10n.outboxRetrying,
+  OutboxState.sent => l10n.outboxSent,
+  OutboxState.stuck => l10n.outboxNeedsYou,
+  OutboxState.waitingForVisit => l10n.outboxWaitingTurn,
+};
 
 /// The state as a sentence. For everything that failed, that sentence is the
 /// **stored reason**, worded in the agent's language — never a euphemism, and
@@ -49,6 +62,9 @@ String outboxSentence(
   OutboxState state,
   AppLocalizations l10n,
 ) => switch (state) {
+  // Not the stored "Signed out — sign in again": that line is a failure's
+  // wording, and this capture has not failed. It is held, and says why.
+  OutboxState.queued when item.sessionEnded => l10n.outboxHeldUntilSignIn,
   OutboxState.queued => l10n.outboxWaitingSentence,
   OutboxState.sending => l10n.outboxSendingSentence,
   OutboxState.sent => l10n.outboxSentSentence,
@@ -133,9 +149,21 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
   /// Only a capture that is stuck on its own account. A session that ended is
   /// not the capture's fault — signing in sends it — and throwing work away
   /// because a token expired is the one discard nobody meant. (With no
-  /// session the service could not reach the row to remove it anyway.)
+  /// session the service could not reach the row to remove it anyway.) Such
+  /// a capture is derived as held, never stuck; the second clause stays so
+  /// the rule holds whatever state a caller passes.
   bool get _discardable =>
       widget.state == OutboxState.stuck && !_item.sessionEnded;
+
+  /// A submitted visit the server has, so there is a score to go and read.
+  ///
+  /// This is the only way back to a visit's outcome once the agent has walked
+  /// out of the shop — and the reconciliation line ("Now scored 71 — it was
+  /// 84 when you saw it") only ever appears on a LATER open, so without a way
+  /// back it could not appear at all.
+  String? get _submittedVisit => widget.state == OutboxState.sent
+      ? _item.visitDraftId
+      : null;
 
   @override
   Widget build(BuildContext context) {
@@ -192,6 +220,17 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
                       busy: _busy,
                       onPressed: _busy ? null : _sendOne,
                     ),
+                  if (_submittedVisit case final String draftId) ...<Widget>[
+                    if (_item.sessionEnded || _retryable)
+                      const SizedBox(height: TiqSpace.s2),
+                    // A ghost, never the amber: reading a score you have
+                    // already been shown is not the expected next move.
+                    TorchSecondaryButton(
+                      key: const ValueKey<String>('outbox-see-score'),
+                      label: l10n.outboxSeeScore,
+                      onPressed: _busy ? null : () => _openOutcome(draftId),
+                    ),
+                  ],
                   if (_discardable) ...<Widget>[
                     const SizedBox(height: TiqSpace.s2),
                     TorchTertiaryButton(
@@ -211,10 +250,40 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
   String? _note(AppLocalizations l10n) => switch (widget.state) {
     OutboxState.sent => l10n.outboxNothingToDo,
     OutboxState.waitingForVisit => l10n.outboxWaitingTurnNote,
-    OutboxState.stuck when _item.sessionEnded => l10n.outboxSignedOutNote,
+    _ when _item.sessionEnded => l10n.outboxSignedOutNote,
     OutboxState.stuck when _item.isRejected => l10n.outboxRejectedNote,
     _ => null,
   };
+
+  /// Open this visit's outcome, read-only as far as the visit is concerned —
+  /// a submitted visit is closed, and this route has always been forward-only.
+  Future<void> _openOutcome(String draftId) async {
+    final db = ref.read(localDbProvider);
+    final draft = await (db.select(
+      db.visitDrafts,
+    )..where((t) => t.id.equals(draftId))).getSingleOrNull();
+    if (!mounted) return;
+    final outletId = draft?.outletId;
+    if (outletId == null) return;
+
+    // The outlet's NAME only if the list is already in memory. Opening a
+    // score must not send a phone in a shop after an outlet list, and the
+    // route already has a fallback for the header.
+    String? name;
+    if (ref.exists(outletsListProvider)) {
+      for (final outlet in ref.read(outletsListProvider).value ?? const []) {
+        if (outlet.id == outletId) {
+          name = outlet.name;
+          break;
+        }
+      }
+    }
+
+    final query = StringBuffer('draft=${Uri.encodeComponent(draftId)}');
+    if (name != null) query.write('&name=${Uri.encodeComponent(name)}');
+    Navigator.of(context).pop();
+    context.go('/audit/${Uri.encodeComponent(outletId)}/done?$query');
+  }
 
   Future<void> _sendOne() async {
     setState(() => _busy = true);
