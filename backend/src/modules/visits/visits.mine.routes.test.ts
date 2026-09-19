@@ -100,6 +100,20 @@ describe('GET /visits/me', () => {
         provisionalAt: new Date(checkinTs.getTime() + 41 * 60_000),
       },
     });
+    // The agent started this visit by saying the pin was wrong (#386).
+    await prisma.pinDispute.create({
+      data: {
+        clientId,
+        outletId,
+        agentId: agentAId,
+        visitId: scored.id,
+        lat: -26.2,
+        lng: 28.0,
+        distanceM: 140,
+        outletLat: -26.2013,
+        outletLng: 28.0,
+      },
+    });
     await prisma.visitRisk.create({
       data: {
         visitId: scored.id,
@@ -295,6 +309,20 @@ describe('GET /visits/me', () => {
     expect(visit).not.toHaveProperty('checkinLng');
     // A reviewer's ruling IS the agent's business, and it is null until one.
     expect(visit.reviewedVerdict).toBeNull();
+  });
+
+  it('says the agent reported the pin, and only on the visit they reported it on', async () => {
+    const res = await request(app)
+      .get('/visits/me')
+      .set('Authorization', `Bearer ${agentAToken}`);
+
+    const reported = res.body.data.find((v: { id: string }) => v.id === scoredVisitId);
+    expect(reported.pinReported).toBe(true);
+    // Their own claim, not the dispute record: no coordinates, no review note.
+    expect(reported).not.toHaveProperty('pinDispute');
+    const others = res.body.data.filter((v: { id: string }) => v.id !== scoredVisitId);
+    expect(others.length).toBeGreaterThan(0);
+    for (const v of others) expect(v.pinReported).toBe(false);
   });
 
   it('reports an unmeasured distance and an unknown dwell as null, not zero', async () => {

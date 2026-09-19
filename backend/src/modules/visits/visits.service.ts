@@ -1056,6 +1056,10 @@ export interface MyVisitSummary {
    *  only fraud output exposed here: the risk score and its signals stay on
    *  the console. */
   reviewedVerdict: string | null;
+  /** The agent said "the pin is wrong" to start this visit (#386). Their own
+   *  claim, so it is theirs to see — and it is why a visit they were allowed
+   *  to start still reads out of fence. */
+  pinReported: boolean;
 }
 
 export async function listMyVisits(input: {
@@ -1086,6 +1090,7 @@ export async function listMyVisits(input: {
         },
       },
       fraudVerdict: { select: { verdict: true } },
+      pinDispute: { select: { id: true } },
       visibility: { select: { visitId: true } },
       capability: { select: { visitId: true } },
       _count: {
@@ -1163,6 +1168,7 @@ export async function listMyVisits(input: {
                     : null,
               },
         reviewedVerdict: row.fraudVerdict?.verdict ?? null,
+        pinReported: row.pinDispute !== null,
       };
     }),
     nextCursor: page.nextCursor,

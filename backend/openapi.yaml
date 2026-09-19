@@ -363,7 +363,7 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, outletId, outletName, outletCode, checkinTs, checkinDistanceM, geofencePass, status, dwellMinutes, sectionsCaptured, sectionsTotal, photos, tasksRaised, score, reviewedVerdict]
+                      required: [id, outletId, outletName, outletCode, checkinTs, checkinDistanceM, geofencePass, status, dwellMinutes, sectionsCaptured, sectionsTotal, photos, tasksRaised, score, reviewedVerdict, pinReported]
                       properties:
                         id: { type: string }
                         outletId: { type: string }
@@ -395,6 +395,9 @@ paths:
                                 ratingBand: { type: string }
                                 seenAt: { type: string, format: date-time, nullable: true }
                         reviewedVerdict: { type: string, nullable: true }
+                        pinReported:
+                          type: boolean
+                          description: The agent started this visit by reporting the outlet's pin as wrong (#386).
         '400':
           description: Invalid limit or a repeated cursor
         '401':
