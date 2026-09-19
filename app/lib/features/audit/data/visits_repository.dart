@@ -19,10 +19,52 @@ class CheckInSucceeded extends CheckInResult {
   final String visitId;
 }
 
-class CheckInGeofenceFailed extends CheckInResult {
-  CheckInGeofenceFailed(this.distanceMeters);
+/// A visit started OUTSIDE the fence because the agent said the pin is wrong
+/// (#386).
+///
+/// It is a [CheckInSucceeded] — the visit exists and the hub opens — so every
+/// switch that already handles a success handles this one. What it adds is the
+/// fact the hub must keep showing: the fence failed by [distanceMeters], and
+/// the visit is flagged for the manager until somebody looks.
+class CheckInOverridden extends CheckInSucceeded {
+  CheckInOverridden(super.visitId, {required this.distanceMeters});
+
+  /// How far the phone was from the stored pin, as the check-in measured it.
   final double distanceMeters;
 }
+
+class CheckInGeofenceFailed extends CheckInResult {
+  CheckInGeofenceFailed(this.distanceMeters, {this.lat, this.lng});
+  final double distanceMeters;
+
+  /// Where the phone was when the fence failed — the position a "the pin is
+  /// wrong" report carries as its evidence. Null only from a caller that did
+  /// not measure one, and then the report cannot be filed.
+  final double? lat;
+  final double? lng;
+
+  /// Whether this failure can carry a "the pin is wrong" report at all.
+  ///
+  /// Two conditions, both about the evidence. There must be a position to
+  /// report, and the distance must be inside [pinDisputeMaxDistanceMeters]:
+  /// beyond it the server refuses the claim (`422`), and a refused claim that
+  /// has already been queued would leave a whole visit's work stuck in the
+  /// outbox behind a check-in that will never be accepted.
+  bool get canDisputePin =>
+      lat != null && lng != null && distanceMeters <= pinDisputeMaxDistanceMeters;
+}
+
+/// The furthest from a pin an agent may still say the PIN is what is wrong.
+///
+/// Mirrors the server's default `pinDisputeMaxDistanceM` (25 km, see
+/// `docs/operations/pin-repair-and-geofence-override.md`). The server is the
+/// authority — a tenant can set it lower — and this copy exists only so the
+/// app does not offer a claim the default would refuse.
+const double pinDisputeMaxDistanceMeters = 25000;
+
+/// The longest note a pin report may carry; the server's
+/// `MAX_PIN_DISPUTE_NOTE_LENGTH`.
+const int pinDisputeNoteMaxLength = 1000;
 
 /// Why the phone could not say where the agent is.
 enum CheckInLocationProblem {
@@ -98,6 +140,22 @@ abstract class VisitsRepository {
     required String outletId,
     required double outletLat,
     required double outletLng,
+  });
+
+  /// "The pin is wrong" (#386): start the visit anyway, from the position the
+  /// failed check-in measured, **flagged**.
+  ///
+  /// This overrides the geofence, so it is built to be seen rather than to
+  /// slip through: the draft stores `geofencePass: false`, the queued check-in
+  /// carries `pinDispute`, and the server writes the dispute row, measures the
+  /// distance itself, and scores the visit's `geofence_override`. It never
+  /// reports a pass.
+  Future<CheckInResult> checkInDisputingPin({
+    required String outletId,
+    required double lat,
+    required double lng,
+    required double distanceMeters,
+    String? note,
   });
 
   /// Marks the visit submitted locally and queues the submit for sync
@@ -198,10 +256,65 @@ class DriftVisitsRepository implements VisitsRepository {
       Coordinates(lat: outletLat, lng: outletLng),
       Coordinates(lat: lat, lng: lng),
     );
-    if (distance > defaultGeofenceRadiusMeters) {
-      return CheckInGeofenceFailed(distance);
+    final geofencePass = distance <= defaultGeofenceRadiusMeters;
+    if (!geofencePass) {
+      return CheckInGeofenceFailed(distance, lat: lat, lng: lng);
     }
 
+    final id = await _startVisit(
+      outletId: outletId,
+      lat: lat,
+      lng: lng,
+      geofencePass: geofencePass,
+    );
+    return CheckInSucceeded(id);
+  }
+
+  @override
+  Future<CheckInResult> checkInDisputingPin({
+    required String outletId,
+    required double lat,
+    required double lng,
+    required double distanceMeters,
+    String? note,
+  }) async {
+    try {
+      final trimmed = note?.trim();
+      final id = await _startVisit(
+        outletId: outletId,
+        lat: lat,
+        lng: lng,
+        // The measurement, never a permission: this visit is OUTSIDE the
+        // fence and says so everywhere it is stored.
+        geofencePass: false,
+        pinDispute: <String, Object?>{
+          if (trimmed != null && trimmed.isNotEmpty)
+            'note': trimmed.length > pinDisputeNoteMaxLength
+                ? trimmed.substring(0, pinDisputeNoteMaxLength)
+                : trimmed,
+        },
+      );
+      return CheckInOverridden(id, distanceMeters: distanceMeters);
+    } catch (error, stack) {
+      debugPrint('Pin-dispute check-in failed for $outletId: $error\n$stack');
+      return CheckInFailed(HumanError.of(error));
+    }
+  }
+
+  /// Writes the local draft and queues `POST /visits`, in one transaction.
+  ///
+  /// [geofencePass] is the result of the check this device actually ran, not
+  /// a constant — a draft and a queued check-in that said `true` whatever
+  /// happened are how the column came to mean nothing (#386). The server
+  /// measures again and its answer is the one stored; the device's is what
+  /// the hub knows while the visit is offline.
+  Future<String> _startVisit({
+    required String outletId,
+    required double lat,
+    required double lng,
+    required bool geofencePass,
+    Map<String, Object?>? pinDispute,
+  }) async {
     final id = _uuid.v4();
     final checkinTs = DateTime.now();
     await db.transaction(() async {
@@ -214,7 +327,7 @@ class DriftVisitsRepository implements VisitsRepository {
               checkinTs: checkinTs,
               checkinLat: lat,
               checkinLng: lng,
-              geofencePass: true,
+              geofencePass: geofencePass,
             ),
           );
       await db.enqueue(
@@ -225,14 +338,14 @@ class DriftVisitsRepository implements VisitsRepository {
           'lat': lat,
           'lng': lng,
           'checkinTs': checkinTs.toUtc().toIso8601String(),
-          'geofencePass': true,
+          'geofencePass': geofencePass,
+          'pinDispute': ?pinDispute,
         }),
       );
     });
 
     await _flushBestEffort();
-
-    return CheckInSucceeded(id);
+    return id;
   }
 
   @override

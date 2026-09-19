@@ -131,6 +131,12 @@ export const MIN_REPEATING_BASKET_SHARE = 0.5;
 const MIN_BASKET_SKUS = 2;
 
 const WEIGHT_GEOFENCE = 20;
+// A check-in that did not pass the fence at all, allowed through on the agent's
+// report that the pin is wrong (#386). Below the default review threshold (50)
+// on its own, and deliberately: the override exists because pins really are
+// wrong, and scoring every honest use of it as reviewable fraud would fill the
+// queue with the ordinary case. See the signal itself for the full reasoning.
+const WEIGHT_GEOFENCE_OVERRIDE = 30;
 const WEIGHT_FAILED_ATTEMPTS = 25;
 const WEIGHT_FAILED_ATTEMPT_PER = 10;
 const WEIGHT_PHOTO_DIVERGENCE = 25;
@@ -337,6 +343,19 @@ export interface FraudVisitInput {
   checkinLat: number;
   checkinLng: number;
   checkinDistanceM: number | null;
+  /**
+   * Whether the check-in was inside the outlet's fence (#386).
+   *
+   * Until the pin-repair path existed this was `true` on every stored visit,
+   * because a failing check-in threw instead of creating one — the column was
+   * modelled but dead. It can now be false, and only one way: the agent said
+   * "the pin is wrong", and the visit went ahead as a recorded override with a
+   * PinDispute row beside it.
+   *
+   * Optional, defaulting to true, so every existing caller and every visit that
+   * predates the override is read exactly as it was.
+   */
+  geofencePass?: boolean;
   /**
    * The device's completion timestamp — the same clock that produced
    * `checkinTs`. Null for visits recorded before this existed, in which case no
@@ -928,8 +947,37 @@ export function computeFraudSignals(
 ): FraudResult {
   const signals: FraudSignal[] = [];
 
+  // 0. The check-in did not pass the fence at all — an agent's "the pin is
+  //    wrong" override (#386). It is the strongest thing the geofence has to
+  //    say about this visit, so it REPLACES the borderline signal below rather
+  //    than stacking with it; a visit cannot both hug the fence edge and be
+  //    outside it, and charging for both would put every honest override over
+  //    the review threshold on geofence evidence alone.
+  //
+  //    Weighted below that threshold deliberately. A pin genuinely in the wrong
+  //    place is why this override exists: the agent was standing in the shop,
+  //    and a queue that treats every one of them as suspected fraud is a queue
+  //    managers stop reading — which is how the flagged visit that mattered
+  //    goes unread. It accuses nobody alone. Combined with anything else — a
+  //    photo whose GPS diverges, a run of earlier failed attempts, stock logged
+  //    inside a different store — it carries the visit over easily, which is
+  //    exactly when an override deserves a second look.
+  //
+  //    The manager's own queue for these is GET /outlets/pin-disputes, where
+  //    the claim arrives with its evidence whatever this score says.
+  const geofenceOverridden = visit.geofencePass === false;
+  if (geofenceOverridden) {
+    signals.push({
+      code: 'geofence_override',
+      detail:
+        `Check-in was ${visit.checkinDistanceM ?? '?'}m from the outlet, outside its ` +
+        `${GEOFENCE_RADIUS_M}m fence, and went ahead on the agent's report that the pin is wrong`,
+      weight: WEIGHT_GEOFENCE_OVERRIDE,
+    });
+  }
+
   // 1. Borderline geofence — inside the 50m fence but hugging its edge.
-  if (visit.checkinDistanceM !== null && visit.checkinDistanceM > GEOFENCE_EDGE_M) {
+  if (!geofenceOverridden && visit.checkinDistanceM !== null && visit.checkinDistanceM > GEOFENCE_EDGE_M) {
     signals.push({
       code: 'geofence_distance',
       detail: `Check-in was ${visit.checkinDistanceM}m from the outlet, near the 50m fence edge`,
@@ -1161,6 +1209,7 @@ function toFraudVisitInput(visit: FraudVisitPayload): FraudVisitInput {
     checkinLat: visit.checkinLat,
     checkinLng: visit.checkinLng,
     checkinDistanceM: visit.checkinDistanceM,
+    geofencePass: visit.geofencePass,
     submittedAtClient: visit.submittedAtClient,
   };
 }

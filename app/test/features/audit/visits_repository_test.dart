@@ -114,6 +114,148 @@ void main() {
     },
   );
 
+  group('"the pin is wrong" (#386)', () {
+    DriftVisitsRepository repo() => DriftVisitsRepository(
+      db: db,
+      locationService: _FakeLocationService(LocationGranted(-26.2100, 28.0473)),
+      syncService: SyncService(db: db, flusher: _NoopFlusher()),
+    );
+
+    test('a failed fence keeps the position it measured, as evidence', () async {
+      final result = await repo().checkIn(
+        outletId: 'outlet-1',
+        outletLat: -26.2041,
+        outletLng: 28.0473,
+      );
+      final failed = result as CheckInGeofenceFailed;
+      expect(failed.lat, -26.2100);
+      expect(failed.lng, 28.0473);
+      expect(failed.canDisputePin, isTrue);
+    });
+
+    test('the claim is not offered beyond the server cap', () {
+      expect(
+        CheckInGeofenceFailed(25001, lat: -26.2, lng: 28.0).canDisputePin,
+        isFalse,
+      );
+      expect(
+        CheckInGeofenceFailed(25000, lat: -26.2, lng: 28.0).canDisputePin,
+        isTrue,
+      );
+      // No position, no evidence, no claim.
+      expect(CheckInGeofenceFailed(180).canDisputePin, isFalse);
+    });
+
+    test(
+      'a disputed check-in is stored and queued as OUTSIDE the fence',
+      () async {
+        final result = await repo().checkInDisputingPin(
+          outletId: 'outlet-1',
+          lat: -26.2100,
+          lng: 28.0473,
+          distanceMeters: 656,
+          note: '  Pinned on the depot  ',
+        );
+
+        expect(result, isA<CheckInOverridden>());
+        final overridden = result as CheckInOverridden;
+        expect(overridden.distanceMeters, 656);
+
+        final draft = (await db.select(db.visitDrafts).get()).single;
+        expect(draft.id, overridden.visitId);
+        // Never a pass. The value is the measurement, not a permission.
+        expect(draft.geofencePass, isFalse);
+        expect(draft.checkinLat, -26.2100);
+
+        final item = (await db.select(db.syncQueueItems).get()).single;
+        expect(item.entityType, 'visit');
+        final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+        expect(payload['geofencePass'], isFalse);
+        expect(payload['lat'], -26.2100);
+        expect(payload['pinDispute'], <String, dynamic>{
+          'note': 'Pinned on the depot',
+        });
+        // The device never sends a distance: the server measures its own, and
+        // a client-supplied distance would be a client-supplied verdict.
+        expect(payload.containsKey('distanceM'), isFalse);
+      },
+    );
+
+    test('an empty note sends the claim without one', () async {
+      await repo().checkInDisputingPin(
+        outletId: 'outlet-1',
+        lat: -26.2100,
+        lng: 28.0473,
+        distanceMeters: 656,
+        note: '   ',
+      );
+      final item = (await db.select(db.syncQueueItems).get()).single;
+      final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+      expect(payload['pinDispute'], <String, dynamic>{});
+    });
+
+    test('a note past the server limit is cut to it, not refused', () async {
+      await repo().checkInDisputingPin(
+        outletId: 'outlet-1',
+        lat: -26.2100,
+        lng: 28.0473,
+        distanceMeters: 656,
+        note: 'x' * 1500,
+      );
+      final item = (await db.select(db.syncQueueItems).get()).single;
+      final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+      expect(
+        (payload['pinDispute'] as Map<String, dynamic>)['note'],
+        hasLength(pinDisputeNoteMaxLength),
+      );
+    });
+
+    test('an ordinary check-in carries no claim', () async {
+      final repository = DriftVisitsRepository(
+        db: db,
+        locationService: _FakeLocationService(
+          LocationGranted(-26.20400, 28.0473),
+        ),
+        syncService: SyncService(db: db, flusher: _NoopFlusher()),
+      );
+      await repository.checkIn(
+        outletId: 'outlet-1',
+        outletLat: -26.2041,
+        outletLng: 28.0473,
+      );
+      final item = (await db.select(db.syncQueueItems).get()).single;
+      final payload = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+      expect(payload.containsKey('pinDispute'), isFalse);
+      expect(payload['geofencePass'], isTrue);
+    });
+
+    test('a local write that fails is a result, not an exception', () async {
+      final unopenable = LocalDb(
+        NativeDatabase(File('/nonexistent-directory/tradeiq_local.sqlite')),
+      );
+      addTearDown(() async {
+        try {
+          await unopenable.close();
+        } catch (_) {
+          // It never opened; closing it is allowed to fail.
+        }
+      });
+      final result = await DriftVisitsRepository(
+        db: unopenable,
+        locationService: _FakeLocationService(
+          LocationGranted(-26.2100, 28.0473),
+        ),
+        syncService: SyncService(db: unopenable, flusher: _NoopFlusher()),
+      ).checkInDisputingPin(
+        outletId: 'outlet-1',
+        lat: -26.2100,
+        lng: 28.0473,
+        distanceMeters: 656,
+      );
+      expect(result, isA<CheckInFailed>());
+    });
+  });
+
   test(
     'a denied location permission returns CheckInLocationUnavailable and writes nothing',
     () async {

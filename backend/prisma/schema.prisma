@@ -117,6 +117,8 @@ model Client {
   competitorPriceCollectionLog        CompetitorPriceCollectionEvent[]
   competitorPriceAudit                CompetitorPriceCollectionAudit[]
   fraudVerdicts                       FraudVerdict[]
+  pinDisputes                         PinDispute[]
+  outletChangeAudit                   OutletChangeAudit[]
 
   /// The audit template whose questions field agents answer on every visit, as
   /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
@@ -165,6 +167,7 @@ model User {
   notificationPrefs NotificationPreference[]
   salesTargetsSet   SalesTarget[]
   contestsCreated   Contest[]                @relation("ContestCreator")
+  pinDisputes       PinDispute[]
 
   @@index([clientId, role])
   @@map("users")
@@ -177,6 +180,18 @@ model Outlet {
   channelType     String           @map("channel_type")
   lat             Float
   lng             Float
+  /// active · closed (#386).
+  ///
+  /// Free text with a default rather than an enum so an older app build, which
+  /// never sends it and never reads it, is unaffected in both directions.
+  ///
+  /// **It does NOT gate check-in.** A store the office believes is closed but
+  /// whose shutters an agent is standing in front of must still be visitable —
+  /// "I am here and the app will not let me work" is the failure this whole
+  /// issue is about, and adding a second way to produce it while fixing the
+  /// first would be absurd. `closed` is a planning signal: it keeps the outlet
+  /// out of routes and lists, and nothing else.
+  status          String           @default("active")
   territoryId     String           @map("territory_id")
   teamProfile     Json?            @map("team_profile")
   /// The outlet's share of category turnover — the ACV weight that makes
@@ -189,10 +204,12 @@ model Outlet {
   visits          Visit[]
   tasks           Task[]
   campaignOutlets CampaignOutlet[]
-  beatPlanStops   BeatPlanStop[]
   checkInAttempts CheckInAttempt[]
+  beatPlanStops   BeatPlanStop[]
   orders          Order[]
   salesTargets    SalesTarget[]
+  pinDisputes     PinDispute[]
+  changeAudit     OutletChangeAudit[]
 
   // Per-tenant, not global. A globally-unique code meant one tenant creating
   // 'SAN-001' made that code permanently unavailable to every other tenant —
@@ -313,6 +330,10 @@ model Visit {
   resumedFromDraft Boolean  @default(false) @map("resumed_from_draft")
 
   fraudVerdict FraudVerdict?
+  /// The agent's "the pin is wrong" claim, when this visit was unblocked by
+  /// one (#386). Null on every ordinary visit — which is every visit that
+  /// passed the fence.
+  pinDispute   PinDispute?
 
   stock       VisitStock[]
   visibility  VisitVisibility?
@@ -831,6 +852,111 @@ model CheckInAttempt {
   @@index([clientId, passed])
   @@index([agentId, outletId])
   @@map("check_in_attempts")
+}
+
+/// An agent's claim that an outlet's pin is in the wrong place, and the
+/// evidence they offered for it (#386).
+///
+/// The problem it exists for: the create-outlet form took the phone's position
+/// as the ONLY source of an outlet's coordinates, so a manager onboarding forty
+/// stores from the depot pinned forty stores to the depot car park. Nothing in
+/// the product could then correct the number, and the agent standing in the
+/// shop was told they were 8.4 km away with nothing to press but Retry.
+///
+/// **This row is the price of the override, not a formality.** Letting an agent
+/// say "the fence is wrong" is letting them check in from anywhere, which is
+/// precisely the control check-in fraud detection exists to impose. So the
+/// override is never silent:
+///
+///  - the visit it produces is stored `geofence_pass = false`, which the
+///    manager's queue and the fraud engine already read;
+///  - `distance_m` is measured SERVER-SIDE from the stored pin. The device
+///    sends its position, never the distance — a client-supplied distance is a
+///    client-supplied verdict;
+///  - `outlet_lat`/`outlet_lng` freeze the pin as it read at the moment of the
+///    claim, so a dispute reviewed after the pin was corrected still shows what
+///    the agent was actually arguing with — the same reasoning as
+///    `fraud_verdicts.risk_score_at_review`;
+///  - the claim is `open` until a manager acts on it. Applying a correction
+///    through PATCH /outlets/:id resolves it; a manager who does not believe it
+///    rejects it. Nobody can resolve their own claim: agents cannot PATCH.
+///
+/// One dispute per visit (`visit_id` UNIQUE) so the evidence and the flagged
+/// visit are one-to-one.
+model PinDispute {
+  id          String   @id @default(uuid())
+  clientId    String   @map("client_id")
+  client      Client   @relation(fields: [clientId], references: [id])
+  outletId    String   @map("outlet_id")
+  outlet      Outlet   @relation(fields: [outletId], references: [id])
+  agentId     String   @map("agent_id")
+  agent       User     @relation(fields: [agentId], references: [id])
+  /// The visit that proceeded under this override. Set in the same transaction
+  /// that creates the visit, so a dispute never exists without the visit it
+  /// unblocked — the override and its evidence are one record or neither.
+  visitId     String   @unique @map("visit_id")
+  visit       Visit    @relation(fields: [visitId], references: [id])
+  /// Where the agent actually was.
+  lat         Float
+  lng         Float
+  /// Metres from the stored pin, measured here, never accepted from the device.
+  distanceM   Float    @map("distance_m")
+  /// The pin as it read when the claim was made.
+  outletLat   Float    @map("outlet_lat")
+  outletLng   Float    @map("outlet_lng")
+  /// What the agent typed. Optional, bounded, never required — a required
+  /// free-text box on a red screen gets "asdf" typed into it.
+  note        String?
+  /// open · applied · rejected
+  status      String   @default("open")
+  /// Who ruled. Not a relation: the ledger must outlive the user, like
+  /// `fraud_verdicts.reviewer_id`.
+  resolvedById    String?   @map("resolved_by_id")
+  /// Their name frozen as it read at the time.
+  resolvedByLabel String?   @map("resolved_by_label")
+  resolvedNote    String?   @map("resolved_note")
+  resolvedAt      DateTime? @map("resolved_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  /// The manager's open queue: this tenant's unresolved claims, newest first,
+  /// keyset-paged on exactly this sort.
+  @@index([clientId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([outletId, createdAt(sort: Desc)])
+  @@map("pin_disputes")
+}
+
+/// Every change PATCH /outlets/:id made to an outlet, and who made it (#386).
+///
+/// An outlet's coordinates decide whether an agent can work. Making them
+/// editable without a ledger would mean a pin could move — narrowing or widening
+/// who can check in where — with no record of who moved it or what it was
+/// before. `before`/`after` hold only the fields that actually changed.
+///
+/// Same shape and same reasoning as `competitor_price_collection_audit`:
+/// `user_id` is a bare column, not a relation, because deactivating a manager
+/// must not erase the record of what they did.
+model OutletChangeAudit {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  outletId  String   @map("outlet_id")
+  outlet    Outlet   @relation(fields: [outletId], references: [id])
+  userId    String   @map("user_id")
+  /// Their name frozen as it read at the time.
+  userLabel String   @map("user_label")
+  /// Only the changed fields, `{ lat: -26.2, name: "..." }`.
+  before    Json
+  after     Json
+  /// Where the new coordinates came from: manual · agent_position · null when
+  /// the change did not move the pin.
+  pinSource String?  @map("pin_source")
+  /// The dispute this change was made in answer to, when it was.
+  disputeId String?  @map("dispute_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([clientId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([outletId, createdAt(sort: Desc)])
+  @@map("outlet_change_audit")
 }
 
 /// An in-visit order / sell-in captured by an agent (Phase 3 #36).
