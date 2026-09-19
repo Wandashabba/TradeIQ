@@ -2858,5 +2858,9 @@
         "type": "String"
       }
     }
+  },
+  "askQuestionCopied": "Question copied",
+  "@askQuestionCopied": {
+    "description": "Toast after long-pressing a question bubble."
   }
 }

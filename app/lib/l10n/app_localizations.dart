@@ -3475,6 +3475,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open the full view of {name}'**
   String askOpenFullViewOf(String name);
+
+  /// Toast after long-pressing a question bubble.
+  ///
+  /// In en, this message translates to:
+  /// **'Question copied'**
+  String get askQuestionCopied;
 }
 
 class _AppLocalizationsDelegate

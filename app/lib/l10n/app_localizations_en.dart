@@ -2224,4 +2224,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String askOpenFullViewOf(String name) {
     return 'Open the full view of $name';
   }
+
+  @override
+  String get askQuestionCopied => 'Question copied';
 }

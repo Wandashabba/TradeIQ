@@ -2250,4 +2250,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String askOpenFullViewOf(String name) {
     return 'Maak die volle aansig van $name oop';
   }
+
+  @override
+  String get askQuestionCopied => 'Vraag gekopieer';
 }

@@ -562,5 +562,6 @@
   "askPoints": "{count, plural, =1{pt} other{pte}}",
   "askAnswer": "Antwoord",
   "askOpenFullView": "Maak volle aansig oop",
-  "askOpenFullViewOf": "Maak die volle aansig van {name} oop"
+  "askOpenFullViewOf": "Maak die volle aansig van {name} oop",
+  "askQuestionCopied": "Vraag gekopieer"
 }
