@@ -113,7 +113,6 @@ class TorchToast extends StatelessWidget {
     Color fill;
     Color ink;
     Color? border;
-    Color? leadingBar;
     switch (kind) {
       case ToastKind.success:
         if (veld) {
@@ -136,8 +135,12 @@ class TorchToast extends StatelessWidget {
         } else {
           fill = p.well;
           ink = p.ink1;
-          border = p.edgeControl;
-          leadingBar = p.badSolid;
+          // The whole outline goes crimson rather than a single leading side:
+          // a `BoxDecoration` refuses a radius on a border whose sides differ
+          // in colour, and a 10dp corner in `bad` is a better failure edge
+          // than a straight bar interrupted by two arcs. The filled triangle
+          // beside the words is the silhouette that carries it.
+          border = p.badSolid;
         }
       case ToastKind.neutral:
       case ToastKind.held:

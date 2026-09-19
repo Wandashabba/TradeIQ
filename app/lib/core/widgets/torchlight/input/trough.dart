@@ -263,33 +263,21 @@ class TroughSpec {
   final TiqTypeToken counterStyle;
   final double minNumericWidth;
 
-  /// The box the trough paints. The bottom rule is drawn as a thicker bottom
-  /// border rather than as a separate child, so it follows the radius.
-  BoxDecoration decoration() {
-    final o = outline;
-    final r = bottomRule;
-    if (o == null && r == null) {
-      return BoxDecoration(color: fill, borderRadius: radius);
-    }
-    return BoxDecoration(
-      color: fill,
-      borderRadius: radius,
-      border: Border(
-        top: o == null
-            ? BorderSide.none
-            : BorderSide(color: o, width: outlineWidth),
-        left: o == null
-            ? BorderSide.none
-            : BorderSide(color: o, width: outlineWidth),
-        right: o == null
-            ? BorderSide.none
-            : BorderSide(color: o, width: outlineWidth),
-        bottom: r == null
-            ? BorderSide.none
-            : BorderSide(color: r, width: bottomRuleWidth),
-      ),
-    );
-  }
+  /// The trough's body: fill, radius, and the uniform outline on all four
+  /// sides. **The bottom rule is not in here** — see [TroughRulePainter].
+  ///
+  /// It cannot be. A `BoxDecoration` refuses a radius on a border whose sides
+  /// differ in colour, and the bottom rule differs from the outline in exactly
+  /// the states that matter: focused, error, finding. Expressed as a border
+  /// side it asserts the moment a caret lands in the field, which is a crash
+  /// nobody meets until they type.
+  BoxDecoration decoration() => BoxDecoration(
+    color: fill,
+    borderRadius: radius,
+    border: outline == null
+        ? null
+        : Border.all(color: outline!, width: outlineWidth),
+  );
 
   String describe() {
     String hex(Color? c) => c == null
@@ -309,4 +297,37 @@ class TroughSpec {
       'help=${helpStyle.name}/${hex(helpInk)}',
     ].join('  ');
   }
+}
+
+/// THE BOTTOM RULE — the heavier line a trough holds at.
+///
+/// Drawn as a straight run between the two bottom corner arcs, which is what
+/// "a rule along the bottom" means on a shape that is square at the top and
+/// radius-10 at the bottom. No clip, no `saveLayer`: this paints inside
+/// scrolling forms.
+class TroughRulePainter extends CustomPainter {
+  const TroughRulePainter(this.spec);
+
+  final TroughSpec spec;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final colour = spec.bottomRule;
+    if (colour == null || spec.bottomRuleWidth <= 0) return;
+    final inset = spec.radius.bottomLeft.x;
+    final y = size.height - spec.bottomRuleWidth / 2;
+    canvas.drawLine(
+      Offset(inset, y),
+      Offset(size.width - inset, y),
+      Paint()
+        ..color = colour
+        ..strokeWidth = spec.bottomRuleWidth,
+    );
+  }
+
+  @override
+  bool shouldRepaint(TroughRulePainter old) =>
+      old.spec.bottomRule != spec.bottomRule ||
+      old.spec.bottomRuleWidth != spec.bottomRuleWidth ||
+      old.spec.radius != spec.radius;
 }

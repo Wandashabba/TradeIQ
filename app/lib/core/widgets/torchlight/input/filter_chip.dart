@@ -92,11 +92,7 @@ class TorchFilterChip extends StatelessWidget {
           size: MarkScale.glyph(context, 14),
         )
       else if (glyph != null)
-        TiqMark(
-          shape: glyph!,
-          color: ink,
-          size: MarkScale.glyph(context, 16),
-        ),
+        TiqMark(shape: glyph!, color: ink, size: MarkScale.glyph(context, 16)),
       if (selected || glyph != null) const SizedBox(width: 6),
       Flexible(
         child: Text(
@@ -120,8 +116,8 @@ class TorchFilterChip extends StatelessWidget {
       button: true,
       selected: selected,
       enabled: enabled,
-      label: semanticsLabel ??
-          (count == null ? label : '$label, $count results'),
+      label:
+          semanticsLabel ?? (count == null ? label : '$label, $count results'),
       excludeSemantics: true,
       child: TorchPressable(
         onPressed: onSelected,

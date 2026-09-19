@@ -175,10 +175,7 @@ class _CountStepperState extends State<CountStepper> {
     _holdTimer = Timer(CountStepper.repeatDelay, () {
       _repeatTimer = Timer.periodic(CountStepper.repeatInterval, (_) {
         _repeats++;
-        _step(
-          delta,
-          haptic: _repeats % CountStepper.hapticEveryNthRepeat == 0,
-        );
+        _step(delta, haptic: _repeats % CountStepper.hapticEveryNthRepeat == 0);
       });
     });
   }
@@ -271,32 +268,35 @@ class _CountStepperState extends State<CountStepper> {
         : '${numbers.format(widget.value)}'
               '${widget.unitWord == null ? '' : ' ${widget.unitWord}'}';
 
-    return TorchFieldShell(
+    // ONE node for the whole control — the label, the figure, the finding line
+    // and the two step targets — carrying the adjustable role, so a screen
+    // reader user steps it with a gesture and never hunts a 56dp tile. It
+    // wraps the **shell**, not the control inside it: a node buried under the
+    // label is a node nobody reaches by walking the form.
+    return Semantics(
+      container: true,
+      slider: true,
       label: widget.label,
-      spec: spec,
-      help: _isFinding
-          ? widget.findingLine
-          : widget.value == null
-          ? (widget.help ?? widget.notCountedLine)
-          : widget.help,
-      trailing: _isFinding
-          ? StatusChip(level: StatusLevel.critical, label: widget.findingWord)
+      value: spoken,
+      increasedValue: widget.enabled && !_atMax
+          ? '${_next(1)}${widget.unitWord == null ? '' : ' ${widget.unitWord}'}'
           : null,
-      child: Semantics(
-        container: true,
-        // ONE node for the whole control, with the adjustable role — a screen
-        // reader user steps it with a gesture and never hunts a 56dp target.
-        slider: true,
+      decreasedValue: widget.enabled && !_atMin
+          ? '${_next(-1)}${widget.unitWord == null ? '' : ' ${widget.unitWord}'}'
+          : null,
+      onIncrease: widget.enabled && !_atMax ? () => _step(1) : null,
+      onDecrease: widget.enabled && !_atMin ? () => _step(-1) : null,
+      child: TorchFieldShell(
         label: widget.label,
-        value: spoken,
-        increasedValue: widget.enabled && !_atMax
-            ? '${_next(1)}${widget.unitWord == null ? '' : ' ${widget.unitWord}'}'
+        spec: spec,
+        help: _isFinding
+            ? widget.findingLine
+            : widget.value == null
+            ? (widget.help ?? widget.notCountedLine)
+            : widget.help,
+        trailing: _isFinding
+            ? StatusChip(level: StatusLevel.critical, label: widget.findingWord)
             : null,
-        decreasedValue: widget.enabled && !_atMin
-            ? '${_next(-1)}${widget.unitWord == null ? '' : ' ${widget.unitWord}'}'
-            : null,
-        onIncrease: widget.enabled && !_atMax ? () => _step(1) : null,
-        onDecrease: widget.enabled && !_atMin ? () => _step(-1) : null,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
@@ -368,21 +368,24 @@ class _ValueTrough extends StatelessWidget {
         onPressed: onTap,
         pressScale: 1,
         borderRadius: spec.radius,
-        builder: (context, pressed) => Container(
-          constraints: BoxConstraints(minHeight: spec.minHeight),
-          decoration: spec.decoration().copyWith(
-            color: pressed ? torchPressSurface(skin).fill : spec.fill,
-          ),
-          padding: EdgeInsets.symmetric(horizontal: spec.horizontalPadding),
-          alignment: Alignment.centerLeft,
-          // Aligned to the trough's leading padding so the figure sits under
-          // the SKU name it belongs to, rather than floating in the middle of
-          // a control.
-          child: FigureSlot(
-            value: value,
-            role: skin.text.figureM,
-            color: ink,
-            semanticsLabel: value == null ? missingLabel : null,
+        builder: (context, pressed) => CustomPaint(
+          foregroundPainter: TroughRulePainter(spec),
+          child: Container(
+            constraints: BoxConstraints(minHeight: spec.minHeight),
+            decoration: spec.decoration().copyWith(
+              color: pressed ? torchPressSurface(skin).fill : spec.fill,
+            ),
+            padding: EdgeInsets.symmetric(horizontal: spec.horizontalPadding),
+            alignment: Alignment.centerLeft,
+            // Aligned to the trough's leading padding so the figure sits under
+            // the SKU name it belongs to, rather than floating in the middle of
+            // a control.
+            child: FigureSlot(
+              value: value,
+              role: skin.text.figureM,
+              color: ink,
+              semanticsLabel: value == null ? missingLabel : null,
+            ),
           ),
         ),
       ),
@@ -580,9 +583,7 @@ class _StepGlyphPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StepGlyphPainter old) =>
-      old.sign != sign ||
-      old.color != color ||
-      old.strokeWidth != strokeWidth;
+      old.sign != sign || old.color != color || old.strokeWidth != strokeWidth;
 }
 
 /// THE NUMBER SHEET. One trough, `Cancel`, `Set`.

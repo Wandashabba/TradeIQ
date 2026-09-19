@@ -214,17 +214,20 @@ class _TorchTextFieldState extends State<TorchTextField> {
       ),
     );
 
-    final trough = Container(
-      constraints: BoxConstraints(minHeight: spec.minHeight),
-      decoration: spec.decoration(),
-      padding: EdgeInsets.symmetric(
-        horizontal: spec.horizontalPadding,
-        vertical: spec.verticalPadding,
+    final trough = CustomPaint(
+      foregroundPainter: TroughRulePainter(spec),
+      child: Container(
+        constraints: BoxConstraints(minHeight: spec.minHeight),
+        decoration: spec.decoration(),
+        padding: EdgeInsets.symmetric(
+          horizontal: spec.horizontalPadding,
+          vertical: spec.verticalPadding,
+        ),
+        alignment: widget.maximumLines > 1
+            ? Alignment.topLeft
+            : Alignment.centerLeft,
+        child: field,
       ),
-      alignment: widget.maximumLines > 1
-          ? Alignment.topLeft
-          : Alignment.centerLeft,
-      child: field,
     );
 
     return TorchFieldShell(

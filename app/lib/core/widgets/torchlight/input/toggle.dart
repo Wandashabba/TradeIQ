@@ -49,9 +49,8 @@ class TorchToggle extends StatelessWidget {
   final String? disabledReason;
 
   /// Track geometry. One set of numbers, scaled up in Veld only.
-  static Size trackSizeFor(TiqSkin skin) => skin.density == TiqDensity.veld
-      ? const Size(64, 36)
-      : const Size(52, 32);
+  static Size trackSizeFor(TiqSkin skin) =>
+      skin.density == TiqDensity.veld ? const Size(64, 36) : const Size(52, 32);
 
   static double thumbExtentFor(TiqSkin skin) =>
       skin.density == TiqDensity.veld ? 30 : 26;
@@ -104,10 +103,7 @@ class TorchToggle extends StatelessWidget {
         decoration: BoxDecoration(
           color: trackFill,
           borderRadius: BorderRadius.circular(track.height / 2),
-          border: Border.all(
-            color: trackBorder,
-            width: skin.depth.borderWidth,
-          ),
+          border: Border.all(color: trackBorder, width: skin.depth.borderWidth),
         ),
         child: AnimatedAlign(
           duration: duration,

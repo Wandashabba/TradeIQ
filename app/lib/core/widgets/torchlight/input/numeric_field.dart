@@ -294,39 +294,42 @@ class _TorchNumericFieldState extends State<TorchNumericField> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Container(
-                  constraints: BoxConstraints(
-                    minHeight: spec.minHeight,
-                    minWidth: spec.minNumericWidth,
-                  ),
-                  decoration: spec.decoration(),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spec.horizontalPadding,
-                    vertical: spec.verticalPadding,
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _Editable(
-                          controller: _controller,
-                          focus: _focus,
-                          style: style,
-                          align: overflow.align,
-                          enabled: widget.enabled,
-                          readOnly: widget.readOnly,
-                          decimalSeparator: numbers.symbols.decimal,
-                          hintInk: spec.hintInk,
-                          selectionFill: skin.palette.lifted,
-                          onChanged: (text) => widget.onChanged?.call(
-                            _parse(text, numbers.symbols),
+                CustomPaint(
+                  foregroundPainter: TroughRulePainter(spec),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      minHeight: spec.minHeight,
+                      minWidth: spec.minNumericWidth,
+                    ),
+                    decoration: spec.decoration(),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spec.horizontalPadding,
+                      vertical: spec.verticalPadding,
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: _Editable(
+                            controller: _controller,
+                            focus: _focus,
+                            style: style,
+                            align: overflow.align,
+                            enabled: widget.enabled,
+                            readOnly: widget.readOnly,
+                            decimalSeparator: numbers.symbols.decimal,
+                            hintInk: spec.hintInk,
+                            selectionFill: skin.palette.lifted,
+                            onChanged: (text) => widget.onChanged?.call(
+                              _parse(text, numbers.symbols),
+                            ),
                           ),
                         ),
-                      ),
-                      if (affix != null) ...<Widget>[
-                        const SizedBox(width: TiqSpace.s2),
-                        ExcludeSemantics(child: affix),
+                        if (affix != null) ...<Widget>[
+                          const SizedBox(width: TiqSpace.s2),
+                          ExcludeSemantics(child: affix),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
                 // WHILE IT HOLDS FOCUS AND OVERFLOWS, the full value renders

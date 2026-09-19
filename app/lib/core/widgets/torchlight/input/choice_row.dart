@@ -105,8 +105,7 @@ class ChoiceRow<T> extends StatelessWidget {
     // mis-tap, whatever the arithmetic says.
     if (skin.density == TiqDensity.veld) return ChoiceLayout.column;
     if (!maxWidth.isFinite) return ChoiceLayout.row;
-    final cell =
-        (maxWidth - TiqSpace.s2 * (labels.length - 1)) / labels.length;
+    final cell = (maxWidth - TiqSpace.s2 * (labels.length - 1)) / labels.length;
     for (final label in labels) {
       if (label.length > longLabelCharacters) return ChoiceLayout.column;
       final painter = TextPainter(
@@ -251,10 +250,7 @@ class ChoiceRow<T> extends StatelessWidget {
             // NOTHING SELECTED IS A STATE, and it says so in words. Without
             // this line an unanswered group and an answered one look the same
             // from two steps back.
-            Text(
-              notAnsweredLine,
-              style: skin.text.meta.style(color: p.ink3),
-            ),
+            Text(notAnsweredLine, style: skin.text.meta.style(color: p.ink3)),
           ],
           if (clear != null && !nothingSelected) ...<Widget>[
             const SizedBox(height: TiqSpace.s2),
@@ -289,9 +285,7 @@ class _Option<T> extends StatelessWidget {
     final p = skin.palette;
     final enabled = option.enabled && onTap != null;
     final veld = skin.density == TiqDensity.veld;
-    final height = veld
-        ? 64.0
-        : (column ? 56.0 : skin.space.tapTarget);
+    final height = veld ? 64.0 : (column ? 56.0 : skin.space.tapTarget);
     final radius = BorderRadius.circular(skin.radii.chip);
 
     final Color? fill;
@@ -382,7 +376,10 @@ class _Option<T> extends StatelessWidget {
     );
 
     if (!option.enabled) {
-      tile = CustomPaint(foregroundPainter: _StrikePainter(p.inkMute), child: tile);
+      tile = CustomPaint(
+        foregroundPainter: _StrikePainter(p.inkMute),
+        child: tile,
+      );
     }
 
     return Semantics(
