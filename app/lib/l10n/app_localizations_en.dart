@@ -2216,4 +2216,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askAnswer => 'Answer';
+
+  @override
+  String get askOpenFullView => 'Open full view';
+
+  @override
+  String askOpenFullViewOf(String name) {
+    return 'Open the full view of $name';
+  }
 }

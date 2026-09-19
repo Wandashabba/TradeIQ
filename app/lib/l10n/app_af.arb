@@ -560,5 +560,7 @@
   "askFollowUpDisabled": "nie beskikbaar terwyl die antwoord geskryf word nie",
   "askSeconds": "{seconds}s",
   "askPoints": "{count, plural, =1{pt} other{pte}}",
-  "askAnswer": "Antwoord"
+  "askAnswer": "Antwoord",
+  "askOpenFullView": "Maak volle aansig oop",
+  "askOpenFullViewOf": "Maak die volle aansig van {name} oop"
 }

@@ -2242,4 +2242,12 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get askAnswer => 'Antwoord';
+
+  @override
+  String get askOpenFullView => 'Maak volle aansig oop';
+
+  @override
+  String askOpenFullViewOf(String name) {
+    return 'Maak die volle aansig van $name oop';
+  }
 }

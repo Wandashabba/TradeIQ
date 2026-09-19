@@ -2845,5 +2845,18 @@
   "askAnswer": "Answer",
   "@askAnswer": {
     "description": "Announced before an assistant turn."
+  },
+  "askOpenFullView": "Open full view",
+  "@askOpenFullView": {
+    "description": "The row at the foot of a panel block that leads to the full, table-backed view."
+  },
+  "askOpenFullViewOf": "Open the full view of {name}",
+  "@askOpenFullViewOf": {
+    "description": "Names the block the expand row belongs to, rather than saying Open full view three times in one panel.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

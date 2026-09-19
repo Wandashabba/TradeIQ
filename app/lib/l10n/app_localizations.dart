@@ -3463,6 +3463,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Answer'**
   String get askAnswer;
+
+  /// The row at the foot of a panel block that leads to the full, table-backed view.
+  ///
+  /// In en, this message translates to:
+  /// **'Open full view'**
+  String get askOpenFullView;
+
+  /// Names the block the expand row belongs to, rather than saying Open full view three times in one panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the full view of {name}'**
+  String askOpenFullViewOf(String name);
 }
 
 class _AppLocalizationsDelegate

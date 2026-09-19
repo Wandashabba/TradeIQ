@@ -1,255 +1,120 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/agent_motion.dart';
-import '../../../core/widgets/glass.dart';
-import '../answer/answer_motion.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/figure/sample_threshold.dart';
+import '../../../core/widgets/torchlight/figure/stat_cluster.dart';
+import '../../../core/widgets/torchlight/figure/stat_tile.dart';
+import '../../../core/widgets/torchlight/mark/delta.dart';
+import '../../../l10n/l10n.dart';
 import '../data/chat_controller.dart';
 import 'rich_figures.dart';
 
-/// The ink for a delta's verdict. Shared with the ranked bars so "bad" is the
-/// same colour wherever a number falls.
-Color sentimentColor(BuildContext context, DeltaSentiment sentiment) {
-  final colors = context.colors;
-  final glass = colors.glass;
-  return switch (sentiment) {
-    DeltaSentiment.good => colors.good,
-    DeltaSentiment.warn => colors.warn,
-    DeltaSentiment.bad => glass ? context.lumen.critical : colors.critText,
-    DeltaSentiment.neutral => glass ? context.lumen.inkMuted : colors.ink3,
-  };
-}
-
-/// The `stat_tiles` spec: the answer's figures as a two-column grid of tiles.
+/// The `stat_tiles` spec, as the kit's [StatCluster].
 ///
-/// Each tile is a big mono figure that counts up as it arrives, a delta pill
-/// whose colour is the server's verdict (never inferred from the sign — a
-/// stock-out count going up is bad), what it is compared against, and an
-/// optional meter.
+/// ## What this replaces, and why it is smaller than it was
+///
+/// The old card built its own tile: a `Container` with a border and a radius,
+/// a `CountUpFigure` that tweened through numbers that were never true, a
+/// `DeltaChip` on a 14%-alpha wash of its verdict's hue, and a meter in the
+/// brand colour. All four are gone. `StatTile` owns the layout, the unknown
+/// states, the delta's shape and the meter; `FigureSlot` owns the faces, the
+/// locale and the em dash; `DeltaRule` owns when a delta may stand at all.
+///
+/// **The tile grid does not exist on a phone.** unify §1.4 rules the phone
+/// layout horizontal — eyebrow left, figure right-aligned, meter and delta
+/// beneath — with a two-column grid only above 320dp of *inner* width, which
+/// is no phone this product ships to. The assistant surface argued for a 2×2
+/// at 138dp cells and lost on its own arithmetic: "R 1,28 mln" at JBM 32 is
+/// about 192dp.
+///
+/// **Amber: none, deliberately.** The shared component draws a meter's target
+/// tick in ink-1 everywhere and `TorchClaim.meterTick` does not exist: four
+/// repeated amber ticks in one cluster would be exactly the repeated fill the
+/// law bans.
 class StatTilesCard extends StatelessWidget {
   const StatTilesCard({super.key, required this.artifact});
 
   final ChatArtifact artifact;
 
-  static const _gap = 10.0;
+  /// Four on a phone, three recommended, two in Veld. Past that the figures
+  /// a reader least often acts on belong in the table twin, not in the fold.
+  static List<StatTileData> capped(List<StatTileData> tiles, TiqSkin skin) {
+    final limit = skin.density == TiqDensity.veld
+        ? StatCluster.maximumInVeld
+        : StatCluster.maximumOnPhone;
+    return tiles.length <= limit ? tiles : tiles.sublist(0, limit);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final tiles = StatTileData.listFrom(artifact.data);
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final tiles = capped(StatTileData.listFrom(artifact.data), skin);
+    // A block with nothing in it is dropped, never rendered empty.
     if (tiles.isEmpty) return const SizedBox.shrink();
 
-    final rows = <Widget>[];
-    for (var i = 0; i < tiles.length; i += 2) {
-      rows.add(IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: _tile(tiles[i], i)),
-            const SizedBox(width: _gap),
-            Expanded(
-              child: i + 1 < tiles.length
-                  ? _tile(tiles[i + 1], i + 1)
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        ),
-      ));
-      if (i + 2 < tiles.length) rows.add(const SizedBox(height: _gap));
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: rows,
-    );
-  }
-
-  Widget _tile(StatTileData tile, int index) => Arrive(
-        // The mockup's stagger, tightened: four tiles land inside 300ms.
-        delay: Duration(milliseconds: 80 * index),
-        child: StatTileView(tile: tile, index: index),
-      );
-}
-
-class StatTileView extends StatelessWidget {
-  const StatTileView({super.key, required this.tile, this.index = 0});
-
-  final StatTileData tile;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    final lumen = context.lumen;
-    final ink = glass ? lumen.ink : colors.ink1;
-    final muted = glass ? lumen.inkMuted : colors.ink3;
-    final delta = tile.delta;
-    final meter = tile.meter;
-
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          tile.label,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 12, height: 1.3, color: muted),
-        ),
-        const SizedBox(height: 5),
-        CountUpFigure(
-          value: tile.value,
-          unit: tile.unit,
-          style: LumenGlass.figure(size: 24, color: ink),
-        ),
-        if (meter != null) ...[
-          const SizedBox(height: 7),
-          _Meter(fraction: meter / 100, label: tile.formatted),
-        ],
-        if (delta != null || tile.comparedTo != null) ...[
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (delta != null) DeltaChip(delta: delta),
-              if (tile.comparedTo != null)
-                Text(
-                  tile.comparedTo!,
-                  style: LumenGlass.figure(
-                    size: 11.5,
-                    color: muted,
-                    weight: FontWeight.w500,
-                  ).copyWith(height: 1.2),
-                ),
-            ],
-          ),
-        ],
+    return StatCluster(
+      semanticsLabel: l10n.askFigures,
+      tiles: <StatTile>[
+        for (final tile in tiles) askStatTile(context, tile),
       ],
     );
-
-    const padding = EdgeInsets.fromLTRB(13, 12, 13, 12);
-    if (glass) {
-      return GlassPane(
-        kind: GlassKind.tile,
-        // A grid of repeated tiles in the transcript never pays for a blur.
-        blur: false,
-        shadow: false,
-        radius: LumenGlass.radiusControl,
-        padding: padding,
-        child: body,
-      );
-    }
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(colors.radiusCard),
-      ),
-      child: body,
-    );
   }
 }
 
-/// A figure sweeping 0 → value, formatted in its unit at every frame.
-class CountUpFigure extends StatelessWidget {
-  const CountUpFigure({
-    super.key,
-    required this.value,
-    required this.unit,
-    required this.style,
-  });
-
-  final num value;
-  final String? unit;
-  final TextStyle style;
-
-  Widget _text(num v) => Text(
-        formatAmount(v, unit),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    if (reduceMotion(context)) return _text(value);
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: value.toDouble()),
-      duration: const Duration(milliseconds: 750),
-      curve: Curves.easeOutCubic,
-      // The last frame is the exact value, not the tween's float.
-      builder: (context, v, _) => _text(v == value ? value : v),
-    );
-  }
-}
-
-/// `▼ 12.4%` on a wash of its verdict's colour.
-class DeltaChip extends StatelessWidget {
-  const DeltaChip({super.key, required this.delta});
-
-  final TileDelta delta;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = sentimentColor(context, delta.sentiment);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        delta.text,
-        style: LumenGlass.figure(
-          size: 11.5,
-          color: color,
-          weight: FontWeight.w600,
-        ).copyWith(height: 1.2),
-      ),
-    );
-  }
-}
-
-class _Meter extends StatelessWidget {
-  const _Meter({required this.fraction, required this.label});
-
-  final double fraction;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    return Semantics(
-      label: '$label meter',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(99),
-        child: Container(
-          height: 5,
-          color: glass ? context.lumen.track : colors.grid,
-          alignment: Alignment.centerLeft,
-          child: GrowIn(
-            duration: const Duration(milliseconds: 900),
-            delay: const Duration(milliseconds: 120),
-            builder: (context, t) => FractionallySizedBox(
-              key: const ValueKey('stat-tile-meter-fill'),
-              widthFactor: (fraction * t).clamp(0.0, 1.0),
-              heightFactor: 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: glass ? context.lumen.accentSolid : colors.brand,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
+/// One wire tile as the kit's [StatTile].
+///
+/// Everything the wire knows is handed over rather than re-decided here: the
+/// metric's `decimals`, its `sampleSize` and its `baselineSampleSize`, and the
+/// delta's direction and sentiment as two separate fields. Neither is derived
+/// from the other — a stock-out count going up is bad and a spoilage count
+/// going down is good, and only the server knows which this is.
+StatTile askStatTile(BuildContext context, StatTileData tile) {
+  final l10n = context.l10n;
+  final delta = tile.delta;
+  return StatTile(
+    eyebrow: tile.label,
+    value: tile.value,
+    unit: askUnitFor(l10n, tile.unit, tile.value.abs()),
+    decimals: tile.decimals,
+    sampling: FigureSampling(
+      kind: _kindOf(tile.unit),
+      n: tile.sampleSize,
+      baselineN: tile.baselineSampleSize,
+    ),
+    delta: delta == null
+        ? null
+        : DeltaData(
+            direction: switch (delta.up) {
+              true => DeltaDirection.up,
+              false => DeltaDirection.down,
+              null => DeltaDirection.flat,
+            },
+            sentiment: switch (delta.sentiment) {
+              DeltaSentiment.good => TiqSentiment.good,
+              DeltaSentiment.bad => TiqSentiment.bad,
+              // The wire's `warn` maps to neutral: there is no amber warning
+              // in this system, and a delta is never a severity carrier.
+              DeltaSentiment.warn => TiqSentiment.neutral,
+              DeltaSentiment.neutral => TiqSentiment.neutral,
+            },
+            magnitude: delta.value,
+            unit: askUnitFor(l10n, delta.unit, delta.value.abs()),
+            decimals: delta.decimals ?? tile.decimals,
+            comparedTo: tile.comparedTo,
           ),
-        ),
-      ),
-    );
-  }
+    meter: tile.meter == null ? null : MeterData(value: tile.meter!),
+  );
 }
+
+/// The wire's unit as the formatter's, with `pts` localised.
+TiqUnit askUnitFor(AppLocalizations l10n, String? unit, num magnitude) =>
+    unitFor(unit, magnitude, pointsWord: l10n.askPoints);
+
+/// What kind of metric this is, for the sample thresholds.
+///
+/// A percentage or a points delta is a rate and needs n ≥ 5; a bare count is
+/// a total and has no denominator to be thin.
+MetricKind _kindOf(String? unit) =>
+    unit == 'pct' || unit == 'pts' ? MetricKind.rate : MetricKind.count;

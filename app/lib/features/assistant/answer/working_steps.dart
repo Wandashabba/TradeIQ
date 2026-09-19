@@ -1,11 +1,17 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
+import '../../../core/design/figure_slot.dart';
+import '../../../core/design/motion_budget.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/button/torch_press.dart';
+import '../../../core/widgets/torchlight/mark/tiq_mark.dart';
+import '../../../l10n/l10n.dart';
 import '../data/chat_controller.dart';
 import 'answer_motion.dart';
+import 'ask_light.dart';
 
 /// Tool name → the step, in the manager's words.
 ///
@@ -55,202 +61,482 @@ String stepLabel(ToolActivity tool) =>
       _ => 'Looking that up',
     };
 
-/// `0.6s`.
-String formatSeconds(Duration d) =>
-    '${(d.inMilliseconds / 1000).toStringAsFixed(1)}s';
-
-/// The header once the answer is done: "Checked 5 sources · 2.4s".
-String stepsSummary(List<ToolActivity> tools) {
-  final ok = tools.where((t) => t.ok == true).length;
-  final failed = tools.where((t) => t.ok == false).length;
-  final parts = ['Checked $ok ${ok == 1 ? 'source' : 'sources'}'];
-  if (failed > 0) parts.add('$failed unavailable');
-
+/// How long a turn's lookups took, in seconds. Null when the clock did not
+/// run — a duration is never shown as `0.0s`.
+Duration? stepsElapsed(List<ToolActivity> tools) {
   final starts = tools.map((t) => t.startedAt).whereType<DateTime>();
   final ends = tools.map((t) => t.endedAt).whereType<DateTime>();
-  if (starts.isNotEmpty && ends.isNotEmpty) {
-    final first = starts.reduce((a, b) => a.isBefore(b) ? a : b);
-    final last = ends.reduce((a, b) => a.isAfter(b) ? a : b);
-    if (!last.isBefore(first)) parts.add(formatSeconds(last.difference(first)));
+  if (starts.isEmpty || ends.isEmpty) return null;
+  final first = starts.reduce((a, b) => a.isBefore(b) ? a : b);
+  final last = ends.reduce((a, b) => a.isAfter(b) ? a : b);
+  return last.isBefore(first) ? null : last.difference(first);
+}
+
+/// "Checked 5 sources · 1 unavailable · 2.1s".
+String stepsSummary(
+  AppLocalizations l10n,
+  TiqNumber number,
+  List<ToolActivity> tools,
+) {
+  final ok = tools.where((t) => t.ok == true).length;
+  final failed = tools.where((t) => t.ok == false).length;
+  // Every tool failed: that IS the explanation for a thin answer, so it is
+  // said rather than counted.
+  final parts = <String>[
+    if (ok == 0 && failed > 0) l10n.askStepsNoneAnswered else
+      l10n.askStepsChecked(ok),
+    if (failed > 0 && ok > 0) l10n.askStepsUnavailableCount(failed),
+  ];
+  final elapsed = stepsElapsed(tools);
+  if (elapsed != null) {
+    parts.add(l10n.askSeconds(number.format(
+      elapsed.inMilliseconds / 1000,
+      decimals: 1,
+    )));
   }
   return parts.join(' · ');
 }
 
-/// The live checklist of what the assistant is looking up.
+/// What a step is doing.
+enum StepState {
+  /// Not started. A hollow ring.
+  queued,
+
+  /// Executing. The one live pulse this surface permits — and the only amber
+  /// in the rail, ever.
+  running,
+
+  /// Finished, with its measured duration.
+  done,
+
+  /// The source did not answer. A filled triangle and the word — the rail
+  /// never turns red, because one dead source is not a dead answer.
+  failed,
+
+  /// Still open when the stream ended. A bar, and the words.
+  unfinished,
+}
+
+/// THE WORKING-STEPS RAIL.
 ///
-/// It replaces a loose row of chips because a pause is only reassuring when
-/// you can see what is being waited on: each step spins while it runs, ticks
-/// with its own measured time when it lands, and says so plainly when a source
-/// was unavailable. When the turn ends it stays, summarised — the answer's
-/// provenance, one glance above it.
+/// To make a pause legible — what is being looked up, right now, in the
+/// manager's own words — and afterwards to stand as the answer's provenance.
+///
+/// ## The one live pulse, and when it goes out
+///
+/// The running dot is `TorchClaim.livePulse`, rung 6, and it means **presence
+/// and never progress**. The moment the last tool ends the amber goes out,
+/// even though the turn is not finished and the header changes to "Writing the
+/// answer" — because a breathing amber means *something is happening right
+/// now*, and a model composing a sentence is not a lookup. That is this
+/// surface's strictest amber decision and it is worth the extra state.
+///
+/// Every dot state carries a distinct **silhouette** (ring, disc, triangle,
+/// bar) and a word, so neither colour nor motion is ever the only signal.
+/// Under reduce-motion, in Day and in Veld the running dot is a `lifted` disc
+/// plus the word "Live" — through the same code path, so the two cannot rot
+/// apart.
 class WorkingSteps extends StatelessWidget {
   const WorkingSteps({
     super.key,
     required this.tools,
     required this.streaming,
     this.animate = false,
+    this.writing = false,
   });
 
   final List<ToolActivity> tools;
   final bool streaming;
 
-  /// Whether steps slide in as they arrive (a live turn) or are simply there.
+  /// Whether steps slide in as they arrive (a live turn).
   final bool animate;
+
+  /// Every tool has finished and no token has arrived yet. The rail says so,
+  /// and the amber is already out.
+  final bool writing;
+
+  /// Past this the middle of the rail collapses to one row.
+  static const int shownSteps = 8;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    final lumen = context.lumen;
-    final muted = glass ? lumen.inkMuted : colors.ink3;
-    final ink = glass ? lumen.ink : colors.ink1;
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final p = skin.palette;
+    final running = tools.indexWhere((t) => t.ok == null && streaming);
 
-    final header = Text(
-      streaming ? 'Working on it…' : stepsSummary(tools),
-      key: const ValueKey('working-steps-summary'),
-      style: LumenGlass.figure(
-        size: 12,
-        color: muted,
-        weight: FontWeight.w500,
-      ).copyWith(height: 1.2),
-    );
-
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Semantics(liveRegion: true, child: header),
-        const SizedBox(height: 7),
-        for (var i = 0; i < tools.length; i++)
-          Arrive(
-            key: ValueKey('step-$i'),
-            enabled: animate,
-            offset: 6,
-            duration: const Duration(milliseconds: 280),
-            child: Padding(
-              padding: EdgeInsets.only(top: i == 0 ? 0 : 5),
-              child: _Step(
-                tool: tools[i],
-                streaming: streaming,
-                ink: ink,
-                muted: muted,
-              ),
-            ),
-          ),
-      ],
-    );
-
-    const padding = EdgeInsets.fromLTRB(12, 10, 12, 10);
-    if (glass) {
-      return GlassPane(
-        kind: GlassKind.tile,
-        blur: false,
-        shadow: false,
-        radius: LumenGlass.radiusControl,
-        padding: padding,
-        child: body,
+    // First 2 and last 5, with one row between them saying how many are
+    // hidden. Never a scroll region inside a transcript.
+    final visible = <int>[];
+    var hidden = 0;
+    if (tools.length <= shownSteps) {
+      visible.addAll(List<int>.generate(tools.length, (i) => i));
+    } else {
+      visible.addAll(<int>[0, 1]);
+      hidden = tools.length - 7;
+      visible.addAll(
+        List<int>.generate(5, (i) => tools.length - 5 + i),
       );
     }
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(colors.radiusCard),
+
+    return Semantics(
+      liveRegion: streaming,
+      label: streaming && running != -1
+          ? l10n.askStepProgress(
+              running + 1,
+              tools.length,
+              stepLabel(tools[running]),
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            writing ? l10n.askStepsWriting : l10n.askStepsLookingUp,
+            key: const ValueKey<String>('working-steps-header'),
+            style: skin.text.label.style(color: p.ink2),
+          ),
+          SizedBox(height: skin.space.intraBlock - TiqSpace.s1 * 2),
+          for (var v = 0; v < visible.length; v++) ...<Widget>[
+            if (v == 2 && hidden > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: TiqSpace.s1),
+                child: Padding(
+                  padding: EdgeInsets.only(left: _StepRow.labelInset(context)),
+                  child: Text(
+                    l10n.askStepsMore(hidden),
+                    style: skin.text.meta.style(color: p.ink3),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: EdgeInsets.only(top: v == 0 ? 0 : TiqSpace.s1),
+              child: Arrive(
+                key: ValueKey<String>('step-${visible[v]}'),
+                enabled: animate,
+                offset: 6,
+                duration: const Duration(milliseconds: 280),
+                child: _StepRow(
+                  tool: tools[visible[v]],
+                  running: streaming && visible[v] == running && !writing,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
-      child: body,
     );
   }
 }
 
-enum StepState { pending, done, failed, unfinished }
-
-class _Step extends StatelessWidget {
-  const _Step({
-    required this.tool,
-    required this.streaming,
-    required this.ink,
-    required this.muted,
-  });
+class _StepRow extends StatelessWidget {
+  const _StepRow({required this.tool, required this.running});
 
   final ToolActivity tool;
-  final bool streaming;
-  final Color ink;
-  final Color muted;
+  final bool running;
+
+  /// Where a step's label starts. The rail's dots sit on x = 8, so the text
+  /// clears them at 28 — and grows with the text, because at 2.0× the dot is
+  /// a 16dp mark.
+  static double labelInset(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(28).clamp(28.0, 48.0);
 
   StepState get state => switch (tool.ok) {
     true => StepState.done,
     false => StepState.failed,
-    // A turn that ended with this step still open — a dropped stream —
-    // must not spin forever.
-    null => streaming ? StepState.pending : StepState.unfinished,
+    null => running ? StepState.running : StepState.queued,
   };
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    final lumen = context.lumen;
-    final good = colors.good;
-    final critical = glass ? lumen.critical : colors.critText;
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final p = skin.palette;
     final state = this.state;
+    final still = MotionBudget.of(context).still;
+    final lit = TorchScope.lit(context, AskLight.pulseClaimId) && !still;
+    final label = stepLabel(tool);
     final duration = tool.duration;
 
-    final Widget mark = switch (state) {
-      StepState.pending => CircularProgressIndicator(
-        strokeWidth: 2,
-        color: glass ? lumen.accentSolid : colors.brand,
-        backgroundColor: glass ? lumen.track : colors.grid,
-      ),
-      StepState.done => Container(
-        decoration: BoxDecoration(
-          color: good.withValues(alpha: 0.18),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(Icons.check, size: 10, color: good),
-      ),
-      StepState.failed => Container(
-        decoration: BoxDecoration(
-          color: critical.withValues(alpha: 0.16),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(Icons.close, size: 10, color: critical),
-      ),
-      StepState.unfinished => Icon(Icons.remove, size: 12, color: muted),
-    };
-
-    final label = stepLabel(tool);
     final text = switch (state) {
-      StepState.failed => '$label — unavailable',
-      StepState.unfinished => '$label — did not finish',
+      StepState.failed => l10n.askStepsUnavailable(label),
+      StepState.unfinished => l10n.askStepsDidNotFinish(label),
+      // The word is the channel that always has to be there: it is what a
+      // reduce-motion reader, a Day skin and a screen reader all get.
+      StepState.running => '$label · ${l10n.askStepsLive}',
       _ => label,
     };
 
-    return Row(
-      key: ValueKey('step-${state.name}'),
-      children: [
-        SizedBox(width: 14, height: 14, child: mark),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.3,
-              color: state == StepState.pending ? ink : muted,
+    final dot = _StepDot(state: state, lit: lit);
+
+    return Semantics(
+      label: duration == null
+          ? text
+          : '$text, ${l10n.askSeconds(TiqNumber.of(context).format(
+              duration.inMilliseconds / 1000,
+              decimals: 1,
+            ))}',
+      excludeSemantics: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: labelInset(context),
+            child: Align(alignment: AlignmentDirectional.centerStart, child: dot),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: skin.text.label.style(
+                color: state == StepState.running ? p.ink1 : p.ink2,
+              ),
+            ),
+          ),
+          if (duration != null && state != StepState.running) ...<Widget>[
+            const SizedBox(width: TiqSpace.s2),
+            FigureSlot(
+              value: duration.inMilliseconds / 1000,
+              role: skin.text.monoIdent,
+              decimals: 1,
+              unit: TiqUnit.worded('s', tight: true),
+              color: p.ink3,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The dot: four silhouettes, and one of them can be lit.
+class _StepDot extends StatefulWidget {
+  const _StepDot({required this.state, required this.lit});
+
+  final StepState state;
+  final bool lit;
+
+  @override
+  State<_StepDot> createState() => _StepDotState();
+}
+
+class _StepDotState extends State<_StepDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3200),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final moving =
+        widget.state == StepState.running && !MotionBudget.of(context).still;
+    if (moving && !_pulse.isAnimating) {
+      _pulse.repeat();
+    } else if (!moving && _pulse.isAnimating) {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_StepDot old) {
+    super.didUpdateWidget(old);
+    didChangeDependencies();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final p = skin.palette;
+    final size = MarkScale.glyph(context, 8);
+
+    switch (widget.state) {
+      case StepState.queued:
+        return _Ring(size: size, colour: p.edgeControl, skin: skin);
+      case StepState.done:
+        return _Disc(size: size, colour: p.ink2);
+      case StepState.failed:
+        return TiqMark(
+          shape: MarkShape.criticalTriangle,
+          color: p.badSolid,
+          size: MarkScale.glyph(context, 9),
+        );
+      case StepState.unfinished:
+        return SizedBox(
+          width: MarkScale.glyph(context, 10),
+          height: 2,
+          child: ColoredBox(color: p.ink3),
+        );
+      case StepState.running:
+        final colour = AskLight.pulse(skin, lit: widget.lit);
+        final bloom = AskLight.pulseBloom(skin, lit: widget.lit);
+        // Its own RepaintBoundary: a 3200ms bloom must not dirty the
+        // transcript's rows behind it.
+        return RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _pulse,
+            builder: (context, _) {
+              // 1.00 → 1.12 and back, once per 3200ms.
+              final t = 1 - (2 * _pulse.value - 1).abs();
+              final scale = 1 + 0.12 * t;
+              return SizedBox(
+                width: size * 2.5,
+                height: size * 2.5,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: <Widget>[
+                    if (bloom != null)
+                      Opacity(
+                        opacity: 0.35 + 0.20 * t,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: bloom,
+                          ),
+                          child: SizedBox.square(dimension: size * 2.5),
+                        ),
+                      ),
+                    Transform.scale(
+                      scale: scale,
+                      child: _Disc(size: size, colour: colour),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+    }
+  }
+}
+
+class _Disc extends StatelessWidget {
+  const _Disc({required this.size, required this.colour});
+
+  final double size;
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: DecoratedBox(
+      decoration: BoxDecoration(color: colour, shape: BoxShape.circle),
+    ),
+  );
+}
+
+class _Ring extends StatelessWidget {
+  const _Ring({required this.size, required this.colour, required this.skin});
+
+  final double size;
+  final Color colour;
+  final TiqSkin skin;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: colour, width: skin.depth.borderWidth),
+      ),
+    ),
+  );
+}
+
+/// What the rail becomes once the answer has landed: one quiet row saying what
+/// the answer was built from.
+///
+/// **Amber: none.** A finished lookup is not live, and this row is the proof
+/// that the surface's amber has moved on.
+class StepsSummaryRow extends StatefulWidget {
+  const StepsSummaryRow({super.key, required this.tools});
+
+  final List<ToolActivity> tools;
+
+  @override
+  State<StepsSummaryRow> createState() => _StepsSummaryRowState();
+}
+
+class _StepsSummaryRowState extends State<StepsSummaryRow> {
+  late bool _open = _allFailed;
+
+  /// Every tool failed: expanded by default, because that is the explanation
+  /// for a thin answer and it should not need a tap.
+  bool get _allFailed =>
+      widget.tools.isNotEmpty && widget.tools.every((t) => t.ok == false);
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final p = skin.palette;
+    final summary = stepsSummary(l10n, TiqNumber.of(context), widget.tools);
+    final failures = widget.tools.where((t) => t.ok == false).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Semantics(
+          button: true,
+          expanded: _open,
+          label: l10n.askStepsSemantic(
+            summary,
+            _open ? l10n.askStepsHide : l10n.askStepsShow,
+          ),
+          excludeSemantics: true,
+          child: TorchPressable(
+            onPressed: () => setState(() => _open = !_open),
+            builder: (context, pressed) => Container(
+              constraints: BoxConstraints(minHeight: skin.space.tapTarget),
+              alignment: AlignmentDirectional.centerStart,
+              child: Row(
+                children: <Widget>[
+                  SizedBox(
+                    width: _StepRow.labelInset(context),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: failures > 0
+                          ? TiqMark(
+                              shape: MarkShape.criticalTriangle,
+                              color: p.badSolid,
+                              size: MarkScale.glyph(context, 9),
+                            )
+                          : _Disc(
+                              size: MarkScale.glyph(context, 8),
+                              colour: p.ink2,
+                            ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      summary,
+                      key: const ValueKey<String>('working-steps-summary'),
+                      style: skin.text.label.style(color: p.ink2),
+                    ),
+                  ),
+                  Icon(
+                    _open ? Icons.expand_less : Icons.expand_more,
+                    size: MarkScale.glyph(context, 16),
+                    color: p.ink3,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        if (duration != null && state != StepState.pending) ...[
-          const SizedBox(width: 8),
-          Text(
-            formatSeconds(duration),
-            style: LumenGlass.figure(
-              size: 11,
-              color: muted,
-              weight: FontWeight.w500,
-            ),
-          ),
+        if (_open) ...<Widget>[
+          SizedBox(height: skin.space.intraBlock),
+          WorkingSteps(tools: widget.tools, streaming: false),
         ],
       ],
     );
