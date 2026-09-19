@@ -3,7 +3,10 @@
 // The style debt that existed in `lib/features/**` when the Torchlight Aisle
 // tokens landed, one entry per file. 477 hardcoded style decisions in 74 of
 // 133 files: 409 bare `TextStyle(`, 38 raw `Color(0x…)` and 30 uses of
-// Material's `Colors.` palette.
+// Material's `Colors.` palette. The submit gate (13) and the visit outcome
+// (24) came off it when the closing screens were migrated, and the manager's
+// worklists — alerts, alert rules and tasks — took 68 more across five files:
+// 372 in 67 files.
 //
 // The ratchet is one-sided on purpose. A file may not gain a violation and a
 // file that is not listed may not have one at all — that is what stops the
@@ -18,8 +21,6 @@
 const Map<String, int> torchlightStyleDebt = <String, int>{
   'agents/presentation/agent_trail_screen.dart': 20,
   'agents/presentation/live_location_layer.dart': 13,
-  'alerts/presentation/alert_rules_screen.dart': 2,
-  'alerts/presentation/alerts_screen.dart': 5,
   'assistant/answer/answer_view.dart': 5,
   'assistant/answer/web_sources.dart': 2,
   'assistant/answer/working_steps.dart': 1,
@@ -34,8 +35,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'assistant/view_specs/stat_tiles_card.dart': 1,
   'assistant/view_specs/view_spec_registry.dart': 2,
   'audit/presentation/my_work_screen.dart': 6,
-  'audit/presentation/submit_gate_screen.dart': 13,
-  'audit/presentation/visit_outcome_screen.dart': 24,
   'audit/presentation/visit_outlet_picker_screen.dart': 3,
   'auth/presentation/landing_screen.dart': 5,
   'auth/presentation/login_screen.dart': 13,
@@ -68,7 +67,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'reports/presentation/report_schedules_screen.dart': 1,
   'sales_targets/presentation/sales_attainment_panel.dart': 3,
   'sales_targets/presentation/sales_targets_screen.dart': 11,
-  'tasks/presentation/tasks_screen.dart': 5,
   'templates/presentation/dynamic_template_form.dart': 1,
   'templates/presentation/templates_screen.dart': 3,
   'territories/presentation/territories_screen.dart': 2,
@@ -82,4 +80,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 378;
+const int torchlightStyleDebtTotal = 329;

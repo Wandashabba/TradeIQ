@@ -251,7 +251,7 @@ abstract class AppLocalizations {
   /// Guided photo screen: button that opens the camera.
   ///
   /// In en, this message translates to:
-  /// **'Capture'**
+  /// **'Open camera'**
   String get captureButton;
 
   /// Guided photo screen: button that opens the photo gallery.
@@ -1105,6 +1105,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing to raise. No stockouts, no risks — this store is in good shape.'**
   String get submitNothingToRaise;
+
+  /// Second line on the submit gate's captured block when sections are can't-confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 section could not be confirmed — the manager is told} other{{count} sections could not be confirmed — the manager is told}}'**
+  String submitNotConfirmedLine(int count);
+
+  /// Title of a can't-confirm row on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'{section} could not be confirmed'**
+  String submitCantConfirmTask(String section);
+
+  /// Meta line under a can't-confirm row on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'The manager is told · not confirmed'**
+  String get submitCantConfirmTaskLine;
+
+  /// Screen-reader line for an urgent raised task.
+  ///
+  /// In en, this message translates to:
+  /// **'Urgent. {title}. {line}'**
+  String submitTaskSemanticsUrgent(String title, String line);
+
+  /// Screen-reader line for a routine raised task.
+  ///
+  /// In en, this message translates to:
+  /// **'Routine. {title}. {line}'**
+  String submitTaskSemanticsRoutine(String title, String line);
+
+  /// Screen-reader line for a can't-confirm row on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Not confirmed. {section}. {reason}'**
+  String submitCantConfirmSemantics(String section, String reason);
+
+  /// Screen-reader label for the submit gate's primary button.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit this visit to your manager'**
+  String get submitPrimarySemantics;
+
+  /// Screen-reader line for the submit gate's captured block.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} sections complete. {line}'**
+  String submitCapturedSemantics(int done, int total, String line);
+
+  /// Headline of the clean-store block on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to raise'**
+  String get submitNothingToRaiseHeadline;
+
+  /// Ghost action under the submit gate's primary.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back and change something'**
+  String get submitGateBack;
 
   /// App bar title on the screen shown after a visit is submitted.
   ///
@@ -2791,6 +2851,330 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 section can’t be confirmed} other{{count} sections can’t be confirmed}}'**
   String visitCantConfirmCount(int count);
+
+  /// Ghost action on the outcome screen: open the outbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Open my work'**
+  String get outcomeOpenMyWork;
+
+  /// Screen-reader line for the outcome hero.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect-store score, {score} out of 100. {band}.'**
+  String outcomeHeroSemantics(int score, String band);
+
+  /// Screen-reader line for one scored dimension.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {value} out of 100.'**
+  String outcomeDimensionSemantics(String name, int value);
+
+  /// Screen-reader line for an unmeasured dimension.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, not measured. {reason}'**
+  String outcomeDimensionUnmeasuredSemantics(String name, String reason);
+
+  /// Reason shown on an unmeasured dimension the server gave no reason for.
+  ///
+  /// In en, this message translates to:
+  /// **'Not measured in this visit.'**
+  String get outcomeNotMeasuredGeneric;
+
+  /// Shown instead of a delta when there is no previous visit.
+  ///
+  /// In en, this message translates to:
+  /// **'First scored visit here.'**
+  String get outcomeFirstScored;
+
+  /// First half of the reconciliation line: 'Now scored 71 — it was 84'.
+  ///
+  /// In en, this message translates to:
+  /// **'Now scored'**
+  String get outcomeReconciledLead;
+
+  /// Second half of the reconciliation line.
+  ///
+  /// In en, this message translates to:
+  /// **'— it was'**
+  String get outcomeReconciledTail;
+
+  /// Screen-reader line for the reconciliation line.
+  ///
+  /// In en, this message translates to:
+  /// **'Now scored {now}. It was {seen} when you saw it.'**
+  String outcomeReconciledSemantics(int now, int seen);
+
+  /// Reason under the reconciliation line.
+  ///
+  /// In en, this message translates to:
+  /// **'It was scored again after you saw it.'**
+  String get outcomeReconciledReason;
+
+  /// Screen-reader label for the outcome's primary.
+  ///
+  /// In en, this message translates to:
+  /// **'Go on to the next store'**
+  String get outcomeNextStoreSemantics;
+
+  /// Screen-reader line announcing the held-on-phone outcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted. Held on this phone until you have signal.'**
+  String get outcomeHeldSemantics;
+
+  /// Screen-reader label for the pre-capture card's primary.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the camera to photograph the shelf'**
+  String get captureOpenCameraSemantics;
+
+  /// Shown on the pre-capture card when the last shot was underexposed.
+  ///
+  /// In en, this message translates to:
+  /// **'Aisle dark? Switch your phone torch on before you shoot.'**
+  String get captureTorchHint;
+
+  /// Meta line on the pre-capture card.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photo is stamped with the time and where you are.'**
+  String get captureStampNote;
+
+  /// Title of the photo review step.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the photo'**
+  String get captureReviewTitle;
+
+  /// Caption under an underexposed photo in the review strip.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark — retake?'**
+  String get captureDarkCaption;
+
+  /// Screen-reader announcement for an underexposed photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark — you may want to retake this.'**
+  String get captureDarkSemantics;
+
+  /// Primary on the photo review step: keep this photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Use it'**
+  String get captureUseIt;
+
+  /// Shown when the camera cannot be opened at all.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has no camera we can reach.'**
+  String get captureNoCamera;
+
+  /// Word in the photo's meta line when it carries a location.
+  ///
+  /// In en, this message translates to:
+  /// **'geotagged'**
+  String get captureGeotagged;
+
+  /// Word in the photo's meta line when it carries no location.
+  ///
+  /// In en, this message translates to:
+  /// **'no location on this photo'**
+  String get captureNoGeotag;
+
+  /// The photo's meta line in the review step.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} · {tag}'**
+  String capturePhotoMeta(String time, String tag);
+
+  /// Screen-reader label for the reviewed photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo taken {time}, held on this phone.'**
+  String capturePhotoSemantics(String time);
+
+  /// Title of the agent's map screen. The same word as the nav slot (navMap), deliberately: the tab and the screen are one destination.
+  ///
+  /// In en, this message translates to:
+  /// **'Map'**
+  String get mapTitle;
+
+  /// Header fact: how many of the agent's stores this screen is about.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 store} other{{count} stores}}'**
+  String mapStoresFact(int count);
+
+  /// Section rule above the stores that are on today's beat plan.
+  ///
+  /// In en, this message translates to:
+  /// **'Today’s route'**
+  String get mapRouteHeading;
+
+  /// Under the route section rule when there is no plan. The section still renders — a section that vanishes reads as a missing feature.
+  ///
+  /// In en, this message translates to:
+  /// **'No route planned for today.'**
+  String get mapRouteEmptyLine;
+
+  /// Section rule above the agent's other outlets — in their territories, not on today's plan.
+  ///
+  /// In en, this message translates to:
+  /// **'The rest of your patch'**
+  String get mapPatchHeading;
+
+  /// Pin and row state: a stop on today's route that is already done.
+  ///
+  /// In en, this message translates to:
+  /// **'Visited today'**
+  String get mapStateDone;
+
+  /// Pin and row state: the next stop on today's route.
+  ///
+  /// In en, this message translates to:
+  /// **'Next up'**
+  String get mapStateNext;
+
+  /// Pin and row state: on the plan, further down it.
+  ///
+  /// In en, this message translates to:
+  /// **'On today’s route'**
+  String get mapStatePlanned;
+
+  /// Pin and row state: one of the agent's stores, not on today's plan.
+  ///
+  /// In en, this message translates to:
+  /// **'In your patch'**
+  String get mapStateTerritory;
+
+  /// Extra state word on a store whose coordinates are disputed (#386). Never replaces the other state word — it is added to it.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin under review'**
+  String get mapStateDisputed;
+
+  /// Sentence in the store's sheet when its pin is under review.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone has reported this pin as wrong, so the position on the map may not be the shop.'**
+  String get mapDisputedLine;
+
+  /// The marker for the phone's own position. Only ever drawn when there is a fix.
+  ///
+  /// In en, this message translates to:
+  /// **'You are here'**
+  String get mapYouAreHere;
+
+  /// Location permission refused. Not an error, and not a broken map.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is off for this app, so there are no distances and no dot for where you are. The stores are still right.'**
+  String get mapLocationDenied;
+
+  /// Device location services are off.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is switched off on this phone, so there are no distances and no dot for where you are. The stores are still right.'**
+  String get mapLocationServicesOff;
+
+  /// The radio is on and no fix arrived. Also used for a platform failure we have no code for.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone cannot get a fix yet, so there are no distances and no dot for where you are. The stores are still right.'**
+  String get mapLocationNoFix;
+
+  /// Headline in the map's own region when the tiles will not load.
+  ///
+  /// In en, this message translates to:
+  /// **'No map here'**
+  String get mapTilesOffTitle;
+
+  /// Body under mapTilesOffTitle. Offline on a rural forecourt is the normal case, not an error.
+  ///
+  /// In en, this message translates to:
+  /// **'The map will not load — there is nothing to fetch it with. Your stores are listed below, and the list needs no connection.'**
+  String get mapTilesOffBody;
+
+  /// Shown instead of the map in the Veld skin, where maps do not render.
+  ///
+  /// In en, this message translates to:
+  /// **'The map is off in bright sun. Your stores are listed below, nearest first.'**
+  String get mapVeldNote;
+
+  /// Whole-screen empty state: no route today and nothing in the agent's territories.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores yet'**
+  String get mapEmptyTitle;
+
+  /// Body of the empty state. It names who fixes it.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no route for today and no store in your patch. A manager assigns both.'**
+  String get mapEmptyBody;
+
+  /// Whole-screen error headline on the map.
+  ///
+  /// In en, this message translates to:
+  /// **'Your stores did not load'**
+  String get mapLoadErrorTitle;
+
+  /// Body of the error state. It offers the action that still works.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not reach the server. Your day still works — pick a store and check in.'**
+  String get mapLoadErrorDetail;
+
+  /// Pagination footer when the marker budget cuts the list and there is a fix to sort by.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} nearest of {total} stores.'**
+  String mapShowingNearest(int shown, int total);
+
+  /// Pagination footer when there is no fix, so the list is by name and nearest means nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} stores.'**
+  String mapShowingFirst(int shown, int total);
+
+  /// Action in the sheet for a store already visited today. Deliberately not the primary — going back is allowed, not expected.
+  ///
+  /// In en, this message translates to:
+  /// **'Check in again'**
+  String get mapCheckInAgain;
+
+  /// Sentence in the sheet for a store already visited today.
+  ///
+  /// In en, this message translates to:
+  /// **'You checked in here today.'**
+  String get mapVisitedTodayLine;
+
+  /// The nav circle when the agent is standing inside a store's check-in fence.
+  ///
+  /// In en, this message translates to:
+  /// **'Check in at {name}'**
+  String mapCircleAtDoor(String name);
+
+  /// Screen-reader label for a marker on the map.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {state}. Double-tap for what you can do here.'**
+  String mapPinHint(String name, String state);
+
+  /// Spoken label for the map's legend row.
+  ///
+  /// In en, this message translates to:
+  /// **'What the pins mean'**
+  String get mapLegendLabel;
+
+  /// The close action on a bottom sheet, and the 56dp close row of the full-screen route it becomes in Veld.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get sheetClose;
 
   /// The affirmative state word beside a toggle. Never the only signal.
   ///

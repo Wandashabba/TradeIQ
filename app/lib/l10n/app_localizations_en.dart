@@ -119,7 +119,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get captureButton => 'Capture';
+  String get captureButton => 'Open camera';
 
   @override
   String get captureGalleryButton => 'Choose from gallery';
@@ -648,6 +648,54 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get submitNothingToRaise =>
       'Nothing to raise. No stockouts, no risks — this store is in good shape.';
+
+  @override
+  String submitNotConfirmedLine(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sections could not be confirmed — the manager is told',
+      one: '1 section could not be confirmed — the manager is told',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String submitCantConfirmTask(String section) {
+    return '$section could not be confirmed';
+  }
+
+  @override
+  String get submitCantConfirmTaskLine => 'The manager is told · not confirmed';
+
+  @override
+  String submitTaskSemanticsUrgent(String title, String line) {
+    return 'Urgent. $title. $line';
+  }
+
+  @override
+  String submitTaskSemanticsRoutine(String title, String line) {
+    return 'Routine. $title. $line';
+  }
+
+  @override
+  String submitCantConfirmSemantics(String section, String reason) {
+    return 'Not confirmed. $section. $reason';
+  }
+
+  @override
+  String get submitPrimarySemantics => 'Submit this visit to your manager';
+
+  @override
+  String submitCapturedSemantics(int done, int total, String line) {
+    return '$done of $total sections complete. $line';
+  }
+
+  @override
+  String get submitNothingToRaiseHeadline => 'Nothing to raise';
+
+  @override
+  String get submitGateBack => 'Go back and change something';
 
   @override
   String get outcomeTitle => 'Visit submitted';
@@ -1753,6 +1801,208 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get outcomeOpenMyWork => 'Open my work';
+
+  @override
+  String outcomeHeroSemantics(int score, String band) {
+    return 'Perfect-store score, $score out of 100. $band.';
+  }
+
+  @override
+  String outcomeDimensionSemantics(String name, int value) {
+    return '$name, $value out of 100.';
+  }
+
+  @override
+  String outcomeDimensionUnmeasuredSemantics(String name, String reason) {
+    return '$name, not measured. $reason';
+  }
+
+  @override
+  String get outcomeNotMeasuredGeneric => 'Not measured in this visit.';
+
+  @override
+  String get outcomeFirstScored => 'First scored visit here.';
+
+  @override
+  String get outcomeReconciledLead => 'Now scored';
+
+  @override
+  String get outcomeReconciledTail => '— it was';
+
+  @override
+  String outcomeReconciledSemantics(int now, int seen) {
+    return 'Now scored $now. It was $seen when you saw it.';
+  }
+
+  @override
+  String get outcomeReconciledReason => 'It was scored again after you saw it.';
+
+  @override
+  String get outcomeNextStoreSemantics => 'Go on to the next store';
+
+  @override
+  String get outcomeHeldSemantics =>
+      'Submitted. Held on this phone until you have signal.';
+
+  @override
+  String get captureOpenCameraSemantics =>
+      'Open the camera to photograph the shelf';
+
+  @override
+  String get captureTorchHint =>
+      'Aisle dark? Switch your phone torch on before you shoot.';
+
+  @override
+  String get captureStampNote =>
+      'Your photo is stamped with the time and where you are.';
+
+  @override
+  String get captureReviewTitle => 'Check the photo';
+
+  @override
+  String get captureDarkCaption => 'Dark — retake?';
+
+  @override
+  String get captureDarkSemantics => 'Dark — you may want to retake this.';
+
+  @override
+  String get captureUseIt => 'Use it';
+
+  @override
+  String get captureNoCamera => 'This phone has no camera we can reach.';
+
+  @override
+  String get captureGeotagged => 'geotagged';
+
+  @override
+  String get captureNoGeotag => 'no location on this photo';
+
+  @override
+  String capturePhotoMeta(String time, String tag) {
+    return '$time · $tag';
+  }
+
+  @override
+  String capturePhotoSemantics(String time) {
+    return 'Photo taken $time, held on this phone.';
+  }
+
+  @override
+  String get mapTitle => 'Map';
+
+  @override
+  String mapStoresFact(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stores',
+      one: '1 store',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mapRouteHeading => 'Today’s route';
+
+  @override
+  String get mapRouteEmptyLine => 'No route planned for today.';
+
+  @override
+  String get mapPatchHeading => 'The rest of your patch';
+
+  @override
+  String get mapStateDone => 'Visited today';
+
+  @override
+  String get mapStateNext => 'Next up';
+
+  @override
+  String get mapStatePlanned => 'On today’s route';
+
+  @override
+  String get mapStateTerritory => 'In your patch';
+
+  @override
+  String get mapStateDisputed => 'Pin under review';
+
+  @override
+  String get mapDisputedLine =>
+      'Someone has reported this pin as wrong, so the position on the map may not be the shop.';
+
+  @override
+  String get mapYouAreHere => 'You are here';
+
+  @override
+  String get mapLocationDenied =>
+      'Location is off for this app, so there are no distances and no dot for where you are. The stores are still right.';
+
+  @override
+  String get mapLocationServicesOff =>
+      'Location is switched off on this phone, so there are no distances and no dot for where you are. The stores are still right.';
+
+  @override
+  String get mapLocationNoFix =>
+      'This phone cannot get a fix yet, so there are no distances and no dot for where you are. The stores are still right.';
+
+  @override
+  String get mapTilesOffTitle => 'No map here';
+
+  @override
+  String get mapTilesOffBody =>
+      'The map will not load — there is nothing to fetch it with. Your stores are listed below, and the list needs no connection.';
+
+  @override
+  String get mapVeldNote =>
+      'The map is off in bright sun. Your stores are listed below, nearest first.';
+
+  @override
+  String get mapEmptyTitle => 'No stores yet';
+
+  @override
+  String get mapEmptyBody =>
+      'There is no route for today and no store in your patch. A manager assigns both.';
+
+  @override
+  String get mapLoadErrorTitle => 'Your stores did not load';
+
+  @override
+  String get mapLoadErrorDetail =>
+      'We could not reach the server. Your day still works — pick a store and check in.';
+
+  @override
+  String mapShowingNearest(int shown, int total) {
+    return 'Showing the $shown nearest of $total stores.';
+  }
+
+  @override
+  String mapShowingFirst(int shown, int total) {
+    return 'Showing $shown of $total stores.';
+  }
+
+  @override
+  String get mapCheckInAgain => 'Check in again';
+
+  @override
+  String get mapVisitedTodayLine => 'You checked in here today.';
+
+  @override
+  String mapCircleAtDoor(String name) {
+    return 'Check in at $name';
+  }
+
+  @override
+  String mapPinHint(String name, String state) {
+    return '$name, $state. Double-tap for what you can do here.';
+  }
+
+  @override
+  String get mapLegendLabel => 'What the pins mean';
+
+  @override
+  String get sheetClose => 'Close';
 
   @override
   String get wordYes => 'Yes';

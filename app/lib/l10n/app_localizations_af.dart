@@ -125,7 +125,7 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
-  String get captureButton => 'Neem foto';
+  String get captureButton => 'Maak kamera oop';
 
   @override
   String get captureGalleryButton => 'Kies uit galery';
@@ -655,6 +655,57 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get submitNothingToRaise =>
       'Niks om te skep nie. Niks uit voorraad, geen risiko’s nie — hierdie winkel is in goeie toestand.';
+
+  @override
+  String submitNotConfirmedLine(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count afdelings kon nie bevestig word nie — die bestuurder word vertel',
+      one: '1 afdeling kon nie bevestig word nie — die bestuurder word vertel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String submitCantConfirmTask(String section) {
+    return '$section kon nie bevestig word nie';
+  }
+
+  @override
+  String get submitCantConfirmTaskLine =>
+      'Die bestuurder word vertel · nie bevestig nie';
+
+  @override
+  String submitTaskSemanticsUrgent(String title, String line) {
+    return 'Dringend. $title. $line';
+  }
+
+  @override
+  String submitTaskSemanticsRoutine(String title, String line) {
+    return 'Roetine. $title. $line';
+  }
+
+  @override
+  String submitCantConfirmSemantics(String section, String reason) {
+    return 'Nie bevestig nie. $section. $reason';
+  }
+
+  @override
+  String get submitPrimarySemantics =>
+      'Stuur hierdie besoek aan jou bestuurder';
+
+  @override
+  String submitCapturedSemantics(int done, int total, String line) {
+    return '$done van $total afdelings voltooi. $line';
+  }
+
+  @override
+  String get submitNothingToRaiseHeadline => 'Niks om aan te meld nie';
+
+  @override
+  String get submitGateBack => 'Gaan terug en verander iets';
 
   @override
   String get outcomeTitle => 'Besoek ingedien';
@@ -1774,6 +1825,210 @@ class AppLocalizationsAf extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get outcomeOpenMyWork => 'Maak my werk oop';
+
+  @override
+  String outcomeHeroSemantics(int score, String band) {
+    return 'Perfekte-winkel-telling, $score uit 100. $band.';
+  }
+
+  @override
+  String outcomeDimensionSemantics(String name, int value) {
+    return '$name, $value uit 100.';
+  }
+
+  @override
+  String outcomeDimensionUnmeasuredSemantics(String name, String reason) {
+    return '$name, nie gemeet nie. $reason';
+  }
+
+  @override
+  String get outcomeNotMeasuredGeneric => 'Nie in hierdie besoek gemeet nie.';
+
+  @override
+  String get outcomeFirstScored => 'Eerste getelde besoek hier.';
+
+  @override
+  String get outcomeReconciledLead => 'Nou getel';
+
+  @override
+  String get outcomeReconciledTail => '— dit was';
+
+  @override
+  String outcomeReconciledSemantics(int now, int seen) {
+    return 'Nou getel $now. Dit was $seen toe jy dit gesien het.';
+  }
+
+  @override
+  String get outcomeReconciledReason =>
+      'Dit is weer getel nadat jy dit gesien het.';
+
+  @override
+  String get outcomeNextStoreSemantics => 'Gaan aan na die volgende winkel';
+
+  @override
+  String get outcomeHeldSemantics =>
+      'Gestuur. Op hierdie foon gehou totdat jy sein het.';
+
+  @override
+  String get captureOpenCameraSemantics =>
+      'Maak die kamera oop om die rak te fotografeer';
+
+  @override
+  String get captureTorchHint =>
+      'Gang donker? Skakel jou foon se flitslig aan voordat jy skiet.';
+
+  @override
+  String get captureStampNote =>
+      'Jou foto word gemerk met die tyd en waar jy is.';
+
+  @override
+  String get captureReviewTitle => 'Kyk na die foto';
+
+  @override
+  String get captureDarkCaption => 'Donker — neem weer?';
+
+  @override
+  String get captureDarkSemantics => 'Donker — jy wil dit dalk weer neem.';
+
+  @override
+  String get captureUseIt => 'Gebruik dit';
+
+  @override
+  String get captureNoCamera =>
+      'Hierdie foon het geen kamera wat ons kan bereik nie.';
+
+  @override
+  String get captureGeotagged => 'geo-gemerk';
+
+  @override
+  String get captureNoGeotag => 'geen ligging op hierdie foto nie';
+
+  @override
+  String capturePhotoMeta(String time, String tag) {
+    return '$time · $tag';
+  }
+
+  @override
+  String capturePhotoSemantics(String time) {
+    return 'Foto geneem $time, op hierdie foon gehou.';
+  }
+
+  @override
+  String get mapTitle => 'Kaart';
+
+  @override
+  String mapStoresFact(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count winkels',
+      one: '1 winkel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mapRouteHeading => 'Vandag se roete';
+
+  @override
+  String get mapRouteEmptyLine => 'Geen roete vir vandag beplan nie.';
+
+  @override
+  String get mapPatchHeading => 'Die res van jou gebied';
+
+  @override
+  String get mapStateDone => 'Vandag besoek';
+
+  @override
+  String get mapStateNext => 'Volgende';
+
+  @override
+  String get mapStatePlanned => 'Op vandag se roete';
+
+  @override
+  String get mapStateTerritory => 'In jou gebied';
+
+  @override
+  String get mapStateDisputed => 'Speld word nagegaan';
+
+  @override
+  String get mapDisputedLine =>
+      'Iemand het gemeld dat hierdie speld verkeerd is, so die plek op die kaart is dalk nie die winkel nie.';
+
+  @override
+  String get mapYouAreHere => 'Jy is hier';
+
+  @override
+  String get mapLocationDenied =>
+      'Ligging is af vir hierdie app, so daar is geen afstande en geen kolletjie vir waar jy is nie. Die winkels is steeds reg.';
+
+  @override
+  String get mapLocationServicesOff =>
+      'Ligging is op hierdie foon afgeskakel, so daar is geen afstande en geen kolletjie vir waar jy is nie. Die winkels is steeds reg.';
+
+  @override
+  String get mapLocationNoFix =>
+      'Hierdie foon kry nog nie ’n ligging nie, so daar is geen afstande en geen kolletjie vir waar jy is nie. Die winkels is steeds reg.';
+
+  @override
+  String get mapTilesOffTitle => 'Geen kaart hier nie';
+
+  @override
+  String get mapTilesOffBody =>
+      'Die kaart laai nie — daar is niks om dit mee te haal nie. Jou winkels is hieronder gelys, en die lys het geen verbinding nodig nie.';
+
+  @override
+  String get mapVeldNote =>
+      'Die kaart is af in helder son. Jou winkels is hieronder gelys, naaste eerste.';
+
+  @override
+  String get mapEmptyTitle => 'Nog geen winkels nie';
+
+  @override
+  String get mapEmptyBody =>
+      'Daar is geen roete vir vandag nie en geen winkel in jou gebied nie. ’n Bestuurder ken albei toe.';
+
+  @override
+  String get mapLoadErrorTitle => 'Jou winkels het nie gelaai nie';
+
+  @override
+  String get mapLoadErrorDetail =>
+      'Ons kon nie by die bediener uitkom nie. Jou dag werk steeds — kies ’n winkel en teken in.';
+
+  @override
+  String mapShowingNearest(int shown, int total) {
+    return 'Wys die $shown naaste van $total winkels.';
+  }
+
+  @override
+  String mapShowingFirst(int shown, int total) {
+    return 'Wys $shown van $total winkels.';
+  }
+
+  @override
+  String get mapCheckInAgain => 'Teken weer in';
+
+  @override
+  String get mapVisitedTodayLine => 'Jy het vandag hier ingeteken.';
+
+  @override
+  String mapCircleAtDoor(String name) {
+    return 'Teken in by $name';
+  }
+
+  @override
+  String mapPinHint(String name, String state) {
+    return '$name, $state. Dubbeltik vir wat jy hier kan doen.';
+  }
+
+  @override
+  String get mapLegendLabel => 'Wat die spelde beteken';
+
+  @override
+  String get sheetClose => 'Maak toe';
 
   @override
   String get wordYes => 'Ja';

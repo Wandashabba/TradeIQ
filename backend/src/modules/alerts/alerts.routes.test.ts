@@ -370,6 +370,29 @@ describe('alerts routes', () => {
       expect(secondIds.some((id: string) => firstIds.includes(id))).toBe(false);
     });
 
+    it('says how many alerts the filter matches, on every page of a cut list', async () => {
+      const all = await request(app)
+        .get('/alerts?limit=200')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(all.status).toBe(200);
+      // One page holds everything, so the total is that page.
+      expect(all.body.nextCursor).toBeNull();
+      expect(all.body.total).toBe(all.body.data.length);
+
+      const first = await request(app)
+        .get('/alerts?limit=2')
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(first.body.data).toHaveLength(2);
+      // Cut: the total is the whole match, not the page.
+      expect(first.body.total).toBe(all.body.total);
+
+      const second = await request(app)
+        .get(`/alerts?limit=2&cursor=${first.body.nextCursor}`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      // The cursor does not shrink the total.
+      expect(second.body.total).toBe(all.body.total);
+    });
+
     it('clamps limit above the max to 200', async () => {
       const res = await request(app)
         .get('/alerts?limit=9999')

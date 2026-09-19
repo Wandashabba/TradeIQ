@@ -1,31 +1,68 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/sync/sync_status.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/agent_kit.dart';
-import '../../../core/widgets/agent_motion.dart';
-import '../../../core/widgets/agent_scaffold.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/lumen_kit.dart';
+import '../../../core/theme/torchlight/agent_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../../../l10n/l10n.dart';
 import '../data/visit_progress.dart';
 import '../data/visit_review.dart';
+import 'audit_shell_screen.dart'
+    show VisitFrame, cantConfirmText, sectionLabel;
 
-/// The last screen before the visit leaves the agent's hands.
+/// THE SUBMIT GATE — the last screen before the visit leaves the agent's
+/// hands.
 ///
-/// Submitting is irreversible and it raises tasks for a manager — it is the one
-/// moment in the visit where the agent is *accusing the store of something*. So
-/// it does not happen behind a button on a hub. It shows what the submission
-/// will do, in plain words, and asks.
+/// Submitting is irreversible and it raises tasks against a real shop: it is
+/// the one moment in the visit where the agent is *accusing a store of
+/// something*. So it does not happen behind a button on a hub. It shows what
+/// the submission will do, in plain words, and asks.
 ///
-/// Everything on this screen is derived from what the agent captured. Nothing is
-/// added afterwards, and the screen says so, because an agent who believes the
-/// app is inventing findings will start under-reporting them.
+/// ```text
+///   Submit visit                    Kasi Corner Spaza · 12 min in store
+///   Check this before it goes to your manager — you cannot change it after.
+///   ┌───────────────────────────────────────────┐
+///   │ ◉  4 of 7 sections complete               │
+///   │    12 SKUs counted · 2 competitors        │
+///   │ ⊘  1 section could not be confirmed       │
+///   └───────────────────────────────────────────┘
+///   ── This will raise · 3 ──────────────────────
+///   ▌▲ Fanta Orange 2L is out of stock
+///   ▌  Task for the manager · high
+///    ◺ Aisle blocked by delivery
+///      Task for the manager · normal
+///    ⊘ Stock & availability could not be confirmed
+///      The manager is told · not confirmed
+///   ■ No signal? Submitting still works…
+///   [ ☾ ] [          Submit visit               ]
+/// ```
+///
+/// Everything here is derived from what the agent captured. Nothing is added
+/// afterwards, and the screen says so — an agent who believes the app is
+/// inventing findings will start under-reporting them.
+///
+/// ## Amber
+///
+/// An untabbed route, so the content has two grants in Night and this screen
+/// spends exactly one of them: the primary. The severity bars, the task
+/// glyphs, the section rule and the offline note are all labels, and the law
+/// bans amber from every one of them by name. While the review is loading or
+/// unreadable the primary is still armed — **a failure to read the review is
+/// not a failure to submit**, because submitting is a local write and the
+/// captures are already on the phone.
+///
+/// ## Can't confirm is something to raise (#389)
+///
+/// The old gate listed nothing for a section the app could not establish, so a
+/// store that refused four sections produced a gate printing "this store is in
+/// good shape". Every can't-confirm section now gets its own row here, because
+/// a store that refused the count *is* the finding.
 class SubmitGateScreen extends ConsumerWidget {
   const SubmitGateScreen({
     super.key,
@@ -42,6 +79,9 @@ class SubmitGateScreen extends ConsumerWidget {
   final DateTime? checkinTs;
   final VoidCallback onConfirm;
 
+  /// The primary's claim id.
+  static const String submitClaimId = 'submit-gate';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final key = (visitDraftId: visitDraftId, outletId: outletId);
@@ -52,100 +92,141 @@ class SubmitGateScreen extends ConsumerWidget {
         .maybeWhen(data: (s) => s.pending.isNotEmpty, orElse: () => false);
 
     final l10n = context.l10n;
-    return AgentScaffold(
-      title: l10n.visitSubmitButton,
-      subtitle: _inStore(l10n),
-      showSyncChip: false,
-      onBack: () => Navigator.of(context).pop(),
-      bottomAction: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (offline)
-            BarNote(l10n.submitOfflineNote),
-          // In glass the kit's primary button is the GlassPrimaryButton.
-          AgentButton(
-            key: const ValueKey('confirm-submit'),
-            label: l10n.visitSubmitButton,
-            onPressed: onConfirm,
-          ),
-        ],
-      ),
-      body: reviewAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(l10n.visitReadFailed('$err')),
-          ),
-        ),
-        data: (review) {
-          final colors = context.colors;
-          final progress = progressAsync.maybeWhen(
-            data: (p) => p,
-            orElse: () => null,
-          );
+    final progress = progressAsync.maybeWhen(
+      data: (p) => p,
+      orElse: () => null,
+    );
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-            children: [
-              Text(
-                l10n.submitIntro,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  height: 1.5,
-                  color: colors.ink2,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Reveal(
-                index: 0,
-                child: _CapturedCard(
-                  sectionsDone: progress?.doneCount ?? 0,
-                  sectionsTotal: progress?.captureCount ?? 0,
-                  line: review.capturedLineIn(l10n),
-                ),
-              ),
-              if (review.willRaise.isNotEmpty) ...[
-                const SizedBox(height: 18),
-                _Heading(l10n.submitWillRaiseHeading),
-                Reveal(
-                  index: 1,
-                  child: colors.glass
-                      // Glass: a checklist — each task its own tile, so the
-                      // agent reads them one accusation at a time.
-                      ? Column(
-                          children: [
-                            for (final (i, task) in review.willRaise.indexed)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  top: i == 0 ? 0 : 8,
-                                ),
-                                child: _TaskRow(task: task),
-                              ),
-                          ],
-                        )
-                      : PanelCard(
-                          padded: false,
-                          child: Column(
-                            children: [
-                              for (final task in review.willRaise)
-                                _TaskRow(task: task),
-                            ],
-                          ),
-                        ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  l10n.submitAccusation(review.willRaise.length),
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.5,
-                    color: colors.ink3,
+    Widget frame({
+      required String phase,
+      required List<Widget> children,
+    }) => VisitFrame(
+      phase: phase,
+      title: l10n.visitSubmitButton,
+      facts: <String>[_inStore(l10n)],
+      // The gate is not the hub: there is no sync chip here, because the
+      // header already carries the outlet and the offline note carries the
+      // one fact about signal that matters at this moment.
+      showSyncChip: false,
+      claimSubmit: true,
+      claimId: SubmitGateScreen.submitClaimId,
+      submit: TorchPrimaryButton(
+        key: const ValueKey<String>('confirm-submit'),
+        claimId: SubmitGateScreen.submitClaimId,
+        label: l10n.visitSubmitButton,
+        // The label a reader hears is the whole sentence, so nobody is ever
+        // asked to confirm the word "Submit".
+        semanticLabel: l10n.submitPrimarySemantics,
+        onPressed: onConfirm,
+      ),
+      secondary: TorchSecondaryButton(
+        key: const ValueKey<String>('gate-back'),
+        label: l10n.submitGateBack,
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      children: <Widget>[
+        // Offline is not an error and it is not a blocker: submitting is a
+        // local write. A square glyph and a sentence, never crimson.
+        if (offline) ...<Widget>[
+          Row(
+            key: const ValueKey<String>('submit-offline-note'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const RowMarkTile(mark: RowMark.square),
+              const SizedBox(width: TiqSpace.s3),
+              Expanded(
+                child: Text(
+                  l10n.submitOfflineNote,
+                  style: context.skin.text.label.style(
+                    color: context.skin.palette.ink2,
                   ),
                 ),
-              ] else ...[
-                const SizedBox(height: 18),
-                Reveal(index: 1, child: _NothingWrong()),
+              ),
+            ],
+          ),
+          const SizedBox(height: TiqSpace.s5),
+        ],
+        ...children,
+      ],
+    );
+
+    return TorchlightRoute(
+      child: reviewAsync.when(
+        loading: () => frame(
+          phase: 'loading',
+          children: const <Widget>[_GateSkeleton()],
+        ),
+        // The gate still submits and says so. Failing to *read* what the visit
+        // will raise is not failing to submit — the captures are in the outbox
+        // either way, and a gate that took the primary away here would strand
+        // an agent with a finished visit they cannot send.
+        error: (err, _) => frame(
+          phase: 'review-failed',
+          children: <Widget>[
+            ErrorState(
+              key: const ValueKey<String>('gate-review-error'),
+              message: TorchErrorMessage(
+                kind: TorchErrorKind.unknown,
+                headline: l10n.visitReadFailedTitle,
+                body: l10n.visitReadFailed('$err'),
+                offersRetry: false,
+              ),
+              scope: ErrorScope.inline,
+            ),
+          ],
+        ),
+        data: (review) {
+          final cantConfirm = _cantConfirmEntries(l10n, progress);
+          final raised = review.willRaise.length + cantConfirm.length;
+          return frame(
+            phase: raised == 0 ? 'clean' : 'will-raise',
+            children: <Widget>[
+              Text(
+                l10n.submitIntro,
+                style: context.skin.text.body.style(
+                  color: context.skin.palette.ink2,
+                ),
+              ),
+              const SizedBox(height: TiqSpace.s4),
+              _CapturedBlock(
+                sectionsDone: progress?.doneCount ?? 0,
+                sectionsTotal: progress?.captureCount ?? 0,
+                line: review.capturedLineIn(l10n),
+                unconfirmed: cantConfirm.length,
+              ),
+              const SizedBox(height: TiqSpace.s7),
+              if (raised == 0)
+                const _NothingToRaise()
+              else ...<Widget>[
+                SectionRule(l10n.submitWillRaiseHeading, count: raised),
+                const SizedBox(height: TiqSpace.s5),
+                TorchBleed(
+                  extra: context.skin.space.gutter * 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      for (final (i, task) in review.willRaise.indexed)
+                        _TaskRow(
+                          task: task,
+                          last:
+                              cantConfirm.isEmpty &&
+                              i == review.willRaise.length - 1,
+                        ),
+                      for (final (i, entry) in cantConfirm.indexed)
+                        _CantConfirmRow(
+                          entry: entry,
+                          last: i == cantConfirm.length - 1,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: TiqSpace.s4),
+                Text(
+                  l10n.submitAccusation(raised),
+                  style: context.skin.text.meta.style(
+                    color: context.skin.palette.ink3,
+                  ),
+                ),
               ],
             ],
           );
@@ -154,287 +235,243 @@ class SubmitGateScreen extends ConsumerWidget {
     );
   }
 
-  String? _inStore(AppLocalizations l10n) {
+  /// "Kasi Corner Spaza · 12 min in store".
+  String _inStore(AppLocalizations l10n) {
     final start = checkinTs;
     if (start == null) return outletName;
     final minutes = DateTime.now().difference(start).inMinutes;
     if (minutes < 1) return outletName;
     return l10n.submitSubtitleInStore(outletName, minutes);
   }
-
-  // The accusation copy (submitAccusation) names what the agent is about to
-  // tell a manager plainly: it is what makes the finding theirs, and it is why
-  // they trust the app not to have made it up.
 }
 
-class _CapturedCard extends StatelessWidget {
-  const _CapturedCard({
+/// A section the app could not establish, as something to raise.
+class _CantConfirmEntry {
+  const _CantConfirmEntry({required this.section, required this.reason});
+
+  final String section;
+  final String reason;
+}
+
+/// Every can't-confirm section on this visit, fixed sections then the client's
+/// questions. A store that refused four counts is four things to raise.
+List<_CantConfirmEntry> _cantConfirmEntries(
+  AppLocalizations l10n,
+  VisitProgress? progress,
+) {
+  if (progress == null) return const <_CantConfirmEntry>[];
+  return <_CantConfirmEntry>[
+    for (final MapEntry(key: section, value: reason)
+        in progress.cantConfirm.entries)
+      _CantConfirmEntry(
+        section: sectionLabel(l10n, section),
+        reason: cantConfirmText(l10n, reason),
+      ),
+    if (progress.templateCantConfirm case final reason?)
+      _CantConfirmEntry(
+        section: l10n.visitClientQuestions,
+        reason: cantConfirmText(l10n, reason),
+      ),
+  ];
+}
+
+/// WHAT WAS CAPTURED — the standalone block above the list.
+class _CapturedBlock extends StatelessWidget {
+  const _CapturedBlock({
     required this.sectionsDone,
     required this.sectionsTotal,
     required this.line,
+    required this.unconfirmed,
   });
 
   final int sectionsDone;
   final int sectionsTotal;
   final String line;
+  final int unconfirmed;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) return _glass(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-      ),
-      child: Row(
-        children: [
-          TickMark(done: true, size: 22, color: colors.good),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.submitSectionsComplete(
-                    sectionsDone,
-                    sectionsTotal,
-                  ),
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: colors.ink1,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  line,
-                  style: TextStyle(fontSize: 12.5, color: colors.ink3),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final complete = l10n.submitSectionsComplete(sectionsDone, sectionsTotal);
 
-  /// Glass: the first checklist tile — a ✓ in its good status tile.
-  Widget _glass(BuildContext context) {
-    final lumen = context.lumen;
-    return GlassPane(
-      kind: GlassKind.tile,
-      blur: false,
-      radius: LumenGlass.radiusCard,
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-      child: Row(
-        children: [
-          const ExcludeSemantics(
-            child: StatusTile(status: LumenStatus.good, glyph: '✓', size: 30),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.submitSectionsComplete(
-                    sectionsDone,
-                    sectionsTotal,
-                  ),
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: lumen.ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  line,
-                  style: TextStyle(fontSize: 12.5, color: lumen.inkMuted),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TaskRow extends StatelessWidget {
-  const _TaskRow({required this.task});
-
-  final RaisedTask task;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) return _glass(context);
-    // The box wash follows the token; the glyph on it must clear AA. Urgent
-    // needs critText — raw crit fails 4.5:1 in dark — while warn reads on its
-    // own wash in both themes.
-    final wash = task.isUrgent ? colors.crit : colors.warn;
-    final glyph = task.isUrgent ? colors.critText : colors.warn;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            margin: const EdgeInsets.only(top: 1),
-            decoration: BoxDecoration(
-              color: _wash(colors, wash),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Icon(
-              task.isUrgent ? Icons.priority_high : Icons.adjust,
-              size: 13,
-              color: glyph,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.titleIn(context.l10n),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: colors.ink1,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  // The priority is always paired with the word, never carried
-                  // by the colour alone — a colour-blind agent in bad light
-                  // still has to be able to tell urgent from routine.
-                  _taskLine(context.l10n, task),
-                  style: TextStyle(fontSize: 11.5, color: colors.ink3),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Glass: a checklist tile whose rim takes the task's status — crit when
-  /// urgent, warn when routine — with the glyph in its status tile and the
-  /// priority still spelled out beside it.
-  Widget _glass(BuildContext context) {
-    final colors = context.colors;
-    final status = task.isUrgent ? LumenStatus.crit : LumenStatus.warn;
-    final sw = status.swatchOf(colors);
-    return GlassPane(
-      kind: GlassKind.tile,
-      blur: false,
-      radius: LumenGlass.radiusCard,
-      rimColor: sw.rim,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // The word below says it; the glyph is for the eye.
-          ExcludeSemantics(
-            child: StatusTile(
-              status: status,
-              glyph: task.isUrgent ? '!' : '•',
-              size: 28,
-              radius: 9,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.titleIn(context.l10n),
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.35,
-                    color: context.lumen.ink,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _taskLine(context.l10n, task),
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: sw.ink,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A clean store is a real result, and it should not read as an empty screen.
-class _NothingWrong extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) {
-      // Glass: an OPAQUE good wash, so the words clear AA on their own.
-      final good = LumenStatus.good.swatchOf(colors);
-      return Container(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+    return Semantics(
+      container: true,
+      label: l10n.submitCapturedSemantics(sectionsDone, sectionsTotal, line),
+      excludeSemantics: true,
+      child: Container(
+        key: const ValueKey<String>('submit-captured'),
+        padding: const EdgeInsets.all(TiqSpace.s4),
         decoration: BoxDecoration(
-          color: Color.alphaBlend(good.tint, colors.surface1),
-          border: Border.all(color: good.rim),
-          borderRadius: BorderRadius.circular(LumenGlass.radiusCard),
+          color: skin.palette.surface,
+          borderRadius: BorderRadius.circular(skin.radii.panel),
+          border: Border.all(
+            color: skin.palette.edgeStructure,
+            width: skin.depth.borderWidth,
+          ),
+          boxShadow: skin.depth.shadows,
         ),
-        child: Row(
-          children: [
-            const ExcludeSemantics(
-              child: StatusTile(
-                status: LumenStatus.good,
-                glyph: '✓',
-                size: 28,
-                radius: 9,
-              ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const SectionStateGlyph(state: SectionState.done),
+                const SizedBox(width: TiqSpace.s3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        complete,
+                        style: skin.text.titleM.style(color: skin.palette.ink1),
+                      ),
+                      const SizedBox(height: TiqSpace.s1),
+                      Text(
+                        line,
+                        style: skin.text.meta.style(color: skin.palette.ink2),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                context.l10n.submitNothingToRaise,
-                style: TextStyle(fontSize: 13, height: 1.45, color: good.ink),
+            // Two facts, not one figure: a section nobody could establish is
+            // not a section somebody skipped, and it is excluded from the
+            // readiness count rather than failing it.
+            if (unconfirmed > 0) ...<Widget>[
+              const SizedBox(height: TiqSpace.s3),
+              Row(
+                key: const ValueKey<String>('submit-unconfirmed'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const SectionStateGlyph(state: SectionState.cantConfirm),
+                  const SizedBox(width: TiqSpace.s3),
+                  Expanded(
+                    child: Text(
+                      l10n.submitNotConfirmedLine(unconfirmed),
+                      style: skin.text.label.style(color: skin.palette.ink2),
+                    ),
+                  ),
+                ],
               ),
-            ),
+            ],
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
+}
+
+/// ONE ACCUSATION. The severity is the bar and the silhouette; the priority is
+/// always in the word, never carried by the hue alone.
+class _TaskRow extends StatelessWidget {
+  const _TaskRow({required this.task, required this.last});
+
+  final RaisedTask task;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final title = task.titleIn(l10n);
+    final line = l10n.submitTaskForManager(l10n.submitPriority(task.priority));
+
+    return SoftRow(
+      key: ValueKey<String>('task-$title'),
+      title: title,
+      subtitle: line,
+      leading: SeverityMark(
+        kind: task.isUrgent
+            ? SeverityMarkKind.critical
+            : SeverityMarkKind.watch,
+      ),
+      severity: task.isUrgent
+          ? SoftRowSeverity.critical
+          : SoftRowSeverity.watch,
+      severityLabel: title,
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      // Severity first, so a reader knows what kind of thing is coming before
+      // they hear what it is.
+      semanticsLabel: task.isUrgent
+          ? l10n.submitTaskSemanticsUrgent(title, line)
+          : l10n.submitTaskSemanticsRoutine(title, line),
+    );
+  }
+}
+
+/// A SECTION THE APP COULD NOT ESTABLISH — the row the old gate did not have.
+class _CantConfirmRow extends StatelessWidget {
+  const _CantConfirmRow({required this.entry, required this.last});
+
+  final _CantConfirmEntry entry;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final title = l10n.submitCantConfirmTask(entry.section);
+
+    return SoftRow(
+      key: ValueKey<String>('cant-confirm-${entry.section}'),
+      title: title,
+      subtitle: entry.reason,
+      // The barred ring, not a hatch and not a severity: nobody did anything
+      // wrong, and the manager is told.
+      leading: const SectionStateGlyph(state: SectionState.cantConfirm),
+      meta: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(
+          l10n.submitCantConfirmTaskLine,
+          style: context.skin.text.meta.style(color: context.skin.palette.ink3),
+        ),
+      ),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: l10n.submitCantConfirmSemantics(
+        entry.section,
+        entry.reason,
+      ),
+    );
+  }
+}
+
+/// A CLEAN STORE is a real result, and must not read as an empty screen.
+class _NothingToRaise extends StatelessWidget {
+  const _NothingToRaise();
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      key: const ValueKey<String>('submit-clean'),
+      padding: const EdgeInsets.all(TiqSpace.s4),
       decoration: BoxDecoration(
-        color: colors.good.withValues(alpha: 0.10),
-        border: Border.all(color: colors.good.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
+        color: skin.palette.surface,
+        borderRadius: BorderRadius.circular(skin.radii.panel),
+        border: Border.all(color: skin.palette.good, width: 1),
       ),
       child: Row(
-        children: [
-          Icon(Icons.check_circle_outline, size: 20, color: colors.good),
-          const SizedBox(width: 10),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SeverityMark(kind: SeverityMarkKind.onTarget),
+          const SizedBox(width: TiqSpace.s3),
           Expanded(
-            child: Text(
-              context.l10n.submitNothingToRaise,
-              style: TextStyle(fontSize: 13, height: 1.45, color: colors.ink2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  l10n.submitNothingToRaiseHeadline,
+                  style: skin.text.titleM.style(color: skin.palette.ink1),
+                ),
+                const SizedBox(height: TiqSpace.s1),
+                Text(
+                  l10n.submitNothingToRaise,
+                  style: skin.text.body.style(color: skin.palette.ink2),
+                ),
+              ],
             ),
           ),
         ],
@@ -443,42 +480,22 @@ class _NothingWrong extends StatelessWidget {
   }
 }
 
-class _Heading extends StatelessWidget {
-  const _Heading(this.text);
-
-  final String text;
+/// The real geometry, empty. Not a spinner.
+class _GateSkeleton extends StatelessWidget {
+  const _GateSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    if (context.colors.glass) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Kicker(text, color: context.lumen.kicker),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.08 * 11,
-          color: context.colors.ink3,
-        ),
-      ),
+    final skin = context.skin;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SkeletonLine(role: skin.text.body, widthFactor: 0.9),
+        const SizedBox(height: TiqSpace.s4),
+        const SkeletonShell(height: 96, outlined: true),
+        const SizedBox(height: TiqSpace.s7),
+        const SkeletonRows(count: 3),
+      ],
     );
   }
 }
-
-/// A status token composited to an OPAQUE 12% wash over surface1 — the ground a
-/// coloured glyph reads against at ≥4.5:1. A local twin of the hub's `_wash`
-/// (audit_shell_screen.dart); folding the two into one shared helper is tracked
-/// in #214.
-Color _wash(TiqColors colors, Color token) =>
-    Color.alphaBlend(token.withValues(alpha: 0.12), colors.surface1);
-
-/// "Task for the manager · high" — the server's priority, in the agent's
-/// language (an unknown priority is shown as the server sent it).
-String _taskLine(AppLocalizations l10n, RaisedTask task) =>
-    l10n.submitTaskForManager(l10n.submitPriority(task.priority));
