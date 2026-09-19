@@ -206,12 +206,13 @@ export interface ListAlertsInput {
 }
 
 export async function listAlerts(input: ListAlertsInput) {
+  const where = {
+    clientId: input.clientId,
+    ...(input.acknowledged !== undefined ? { acknowledged: input.acknowledged } : {}),
+    ...(input.severity !== undefined ? { severity: input.severity } : {}),
+  };
   const rows = await prisma.alert.findMany({
-    where: {
-      clientId: input.clientId,
-      ...(input.acknowledged !== undefined ? { acknowledged: input.acknowledged } : {}),
-      ...(input.severity !== undefined ? { severity: input.severity } : {}),
-    },
+    where,
     // `id` is the unique tiebreaker that makes the cursor deterministic when
     // two alerts share a createdAt — same reasoning as agents.service.ts.
     //
@@ -224,10 +225,18 @@ export async function listAlerts(input: ListAlertsInput) {
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
   const page = buildPage(rows, input.limit);
+  // `total` is every alert the filter matches, ignoring the cursor, so a
+  // worklist that holds one page can say "the 50 newest of 74" rather than
+  // reading as the whole truth. Only counted when the page was cut: a page
+  // with no successor IS the total, and the count query is not free.
+  const total =
+    page.nextCursor === null && !input.cursor
+      ? page.data.length
+      : await prisma.alert.count({ where });
   // evidencePhotoId (newest photo of the linked visit) — one batched query,
   // AFTER buildPage so the dropped probe row costs nothing and the cursor
   // (last kept row's id) is untouched.
-  return { data: await attachEvidencePhotoIds(page.data), nextCursor: page.nextCursor };
+  return { data: await attachEvidencePhotoIds(page.data), nextCursor: page.nextCursor, total };
 }
 
 export async function acknowledgeAlert(alertId: string, clientId: string) {

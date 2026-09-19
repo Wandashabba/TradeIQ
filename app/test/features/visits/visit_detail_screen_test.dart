@@ -371,6 +371,58 @@ void main() {
     expect(find.text('No photos were captured on this visit.'), findsOneWidget);
   });
 
+  testWidgets('outside the fence because the agent said the pin is wrong '
+      '(#386): the reason is beside the failed fence', (tester) async {
+    _tallView(tester);
+    final flagged = VisitDetail(
+      id: 'v4',
+      status: 'in_progress',
+      outlet: _draft.outlet,
+      agent: _draft.agent,
+      checkinTs: _draft.checkinTs,
+      submittedAtClient: null,
+      geofencePass: false,
+      distanceM: 8400,
+      score: null,
+      sections: const [],
+      photoTotal: 0,
+      photos: const [],
+      riskScore: 30,
+      signals: const [],
+      pinDispute: const VisitPinDispute(
+        id: 'd1',
+        distanceM: 8400,
+        status: 'open',
+        note: 'Pinned on the depot',
+      ),
+    );
+    await tester.pumpWidget(
+      _app(_Repo((_) => flagged), theme: AppTheme.light(), visitId: 'v4'),
+    );
+    await tester.pumpAndSettle();
+
+    // Still OUTSIDE FENCE — the claim explains the failure, it never
+    // replaces it.
+    expect(find.text('OUTSIDE FENCE'), findsOneWidget);
+    expect(find.byKey(const ValueKey('visit-pin-dispute')), findsOneWidget);
+    expect(find.text('Agent reported it wrong'), findsOneWidget);
+    expect(
+      find.text('Waiting for review · "Pinned on the depot"'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('an ordinary out-of-fence visit carries no claim', (
+    tester,
+  ) async {
+    _tallView(tester);
+    await tester.pumpWidget(
+      _app(_Repo((_) => _draft), theme: AppTheme.light(), visitId: 'v2'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('visit-pin-dispute')), findsNothing);
+  });
+
   testWidgets('loading shows a spinner, not a stale or empty screen', (
     tester,
   ) async {

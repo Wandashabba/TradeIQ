@@ -129,6 +129,60 @@ void main() {
     expect(d.signals, isEmpty);
   });
 
+  test('a wrong-pin claim travels with the visit (#386)', () {
+    final d = VisitDetail.fromJson(const {
+      'id': 'v4',
+      'status': 'in_progress',
+      'outlet': {'id': 'o1', 'name': 'Spar', 'code': 'S-1', 'channelType': 'x'},
+      'agent': {'id': 'a1', 'email': 'a@x.test'},
+      'checkinTs': '2026-09-14T07:00:00.000Z',
+      'submittedAtClient': null,
+      'geofence': {'pass': false, 'distanceM': 8400},
+      'pinDispute': {
+        'id': 'd1',
+        'lat': -26.2,
+        'lng': 28.0,
+        'distanceM': 8400,
+        'outletLat': -26.1,
+        'outletLng': 28.1,
+        'note': 'Pinned on the depot',
+        'status': 'applied',
+        'resolvedByLabel': 'Manager',
+        'resolvedAt': '2026-09-14T09:00:00.000Z',
+        'createdAt': '2026-09-14T07:00:00.000Z',
+      },
+      'score': null,
+      'sections': [],
+      'photos': {'total': 0, 'items': []},
+      'fraud': {'riskScore': 30, 'signals': []},
+    });
+
+    expect(d.geofencePass, isFalse);
+    expect(d.pinDispute, isNotNull);
+    expect(d.pinDispute!.distanceM, 8400);
+    expect(d.pinDispute!.status, 'applied');
+    expect(d.pinDispute!.note, 'Pinned on the depot');
+    expect(d.pinDispute!.resolvedByLabel, 'Manager');
+  });
+
+  test('no claim, or an older server, is null', () {
+    final d = VisitDetail.fromJson(const {
+      'id': 'v5',
+      'status': 'in_progress',
+      'outlet': {'id': 'o1', 'name': 'Spar', 'code': 'S-1', 'channelType': 'x'},
+      'agent': {'id': 'a1', 'email': 'a@x.test'},
+      'checkinTs': '2026-09-14T07:00:00.000Z',
+      'submittedAtClient': null,
+      'geofence': {'pass': true, 'distanceM': 3},
+      'pinDispute': null,
+      'score': null,
+      'sections': [],
+      'photos': {'total': 0, 'items': []},
+      'fraud': {'riskScore': 0, 'signals': []},
+    });
+    expect(d.pinDispute, isNull);
+  });
+
   test('a submit time before check-in is not a dwell', () {
     final d = VisitDetail.fromJson(const {
       'id': 'v3',

@@ -140,6 +140,15 @@ class _FakeSucceedingVisitsRepository implements VisitsRepository {
   }) async => CheckInSucceeded('visit-1');
 
   @override
+  Future<CheckInResult> checkInDisputingPin({
+    required String outletId,
+    required double lat,
+    required double lng,
+    required double distanceMeters,
+    String? note,
+  }) async => CheckInOverridden('visit-1', distanceMeters: distanceMeters);
+
+  @override
   Future<void> submitVisit(String visitDraftId) async {}
 }
 

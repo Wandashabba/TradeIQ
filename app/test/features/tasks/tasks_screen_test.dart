@@ -1,188 +1,70 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/camera/photo_exposure.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/location/photo_geotagger.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/evidence_thumb.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/sla_pill.dart';
-import 'package:tradeiq_app/core/widgets/worklist.dart';
+import 'package:tradeiq_app/core/design/tiq_number.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
+import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 import 'package:tradeiq_app/features/tasks/presentation/tasks_screen.dart';
+import 'package:tradeiq_app/features/users/data/users_repository.dart';
 
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../worklist_harness.dart';
 
-/// Wednesday 2026-07-22, midday — every SLA below is phrased against this.
-/// The screen takes its clock as an input, so the tests own time.
-final _now = DateTime(2026, 7, 22, 12);
+/// Wednesday 2026-07-22, midday. The screen takes its clock as an input, so
+/// the tests own time.
+final DateTime _now = DateTime(2026, 7, 22, 12);
 
-/// A real, decodable image for the evidence thumb (1×1 transparent PNG).
-final _pngBytes = Uint8List.fromList(const <int>[
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, //
-  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, //
-  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, //
-  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, //
-  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, //
-  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
-]);
+/// The device clock at the shutter. Deliberately a LOCAL time, so the upload
+/// has to convert it to UTC.
+final DateTime _shutter = DateTime(2026, 7, 22, 12, 30, 15);
 
-/// Open, inside SLA (due tomorrow = Thursday), with shelf-photo evidence.
-final _openTask = TaskItem(
-  id: 't-open',
-  findingType: 'out_of_stock',
-  requiredFix: 'Restock SKU 42',
-  priority: 'critical',
-  status: 'open',
-  closureVerified: false,
-  outletId: 'o1',
-  visitId: 'v1',
-  slaDueAt: _now.add(const Duration(days: 1)),
-  evidencePhotoId: 'p1',
+TaskItem _task({
+  String id = 't-open',
+  String findingType = 'out_of_stock',
+  String fix = 'Restock SKU 42',
+  String priority = 'critical',
+  String status = 'open',
+  bool verified = false,
+  String outletId = 'o1',
+  String? visitId = 'v1',
+  String? photoId,
+  DateTime? due,
+  String? ownerId,
+}) => TaskItem(
+  id: id,
+  findingType: findingType,
+  requiredFix: fix,
+  priority: priority,
+  status: status,
+  closureVerified: verified,
+  outletId: outletId,
+  visitId: visitId,
+  evidencePhotoId: photoId,
+  slaDueAt: due ?? _now.add(const Duration(days: 1)),
+  ownerId: ownerId,
 );
 
-/// Open and two days past its SLA — no photo on its visit.
-final _overdueTask = TaskItem(
-  id: 't-late',
-  findingType: 'price_wrong',
-  requiredFix: 'Correct shelf price',
-  priority: 'normal',
-  status: 'open',
-  closureVerified: false,
-  outletId: 'o2',
-  visitId: 'v3',
-  slaDueAt: _now.subtract(const Duration(days: 2, hours: 3)),
-  evidencePhotoId: null,
-);
+final List<Outlet> _outlets = <Outlet>[
+  outlet('o1', 'Kasi Corner Spaza'),
+  outlet('o2', 'Shoprite Klipspruit Mall'),
+];
 
-final _closedTask = TaskItem(
-  id: 't-closed',
-  findingType: 'display_broken',
-  requiredFix: 'Fix end-cap display',
-  priority: 'normal',
-  status: 'closed',
-  closurePhotoUrl: 'https://cdn.example.com/old.png',
-  closureVerified: false,
-  outletId: 'o2',
-  visitId: 'v2',
-  slaDueAt: _now.subtract(const Duration(days: 1)),
-  evidencePhotoId: null,
-);
-
-class _FakeTasksAdminRepository implements TasksAdminRepository {
-  _FakeTasksAdminRepository({List<TaskItem>? tasks})
-    : tasks = tasks ?? [_openTask, _overdueTask, _closedTask];
-
-  final List<TaskItem> tasks;
-  String? closedId;
-  String? closedPhotoUrl;
-  String? verifiedId;
-
-  @override
-  Future<PaginatedResponse<TaskItem>> listTasks({
-    String? status,
-    String? priority,
-    String? outletId,
-  }) async => PaginatedResponse(data: tasks, nextCursor: null);
-
-  @override
-  Future<TaskItem> closeTask({
-    required String id,
-    required String closurePhotoUrl,
-  }) async {
-    closedId = id;
-    closedPhotoUrl = closurePhotoUrl;
-    return TaskItem(
-      id: id,
-      findingType: _openTask.findingType,
-      requiredFix: _openTask.requiredFix,
-      priority: _openTask.priority,
-      status: 'closed',
-      closurePhotoUrl: closurePhotoUrl,
-      closureVerified: false,
-      outletId: _openTask.outletId,
-      visitId: _openTask.visitId,
-      slaDueAt: _openTask.slaDueAt,
-      evidencePhotoId: _openTask.evidencePhotoId,
-    );
-  }
-
-  @override
-  Future<TaskItem> verifyTask(String id) async {
-    verifiedId = id;
-    return TaskItem(
-      id: id,
-      findingType: _closedTask.findingType,
-      requiredFix: _closedTask.requiredFix,
-      priority: _closedTask.priority,
-      status: 'closed',
-      closurePhotoUrl: _closedTask.closurePhotoUrl,
-      closureVerified: true,
-      outletId: _closedTask.outletId,
-      visitId: _closedTask.visitId,
-      slaDueAt: _closedTask.slaDueAt,
-      evidencePhotoId: _closedTask.evidencePhotoId,
-    );
-  }
-}
-
-class _RecordingPhotosRepository implements PhotosRepository {
-  int uploadCount = 0;
-  String? uploadedSection;
-  String? uploadedVisitId;
-  String? uploadedDataUrl;
-  Map<String, dynamic>? uploadedGpsTag;
-  String? uploadedTimestamp;
-  int thumbnailCalls = 0;
-
-  @override
-  Future<PhotoUploadResult> uploadPhoto({
-    required String visitId,
-    required String section,
-    required String dataUrl,
-    required Map<String, dynamic> gpsTag,
-    required String timestamp,
-  }) async {
-    uploadCount++;
-    uploadedSection = section;
-    uploadedVisitId = visitId;
-    uploadedDataUrl = dataUrl;
-    uploadedGpsTag = gpsTag;
-    uploadedTimestamp = timestamp;
-    return const PhotoUploadResult(
-      id: 'photo-1',
-      url: 'https://cdn.example.com/photo-1.png',
-    );
-  }
-
-  @override
-  Future<Uint8List> thumbnailBytes(String photoId) async {
-    thumbnailCalls++;
-    return _pngBytes;
-  }
-
-  @override
-  Future<List<VisitPhoto>> listPhotos(String visitId) async => const [];
-
-  @override
-  Future<String> uploadMessageAttachment(String dataUrl) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<Uint8List> imageBytes(String photoId) async =>
-      throw UnimplementedError();
-}
-
-/// A camera that always returns the same 4-byte "photo". Closure now goes
+/// A camera that always returns the same four-byte "photo". The closure goes
 /// through a real capture, so the test has to supply one.
 class _FakeGateway implements ImagePickerGateway {
   _FakeGateway({this.cancels = false});
@@ -197,16 +79,12 @@ class _FakeGateway implements ImagePickerGateway {
   }) async {
     if (cancels) return null;
     return XFile.fromData(
-      Uint8List.fromList([1, 2, 3, 4]),
+      Uint8List.fromList(<int>[1, 2, 3, 4]),
       name: 'closure.jpg',
       mimeType: 'image/jpeg',
     );
   }
 }
-
-/// The device clock at the shutter, in the tests that pin the capture time.
-/// Deliberately a LOCAL time, so the upload has to convert it to UTC.
-final _shutter = DateTime(2026, 7, 22, 12, 30, 15);
 
 /// Where the device is, as `getPositionIfPermitted` reports it — never
 /// prompting, like the real no-prompt path.
@@ -223,509 +101,858 @@ class _FakeLocation extends LocationService {
   }
 }
 
-Widget _app(
-  _FakeTasksAdminRepository tasksRepo,
-  _RecordingPhotosRepository photosRepo, {
-  bool cameraCancels = false,
-  ThemeData? theme,
-  LocationService? location,
-}) => routedApp(
-  TasksScreen(clock: () => _now),
-  theme: theme,
-  overrides: [
-    tasksAdminRepositoryProvider.overrideWithValue(tasksRepo),
-    photosRepositoryProvider.overrideWithValue(photosRepo),
-    photoCaptureServiceProvider.overrideWithValue(
-      PhotoCaptureService(
-        gateway: _FakeGateway(cancels: cameraCancels),
-        geotagger: location == null ? null : PhotoGeotagger(location: location),
-        clock: () => _shutter,
-      ),
-    ),
-    // The capture route measures the returned frame's exposure, and decoding
-    // an image does not complete on FakeAsync's clock — see
-    // `photo_exposure_test.dart`, which measures the real thing inside
-    // `tester.runAsync`.
-    photoExposureProvider.overrideWithValue((String dataUrl) async => null),
-  ],
-);
+class _Harness {
+  _Harness({
+    List<TaskItem> tasks = const <TaskItem>[],
+    String? nextCursor,
+    int? total,
+    Object? listFailure,
+    Object? closeFailure,
+    bool listPending = false,
+  }) : tasks = FakeTasksRepository(
+         tasks: tasks,
+         nextCursor: nextCursor,
+         total: total,
+         listFailure: listFailure,
+         closeFailure: closeFailure,
+         listPending: listPending,
+       );
 
-Future<void> _pump(
-  WidgetTester tester, [
-  _FakeTasksAdminRepository? tasksRepo,
-  _RecordingPhotosRepository? photosRepo,
-]) async {
-  await tester.pumpWidget(
-    _app(
-      tasksRepo ?? _FakeTasksAdminRepository(),
-      photosRepo ?? _RecordingPhotosRepository(),
-    ),
+  final FakeTasksRepository tasks;
+  final FakePhotosRepository photos = FakePhotosRepository(bytes: pngBytes);
+}
+
+Future<_Harness> _pump(
+  WidgetTester tester, {
+  List<TaskItem> tasks = const <TaskItem>[],
+  List<Outlet> outlets = const <Outlet>[],
+  List<AppUser> users = const <AppUser>[],
+  String? nextCursor,
+  int? total,
+  Object? listFailure,
+  Object? closeFailure,
+  bool listPending = false,
+  bool cameraCancels = false,
+  double? luma,
+  LocationService? location,
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Locale? locale,
+}) async {
+  final harness = _Harness(
+    tasks: tasks,
+    nextCursor: nextCursor,
+    total: total,
+    listFailure: listFailure,
+    closeFailure: closeFailure,
+    listPending: listPending,
   );
+  await pumpWorklist(
+    tester,
+    TasksScreen(clock: () => _now),
+    skin: skin,
+    textScale: textScale,
+    locale: locale,
+    settle: !listPending,
+    users: users,
+    overrides: <Override>[
+      tasksAdminRepositoryProvider.overrideWithValue(harness.tasks),
+      photosRepositoryProvider.overrideWithValue(harness.photos),
+      outletsRepositoryProvider.overrideWithValue(
+        FakeOutletsRepository(outlets),
+      ),
+      // The guided capture measures the frame's exposure, and decoding an
+      // image does not complete on FakeAsync's clock — see
+      // `photo_exposure_test.dart`, which measures the real thing inside
+      // `tester.runAsync`. Null is "nobody measured", never "bright".
+      photoExposureProvider.overrideWithValue((String dataUrl) async => luma),
+      photoCaptureServiceProvider.overrideWithValue(
+        PhotoCaptureService(
+          gateway: _FakeGateway(cancels: cameraCancels),
+          geotagger: location == null
+              ? null
+              : PhotoGeotagger(location: location),
+          clock: () => _shutter,
+        ),
+      ),
+    ],
+  );
+  return harness;
+}
+
+/// Take the closure photograph through the guided capture: the sheet's
+/// "Take a photo" opens it, [source] is the camera or the gallery, and the
+/// review step's "Use it" hands the frame back to the sheet.
+Future<void> _takePhoto(
+  WidgetTester tester, {
+  String source = 'guided-capture',
+  bool accept = true,
+}) async {
+  await tester.tap(find.byKey(const ValueKey<String>('take-closure-photo')));
   await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey<String>(source)));
+  await tester.pumpAndSettle();
+  if (accept) {
+    await tester.tap(find.byKey(const ValueKey<String>('guided-use-it')));
+    await tester.pumpAndSettle();
+  }
+}
+
+/// Open the closure gate, optionally with a photograph already taken.
+Future<void> _openClosureSheet(
+  WidgetTester tester, {
+  bool capture = false,
+}) async {
+  await scrollWorklistTo(
+    tester,
+    find.byKey(const ValueKey<String>('close-t-open')),
+  );
+  await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+  await tester.pumpAndSettle();
+  if (capture) await _takePhoto(tester);
 }
 
 void main() {
-  group('Lumen Glass', () {
-    // Closed and verified: the row that shows the Verified mark.
-    final verified = TaskItem(
-      id: 't-verified',
-      findingType: 'shelf_gap',
-      requiredFix: 'Refill bay 3',
-      priority: 'high',
-      status: 'closed',
-      closurePhotoUrl: 'https://cdn.example.com/fix.png',
-      closureVerified: true,
-      outletId: 'o2',
-      visitId: 'v4',
-      slaDueAt: _now.subtract(const Duration(days: 1)),
-      evidencePhotoId: null,
-    );
-
-    Future<void> pumpAll(WidgetTester tester, {ThemeData? theme}) async {
-      await tester.pumpWidget(
-        _app(
-          _FakeTasksAdminRepository(tasks: [_openTask, verified]),
-          _RecordingPhotosRepository(),
-          theme: theme,
-        ),
+  group('the worklist', () {
+    testWidgets('leads with overdue and subordinates the rest', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(id: 'late', due: _now.subtract(const Duration(days: 2))),
+          _task(id: 'open'),
+          _task(id: 'closed', status: 'closed'),
+        ],
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('filter-all')));
-      await tester.pumpAndSettle();
-    }
 
-    testWidgets('dark: Verified keeps the plain good colour', (tester) async {
-      await pumpAll(tester);
+      expect(find.text('OVERDUE'), findsOneWidget);
+      expect(find.text('2 open · 1 awaiting verification'), findsOneWidget);
+    });
+
+    testWidgets('a measured zero renders 0 and keeps its place', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets, tasks: <TaskItem>[_task()]);
 
       expect(
-        tester.widget<Text>(find.text('Verified')).style!.color,
-        TiqColors.dark.good,
-      );
-    });
-
-    testWidgets('light: rows are glass tiles; Verified is in the status ink', (
-      tester,
-    ) async {
-      await pumpAll(tester, theme: AppTheme.light());
-
-      final panes = tester.widgetList<GlassPane>(
-        find.ancestor(
-          of: find.text('out_of_stock'),
-          matching: find.byType(GlassPane),
-        ),
-      );
-      expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
-      expect(
-        tester.widget<Text>(find.text('Verified')).style!.color,
-        LumenStatus.good.swatchOf(TiqColors.light).ink,
-      );
-    });
-  });
-
-  group('filter chips', () {
-    testWidgets('opens on Open, which includes overdue tasks', (tester) async {
-      await _pump(tester);
-
-      // Overdue is a focus subset, not a separate state: an overdue task is
-      // still open work, so Open must show it.
-      expect(find.text('out_of_stock'), findsOneWidget);
-      expect(find.text('price_wrong'), findsOneWidget);
-      expect(find.text('display_broken'), findsNothing);
-    });
-
-    testWidgets(
-      'carry live counts: "Open · 2", "Overdue · 1", plain Done/All',
-      (tester) async {
-        await _pump(tester);
-
-        expect(find.text('Open · 2'), findsOneWidget);
-        expect(find.text('Overdue · 1'), findsOneWidget);
-        // Per the spec example: Done and All are plain — no count.
-        expect(find.text('Done'), findsOneWidget);
-        expect(find.text('All'), findsOneWidget);
-      },
-    );
-
-    testWidgets('Overdue narrows to open tasks past their SLA', (tester) async {
-      await _pump(tester);
-
-      await tester.tap(find.byKey(const ValueKey('filter-overdue')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('price_wrong'), findsOneWidget);
-      expect(find.text('out_of_stock'), findsNothing);
-      expect(find.text('display_broken'), findsNothing);
-    });
-
-    testWidgets('Done shows closed tasks; All shows everything', (
-      tester,
-    ) async {
-      await _pump(tester);
-
-      await tester.tap(find.byKey(const ValueKey('filter-done')));
-      await tester.pumpAndSettle();
-      expect(find.text('display_broken'), findsOneWidget);
-      expect(find.text('out_of_stock'), findsNothing);
-
-      await tester.tap(find.byKey(const ValueKey('filter-all')));
-      await tester.pumpAndSettle();
-      expect(find.text('out_of_stock'), findsOneWidget);
-      expect(find.text('price_wrong'), findsOneWidget);
-      expect(find.text('display_broken'), findsOneWidget);
-    });
-
-    testWidgets('the active chip is a button and carries selected semantics', (
-      tester,
-    ) async {
-      await _pump(tester);
-
-      // The chip's own Semantics is the ancestor that declares `button` —
-      // InkWell inserts an internal Semantics of its own in between.
-      Semantics chipSemantics(String label) => tester
-          .widgetList<Semantics>(
-            find.ancestor(
-              of: find.text(label),
-              matching: find.byType(Semantics),
-            ),
-          )
-          .firstWhere((s) => s.properties.button != null);
-
-      expect(chipSemantics('Open · 2').properties.button, isTrue);
-      expect(chipSemantics('Open · 2').properties.selected, isTrue);
-      expect(chipSemantics('Done').properties.selected, isFalse);
-
-      await tester.tap(find.byKey(const ValueKey('filter-done')));
-      await tester.pumpAndSettle();
-      expect(chipSemantics('Done').properties.selected, isTrue);
-      expect(chipSemantics('Open · 2').properties.selected, isFalse);
-    });
-
-    testWidgets('the triage strip keeps its own axis — priority, not state', (
-      tester,
-    ) async {
-      await _pump(tester);
-
-      expect(find.byKey(const ValueKey('triage-critical')), findsOneWidget);
-      expect(find.byKey(const ValueKey('triage-high')), findsOneWidget);
-      expect(find.byKey(const ValueKey('triage-normal')), findsOneWidget);
-      expect(find.byKey(const ValueKey('triage-closed')), findsOneWidget);
-    });
-  });
-
-  group('SLA pills', () {
-    testWidgets('every row wears one, phrased against the screen clock', (
-      tester,
-    ) async {
-      await _pump(tester);
-
-      // Two open rows, two pills: due-tomorrow (Thursday) and two days over.
-      expect(find.byType(SlaPill), findsNWidgets(2));
-      expect(find.text('DUE THU'), findsOneWidget);
-      expect(find.text('OVERDUE 2d'), findsOneWidget);
-    });
-
-    testWidgets('closed rows show the done state, never "OVERDUE"', (
-      tester,
-    ) async {
-      await _pump(tester);
-
-      await tester.tap(find.byKey(const ValueKey('filter-done')));
-      await tester.pumpAndSettle();
-
-      // The closed task is past its slaDueAt — done must win.
-      expect(find.text('✓ DONE'), findsOneWidget);
-      expect(find.textContaining('OVERDUE'), findsNothing);
-    });
-  });
-
-  group('evidence thumbnails', () {
-    testWidgets('a row with evidence shows the thumb in the worklist slot', (
-      tester,
-    ) async {
-      await _pump(tester);
-
-      expect(find.byKey(const ValueKey('evidence-thumb-p1')), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('worklist-thumb')),
-          matching: find.byType(EvidenceThumb),
-        ),
+        find.descendant(of: find.byType(StatTile), matching: find.text('0')),
         findsOneWidget,
       );
+      expect(
+        find.descendant(of: find.byType(StatTile), matching: find.text(emDash)),
+        findsNothing,
+      );
     });
 
-    testWidgets('no photo → no thumb, not a placeholder', (tester) async {
-      await _pump(tester);
-
-      // Two rows on screen, exactly one thumb slot: the evidence-less row
-      // reserves nothing and fakes nothing.
-      expect(find.byKey(const ValueKey('worklist-thumb')), findsOneWidget);
-      expect(find.byType(EvidenceThumb), findsOneWidget);
-    });
-  });
-
-  testWidgets('rows enter through the worklist cascade', (tester) async {
-    await _pump(tester);
-
-    // The cascade wraps every visible row — first consumer of the shared
-    // entrance. (Reduced-motion staticness is WorklistCascade's own tested
-    // contract in worklist_test.dart.)
-    expect(find.byType(WorklistCascade), findsNWidgets(2));
-  });
-
-  group('actions', () {
-    testWidgets(
-      'closing an open task uploads a photo and closes with its url',
-      (tester) async {
-        final tasksRepo = _FakeTasksAdminRepository();
-        final photosRepo = _RecordingPhotosRepository();
-        await _pump(tester, tasksRepo, photosRepo);
-
-        await tester.tap(find.byKey(const ValueKey('close-t-open')));
-        await tester.pumpAndSettle();
-
-        // Closure is gated on evidence: until a photo exists, the button is
-        // dead.
-        final confirm = find.byKey(const ValueKey('confirm-closure'));
-        expect(tester.widget<ElevatedButton>(confirm).onPressed, isNull);
-
-        // Evidence now comes through the guided screen: the tile opens it, and
-        // the big Capture button launches the (faked) camera and pops the photo.
-        await tester.tap(find.byKey(const ValueKey('photo-add')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('guided-capture')));
-        await tester.pumpAndSettle();
-        // Capture lands on the review step first — a dark shot is never kept
-        // silently — so accepting the frame is what pops it back.
-        await tester.tap(find.byKey(const ValueKey('guided-use-it')));
-        await tester.pumpAndSettle();
-        await tester.tap(confirm);
-        await tester.pumpAndSettle();
-
-        expect(photosRepo.uploadCount, 1);
-        expect(photosRepo.uploadedSection, 'task_closure');
-        expect(photosRepo.uploadedVisitId, 'v1');
-        expect(tasksRepo.closedId, 't-open');
-        expect(tasksRepo.closedPhotoUrl, 'https://cdn.example.com/photo-1.png');
-      },
-    );
-
-    testWidgets('the closure photo is a real capture, not a placeholder', (
+    testWidgets('the finding is the title, in words rather than a slug', (
       tester,
     ) async {
-      // The whole point of #41: "photo-verified closure" verified nothing
-      // while the app uploaded a 1×1 transparent PNG.
-      final photosRepo = _RecordingPhotosRepository();
-      await _pump(tester, _FakeTasksAdminRepository(), photosRepo);
+      await _pump(tester, outlets: _outlets, tasks: <TaskItem>[_task()]);
 
-      await tester.tap(find.byKey(const ValueKey('close-t-open')));
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.text('Out of stock'), findsOneWidget);
+      expect(find.text('out_of_stock'), findsNothing);
+    });
+
+    testWidgets('a row names the outlet, never its database id', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets, tasks: <TaskItem>[_task()]);
+
+      await scrollWorklistTo(tester, find.text('Kasi Corner Spaza'));
+      expect(find.text('Kasi Corner Spaza'), findsOneWidget);
+      expect(find.text('o1'), findsNothing);
+    });
+
+    testWidgets('an outlet the list cannot name reads as words, not its id', (
+      tester,
+    ) async {
+      const uuid = '5f3c9a1e-2b7d-4c1f-9e0a-7d2b1c3e4f50';
+      await _pump(tester, tasks: <TaskItem>[_task(outletId: uuid)]);
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.text('Outlet name unavailable'), findsOneWidget);
+      expect(find.textContaining(uuid), findsNothing);
+    });
+
+    testWidgets('a row names the person who owns the fix', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        users: <AppUser>[
+          person('u-1', 'thandi@acme.test', name: 'Thandi Mokoena'),
+          person('u-2', 'sipho@acme.test'),
+        ],
+        tasks: <TaskItem>[
+          _task(ownerId: 'u-1'),
+          _task(id: 't-2', ownerId: 'u-2'),
+        ],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('owner-t-open')),
+      );
+      expect(find.text('Assigned to Thandi Mokoena'), findsOneWidget);
+      // No display name: the sign-in address, which a person can read and
+      // quote, rather than the id.
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('owner-t-2')),
+      );
+      expect(find.text('Assigned to sipho@acme.test'), findsOneWidget);
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('task-t-open')),
+      );
+      expect(row.semanticsLabel, contains('Assigned to Thandi Mokoena'));
+    });
+
+    testWidgets('an owner the roster cannot name is left out, not an id', (
+      tester,
+    ) async {
+      const uuid = '0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9';
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task(ownerId: uuid)],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byKey(const ValueKey<String>('owner-t-open')), findsNothing);
+      expect(find.textContaining(uuid), findsNothing);
+    });
+
+    testWidgets('the SLA is a phrase with the fix, behind a silhouette', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(
+            fix: 'Replace the shelf talker',
+            due: _now.subtract(const Duration(days: 2)),
+          ),
+        ],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.text('Overdue by 2 days · Replace the shelf talker'),
+      );
+      expect(
+        find.text('Overdue by 2 days · Replace the shelf talker'),
+        findsOneWidget,
+      );
+      expect(find.byType(SeverityMark), findsWidgets);
+    });
+
+    testWidgets('sorted overdue, critical, high, normal, closed', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(id: 'normal', priority: 'normal', findingType: 'a_normal'),
+          _task(
+            id: 'late',
+            due: _now.subtract(const Duration(days: 1)),
+            findingType: 'b_late',
+          ),
+          _task(id: 'high', priority: 'high', findingType: 'c_high'),
+        ],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      final rows = tester.widgetList<SoftRow>(find.byType(SoftRow)).toList();
+      expect(rows.map((r) => r.title).toList(), <String>[
+        'B late',
+        'C high',
+        'A normal',
+      ]);
+    });
+  });
+
+  group('the filter rail', () {
+    testWidgets('opens on Open, which includes overdue', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(id: 'late', due: _now.subtract(const Duration(days: 1))),
+          _task(id: 'closed', status: 'closed'),
+        ],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SectionRule));
+      final rule = tester.widget<SectionRule>(find.byType(SectionRule));
+      expect(rule.name, 'Open');
+      expect(rule.count, 1);
+    });
+
+    testWidgets('Done shows closed work and All shows everything', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 'closed', status: 'closed'),
+        ],
+      );
+
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-done')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('filter-done')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('photo-add')));
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byType(SoftRow), findsOneWidget);
+
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-all')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('filter-all')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('guided-capture')));
-      await tester.pumpAndSettle();
-      // Capture lands on the review step first; accepting pops the frame back.
-      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('confirm-closure')));
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byType(SoftRow), findsNWidgets(2));
+    });
+  });
+
+  group('closing with a photo', () {
+    testWidgets('Close task is disabled until there is one, and says why', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets, tasks: <TaskItem>[_task()]);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
       await tester.pumpAndSettle();
 
-      expect(photosRepo.uploadedDataUrl, 'data:image/jpeg;base64,AQIDBA==');
-      expect(photosRepo.uploadedDataUrl, isNot(contains('iVBORw0KGgo')));
+      expect(find.byType(TorchSheet), findsOneWidget);
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('confirm-closure')),
+      );
+      // Disabled rather than hidden, so the reason is visible.
+      expect(button.onPressed, isNull);
+      expect(button.blockedReason, 'A photo is required.');
+      expect(find.text('A photo is required.'), findsOneWidget);
+    });
+
+    testWidgets('a real capture carries the gpsTag and a UTC capture time', (
+      tester,
+    ) async {
+      final location = _FakeLocation(
+        LocationGranted(-26.2041, 28.0473, accuracy: 12),
+      );
+      final harness = await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        location: location,
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+      await tester.pumpAndSettle();
+      await _takePhoto(tester);
+      await tester.tap(find.byKey(const ValueKey<String>('confirm-closure')));
+      await tester.pumpAndSettle();
+
+      expect(harness.photos.uploadCount, 1);
+      expect(harness.photos.uploadedSection, 'task_closure');
+      expect(harness.photos.uploadedVisitId, 'v1');
+      expect(harness.photos.uploadedGpsTag!['lat'], -26.2041);
+      expect(
+        harness.photos.uploadedTimestamp,
+        _shutter.toUtc().toIso8601String(),
+      );
+      expect(harness.tasks.closedId, 't-open');
+      expect(
+        harness.tasks.closedPhotoUrl,
+        'https://cdn.example.com/photo-1.png',
+      );
+      await settleToasts(tester);
+    });
+
+    testWidgets('with no fix the closure still goes ahead, and says so', (
+      tester,
+    ) async {
+      final harness = await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        location: _FakeLocation(LocationDenied()),
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+      await tester.pumpAndSettle();
+      await _takePhoto(tester);
+
+      expect(find.text('The closure will record without one.'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey<String>('confirm-closure')));
+      await tester.pumpAndSettle();
+      expect(harness.photos.uploadedGpsTag, isEmpty);
+      expect(harness.tasks.closedId, 't-open');
+      await settleToasts(tester);
     });
 
     testWidgets('cancelling the camera leaves the task open', (tester) async {
-      final tasksRepo = _FakeTasksAdminRepository();
-      final photosRepo = _RecordingPhotosRepository();
-      await tester.pumpWidget(_app(tasksRepo, photosRepo, cameraCancels: true));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('close-t-open')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('photo-add')));
-      await tester.pumpAndSettle();
-      // The camera cancels (gateway returns null), so the guide stays up; back
-      // out of it to land on the sheet with no photo.
-      await tester.tap(find.byKey(const ValueKey('guided-capture')));
-      await tester.pumpAndSettle();
-      // A cancel never reaches the review step at all: there is nothing to
-      // review, so the card stays exactly as it was.
-      expect(find.byKey(const ValueKey('guided-use-it')), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('guided-close')));
-      await tester.pumpAndSettle();
-
-      // No photo captured → the confirm stays disabled and nothing closed.
-      expect(
-        tester
-            .widget<ElevatedButton>(
-              find.byKey(const ValueKey('confirm-closure')),
-            )
-            .onPressed,
-        isNull,
+      final harness = await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        cameraCancels: true,
       );
-      expect(photosRepo.uploadCount, 0);
-      expect(tasksRepo.closedId, isNull);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+      await tester.pumpAndSettle();
+      await _takePhoto(tester, accept: false);
+      // A cancelled camera never reaches the review step: there is nothing to
+      // review. Closing the guided screen lands back on the gate, still
+      // blocked, with no photo.
+      expect(find.byKey(const ValueKey<String>('guided-use-it')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey<String>('guided-close')));
+      await tester.pumpAndSettle();
+      expect(find.text('A photo is required.'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey<String>('cancel-closure')));
+      await tester.pumpAndSettle();
+
+      expect(harness.photos.uploadCount, 0);
+      expect(harness.tasks.closedId, isNull);
     });
 
-    group('the closure photo is geotagged at the shutter (#317)', () {
-      Future<void> closeWithPhoto(
-        WidgetTester tester,
-        _FakeTasksAdminRepository tasksRepo,
-        _RecordingPhotosRepository photosRepo,
-        LocationService location,
-      ) async {
-        await tester.pumpWidget(
-          _app(tasksRepo, photosRepo, location: location),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('close-t-open')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('photo-add')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('guided-capture')));
-        await tester.pumpAndSettle();
-        // Capture lands on the review step first — a dark shot is never kept
-        // silently — so accepting the frame is what pops it back.
-        await tester.tap(find.byKey(const ValueKey('guided-use-it')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('confirm-closure')));
-        await tester.pumpAndSettle();
-      }
+    testWidgets('the gallery is still a way to file the evidence', (
+      tester,
+    ) async {
+      // A cracked camera in a dark aisle still has to be able to close a
+      // task. The closure dialog this sheet replaced offered the gallery
+      // through the guided capture, and the migration must not drop it.
+      final harness = await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+      );
 
-      testWidgets('with location granted, the upload carries the gpsTag and '
-          'the capture time in UTC', (tester) async {
-        final tasksRepo = _FakeTasksAdminRepository();
-        final photosRepo = _RecordingPhotosRepository();
-        final location = _FakeLocation(
-          LocationGranted(
-            -26.2041,
-            28.0473,
-            accuracy: 12.5,
-            fixedAt: DateTime.utc(2026, 7, 22, 10, 30, 11),
-          ),
-        );
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+      await tester.pumpAndSettle();
+      await _takePhoto(tester, source: 'guided-gallery');
+      await tester.tap(find.byKey(const ValueKey<String>('confirm-closure')));
+      await tester.pumpAndSettle();
 
-        await closeWithPhoto(tester, tasksRepo, photosRepo, location);
-
-        expect(location.calls, 1);
-        expect(photosRepo.uploadedSection, 'task_closure');
-        expect(photosRepo.uploadedGpsTag, {
-          'lat': -26.2041,
-          'lng': 28.0473,
-          'accuracy': 12.5,
-          'fixedAt': '2026-07-22T10:30:11.000Z',
-        });
-        // The shutter, not the moment Close was tapped — and with its `Z`.
-        expect(
-          photosRepo.uploadedTimestamp,
-          _shutter.toUtc().toIso8601String(),
-        );
-        expect(photosRepo.uploadedTimestamp, endsWith('Z'));
-        expect(tasksRepo.closedId, 't-open');
-      });
-
-      testWidgets('with location refused, the closure still goes ahead, with '
-          'an empty gpsTag', (tester) async {
-        final tasksRepo = _FakeTasksAdminRepository();
-        final photosRepo = _RecordingPhotosRepository();
-
-        await closeWithPhoto(
-          tester,
-          tasksRepo,
-          photosRepo,
-          _FakeLocation(LocationDenied()),
-        );
-
-        // A tag is evidence, never a gate: the photo is kept and uploaded.
-        expect(photosRepo.uploadCount, 1);
-        expect(photosRepo.uploadedDataUrl, 'data:image/jpeg;base64,AQIDBA==');
-        expect(photosRepo.uploadedGpsTag, isEmpty);
-        expect(
-          photosRepo.uploadedTimestamp,
-          _shutter.toUtc().toIso8601String(),
-        );
-        expect(tasksRepo.closedId, 't-open');
-        expect(tasksRepo.closedPhotoUrl, 'https://cdn.example.com/photo-1.png');
-      });
+      expect(harness.photos.uploadCount, 1);
+      expect(harness.tasks.closedId, 't-open');
+      await settleToasts(tester);
     });
 
-    testWidgets('verifying a closed task calls verifyTask', (tester) async {
-      final tasksRepo = _FakeTasksAdminRepository();
-      await _pump(tester, tasksRepo);
+    testWidgets('a dark frame the manager keeps says so on the gate', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        luma: 0.11,
+      );
 
-      // Verification lives on the Done list, which is where a manager goes
-      // to sign work off.
-      await tester.tap(find.byKey(const ValueKey('filter-done')));
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
       await tester.pumpAndSettle();
+      await _takePhoto(tester);
 
-      await tester.tap(find.byKey(const ValueKey('verify-t-closed')));
-      await tester.pumpAndSettle();
-
-      expect(tasksRepo.verifiedId, 't-closed');
+      expect(
+        find.byKey(const ValueKey<String>('closure-dark')),
+        findsOneWidget,
+      );
+      expect(find.text('Dark frame — mean brightness 11%'), findsOneWidget);
+      // Kept, not refused: a dark photo may be the only evidence there is.
+      final confirm = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('confirm-closure')),
+      );
+      expect(confirm.onPressed, isNotNull);
     });
 
-    testWidgets('the refresh after closing never tears the list down to a '
-        'spinner', (tester) async {
-      // Closing invalidates tasksListProvider. Riverpod's
-      // skipLoadingOnRefresh default keeps the last data on screen through
-      // the refetch — this pins that: if a future provider dependency turns
-      // the refresh into a fresh load, the list would flash a spinner AND
-      // replay every cascade entrance, and this test fails instead.
-      final tasksRepo = _FakeTasksAdminRepository();
-      await _pump(tester, tasksRepo);
+    testWidgets('an unmeasured frame is never called dark', (tester) async {
+      await _pump(tester, outlets: _outlets, tasks: <TaskItem>[_task()]);
 
-      await tester.tap(find.byKey(const ValueKey('close-t-open')));
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('photo-add')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('guided-capture')));
-      await tester.pumpAndSettle();
-      // Capture lands on the review step first; accepting pops the frame back.
-      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('confirm-closure')));
+      await _takePhoto(tester);
 
-      // Walk the refresh frame by frame: at no point may the worklist be a
-      // spinner instead of rows.
-      for (var i = 0; i < 8; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-        expect(find.byType(CircularProgressIndicator), findsNothing);
-      }
-      await tester.pumpAndSettle();
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(tasksRepo.closedId, 't-open');
-      // The list is still standing, on data, post-refresh.
-      expect(find.text('price_wrong'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('closure-dark')), findsNothing);
+    });
+
+    testWidgets('a task with no visit offers no closure action at all', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task(visitId: null)],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byKey(const ValueKey<String>('close-t-open')), findsNothing);
     });
   });
 
-  group('empty state', () {
-    testWidgets(
-      'an empty list says so in words, wired to the tasksAllClear slot — '
-      'and stays imageless while that slot is null',
-      (tester) async {
-        await tester.pumpWidget(
-          _app(
-            _FakeTasksAdminRepository(tasks: const []),
-            _RecordingPhotosRepository(),
-          ),
-        );
-        await tester.pumpAndSettle();
+  testWidgets('verifying a closed task calls verifyTask', (tester) async {
+    final harness = await _pump(
+      tester,
+      outlets: _outlets,
+      tasks: <TaskItem>[_task(id: 't-closed', status: 'closed')],
+    );
 
-        final empty = find.byType(EmptyState);
-        expect(empty, findsOneWidget);
-        expect(find.text('Nothing outstanding'), findsOneWidget);
-        // The screen passes ITS BrandMedia slot — today null, so no image
-        // renders and the state is exactly the pre-illustration layout.
+    await scrollRailTo(
+      tester,
+      find.byKey(const ValueKey<String>('filter-done')),
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('filter-done')));
+    await tester.pumpAndSettle();
+    await scrollWorklistTo(
+      tester,
+      find.byKey(const ValueKey<String>('verify-t-closed')),
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('verify-t-closed')));
+    await tester.pumpAndSettle();
+
+    expect(harness.tasks.verifiedId, 't-closed');
+  });
+
+  group('the settled states', () {
+    testWidgets('empty is a designed state, not a centred "No data"', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets);
+
+      expect(find.text('Nothing outstanding.'), findsOneWidget);
+      expect(find.byType(SectionRule), findsOneWidget);
+    });
+
+    testWidgets('a failure is sanitised and offers one retry', (tester) async {
+      await _pump(
+        tester,
+        listFailure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+
+      expect(find.byType(ErrorState), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      expect(find.byKey(const ValueKey<String>('tasks-retry')), findsOneWidget);
+    });
+
+    testWidgets('a cut list says so, and never invents a total', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 't2', outletId: 'o2'),
+        ],
+        nextCursor: 'cursor-2',
+      );
+
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      expect(find.text('Showing the first 2. There are more.'), findsOneWidget);
+      expect(find.textContaining('Narrow'), findsNothing);
+      expect(find.text('The counts above are of these 2.'), findsOneWidget);
+    });
+
+    testWidgets('a cut list with a server total names it, in the order used', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 't2', outletId: 'o2'),
+        ],
+        nextCursor: 'cursor-2',
+        total: 74,
+      );
+
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      expect(
+        find.text('Showing the 2 tasks with the earliest deadlines, of 74.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('the amber census', () {
+    testWidgets('Night paints exactly one lit object: the nav tab', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(id: 'late', due: _now.subtract(const Duration(days: 2))),
+          _task(id: 'open'),
+        ],
+      );
+
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'tasks',
+        phase: 'loaded',
+      );
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'The overdue lead figure and the SLA phrasing carry the urgency; '
+            'the filter chip is lifted, not lit.\n${census.describe()}',
+      );
+    });
+
+    testWidgets('Night, empty, still paints exactly the nav tab', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets);
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('Night, loading, still paints exactly the nav tab', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets, listPending: true);
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.byType(Skeleton), findsOneWidget);
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets(
+      'an unarmed closure sheet is dark, and so is the route beneath it',
+      (tester) async {
+        await _pump(tester, outlets: _outlets, tasks: <TaskItem>[_task()]);
+        await _openClosureSheet(tester);
+
+        final census = await amberCensus(tester);
         expect(
-          tester.widget<EmptyState>(empty).illustration,
-          BrandMedia.tasksAllClear,
-        );
-        expect(
-          find.descendant(of: empty, matching: find.byType(Image)),
-          findsNothing,
+          census.objectCount,
+          0,
+          reason:
+              'Zero when nothing is armed. The commit is disabled until there '
+              'is a photograph, so it takes its unlit form — and while a '
+              'sheet is up every amber beneath it goes out, so the nav tab is '
+              'in its ink form too.\n${census.describe()}',
         );
       },
     );
+
+    testWidgets('with a photograph the sheet spends exactly one: Close task', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        location: _FakeLocation(LocationGranted(-26.2041, 28.0473)),
+      );
+      await _openClosureSheet(tester, capture: true);
+
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'tasks/close-with-photo',
+        phase: 'sheet',
+      );
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'A sheet is an untabbed route with two Night grants, and it '
+            'spends one — the commit. The nav tab beneath has gone '
+            'out.\n${census.describe()}',
+      );
+    });
+
+    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+      testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
+        await _pump(
+          tester,
+          skin: skin,
+          outlets: _outlets,
+          tasks: <TaskItem>[_task()],
+        );
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(census, skin, route: 'tasks', phase: 'loaded');
+        expect(census.objectCount, 0, reason: census.describe());
+      });
+
+      testWidgets('${skin.mode.name} lights the closure sheet\'s commit', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          skin: skin,
+          outlets: _outlets,
+          tasks: <TaskItem>[_task()],
+          location: _FakeLocation(LocationGranted(-26.2041, 28.0473)),
+        );
+        await _openClosureSheet(tester, capture: true);
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(census, skin, route: 'tasks', phase: 'sheet');
+        expect(
+          census.objectCount,
+          1,
+          reason:
+              'On a light ground the one amber block is the primary commit '
+              'action, and here it is Close task.\n${census.describe()}',
+        );
+      });
+    }
+  });
+
+  testWidgets('2.0x text: the structure survives and nothing overflows', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      textScale: 2.0,
+      outlets: _outlets,
+      tasks: <TaskItem>[
+        _task(),
+        _task(id: 't2', priority: 'normal', outletId: 'o2'),
+      ],
+    );
+
+    expect(tester.takeException(), isNull);
+    await scrollWorklistTo(tester, find.byType(SectionRule));
+    await scrollWorklistTo(tester, find.byType(SoftRow).first);
+    expect(find.byType(SoftRow), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  group('the amber census, every phase in every skin', () {
+    /// Every phase this route can settle in, in every skin, counted.
+    ///
+    /// The worklists nominate no content amber, so the arithmetic is the same
+    /// everywhere: Night paints the nav's active tab and nothing else; Day and
+    /// Veld paint nothing, because their one rung is the primary commit block
+    /// and a worklist has none armed.
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      final phases = <String, Future<void> Function(WidgetTester)>{
+        'loaded': (t) => _pump(
+          t,
+          skin: skin,
+          outlets: _outlets,
+          tasks: <TaskItem>[
+            _task(due: _now.subtract(const Duration(days: 2))),
+            _task(id: 't2', outletId: 'o2'),
+          ],
+          nextCursor: 'cursor-2',
+          total: 74,
+        ),
+        'empty': (t) => _pump(t, skin: skin, outlets: _outlets),
+        'filtered-empty': (t) async {
+          await _pump(
+            t,
+            skin: skin,
+            outlets: _outlets,
+            tasks: <TaskItem>[_task(status: 'closed')],
+          );
+        },
+        'loading': (t) async {
+          await _pump(t, skin: skin, outlets: _outlets, listPending: true);
+          await t.pump(const Duration(milliseconds: 700));
+        },
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          listFailure: StateError('SocketException: api.tradeiq.co.za'),
+        ),
+      };
+      for (final phase in phases.entries) {
+        testWidgets('${skin.mode.name}, ${phase.key}: $lit', (tester) async {
+          await phase.value(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'tasks',
+            phase: phase.key,
+          );
+          expect(census.objectCount, lit, reason: census.describe());
+        });
+      }
+    }
+  });
+
+  group('Afrikaans', () {
+    testWidgets('the footer groups its figures the way the locale does, '
+        'and a long row survives 2.0x', (tester) async {
+      await _pump(
+        tester,
+        locale: const Locale('af'),
+        textScale: 2.0,
+        outlets: <Outlet>[
+          outlet('o1', 'Kwik Spar Bloemfontein-Noord Winkelsentrum'),
+        ],
+        tasks: <TaskItem>[
+          _task(fix: 'Vervang die rakprysetiket en herstel die promosiebord'),
+          _task(id: 't2'),
+        ],
+        nextCursor: 'cursor-2',
+        total: 1284,
+      );
+
+      expect(tester.takeException(), isNull);
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      final total = TiqNumber.af.format(1284);
+      expect(total, isNot(contains(',')));
+      expect(
+        find.text(
+          'Showing the 2 tasks with the earliest deadlines, of $total.',
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
   });
 }

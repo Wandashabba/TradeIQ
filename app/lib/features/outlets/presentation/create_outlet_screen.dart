@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,6 +25,16 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
   final _nameCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   final _channelCtrl = TextEditingController();
+
+  /// The coordinates that will actually be sent (#386).
+  ///
+  /// The device position seeds these and nothing more. It used to BE them:
+  /// `getCurrentPosition()` was the only source an outlet's pin could have, so
+  /// a manager onboarding forty stores from the depot on a Monday pinned forty
+  /// stores to the depot car park — and until PATCH /outlets/:id existed, no
+  /// screen in the product could correct a single one of them.
+  final _latCtrl = TextEditingController();
+  final _lngCtrl = TextEditingController();
 
   /// The chosen territory's **code**, which is what `Outlet.territoryId`
   /// stores. Held as a selection rather than typed text: this was a free field
@@ -56,6 +67,10 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
       if (result is LocationGranted) {
         _lat = result.lat;
         _lng = result.lng;
+        // Seeded, not locked. A manager standing in the store keeps what the
+        // phone found; one sitting at the depot types the real numbers over it.
+        _latCtrl.text = result.lat.toString();
+        _lngCtrl.text = result.lng.toString();
       } else if (result is LocationDenied) {
         _locationError = 'Location permission denied.';
       } else if (result is LocationError) {
@@ -66,9 +81,14 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_lat == null || _lng == null) {
+    // The typed fields are the source of truth now, not `_lat`/`_lng` — so a
+    // store can be created with the right coordinates even when the phone
+    // never got a fix, which is the whole point of the fields being editable.
+    final lat = double.tryParse(_latCtrl.text.trim());
+    final lng = double.tryParse(_lngCtrl.text.trim());
+    if (lat == null || lng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location not available yet.')),
+        const SnackBar(content: Text('Enter the store\'s coordinates.')),
       );
       return;
     }
@@ -80,8 +100,8 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
             name: _nameCtrl.text.trim(),
             code: _codeCtrl.text.trim(),
             channelType: _channelCtrl.text.trim(),
-            lat: _lat!,
-            lng: _lng!,
+            lat: lat,
+            lng: lng,
             territoryId: _territoryCode!,
           );
       ref.invalidate(outletsListProvider);
@@ -102,6 +122,8 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
     _nameCtrl.dispose();
     _codeCtrl.dispose();
     _channelCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
     super.dispose();
   }
 
@@ -193,6 +215,42 @@ class _CreateOutletScreenState extends ConsumerState<CreateOutletScreen> {
                         (v == null || v.isEmpty) ? 'Required' : null,
                   ),
           ),
+      const SizedBox(height: 12),
+      // Editable, seeded from the phone (#386). A manager who is not standing
+      // in the store must be able to type where the store actually is, or the
+      // pin is wrong the moment it is created and stays wrong forever.
+      TextFormField(
+        key: const ValueKey<String>('create-outlet-lat'),
+        controller: _latCtrl,
+        keyboardType:
+            const TextInputType.numberWithOptions(signed: true, decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
+        ],
+        decoration: const InputDecoration(
+          labelText: 'Latitude',
+          helperText: 'Between -90 and 90. Johannesburg is about -26.2',
+          border: OutlineInputBorder(),
+        ),
+        validator: (v) => _coordinate(v, 90, 'latitude'),
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        key: const ValueKey<String>('create-outlet-lng'),
+        controller: _lngCtrl,
+        keyboardType:
+            const TextInputType.numberWithOptions(signed: true, decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
+        ],
+        decoration: const InputDecoration(
+          labelText: 'Longitude',
+          helperText: 'Between -180 and 180. Johannesburg is about 28.0',
+          border: OutlineInputBorder(),
+        ),
+        validator: (v) => _coordinate(v, 180, 'longitude'),
+      ),
+      const SizedBox(height: 12)
     ];
 
     return GlassPageScaffold(
@@ -401,4 +459,16 @@ class _GlassLocation extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A typed coordinate, or the reason it is not one.
+String? _coordinate(String? value, double bound, String what) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) return 'Required';
+  final parsed = double.tryParse(text);
+  if (parsed == null) return 'Enter a number, e.g. -26.2041';
+  if (parsed < -bound || parsed > bound) {
+    return 'A $what is between -${bound.toInt()} and ${bound.toInt()}';
+  }
+  return null;
 }
