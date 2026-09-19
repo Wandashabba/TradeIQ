@@ -104,6 +104,7 @@ Future<void> _pump(
         builder: (c, s) => Text('Visit ${s.pathParameters['outletId']}'),
       ),
       GoRoute(path: '/my-work', builder: (c, s) => const Text('My work')),
+      GoRoute(path: '/map', builder: (c, s) => const Text('Map view')),
       // The agent's standings, NOT /contests — that one is manager-only and
       // an agent sent there lands on a 403.
       GoRoute(
@@ -348,22 +349,23 @@ void main() {
   });
 
   group('the chrome', () {
-    testWidgets('three nav slots, and the skin cycle is the one trailing icon', (
+    testWidgets('four nav slots, and the skin cycle is the one trailing icon', (
       tester,
     ) async {
       await _pump(tester, route: _route());
       final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
-      // THE DEVIATION, asserted rather than commented. unify §1.2 approved
-      // Today · My work · Map · Me. Neither Map nor Me has a screen — there
-      // is no agent map route and the agent's own record is #383/#384,
-      // unbuilt — and a tab that returns you to the tab you are already on
-      // reads as a broken app. Contests takes the third slot because the
+      // THE ONE REMAINING DEVIATION, asserted rather than commented. unify
+      // §1.2 approved Today · My work · Map · Me. Map is back in the slot it
+      // was approved in, now that `/map` exists. Me is still #383/#384,
+      // unbuilt, and a tab that returns you to the tab you are already on
+      // reads as a broken app — so the fourth slot is Contests, because the
       // migration would otherwise *remove* a capability: the agent's
       // standings hung off this app bar (#124), and the header's one trailing
       // slot now carries the skin cycle. See `TodayFrame.slotsIn`.
       expect(pill.slots.map((s) => s.label), <String>[
         'Today',
         'My work',
+        'Map',
         'Contests',
       ]);
       final header = tester.widget<TorchAppHeader>(
@@ -378,10 +380,11 @@ void main() {
     testWidgets('every slot but the current one leaves this screen', (
       tester,
     ) async {
-      // The rule the three-slot set exists to keep: no slot is a no-op.
+      // The rule the slot set exists to keep: no slot is a no-op.
       for (final (index, landing) in <(int, String)>[
-        (1, 'My work'),
-        (2, 'Contests view'),
+        (TodayFrame.myWorkSlot, 'My work'),
+        (TodayFrame.mapSlot, 'Map view'),
+        (TodayFrame.contestsSlot, 'Contests view'),
       ]) {
         await _pump(tester, route: _route());
         tester
@@ -400,7 +403,8 @@ void main() {
     testWidgets('the Contests slot carries the running count', (tester) async {
       await _pump(tester, route: _route(), runningContests: 2);
       expect(
-        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).slots[2]
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill))
+            .slots[TodayFrame.contestsSlot]
             .badgeCount,
         2,
       );
@@ -409,7 +413,8 @@ void main() {
     testWidgets('a zero is not a badge', (tester) async {
       await _pump(tester, route: _route());
       expect(
-        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).slots[2]
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill))
+            .slots[TodayFrame.contestsSlot]
             .badgeCount,
         isNull,
         reason: 'nothing running is not news',
