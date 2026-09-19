@@ -8,6 +8,7 @@ import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/camera/photo_exposure.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/location/photo_geotagger.dart';
+import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
@@ -136,6 +137,7 @@ Future<_Harness> _pump(
   LocationService? location,
   TiqSkin? skin,
   double textScale = 1.0,
+  Locale? locale,
 }) async {
   final harness = _Harness(
     tasks: tasks,
@@ -150,6 +152,7 @@ Future<_Harness> _pump(
     TasksScreen(clock: () => _now),
     skin: skin,
     textScale: textScale,
+    locale: locale,
     settle: !listPending,
     users: users,
     overrides: <Override>[
@@ -919,5 +922,37 @@ void main() {
         });
       }
     }
+  });
+
+  group('Afrikaans', () {
+    testWidgets('the footer groups its figures the way the locale does, '
+        'and a long row survives 2.0x', (tester) async {
+      await _pump(
+        tester,
+        locale: const Locale('af'),
+        textScale: 2.0,
+        outlets: <Outlet>[
+          outlet('o1', 'Kwik Spar Bloemfontein-Noord Winkelsentrum'),
+        ],
+        tasks: <TaskItem>[
+          _task(fix: 'Vervang die rakprysetiket en herstel die promosiebord'),
+          _task(id: 't2'),
+        ],
+        nextCursor: 'cursor-2',
+        total: 1284,
+      );
+
+      expect(tester.takeException(), isNull);
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      final total = TiqNumber.af.format(1284);
+      expect(total, isNot(contains(',')));
+      expect(
+        find.text(
+          'Showing the 2 tasks with the earliest deadlines, of $total.',
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
   });
 }

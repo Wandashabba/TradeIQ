@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
@@ -86,6 +87,7 @@ Future<FakeAlertsRepository> _pump(
   TiqSkin? skin,
   double textScale = 1.0,
   Size size = const Size(360, 720),
+  Locale? locale,
 }) async {
   final repository = FakeAlertsRepository(
     alerts: alerts,
@@ -102,6 +104,7 @@ Future<FakeAlertsRepository> _pump(
     size: size,
     settle: !listPending,
     textScale: textScale,
+    locale: locale,
     users: users,
     overrides: <Override>[
       visitDetailRepositoryProvider.overrideWithValue(_Visits()),
@@ -822,6 +825,40 @@ void main() {
       await scrollWorklistTo(tester, find.byType(SectionRule));
       await scrollWorklistTo(tester, find.byType(SoftRow).first);
       expect(find.byType(SoftRow), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('Afrikaans', () {
+    testWidgets('the footer groups its figures the way the locale does, '
+        'and a long row survives 2.0x', (tester) async {
+      await _pump(
+        tester,
+        locale: const Locale('af'),
+        textScale: 2.0,
+        outlets: <Outlet>[
+          outlet('o1', 'Kwik Spar Bloemfontein-Noord Winkelsentrum'),
+        ],
+        alerts: <AlertItem>[
+          _alert(
+            id: 'a1',
+            message: 'Voorraad uit sedert Dinsdag by die hoofingang se rakke',
+          ),
+          _alert(id: 'a2'),
+        ],
+        nextCursor: 'cursor-2',
+        total: 1284,
+      );
+
+      expect(tester.takeException(), isNull);
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      final total = TiqNumber.af.format(1284);
+      // Never the English comma: the figure goes through the one formatter.
+      expect(total, isNot(contains(',')));
+      expect(
+        find.text('Showing the 2 newest of $total alerts.'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
   });
