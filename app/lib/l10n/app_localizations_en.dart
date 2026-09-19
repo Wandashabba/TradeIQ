@@ -2515,6 +2515,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askTileNoData => 'Nothing measured in this window';
 
   @override
+  String get askTileUpdatedTo => 'Updated to';
+
+  @override
+  String get askTileUpdatedFrom => 'from';
+
+  @override
+  String askTileUpdatedAt(String time) {
+    return 'Updated at $time.';
+  }
+
+  @override
+  String askTileWasValue(String value, String time) {
+    return 'Was $value at $time.';
+  }
+
+  @override
   String get askPillarSales => 'Sales';
 
   @override

@@ -619,6 +619,98 @@ void main() {
     });
   });
 
+  group('a figure recomputed while she reads it', () {
+    /// The same card, patched in place: `stat_tiles` under one id (#410).
+    List<AssistantEvent> patched({num? second = 1290000}) =>
+        <AssistantEvent>[
+          const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
+          const ToolEndEvent(name: 'getSalesPerformance', ok: true),
+          const ArtifactEvent(
+            id: 'getSalesPerformance-stat_tiles-1',
+            type: 'stat_tiles',
+            params: <String, dynamic>{},
+            data: <String, dynamic>{
+              'outsideData': false,
+              'tiles': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'label': 'Sell-in, units',
+                  'value': 1284990.5,
+                  'unit': 'units',
+                  'origin': 'internal',
+                },
+              ],
+            },
+          ),
+          ArtifactEvent(
+            id: 'getSalesPerformance-stat_tiles-1',
+            type: 'stat_tiles',
+            params: const <String, dynamic>{},
+            data: <String, dynamic>{
+              'outsideData': false,
+              'tiles': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'label': 'Sell-in, units',
+                  'value': second,
+                  'unit': 'units',
+                  'origin': 'internal',
+                },
+              ],
+            },
+          ),
+          const TokenEvent('Sell-in held steady.'),
+          const DoneEvent(),
+        ];
+
+    testWidgets('says what she saw and when it stopped being true', (
+      tester,
+    ) async {
+      final clock = StepClock()..now = DateTime.utc(2026, 9, 1, 14, 22);
+      await pumpAsk(
+        tester,
+        repository: ScriptedRepository(patched()),
+        clock: clock,
+      );
+      await ask(tester, 'How is sell-in?');
+
+      final text = screenText(tester);
+      // The new figure at full ink, and one line naming the old one. No
+      // strike-through, no second count-up, no severity.
+      expect(text, contains('1,290,000'));
+      expect(text, contains('Updated to'));
+      expect(text, contains('1,284,990.5'));
+      expect(text, contains('Updated at 14:22.'));
+      await disposeAsk(tester);
+    });
+
+    testWidgets('a patch that changes nothing says nothing', (tester) async {
+      await pumpAsk(
+        tester,
+        repository: ScriptedRepository(patched(second: 1284990.5)),
+      );
+      await ask(tester, 'How is sell-in?');
+
+      expect(screenText(tester), isNot(contains('Updated to')));
+      await disposeAsk(tester);
+    });
+
+    testWidgets('patched to no data: the sentence, plus what it was', (
+      tester,
+    ) async {
+      final clock = StepClock()..now = DateTime.utc(2026, 9, 1, 14, 31);
+      await pumpAsk(
+        tester,
+        repository: ScriptedRepository(patched(second: null)),
+        clock: clock,
+      );
+      await ask(tester, 'How is sell-in?');
+
+      final text = screenText(tester);
+      expect(text, contains('Nothing measured in this window'));
+      expect(text, contains('Was 1,284,990.5 at 14:31.'));
+      await disposeAsk(tester);
+    });
+  });
+
   group('2.0× text', () {
     testWidgets('the first run and a landed answer lay out without overflow', (
       tester,

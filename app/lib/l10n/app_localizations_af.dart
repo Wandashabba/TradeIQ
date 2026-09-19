@@ -2546,6 +2546,22 @@ class AppLocalizationsAf extends AppLocalizations {
   String get askTileNoData => 'Niks in hierdie tydperk gemeet nie';
 
   @override
+  String get askTileUpdatedTo => 'Bygewerk na';
+
+  @override
+  String get askTileUpdatedFrom => 'van';
+
+  @override
+  String askTileUpdatedAt(String time) {
+    return 'Bygewerk om $time.';
+  }
+
+  @override
+  String askTileWasValue(String value, String time) {
+    return 'Was $value om $time.';
+  }
+
+  @override
   String get askPillarSales => 'Verkope';
 
   @override

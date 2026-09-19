@@ -3932,6 +3932,30 @@ abstract class AppLocalizations {
   /// **'Nothing measured in this window'**
   String get askTileNoData;
 
+  /// Leads the reconciliation line on a figure the server recomputed while it was on screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated to'**
+  String get askTileUpdatedTo;
+
+  /// Joins the reconciliation line to the figure the reader saw first.
+  ///
+  /// In en, this message translates to:
+  /// **'from'**
+  String get askTileUpdatedFrom;
+
+  /// When the figure was recomputed. A fact, never a fault.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated at {time}.'**
+  String askTileUpdatedAt(String time);
+
+  /// A figure that was measured and is now unknown: what it was, and when it stopped being true.
+  ///
+  /// In en, this message translates to:
+  /// **'Was {value} at {time}.'**
+  String askTileWasValue(String value, String time);
+
   /// Ask TradeIQ answer card.
   ///
   /// In en, this message translates to:

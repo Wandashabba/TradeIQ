@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../view_specs/rich_figures.dart';
 import 'assistant_events.dart';
 import 'assistant_repository.dart';
 
@@ -14,6 +16,7 @@ class ChatArtifact {
     required this.params,
     required this.data,
     this.toolCall,
+    this.reconciled = const <String, TileReconciliation>{},
   });
 
   final String id;
@@ -30,6 +33,59 @@ class ChatArtifact {
   /// tool's tiles stand in for that same tool's `pillar_metrics` card without
   /// parsing id formats.
   final int? toolCall;
+
+  /// What a figure in this card was when the reader first saw it, and when it
+  /// stopped being that — keyed by the tile's label (#410 patches a card in
+  /// place under the same id).
+  ///
+  /// Empty on a card that has not been patched, which is nearly all of them.
+  /// A figure that changes under a reader with nothing said about it is the
+  /// event the reconciliation line exists to narrate.
+  final Map<String, TileReconciliation> reconciled;
+}
+
+/// One figure's previous reading.
+///
+/// [seen] is the **original** value, not the one before last: patched twice,
+/// a manager needs what she saw and when it stopped being true, not a chain.
+@immutable
+class TileReconciliation {
+  const TileReconciliation({required this.seen, required this.at});
+
+  final num? seen;
+  final DateTime at;
+}
+
+/// What each figure in a patched `stat_tiles` card was before the patch.
+///
+/// A figure the server recomputes while a manager is reading it is a fact, not
+/// a fault: nothing flashes, nothing is struck through, and the tile says what
+/// it was and when it stopped being true. Only a value that actually MOVED is
+/// recorded — a patch that changes nothing has nothing worth saying.
+Map<String, TileReconciliation> _reconcile(
+  ChatArtifact previous,
+  dynamic data,
+  DateTime at,
+) {
+  if (previous.type != 'stat_tiles') {
+    return const <String, TileReconciliation>{};
+  }
+  final before = <String, num?>{
+    for (final tile in StatTileData.listFrom(previous.data)) tile.label: tile.value,
+  };
+  final out = <String, TileReconciliation>{...previous.reconciled};
+  for (final tile in StatTileData.listFrom(data)) {
+    if (!before.containsKey(tile.label)) continue;
+    final was = before[tile.label];
+    if (was == tile.value) continue;
+    out[tile.label] = TileReconciliation(
+      // The ORIGINAL reading is kept across a second patch; only the time
+      // moves, because the time is when what she saw stopped being true.
+      seen: out[tile.label]?.seen ?? was,
+      at: at,
+    );
+  }
+  return out;
 }
 
 /// What a tool did, for the working-steps timeline.
@@ -416,6 +472,14 @@ class ChatController extends Notifier<ChatState> {
           toolCall: at != -1
               ? artifacts[at].toolCall
               : (current.tools.isEmpty ? null : current.tools.length - 1),
+          // And it remembers what the reader was looking at before it landed.
+          reconciled: at == -1
+              ? const <String, TileReconciliation>{}
+              : _reconcile(
+                  artifacts[at],
+                  data,
+                  ref.read(assistantClockProvider)(),
+                ),
         );
         if (at == -1) {
           artifacts.add(artifact);

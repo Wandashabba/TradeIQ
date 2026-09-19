@@ -3297,6 +3297,35 @@
   "@askTileNoData": {
     "description": "The sentence under a stat tile whose figure is unknown. Never a zero, never a hidden tile."
   },
+  "askTileUpdatedTo": "Updated to",
+  "@askTileUpdatedTo": {
+    "description": "Leads the reconciliation line on a figure the server recomputed while it was on screen."
+  },
+  "askTileUpdatedFrom": "from",
+  "@askTileUpdatedFrom": {
+    "description": "Joins the reconciliation line to the figure the reader saw first."
+  },
+  "askTileUpdatedAt": "Updated at {time}.",
+  "@askTileUpdatedAt": {
+    "description": "When the figure was recomputed. A fact, never a fault.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "askTileWasValue": "Was {value} at {time}.",
+  "@askTileWasValue": {
+    "description": "A figure that was measured and is now unknown: what it was, and when it stopped being true.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "askPillarSales": "Sales",
   "@askPillarSales": {
     "description": "Ask TradeIQ answer card."

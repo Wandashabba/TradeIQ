@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../../../core/design/tiq_number.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/figure/sample_threshold.dart';
+import '../../../core/widgets/torchlight/figure/provisional.dart';
 import '../../../core/widgets/torchlight/figure/stat_cluster.dart';
 import '../../../core/widgets/torchlight/figure/stat_tile.dart';
 import '../../../core/widgets/torchlight/mark/delta.dart';
@@ -82,7 +83,11 @@ class _StatTilesCardState extends State<StatTilesCard> {
               i,
               i + limit > shown ? shown : i + limit,
             ))
-              askStatTile(context, tile),
+              askStatTile(
+                context,
+                tile,
+                reconciled: widget.artifact.reconciled[tile.label],
+              ),
           ],
         ),
     ];
@@ -117,15 +122,43 @@ class _StatTilesCardState extends State<StatTilesCard> {
 /// delta's direction and sentiment as two separate fields. Neither is derived
 /// from the other — a stock-out count going up is bad and a spoilage count
 /// going down is good, and only the server knows which this is.
-StatTile askStatTile(BuildContext context, StatTileData tile) {
+StatTile askStatTile(
+  BuildContext context,
+  StatTileData tile, {
+  TileReconciliation? reconciled,
+}) {
   final l10n = context.l10n;
   final delta = tile.delta;
+  final seen = reconciled?.seen;
+  final at = reconciled == null ? null : _clockTime(reconciled.at);
   return StatTile(
     eyebrow: tile.label,
     value: tile.value,
     // An unknown figure keeps its tile, drops its unit and its delta, and
-    // says so in words.
-    noDataReason: tile.value == null ? l10n.askTileNoData : null,
+    // says so in words. A figure that WAS measured and now is not says what
+    // it was and when it stopped being true.
+    noDataReason: tile.value == null
+        ? (seen == null || at == null
+              ? l10n.askTileNoData
+              : '${l10n.askTileNoData}. '
+                    '${l10n.askTileWasValue(askFormat(l10n, TiqNumber.of(context), tile, seen), at)}')
+        : null,
+    // A figure the server recomputed while she was reading it. No colour, no
+    // glyph of severity, no animation: the line names what she saw and when.
+    reconciliation: seen == null || at == null || tile.value == null
+        ? null
+        : ReconciliationLine(
+            finalValue: tile.value!,
+            seenValue: seen,
+            voice: ReconciliationVoice.console,
+            unit: askUnitFor(l10n, tile.unit, (tile.value ?? 0).abs()),
+            decimals: tile.decimals,
+            reason: l10n.askTileUpdatedAt(at),
+            strings: ReconciliationStrings(
+              consoleLead: l10n.askTileUpdatedTo,
+              consoleTail: l10n.askTileUpdatedFrom,
+            ),
+          ),
     unit: askUnitFor(l10n, tile.unit, (tile.value ?? 0).abs()),
     decimals: tile.decimals,
     sampling: FigureSampling(
@@ -157,6 +190,25 @@ StatTile askStatTile(BuildContext context, StatTileData tile) {
     meter: tile.meter == null ? null : MeterData(value: tile.meter!),
   );
 }
+
+/// A tile's own value, formatted as the tile draws it.
+String askFormat(
+  AppLocalizations l10n,
+  TiqNumber number,
+  StatTileData tile,
+  num value,
+) => formatAmount(
+  value,
+  tile.unit,
+  number: number,
+  decimals: tile.decimals,
+  pointsWord: l10n.askPoints,
+);
+
+/// 24-hour clock, zero-padded: when the figure stopped being what she read.
+String _clockTime(DateTime at) =>
+    '${at.hour.toString().padLeft(2, '0')}:'
+    '${at.minute.toString().padLeft(2, '0')}';
 
 /// The wire's unit as the formatter's, with `pts` localised.
 TiqUnit askUnitFor(AppLocalizations l10n, String? unit, num magnitude) =>
