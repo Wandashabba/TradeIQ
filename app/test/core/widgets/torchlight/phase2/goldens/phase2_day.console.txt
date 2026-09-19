@@ -1,0 +1,17 @@
+# Torchlight Phase 2 — resolved specs
+# skin: day.console  (day x console)
+# Regenerate: UPDATE_PHASE2_GOLDENS=1 flutter test test/core/widgets/torchlight/phase2/phase2_golden_test.dart
+
+## sheet
+form=sheet  scrim=#B81B2632  fill=#FFFAF7F2  outline=#FF857C6B@1.0  radiusTop=14.0  maxHeight=0.88  padX=20.0  grabber=#FF616465@40x4  belowGrabber=16.0  padBottom=24.0  closeRow=0.0  title=title.l  body=body
+form=sheet  scrim=#B81B2632  fill=#FFFAF7F2  outline=#FF857C6B@1.0  radiusTop=14.0  maxHeight=0.88  padX=20.0  grabber=#FF616465@40x4  belowGrabber=16.0  padBottom=58.0  closeRow=0.0  title=title.l  body=body
+
+## trough
+state=empty  minHeight=44.0  radius=10/0  fill=#FFE2DBCC  outline=#FF6E6657@1.0  rule=#FF6E6657@1.0  pad=14.0/16.0  ink=#FF1B2632  label=label/#FF4A4437  help=meta/#FF676052
+state=filled  minHeight=44.0  radius=10/0  fill=#FFE2DBCC  outline=#FF6E6657@1.0  rule=#FF6E6657@1.0  pad=14.0/16.0  ink=#FF1B2632  label=label/#FF4A4437  help=meta/#FF676052
+state=focused  minHeight=44.0  radius=10/0  fill=#FFE2DBCC  outline=#FF6E6657@1.0  rule=#FF1B2632@2.0  pad=14.0/16.0  ink=#FF1B2632  label=label/#FF4A4437  help=meta/#FF676052
+state=error  minHeight=44.0  radius=10/0  fill=#FFE2DBCC  outline=#FF8C1B2C@2.0  rule=#FF8C1B2C@2.0  pad=14.0/16.0  ink=#FF1B2632  label=label/#FF4A4437  help=meta/#FF676052
+state=finding  minHeight=44.0  radius=10/0  fill=#FFE8D6D2  outline=#FF8C1B2C@2.0  rule=#FF8C1B2C@2.0  pad=14.0/16.0  ink=#FF8C1B2C  label=label/#FF4A4437  help=meta/#FF676052
+state=disabled  minHeight=44.0  radius=10/0  fill=#FFEEE9DF  outline=#FF9B917F@1.0  rule=#FF9B917F@1.0  pad=14.0/16.0  ink=#FF9B917F  label=label/#FF9B917F  help=meta/#FF676052
+state=readOnly  minHeight=44.0  radius=10/0  fill=—  outline=—@0.0  rule=—@0.0  pad=14.0/16.0  ink=#FF1B2632  label=label/#FF4A4437  help=meta/#FF676052
+
