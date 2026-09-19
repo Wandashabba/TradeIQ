@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
 import 'package:tradeiq_app/features/agent_map/presentation/agent_map_screen.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
@@ -9,6 +10,11 @@ import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/push/push_config.dart';
 import 'package:tradeiq_app/core/push/push_repository.dart';
 import 'package:tradeiq_app/core/router/app_router.dart';
+import 'package:tradeiq_app/core/network/app_version.dart';
+import 'package:tradeiq_app/features/auth/presentation/change_password_screen.dart';
+import 'package:tradeiq_app/features/auth/presentation/forgot_password_screen.dart';
+import 'package:tradeiq_app/features/auth/presentation/update_required_screen.dart';
+import 'package:tradeiq_app/features/users/presentation/user_password_screen.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/features/agents/data/agents_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
@@ -697,6 +703,101 @@ void main() {
     },
   );
 
+  group('the account routes (#400)', () {
+    tearDown(() => appUpdateRequired.value = null);
+
+    GoRouter routerOf(WidgetTester tester) => ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    ).read(routerProvider);
+
+    List<Override> asRole(String role) => [
+      sessionControllerProvider.overrideWith(
+        () => _FixedSessionController(SessionState(role: role)),
+      ),
+      outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
+      todayRouteProvider.overrideWith((ref) async => null),
+    ];
+
+    testWidgets('/forgot-password is open to someone signed out', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_appWithOverrides([]));
+      await tester.pumpAndSettle();
+      routerOf(tester).go('/forgot-password');
+      await tester.pumpAndSettle();
+      // The whole point is that this person cannot sign in.
+      expect(find.byType(ForgotPasswordScreen), findsOneWidget);
+    });
+
+    testWidgets('"Forgot password?" on the sign-in screen goes there', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_appWithOverrides([]));
+      await tester.pumpAndSettle();
+      routerOf(tester).go('/login');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Forgot password?'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ForgotPasswordScreen), findsOneWidget);
+    });
+
+    testWidgets('/account/password needs a session', (tester) async {
+      await tester.pumpWidget(_appWithOverrides([]));
+      await tester.pumpAndSettle();
+      routerOf(tester).go('/account/password');
+      await tester.pumpAndSettle();
+      expect(find.byType(ChangePasswordScreen), findsNothing);
+      expect(find.text('Forgot password?'), findsOneWidget);
+    });
+
+    testWidgets('an agent can change their own password', (tester) async {
+      await tester.pumpWidget(_appWithOverrides(asRole('field_agent')));
+      await tester.pumpAndSettle();
+      routerOf(tester).go('/account/password');
+      await tester.pumpAndSettle();
+      expect(find.byType(ChangePasswordScreen), findsOneWidget);
+    });
+
+    testWidgets('an agent cannot reach anyone else\'s reset', (tester) async {
+      await tester.pumpWidget(_appWithOverrides(asRole('field_agent')));
+      await tester.pumpAndSettle();
+      routerOf(tester).go('/users/u-1/password');
+      await tester.pumpAndSettle();
+      expect(find.byType(UserPasswordScreen), findsNothing);
+      expect(find.byType(TodayScreen), findsOneWidget);
+    });
+
+    testWidgets('a 426 sends every route to the update screen, and back', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_appWithOverrides(asRole('field_agent')));
+      await tester.pumpAndSettle();
+      routerOf(tester).go('/today');
+      await tester.pumpAndSettle();
+      expect(find.byType(TodayScreen), findsOneWidget);
+
+      // What the API client does on a 426 carrying app_update_required.
+      appUpdateRequired.value = const AppUpdateRequired(
+        minimumVersion: '9.0.0',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(UpdateRequiredScreen), findsOneWidget);
+
+      // Nowhere else is reachable while the build is refused.
+      routerOf(tester).go('/orders');
+      await tester.pumpAndSettle();
+      expect(find.byType(UpdateRequiredScreen), findsOneWidget);
+
+      // "Try again" clears it; the agent is still signed in and lands home.
+      await tester.tap(find.byKey(const ValueKey<String>('update-try-again')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+      expect(appUpdateRequired.value, isNull);
+      expect(find.byType(UpdateRequiredScreen), findsNothing);
+    });
+  });
+
   group('contests (#124)', () {
     Future<void> goAs(
       WidgetTester tester,
@@ -780,7 +881,10 @@ void main() {
       );
       expect(action, findsOneWidget);
       expect(
-        find.descendant(of: find.byType(TorchNavPill), matching: find.text('1')),
+        find.descendant(
+          of: find.byType(TorchNavPill),
+          matching: find.text('1'),
+        ),
         findsOneWidget,
       );
 

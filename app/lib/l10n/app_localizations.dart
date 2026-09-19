@@ -374,12 +374,6 @@ abstract class AppLocalizations {
   /// **'Forgot password?'**
   String get loginForgotPassword;
 
-  /// Snackbar after tapping 'Forgot password?'.
-  ///
-  /// In en, this message translates to:
-  /// **'Password reset is not available yet.'**
-  String get loginPasswordResetUnavailable;
-
   /// Title of the agent’s day screen.
   ///
   /// In en, this message translates to:
@@ -557,13 +551,13 @@ abstract class AppLocalizations {
   /// No description provided for @myWorkTitle.
   ///
   /// In en, this message translates to:
-  /// **'Your work'**
+  /// **'My work'**
   String get myWorkTitle;
 
   /// No description provided for @myWorkSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'What is on this phone, and what is sent'**
+  /// **'Everything you’ve captured'**
   String get myWorkSubtitle;
 
   /// No description provided for @myWorkSyncNow.
@@ -3325,6 +3319,528 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.'**
   String visitFlagSheetBody(int meters);
+
+  /// The action inside the My work summary block. A ghost by default — the queue sends itself — and the screen’s one amber block only when something is stuck.
+  ///
+  /// In en, this message translates to:
+  /// **'Send now'**
+  String get myWorkSendNow;
+
+  /// Why "Send now" is off. A disabled primary always names what is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is waiting to send.'**
+  String get myWorkSendNowBlocked;
+
+  /// The signed-out block above the My work summary. The only state where the amber moves off "Send now".
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{You’re signed out. Sign in and your 1 held capture will send.} other{You’re signed out. Sign in and your {count} held captures will send.}}'**
+  String myWorkSignedOutTitle(int count);
+
+  /// The signed-out block’s action.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get myWorkSignIn;
+
+  /// Ghost action under the capped Sent list.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older'**
+  String get myWorkShowOlder;
+
+  /// The Sent group is capped so a long outbox does not become a scroll. Says what it is showing and out of how many.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} most recently sent of {total}'**
+  String myWorkSentCapped(int shown, int total);
+
+  /// The empty My work screen. Says what the screen is for rather than apologising.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything you capture in a store shows up here until the server has it.'**
+  String get myWorkEmptyBody;
+
+  /// Body of the My work load-error state. The outbox failing to READ is not the outbox failing to hold.
+  ///
+  /// In en, this message translates to:
+  /// **'Your work is still on this phone. Nothing is lost.'**
+  String get myWorkLoadErrorBody;
+
+  /// Reads the outbox again after a failed read. The captures themselves were never in doubt — only the reading of them.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get myWorkRetry;
+
+  /// Outbox row state word: queued, waiting for signal. Never an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get outboxWaiting;
+
+  /// Outbox row state word: bytes are moving.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending'**
+  String get outboxSending;
+
+  /// Outbox row state word: a failed attempt that will clear itself.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrying'**
+  String get outboxRetrying;
+
+  /// Outbox row state word: the server has it.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get outboxSent;
+
+  /// Outbox row state word for the one severity-bearing state, and the severity in words beside the crimson bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs you'**
+  String get outboxNeedsYou;
+
+  /// Outbox row state word: blocked on the visit above it. An ordering dependency, explicitly not a fault.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting its turn'**
+  String get outboxWaitingTurn;
+
+  /// The queued state as a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for signal'**
+  String get outboxWaitingSentence;
+
+  /// The sending state as a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Going up now'**
+  String get outboxSendingSentence;
+
+  /// The sent state as a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'The server has it'**
+  String get outboxSentSentence;
+
+  /// The age line on a queued outbox row. {time} is a clock time.
+  ///
+  /// In en, this message translates to:
+  /// **'queued {time}'**
+  String outboxQueuedAt(String time);
+
+  /// The age line on a sent outbox row.
+  ///
+  /// In en, this message translates to:
+  /// **'sent {time}'**
+  String outboxSentAt(String time);
+
+  /// The age line on a retrying or stuck outbox row. The real last attempt, never an invented next-try time.
+  ///
+  /// In en, this message translates to:
+  /// **'last tried {time}'**
+  String outboxLastTriedAt(String time);
+
+  /// How many send attempts this capture has had, in the sheet’s identifier block.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Not tried yet} =1{Tried once} other{Tried {count} times}}'**
+  String outboxAttempts(int count);
+
+  /// The sheet action that flushes exactly this capture and nothing else.
+  ///
+  /// In en, this message translates to:
+  /// **'Send this one now'**
+  String get outboxSendThisNow;
+
+  /// The sheet action that throws a stuck capture away. Always behind a second step.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this capture'**
+  String get outboxDiscard;
+
+  /// The confirming press on the discard sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, discard it'**
+  String get outboxDiscardConfirm;
+
+  /// The way out of the discard confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get outboxDiscardKeep;
+
+  /// Said plainly before anything is thrown away (#376). {item} is the capture’s own name, e.g. "Stock count".
+  ///
+  /// In en, this message translates to:
+  /// **'This {item} has not reached the server. Discard it and it is gone from this phone — there is no copy anywhere else.'**
+  String outboxDiscardWhatIsLost(String item);
+
+  /// Added to the discard statement when the capture is a visit: its sections, photos and submit cannot send without it, so they are removed too. Said before the agent confirms (#376).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 capture from this visit goes with it, because it cannot send without the visit.} other{{count} captures from this visit go with it, because they cannot send without the visit.}}'**
+  String outboxDiscardTakesDependents(int count);
+
+  /// The sent state’s sheet. A sent row is still tappable, and it says so.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to do — the server has it.'**
+  String get outboxNothingToDo;
+
+  /// Shown on a rejected or too-large capture. The app never repairs a rejected payload behind the agent’s back (#376).
+  ///
+  /// In en, this message translates to:
+  /// **'The server refused this exactly as it is, so sending it again unchanged will fail the same way. Nothing has been altered for you.'**
+  String get outboxRejectedNote;
+
+  /// The ordering dependency, said in the sheet so it is never read as a fault.
+  ///
+  /// In en, this message translates to:
+  /// **'This sends itself as soon as the visit above it does. Nothing is wrong.'**
+  String get outboxWaitingTurnNote;
+
+  /// The one stuck state whose fix has nothing to do with the capture.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session ended. Sign in and this sends itself.'**
+  String get outboxSignedOutNote;
+
+  /// The identifier block in the outbox sheet, in mono. For a support call.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture {id} · {type}'**
+  String outboxItemId(int id, String type);
+
+  /// The picker with an empty list.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores here'**
+  String get pickerEmptyTitle;
+
+  /// The picker’s empty state while it is narrowed. Names both ways out.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is filed under your territories yet. Switch to all stores, or add the one you are standing in.'**
+  String get pickerEmptyBodyMine;
+
+  /// The picker’s empty state with the widest scope. The list is genuinely empty, not filtered.
+  ///
+  /// In en, this message translates to:
+  /// **'This client has no stores on the server yet. Add the one you are standing in.'**
+  String get pickerEmptyBodyAll;
+
+  /// Body of the picker’s load-error state. A list that will not load is not work that is lost.
+  ///
+  /// In en, this message translates to:
+  /// **'Your stores are fetched from the server. Nothing you have captured is affected.'**
+  String get pickerLoadErrorBody;
+
+  /// Section rule above the picker’s scope control.
+  ///
+  /// In en, this message translates to:
+  /// **'Which stores'**
+  String get pickerScopeHeading;
+
+  /// Section rule above the picker’s list.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores'**
+  String get pickerStoresHeading;
+
+  /// The trailing half of the held banner’s screen-reader label.
+  ///
+  /// In en, this message translates to:
+  /// **'tap to open your work'**
+  String get syncBannerOpen;
+
+  /// The Veld Close row on a bottom sheet — in Veld a sheet is a full-screen route and needs a way out that is not a scrim tap.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get commonClose;
+
+  /// One picker row as a screen reader hears it — the store, its code, and what tapping does.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {code}. Double-tap to start a visit here.'**
+  String pickerStartVisitSemantics(String name, String code);
+
+  /// The needs-you banner’s state WORD, without the count. The band renders the figure itself in mono and keeps the count out of the live region — a count inside a live label interrupts an agent once per capture.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{needs you} other{need you}}'**
+  String syncBannerNeedsYou(int count);
+
+  /// Shared error copy for a 429: the server's rate limit. Retrying at once only spends another attempt.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Wait a few minutes, then try again.'**
+  String get errorTooManyAttempts;
+
+  /// Shared error copy for a 426 from the server's minimum-version gate.
+  ///
+  /// In en, this message translates to:
+  /// **'This version of the app is too old. Update TradeIQ to carry on.'**
+  String get errorUpdateRequired;
+
+  /// Help under every new-password field. Mirrors backend/src/lib/passwordPolicy.ts.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 12 characters. Three ordinary words are easy to type and hard to guess.'**
+  String get passwordRuleHelp;
+
+  /// Field error: the new password is under 12 characters (spaces at either end do not count).
+  ///
+  /// In en, this message translates to:
+  /// **'Too short: use at least 12 characters.'**
+  String get passwordTooShort;
+
+  /// Field error: over 72 bytes, bcrypt's ceiling.
+  ///
+  /// In en, this message translates to:
+  /// **'Too long for a password here. Use fewer characters.'**
+  String get passwordTooLong;
+
+  /// Field error.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password cannot be your email address.'**
+  String get passwordIsEmail;
+
+  /// Field error on the confirm field.
+  ///
+  /// In en, this message translates to:
+  /// **'The two new passwords do not match.'**
+  String get passwordMismatch;
+
+  /// Field error when the server refuses the new password (e.g. a common one).
+  ///
+  /// In en, this message translates to:
+  /// **'That password was not accepted. Use at least 12 characters, not your email address and not an obvious phrase.'**
+  String get passwordRejected;
+
+  /// Checkbox that reveals every password field on the screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Show passwords'**
+  String get passwordShow;
+
+  /// Why the primary is disabled: no new password yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password'**
+  String get passwordNeedsNew;
+
+  /// Why the primary is disabled: the confirm field is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the new password again'**
+  String get passwordNeedsConfirm;
+
+  /// Headline of an inline failure on the password screens.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password was not changed'**
+  String get passwordFailedTitle;
+
+  /// Said after every password change: the server cannot end other sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Other phones signed in to your account stay signed in until their session ends, up to 12 hours. If a phone is lost, ask your manager to switch the account off.'**
+  String get passwordOtherSessions;
+
+  /// Title of the forgot-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get forgotTitle;
+
+  /// Semantic label of the back button on the forgot-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to sign in'**
+  String get forgotBack;
+
+  /// How the field reset works. There is no email reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your manager for a reset code. They make it in TradeIQ and read it out to you. It works once, for 15 minutes.'**
+  String get forgotIntro;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get forgotEmailLabel;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset code'**
+  String get forgotCodeLabel;
+
+  /// Hint in the reset-code field: its format.
+  ///
+  /// In en, this message translates to:
+  /// **'8 digits'**
+  String get forgotCodeHint;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get forgotNewPasswordLabel;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'New password again'**
+  String get forgotConfirmLabel;
+
+  /// Primary on the forgot-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Set new password'**
+  String get forgotSubmit;
+
+  /// Why the primary is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email first'**
+  String get forgotNeedsEmail;
+
+  /// Why the primary is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the 8-digit code from your manager'**
+  String get forgotNeedsCode;
+
+  /// Headline when the server refuses the code. Deliberately says nothing about whether the account exists.
+  ///
+  /// In en, this message translates to:
+  /// **'That code did not work'**
+  String get forgotCodeRejectedTitle;
+
+  /// Body when the server refuses the code.
+  ///
+  /// In en, this message translates to:
+  /// **'It may be mistyped, used already or older than 15 minutes. Check the email too. Your manager can make a new code.'**
+  String get forgotCodeRejectedBody;
+
+  /// Headline after a successful reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password is changed'**
+  String get forgotDoneTitle;
+
+  /// Body after a successful reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your new password.'**
+  String get forgotDoneBody;
+
+  /// Primary after a successful reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to sign in'**
+  String get forgotGoToSignIn;
+
+  /// Title of the change-password screen, and the settings entry that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get changePasswordTitle;
+
+  /// Semantic label of the back button on the change-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to settings'**
+  String get changePasswordBack;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get changeCurrentLabel;
+
+  /// Why the primary is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current password'**
+  String get changeNeedsCurrent;
+
+  /// Field error when the server says the current password is wrong.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not your current password.'**
+  String get changeWrongCurrent;
+
+  /// Headline after a successful change.
+  ///
+  /// In en, this message translates to:
+  /// **'Password changed'**
+  String get changeDoneTitle;
+
+  /// Body after a successful change.
+  ///
+  /// In en, this message translates to:
+  /// **'You stay signed in on this phone. Use the new password next time you sign in.'**
+  String get changeDoneBody;
+
+  /// Primary after a successful change.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get changeDone;
+
+  /// Section heading on the settings screen, above Change password.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account'**
+  String get settingsAccountHeading;
+
+  /// Title of the too-old-version screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Update TradeIQ'**
+  String get updateTitle;
+
+  /// Body of the too-old-version screen.
+  ///
+  /// In en, this message translates to:
+  /// **'This version of the app is too old for the server. Install the newest version from where you got TradeIQ, then open it again.'**
+  String get updateBody;
+
+  /// Reassurance on the too-old-version screen. It is true: the screen deletes nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing saved on this phone is deleted by this.'**
+  String get updateNothingLost;
+
+  /// Primary on the too-old-version screen: clears the state and asks the server again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get updateTryAgain;
+
+  /// Which build this is and what the server needs.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has version {current}. Version {minimum} or newer is needed.'**
+  String updateVersions(String current, String minimum);
+
+  /// When the server did not say which version it needs.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has version {current}. A newer version is needed.'**
+  String updateVersionNoMinimum(String current);
 }
 
 class _AppLocalizationsDelegate

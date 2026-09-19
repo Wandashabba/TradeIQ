@@ -7,6 +7,7 @@ import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/widgets/agent_scaffold.dart';
 import 'package:tradeiq_app/core/widgets/location_sharing_banner.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../helpers/routed_app.dart';
@@ -68,6 +69,11 @@ Widget _banner(_FakeController controller, {Locale? locale, ThemeData? theme}) =
 );
 
 void main() {
+  // A sheet that a failing test left open would make the NEXT test's
+  // `showTorchSheet` trip the no-stacking assert, and the failure would name
+  // the wrong component. The counter is static, so it is reset per test.
+  setUp(TorchSheets.resetForTest);
+
   const notice = ValueKey('location-notice');
   const indicator = ValueKey('location-sharing-indicator');
   const off = ValueKey('location-sharing-off');
@@ -114,10 +120,22 @@ void main() {
 
     await tester.tap(find.byKey(indicator));
     await tester.pumpAndSettle();
+    // The AlertDialog is gone: unify §1.7 deleted the dialog and a
+    // non-dismissible bottom sheet covers every blocking case it covered. The
+    // confirming press is the sheet's own destructive button, so it is found
+    // by the word on it rather than by a key this file used to own.
     expect(find.byKey(const ValueKey('location-stop-dialog')), findsOneWidget);
     expect(find.text('Stop sharing your location?'), findsOneWidget);
+    expect(
+      find.text(
+        'Your manager will no longer see where you are. '
+        'You can turn it back on later.',
+      ),
+      findsOneWidget,
+      reason: 'the POPIA consequence is stated before anything stops',
+    );
 
-    await tester.tap(find.byKey(const ValueKey('location-stop-confirm')));
+    await tester.tap(find.text('Stop sharing'));
     await tester.pumpAndSettle();
     expect(controller.declines, 1);
     expect(find.byKey(indicator), findsNothing);

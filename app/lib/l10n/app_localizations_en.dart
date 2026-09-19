@@ -184,10 +184,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginForgotPassword => 'Forgot password?';
 
   @override
-  String get loginPasswordResetUnavailable =>
-      'Password reset is not available yet.';
-
-  @override
   String get todayTitle => 'Today';
 
   @override
@@ -294,10 +290,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickerRetry => 'Try again';
 
   @override
-  String get myWorkTitle => 'Your work';
+  String get myWorkTitle => 'My work';
 
   @override
-  String get myWorkSubtitle => 'What is on this phone, and what is sent';
+  String get myWorkSubtitle => 'Everything you’ve captured';
 
   @override
   String get myWorkSyncNow => 'Try sending now';
@@ -2094,5 +2090,339 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String visitFlagSheetBody(int meters) {
     return 'You were $meters m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.';
+  }
+
+  @override
+  String get myWorkSendNow => 'Send now';
+
+  @override
+  String get myWorkSendNowBlocked => 'Nothing is waiting to send.';
+
+  @override
+  String myWorkSignedOutTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'You’re signed out. Sign in and your $count held captures will send.',
+      one: 'You’re signed out. Sign in and your 1 held capture will send.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get myWorkSignIn => 'Sign in';
+
+  @override
+  String get myWorkShowOlder => 'Show older';
+
+  @override
+  String myWorkSentCapped(int shown, int total) {
+    return 'Showing the $shown most recently sent of $total';
+  }
+
+  @override
+  String get myWorkEmptyBody =>
+      'Everything you capture in a store shows up here until the server has it.';
+
+  @override
+  String get myWorkLoadErrorBody =>
+      'Your work is still on this phone. Nothing is lost.';
+
+  @override
+  String get myWorkRetry => 'Try again';
+
+  @override
+  String get outboxWaiting => 'Waiting';
+
+  @override
+  String get outboxSending => 'Sending';
+
+  @override
+  String get outboxRetrying => 'Retrying';
+
+  @override
+  String get outboxSent => 'Sent';
+
+  @override
+  String get outboxNeedsYou => 'Needs you';
+
+  @override
+  String get outboxWaitingTurn => 'Waiting its turn';
+
+  @override
+  String get outboxWaitingSentence => 'Waiting for signal';
+
+  @override
+  String get outboxSendingSentence => 'Going up now';
+
+  @override
+  String get outboxSentSentence => 'The server has it';
+
+  @override
+  String outboxQueuedAt(String time) {
+    return 'queued $time';
+  }
+
+  @override
+  String outboxSentAt(String time) {
+    return 'sent $time';
+  }
+
+  @override
+  String outboxLastTriedAt(String time) {
+    return 'last tried $time';
+  }
+
+  @override
+  String outboxAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Tried $count times',
+      one: 'Tried once',
+      zero: 'Not tried yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxSendThisNow => 'Send this one now';
+
+  @override
+  String get outboxDiscard => 'Discard this capture';
+
+  @override
+  String get outboxDiscardConfirm => 'Yes, discard it';
+
+  @override
+  String get outboxDiscardKeep => 'Keep it';
+
+  @override
+  String outboxDiscardWhatIsLost(String item) {
+    return 'This $item has not reached the server. Discard it and it is gone from this phone — there is no copy anywhere else.';
+  }
+
+  @override
+  String outboxDiscardTakesDependents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count captures from this visit go with it, because they cannot send without the visit.',
+      one:
+          '1 capture from this visit goes with it, because it cannot send without the visit.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxNothingToDo => 'Nothing to do — the server has it.';
+
+  @override
+  String get outboxRejectedNote =>
+      'The server refused this exactly as it is, so sending it again unchanged will fail the same way. Nothing has been altered for you.';
+
+  @override
+  String get outboxWaitingTurnNote =>
+      'This sends itself as soon as the visit above it does. Nothing is wrong.';
+
+  @override
+  String get outboxSignedOutNote =>
+      'Your session ended. Sign in and this sends itself.';
+
+  @override
+  String outboxItemId(int id, String type) {
+    return 'Capture $id · $type';
+  }
+
+  @override
+  String get pickerEmptyTitle => 'No stores here';
+
+  @override
+  String get pickerEmptyBodyMine =>
+      'Nothing is filed under your territories yet. Switch to all stores, or add the one you are standing in.';
+
+  @override
+  String get pickerEmptyBodyAll =>
+      'This client has no stores on the server yet. Add the one you are standing in.';
+
+  @override
+  String get pickerLoadErrorBody =>
+      'Your stores are fetched from the server. Nothing you have captured is affected.';
+
+  @override
+  String get pickerScopeHeading => 'Which stores';
+
+  @override
+  String get pickerStoresHeading => 'Stores';
+
+  @override
+  String get syncBannerOpen => 'tap to open your work';
+
+  @override
+  String get commonClose => 'Close';
+
+  @override
+  String pickerStartVisitSemantics(String name, String code) {
+    return '$name, $code. Double-tap to start a visit here.';
+  }
+
+  @override
+  String syncBannerNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'need you',
+      one: 'needs you',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get errorTooManyAttempts =>
+      'Too many attempts. Wait a few minutes, then try again.';
+
+  @override
+  String get errorUpdateRequired =>
+      'This version of the app is too old. Update TradeIQ to carry on.';
+
+  @override
+  String get passwordRuleHelp =>
+      'At least 12 characters. Three ordinary words are easy to type and hard to guess.';
+
+  @override
+  String get passwordTooShort => 'Too short: use at least 12 characters.';
+
+  @override
+  String get passwordTooLong =>
+      'Too long for a password here. Use fewer characters.';
+
+  @override
+  String get passwordIsEmail => 'Your password cannot be your email address.';
+
+  @override
+  String get passwordMismatch => 'The two new passwords do not match.';
+
+  @override
+  String get passwordRejected =>
+      'That password was not accepted. Use at least 12 characters, not your email address and not an obvious phrase.';
+
+  @override
+  String get passwordShow => 'Show passwords';
+
+  @override
+  String get passwordNeedsNew => 'Choose a new password';
+
+  @override
+  String get passwordNeedsConfirm => 'Type the new password again';
+
+  @override
+  String get passwordFailedTitle => 'Your password was not changed';
+
+  @override
+  String get passwordOtherSessions =>
+      'Other phones signed in to your account stay signed in until their session ends, up to 12 hours. If a phone is lost, ask your manager to switch the account off.';
+
+  @override
+  String get forgotTitle => 'Reset your password';
+
+  @override
+  String get forgotBack => 'Back to sign in';
+
+  @override
+  String get forgotIntro =>
+      'Ask your manager for a reset code. They make it in TradeIQ and read it out to you. It works once, for 15 minutes.';
+
+  @override
+  String get forgotEmailLabel => 'Email';
+
+  @override
+  String get forgotCodeLabel => 'Reset code';
+
+  @override
+  String get forgotCodeHint => '8 digits';
+
+  @override
+  String get forgotNewPasswordLabel => 'New password';
+
+  @override
+  String get forgotConfirmLabel => 'New password again';
+
+  @override
+  String get forgotSubmit => 'Set new password';
+
+  @override
+  String get forgotNeedsEmail => 'Enter your email first';
+
+  @override
+  String get forgotNeedsCode => 'Enter the 8-digit code from your manager';
+
+  @override
+  String get forgotCodeRejectedTitle => 'That code did not work';
+
+  @override
+  String get forgotCodeRejectedBody =>
+      'It may be mistyped, used already or older than 15 minutes. Check the email too. Your manager can make a new code.';
+
+  @override
+  String get forgotDoneTitle => 'Your password is changed';
+
+  @override
+  String get forgotDoneBody => 'Sign in with your new password.';
+
+  @override
+  String get forgotGoToSignIn => 'Go to sign in';
+
+  @override
+  String get changePasswordTitle => 'Change password';
+
+  @override
+  String get changePasswordBack => 'Back to settings';
+
+  @override
+  String get changeCurrentLabel => 'Current password';
+
+  @override
+  String get changeNeedsCurrent => 'Enter your current password';
+
+  @override
+  String get changeWrongCurrent => 'That is not your current password.';
+
+  @override
+  String get changeDoneTitle => 'Password changed';
+
+  @override
+  String get changeDoneBody =>
+      'You stay signed in on this phone. Use the new password next time you sign in.';
+
+  @override
+  String get changeDone => 'Done';
+
+  @override
+  String get settingsAccountHeading => 'Your account';
+
+  @override
+  String get updateTitle => 'Update TradeIQ';
+
+  @override
+  String get updateBody =>
+      'This version of the app is too old for the server. Install the newest version from where you got TradeIQ, then open it again.';
+
+  @override
+  String get updateNothingLost =>
+      'Nothing saved on this phone is deleted by this.';
+
+  @override
+  String get updateTryAgain => 'Try again';
+
+  @override
+  String updateVersions(String current, String minimum) {
+    return 'This phone has version $current. Version $minimum or newer is needed.';
+  }
+
+  @override
+  String updateVersionNoMinimum(String current) {
+    return 'This phone has version $current. A newer version is needed.';
   }
 }

@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
 import '../location/background_location.dart';
-import '../theme/lumen_glass.dart';
-import '../theme/lumen_palette.dart';
-import '../theme/tiq_colors.dart';
-import 'agent_kit.dart';
-import 'agent_motion.dart';
-import 'glass.dart';
+import '../theme/torchlight/tiq_skin.dart';
+import 'torchlight/button/buttons.dart';
+import 'torchlight/marks.dart';
+import 'torchlight/row/row.dart';
+import 'torchlight/sheet.dart';
 
 /// Background route tracking, told to the agent in words (#153 T2, POPIA).
 ///
-/// Sits under [LocationSharingBanner] and is deliberately a SEPARATE line with
+/// Sits under `LocationSharingBanner` and is deliberately a SEPARATE line with
 /// a separate off switch. Foreground sharing and background tracking are
 /// different asks, they are answered separately on the server, and an agent who
 /// wants to stop one must be able to do so without stopping the other.
@@ -35,8 +35,25 @@ import 'glass.dart';
 /// - **A paused line**, outside the client's working hours.
 /// - **The indicator**, while the service is running. Not dismissible, and
 ///   tapping it offers to stop.
+///
+/// ## Torchlight, and not one word changed
+///
+/// A restyle. Every sentence and every key is the one that was here — a
+/// consent notice whose wording drifts is a consent notice nobody can point at
+/// afterwards. The standing statements are standalone soft rows, the two walls
+/// of text are the panel material, the buttons are the button family, and the
+/// stop confirmation is a [ConfirmSheet]: unify §1.7 deleted the dialog.
 class BackgroundLocationBanner extends ConsumerWidget {
-  const BackgroundLocationBanner({super.key});
+  const BackgroundLocationBanner({super.key, this.inset = true});
+
+  /// Whether the banner brings its own side gutter. The legacy scaffold puts
+  /// it above a body with no padding, so it does; a Torchlight shell's
+  /// children are already inside the gutter, so there it must not.
+  final bool inset;
+
+  /// The notice's yes, and the permission prompt's "Open settings". Only one
+  /// of the two is ever on screen.
+  static const String consentClaimId = 'background-location-consent';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,6 +63,7 @@ class BackgroundLocationBanner extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final l10n = context.l10n;
+    final skin = context.skin;
     final controller = ref.read(backgroundLocationControllerProvider.notifier);
 
     // The permanent notification is the one piece of this feature that renders
@@ -75,45 +93,58 @@ class BackgroundLocationBanner extends ConsumerWidget {
           controller.stop();
         },
       ),
-      BackgroundTrackingStep.off => PressFeedback(
-        onTap: controller.showNotice,
-        child: StatusBanner(
-          key: const ValueKey('background-location-off'),
-          level: BannerLevel.good,
-          title: l10n.backgroundLocationOfferTitle,
-          subtitle: l10n.backgroundLocationOfferSubtitle,
-          trailing: const Icon(Icons.route_outlined, size: 16),
+      BackgroundTrackingStep.off => SoftRow(
+        key: const ValueKey<String>('background-location-off'),
+        form: SoftRowForm.standalone,
+        title: l10n.backgroundLocationOfferTitle,
+        subtitle: l10n.backgroundLocationOfferSubtitle,
+        leading: Icon(
+          Icons.route_outlined,
+          size: MarkScale.glyph(context, 20),
+          color: skin.palette.ink3,
         ),
+        trailing: const SoftRowChevron(),
+        onTap: controller.showNotice,
       ),
       BackgroundTrackingStep.needsPermission => _PermissionPrompt(
         onOpenSettings: controller.openSettings,
         onNotNow: controller.stop,
       ),
-      BackgroundTrackingStep.outsideHours => StatusBanner(
-        key: const ValueKey('background-location-paused'),
-        level: BannerLevel.info,
+      // Not tappable: the pause is the clock's decision, not the agent's, and
+      // a row that opens nothing must not wear a chevron.
+      BackgroundTrackingStep.outsideHours => SoftRow(
+        key: const ValueKey<String>('background-location-paused'),
+        form: SoftRowForm.standalone,
         title: l10n.backgroundLocationOutsideHoursTitle,
         subtitle: l10n.backgroundLocationOutsideHoursSubtitle(hours.start),
-        trailing: const Icon(Icons.schedule_outlined, size: 16),
-      ),
-      BackgroundTrackingStep.running => PressFeedback(
-        onTap: () => _confirmStop(context, controller),
-        child: StatusBanner(
-          key: const ValueKey('background-location-active'),
-          level: BannerLevel.info,
-          title: l10n.backgroundLocationActiveTitle,
-          subtitle: l10n.backgroundLocationActiveSubtitle,
-          trailing: Icon(
-            Icons.route,
-            size: 16,
-            semanticLabel: l10n.backgroundLocationActiveTitle,
-          ),
+        leading: Icon(
+          Icons.schedule_outlined,
+          size: MarkScale.glyph(context, 20),
+          color: skin.palette.ink3,
         ),
+      ),
+      BackgroundTrackingStep.running => SoftRow(
+        key: const ValueKey<String>('background-location-active'),
+        form: SoftRowForm.standalone,
+        title: l10n.backgroundLocationActiveTitle,
+        subtitle: l10n.backgroundLocationActiveSubtitle,
+        leading: Icon(
+          Icons.route,
+          size: MarkScale.glyph(context, 20),
+          color: skin.palette.ink2,
+        ),
+        trailing: const SoftRowChevron(),
+        onTap: () => _confirmStop(context, controller),
       ),
     };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: EdgeInsets.fromLTRB(
+        inset ? skin.space.gutter : 0,
+        TiqSpace.s3,
+        inset ? skin.space.gutter : 0,
+        0,
+      ),
       child: child,
     );
   }
@@ -123,30 +154,21 @@ class BackgroundLocationBanner extends ConsumerWidget {
     BackgroundLocationController controller,
   ) async {
     final l10n = context.l10n;
-    final stop = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        key: const ValueKey('background-location-stop-dialog'),
-        title: Text(l10n.backgroundLocationStopTitle),
-        content: Text(l10n.backgroundLocationStopBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.backgroundLocationStopCancel),
-          ),
-          FilledButton(
-            key: const ValueKey('background-location-stop-confirm'),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.backgroundLocationStopConfirm),
-          ),
-        ],
+    final stop = await showTorchSheet<bool>(
+      context,
+      builder: (context) => ConfirmSheet(
+        key: const ValueKey<String>('background-location-stop-dialog'),
+        action: l10n.backgroundLocationStopTitle,
+        consequences: <String>[l10n.backgroundLocationStopBody],
+        commitLabel: l10n.backgroundLocationStopConfirm,
+        cancelLabel: l10n.backgroundLocationStopCancel,
       ),
     );
     if (stop == true) await controller.stop();
   }
 }
 
-/// The frame both the notice and the permission prompt sit in.
+/// The frame both walls of text sit in — the panel material, once.
 class _Pane extends StatelessWidget {
   const _Pane({required this.child});
 
@@ -154,16 +176,17 @@ class _Pane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) {
-      return GlassPane(padding: const EdgeInsets.all(14), child: child);
-    }
+    final skin = context.skin;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(TiqSpace.s4),
       decoration: BoxDecoration(
-        color: colors.surface1,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.line),
+        color: skin.palette.surface,
+        borderRadius: BorderRadius.circular(skin.radii.panel),
+        border: Border.all(
+          color: skin.palette.edgeStructure,
+          width: skin.depth.borderWidth,
+        ),
+        boxShadow: skin.depth.shadows,
       ),
       child: child,
     );
@@ -178,22 +201,23 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final ink = colors.glass ? context.lumen.ink : colors.ink1;
+    final skin = context.skin;
     return Row(
-      children: [
-        Icon(icon, size: 20, color: ink),
-        const SizedBox(width: 8),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Icon(
+          icon,
+          size: MarkScale.glyph(context, 20),
+          color: skin.palette.ink1,
+        ),
+        const SizedBox(width: TiqSpace.s3),
         Expanded(
-          child: Text(
-            text,
-            style: colors.glass
-                ? LumenGlass.title(color: ink, size: 15)
-                : TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: ink,
-                  ),
+          child: Semantics(
+            header: true,
+            child: Text(
+              text,
+              style: skin.text.titleM.style(color: skin.palette.ink1),
+            ),
           ),
         ),
       ],
@@ -219,38 +243,32 @@ class _BackgroundNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.colors;
-    final muted = colors.glass ? context.lumen.inkMuted : colors.ink2;
+    final skin = context.skin;
 
     return _Pane(
       child: Column(
-        key: const ValueKey('background-location-notice'),
+        key: const ValueKey<String>('background-location-notice'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           _Heading(Icons.route_outlined, l10n.backgroundLocationNoticeTitle),
-          const SizedBox(height: 8),
+          const SizedBox(height: TiqSpace.s3),
           Text(
             l10n.backgroundLocationNoticeBody(minutes, start, end),
-            style: TextStyle(fontSize: 13, height: 1.4, color: muted),
+            style: skin.text.body.style(color: skin.palette.ink2),
           ),
-          const SizedBox(height: 12),
-          FilledButton(
-            key: const ValueKey('background-location-accept'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
+          SizedBox(height: skin.space.intraBlock),
+          TorchPrimaryButton(
+            key: const ValueKey<String>('background-location-accept'),
+            claimId: BackgroundLocationBanner.consentClaimId,
+            label: l10n.backgroundLocationNoticeAccept,
             onPressed: onAccept,
-            child: Text(l10n.backgroundLocationNoticeAccept),
           ),
-          const SizedBox(height: 4),
-          TextButton(
-            key: const ValueKey('background-location-decline'),
-            style: TextButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
+          const SizedBox(height: TiqSpace.s2),
+          TorchTertiaryButton(
+            key: const ValueKey<String>('background-location-decline'),
+            label: l10n.backgroundLocationNoticeDecline,
             onPressed: onDecline,
-            child: Text(l10n.backgroundLocationNoticeDecline),
           ),
         ],
       ),
@@ -270,41 +288,37 @@ class _PermissionPrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.colors;
-    final muted = colors.glass ? context.lumen.inkMuted : colors.ink2;
+    final skin = context.skin;
 
     return _Pane(
       child: Column(
-        key: const ValueKey('background-location-permission'),
+        key: const ValueKey<String>('background-location-permission'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
-        children: [
+        children: <Widget>[
           _Heading(
             Icons.settings_outlined,
             l10n.backgroundLocationPermissionTitle,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: TiqSpace.s3),
           Text(
             l10n.backgroundLocationPermissionBody,
-            style: TextStyle(fontSize: 13, height: 1.4, color: muted),
+            style: skin.text.body.style(color: skin.palette.ink2),
           ),
-          const SizedBox(height: 12),
-          FilledButton(
-            key: const ValueKey('background-location-open-settings'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
+          SizedBox(height: skin.space.intraBlock),
+          TorchPrimaryButton(
+            key: const ValueKey<String>('background-location-open-settings'),
+            claimId: BackgroundLocationBanner.consentClaimId,
+            label: l10n.backgroundLocationPermissionOpenSettings,
             onPressed: onOpenSettings,
-            child: Text(l10n.backgroundLocationPermissionOpenSettings),
           ),
-          const SizedBox(height: 4),
-          TextButton(
-            key: const ValueKey('background-location-permission-not-now'),
-            style: TextButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
+          const SizedBox(height: TiqSpace.s2),
+          TorchTertiaryButton(
+            key: const ValueKey<String>(
+              'background-location-permission-not-now',
             ),
+            label: l10n.backgroundLocationPermissionNotNow,
             onPressed: onNotNow,
-            child: Text(l10n.backgroundLocationPermissionNotNow),
           ),
         ],
       ),
