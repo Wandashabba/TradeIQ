@@ -60,7 +60,9 @@ import '../../data/visit_progress.dart';
 /// No tabs, no stepper, no "next section": sections are done in any order
 /// because a delivery blocking the aisle is why. Leaving with unsaved answers
 /// opens a three-row sheet — save and go, go without saving, stay — never a
-/// two-button dialog where *Discard* sits beside *Save*.
+/// two-button dialog where *Discard* sits beside *Save*. **Every** way out goes
+/// through it: the header's arrow, the Android back button and the iOS back
+/// swipe, which is what the `PopScope` in [SectionFormState.build] is for.
 class SectionForm extends ConsumerStatefulWidget {
   const SectionForm({
     super.key,
@@ -165,8 +167,20 @@ class SectionFormState extends ConsumerState<SectionForm> {
 
   /// Armed only when there is something to commit. A form that has just saved
   /// declares nothing, so the frame paints no amber at all.
+  ///
+  /// The **failed** phase is armed too, and that is not a detail. Save *is* the
+  /// retry: on the one frame where the agent most needs to know they can press
+  /// it again, [_SaveAction] renders a `TorchPrimaryButton` whatever `dirty`
+  /// says — and the ghost Save in the untouched phase is tappable, so a save
+  /// can fail with `dirty` still false. Without `_failed` here the retry
+  /// renders in its denied form, which looks exactly like a dead button, and
+  /// the census counts zero objects on a route that is showing a commit.
   bool get _armed =>
-      widget.onSave != null && !_locked && (widget.dirty || _saving);
+      widget.onSave != null && !_locked && (widget.dirty || _saving || _failed);
+
+  /// Whether leaving right now would lose answers — the one condition the back
+  /// arrow, the OS back button and the iOS back swipe all have to agree on.
+  bool get _leavingLoses => widget.dirty && widget.onSave != null && !_locked;
 
   Future<void> _save() async {
     final save = widget.onSave;
@@ -207,7 +221,7 @@ class SectionFormState extends ConsumerState<SectionForm> {
   /// The way out. Clean forms leave silently; a dirty one asks, with three
   /// unequal rows and no Discard sitting beside Save.
   Future<void> _leave() async {
-    if (!widget.dirty || widget.onSave == null || _locked) {
+    if (!_leavingLoses) {
       Navigator.of(context).pop();
       return;
     }
@@ -282,30 +296,49 @@ class SectionFormState extends ConsumerState<SectionForm> {
           claims: <TorchClaim>[
             if (_armed) const TorchClaim.primaryCommit(SectionForm.saveClaimId),
           ],
-          child: TorchShell(
-            profile: TorchShellProfile.agent,
-            header: TorchAppHeader(
-              title: widget.title,
-              facts: <String>[l10n.visitSectionSavesAsYouGo],
-              back: TorchIconButton(
-                icon: Icons.arrow_back,
-                semanticLabel: l10n.agentBackTooltip,
-                onPressed: _leave,
+          // The OS back button and the iOS back swipe pop the route without
+          // ever reaching the header's arrow. Most agents are on Android and
+          // most of them use the gesture, so a guard that only the top-left
+          // arrow honours is not a guard — it is a guard on the path nobody
+          // takes. `canPop` carries the same condition `_leave` tests, and the
+          // refused pop re-enters through the same door, so there is exactly
+          // one answer to "what happens to unsaved answers" no matter which
+          // way out the agent reaches for.
+          //
+          // The sheet's own Discard and `_saveAndBack` call `Navigator.pop`
+          // imperatively, which does not consult a `PopScope` — so a refused
+          // pop can still be completed from inside the sheet.
+          child: PopScope<Object?>(
+            canPop: !_leavingLoses,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              unawaited(_leave());
+            },
+            child: TorchShell(
+              profile: TorchShellProfile.agent,
+              header: TorchAppHeader(
+                title: widget.title,
+                facts: <String>[l10n.visitSectionSavesAsYouGo],
+                back: TorchIconButton(
+                  icon: Icons.arrow_back,
+                  semanticLabel: l10n.agentBackTooltip,
+                  onPressed: _leave,
+                ),
               ),
+              skinCycle: const AgentSkinCycle(),
+              primary: widget.onSave == null
+                  ? null
+                  : TorchSecondaryButton(
+                      key: const ValueKey<String>('section-save-and-back'),
+                      label: widget.saveAndBackLabel ?? l10n.sectionSaveAndBack,
+                      onPressed: _locked || _saving ? null : _saveAndBack,
+                      blockedReason: _locked ? l10n.sectionLockedBlock : null,
+                    ),
+              pinned: widget.pinned == null
+                  ? null
+                  : IgnorePointer(ignoring: _locked, child: widget.pinned),
+              children: _body(skin, l10n, state),
             ),
-            skinCycle: const AgentSkinCycle(),
-            primary: widget.onSave == null
-                ? null
-                : TorchSecondaryButton(
-                    key: const ValueKey<String>('section-save-and-back'),
-                    label: widget.saveAndBackLabel ?? l10n.sectionSaveAndBack,
-                    onPressed: _locked || _saving ? null : _saveAndBack,
-                    blockedReason: _locked ? l10n.sectionLockedBlock : null,
-                  ),
-            pinned: widget.pinned == null
-                ? null
-                : IgnorePointer(ignoring: _locked, child: widget.pinned),
-            children: _body(skin, l10n, state),
           ),
         ),
       ),

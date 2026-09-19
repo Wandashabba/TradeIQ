@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
@@ -14,10 +16,13 @@ import 'section_harness.dart';
 
 /// One toggle, one Save, a skip target, and a switchable failure.
 class _Probe extends StatefulWidget {
-  const _Probe({this.failSave = false, this.onSaved});
+  const _Probe({this.failSave = false, this.onSaved, this.hold});
 
   final bool failSave;
   final VoidCallback? onSaved;
+
+  /// Holds the save open, so a test can sit on the `saving` frame.
+  final Completer<void>? hold;
 
   @override
   State<_Probe> createState() => _ProbeState();
@@ -28,6 +33,8 @@ class _ProbeState extends State<_Probe> {
   bool _dirty = false;
 
   Future<void> _save() async {
+    final hold = widget.hold;
+    if (hold != null) await hold.future;
     if (widget.failSave) throw StateError('the outbox refused');
     widget.onSaved?.call();
     setState(() => _dirty = false);
@@ -192,6 +199,82 @@ void main() {
         await disposeAgentScreen(tester);
       });
     }
+
+    // THE WAY OUT MOST AGENTS ACTUALLY USE. Android's back button and the iOS
+    // back swipe both arrive on the platform pop channel, not on the header's
+    // arrow — so a guard wired only to the arrow loses a half-counted shelf on
+    // the gesture, silently, with the sheet never rendering. Every test above
+    // taps the arrow, which is exactly why this one drives the channel.
+    testWidgets('the system back button gets the same sheet as the arrow, and '
+        'the section is still there', (tester) async {
+      var saves = 0;
+      await _open(tester, _Probe(onSaved: () => saves++));
+      await tapInSection(tester, _key('probe-toggle'));
+
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(
+        handled,
+        isTrue,
+        reason: 'the platform pop is answered by the app, not the OS',
+      );
+      expect(find.text('You have unsaved answers'), findsOneWidget);
+      expect(_key('leave-save'), findsOneWidget);
+      expect(_key('leave-discard'), findsOneWidget);
+      expect(_key('leave-stay'), findsOneWidget);
+      // The sheet names the section too, so the title is no longer unique —
+      // the answers themselves are what must still be here.
+      expect(
+        _key('probe-toggle'),
+        findsOneWidget,
+        reason: 'the section is still on screen with its answers in it',
+      );
+      expect(tester.widget<TorchToggle>(_key('probe-toggle')).value, isTrue);
+
+      // Stay keeps everything, and a second system back asks again.
+      await tester.tap(_key('leave-stay'));
+      await tester.pumpAndSettle();
+      expect(find.text('Probe'), findsOneWidget);
+      expect(saves, 0);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      // Discard leaves for real: the imperative pop is not refused a second
+      // time by the guard that opened the sheet.
+      await tester.tap(_key('leave-discard'));
+      await tester.pumpAndSettle();
+      expect(find.text('Probe'), findsNothing);
+      expect(saves, 0);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('a clean section still leaves on the system back', (
+      tester,
+    ) async {
+      await _open(tester, const _Probe());
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(handled, isTrue);
+      expect(find.text('You have unsaved answers'), findsNothing);
+      expect(find.text('Probe'), findsNothing);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets("a can't-confirm section leaves on the system back without "
+        'asking — there is nothing to lose', (tester) async {
+      await _open(tester, const _Probe());
+      await tapInSection(tester, _key('probe-toggle'));
+      await tapInSection(tester, _key('section-cant-confirm'));
+      await _tapInSheet(tester, find.text('They do not stock this'));
+      await _tapInSheet(tester, find.text('Save reason'));
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('You have unsaved answers'), findsNothing);
+      expect(find.text('Probe'), findsNothing);
+      await disposeAgentScreen(tester);
+    });
   });
 
   group('the save cycle', () {
@@ -224,6 +307,74 @@ void main() {
       expect(tester.widget(sectionSave), isA<TorchSecondaryButton>());
       await disposeAgentScreen(tester);
     });
+
+    // A save can fail with the form never edited: the untouched Save is a
+    // tappable ghost, so `dirty` is still false when the outbox refuses. The
+    // retry then renders as the primary commit, and it has to be lit — a
+    // denied primary is pixel-for-pixel a dead button, on the one frame where
+    // the agent most needs to know they can press it again.
+    testWidgets('a save that fails without an edit still renders a retry, and '
+        'it is lit', (tester) async {
+      await pumpSection(
+        tester,
+        const _Probe(failSave: true),
+        skin: SkinMode.day,
+      );
+      await saveSection(tester);
+
+      expect(_key('section-save-failed'), findsOneWidget);
+      expect(tester.widget(sectionSave), isA<TorchPrimaryButton>());
+      await expectAmber(
+        tester,
+        skin: SkinMode.day,
+        route: 'section / the save cycle',
+        phase: 'failed, never edited',
+        expected: 1,
+      );
+      await disposeAgentScreen(tester);
+    });
+  });
+
+  // The brief asks for a census per phase × skin. `untouched`, `dirty`,
+  // `locked` and `sheet` were covered; `saving` and `failed` were not, in any
+  // skin, on any route — and `failed` was the one that was wrong.
+  group('the amber census, the whole save cycle', () {
+    for (final skin in agentSkinModes) {
+      testWidgets('saving holds the one object — ${skin.name}', (tester) async {
+        final hold = Completer<void>();
+        await pumpSection(tester, _Probe(hold: hold), skin: skin);
+        await tapInSection(tester, _key('probe-toggle'));
+        await tester.tap(sectionSave);
+        await tester.pump();
+
+        expect(tester.widget<TorchPrimaryButton>(sectionSave).busy, isTrue);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'section / save cycle',
+          phase: 'saving',
+          expected: 1,
+        );
+        hold.complete();
+        await tester.pumpAndSettle();
+        await disposeAgentScreen(tester);
+      });
+
+      testWidgets('failed keeps the one object — ${skin.name}', (tester) async {
+        await pumpSection(tester, const _Probe(failSave: true), skin: skin);
+        await tapInSection(tester, _key('probe-toggle'));
+        await saveSection(tester);
+        expect(_key('section-save-failed'), findsOneWidget);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'section / save cycle',
+          phase: 'failed',
+          expected: 1,
+        );
+        await disposeAgentScreen(tester);
+      });
+    }
   });
 
   group("can't confirm", () {
