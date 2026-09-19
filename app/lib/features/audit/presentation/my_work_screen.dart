@@ -169,8 +169,8 @@ class _MyWorkFrame extends ConsumerWidget {
             l10n,
             runningContests: ref.watch(runningContestsCountProvider).value ?? 0,
           ),
-          activeIndex: 1,
-          onSelect: (i) => _go(context, i),
+          activeIndex: TodayFrame.myWorkSlot,
+          onSelect: (i) => TodayFrame.go(context, i),
         ),
         // The agent's standing action, declared honestly and never expected
         // here: an agent on My work came to look at the queue, not to start a
@@ -192,16 +192,6 @@ class _MyWorkFrame extends ConsumerWidget {
     );
   }
 
-  static void _go(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/today');
-      case 1:
-        context.go('/my-work');
-      case 2:
-        context.go('/leaderboard/contests');
-    }
-  }
 }
 
 /// The queue itself, in three groups.

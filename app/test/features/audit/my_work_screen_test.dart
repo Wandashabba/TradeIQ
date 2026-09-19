@@ -15,7 +15,10 @@ import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/audit/presentation/my_work_screen.dart';
+import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/contests/data/contests_repository.dart';
+
+import 'package:tradeiq_app/l10n/l10n.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../agent_harness.dart';
@@ -162,6 +165,7 @@ Future<_Calls> _pump(
     locale: locale,
     extraRoutes: <GoRoute>[
       GoRoute(path: '/today', builder: (c, s) => const Text('Today view')),
+      GoRoute(path: '/map', builder: (c, s) => const Text('Map view')),
       GoRoute(path: '/login', builder: (c, s) => const Text('Login view')),
       GoRoute(path: '/audit', builder: (c, s) => const Text('Outlet picker')),
       GoRoute(
@@ -560,12 +564,13 @@ void main() {
     ) async {
       await _pump(tester, sync: _held);
       final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
-      expect(pill.activeIndex, 1);
-      expect(pill.slots.map((s) => s.label), <String>[
-        'Today',
-        'My work',
-        'Contests',
-      ]);
+      expect(pill.activeIndex, TodayFrame.myWorkSlot);
+      // The bar is Today's, read from one place — a My work that kept its own
+      // `case 2:` sent the Map tab to Contests the day Map arrived.
+      expect(
+        pill.slots.map((s) => s.label),
+        TodayFrame.slotsIn(englishLocalizations).map((s) => s.label),
+      );
       final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
       expect(header.title, 'My work');
       expect(header.back, isNull);
@@ -574,11 +579,19 @@ void main() {
       expect(find.byType(TorchThumbZone), findsNothing);
     });
 
-    testWidgets('Today leaves the screen', (tester) async {
-      await _pump(tester, sync: _held);
-      tester.widget<TorchNavPill>(find.byType(TorchNavPill)).onSelect(0);
-      await tester.pumpAndSettle();
-      expect(find.text('Today view'), findsOneWidget);
+    testWidgets('every other slot leaves the screen, to its own place', (
+      tester,
+    ) async {
+      for (final (slot, landing) in <(int, String)>[
+        (TodayFrame.todaySlot, 'Today view'),
+        (TodayFrame.mapSlot, 'Map view'),
+        (TodayFrame.contestsSlot, 'Contests view'),
+      ]) {
+        await _pump(tester, sync: _held);
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).onSelect(slot);
+        await tester.pumpAndSettle();
+        expect(find.text(landing), findsOneWidget, reason: 'slot $slot');
+      }
     });
   });
 
