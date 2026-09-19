@@ -2947,6 +2947,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get s10NotMeasured => 'Not measured on this visit';
 
   @override
+  String get s10NothingCaptured =>
+      'Nothing has been captured on this visit yet, so there is no score to work out.';
+
+  @override
+  String get s10NoScoreSemantics =>
+      'No weighted total yet. Nothing has been captured on this visit.';
+
+  @override
   String s10ScoreSemantics(String score, String band) {
     return 'Weighted total $score out of 100, $band';
   }

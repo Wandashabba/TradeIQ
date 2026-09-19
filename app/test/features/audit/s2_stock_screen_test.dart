@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/stock_repository.dart';
@@ -294,6 +296,178 @@ void main() {
         find.textContaining('Stock saved — queued for sync'),
         findsOneWidget,
       );
+      await disposeAgentScreen(tester);
+    });
+
+    // THE BAND'S OWN 40%. Measured on the merged code, the band's rect after
+    // the header scrolled away was 187dp at 1.0×, 296dp at 1.4× (46% of a
+    // 640dp phone, past unify §4's ceiling for anything holding a place at the
+    // top of a route) and 543dp at 2.0× — 85% of the screen, leaving under
+    // 100dp for the shelf it is a summary of: less than one SKU block and its
+    // stepper. The group above runs at 1.0× in English with "Product N" names
+    // and `sections_scale_test` only asks for no exception and the amber
+    // ceiling, so neither could see it.
+    const double viewportHeight = 640;
+    const double bandCeiling = viewportHeight * TorchShell.pinnedBandFraction;
+
+    for (final skin in agentSkinModes) {
+      for (final locale in const <Locale>[Locale('en'), Locale('af')]) {
+        for (final scale in const <double>[1.0, 1.4, 2.0]) {
+          final where = '${skin.name}, ${locale.languageCode}, $scale×';
+
+          testWidgets('the band is never more than 40% of the fold — $where', (
+            tester,
+          ) async {
+            await pumpSection(
+              tester,
+              _screen,
+              overrides: _overrides(stock: _SpyStock(), skus: shelf(14)),
+              skin: skin,
+              textScale: scale,
+              locale: locale,
+            );
+            // Offstage on arrival wherever the header takes the whole fold
+            // (see the note on Veld below) — its HEIGHT is still the law.
+            final band = find.byKey(
+              const ValueKey<String>('torch-shell-pinned'),
+              skipOffstage: false,
+            );
+
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: 'on arrival, $where',
+            );
+            expect(
+              tester.getSize(band).height,
+              lessThanOrEqualTo(bandCeiling),
+              reason: 'on arrival, $where',
+            );
+
+            // And after the header has gone, which is the frame the band
+            // exists for.
+            await tester.drag(
+              find.byType(Scrollable).first,
+              const Offset(0, -900),
+            );
+            await tester.pumpAndSettle();
+            expect(tester.takeException(), isNull, reason: 'scrolled, $where');
+            expect(
+              tester.getSize(band).height,
+              lessThanOrEqualTo(bandCeiling),
+              reason: 'scrolled, $where',
+            );
+            expect(
+              summary().hitTestable(),
+              findsOneWidget,
+              reason:
+                  'pinned and reachable once the header is away, $where — '
+                  'the whole point of a band on a 60-SKU shelf',
+            );
+            // The count is still the count, whichever half of the band is
+            // carrying the words.
+            expect(jump(), findsOneWidget, reason: where);
+            await disposeAgentScreen(tester);
+          });
+        }
+      }
+    }
+
+    // ON ARRIVAL, not one flick down. An uncapped band plus a header was
+    // taller than the fold, so the sliver got no paint extent at all: at 2.0×
+    // in Afrikaans an agent opening Stock saw the header and nothing else, and
+    // the "only fixed chrome on a 60-SKU shelf" was not in the frame.
+    //
+    // Veld at 2.0× is absent from this list on purpose, and it is not the
+    // band's doing. Measured there: `TorchAppHeader` is 324dp against unify
+    // §4's 256dp ceiling — `chrome_scale_test` only ever asserted that ceiling
+    // in Night — and the bottom region takes 323dp, which leaves the scroll
+    // view 317dp of a 640dp screen. The header block alone is 364dp, so
+    // nothing at the top of that route is on the fold, band or not. When that
+    // arithmetic is fixed, add `2.0` to the Veld row here.
+    for (final (skin, scales) in <(SkinMode, List<double>)>[
+      (SkinMode.night, <double>[1.0, 1.4, 2.0]),
+      (SkinMode.day, <double>[1.0, 1.4, 2.0]),
+      (SkinMode.veld, <double>[1.0, 1.4]),
+    ]) {
+      for (final scale in scales) {
+        for (final locale in const <Locale>[Locale('en'), Locale('af')]) {
+          testWidgets('the band is chrome on arrival — ${skin.name}, '
+              '${locale.languageCode}, $scale×', (tester) async {
+            await pumpSection(
+              tester,
+              _screen,
+              overrides: _overrides(stock: _SpyStock(), skus: shelf(14)),
+              skin: skin,
+              textScale: scale,
+              locale: locale,
+            );
+            expect(
+              summary().hitTestable(),
+              findsOneWidget,
+              reason:
+                  'the agent has not scrolled yet, and the summary is what '
+                  'says what a Save would record',
+            );
+            await disposeAgentScreen(tester);
+          });
+        }
+      }
+    }
+
+    testWidgets('collapsed, the sentence and the jump are the first things in '
+        'the body — not lost', (tester) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: _SpyStock(), skus: shelf(14)),
+        textScale: 2.0,
+      );
+      final band = find.byKey(const ValueKey<String>('torch-shell-pinned'));
+      // Below the fold at 2.0× — that is where a 640dp phone puts anything
+      // under a header and a band — so it is found without the offstage skip
+      // and then scrolled to like any other row.
+      final detail = find.byKey(
+        const ValueKey<String>('stock-summary-detail'),
+        skipOffstage: false,
+      );
+      final anyJump = find.byKey(
+        const ValueKey<String>('stock-jump-uncounted'),
+        skipOffstage: false,
+      );
+
+      expect(detail, findsOneWidget);
+      expect(
+        find.descendant(of: band, matching: anyJump),
+        findsNothing,
+        reason: 'the jump left the band',
+      );
+      expect(find.descendant(of: detail, matching: anyJump), findsOneWidget);
+      expect(
+        find.text(
+          'Saving now records 14 products as not counted — never as empty.',
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+        reason: 'the sentence went with it, word for word',
+      );
+      // Ahead of the first product, so it is the first thing under the band
+      // rather than something to hunt for at the bottom of a 60-SKU shelf.
+      expect(
+        tester.getTopLeft(detail).dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.byKey(
+                  const ValueKey<String>('units-k1'),
+                  skipOffstage: false,
+                ),
+              )
+              .dy,
+        ),
+      );
+      await scrollAgentTo(tester, anyJump);
+      expect(jump().hitTestable(), findsOneWidget);
       await disposeAgentScreen(tester);
     });
 

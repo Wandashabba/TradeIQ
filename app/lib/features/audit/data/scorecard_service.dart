@@ -26,9 +26,24 @@ class LocalScorecard {
     required this.weightedTotal,
     required this.ratingBand,
   });
+
+  /// A dimension with **nothing captured behind it is ABSENT here, not zero** —
+  /// the same rule [ServerScorecard.dimensionScores] states, and for the same
+  /// reason: "you scored nothing on this" and "nobody measured this" are
+  /// different sentences about a shop, and only one of them is true on a visit
+  /// whose sections have not been saved yet.
   final Map<String, double> dimensionScores;
-  final double weightedTotal;
-  final String ratingBand;
+
+  /// Null when **no** dimension was measured — a visit where nothing has been
+  /// captured has no score, and a 0.0 in the Gap band is an accusation the
+  /// arithmetic cannot support.
+  final double? weightedTotal;
+
+  /// Null with [weightedTotal]: there is no band without a total.
+  final String? ratingBand;
+
+  /// Whether anything at all was measured on this visit.
+  bool get isMeasured => weightedTotal != null;
 }
 
 /// Local, offline scorecard computation per ADR 0005: the agent sees the score
@@ -50,51 +65,64 @@ class ScorecardService {
       payloadsByType.putIfAbsent(row.entityType, () => []).add(payload);
     }
 
-    final dimensions = <String, double>{
+    // EVERY dimension is UNKNOWN until something is captured behind it — the
+    // rule `competitive` has had since #93, now applied to all six. Until this
+    // was true, opening Score before capturing anything told the agent the
+    // store had scored zero on availability and was in the critical band: a
+    // verdict on a shop nobody had measured, from a number that then disagreed
+    // with the server's for a reason that was a bug rather than the honest
+    // difference in formula `provisional` exists to explain (#390).
+    final measured = <String, double?>{
       'availability': _availability(payloadsByType['stock'] ?? const []),
       ..._visibilityAndDisplay(payloadsByType['visibility'] ?? const []),
       // Pricing needs deviation vs RRP, which the client doesn't know —
       // Phase-1 local proxy: 100 if any pricing items were captured, else 0
       // (the server-side scorecard computes the true deviation-based score).
-      'pricing': _anyItemsCaptured(payloadsByType['pricing'] ?? const [])
-          ? 100
-          : 0,
+      // Null when the section has not been saved at all: an empty pricing
+      // section the agent *did* save is a measured zero, a section they have
+      // not reached is not.
+      'pricing': (payloadsByType['pricing'] ?? const []).isEmpty
+          ? null
+          : (_anyItemsCaptured(payloadsByType['pricing']!) ? 100 : 0),
       'salesCapability': _salesCapability(
         payloadsByType['capability'] ?? const [],
       ),
+      // Competitive is our share of shelf, mirroring the server (#93). It used
+      // to be "captured anything at all → 100", which scored data entry rather
+      // than the store.
+      'competitive': _shareOfShelf(
+        payloadsByType['visibility'] ?? const [],
+        payloadsByType['competitive'] ?? const [],
+      ),
     };
 
-    // Competitive is our share of shelf, mirroring the server (#93). It used to
-    // be "captured anything at all → 100", which scored data entry rather than
-    // the store. When there is nothing to measure it against the dimension is
-    // UNKNOWN: omitted here and skipped in the weighted total below, so an
-    // unmeasurable dimension never silently scores 0 and drags the score down.
-    final competitive = _shareOfShelf(
-      payloadsByType['visibility'] ?? const [],
-      payloadsByType['competitive'] ?? const [],
-    );
-    if (competitive != null) {
-      dimensions['competitive'] = competitive;
-    }
+    final dimensions = <String, double>{
+      for (final entry in measured.entries)
+        if (entry.value != null) entry.key: entry.value!,
+    };
 
     var weightedSum = 0.0;
     var weightSum = 0.0;
     for (final entry in kScorecardWeights.entries) {
       // Normalise by the weights actually used — the remaining dimensions carry
-      // the score between them.
+      // the score between them. An unmeasured dimension is skipped rather than
+      // scored 0, so it never drags the total down.
       if (!dimensions.containsKey(entry.key)) continue;
       weightedSum += dimensions[entry.key]! * entry.value;
       weightSum += entry.value;
     }
+    // Nothing measured is not a zero. It has no total and therefore no band.
     final total = weightSum == 0
-        ? 0.0
+        ? null
         : ((weightedSum / weightSum) * 100).round() / 100;
 
     return LocalScorecard(
       dimensionScores: dimensions,
       weightedTotal: total,
       // Default thresholds; the server applies per-client kpiThresholds.
-      ratingBand: total >= 80 ? 'green' : (total >= 60 ? 'amber' : 'red'),
+      ratingBand: total == null
+          ? null
+          : (total >= 80 ? 'green' : (total >= 60 ? 'amber' : 'red')),
     );
   }
 
@@ -154,7 +182,11 @@ class ScorecardService {
   /// one — so the number the agent saw on the walk out disagreed with the
   /// server's for a reason that was a bug, not the honest difference in formula
   /// that `provisional` exists to explain (#390).
-  static double _availability(List<Map<String, dynamic>> stockPayloads) {
+  ///
+  /// A denominator of zero is UNKNOWN, not zero: a shelf on which nothing has
+  /// been counted has no availability, and rendering that as "0" is the same
+  /// lie `?? 0` used to tell one line at a time.
+  static double? _availability(List<Map<String, dynamic>> stockPayloads) {
     var counted = 0;
     var inStock = 0;
     for (final payload in stockPayloads) {
@@ -166,14 +198,18 @@ class ScorecardService {
         if (units > 0) inStock += 1;
       }
     }
-    if (counted == 0) return 0;
+    if (counted == 0) return null;
     return _clamp(100 * inStock / counted);
   }
 
-  static Map<String, double> _visibilityAndDisplay(
+  /// Null for both when the visibility section has not been captured — there
+  /// is no planogram compliance and no cleanliness score to read.
+  static Map<String, double?> _visibilityAndDisplay(
     List<Map<String, dynamic>> payloads,
   ) {
-    if (payloads.isEmpty) return const {'visibility': 0, 'display': 0};
+    if (payloads.isEmpty) {
+      return const {'visibility': null, 'display': null};
+    }
     final payload = payloads.last;
     final planogram = ((payload['planogramCompliancePct'] as num?) ?? 0)
         .toDouble();
@@ -187,8 +223,10 @@ class ScorecardService {
   static bool _anyItemsCaptured(List<Map<String, dynamic>> payloads) => payloads
       .any((payload) => ((payload['items'] as List?) ?? const []).isNotEmpty);
 
-  static double _salesCapability(List<Map<String, dynamic>> payloads) {
-    if (payloads.isEmpty) return 0;
+  /// Null when the capability section has not been captured: nobody was quizzed
+  /// is not a quiz score of zero.
+  static double? _salesCapability(List<Map<String, dynamic>> payloads) {
+    if (payloads.isEmpty) return null;
     final quiz = ((payloads.last['quizScore'] as num?) ?? 0).toDouble();
     return _clamp(quiz);
   }
