@@ -150,6 +150,12 @@ describe('password change and reset (#400)', () => {
         .send({ currentPassword: 'not-the-password-at-all', newPassword: NEW_PASSWORD });
 
       expect(res.status).toBe(401);
+      // The app matches the code, not the prose, to keep the session this was
+      // typed into: its interceptor signs out on any other 401.
+      expect(res.body).toEqual({
+        error: 'Current password is incorrect',
+        code: 'current_password_incorrect',
+      });
       const after = await prisma.user.findUnique({
         where: { id: agent.id },
         omit: { passwordHash: false },
@@ -503,7 +509,10 @@ describe('password change and reset (#400)', () => {
         .post('/auth/reset-password')
         .send({ email: agent.email, code: '01234567', newPassword: NEW_PASSWORD });
       expect(res.status).toBe(401);
-      expect(res.body).toEqual({ error: 'That reset code is not valid or has expired' });
+      expect(res.body).toEqual({
+        error: 'That reset code is not valid or has expired',
+        code: 'reset_code_invalid',
+      });
     });
 
     // A 400 for "that is not eight digits" and a 401 for "eight digits but
@@ -513,7 +522,10 @@ describe('password change and reset (#400)', () => {
         .post('/auth/reset-password')
         .send({ email: `nobody-${Date.now()}@example.test`, code: 'abc', newPassword: NEW_PASSWORD });
       expect(res.status).toBe(401);
-      expect(res.body).toEqual({ error: 'That reset code is not valid or has expired' });
+      expect(res.body).toEqual({
+        error: 'That reset code is not valid or has expired',
+        code: 'reset_code_invalid',
+      });
     });
 
     // The password's own rules depend only on what the caller typed, so this

@@ -58,6 +58,74 @@ paths:
                   role: { type: string, enum: [field_agent, manager, admin] }
         '401':
           description: Invalid credentials
+  /auth/change-password:
+    post:
+      summary: Change your own password (#400)
+      description: >
+        The signed-in user changes their own password; the current one is
+        re-checked. Rate-limited per user. The caller's token stays valid and
+        no new token is issued. **Other sessions are NOT ended**: tokens are
+        stateless 12h JWTs, so a token minted before the change keeps working
+        until it expires. The response says so in `otherSessionsEnded: false`.
+        To cut a lost phone off immediately, deactivate the account
+        (PATCH /users/{id} with active false), which requireAuth does check.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { $ref: '#/components/schemas/NewPassword' }
+      responses:
+        '200':
+          description: Changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PasswordChangeResult' }
+        '400': { description: The new password breaks the password rule; the body states the rule, never the input }
+        '401':
+          description: >
+            The current password is wrong (`code: current_password_incorrect`),
+            or the token is missing/expired (no `code`).
+        '429': { description: Too many attempts }
+  /auth/reset-password:
+    post:
+      summary: Redeem a manager-issued reset code and choose a new password (#400)
+      description: >
+        Unauthenticated by necessity. Every failure — unknown email, no live
+        code, wrong/expired/spent/malformed code, deactivated account — gets
+        the identical 401 body, so the route cannot be used to discover
+        accounts. A code dies after 5 wrong guesses, at its expiry (15 minutes
+        by default), on use, when a newer code is issued, and when the
+        password is changed by any other route. Rate-limited per email and per
+        IP. Other sessions are not ended (see /auth/change-password).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, newPassword]
+              properties:
+                email: { type: string }
+                code:
+                  type: string
+                  description: Eight digits. Spaces and hyphens are ignored ("4821 7390").
+                newPassword: { $ref: '#/components/schemas/NewPassword' }
+      responses:
+        '200':
+          description: Password set; sign in with it
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PasswordChangeResult' }
+        '400': { description: The new password breaks the password rule, or a field is missing }
+        '401':
+          description: 'Always `{ error: "That reset code is not valid or has expired", code: reset_code_invalid }`'
+        '429': { description: Too many attempts for this email or from this address }
   /outlets:
     get:
       summary: List outlets for the authenticated user's client
@@ -2208,7 +2276,7 @@ paths:
                     held in the one form login looks up. Two addresses differing
                     only in case or surrounding whitespace collide and the
                     second is a 409.
-                password: { type: string, minLength: 8 }
+                password: { $ref: '#/components/schemas/NewPassword' }
                 role: { type: string, enum: [field_agent, manager, admin] }
                 displayName:
                   type: string
@@ -2256,6 +2324,74 @@ paths:
               schema: { $ref: '#/components/schemas/SafeUser' }
         '400': { description: Invalid }
         '404': { description: Not found }
+  /users/password-events:
+    get:
+      summary: The password audit trail — admin (#400)
+      description: >
+        Who changed or reset whose password, when, and by which route. Tenant
+        scoped, newest first, cursor-paginated. Holds no secret: no code, no
+        password, no hash.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: userId, in: query, required: false, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        '200': { description: 'A page of events: `{ data, nextCursor }`' }
+        '403': { description: Forbidden }
+  /users/{id}/password:
+    post:
+      summary: Set a user's password — admin for anyone in the tenant, manager for field agents (#400)
+      description: >
+        Audited. A manager targeting a manager or an admin is a 403; a user in
+        another tenant is a 404, the same answer PATCH /users/{id} gives. Other
+        sessions are not ended (see /auth/change-password).
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newPassword]
+              properties:
+                newPassword: { $ref: '#/components/schemas/NewPassword' }
+      responses:
+        '200':
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PasswordChangeResult' }
+        '400': { description: The password breaks the password rule }
+        '403': { description: Not permitted to set this user's password }
+        '404': { description: No such user in this tenant }
+        '429': { description: Too many attempts }
+  /users/{id}/password-reset-code:
+    post:
+      summary: Generate a one-time reset code to read out to an agent — admin, or manager for field agents (#400)
+      description: >
+        The only place a code is ever returned, and only to the caller. Stored
+        as a bcrypt hash, never logged, never written to the audit trail.
+        Issuing retires any earlier live code for that user. Deactivated users
+        get no code. Same role and tenant scoping as /users/{id}/password.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '201':
+          description: Issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: string, description: Eight digits. Shown once. }
+                  expiresAt: { type: string, format: date-time }
+                  userId: { type: string }
+                  email: { type: string }
+        '403': { description: Not permitted to reset this user }
+        '404': { description: No such user in this tenant }
+        '429': { description: Too many codes generated }
   /incentives:
     get:
       summary: List incentive schemes
@@ -3177,6 +3313,33 @@ components:
         What people call this person ("Sipho Ndlovu"). null when none was ever
         set — accounts that predate the field are not given one guessed from
         the email. Clients should show the email when this is null.
+    NewPassword:
+      type: string
+      minLength: 12
+      description: >
+        The one password rule, shared by POST /users and every route that sets
+        a password: at least 12 characters (ignoring surrounding spaces), at
+        most 72 bytes (bcrypt's ceiling), not the account's own email, not one
+        of a short list of fleet-default passwords. No composition rules. A
+        400 states the rule and never echoes the input.
+    PasswordChangeResult:
+      type: object
+      properties:
+        otherSessionsEnded:
+          type: boolean
+          enum: [false]
+          description: Always false today. Tokens are stateless; sessions minted before the change run to their 12h expiry.
+    AppUpdateRequired:
+      type: object
+      description: >
+        The body of a 426 from ANY route but /health, sent when the operator
+        has set MIN_APP_VERSION and the request's X-App-Version header is
+        older (or, with MIN_APP_VERSION_REQUIRE_HEADER=true, absent). Unset by
+        default, meaning no minimum. The app shows an "update the app" screen.
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [app_update_required] }
+        minimumVersion: { type: string, example: 1.5.0 }
     SafeUser:
       type: object
       description: A user as it may appear on the wire. Never carries passwordHash, clientId or GPS.

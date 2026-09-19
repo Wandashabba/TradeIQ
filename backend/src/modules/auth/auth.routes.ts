@@ -19,6 +19,15 @@ import {
 
 export const authRouter = Router();
 
+/**
+ * The 401 bodies carry a machine-readable `code` so the app can tell "this
+ * request's secret was wrong" from "your session expired" without matching on
+ * prose. Each is ONE constant per route: every failure on a route shares it, so
+ * the code is no more an oracle than the message beside it.
+ */
+export const CURRENT_PASSWORD_INCORRECT_CODE = 'current_password_incorrect';
+export const RESET_CODE_INVALID_CODE = 'reset_code_invalid';
+
 authRouter.post('/login', loginRateLimiter, async (req, res) => {
   const { email, password } = req.body as { email?: string; password?: string };
   if (!email || !password) {
@@ -99,7 +108,15 @@ authRouter.post(
       if (err instanceof InvalidCurrentPasswordError) {
         // 401 and a flat message. Not "your current password is wrong, and by
         // the way your new one was fine" — one refusal, no extra signal.
-        res.status(401).json({ error: 'Current password is incorrect' });
+        //
+        // The `code` is what the app matches on. Its interceptor signs the user
+        // out on any 401, because everywhere else a 401 means the 12h token
+        // expired; a mistyped current password must not end the session it
+        // was typed into.
+        res.status(401).json({
+          error: 'Current password is incorrect',
+          code: CURRENT_PASSWORD_INCORRECT_CODE,
+        });
         return;
       }
       // ValidationError -> 400 via the shared error handler, carrying the rule
@@ -120,6 +137,8 @@ authRouter.post(
  * can make two of them differ. Differing messages ARE the enumeration oracle.
  */
 const INVALID_CODE_MESSAGE = 'That reset code is not valid or has expired';
+
+const INVALID_CODE_BODY = { error: INVALID_CODE_MESSAGE, code: RESET_CODE_INVALID_CODE };
 
 const resetPasswordBody = z
   .object({
@@ -161,7 +180,7 @@ authRouter.post(
       // A `code` that is not eight digits gets the same 401 a wrong code gets.
       const onlyCodeFailed = parsed.error.issues.every((i) => i.path[0] === 'code');
       if (onlyCodeFailed) {
-        res.status(401).json({ error: INVALID_CODE_MESSAGE });
+        res.status(401).json(INVALID_CODE_BODY);
         return;
       }
       res.status(400).json({
@@ -180,7 +199,7 @@ authRouter.post(
       res.status(200).json(result);
     } catch (err) {
       if (err instanceof InvalidResetCodeError) {
-        res.status(401).json({ error: INVALID_CODE_MESSAGE });
+        res.status(401).json(INVALID_CODE_BODY);
         return;
       }
       // A ValidationError from the password rules becomes a 400 through the
