@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart' show SelectionArea;
+import 'dart:async';
+
+import 'package:flutter/material.dart' show Icons, SelectionArea;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -368,6 +370,87 @@ class PlainAnswer extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// WHAT A MANAGER DOES WITH AN ANSWER ONCE SHE HAS IT.
+///
+/// A 48dp row of ghost icon buttons at the foot of a settled, non-errored
+/// turn, left-aligned at the column edge — nothing on this surface is
+/// right-aligned except the question.
+///
+/// **Copy is the capability this row exists for.** An answer that can only be
+/// read on this screen is an answer that gets retyped into WhatsApp, with the
+/// figures retyped too. The text it puts on the clipboard is
+/// [answerPlainText]: the prose, the figures in the reader's own separators,
+/// unknowns as unknowns, and outside figures kept outside with the source
+/// they came from.
+///
+/// **Amber: none.** A ghost control is not a claim, and the route's light is
+/// spoken for by the answer's own focus object.
+class AnswerActionsRow extends StatefulWidget {
+  const AnswerActionsRow({
+    super.key,
+    required this.text,
+    required this.onAskAgain,
+  });
+
+  /// What Copy puts on the clipboard, resolved by the caller so this widget
+  /// never has to know what a turn is made of.
+  final String text;
+
+  final VoidCallback onAskAgain;
+
+  /// How long the copy glyph holds its tick.
+  static const Duration tick = Duration(milliseconds: 1200);
+
+  @override
+  State<AnswerActionsRow> createState() => _AnswerActionsRowState();
+}
+
+class _AnswerActionsRowState extends State<AnswerActionsRow> {
+  bool _copied = false;
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.text));
+    if (!mounted) return;
+    showTorchToast(context, message: context.l10n.askAnswerCopied);
+    setState(() => _copied = true);
+    _timer?.cancel();
+    _timer = Timer(AnswerActionsRow.tick, () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Row(
+      key: const ValueKey<String>('answer-actions'),
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        TorchIconButton(
+          key: const ValueKey<String>('answer-copy'),
+          icon: _copied ? Icons.check : Icons.copy_all_outlined,
+          semanticLabel: l10n.askCopyAnswer,
+          onPressed: _copy,
+        ),
+        const SizedBox(width: TiqSpace.s2),
+        TorchIconButton(
+          key: const ValueKey<String>('answer-ask-again'),
+          icon: Icons.refresh,
+          semanticLabel: l10n.askAskAgainAnswer,
+          onPressed: widget.onAskAgain,
+        ),
+      ],
     );
   }
 }

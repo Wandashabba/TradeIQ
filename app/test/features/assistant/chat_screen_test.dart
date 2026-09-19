@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
@@ -324,6 +325,79 @@ void main() {
 
       expect(screenText(tester), contains('How did Gauteng do?'));
       expect(screenText(tester), contains('Could not reach the assistant'));
+      await disposeAsk(tester);
+    });
+  });
+
+  group('the answer actions row', () {
+    testWidgets('a settled answer can be copied and asked again', (
+      tester,
+    ) async {
+      final copied = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add(
+              (call.arguments as Map<Object?, Object?>)['text']! as String,
+            );
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      final repo = ScriptedRepository(tilesTurn());
+      await pumpAsk(tester, repository: repo);
+      await ask(tester, 'How did sell-in do?');
+
+      final copy = find.byKey(const ValueKey<String>('answer-copy'));
+      expect(copy, findsOneWidget);
+      await tester.ensureVisible(copy);
+      await tester.tap(copy);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // What she pastes is what she read: the prose and the figures, in her
+      // own separators.
+      expect(copied.single, contains('Sell-in held steady.'));
+      expect(copied.single, contains('1,284,990.5'));
+
+      final again = find.byKey(const ValueKey<String>('answer-ask-again'));
+      await tester.ensureVisible(again);
+      await tester.tap(again);
+      await tester.pumpAndSettle();
+      expect(repo.sent, <String>['How did sell-in do?', 'How did sell-in do?']);
+      await tester.pump(const Duration(seconds: 4));
+      await disposeAsk(tester);
+    });
+
+    testWidgets('absent while a turn streams, and on a turn that failed', (
+      tester,
+    ) async {
+      final repo = LiveRepository();
+      await pumpAsk(tester, repository: repo);
+      await ask(tester, 'How did Gauteng do?', settle: false);
+      repo.emit(const TokenEvent('Gauteng is down'));
+      await pumpEvent(tester);
+      expect(
+        find.byKey(const ValueKey<String>('answer-actions')),
+        findsNothing,
+      );
+
+      repo.fail(DioException(requestOptions: RequestOptions()));
+      await tester.pumpAndSettle();
+      // A failed turn offers Try again inside the error block; it does not
+      // offer to copy an answer that does not exist.
+      expect(
+        find.byKey(const ValueKey<String>('answer-actions')),
+        findsNothing,
+      );
       await disposeAsk(tester);
     });
   });

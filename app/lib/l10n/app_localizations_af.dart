@@ -2398,6 +2398,15 @@ class AppLocalizationsAf extends AppLocalizations {
   String get askAskAgain => 'Vra weer';
 
   @override
+  String get askCopyAnswer => 'Kopieer hierdie antwoord';
+
+  @override
+  String get askAnswerCopied => 'Antwoord gekopieer';
+
+  @override
+  String get askAskAgainAnswer => 'Vra hierdie vraag weer';
+
+  @override
   String get askFailedTwice =>
       'Dit het twee keer misluk. Dit is dalk die verbinding eerder as die vraag.';
 

@@ -16,6 +16,7 @@ import '../answer/answer_markdown.dart';
 import '../answer/answer_motion.dart';
 import '../answer/answer_notes.dart';
 import '../answer/answer_view.dart';
+import '../answer/answer_copy.dart';
 import '../answer/ask_light.dart';
 import '../answer/ask_phase.dart';
 import '../answer/ask_turn.dart';
@@ -500,6 +501,20 @@ class _Turn extends ConsumerWidget {
           sources: message.sources,
           searched: message.tools.any(
             (t) => AnswerFigures.webTools.contains(t.name),
+          ),
+        ),
+      // What a manager does with the answer once it has landed. Absent while
+      // it streams, on an errored turn, and on a stopped one — which offers
+      // its own way to ask again rather than two.
+      if (message.error == null && !message.streaming && !message.stopped)
+        Builder(
+          builder: (context) => AnswerActionsRow(
+            text: answerPlainText(
+              context,
+              message: message,
+              question: _question(context, ref),
+            ),
+            onAskAgain: () => onAsk(_question(context, ref)),
           ),
         ),
     ];

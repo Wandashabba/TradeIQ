@@ -3109,6 +3109,18 @@
   "@askAskAgain": {
     "description": "Re-sends the question that produced this turn."
   },
+  "askCopyAnswer": "Copy this answer",
+  "@askCopyAnswer": {
+    "description": "The copy action beneath a settled answer. A phrase, because an icon button's label is read on its own."
+  },
+  "askAnswerCopied": "Answer copied",
+  "@askAnswerCopied": {
+    "description": "Toast after copying an answer."
+  },
+  "askAskAgainAnswer": "Ask this question again",
+  "@askAskAgainAnswer": {
+    "description": "The re-ask action beneath a settled answer."
+  },
   "askFailedTwice": "This has failed twice. It may be the connection rather than the question.",
   "@askFailedTwice": {
     "description": "Shown on the second failure of the same question."

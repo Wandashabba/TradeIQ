@@ -2369,6 +2369,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askAskAgain => 'Ask again';
 
   @override
+  String get askCopyAnswer => 'Copy this answer';
+
+  @override
+  String get askAnswerCopied => 'Answer copied';
+
+  @override
+  String get askAskAgainAnswer => 'Ask this question again';
+
+  @override
   String get askFailedTwice =>
       'This has failed twice. It may be the connection rather than the question.';
 

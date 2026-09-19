@@ -3722,6 +3722,24 @@ abstract class AppLocalizations {
   /// **'Ask again'**
   String get askAskAgain;
 
+  /// The copy action beneath a settled answer. A phrase, because an icon button's label is read on its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy this answer'**
+  String get askCopyAnswer;
+
+  /// Toast after copying an answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer copied'**
+  String get askAnswerCopied;
+
+  /// The re-ask action beneath a settled answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask this question again'**
+  String get askAskAgainAnswer;
+
   /// Shown on the second failure of the same question.
   ///
   /// In en, this message translates to:
