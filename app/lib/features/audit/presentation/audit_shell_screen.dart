@@ -1010,6 +1010,8 @@ class _DistanceHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
+    // Veld's hairline is 2px everywhere else, and its severity bar is 4.
+    final barWidth = skin.mode == SkinMode.veld ? 4.0 : 3.0;
 
     return Semantics(
       container: true,
@@ -1026,66 +1028,76 @@ class _DistanceHero extends StatelessWidget {
           ),
           boxShadow: skin.depth.shadows,
         ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              SizedBox(
-                width: skin.mode == SkinMode.veld ? 4 : 3,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: skin.palette.bad,
-                    borderRadius: BorderRadius.horizontal(
-                      left: Radius.circular(skin.radii.panel),
-                    ),
-                  ),
-                ),
+        // The severity bar is an OVERLAY, not a stretch child of a Row inside
+        // an `IntrinsicHeight` — the same reason `StatCluster`'s rule is one.
+        // A `FigureSlot` measures itself with a `LayoutBuilder`, a
+        // `LayoutBuilder` cannot answer an intrinsic query, and
+        // `IntrinsicHeight` over one throws at layout: *"LayoutBuilder does
+        // not support returning intrinsic dimensions"*. The whole too-far
+        // screen went down with it, which is how this was found.
+        child: Stack(
+          children: <Widget>[
+            Padding(
+              padding: EdgeInsetsDirectional.fromSTEB(
+                barWidth + TiqSpace.s4,
+                TiqSpace.s4,
+                TiqSpace.s4,
+                TiqSpace.s4,
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(TiqSpace.s4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          TiqMark(
-                            shape: MarkShape.criticalTriangle,
-                            color: skin.palette.bad,
-                            size: MarkScale.glyph(context, 12),
-                          ),
-                          const SizedBox(width: TiqSpace.s2),
-                          Eyebrow(l10n.visitCheckInEyebrow),
-                        ],
+                      TiqMark(
+                        shape: MarkShape.criticalTriangle,
+                        color: skin.palette.bad,
+                        size: MarkScale.glyph(context, 12),
                       ),
-                      const SizedBox(height: TiqSpace.s3),
-                      FigureSlot(
-                        value: metres,
-                        role: skin.text.heroFigureCompact,
-                        fit: <TiqTypeToken>[
-                          skin.text.heroFigureCompact,
-                          skin.text.display,
-                          skin.text.figureL,
-                        ],
-                        unit: TiqUnit.worded(l10n.unitMetres),
-                        semanticsLabel: l10n.visitTooFarSemantics(metres),
-                      ),
-                      const SizedBox(height: TiqSpace.s3),
-                      Text(
-                        metres < 80
-                            ? l10n.visitTooFarClose
-                            : metres > 2000
-                            ? l10n.visitTooFarWrongStore
-                            : l10n.visitTooFarNeedWithin(metres),
-                        style: skin.text.body.style(color: skin.palette.ink2),
-                      ),
+                      const SizedBox(width: TiqSpace.s2),
+                      Eyebrow(l10n.visitCheckInEyebrow),
                     ],
                   ),
+                  const SizedBox(height: TiqSpace.s3),
+                  FigureSlot(
+                    value: metres,
+                    role: skin.text.heroFigureCompact,
+                    fit: <TiqTypeToken>[
+                      skin.text.heroFigureCompact,
+                      skin.text.display,
+                      skin.text.figureL,
+                    ],
+                    unit: TiqUnit.worded(l10n.unitMetres),
+                    semanticsLabel: l10n.visitTooFarSemantics(metres),
+                  ),
+                  const SizedBox(height: TiqSpace.s3),
+                  Text(
+                    metres < 80
+                        ? l10n.visitTooFarClose
+                        : metres > 2000
+                        ? l10n.visitTooFarWrongStore
+                        : l10n.visitTooFarNeedWithin(metres),
+                    style: skin.text.body.style(color: skin.palette.ink2),
+                  ),
+                ],
+              ),
+            ),
+            PositionedDirectional(
+              top: 0,
+              bottom: 0,
+              start: 0,
+              width: barWidth,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: skin.palette.bad,
+                  borderRadius: BorderRadiusDirectional.horizontal(
+                    start: Radius.circular(skin.radii.panel),
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
