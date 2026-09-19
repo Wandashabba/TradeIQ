@@ -36,7 +36,10 @@ import 'outlet_sheet.dart';
 ///    `min(clamp(0.44·vh, 200, 360), vh − 440)` — and below 200dp it does not
 ///    render. The plate collapses to a 96dp band at that point; a map does
 ///    not, because 96dp of basemap at street zoom is four buildings and no
-///    orientation. A 640dp phone at 2.0× text is exactly this case.
+///    orientation. A short phone (a 560dp viewport) and any phone held
+///    sideways are exactly this case: 440dp is the header, the legend, two
+///    rows and the nav, and a map that ate them would be a map of nothing you
+///    could act on.
 /// 3. **No tiles.** See [_TilesOff].
 ///
 /// ## The paint budget
@@ -54,6 +57,19 @@ class AgentOutletMap extends StatefulWidget {
 
   final AgentMapView view;
 
+  /// How many failures mean *offline* rather than *one bad tile*.
+  ///
+  /// Two rows of a 3×4 grid. Past this, nothing is arriving.
+  ///
+  /// A test sets it to `0` for a region that is offline from its first frame,
+  /// and to a large number for one that never gives up — both without a
+  /// network, which is the only way this is deterministic: in a widget test
+  /// every tile fetch fails, so a real threshold would make "is the map
+  /// drawn?" a question about how many frames were pumped.
+  @visibleForTesting
+  static int debugFailureThreshold = 6;
+
+
   @override
   State<AgentOutletMap> createState() => _AgentOutletMapState();
 }
@@ -65,11 +81,9 @@ class _AgentOutletMapState extends State<AgentOutletMap> {
   /// of one 504 would be its own kind of lie.
   int _failures = 0;
 
-  /// Two rows of a 3×4 grid. Past this, nothing is arriving.
-  static const int _failureThreshold = 6;
 
   void _tileFailed() {
-    if (_failures >= _failureThreshold || !mounted) {
+    if (_failures >= AgentOutletMap.debugFailureThreshold || !mounted) {
       _failures += 1;
       return;
     }
@@ -84,18 +98,22 @@ class _AgentOutletMapState extends State<AgentOutletMap> {
     if (skin.mode == SkinMode.veld) return const _VeldNote();
     if (height <= 0) return const SizedBox.shrink();
 
-    final offline = _failures >= _failureThreshold;
+    final offline = _failures >= AgentOutletMap.debugFailureThreshold;
     return TorchBleed(
       extra: skin.space.gutter * 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          SizedBox(
-            height: height,
-            child: offline
-                ? const _TilesOff()
-                : _Basemap(view: widget.view, onTileError: _tileFailed),
-          ),
+          // The band is the map's height; the panel that replaces it takes its
+          // own. Reserving 300dp of nothing to say "there is no map" would
+          // spend the fold on an absence.
+          if (offline)
+            const _TilesOff()
+          else
+            SizedBox(
+              height: height,
+              child: _Basemap(view: widget.view, onTileError: _tileFailed),
+            ),
           if (!offline) ...<Widget>[
             SizedBox(height: skin.space.intraBlock),
             Padding(
@@ -275,7 +293,9 @@ class _OutletMarker extends StatelessWidget {
 /// so. A position we are guessing at is the one thing a map of somebody's
 /// working day must never draw.
 class _HereMarker extends StatelessWidget {
-  const _HereMarker();
+  const _HereMarker({this.size = 18});
+
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +305,7 @@ class _HereMarker extends StatelessWidget {
       excludeSemantics: true,
       child: Center(
         child: CustomPaint(
-          size: const Size.square(18),
+          size: Size.square(size),
           painter: _HerePainter(ink: night.palette.ink1, ground: night.palette.ground),
         ),
       ),
@@ -515,12 +535,23 @@ class MapLegend extends StatelessWidget {
     final present = <MapPinState>{for (final pin in view.drawn) pin.state};
     final disputed = view.drawn.any((pin) => pin.disputed);
 
+    // A key, not a pin: 16dp, scaling with the text to the same 24dp the map
+    // draws a marker at. It carries meaning, so it scales; it is also the
+    // thing standing between the map and the first row of the list, so it
+    // scales from lower down and stops where the marker does.
+    final glyphSize = math.min(MarkScale.glyph(context, 16), 24.0);
+
     Widget item(Widget glyph, String word) => Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         glyph,
         const SizedBox(width: TiqSpace.s2),
-        Text(word, style: skin.text.meta.style(color: skin.palette.ink2)),
+        // Flexible, because a `Wrap` wraps BETWEEN its children and never
+        // inside one: at 2.0× "On today's route" is wider than the phone, and
+        // without this the item overflows instead of taking a second line.
+        Flexible(
+          child: Text(word, style: skin.text.meta.style(color: skin.palette.ink2)),
+        ),
       ],
     );
 
@@ -536,7 +567,7 @@ class MapLegend extends StatelessWidget {
               item(
                 MapPinGlyph(
                   pin: MapOutlet(outlet: _legendOutlet, state: state),
-                  size: 16,
+                  size: glyphSize,
                 ),
                 mapStateWord(l10n, state),
               ),
@@ -548,16 +579,16 @@ class MapLegend extends StatelessWidget {
                   state: MapPinState.territory,
                   disputed: true,
                 ),
-                size: 16,
+                size: glyphSize,
               ),
               l10n.mapStateDisputed,
             ),
           if (view.hasLocation)
             item(
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: _HereMarker(),
+              SizedBox(
+                width: glyphSize,
+                height: glyphSize,
+                child: _HereMarker(size: glyphSize),
               ),
               l10n.mapYouAreHere,
             ),
