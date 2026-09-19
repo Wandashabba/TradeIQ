@@ -18,6 +18,7 @@ import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
 import 'package:tradeiq_app/features/tasks/presentation/tasks_screen.dart';
+import 'package:tradeiq_app/features/users/data/users_repository.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -41,6 +42,7 @@ TaskItem _task({
   String? visitId = 'v1',
   String? photoId,
   DateTime? due,
+  String? ownerId,
 }) => TaskItem(
   id: id,
   findingType: findingType,
@@ -52,6 +54,7 @@ TaskItem _task({
   visitId: visitId,
   evidencePhotoId: photoId,
   slaDueAt: due ?? _now.add(const Duration(days: 1)),
+  ownerId: ownerId,
 );
 
 final List<Outlet> _outlets = <Outlet>[
@@ -100,12 +103,14 @@ class _Harness {
   _Harness({
     List<TaskItem> tasks = const <TaskItem>[],
     String? nextCursor,
+    int? total,
     Object? listFailure,
     Object? closeFailure,
     bool listPending = false,
   }) : tasks = FakeTasksRepository(
          tasks: tasks,
          nextCursor: nextCursor,
+         total: total,
          listFailure: listFailure,
          closeFailure: closeFailure,
          listPending: listPending,
@@ -119,7 +124,9 @@ Future<_Harness> _pump(
   WidgetTester tester, {
   List<TaskItem> tasks = const <TaskItem>[],
   List<Outlet> outlets = const <Outlet>[],
+  List<AppUser> users = const <AppUser>[],
   String? nextCursor,
+  int? total,
   Object? listFailure,
   Object? closeFailure,
   bool listPending = false,
@@ -131,6 +138,7 @@ Future<_Harness> _pump(
   final harness = _Harness(
     tasks: tasks,
     nextCursor: nextCursor,
+    total: total,
     listFailure: listFailure,
     closeFailure: closeFailure,
     listPending: listPending,
@@ -141,6 +149,7 @@ Future<_Harness> _pump(
     skin: skin,
     textScale: textScale,
     settle: !listPending,
+    users: users,
     overrides: <Override>[
       tasksAdminRepositoryProvider.overrideWithValue(harness.tasks),
       photosRepositoryProvider.overrideWithValue(harness.photos),
@@ -231,6 +240,64 @@ void main() {
       await scrollWorklistTo(tester, find.text('Kasi Corner Spaza'));
       expect(find.text('Kasi Corner Spaza'), findsOneWidget);
       expect(find.text('o1'), findsNothing);
+    });
+
+    testWidgets('an outlet the list cannot name reads as words, not its id', (
+      tester,
+    ) async {
+      const uuid = '5f3c9a1e-2b7d-4c1f-9e0a-7d2b1c3e4f50';
+      await _pump(tester, tasks: <TaskItem>[_task(outletId: uuid)]);
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.text('Outlet name unavailable'), findsOneWidget);
+      expect(find.textContaining(uuid), findsNothing);
+    });
+
+    testWidgets('a row names the person who owns the fix', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        users: <AppUser>[
+          person('u-1', 'thandi@acme.test', name: 'Thandi Mokoena'),
+          person('u-2', 'sipho@acme.test'),
+        ],
+        tasks: <TaskItem>[
+          _task(ownerId: 'u-1'),
+          _task(id: 't-2', ownerId: 'u-2'),
+        ],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('owner-t-open')),
+      );
+      expect(find.text('Assigned to Thandi Mokoena'), findsOneWidget);
+      // No display name: the sign-in address, which a person can read and
+      // quote, rather than the id.
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('owner-t-2')),
+      );
+      expect(find.text('Assigned to sipho@acme.test'), findsOneWidget);
+      final row = tester.widget<SoftRow>(
+        find.byKey(const ValueKey<String>('task-t-open')),
+      );
+      expect(row.semanticsLabel, contains('Assigned to Thandi Mokoena'));
+    });
+
+    testWidgets('an owner the roster cannot name is left out, not an id', (
+      tester,
+    ) async {
+      const uuid = '0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9';
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task(ownerId: uuid)],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byKey(const ValueKey<String>('owner-t-open')), findsNothing);
+      expect(find.textContaining(uuid), findsNothing);
     });
 
     testWidgets('the SLA is a phrase with the fix, behind a silhouette', (
@@ -525,6 +592,26 @@ void main() {
       await scrollWorklistTo(tester, find.byType(PaginationFooter));
       expect(
         find.text('Showing the first 2. There are more.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Narrow'), findsNothing);
+      expect(find.text('The counts above are of these 2.'), findsOneWidget);
+    });
+
+    testWidgets('a cut list with a server total names it, in the order used', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task(), _task(id: 't2', outletId: 'o2')],
+        nextCursor: 'cursor-2',
+        total: 74,
+      );
+
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      expect(
+        find.text('Showing the 2 tasks with the earliest deadlines, of 74.'),
         findsOneWidget,
       );
     });

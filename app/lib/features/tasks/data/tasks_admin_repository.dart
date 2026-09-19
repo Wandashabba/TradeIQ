@@ -17,6 +17,7 @@ class TaskItem {
     this.visitId,
     this.evidencePhotoId,
     this.createdAt,
+    this.ownerId,
   });
   final String id;
   final String findingType;
@@ -42,6 +43,11 @@ class TaskItem {
   /// deadline and calling the result a figure.
   final DateTime? createdAt;
 
+  /// The user who owns the fix. On the wire as an id only — the name comes
+  /// from the roster, and a row with no match says nothing rather than
+  /// printing the id.
+  final String? ownerId;
+
   factory TaskItem.fromJson(Map<String, dynamic> json) => TaskItem(
     id: json['id'] as String,
     findingType: json['findingType'] as String,
@@ -55,6 +61,7 @@ class TaskItem {
     slaDueAt: DateTime.parse(json['slaDueAt'] as String),
     evidencePhotoId: json['evidencePhotoId'] as String?,
     createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+    ownerId: json['ownerId'] as String?,
   );
 }
 

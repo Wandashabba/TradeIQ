@@ -11,7 +11,10 @@ import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
+import 'package:tradeiq_app/features/fraud/data/fraud_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
+import 'package:tradeiq_app/features/users/data/users_repository.dart';
+import 'package:tradeiq_app/features/visits/data/visit_detail_repository.dart';
 
 import '../../core/design/amber_golden.dart';
 import '../worklist_harness.dart';
@@ -43,11 +46,40 @@ final List<Outlet> _outlets = <Outlet>[
   outlet('o2', 'Shoprite Klipspruit Mall'),
 ];
 
+VisitDetail _visit(String id) => VisitDetail(
+  id: id,
+  status: 'submitted',
+  outlet: const VisitOutletRef(
+    id: 'o1',
+    name: 'Kasi Corner Spaza',
+    code: 'KCS-001',
+    channelType: 'spaza',
+  ),
+  agent: const VisitAgentRef(id: 'agent-1', email: 'thandi@acme.test'),
+  checkinTs: DateTime.utc(2026, 9, 18, 7),
+  submittedAtClient: DateTime.utc(2026, 9, 18, 7, 14),
+  geofencePass: true,
+  distanceM: 12,
+  score: null,
+  sections: const <VisitSectionSummary>[],
+  photoTotal: 0,
+  photos: const <VisitPhotoRef>[],
+  riskScore: 0,
+  signals: const <FraudSignal>[],
+);
+
+class _Visits implements VisitDetailRepository {
+  @override
+  Future<VisitDetail> fetch(String visitId) async => _visit(visitId);
+}
+
 Future<FakeAlertsRepository> _pump(
   WidgetTester tester, {
   List<AlertItem> alerts = const <AlertItem>[],
   List<Outlet> outlets = const <Outlet>[],
   String? nextCursor,
+  int? total,
+  List<AppUser> users = const <AppUser>[],
   Object? listFailure,
   Object? ackFailure,
   bool listPending = false,
@@ -58,6 +90,7 @@ Future<FakeAlertsRepository> _pump(
   final repository = FakeAlertsRepository(
     alerts: alerts,
     nextCursor: nextCursor,
+    total: total,
     listFailure: listFailure,
     ackFailure: ackFailure,
     listPending: listPending,
@@ -69,7 +102,9 @@ Future<FakeAlertsRepository> _pump(
     size: size,
     settle: !listPending,
     textScale: textScale,
+    users: users,
     overrides: <Override>[
+      visitDetailRepositoryProvider.overrideWithValue(_Visits()),
       alertsRepositoryProvider.overrideWithValue(repository),
       outletsRepositoryProvider.overrideWithValue(
         FakeOutletsRepository(outlets),
@@ -119,6 +154,19 @@ void main() {
       expect(find.text('Kasi Corner Spaza'), findsOneWidget);
       // #399/#400: the row before this one printed `Outlet o1`.
       expect(find.textContaining('Outlet o1'), findsNothing);
+    });
+
+    testWidgets('an outlet the list cannot name reads as words, not its id', (
+      tester,
+    ) async {
+      const uuid = '5f3c9a1e-2b7d-4c1f-9e0a-7d2b1c3e4f50';
+      await _pump(tester, alerts: <AlertItem>[_alert(outletId: uuid)]);
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.text('Outlet name unavailable'), findsOneWidget);
+      expect(find.textContaining(uuid), findsNothing);
+      final row = tester.widget<SoftRow>(find.byType(SoftRow).first);
+      expect(row.semanticsLabel, isNot(contains(uuid)));
     });
 
     testWidgets('severity is a bar AND a word, never the hue alone', (
@@ -441,6 +489,65 @@ void main() {
       );
     });
 
+    testWidgets('the submitting agent is named from the roster', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        users: <AppUser>[
+          person('agent-1', 'thandi@acme.test', name: 'Thandi Mokoena'),
+        ],
+        alerts: <AlertItem>[_alert(id: 'a7', visitId: 'v7')],
+      );
+
+      // The title, not the row's centre: with a visit linked, the centre is
+      // the row's own "View visit" action.
+      await scrollWorklistTo(tester, find.text('Out of stock since Tuesday'));
+      await tester.tap(find.text('Out of stock since Tuesday'));
+      await tester.pumpAndSettle();
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('sheet-agent')),
+      );
+
+      final agent = tester.widget<PersonRow>(
+        find.byKey(const ValueKey<String>('sheet-agent')),
+      );
+      expect(agent.name, 'Thandi Mokoena');
+      expect(find.text('Thandi Mokoena'), findsOneWidget);
+      // Named, the sign-in address is not shown beside the name.
+      expect(find.text('thandi@acme.test'), findsNothing);
+      expect(find.textContaining('agent-1'), findsNothing);
+    });
+
+    testWidgets('an agent the roster cannot name is their sign-in address', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a7', visitId: 'v7')],
+      );
+
+      // The title, not the row's centre: with a visit linked, the centre is
+      // the row's own "View visit" action.
+      await scrollWorklistTo(tester, find.text('Out of stock since Tuesday'));
+      await tester.tap(find.text('Out of stock since Tuesday'));
+      await tester.pumpAndSettle();
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('sheet-agent')),
+      );
+
+      final agent = tester.widget<PersonRow>(
+        find.byKey(const ValueKey<String>('sheet-agent')),
+      );
+      expect(agent.name, isNull);
+      expect(find.textContaining('thandi@acme.test'), findsOneWidget);
+      expect(find.textContaining('agent-1'), findsNothing);
+    });
+
     testWidgets('a sheet with no visit offers no Open the visit', (
       tester,
     ) async {
@@ -512,14 +619,40 @@ void main() {
         find.text('Showing the first 2. There are more.'),
         findsOneWidget,
       );
-      // Never a fabricated total: the API has never said how many rows exist.
+      // Never a fabricated total: this server did not say how many exist.
       expect(
         find.descendant(
           of: find.byType(PaginationFooter),
-          matching: find.textContaining(' of '),
+          matching: find.textContaining('newest of'),
         ),
         findsNothing,
       );
+      // And no offer to narrow: the filters are client-side over this page
+      // and could never bring the rest into view.
+      expect(find.textContaining('Narrow'), findsNothing);
+      expect(find.text('The counts above are of these 2.'), findsOneWidget);
+    });
+
+    testWidgets('a cut list with a server total names it, in the order used', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a1'), _alert(id: 'a2')],
+        nextCursor: 'cursor-2',
+        total: 1284,
+      );
+
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      // Newest, because that is the order the server cut in — not
+      // "riskiest", which is a ranking it did not do. The total is grouped
+      // by the locale formatter.
+      expect(
+        find.text('Showing the 2 newest of 1,284 alerts.'),
+        findsOneWidget,
+      );
+      expect(find.text('The counts above are of these 2.'), findsOneWidget);
     });
 
     testWidgets('one page renders no footer at all', (tester) async {

@@ -21,7 +21,9 @@ import 'tasks_admin_repository.dart';
 /// 3. **The SLA is a phrase, not a pill.** "Overdue by 2 days" is a sentence a
 ///    person reads; `OVERDUE 2d` is a badge they decode. Overdue is measured
 ///    in whole days and never in fake-precise hours.
-/// 4. **A row names an outlet, never a UUID.**
+/// 4. **A row names an outlet and a person, never a UUID.** The outlet comes
+///    from the outlet list and the owner from the roster; an id with no match
+///    becomes words ("Outlet name unavailable") or, for the owner, silence.
 
 /// Which slice of the page the rail is showing. The axis is **state**: Open is
 /// all open work (overdue included — overdue is a focus subset, not a separate
@@ -54,8 +56,8 @@ class TaskEntry {
 
   final TaskItem task;
 
-  /// Resolved against the outlet list; the id only while that list has not
-  /// arrived, because a row with no name is a row a manager cannot act on.
+  /// Resolved against the outlet list; [TasksView.unnamedOutlet] when the id
+  /// is not on it — never the id itself.
   final String outletName;
 }
 
@@ -73,9 +75,15 @@ class TaskRow {
     required this.severityLabel,
     this.visitId,
     this.evidencePhotoId,
+    this.owner,
   });
 
   final String id;
+
+  /// Who owns the fix, by name (or sign-in address where they have no name),
+  /// or null when the roster has no match — in which case the row says
+  /// nothing about the owner rather than printing an id.
+  final String? owner;
 
   /// The finding, in words. The wire sends a slug (`out_of_stock`); a slug is
   /// machine-facing and this is the row's first line, so the underscores go
@@ -128,16 +136,43 @@ class TaskRow {
 
 /// The whole worklist, resolved against one instant.
 class TasksView {
-  const TasksView({required this.rows, this.nextCursor});
+  const TasksView({required this.rows, this.nextCursor, this.total});
+
+  /// What a row says when its outlet id is not on the outlet list. Words,
+  /// never the UUID (#399/#400).
+  static const String unnamedOutlet = 'Outlet name unavailable';
 
   final List<TaskRow> rows;
 
-  /// The server's cursor for the page after this one. The API answers a first
-  /// page and has never said how many rows exist, so a cut list says "there
-  /// are more" and never a fabricated total.
+  /// The server's cursor for the page after this one.
   final String? nextCursor;
 
+  /// Every task the server holds for this manager, counted ignoring the page.
+  /// Null from a server that does not count: the footer then says "there are
+  /// more" and never a fabricated total.
+  final int? total;
+
   bool get hasMore => nextCursor != null;
+
+  /// What the pagination footer says, or null when this page is the whole
+  /// list.
+  ///
+  /// The server sends tasks by deadline, earliest first, so a cut page is
+  /// "the N with the earliest deadlines" — the order the server actually
+  /// applied, not a ranking it did not do. The second line scopes every count
+  /// above the list to the page in hand.
+  ({String summary, String scope})? footer(String Function(int) figure) {
+    if (!hasMore) return null;
+    final shown = figure(rows.length);
+    final whole = total;
+    return (
+      summary: whole == null || whole <= rows.length
+          ? 'Showing the first $shown. There are more.'
+          : 'Showing the $shown tasks with the earliest deadlines, of '
+                '${figure(whole)}.',
+      scope: 'The counts above are of these $shown.',
+    );
+  }
 
   int get overdue => rows.where((r) => r.isOverdue).length;
 
@@ -162,20 +197,30 @@ class TasksView {
   }
 
   /// Apply one clock to one page.
+  ///
+  /// [owners] maps a user id to what to call them. It is the roster, a base
+  /// layer: an owner missing from it is left unnamed, never shown as an id.
   static TasksView resolve(
     List<TaskEntry> entries,
     DateTime now, {
     String? nextCursor,
+    int? total,
+    Map<String, String> owners = const <String, String>{},
   }) {
     return TasksView(
       nextCursor: nextCursor,
+      total: total,
       rows: <TaskRow>[
-        for (final entry in entries) _rowFor(entry, now),
+        for (final entry in entries) _rowFor(entry, now, owners),
       ]..sort(TaskRow.compare),
     );
   }
 
-  static TaskRow _rowFor(TaskEntry entry, DateTime now) {
+  static TaskRow _rowFor(
+    TaskEntry entry,
+    DateTime now,
+    Map<String, String> owners,
+  ) {
     final task = entry.task;
     final state = _slaStateFor(task, now);
     final severity = _severityFor(task, state);
@@ -191,6 +236,7 @@ class TasksView {
       severityLabel: _severityWord(task, state),
       visitId: task.visitId,
       evidencePhotoId: task.evidencePhotoId,
+      owner: task.ownerId == null ? null : owners[task.ownerId],
     );
   }
 
@@ -309,10 +355,11 @@ class TasksView {
 
 /// One page of tasks, with the outlet names attached and the cursor kept.
 class TasksPage {
-  const TasksPage({required this.entries, this.nextCursor});
+  const TasksPage({required this.entries, this.nextCursor, this.total});
 
   final List<TaskEntry> entries;
   final String? nextCursor;
+  final int? total;
 }
 
 /// The tasks page, merged with the outlet names it needs to be readable.
@@ -332,11 +379,12 @@ final tasksPageProvider = FutureProvider<TasksPage>((ref) async {
 
   return TasksPage(
     nextCursor: page.nextCursor,
+    total: page.total,
     entries: <TaskEntry>[
       for (final task in page.data)
         TaskEntry(
           task: task,
-          outletName: names[task.outletId] ?? task.outletId,
+          outletName: names[task.outletId] ?? TasksView.unnamedOutlet,
         ),
     ],
   );

@@ -14,6 +14,7 @@ import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/tasks/data/tasks_admin_repository.dart';
+import 'package:tradeiq_app/features/users/data/users_repository.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
 /// Everything the manager's worklists need to stand a screen up without a
@@ -37,7 +38,44 @@ final Uint8List pngBytes = Uint8List.fromList(const <int>[
 Outlet outlet(String id, String name) =>
     Outlet(id: id, name: name, code: id.toUpperCase(), lat: 0, lng: 0);
 
+AppUser person(String id, String email, {String? name}) => AppUser(
+  id: id,
+  email: email,
+  role: 'field_agent',
+  active: true,
+  displayName: name,
+);
+
 // ── Fakes ─────────────────────────────────────────────────────────────
+
+/// The roster, as GET /users answers it. Every pump installs one — empty by
+/// default — so no worklist test ever reaches for the network to name a
+/// person.
+class FakeUsersRepository implements UsersRepository {
+  FakeUsersRepository([this.users = const <AppUser>[]]);
+
+  final List<AppUser> users;
+
+  @override
+  Future<PaginatedResponse<AppUser>> listUsers() async =>
+      PaginatedResponse(data: users, nextCursor: null);
+
+  @override
+  Future<AppUser> createUser({
+    required String email,
+    required String password,
+    required String role,
+    String? displayName,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<AppUser> setActive(String id, bool active) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<AppUser> updateDisplayName(String id, String? displayName) async =>
+      throw UnimplementedError();
+}
 
 class FakeOutletsRepository implements OutletsRepository {
   FakeOutletsRepository([this.outlets = const <Outlet>[]]);
@@ -123,6 +161,7 @@ class FakeAlertsRepository implements AlertsRepository {
   FakeAlertsRepository({
     this.alerts = const <AlertItem>[],
     this.nextCursor,
+    this.total,
     this.listFailure,
     this.ackFailure,
     this.listPending = false,
@@ -130,6 +169,10 @@ class FakeAlertsRepository implements AlertsRepository {
 
   final List<AlertItem> alerts;
   final String? nextCursor;
+
+  /// The server's count of every matching alert, or null for a server that
+  /// does not count.
+  final int? total;
   final Object? listFailure;
 
   /// The list never arrives, so the screen stays in its loading phase.
@@ -147,7 +190,11 @@ class FakeAlertsRepository implements AlertsRepository {
   }) async {
     if (listFailure != null) throw listFailure!;
     if (listPending) return Completer<PaginatedResponse<AlertItem>>().future;
-    return PaginatedResponse(data: alerts, nextCursor: nextCursor);
+    return PaginatedResponse(
+      data: alerts,
+      nextCursor: nextCursor,
+      total: total,
+    );
   }
 
   @override
@@ -243,6 +290,7 @@ class FakeTasksRepository implements TasksAdminRepository {
   FakeTasksRepository({
     this.tasks = const <TaskItem>[],
     this.nextCursor,
+    this.total,
     this.listFailure,
     this.closeFailure,
     this.listPending = false,
@@ -250,6 +298,9 @@ class FakeTasksRepository implements TasksAdminRepository {
 
   final List<TaskItem> tasks;
   final String? nextCursor;
+
+  /// The server's count of every matching task, or null.
+  final int? total;
   final Object? listFailure;
   final Object? closeFailure;
 
@@ -268,7 +319,7 @@ class FakeTasksRepository implements TasksAdminRepository {
   }) async {
     if (listFailure != null) throw listFailure!;
     if (listPending) return Completer<PaginatedResponse<TaskItem>>().future;
-    return PaginatedResponse(data: tasks, nextCursor: nextCursor);
+    return PaginatedResponse(data: tasks, nextCursor: nextCursor, total: total);
   }
 
   @override
@@ -293,6 +344,7 @@ class FakeTasksRepository implements TasksAdminRepository {
       slaDueAt: existing.slaDueAt,
       evidencePhotoId: existing.evidencePhotoId,
       createdAt: existing.createdAt,
+      ownerId: existing.ownerId,
     );
   }
 
@@ -313,6 +365,7 @@ class FakeTasksRepository implements TasksAdminRepository {
       slaDueAt: existing.slaDueAt,
       evidencePhotoId: existing.evidencePhotoId,
       createdAt: existing.createdAt,
+      ownerId: existing.ownerId,
     );
   }
 }
@@ -354,6 +407,7 @@ Future<void> pumpWorklist(
   double textScale = 1.0,
   Locale? locale,
   List<Override> overrides = const <Override>[],
+  List<AppUser> users = const <AppUser>[],
   String path = '/screen',
   bool settle = true,
 }) async {
@@ -374,7 +428,12 @@ Future<void> pumpWorklist(
       child: ColoredBox(
         color: resolved.palette.ground,
         child: ProviderScope(
-          overrides: overrides,
+          overrides: <Override>[
+            usersRepositoryProvider.overrideWithValue(
+              FakeUsersRepository(users),
+            ),
+            ...overrides,
+          ],
           child: MaterialApp.router(
             theme: ThemeData(
               extensions: <ThemeExtension<dynamic>>[resolved],

@@ -187,4 +187,105 @@ void main() {
     ], _now);
     expect(view.rows.single.outletName, 'Kasi Corner Spaza');
   });
+
+  group('the footer owns up to a cut list', () {
+    String figure(int n) => '$n';
+    final entries = <TaskEntry>[
+      TaskEntry(task: _task(), outletName: 'Kasi Corner Spaza'),
+      TaskEntry(task: _task(id: 't2'), outletName: 'Kasi Corner Spaza'),
+    ];
+
+    test('a page that is the whole list has no footer', () {
+      expect(TasksView.resolve(entries, _now).footer(figure), isNull);
+    });
+
+    test('an uncounted cut says there are more, and no number', () {
+      final footer = TasksView.resolve(
+        entries,
+        _now,
+        nextCursor: 'c',
+      ).footer(figure)!;
+      expect(footer.summary, 'Showing the first 2. There are more.');
+      expect(footer.scope, 'The counts above are of these 2.');
+    });
+
+    test('a counted cut names the total and the order it was cut in', () {
+      final footer = TasksView.resolve(
+        entries,
+        _now,
+        nextCursor: 'c',
+        total: 74,
+      ).footer(figure)!;
+      expect(
+        footer.summary,
+        'Showing the 2 tasks with the earliest deadlines, of 74.',
+      );
+    });
+
+    test('a total no larger than the page is not repeated as "of"', () {
+      final footer = TasksView.resolve(
+        entries,
+        _now,
+        nextCursor: 'c',
+        total: 2,
+      ).footer(figure)!;
+      expect(footer.summary, 'Showing the first 2. There are more.');
+    });
+  });
+
+  group('the owner', () {
+    test('is named from the roster, and absent where the roster is silent', () {
+      final view = TasksView.resolve(
+        <TaskEntry>[
+          TaskEntry(
+            task: TaskItem(
+              id: 'named',
+              findingType: 'out_of_stock',
+              requiredFix: 'Restock',
+              priority: 'normal',
+              status: 'open',
+              closureVerified: false,
+              outletId: 'o1',
+              slaDueAt: _now.add(const Duration(days: 3)),
+              ownerId: 'u-1',
+            ),
+            outletName: 'Kasi Corner Spaza',
+          ),
+          TaskEntry(
+            task: TaskItem(
+              id: 'unnamed',
+              findingType: 'out_of_stock',
+              requiredFix: 'Restock',
+              priority: 'normal',
+              status: 'open',
+              closureVerified: false,
+              outletId: 'o1',
+              slaDueAt: _now.add(const Duration(days: 3)),
+              ownerId: 'u-9',
+            ),
+            outletName: 'Kasi Corner Spaza',
+          ),
+        ],
+        _now,
+        owners: const <String, String>{'u-1': 'Thandi Mokoena'},
+      );
+      final byId = {for (final r in view.rows) r.id: r};
+      expect(byId['named']!.owner, 'Thandi Mokoena');
+      expect(byId['unnamed']!.owner, isNull);
+    });
+
+    test('ownerId is read off the wire', () {
+      final item = TaskItem.fromJson(<String, dynamic>{
+        'id': 't',
+        'findingType': 'out_of_stock',
+        'requiredFix': 'Restock',
+        'priority': 'normal',
+        'status': 'open',
+        'outletId': 'o1',
+        'slaDueAt': '2026-07-25T00:00:00.000Z',
+        'ownerId': 'u-1',
+      });
+      expect(item.ownerId, 'u-1');
+    });
+  });
 }

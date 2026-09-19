@@ -60,9 +60,9 @@ class AlertRow {
   /// a manager can quote it straight back into the rules screen.
   final String rule;
 
-  /// Resolved against the outlet list. Falls back to "Unassigned outlet" when
-  /// the alert carries no outlet at all, and to the id only while the outlet
-  /// list has not arrived.
+  /// Resolved against the outlet list. "Unassigned outlet" when the alert
+  /// carries no outlet at all, and [AlertsView.unnamedOutlet] when the id is
+  /// not on the list the manager can see — never the id itself.
   final String outletName;
 
   final SoftRowSeverity severity;
@@ -103,19 +103,46 @@ class AlertRow {
 
 /// The whole worklist.
 class AlertsView {
-  const AlertsView({required this.rows, this.nextCursor});
+  const AlertsView({required this.rows, this.nextCursor, this.total});
+
+  /// What a row says when its outlet id is not on the outlet list — still
+  /// loading, or outside the manager's list. Words, never the UUID
+  /// (#399/#400): a manager cannot act on `5f3c…` and cannot quote it either.
+  static const String unnamedOutlet = 'Outlet name unavailable';
 
   /// Every alert on the loaded page, worst first.
   final List<AlertRow> rows;
 
   /// The server's cursor for the page after this one, or null when this page
-  /// is the whole truth. It is carried so the footer can say the list was cut
-  /// — the API answers a first page and has never said how many rows there
-  /// are in total, so the footer says "there are more" and never a fabricated
-  /// number.
+  /// is the whole truth. It is carried so the footer can say the list was cut.
   final String? nextCursor;
 
+  /// Every alert the server holds for this manager, counted on the server
+  /// ignoring the page. Null from a server that does not count, in which case
+  /// the footer says "there are more" and never a fabricated number.
+  final int? total;
+
   bool get hasMore => nextCursor != null;
+
+  /// What the pagination footer says, or null when this page is the whole
+  /// list and there is nothing to own up to.
+  ///
+  /// The server sends alerts newest first, so a cut page is "the newest N",
+  /// and that is the word used — not "riskiest", which would claim a ranking
+  /// the server did not do. The second line is the honest scope of every
+  /// count above the list: the lead figure and the chip counts are of the
+  /// page in hand. [figure] formats a count for the ambient locale.
+  ({String summary, String scope})? footer(String Function(int) figure) {
+    if (!hasMore) return null;
+    final shown = figure(rows.length);
+    final whole = total;
+    return (
+      summary: whole == null || whole <= rows.length
+          ? 'Showing the first $shown. There are more.'
+          : 'Showing the $shown newest of ${figure(whole)} alerts.',
+      scope: 'The counts above are of these $shown.',
+    );
+  }
 
   /// The lead indicator's dominant figure: open criticals. Not a peer of the
   /// other two, which is why the rail is not three equal cells.
@@ -170,11 +197,12 @@ final alertsViewProvider = FutureProvider<AlertsView>((ref) async {
 
   String nameFor(String? outletId) {
     if (outletId == null) return 'Unassigned outlet';
-    return names[outletId] ?? outletId;
+    return names[outletId] ?? AlertsView.unnamedOutlet;
   }
 
   return AlertsView(
     nextCursor: page.nextCursor,
+    total: page.total,
     rows: <AlertRow>[
       for (final a in alerts)
         AlertRow(

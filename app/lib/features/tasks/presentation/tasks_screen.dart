@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/design/tiq_number.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
@@ -14,6 +15,7 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../audit/data/photos_repository.dart';
+import '../../users/data/users_repository.dart';
 import '../data/tasks_admin_repository.dart';
 import '../data/tasks_view.dart';
 import 'close_with_photo_sheet.dart';
@@ -33,8 +35,11 @@ import 'close_with_photo_sheet.dart';
 ///   ▌ Shelf talker missing              [img]
 ///   ▌ Overdue by 2 days · replace the shelf talker
 ///   ▌ Kasi Corner Spaza
+///   ▌ Assigned to Thandi Mokoena
 ///   ▌ Close with photo
 ///   …
+///   Showing the 50 tasks with the earliest deadlines, of 74.
+///   The counts above are of these 50.
 ///   [ nav pill ]
 /// ```
 ///
@@ -108,6 +113,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           data.entries,
           widget.clock(),
           nextCursor: data.nextCursor,
+          total: data.total,
+          owners: <String, String>{
+            for (final user in ref.watch(userDirectoryProvider).values)
+              user.id: user.label,
+          },
         ),
       ),
     );
@@ -137,6 +147,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   Widget _loaded(TasksView view) {
     final visible = view.visible(_filter);
     final gutter = context.skin.space.gutter;
+    final numbers = TiqNumber.of(context);
+    final footer = view.footer((n) => numbers.format(n));
 
     return _frame(
       phase: view.rows.isEmpty
@@ -203,13 +215,17 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             ),
           ),
 
-        if (view.hasMore) ...<Widget>[
+        // Only where the list was cut, and without an offer to narrow: the
+        // state filter is client-side over this page and cannot reach the
+        // rest.
+        if (footer != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s6),
           TorchBleed(
             extra: gutter * 2,
             child: PaginationFooter(
-              summary: 'Showing the first ${view.rows.length}. There are more.',
-              narrowLine: 'Narrow by state to see the rest.',
+              key: const ValueKey<String>('tasks-footer'),
+              summary: footer.summary,
+              narrowLine: footer.scope,
             ),
           ),
         ],
@@ -478,6 +494,14 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
               ),
             ],
           ),
+          // Who owns the fix, by name. An owner the roster cannot name is
+          // left out rather than printed as an id (#399/#400).
+          if (task.owner != null)
+            Text(
+              'Assigned to ${task.owner}',
+              key: ValueKey<String>('owner-${task.id}'),
+              style: skin.text.meta.style(color: skin.palette.ink2),
+            ),
           Wrap(
             spacing: TiqSpace.s4,
             children: <Widget>[
@@ -509,6 +533,7 @@ class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
         task.title,
         task.requiredFix,
         task.outletName,
+        if (task.owner != null) 'Assigned to ${task.owner}',
       ].join('. '),
     );
   }

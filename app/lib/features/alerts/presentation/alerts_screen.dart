@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/tiq_number.dart';
 import '../../../core/widgets/agent_motion.dart' show Motion, reduceMotion;
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
@@ -37,7 +38,8 @@ import 'alert_detail_sheet.dart';
 ///   ▌ OSA_BELOW_50
 ///   ▌ View visit   Acknowledge
 ///   …
-///   Showing the first 20. There are more.
+///   Showing the 50 newest of 74 alerts.
+///   The counts above are of these 50.
 ///   [ nav pill ]
 /// ```
 ///
@@ -131,6 +133,8 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   Widget _loaded(AlertsView view) {
     final visible = view.visible(_tab, _severity);
     final gutter = context.skin.space.gutter;
+    final numbers = TiqNumber.of(context);
+    final footer = view.footer((n) => numbers.format(n));
 
     return _frame(
       phase: view.rows.isEmpty
@@ -216,14 +220,17 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
             ),
           ),
 
-        // The footer only exists where the list was actually cut.
-        if (view.hasMore) ...<Widget>[
+        // The footer only exists where the list was actually cut. It does
+        // not offer to narrow: the filters are client-side over this page,
+        // so narrowing could never bring the rest into view.
+        if (footer != null) ...<Widget>[
           const SizedBox(height: TiqSpace.s6),
           TorchBleed(
             extra: gutter * 2,
             child: PaginationFooter(
-              summary: 'Showing the first ${view.rows.length}. There are more.',
-              narrowLine: 'Narrow by severity to see the rest.',
+              key: const ValueKey<String>('alerts-footer'),
+              summary: footer.summary,
+              narrowLine: footer.scope,
             ),
           ),
         ],

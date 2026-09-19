@@ -8,6 +8,8 @@ import '../../../core/widgets/torchlight/evidence_thumb.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../core/format/person_label.dart';
+import '../../users/data/users_repository.dart';
 import '../../visits/data/visit_detail_repository.dart';
 import '../data/alerts_view.dart';
 
@@ -59,6 +61,7 @@ class _AlertDetailSheet extends ConsumerWidget {
         ? SeverityMarkKind.critical
         : SeverityMarkKind.watch;
 
+    final directory = ref.watch(userDirectoryProvider);
     final visit = alert.visitId == null
         ? null
         : ref
@@ -129,12 +132,16 @@ class _AlertDetailSheet extends ConsumerWidget {
             ],
           ],
 
-          // 5. Who submitted it. `User` has no display-name column, so the
-          //    role and the outlet are the title and the sign-in address is
-          //    the identifier line — never a UUID, and never a name we made up.
+          // 5. Who submitted it. The visit carries the agent's id and sign-in
+          //    address; the name comes from the roster. Named, the row reads
+          //    name / role · outlet. Unnamed — no display name, or not on the
+          //    roster yet — the sign-in address is the identifier line. Never
+          //    a UUID, and never a name we made up.
           if (visit != null) ...<Widget>[
             const SizedBox(height: TiqSpace.s5),
             PersonRow(
+              key: const ValueKey<String>('sheet-agent'),
+              name: nonBlankName(directory[visit.agent.id]?.displayName),
               role: 'Field agent',
               outlet: visit.outlet.name,
               identifier: visit.agent.email,
