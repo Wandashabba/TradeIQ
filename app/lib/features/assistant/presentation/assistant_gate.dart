@@ -34,17 +34,21 @@ class AssistantGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref
-        .watch(clientConfigProvider)
-        .when(
-          data: (config) => config.assistantEnabled
-              ? const AssistantChatScreen()
-              : const _GateFrame(child: AskNotEnabled()),
-          error: (_, _) => const AssistantChatScreen(),
-          // The skeleton geometry of one empty transcript, not a centred
-          // spinner: the shape a manager is about to read, held still.
-          loading: () => const _GateFrame(child: _GateSkeleton()),
-        );
+    final state = ref.watch(clientConfigProvider);
+    final config = state.value;
+    if (config != null) {
+      return config.assistantEnabled
+          ? const AssistantChatScreen()
+          : const _GateFrame(child: AskNotEnabled());
+    }
+    // Read before `loading`, and not through `when`: a provider that failed
+    // is retried, and while it retries it is *both* erroring and loading. A
+    // `when` would hold the skeleton on screen through every retry — a
+    // manager watching a grey shape because one unrelated call timed out.
+    if (state.hasError) return const AssistantChatScreen();
+    // The skeleton geometry of one empty transcript, not a centred spinner:
+    // the shape a manager is about to read, held still.
+    return const _GateFrame(child: _GateSkeleton());
   }
 }
 

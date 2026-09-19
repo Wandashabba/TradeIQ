@@ -256,7 +256,7 @@ void main() {
       'opens in browser',
     );
     final data = node.getSemanticsData();
-    expect(data.hasFlag(SemanticsFlag.isButton), isTrue);
+    expect(data.flagsCollection.isButton, isTrue);
     // Announced AND reachable: the row declares the action itself, so a
     // screen-reader double-tap opens the page.
     expect(data.hasAction(SemanticsAction.tap), isTrue);
