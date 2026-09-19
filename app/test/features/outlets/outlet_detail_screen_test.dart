@@ -86,7 +86,13 @@ CheckInAttemptEvidence _attempt({String id = 'a1'}) => CheckInAttemptEvidence(
       createdAt: DateTime.utc(2026, 9, 15, 8, 30),
     );
 
-PinDispute _dispute({String status = 'open'}) => PinDispute(
+PinDispute _dispute({
+  String status = 'open',
+  double? accuracyM,
+  bool? isMocked,
+  bool agentIsOnlyVisitor = false,
+  List<PinDisputePhoto>? photos,
+}) => PinDispute(
       id: 'd1',
       outletId: 'o1',
       outletName: 'Kwik Spar Soweto',
@@ -103,7 +109,23 @@ PinDispute _dispute({String status = 'open'}) => PinDispute(
       resolvedByLabel: status == 'open' ? null : 'Thandi Mokoena',
       resolvedAt: status == 'open' ? null : DateTime.utc(2026, 9, 16),
       createdAt: DateTime.utc(2026, 9, 15, 8, 30),
-      photoIds: const ['p1'],
+      accuracyM: accuracyM,
+      isMocked: isMocked,
+      agentIsOnlyVisitor: agentIsOnlyVisitor,
+      photos: photos ?? [_storefrontPhoto()],
+    );
+
+/// One storefront photo, taken with the camera and received a minute later —
+/// the shape honest evidence has.
+PinDisputePhoto _storefrontPhoto({
+  String source = 'camera',
+  DateTime? timestamp,
+  DateTime? receivedAt,
+}) => PinDisputePhoto(
+      id: 'p1',
+      timestamp: timestamp ?? DateTime.utc(2026, 9, 15, 8, 30),
+      receivedAt: receivedAt ?? DateTime.utc(2026, 9, 15, 8, 31),
+      source: source,
     );
 
 void main() {
@@ -227,7 +249,13 @@ void main() {
       find.textContaining(_depotLat.toStringAsFixed(5)),
       findsWidgets,
     );
-    expect(find.textContaining('storefront photo'), findsOneWidget);
+    // The storefront evidence itself, with BOTH accounts of it: what the
+    // phone said, and when this server actually took delivery. A count of
+    // photos ("1 storefront photo attached.") was what this used to show, and
+    // a manager cannot judge a pin from a number.
+    expect(find.byKey(const ValueKey('dispute-photo-p1')), findsOneWidget);
+    expect(find.text('Taken with the camera'), findsOneWidget);
+    expect(find.textContaining('Received 2026-09-15'), findsOneWidget);
   });
 
   testWidgets('answering a report sends its id alongside the correction',

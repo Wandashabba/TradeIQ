@@ -25,7 +25,8 @@ import 'visit_harness.dart';
 /// clear.
 
 class _QueuedPhotos implements QueuedPhotosRepository {
-  final queued = <({String visitDraftId, String section, String dataUrl})>[];
+  final queued =
+      <({String visitDraftId, String section, String dataUrl, String? source})>[];
 
   @override
   Future<void> queuePhoto({
@@ -34,10 +35,12 @@ class _QueuedPhotos implements QueuedPhotosRepository {
     required String dataUrl,
     Map<String, dynamic> gpsTag = const <String, dynamic>{},
     DateTime? capturedAt,
+    String? source,
   }) async => queued.add((
     visitDraftId: visitDraftId,
     section: section,
     dataUrl: dataUrl,
+    source: source,
   ));
 }
 
@@ -45,6 +48,7 @@ final _storefront = CapturedPhoto(
   dataUrl: 'data:image/jpeg;base64,AAAA',
   byteLength: 4,
   capturedAt: DateTime.utc(2026, 9, 19, 8, 30),
+  source: PhotoSource.camera,
   gpsTag: const <String, dynamic>{'lat': -26.2059, 'lng': 28.046},
 );
 

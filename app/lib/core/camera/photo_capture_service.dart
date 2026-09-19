@@ -17,6 +17,7 @@ class CapturedPhoto {
     required this.dataUrl,
     required this.byteLength,
     required this.capturedAt,
+    required this.source,
     this.gpsTag = const <String, dynamic>{},
     this.meanLuma,
   });
@@ -36,11 +37,22 @@ class CapturedPhoto {
   /// Whether the frame is dark enough for the review step to ask about.
   bool get isUnderexposed => meanLuma != null && meanLuma! < kDarkFrameLuma;
 
+  /// Where this image came from, travelling with it to the server.
+  ///
+  /// [capturedAt] is the moment the PICKER handed the file back, not the
+  /// moment the scene was photographed, and for a gallery pick those are not
+  /// the same: a screenshot chosen at home arrives stamped with a fresh time
+  /// and a home [gpsTag] that agree with each other and say nothing. The
+  /// server refuses a gallery image as a pin dispute's storefront evidence for
+  /// exactly that reason, and a manager reading any photo sees which it was.
+  final PhotoSource source;
+
   /// The same photo with its exposure recorded.
   CapturedPhoto withMeanLuma(double? luma) => CapturedPhoto(
     dataUrl: dataUrl,
     byteLength: byteLength,
     capturedAt: capturedAt,
+    source: source,
     gpsTag: gpsTag,
     meanLuma: luma,
   );
@@ -166,6 +178,7 @@ class PhotoCaptureService {
       dataUrl: dataUrl,
       byteLength: dataUrl.length,
       capturedAt: capturedAt,
+      source: source,
       gpsTag: gpsTag,
     );
   }

@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
-import { NotFoundError, ValidationError } from '../../middleware/errorHandler';
+import { ConflictError, NotFoundError, ValidationError } from '../../middleware/errorHandler';
 import type { Role } from '../auth/auth.service';
 import { computePhotoHashes } from './photoHash';
 import { decodeImageDataUrl, getThumbnailForPhoto, isDecodableImageDataUrl } from './thumbnails';
@@ -11,6 +11,40 @@ import { decodeImageDataUrl, getThumbnailForPhoto, isDecodableImageDataUrl } fro
  * than filed as visit evidence. Such photos carry no `visitId`.
  */
 export const MESSAGE_ATTACHMENT_SECTION = 'message_attachment';
+
+/**
+ * How an image was obtained. `camera` means the shutter was pressed inside the
+ * app; `gallery` means it was chosen from the device's library.
+ *
+ * The distinction matters because a photo's `timestamp` and `gpsTag` are
+ * stamped when the picker hands the file back, NOT from the image's own
+ * capture metadata. For a camera capture those are the same moment. For a
+ * gallery pick they are not: a screenshot chosen at home gets a fresh
+ * timestamp and a home gpsTag, which agree with each other perfectly and say
+ * nothing about where or when the scene was photographed.
+ */
+export const PHOTO_SOURCES = ['camera', 'gallery'] as const;
+export type PhotoSource = (typeof PHOTO_SOURCES)[number];
+
+/**
+ * The section a storefront photo offered with a pin dispute is filed under.
+ * Duplicated from outlets.service rather than imported: photos must not depend
+ * on outlets to enforce its own upload rule.
+ */
+export const PIN_DISPUTE_SECTION = 'pin_dispute';
+
+/**
+ * How long after a wrong-pin claim was RECEIVED BY THIS SERVER its storefront
+ * evidence may still arrive.
+ *
+ * Generous, because the outbox is: a check-in captured in a dead aisle and its
+ * photo can both sit for hours and flush together, and refusing the evidence
+ * of an agent who was genuinely offline would punish exactly the field
+ * conditions this product is built for. It is still a bound, and the bound is
+ * the point — a photo uploaded against a week-old override is not evidence of
+ * what the agent saw at the door, and until now there was no limit at all.
+ */
+export const PIN_DISPUTE_PHOTO_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** Who is asking to read a photo — enough to apply the attachment rules. */
 export interface PhotoViewer {
@@ -35,6 +69,14 @@ export interface CreatePhotoInput {
   dataUrl: string;
   gpsTag: Prisma.InputJsonValue;
   timestamp: string;
+  /**
+   * Where the image came from. Optional, so an older build that does not say
+   * keeps working for ordinary audit sections — but a pin dispute's storefront
+   * photo REQUIRES `camera`, and an older build therefore cannot file one.
+   * That is the intended trade: unsourced evidence for the one claim that
+   * overrides the geofence is evidence nobody can check.
+   */
+  source?: PhotoSource;
 }
 
 export async function createPhoto(input: CreatePhotoInput) {
@@ -44,6 +86,49 @@ export async function createPhoto(input: CreatePhotoInput) {
   });
   if (!visit) {
     throw new NotFoundError('Visit not found');
+  }
+
+  // ── Storefront evidence for a wrong-pin claim (#386 follow-up) ───────────
+  //
+  // This one photo is the difference between "the pin is wrong, look at the
+  // shop I am standing outside" and an assertion. It was the weakest thing in
+  // the override: any image, from anywhere, at any time, stamped with the
+  // moment it was PICKED and the position at that moment. A Street View
+  // screenshot chosen from the gallery at home arrives with a fresh timestamp
+  // and a home gpsTag that agrees exactly with the claimed position — so
+  // photo_gps_divergence cannot fire, and the manager is shown a picture of a
+  // shop with nothing to contradict it.
+  //
+  // Three rules, all server-side, none of which an app build can opt out of:
+  if (input.section === PIN_DISPUTE_SECTION) {
+    if (input.source !== 'camera') {
+      throw new ValidationError(
+        'A storefront photo for a wrong-pin report must be taken with the camera. ' +
+          'A picture chosen from the gallery is stamped with the time it was picked, ' +
+          'not the time the shop was photographed.',
+      );
+    }
+    const dispute = await prisma.pinDispute.findUnique({
+      where: { visitId: visit.id },
+      select: { status: true, createdAt: true },
+    });
+    if (!dispute) {
+      throw new ValidationError('This visit has no wrong-pin report to attach a storefront photo to');
+    }
+    if (dispute.status !== 'open') {
+      // Adding evidence to a ruling already made is not evidence; it is a
+      // record that cannot be trusted to be the one the manager read.
+      throw new ConflictError(`That wrong-pin report was already ${dispute.status}`);
+    }
+    // The dispute's createdAt IS the visit's server receipt time: the two rows
+    // are written in one transaction (visits.service), and Visit itself carries
+    // no server clock — only the device's checkinTs, which is the thing under
+    // suspicion here and so cannot be the window's anchor.
+    if (Date.now() - dispute.createdAt.getTime() > PIN_DISPUTE_PHOTO_WINDOW_MS) {
+      throw new ConflictError(
+        'That wrong-pin report is more than a day old; its storefront photo can no longer be added.',
+      );
+    }
   }
 
   // Hashed once, here, so duplicate_photo (#244) never re-reads stored bytes.
@@ -65,6 +150,7 @@ export async function createPhoto(input: CreatePhotoInput) {
       url: input.dataUrl,
       gpsTag: input.gpsTag,
       timestamp: new Date(input.timestamp),
+      source: input.source,
       ...hashes,
     },
   });
