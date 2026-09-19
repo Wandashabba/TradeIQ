@@ -2741,4 +2741,209 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get outboxSeeScore => 'Kyk hoe dit gevaar het';
+
+  @override
+  String get meTitle => 'Ek';
+
+  @override
+  String get meEarnedHeading => 'Wat ek verdien het';
+
+  @override
+  String get meVisitsHeading => 'My besoeke';
+
+  @override
+  String get meLedgerHeading => 'Hoe jy dit verdien het';
+
+  @override
+  String get mePointsEyebrow => 'PUNTE HIERDIE MAAND';
+
+  @override
+  String get meRankEyebrow => 'PLEK';
+
+  @override
+  String get meLoadErrorDetail =>
+      'Jou werk is veilig op hierdie foon. Hierdie deel kom van die bediener en vul in sodra dit antwoord.';
+
+  @override
+  String get meNotRanked =>
+      'Nog nie gerangskik nie — te min agente het hierdie maand punte.';
+
+  @override
+  String get meNoPointsYet =>
+      'Nog geen punte hierdie maand nie. Punte kom wanneer \'n besoek ingedien of \'n taak gesluit word.';
+
+  @override
+  String get meNoScheme => 'Geen beloning loop hierdie maand nie.';
+
+  @override
+  String meRewardProgress(String value, String total) {
+    return '$value van $total';
+  }
+
+  @override
+  String meRewardToGo(String remaining, String reward) {
+    return '$remaining oor · $reward';
+  }
+
+  @override
+  String meRewardReached(String reward) {
+    return 'Beloning behaal — $reward.';
+  }
+
+  @override
+  String meRewardPoints(int points) {
+    String _temp0 = intl.Intl.pluralLogic(
+      points,
+      locale: localeName,
+      other: '$points punte',
+      one: '1 punt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mePointsHonesty =>
+      'Punte word op die bediener bereken. Hulle kan verander as \'n besoek hersien word.';
+
+  @override
+  String get meLedgerEmpty => 'Niks het hierdie maand nog punte verdien nie.';
+
+  @override
+  String get meVisitsEmpty => 'Nog geen besoeke nie';
+
+  @override
+  String get meVisitsEmptyDetail =>
+      'Elke winkel waar jy inklok verskyn hier — wanneer jy gegaan het, hoe lank jy gebly het, en wat dit behaal het.';
+
+  @override
+  String get meVisitsLoadError => 'Jou besoeke het nie gelaai nie';
+
+  @override
+  String get meNotScoredYet => 'Wag om gepunt te word';
+
+  @override
+  String get meVisitOpen => 'Nog oop op hierdie foon';
+
+  @override
+  String meVisitMeta(String day, String dwell, String tasks) {
+    return '$day · $dwell · $tasks';
+  }
+
+  @override
+  String meDwellMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get meDwellUnknown => 'tyd nie aangeteken nie';
+
+  @override
+  String meTasksRaised(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count take geopper',
+      one: '1 taak geopper',
+      zero: 'geen take geopper nie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String meCapturedCount(int captured, int total, int photos) {
+    String _temp0 = intl.Intl.pluralLogic(
+      photos,
+      locale: localeName,
+      other: '$photos foto\'s',
+      one: '1 foto',
+      zero: 'geen foto\'s',
+    );
+    return '$captured van $total afdelings · $_temp0';
+  }
+
+  @override
+  String meDistanceMeters(int metres) {
+    return '$metres m van die deur';
+  }
+
+  @override
+  String get meDistanceUnknown => 'afstand nie gemeet nie';
+
+  @override
+  String get meOutOfFence => 'Buite die heining';
+
+  @override
+  String get meReviewed => 'Hersien';
+
+  @override
+  String get mePinReported => 'Jy het die speld as verkeerd aangemeld';
+
+  @override
+  String meOnThisPhone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vasleggings het nie gestuur nie',
+      one: '1 vaslegging het nie gestuur nie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get meOnThisPhoneDetail =>
+      'Wys wat die bediener bereik het. Vandag se werk verskyn hier sodra dit stuur.';
+
+  @override
+  String meVisitSemantics(
+    String outlet,
+    String day,
+    String tasks,
+    String dwell,
+    String score,
+  ) {
+    return '$outlet, $day, $dwell, $tasks, $score';
+  }
+
+  @override
+  String meScoredSemantics(String score) {
+    return '$score behaal';
+  }
+
+  @override
+  String meRewardSemantics(String value, String total, String line) {
+    return 'Vordering tot beloning: $value van $total. $line';
+  }
+
+  @override
+  String meLedgerRowSemantics(String reason, String day, String points) {
+    return '$reason, $day, $points';
+  }
+
+  @override
+  String mePointsPlus(int points) {
+    String _temp0 = intl.Intl.pluralLogic(
+      points,
+      locale: localeName,
+      other: 'plus $points punte',
+      one: 'plus 1 punt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mePointsMinus(int points) {
+    String _temp0 = intl.Intl.pluralLogic(
+      points,
+      locale: localeName,
+      other: 'minus $points punte',
+      one: 'minus 1 punt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get meEarningsLoadError => 'Jou punte het nie gelaai nie';
+
+  @override
+  String get meContestsDetail => 'Kyk waar jy staan';
 }

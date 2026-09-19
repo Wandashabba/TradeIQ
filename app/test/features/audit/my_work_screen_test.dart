@@ -182,10 +182,8 @@ Future<_Calls> _pump(
       GoRoute(path: '/map', builder: (c, s) => const Text('Map view')),
       GoRoute(path: '/login', builder: (c, s) => const Text('Login view')),
       GoRoute(path: '/audit', builder: (c, s) => const Text('Outlet picker')),
-      GoRoute(
-        path: '/leaderboard/contests',
-        builder: (c, s) => const Text('Contests view'),
-      ),
+      // The fourth slot is Me (#383); Contests lives inside it now.
+      GoRoute(path: '/me', builder: (c, s) => const Text('Me view')),
     ],
   );
   return calls;
@@ -706,7 +704,7 @@ void main() {
       for (final (slot, landing) in <(int, String)>[
         (TodayFrame.todaySlot, 'Today view'),
         (TodayFrame.mapSlot, 'Map view'),
-        (TodayFrame.contestsSlot, 'Contests view'),
+        (TodayFrame.meSlot, 'Me view'),
       ]) {
         await _pump(tester, sync: _held);
         tester.widget<TorchNavPill>(find.byType(TorchNavPill)).onSelect(slot);

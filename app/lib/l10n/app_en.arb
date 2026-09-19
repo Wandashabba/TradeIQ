@@ -3519,5 +3519,291 @@
   "outboxSeeScore": "See how it scored",
   "@outboxSeeScore": {
     "description": "Ghost action on the outbox sheet for a submitted visit the server has: opens that visit's outcome again."
+  },
+  "meTitle": "Me",
+  "@meTitle": {
+    "description": "Title of the agent's own record — their visits and what they have earned. Nav slot 4."
+  },
+  "meEarnedHeading": "What I've earned",
+  "@meEarnedHeading": {
+    "description": "Section rule above the reward bar, the points cluster and the ledger."
+  },
+  "meVisitsHeading": "My visits",
+  "@meVisitsHeading": {
+    "description": "Section rule above the agent's own visit list."
+  },
+  "meLedgerHeading": "How you earned it",
+  "@meLedgerHeading": {
+    "description": "Section rule above the points ledger rows."
+  },
+  "mePointsEyebrow": "POINTS THIS MONTH",
+  "@mePointsEyebrow": {
+    "description": "Stat tile label. Uppercase; the component does not upper-case it for you."
+  },
+  "meRankEyebrow": "RANK",
+  "@meRankEyebrow": {
+    "description": "Stat tile label for the agent's place in the standings."
+  },
+  "meLoadErrorDetail": "Your work is safe on this phone. This part comes from the server and fills in when it answers.",
+  "@meLoadErrorDetail": {
+    "description": "Body of an inline load error on the agent's own record. Names the work's safety first."
+  },
+  "meNotRanked": "Not ranked yet — too few agents have points this month.",
+  "@meNotRanked": {
+    "description": "Sentence in place of a rank figure. An em dash alone is a puzzle."
+  },
+  "meNoPointsYet": "No points yet this month. Points arrive when a visit is submitted or a task is closed.",
+  "@meNoPointsYet": {
+    "description": "Sentence under a null points figure."
+  },
+  "meNoScheme": "No reward is running this month.",
+  "@meNoScheme": {
+    "description": "Body line in place of the progress bar. An empty bar would read as zero progress, which is a different and false statement."
+  },
+  "meRewardProgress": "{value} of {total}",
+  "@meRewardProgress": {
+    "description": "The fraction beside the reward bar.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "meRewardToGo": "{remaining} to go · {reward}",
+  "@meRewardToGo": {
+    "description": "The line always beneath the reward bar. Never the bar alone.",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      },
+      "reward": {
+        "type": "String"
+      }
+    }
+  },
+  "meRewardReached": "Reward reached — {reward}.",
+  "@meRewardReached": {
+    "description": "Line beneath a completed reward bar. Nothing flashes and nothing celebrates.",
+    "placeholders": {
+      "reward": {
+        "type": "String"
+      }
+    }
+  },
+  "meRewardPoints": "{points, plural, =1{1 point} other{{points} points}}",
+  "@meRewardPoints": {
+    "description": "What a scheme pays out, when it has no reward detail in words.",
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "mePointsHonesty": "Points are worked out on the server. They can change if a visit is reviewed.",
+  "@mePointsHonesty": {
+    "description": "The honesty line under the ledger. Read aloud, never skipped."
+  },
+  "meLedgerEmpty": "Nothing has earned points yet this month.",
+  "@meLedgerEmpty": {
+    "description": "Empty line on the ledger section rule."
+  },
+  "meVisitsEmpty": "No visits yet",
+  "@meVisitsEmpty": {
+    "description": "Whole-screen empty headline when the agent has no visits at all."
+  },
+  "meVisitsEmptyDetail": "Every store you check into shows up here — when you went, how long you stayed, and what it scored.",
+  "@meVisitsEmptyDetail": {
+    "description": "Body of the empty state."
+  },
+  "meVisitsLoadError": "Your visits did not load",
+  "@meVisitsLoadError": {
+    "description": "Headline when GET /visits/me fails."
+  },
+  "meNotScoredYet": "Waiting to be scored",
+  "@meNotScoredYet": {
+    "description": "In place of a score on a visit the server has not scored. Never a bare em dash."
+  },
+  "meVisitOpen": "Still open on this phone",
+  "@meVisitOpen": {
+    "description": "Meta line for a visit that was never submitted."
+  },
+  "meVisitMeta": "{day} · {dwell} · {tasks}",
+  "@meVisitMeta": {
+    "description": "The meta line on a visit row: day, dwell, tasks raised.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "dwell": {
+        "type": "String"
+      },
+      "tasks": {
+        "type": "String"
+      }
+    }
+  },
+  "meDwellMinutes": "{minutes} min",
+  "@meDwellMinutes": {
+    "description": "Dwell time in the shop, in minutes.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "meDwellUnknown": "time not recorded",
+  "@meDwellUnknown": {
+    "description": "In place of a dwell figure when the device never stamped a submit time. Not zero."
+  },
+  "meTasksRaised": "{count, plural, =0{no tasks raised} =1{1 task raised} other{{count} tasks raised}}",
+  "@meTasksRaised": {
+    "description": "How many tasks a visit raised. A measured zero is said in words, never hidden.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "meCapturedCount": "{captured} of {total} sections · {photos, plural, =0{no photos} =1{1 photo} other{{photos} photos}}",
+  "@meCapturedCount": {
+    "description": "What the agent captured on a visit — the evidence half of the proof.",
+    "placeholders": {
+      "captured": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "photos": {
+        "type": "int"
+      }
+    }
+  },
+  "meDistanceMeters": "{metres} m from the door",
+  "@meDistanceMeters": {
+    "description": "How far the check-in landed from the outlet's pin.",
+    "placeholders": {
+      "metres": {
+        "type": "int"
+      }
+    }
+  },
+  "meDistanceUnknown": "distance not measured",
+  "@meDistanceUnknown": {
+    "description": "When the phone had no usable fix. Not zero metres."
+  },
+  "meOutOfFence": "Out of fence",
+  "@meOutOfFence": {
+    "description": "Flag chip word on a check-in outside the geofence. A fact, not a verdict, and never crimson."
+  },
+  "meReviewed": "Reviewed",
+  "@meReviewed": {
+    "description": "Flag chip word when a manager has ruled on this visit."
+  },
+  "mePinReported": "You reported the pin as wrong",
+  "@mePinReported": {
+    "description": "Said on one of the agent's own visits that they started by reporting the outlet's pin as wrong (#386). Their own act, in their words; not a flag and not a verdict."
+  },
+  "meOnThisPhone": "{count, plural, =1{1 capture has not sent} other{{count} captures have not sent}}",
+  "@meOnThisPhone": {
+    "description": "Standalone row above the visit list when work is still held on the device.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "meOnThisPhoneDetail": "Showing what has reached the server. Today's work appears here once it sends.",
+  "@meOnThisPhoneDetail": {
+    "description": "Second line of the on-this-phone row."
+  },
+  "meVisitSemantics": "{outlet}, {day}, {dwell}, {tasks}, {score}",
+  "@meVisitSemantics": {
+    "description": "The whole visit row as one screen-reader sentence.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "tasks": {
+        "type": "String"
+      },
+      "dwell": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "meScoredSemantics": "scored {score}",
+  "@meScoredSemantics": {
+    "description": "The score half of a visit row's sentence.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "meRewardSemantics": "Progress to reward: {value} of {total}. {line}",
+  "@meRewardSemantics": {
+    "description": "The reward bar as one node.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "meLedgerRowSemantics": "{reason}, {day}, {points}",
+  "@meLedgerRowSemantics": {
+    "description": "One ledger row as a sentence. Direction is the word, never the triangle alone.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "mePointsPlus": "{points, plural, =1{plus 1 point} other{plus {points} points}}",
+  "@mePointsPlus": {
+    "description": "A positive ledger entry, in words.",
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "mePointsMinus": "{points, plural, =1{minus 1 point} other{minus {points} points}}",
+  "@mePointsMinus": {
+    "description": "A reversal, in words.",
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "meEarningsLoadError": "Your points did not load",
+  "@meEarningsLoadError": {
+    "description": "Headline when the earnings read fails. The visit list is a separate region with its own retry."
+  },
+  "meContestsDetail": "See where you stand",
+  "@meContestsDetail": {
+    "description": "Second line of the Contests row on Me when no contest is running. The row replaced the Contests nav slot; with contests running it shows the running count instead."
   }
 }

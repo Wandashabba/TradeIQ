@@ -19,13 +19,16 @@ import 'contests_fakes.dart';
 ///
 /// It used to be a trophy `IconButton` in the Today app bar. The Torchlight
 /// header allows exactly one trailing icon button and on a tab root that one
-/// is the skin cycle (unify §1.2), so the capability moved into the nav pill's
-/// third slot — see `TodayFrame.slotsIn` for why that slot exists at all.
+/// is the skin cycle (unify §1.2), so the capability moved into the nav pill —
+/// first as a Contests slot of its own, and, once the agent's own record
+/// existed, inside Me (`/me`), with the Me slot wearing the count. See
+/// `TodayFrame.slotsIn` for the history.
 ///
-/// What is asserted here is the capability, not the widget: Today offers the
-/// agent a way to their standings, it wears the number of contests actually
-/// running, that number is said in words to a screen reader, and nobody but a
-/// field agent is ever asked for it. The count itself still comes from the
+/// What is asserted here is the capability, not the widget: Today's bar says
+/// how many contests are actually running, that number is said in words to a
+/// screen reader, the slot that wears it leads to the standings (the row on
+/// Me is asserted in `test/features/me`), and nobody but a field agent is
+/// ever asked for it. The count itself still comes from the
 /// real `runningContestsCountProvider` — it is the thing that used to be
 /// wrong, so it is not stubbed here.
 
@@ -79,18 +82,19 @@ Widget _today(
   );
 }
 
-/// The Contests slot, wherever it sits in the bar. Found by its glyph, not by
-/// its label — the label is localised and one of these tests is Afrikaans.
+/// The slot that leads to Contests — Me, whose record carries the Contests
+/// row — wherever it sits in the bar. Found by its glyph, not by its label:
+/// the label is localised and one of these tests is Afrikaans.
 TorchNavSlot _slot(WidgetTester tester) => tester
     .widget<TorchNavPill>(find.byType(TorchNavPill))
     .slots
-    .firstWhere((s) => s.icon == Icons.emoji_events_outlined);
+    .firstWhere((s) => s.icon == Icons.person_outline);
 
 void main() {
   // Every skin, because the bar is the one piece of chrome that changes shape
   // between them — Veld docks it — and the slot has to survive all three.
   for (final skin in <SkinMode>[SkinMode.night, SkinMode.day, SkinMode.veld]) {
-    testWidgets('${skin.name}: Today\'s nav carries a Contests slot badged '
+    testWidgets('${skin.name}: Today\'s nav badges the way to Contests '
         'with the running count', (tester) async {
       await tester.pumpWidget(_today(_running, skin: skin));
       await tester.pumpAndSettle();

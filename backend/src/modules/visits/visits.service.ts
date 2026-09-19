@@ -1003,3 +1003,174 @@ function summariseRisks(
     truncated: count > rows.length,
   };
 }
+
+// ── GET /visits/me — the agent's own record (#383) ─────────────────────────
+//
+// The counterweight to a fraud engine that scores an agent on evidence the
+// agent cannot see. Everything here is about the CALLER's own work: the
+// `agentId` is taken from the token and is never a parameter, so there is no
+// shape of this request that returns somebody else's day.
+//
+// It is deliberately NOT `getVisitDetail` with a relaxed guard. That read is
+// supervisory — fraud signals, per-section findings, the reviewer's evidence —
+// and handing an agent the scoring function's inputs teaches them to game it.
+// What an agent needs is the proof they were there and the number they were
+// given: where, when, how far from the door, how long, how much they captured,
+// and the authoritative score.
+
+/** Capturable sections on a visit. `outletInfo` is excluded — it is completed
+ *  by checking in — which is unify §6's `captureCount`. */
+export const MY_VISIT_SECTION_TOTAL = 7;
+
+export interface MyVisitScore {
+  /** The SERVER's number. The only score this endpoint calls a score. */
+  weightedTotal: number;
+  ratingBand: string;
+  scoredAt: Date;
+  /** What the DEVICE showed the agent on the way out, when it recorded one.
+   *  Null means there is nothing to reconcile, not that the two agreed. */
+  seen: { weightedTotal: number; ratingBand: string; seenAt: Date | null } | null;
+}
+
+export interface MyVisitSummary {
+  id: string;
+  outletId: string;
+  outletName: string;
+  outletCode: string;
+  checkinTs: Date;
+  /** Metres from the outlet's pin at check-in, when the fix was good enough to
+   *  measure one. Null is "not measured", which is not zero. */
+  checkinDistanceM: number | null;
+  geofencePass: boolean;
+  status: string;
+  /** Minutes between check-in and submit, both on the DEVICE's clock (#101).
+   *  Null on a visit with no client submit stamp — an honest gap, never a
+   *  subtraction across two clocks. */
+  dwellMinutes: number | null;
+  sectionsCaptured: number;
+  sectionsTotal: number;
+  photos: number;
+  tasksRaised: number;
+  score: MyVisitScore | null;
+  /** A reviewer ruled on this visit. A fact the agent is entitled to, and the
+   *  only fraud output exposed here: the risk score and its signals stay on
+   *  the console. */
+  reviewedVerdict: string | null;
+  /** The agent said "the pin is wrong" to start this visit (#386). Their own
+   *  claim, so it is theirs to see — and it is why a visit they were allowed
+   *  to start still reads out of fence. */
+  pinReported: boolean;
+}
+
+export async function listMyVisits(input: {
+  clientId: string;
+  agentId: string;
+  limit: number;
+  cursor?: string;
+}): Promise<{ data: MyVisitSummary[]; nextCursor: string | null }> {
+  const rows = await prisma.visit.findMany({
+    where: { clientId: input.clientId, agentId: input.agentId },
+    select: {
+      id: true,
+      outletId: true,
+      checkinTs: true,
+      checkinDistanceM: true,
+      geofencePass: true,
+      status: true,
+      submittedAtClient: true,
+      outlet: { select: { name: true, code: true } },
+      scorecard: {
+        select: {
+          weightedTotal: true,
+          ratingBand: true,
+          scoredAt: true,
+          provisionalTotal: true,
+          provisionalBand: true,
+          provisionalAt: true,
+        },
+      },
+      fraudVerdict: { select: { verdict: true } },
+      pinDispute: { select: { id: true } },
+      visibility: { select: { visitId: true } },
+      capability: { select: { visitId: true } },
+      _count: {
+        select: {
+          stock: true,
+          pricing: true,
+          competitive: true,
+          risks: true,
+          photos: true,
+          tasks: true,
+          templateResponses: true,
+        },
+      },
+    },
+    // The same keyset the tenant-wide list uses, and for the same reason: a
+    // day's offline visits sync in a burst, so equal `checkinTs` values are
+    // ordinary and `id` is the tiebreaker that keeps a page boundary stable.
+    orderBy: [{ checkinTs: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+  });
+
+  const page = buildPage(rows, input.limit);
+  return {
+    data: page.data.map((row) => {
+      const captured = [
+        row._count.stock > 0,
+        row.visibility !== null,
+        row._count.pricing > 0,
+        row._count.competitive > 0,
+        row._count.risks > 0,
+        row.capability !== null,
+        row._count.templateResponses > 0,
+      ].filter(Boolean).length;
+
+      const card = row.scorecard;
+      return {
+        id: row.id,
+        outletId: row.outletId,
+        outletName: row.outlet.name,
+        outletCode: row.outlet.code,
+        checkinTs: row.checkinTs,
+        checkinDistanceM: row.checkinDistanceM,
+        geofencePass: row.geofencePass,
+        status: row.status,
+        dwellMinutes:
+          row.submittedAtClient === null
+            ? null
+            : Math.max(
+                0,
+                Math.round(
+                  (row.submittedAtClient.getTime() - row.checkinTs.getTime()) / 60_000,
+                ),
+              ),
+        sectionsCaptured: captured,
+        sectionsTotal: MY_VISIT_SECTION_TOTAL,
+        photos: row._count.photos,
+        tasksRaised: row._count.tasks,
+        score:
+          card === null
+            ? null
+            : {
+                weightedTotal: card.weightedTotal,
+                ratingBand: card.ratingBand,
+                scoredAt: card.scoredAt,
+                // Both halves or neither, exactly as `toScorecardResponse`
+                // folds them: a total without a band is not a score anyone saw.
+                seen:
+                  card.provisionalTotal !== null && card.provisionalBand !== null
+                    ? {
+                        weightedTotal: card.provisionalTotal,
+                        ratingBand: card.provisionalBand,
+                        seenAt: card.provisionalAt,
+                      }
+                    : null,
+              },
+        reviewedVerdict: row.fraudVerdict?.verdict ?? null,
+        pinReported: row.pinDispute !== null,
+      };
+    }),
+    nextCursor: page.nextCursor,
+  };
+}

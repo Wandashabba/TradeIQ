@@ -27,6 +27,9 @@ import 'package:tradeiq_app/features/reports/data/report_schedules_repository.da
 import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
+import 'package:tradeiq_app/features/gamification/data/gamification_repository.dart';
+import 'package:tradeiq_app/features/me/data/my_record_repository.dart';
+import 'package:tradeiq_app/features/me/presentation/my_record_screen.dart';
 import 'package:tradeiq_app/features/sales_targets/presentation/sales_targets_screen.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 
@@ -150,6 +153,29 @@ class _FakeSucceedingVisitsRepository implements VisitsRepository {
 
   @override
   Future<void> submitVisit(String visitDraftId) async {}
+}
+
+/// Answers /me's two reads from memory. The route is only being asserted to
+/// EXIST here; what it renders is `test/features/me`'s job.
+class _FakeMyRecordRepository implements MyRecordRepository {
+  @override
+  Future<MyVisitsPage> myVisits({String? cursor}) async =>
+      const MyVisitsPage(visits: <MyVisit>[]);
+
+  @override
+  Future<MyEarnings> myEarnings() async => const MyEarnings(
+    entry: LeaderboardEntry(
+      agentId: 'a1',
+      email: 'agent@example.com',
+      visitsSubmitted: 0,
+      tasksClosed: 0,
+      rank: 0,
+      avgScorecard: 0,
+      points: 0,
+    ),
+    ledger: <PointsEntry>[],
+    schemes: <IncentiveScheme>[],
+  );
 }
 
 Widget _appWithOverrides(List<Override> overrides) {
@@ -404,6 +430,61 @@ void main() {
     // /orders is a shared route: the field agent is NOT bounced back to /audit.
     expect(find.text('Orders'), findsOneWidget);
     expect(find.text('Select an Outlet'), findsNothing);
+  });
+
+  testWidgets(
+    'a field_agent reaches /me — the one tab that used to bounce them',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          myRecordRepositoryProvider.overrideWithValue(
+            _FakeMyRecordRepository(),
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/me');
+      await tester.pumpAndSettle();
+
+      // #384's whole complaint was a silent redirect: Sipho tapped his own
+      // row, was thrown back to /today with no message, and tapped it again.
+      // This is the assertion that it does not happen any more.
+      expect(find.byType(MyRecordScreen), findsOneWidget);
+      expect(find.byType(TodayScreen), findsNothing);
+    },
+  );
+
+  testWidgets('a manager opening /me sees their own (empty) record', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(const SessionState(role: 'manager')),
+        ),
+        myRecordRepositoryProvider.overrideWithValue(_FakeMyRecordRepository()),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    container.read(routerProvider).go('/me');
+    await tester.pumpAndSettle();
+
+    // Not in `managerOnly` and not agent-only: the endpoints behind it are
+    // self-scoped, so "my own record" is a true answer for any role.
+    expect(find.byType(MyRecordScreen), findsOneWidget);
   });
 
   testWidgets(
@@ -812,6 +893,9 @@ void main() {
           ),
           outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
           todayRouteProvider.overrideWith((ref) async => null),
+          myRecordRepositoryProvider.overrideWithValue(
+            _FakeMyRecordRepository(),
+          ),
           contestsRepositoryProvider.overrideWithValue(
             FakeContestsRepository(
               current: current,
@@ -855,8 +939,8 @@ void main() {
       });
     }
 
-    testWidgets('a field_agent reaches Contests from Today\'s nav, and comes '
-        'back to Today', (tester) async {
+    testWidgets('a field_agent reaches Contests from Today\'s nav, through Me, '
+        'and comes back to Me', (tester) async {
       await goAs(
         tester,
         'field_agent',
@@ -870,16 +954,18 @@ void main() {
         ],
       );
 
-      // Contests moved from the Today app bar into the agent's nav pill: the
+      // Contests moved from the Today app bar into the agent's nav pill — the
       // Torchlight header allows exactly one trailing icon button and on a tab
-      // root that one is the skin cycle (unify §1.2). The capability is
-      // unchanged — reach the standings, see how many are running, come back —
-      // so this asserts the capability, not the widget it used to be.
-      final action = find.descendant(
+      // root that one is the skin cycle (unify §1.2) — and then, when the
+      // agent's own record existed, from its own slot into Me. The capability
+      // is unchanged — see how many are running from Today, reach the
+      // standings, come back — so this asserts the capability, not the widget
+      // it used to be.
+      final me = find.descendant(
         of: find.byType(TorchNavPill),
-        matching: find.text('Contests'),
+        matching: find.text('Me'),
       );
-      expect(action, findsOneWidget);
+      expect(me, findsOneWidget);
       expect(
         find.descendant(
           of: find.byType(TorchNavPill),
@@ -888,17 +974,30 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.tap(action);
+      await tester.tap(me);
+      await tester.pumpAndSettle();
+      expect(find.byType(MyRecordScreen), findsOneWidget);
+      // The body is a lazy list; on a small surface the row is below the fold.
+      final row = find.byKey(const ValueKey<String>('me-contests'));
+      await tester.scrollUntilVisible(
+        row,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        find.descendant(of: row, matching: find.text('1 contest running')),
+        findsOneWidget,
+      );
+
+      await tester.tap(row);
       await tester.pumpAndSettle();
       expect(find.text('October Sprint'), findsOneWidget);
-      expect(find.text('1 contest running'), findsNothing);
 
-      // A nav slot `go`es, so the Contests screen has nothing to pop — its
-      // back has to take an agent home rather than to the leaderboard they
-      // never came from.
+      // The row pushes, so back is the record the agent came from — not the
+      // leaderboard they never saw, and not Today.
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(find.byType(TodayScreen), findsOneWidget);
+      expect(find.byType(MyRecordScreen), findsOneWidget);
       expect(find.text('October Sprint'), findsNothing);
     });
 

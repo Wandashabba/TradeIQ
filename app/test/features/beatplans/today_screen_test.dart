@@ -105,12 +105,7 @@ Future<void> _pump(
       ),
       GoRoute(path: '/my-work', builder: (c, s) => const Text('My work')),
       GoRoute(path: '/map', builder: (c, s) => const Text('Map view')),
-      // The agent's standings, NOT /contests — that one is manager-only and
-      // an agent sent there lands on a 403.
-      GoRoute(
-        path: '/leaderboard/contests',
-        builder: (c, s) => const Text('Contests view'),
-      ),
+      GoRoute(path: '/me', builder: (c, s) => const Text('My record')),
     ],
   );
 }
@@ -354,19 +349,16 @@ void main() {
     ) async {
       await _pump(tester, route: _route());
       final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
-      // THE ONE REMAINING DEVIATION, asserted rather than commented. unify
-      // §1.2 approved Today · My work · Map · Me. Map is back in the slot it
-      // was approved in, now that `/map` exists. Me is still #383/#384,
-      // unbuilt, and a tab that returns you to the tab you are already on
-      // reads as a broken app — so the fourth slot is Contests, because the
-      // migration would otherwise *remove* a capability: the agent's
-      // standings hung off this app bar (#124), and the header's one trailing
-      // slot now carries the skin cycle. See `TodayFrame.slotsIn`.
+      // THE SET, asserted rather than commented, and now exactly what unify
+      // §1.2 approved: Today · My work · Map · Me. Contests held the fourth
+      // slot until Me existed, so the migration would not *remove* the
+      // agent's standings (#124); it now lives inside Me, and the Me slot
+      // wears its running count. See `TodayFrame.slotsIn`.
       expect(pill.slots.map((s) => s.label), <String>[
         'Today',
         'My work',
         'Map',
-        'Contests',
+        'Me',
       ]);
       final header = tester.widget<TorchAppHeader>(
         find.byType(TorchAppHeader),
@@ -384,7 +376,7 @@ void main() {
       for (final (index, landing) in <(int, String)>[
         (TodayFrame.myWorkSlot, 'My work'),
         (TodayFrame.mapSlot, 'Map view'),
-        (TodayFrame.contestsSlot, 'Contests view'),
+        (TodayFrame.meSlot, 'My record'),
       ]) {
         await _pump(tester, route: _route());
         tester
@@ -400,11 +392,15 @@ void main() {
       }
     });
 
-    testWidgets('the Contests slot carries the running count', (tester) async {
+    // The running-contests count the old Contests action carried (#124),
+    // kept on the slot that now leads to Contests.
+    testWidgets('the Me slot carries the running contests count', (
+      tester,
+    ) async {
       await _pump(tester, route: _route(), runningContests: 2);
       expect(
         tester.widget<TorchNavPill>(find.byType(TorchNavPill))
-            .slots[TodayFrame.contestsSlot]
+            .slots[TodayFrame.meSlot]
             .badgeCount,
         2,
       );
@@ -414,7 +410,7 @@ void main() {
       await _pump(tester, route: _route());
       expect(
         tester.widget<TorchNavPill>(find.byType(TorchNavPill))
-            .slots[TodayFrame.contestsSlot]
+            .slots[TodayFrame.meSlot]
             .badgeCount,
         isNull,
         reason: 'nothing running is not news',
