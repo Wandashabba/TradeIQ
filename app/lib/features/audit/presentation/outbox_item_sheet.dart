@@ -113,6 +113,11 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
   bool _confirmingDiscard = false;
   bool _busy = false;
 
+  /// How many other captures go with this one — a visit's sections, photos
+  /// and submit. Read before the confirm pane opens, so the statement of what
+  /// is lost is never shown without its second half.
+  int _dependents = 0;
+
   SyncItem get _item => widget.item;
 
   /// Whether sending this exact payload again could possibly work.
@@ -126,7 +131,12 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
       !_item.isRejected &&
       !_item.sessionEnded;
 
-  bool get _discardable => widget.state == OutboxState.stuck;
+  /// Only a capture that is stuck on its own account. A session that ended is
+  /// not the capture's fault — signing in sends it — and throwing work away
+  /// because a token expired is the one discard nobody meant. (With no
+  /// session the service could not reach the row to remove it anyway.)
+  bool get _discardable =>
+      widget.state == OutboxState.stuck && !_item.sessionEnded;
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +157,7 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
         child: _confirmingDiscard
             ? _DiscardPane(
                 label: label,
+                dependents: _dependents,
                 busy: _busy,
                 onKeep: () => setState(() => _confirmingDiscard = false),
                 onDiscard: _discard,
@@ -188,9 +199,7 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
                       key: const ValueKey<String>('outbox-discard'),
                       label: l10n.outboxDiscard,
                       destructive: true,
-                      onPressed: _busy
-                          ? null
-                          : () => setState(() => _confirmingDiscard = true),
+                      onPressed: _busy ? null : _askToDiscard,
                     ),
                   ],
                 ],
@@ -216,6 +225,17 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
     // sheet. Closing is the honest end of the action: re-rendering this sheet
     // from a stale snapshot would show the old state next to a fresh result.
     Navigator.of(context).pop();
+  }
+
+  Future<void> _askToDiscard() async {
+    setState(() => _busy = true);
+    final dependents = await ref.read(discardDependentsProvider)(_item.id);
+    if (!mounted) return;
+    setState(() {
+      _dependents = dependents;
+      _busy = false;
+      _confirmingDiscard = true;
+    });
   }
 
   Future<void> _discard() async {
@@ -270,12 +290,16 @@ class _Identifier extends StatelessWidget {
 class _DiscardPane extends StatelessWidget {
   const _DiscardPane({
     required this.label,
+    required this.dependents,
     required this.busy,
     required this.onKeep,
     required this.onDiscard,
   });
 
   final String label;
+
+  /// Captures that go with this one because they cannot send without it.
+  final int dependents;
   final bool busy;
   final VoidCallback onKeep;
   final VoidCallback onDiscard;
@@ -294,6 +318,14 @@ class _DiscardPane extends StatelessWidget {
           l10n.outboxDiscardWhatIsLost(label),
           style: skin.text.body.style(color: skin.palette.ink1),
         ),
+        if (dependents > 0) ...<Widget>[
+          SizedBox(height: skin.space.intraBlock),
+          Text(
+            key: const ValueKey<String>('outbox-discard-dependents'),
+            l10n.outboxDiscardTakesDependents(dependents),
+            style: skin.text.body.style(color: skin.palette.ink1),
+          ),
+        ],
         SizedBox(height: skin.space.blockGap),
         TorchDestructiveButton.confirming(
           key: const ValueKey<String>('outbox-discard-confirm'),

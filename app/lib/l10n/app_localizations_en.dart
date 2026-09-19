@@ -1863,6 +1863,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String outboxDiscardTakesDependents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count captures from this visit go with it, because they cannot send without the visit.',
+      one:
+          '1 capture from this visit goes with it, because it cannot send without the visit.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get outboxNothingToDo => 'Nothing to do — the server has it.';
 
   @override

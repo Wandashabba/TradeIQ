@@ -2948,6 +2948,12 @@ abstract class AppLocalizations {
   /// **'This {item} has not reached the server. Discard it and it is gone from this phone — there is no copy anywhere else.'**
   String outboxDiscardWhatIsLost(String item);
 
+  /// Added to the discard statement when the capture is a visit: its sections, photos and submit cannot send without it, so they are removed too. Said before the agent confirms (#376).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 capture from this visit goes with it, because it cannot send without the visit.} other{{count} captures from this visit go with it, because they cannot send without the visit.}}'**
+  String outboxDiscardTakesDependents(int count);
+
   /// The sent state’s sheet. A sent row is still tappable, and it says so.
   ///
   /// In en, this message translates to:

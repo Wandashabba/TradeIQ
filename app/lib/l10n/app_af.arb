@@ -475,6 +475,7 @@
   "outboxDiscardConfirm": "Ja, gooi dit weg",
   "outboxDiscardKeep": "Hou dit",
   "outboxDiscardWhatIsLost": "Hierdie {item} het nie die bediener bereik nie. Gooi dit weg en dit is van hierdie foon af weg — daar is nie ’n kopie enige plek anders nie.",
+  "outboxDiscardTakesDependents": "{count, plural, =1{1 vaslegging van hierdie besoek gaan saam, want dit kan nie sonder die besoek stuur nie.} other{{count} vasleggings van hierdie besoek gaan saam, want hulle kan nie sonder die besoek stuur nie.}}",
   "outboxNothingToDo": "Niks om te doen nie — die bediener het dit.",
   "outboxRejectedNote": "Die bediener het dit net so geweier, so om dit onveranderd weer te stuur sal net so misluk. Niks is vir jou verander nie.",
   "outboxWaitingTurnNote": "Hierdie stuur vanself sodra die besoek bo dit stuur. Niks is verkeerd nie.",

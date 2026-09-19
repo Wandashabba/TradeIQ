@@ -1884,6 +1884,19 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String outboxDiscardTakesDependents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count vasleggings van hierdie besoek gaan saam, want hulle kan nie sonder die besoek stuur nie.',
+      one:
+          '1 vaslegging van hierdie besoek gaan saam, want dit kan nie sonder die besoek stuur nie.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get outboxNothingToDo => 'Niks om te doen nie — die bediener het dit.';
 
   @override

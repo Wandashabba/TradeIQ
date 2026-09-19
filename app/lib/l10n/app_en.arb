@@ -2346,6 +2346,15 @@
       }
     }
   },
+  "outboxDiscardTakesDependents": "{count, plural, =1{1 capture from this visit goes with it, because it cannot send without the visit.} other{{count} captures from this visit go with it, because they cannot send without the visit.}}",
+  "@outboxDiscardTakesDependents": {
+    "description": "Added to the discard statement when the capture is a visit: its sections, photos and submit cannot send without it, so they are removed too. Said before the agent confirms (#376).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "outboxNothingToDo": "Nothing to do — the server has it.",
   "@outboxNothingToDo": {
     "description": "The sent state’s sheet. A sent row is still tappable, and it says so."

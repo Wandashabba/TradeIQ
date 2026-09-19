@@ -256,7 +256,16 @@ final sendOneProvider = Provider<Future<void> Function(int)>((ref) {
 /// disappears on its own: a capture leaves the phone because the agent said
 /// so, or because the server took it.
 final discardCaptureProvider = Provider<Future<void> Function(int)>((ref) {
-  return (int id) => ref.read(syncServiceProvider).discard(id);
+  return (int id) async {
+    await ref.read(syncServiceProvider).discard(id);
+  };
+});
+
+/// How many queued captures a discard takes with it — a visit's sections,
+/// photos and submit, which cannot send once the visit is gone. The sheet
+/// reads it before it asks, so "what is lost" is the whole of what is lost.
+final discardDependentsProvider = Provider<Future<int> Function(int)>((ref) {
+  return (int id) => ref.read(syncServiceProvider).dependentsOf(id);
 });
 
 /// Which outlet a queued visit belongs to, for labelling rows on the sync
