@@ -520,6 +520,30 @@ export interface VisitDetail {
   submittedAtClient: Date | null;
   geofence: { pass: boolean; distanceM: number | null };
   /**
+   * The agent's "the pin is wrong" claim, when this visit was allowed through
+   * the fence on one (#386), else null.
+   *
+   * `pass: false` above is the fact; this is the reason. Without it a reviewer
+   * sees a visit recorded 8.4 km from the store and no way to tell an agent
+   * reporting a depot-pinned outlet from one faking a visit — which is the
+   * whole difference. `outletLat`/`outletLng` are the pin AS IT READ when the
+   * claim was made, so a dispute read after the pin was corrected still shows
+   * what the agent was arguing with.
+   */
+  pinDispute: {
+    id: string;
+    lat: number;
+    lng: number;
+    distanceM: number;
+    outletLat: number;
+    outletLng: number;
+    note: string | null;
+    status: string;
+    resolvedByLabel: string | null;
+    resolvedAt: Date | null;
+    createdAt: Date;
+  } | null;
+  /**
    * True when the agent resumed a saved draft rather than checking in fresh
    * (#379).
    *
@@ -618,6 +642,23 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
       checkinDistanceM: true,
       outlet: { select: { id: true, name: true, code: true, channelType: true } },
       agent: { select: { id: true, email: true } },
+      // The reason behind `geofencePass: false` (#386). Null on every visit
+      // that passed the fence, which is every ordinary visit.
+      pinDispute: {
+        select: {
+          id: true,
+          lat: true,
+          lng: true,
+          distanceM: true,
+          outletLat: true,
+          outletLng: true,
+          note: true,
+          status: true,
+          resolvedByLabel: true,
+          resolvedAt: true,
+          createdAt: true,
+        },
+      },
       scorecard: {
         select: {
           weightedTotal: true,
@@ -781,6 +822,7 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
     submittedAtClient: visit.submittedAtClient,
     resumedFromDraft: visit.resumedFromDraft,
     geofence: { pass: visit.geofencePass, distanceM: visit.checkinDistanceM },
+    pinDispute: visit.pinDispute,
     score,
     sections: [
       summariseStock(visit.stock, visit._count.stock),
