@@ -155,30 +155,26 @@ void main() {
     expect(bytes, equals(golden.readAsBytesSync()));
   });
 
-  test('the delta arrows survive the Onest swap', () async {
-    // Onest has no U+25B2/25BC. package:pdf does not render tofu for a missing
-    // glyph — it drops the character and logs to stderr, which no CI reads. So
-    // without the JetBrains Mono fallback the sign of every delta in an
-    // exported report would vanish and every other assertion here would still
-    // pass. Asserting the glyph is embedded is the only thing that notices.
+  test('a fall exports as a true minus, and the fallback face is there', () async {
+    // package:pdf does not render tofu for a missing glyph — it drops the
+    // character and logs to stderr, which no CI reads. A fall exported as
+    // "12.4%" instead of "−12.4%" would pass every other assertion here.
+    // Onest carries U+2212 and the em dash (the arrows it never carried are
+    // gone from the report, #401); the JetBrains Mono fallback covers what
+    // it does not, so it still has to load.
     final fonts = await ArtifactExporter.loadFonts();
     expect(
       fonts.fallback.lengthInBytes,
       greaterThan(1000),
-      reason: 'The fallback face is missing, so ▲ and ▼ would be dropped.',
+      reason: 'The fallback face is missing, so a sign Onest lacks is dropped.',
     );
 
     final bytes = await buildArtifactPdf(_request(await _fonts()));
     final text = String.fromCharCodes(bytes);
-    // The fallback font has to be embedded, which only happens when a glyph
-    // was actually taken from it.
-    expect(
-      text,
-      contains('JetBrainsMono'),
-      reason:
-          'No JetBrains Mono subset is embedded, so nothing pulled ▲ or ▼ '
-          'from it — the delta markers have gone silent.',
-    );
+    // Embedded, not referenced, and mapped back to Unicode so the report
+    // copies out as the characters it drew.
+    expect(text, contains('/ToUnicode'));
+    expect('/FontFile2'.allMatches(text).length, greaterThanOrEqualTo(2));
   });
 
   test('the exporter finds the font files it names', () async {
@@ -276,7 +272,7 @@ void main() {
     final tileTable = artifactTableFor(tiles)!;
     expect(tileTable.columns, ['Figure', 'Value', 'Change', 'Compared with']);
     expect(tileTable.rows.first.cells,
-        ['Sell-in, units', '48,210', '▼ 12.4%', "vs 55,034 · Aug '25"]);
+        ['Sell-in, units', '48,210', '\u221212.4%', "vs 55,034 · Aug '25"]);
     expect(tileTable.rows.last.cells, ['Target attainment', '81%', '—', '—']);
 
     final barTable = artifactTableFor(bars)!;
