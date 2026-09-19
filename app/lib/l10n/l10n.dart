@@ -62,3 +62,24 @@ String formatDayHeading(BuildContext context, DateTime date) {
     return DateFormat('EEEE, d MMMM', 'en_US').format(date);
   }
 }
+
+/// "Thu 18 Sep" in the active locale — the day a row happened, short enough to
+/// sit in a meta line beside a dwell time and a task count.
+///
+/// Same fallback as [formatDayHeading], and for the same reason.
+String formatDayShort(BuildContext context, DateTime date) {
+  try {
+    return DateFormat('EEE d MMM', context.l10n.localeName).format(date);
+  } on Exception {
+    return DateFormat('EEE d MMM', 'en_US').format(date);
+  }
+}
+
+/// "September" — the window a points ledger and an incentive scheme run over.
+String formatMonthHeading(BuildContext context, DateTime date) {
+  try {
+    return DateFormat('MMMM', context.l10n.localeName).format(date);
+  } on Exception {
+    return DateFormat('MMMM', 'en_US').format(date);
+  }
+}

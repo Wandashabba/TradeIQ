@@ -154,18 +154,28 @@ class TodayFrame extends ConsumerWidget {
 
   final List<Widget> children;
 
-  /// Today · My work · Contests. **Three slots, not the owner's four.**
+  /// Today · My work · Contests · **Me**. Four slots, which is the maximum.
   ///
-  /// The approved set was Today · My work · Map · Me, and neither Map nor Me
-  /// has a destination: there is no agent map route, and the agent's own
-  /// record is #383/#384, unbuilt. A tab that bounces the user back to where
-  /// they already are is worse than an absent tab — it reads as a broken app,
-  /// and an agent taps it once and never trusts the bar again.
+  /// ## The history, because it explains the set
   ///
-  /// Contests takes the third slot because the migration would otherwise
-  /// *remove* a capability: the agent's standings used to hang off the Today
-  /// app bar (#124), and the new header carries the skin cycle in its one
-  /// trailing slot. Map and Me return here when their screens exist.
+  /// The owner approved Today · My work · Map · Me. The migration shipped
+  /// three, because neither Map nor Me had a destination: there was no agent
+  /// map route, and the agent's own record was #383/#384, unbuilt. A tab that
+  /// bounces the user back to where they already are is worse than an absent
+  /// tab — it reads as a broken app, and an agent taps it once and never
+  /// trusts the bar again. Contests took the freed slot rather than the
+  /// migration quietly *removing* a capability: the agent's standings used to
+  /// hang off the Today app bar (#124), and the new header carries the skin
+  /// cycle in its one trailing slot.
+  ///
+  /// **Me now exists** — `/me`, the agent's own visits and what they have
+  /// earned (#383/#384) — so the tab is back, and the bar is full at four.
+  ///
+  /// Map is still unbuilt and still absent. When it lands it does not simply
+  /// join: four is the ceiling (kit's 360dp arithmetic), so landing Map is a
+  /// decision about which of these four leaves, and Contests is the candidate
+  /// because it is the one destination that is also reachable from Me's
+  /// earnings section.
   static List<TorchNavSlot> slotsIn(
     AppLocalizations l10n, {
     int runningContests = 0,
@@ -193,6 +203,11 @@ class TodayFrame extends ConsumerWidget {
       semanticLabel: runningContests > 0
           ? l10n.contestsRunningHint(runningContests)
           : null,
+    ),
+    TorchNavSlot(
+      icon: Icons.person_outline,
+      activeIcon: Icons.person,
+      label: l10n.navMe,
     ),
   ];
 
@@ -232,7 +247,7 @@ class TodayFrame extends ConsumerWidget {
             runningContests: ref.watch(runningContestsCountProvider).value ?? 0,
           ),
           activeIndex: 0,
-          onSelect: (i) => _go(context, i),
+          onSelect: (i) => goToTab(context, i),
         ),
         navCircle: TorchNavCircle(
           claimId: TodayScreen.navCircleClaimId,
@@ -250,7 +265,9 @@ class TodayFrame extends ConsumerWidget {
     );
   }
 
-  static void _go(BuildContext context, int index) {
+  /// Where each slot goes. One table, shared by every tab root, so the bar
+  /// cannot mean different things on different screens.
+  static void goToTab(BuildContext context, int index) {
     switch (index) {
       case 0:
         context.go('/today');
@@ -261,6 +278,10 @@ class TodayFrame extends ConsumerWidget {
       // so an agent sent there lands on a 403.
       case 2:
         context.go('/leaderboard/contests');
+      // The agent's own record (#383/#384). Self-scoped end to end: every
+      // endpoint behind it reads the agent id off the token.
+      case 3:
+        context.go('/me');
     }
   }
 }
