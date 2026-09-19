@@ -2232,6 +2232,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your session ended. Sign in and this sends itself.';
 
   @override
+  String get outboxHeld => 'Held';
+
+  @override
+  String get outboxHeldUntilSignIn => 'Held until you sign in';
+
+  @override
   String outboxItemId(int id, String type) {
     return 'Capture $id · $type';
   }

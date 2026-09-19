@@ -45,11 +45,19 @@ class TorchSyncChip extends ConsumerWidget {
 
     final go = onTap ?? () => context.go('/my-work');
 
-    if (data.needsAttention.isNotEmpty) {
-      final n = data.needsAttention.length;
+    // Stuck, never needsAttention: a capture held because the session ended
+    // sends itself after sign-in, so it is held (unify §1.13) and falls
+    // through to the Oatmeal square below.
+    final stuck = data.stuck;
+    if (stuck.isNotEmpty) {
+      final n = stuck.length;
       return StatusChip(
         level: StatusLevel.critical,
-        label: l10n.syncBannerNeedsYou(n),
+        // The chip's own string, WITH the count: "3 need you". The band's
+        // syncBannerNeedsYou is the bare word because the band draws the
+        // figure itself; the chip has no figure slot, so borrowing it lost
+        // the count and left an ungrammatical "need you".
+        label: l10n.syncChipNeedsYou(n),
         onTap: go,
         semanticsLabel: l10n.syncChipNeedsYouSemantics(n),
       );
@@ -101,11 +109,12 @@ class TorchSyncBanner extends ConsumerWidget {
     final l10n = context.l10n;
     final data = ref.watch(syncStatusProvider).value;
     // It never guesses, and it never claims everything is fine: an absent
-    // answer renders nothing at all.
-    if (data == null || data.needsAttention.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final n = data.needsAttention.length;
+    // answer renders nothing at all. Session-ended captures do not raise it:
+    // they are held, not stuck, and "They will not send on their own" is
+    // untrue of work that sends the moment the agent signs in.
+    final stuck = data?.stuck ?? const <SyncItem>[];
+    if (stuck.isEmpty) return const SizedBox.shrink();
+    final n = stuck.length;
     return OfflineHeldBanner(
       state: SyncState.needsYou,
       count: n,

@@ -3506,11 +3506,23 @@ abstract class AppLocalizations {
   /// **'This sends itself as soon as the visit above it does. Nothing is wrong.'**
   String get outboxWaitingTurnNote;
 
-  /// The one stuck state whose fix has nothing to do with the capture.
+  /// The sheet's note for a capture held because the session ended. Its fix has nothing to do with the capture, and it is held, never stuck.
   ///
   /// In en, this message translates to:
   /// **'Your session ended. Sign in and this sends itself.'**
   String get outboxSignedOutNote;
+
+  /// Outbox row state word for a capture held because the session ended. Held is the normal state (unify §1.13): an Oatmeal square and this word, never crimson and never 'Needs you'.
+  ///
+  /// In en, this message translates to:
+  /// **'Held'**
+  String get outboxHeld;
+
+  /// The row sentence for a capture held because the session ended, and My work's summary sentence when that is why the queue is held. Signing in sends it; nothing is wrong with the capture.
+  ///
+  /// In en, this message translates to:
+  /// **'Held until you sign in'**
+  String get outboxHeldUntilSignIn;
 
   /// The identifier block in the outbox sheet, in mono. For a support call.
   ///

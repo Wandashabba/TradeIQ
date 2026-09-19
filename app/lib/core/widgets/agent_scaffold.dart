@@ -312,10 +312,13 @@ class SyncChip extends ConsumerWidget {
         l10n.syncSendingSubtitle,
       );
     }
-    if (s.needsAttention.isNotEmpty) {
+    // Stuck, not needsAttention: a capture held because the session ended is
+    // held (unify §1.13) — it sends itself after sign-in — so it reads as
+    // held below rather than as a failure.
+    if (s.stuck.isNotEmpty) {
       return (
         BannerLevel.bad,
-        l10n.syncAttentionTitle(s.needsAttention.length),
+        l10n.syncAttentionTitle(s.stuck.length),
         l10n.syncAttentionSubtitle,
       );
     }

@@ -2874,7 +2874,15 @@
   },
   "outboxSignedOutNote": "Your session ended. Sign in and this sends itself.",
   "@outboxSignedOutNote": {
-    "description": "The one stuck state whose fix has nothing to do with the capture."
+    "description": "The sheet's note for a capture held because the session ended. Its fix has nothing to do with the capture, and it is held, never stuck."
+  },
+  "outboxHeld": "Held",
+  "@outboxHeld": {
+    "description": "Outbox row state word for a capture held because the session ended. Held is the normal state (unify §1.13): an Oatmeal square and this word, never crimson and never 'Needs you'."
+  },
+  "outboxHeldUntilSignIn": "Held until you sign in",
+  "@outboxHeldUntilSignIn": {
+    "description": "The row sentence for a capture held because the session ended, and My work's summary sentence when that is why the queue is held. Signing in sends it; nothing is wrong with the capture."
   },
   "outboxItemId": "Capture {id} · {type}",
   "@outboxItemId": {

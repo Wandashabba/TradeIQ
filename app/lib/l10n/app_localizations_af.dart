@@ -2258,6 +2258,12 @@ class AppLocalizationsAf extends AppLocalizations {
       'Jou sessie het geëindig. Meld aan en hierdie stuur vanself.';
 
   @override
+  String get outboxHeld => 'Gehou';
+
+  @override
+  String get outboxHeldUntilSignIn => 'Gehou totdat jy aanmeld';
+
+  @override
   String outboxItemId(int id, String type) {
     return 'Vaslegging $id · $type';
   }
