@@ -113,3 +113,19 @@ final usersListProvider = FutureProvider<List<AppUser>>((ref) async {
   final page = await ref.read(usersRepositoryProvider).listUsers();
   return page.data;
 });
+
+/// Who a user id is, for a screen whose payload carries only the id.
+///
+/// A base layer and never a blocker: while the roster is loading, or if it
+/// fails, the map is empty and the caller says so in words — it never prints
+/// the id in a name's place (#399/#400). Read in the widget layer rather than
+/// inside a list's own provider, so the roster arriving re-renders the rows
+/// without refetching them.
+final userDirectoryProvider = Provider<Map<String, AppUser>>((ref) {
+  return ref
+      .watch(usersListProvider)
+      .maybeWhen(
+        data: (users) => <String, AppUser>{for (final u in users) u.id: u},
+        orElse: () => const <String, AppUser>{},
+      );
+});

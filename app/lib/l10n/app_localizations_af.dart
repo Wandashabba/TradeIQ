@@ -301,10 +301,10 @@ class AppLocalizationsAf extends AppLocalizations {
   String get pickerRetry => 'Probeer weer';
 
   @override
-  String get myWorkTitle => 'Jou werk';
+  String get myWorkTitle => 'My werk';
 
   @override
-  String get myWorkSubtitle => 'Wat op hierdie foon is, en wat gestuur is';
+  String get myWorkSubtitle => 'Alles wat jy vasgelê het';
 
   @override
   String get myWorkSyncNow => 'Probeer nou stuur';
@@ -2654,4 +2654,287 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get askMapNotInVeld =>
       'Kaarte word nie in Veld geteken nie. Die winkels word eerder gelys.';
+
+  @override
+  String get visitPinTooFarToReport =>
+      'Dit is te ver om die speld van hier af aan te meld. Vra jou bestuurder om hierdie winkel reg te stel.';
+
+  @override
+  String get pinDisputeEyebrow => 'Die speld is verkeerd';
+
+  @override
+  String get pinDisputeTitle => 'Meld die speld aan en begin die besoek';
+
+  @override
+  String get pinDisputeEvidenceEyebrow => 'Saam met jou verslag gestuur';
+
+  @override
+  String get pinDisputeDistanceLine =>
+      'van waar die app hierdie winkel het, pas nou gemeet';
+
+  @override
+  String pinDisputeDistanceSemantics(int meters) {
+    return 'Jy is $meters meter van waar die app hierdie winkel het.';
+  }
+
+  @override
+  String get pinDisputePositionLine =>
+      'Waar jy staan, soos jou foon dit aangeteken het';
+
+  @override
+  String get pinDisputePhotoLine => 'Jou foto van die winkelfront';
+
+  @override
+  String get pinDisputeExplain =>
+      'Die besoek begin buite die heining en bly gevlag. Jou bestuurder sien waar jy was en kan die speld skuif. Jy kan nie self die vlag verwyder nie.';
+
+  @override
+  String get pinDisputeNoteLabel => 'Wat is fout met die speld? (opsioneel)';
+
+  @override
+  String get pinDisputeNoteHint =>
+      'bv. die speld is by die depot, die winkel is in Hoofweg';
+
+  @override
+  String get pinDisputeAddPhoto => 'Voeg ’n foto van die winkelfront by';
+
+  @override
+  String get pinDisputeRetakePhoto => 'Neem die foto weer';
+
+  @override
+  String get pinDisputePhotoAdded =>
+      'Winkelfront-foto bygevoeg. Dit word saam met die besoek gestuur.';
+
+  @override
+  String get pinDisputePhotoLabel => 'Winkelfront';
+
+  @override
+  String get pinDisputePhotoHint =>
+      'Staan ver genoeg terug om die winkelnaam en die deur in een foto te kry.';
+
+  @override
+  String get pinDisputeSubmit => 'Begin die besoek, gevlag';
+
+  @override
+  String get pinDisputeBack => 'Terug na die afstand';
+
+  @override
+  String pinDisputeFailed(String reason) {
+    return 'Die besoek kon nie begin nie: $reason';
+  }
+
+  @override
+  String get visitFlagOutOfFence => 'Buite heining';
+
+  @override
+  String visitFlagMetres(int meters) {
+    return '$meters m';
+  }
+
+  @override
+  String visitFlagOutOfFenceSemantics(int meters) {
+    return 'Buite heining, $meters meter. Dubbeltik vir besonderhede.';
+  }
+
+  @override
+  String get visitFlagPinReported => 'Speld aangemeld';
+
+  @override
+  String get visitFlagPinReportedSemantics =>
+      'Speld aangemeld, vir jou bestuurder om na te gaan. Dubbeltik vir besonderhede.';
+
+  @override
+  String get visitFlagSheetTitle => 'Buite die heining ingeteken';
+
+  @override
+  String visitFlagSheetBody(int meters) {
+    return 'Jy was $meters m van hierdie winkel se speld af en het die speld as verkeerd aangemeld. Jou posisie en afstand is saam met die besoek gestuur. Jou bestuurder gaan dit na en kan die speld skuif; die vlag bly totdat hulle dit doen.';
+  }
+
+  @override
+  String get myWorkSendNow => 'Stuur nou';
+
+  @override
+  String get myWorkSendNowBlocked => 'Niks wag om gestuur te word nie.';
+
+  @override
+  String myWorkSignedOutTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Jy is afgemeld. Meld aan en jou $count gehoue vasleggings sal stuur.',
+      one: 'Jy is afgemeld. Meld aan en jou 1 gehoue vaslegging sal stuur.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get myWorkSignIn => 'Meld aan';
+
+  @override
+  String get myWorkShowOlder => 'Wys ouer';
+
+  @override
+  String myWorkSentCapped(int shown, int total) {
+    return 'Wys die $shown mees onlangs gestuurdes van $total';
+  }
+
+  @override
+  String get myWorkEmptyBody =>
+      'Alles wat jy in ’n winkel vaslê, verskyn hier totdat die bediener dit het.';
+
+  @override
+  String get myWorkLoadErrorBody =>
+      'Jou werk is steeds op hierdie foon. Niks is verlore nie.';
+
+  @override
+  String get myWorkRetry => 'Probeer weer';
+
+  @override
+  String get outboxWaiting => 'Wag';
+
+  @override
+  String get outboxSending => 'Stuur tans';
+
+  @override
+  String get outboxRetrying => 'Probeer weer';
+
+  @override
+  String get outboxSent => 'Gestuur';
+
+  @override
+  String get outboxNeedsYou => 'Het jou nodig';
+
+  @override
+  String get outboxWaitingTurn => 'Wag sy beurt';
+
+  @override
+  String get outboxWaitingSentence => 'Wag vir sein';
+
+  @override
+  String get outboxSendingSentence => 'Gaan nou op';
+
+  @override
+  String get outboxSentSentence => 'Die bediener het dit';
+
+  @override
+  String outboxQueuedAt(String time) {
+    return 'in ry $time';
+  }
+
+  @override
+  String outboxSentAt(String time) {
+    return 'gestuur $time';
+  }
+
+  @override
+  String outboxLastTriedAt(String time) {
+    return 'laas probeer $time';
+  }
+
+  @override
+  String outboxAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count keer probeer',
+      one: 'Een keer probeer',
+      zero: 'Nog nie probeer nie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxSendThisNow => 'Stuur hierdie een nou';
+
+  @override
+  String get outboxDiscard => 'Gooi hierdie vaslegging weg';
+
+  @override
+  String get outboxDiscardConfirm => 'Ja, gooi dit weg';
+
+  @override
+  String get outboxDiscardKeep => 'Hou dit';
+
+  @override
+  String outboxDiscardWhatIsLost(String item) {
+    return 'Hierdie $item het nie die bediener bereik nie. Gooi dit weg en dit is van hierdie foon af weg — daar is nie ’n kopie enige plek anders nie.';
+  }
+
+  @override
+  String outboxDiscardTakesDependents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count vasleggings van hierdie besoek gaan saam, want hulle kan nie sonder die besoek stuur nie.',
+      one:
+          '1 vaslegging van hierdie besoek gaan saam, want dit kan nie sonder die besoek stuur nie.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxNothingToDo => 'Niks om te doen nie — die bediener het dit.';
+
+  @override
+  String get outboxRejectedNote =>
+      'Die bediener het dit net so geweier, so om dit onveranderd weer te stuur sal net so misluk. Niks is vir jou verander nie.';
+
+  @override
+  String get outboxWaitingTurnNote =>
+      'Hierdie stuur vanself sodra die besoek bo dit stuur. Niks is verkeerd nie.';
+
+  @override
+  String get outboxSignedOutNote =>
+      'Jou sessie het geëindig. Meld aan en hierdie stuur vanself.';
+
+  @override
+  String outboxItemId(int id, String type) {
+    return 'Vaslegging $id · $type';
+  }
+
+  @override
+  String get pickerEmptyTitle => 'Geen winkels hier nie';
+
+  @override
+  String get pickerEmptyBodyMine =>
+      'Niks is nog onder jou gebiede geliasseer nie. Skakel oor na alle winkels, of voeg die een by waar jy staan.';
+
+  @override
+  String get pickerEmptyBodyAll =>
+      'Hierdie kliënt het nog geen winkels op die bediener nie. Voeg die een by waar jy staan.';
+
+  @override
+  String get pickerLoadErrorBody =>
+      'Jou winkels word van die bediener af gehaal. Niks wat jy vasgelê het, word geraak nie.';
+
+  @override
+  String get pickerScopeHeading => 'Watter winkels';
+
+  @override
+  String get pickerStoresHeading => 'Winkels';
+
+  @override
+  String get syncBannerOpen => 'tik om jou werk oop te maak';
+
+  @override
+  String get commonClose => 'Maak toe';
+
+  @override
+  String pickerStartVisitSemantics(String name, String code) {
+    return '$name, $code. Dubbeltik om hier ’n besoek te begin.';
+  }
+
+  @override
+  String syncBannerNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'het jou nodig',
+      one: 'het jou nodig',
+    );
+    return '$_temp0';
+  }
 }

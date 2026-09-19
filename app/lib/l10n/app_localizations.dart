@@ -557,13 +557,13 @@ abstract class AppLocalizations {
   /// No description provided for @myWorkTitle.
   ///
   /// In en, this message translates to:
-  /// **'Your work'**
+  /// **'My work'**
   String get myWorkTitle;
 
   /// No description provided for @myWorkSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'What is on this phone, and what is sent'**
+  /// **'Everything you’ve captured'**
   String get myWorkSubtitle;
 
   /// No description provided for @myWorkSyncNow.
@@ -4093,6 +4093,420 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Maps are not drawn in Veld. The outlets are listed instead.'**
   String get askMapNotInVeld;
+
+  /// Too-far screen, beyond the distance where a wrong-pin report is accepted. Replaces the pin action.
+  ///
+  /// In en, this message translates to:
+  /// **'This is too far to report the pin from here. Ask your manager to correct this store.'**
+  String get visitPinTooFarToReport;
+
+  /// Block label on the wrong-pin report screen.
+  ///
+  /// In en, this message translates to:
+  /// **'The pin is wrong'**
+  String get pinDisputeEyebrow;
+
+  /// Headline of the wrong-pin report screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Report the pin and start the visit'**
+  String get pinDisputeTitle;
+
+  /// Block label over the evidence the report carries.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent with your report'**
+  String get pinDisputeEvidenceEyebrow;
+
+  /// Beside the measured distance figure on the wrong-pin report.
+  ///
+  /// In en, this message translates to:
+  /// **'from where the app has this shop, measured just now'**
+  String get pinDisputeDistanceLine;
+
+  /// Screen-reader label for the distance on the wrong-pin report; unit spelled out.
+  ///
+  /// In en, this message translates to:
+  /// **'You are {meters} metres from where the app has this shop.'**
+  String pinDisputeDistanceSemantics(int meters);
+
+  /// Evidence line: the agent position travels with the report.
+  ///
+  /// In en, this message translates to:
+  /// **'Where you are standing, as your phone recorded it'**
+  String get pinDisputePositionLine;
+
+  /// Evidence line shown once a storefront photo is attached.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photo of the storefront'**
+  String get pinDisputePhotoLine;
+
+  /// Plain statement of what the override does. Must never read as a bypass.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit starts outside the fence and stays flagged. Your manager sees where you were and can move the pin. You cannot clear the flag yourself.'**
+  String get pinDisputeExplain;
+
+  /// Label for the optional note on a wrong-pin report.
+  ///
+  /// In en, this message translates to:
+  /// **'What is wrong with the pin? (optional)'**
+  String get pinDisputeNoteLabel;
+
+  /// Example text in the wrong-pin note field.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. the pin is on the depot, the shop is on Main Road'**
+  String get pinDisputeNoteHint;
+
+  /// Optional action: attach a storefront photo as evidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a photo of the storefront'**
+  String get pinDisputeAddPhoto;
+
+  /// Replace the attached storefront photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Retake the photo'**
+  String get pinDisputeRetakePhoto;
+
+  /// Confirmation once a storefront photo is attached.
+  ///
+  /// In en, this message translates to:
+  /// **'Storefront photo added. It is sent with the visit.'**
+  String get pinDisputePhotoAdded;
+
+  /// Title of the capture screen for the storefront photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Storefront'**
+  String get pinDisputePhotoLabel;
+
+  /// Framing hint on the storefront capture screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Stand back far enough to get the shop name and the door in one shot.'**
+  String get pinDisputePhotoHint;
+
+  /// Primary on the wrong-pin report: starts the visit outside the fence, flagged for review.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the visit, flagged'**
+  String get pinDisputeSubmit;
+
+  /// Leaves the report and returns to the too-far screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the distance'**
+  String get pinDisputeBack;
+
+  /// Shown when starting the flagged visit failed on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'The visit could not start: {reason}'**
+  String pinDisputeFailed(String reason);
+
+  /// Flag chip word: this visit was checked in outside the geofence.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of fence'**
+  String get visitFlagOutOfFence;
+
+  /// The distance detail in the out-of-fence flag chip.
+  ///
+  /// In en, this message translates to:
+  /// **'{meters} m'**
+  String visitFlagMetres(int meters);
+
+  /// Screen-reader label for the out-of-fence flag chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of fence, {meters} metres. Double-tap for detail.'**
+  String visitFlagOutOfFenceSemantics(int meters);
+
+  /// Flag chip word: the agent reported this store's pin as wrong; it is for review.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin reported'**
+  String get visitFlagPinReported;
+
+  /// Screen-reader label for the pin-reported flag chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin reported, for your manager to review. Double-tap for detail.'**
+  String get visitFlagPinReportedSemantics;
+
+  /// Title of the sheet explaining the override flags.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in outside the fence'**
+  String get visitFlagSheetTitle;
+
+  /// Body of the sheet explaining the override flags.
+  ///
+  /// In en, this message translates to:
+  /// **'You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.'**
+  String visitFlagSheetBody(int meters);
+
+  /// The action inside the My work summary block. A ghost by default — the queue sends itself — and the screen’s one amber block only when something is stuck.
+  ///
+  /// In en, this message translates to:
+  /// **'Send now'**
+  String get myWorkSendNow;
+
+  /// Why "Send now" is off. A disabled primary always names what is missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is waiting to send.'**
+  String get myWorkSendNowBlocked;
+
+  /// The signed-out block above the My work summary. The only state where the amber moves off "Send now".
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{You’re signed out. Sign in and your 1 held capture will send.} other{You’re signed out. Sign in and your {count} held captures will send.}}'**
+  String myWorkSignedOutTitle(int count);
+
+  /// The signed-out block’s action.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get myWorkSignIn;
+
+  /// Ghost action under the capped Sent list.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older'**
+  String get myWorkShowOlder;
+
+  /// The Sent group is capped so a long outbox does not become a scroll. Says what it is showing and out of how many.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the {shown} most recently sent of {total}'**
+  String myWorkSentCapped(int shown, int total);
+
+  /// The empty My work screen. Says what the screen is for rather than apologising.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything you capture in a store shows up here until the server has it.'**
+  String get myWorkEmptyBody;
+
+  /// Body of the My work load-error state. The outbox failing to READ is not the outbox failing to hold.
+  ///
+  /// In en, this message translates to:
+  /// **'Your work is still on this phone. Nothing is lost.'**
+  String get myWorkLoadErrorBody;
+
+  /// Reads the outbox again after a failed read. The captures themselves were never in doubt — only the reading of them.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get myWorkRetry;
+
+  /// Outbox row state word: queued, waiting for signal. Never an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get outboxWaiting;
+
+  /// Outbox row state word: bytes are moving.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending'**
+  String get outboxSending;
+
+  /// Outbox row state word: a failed attempt that will clear itself.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrying'**
+  String get outboxRetrying;
+
+  /// Outbox row state word: the server has it.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get outboxSent;
+
+  /// Outbox row state word for the one severity-bearing state, and the severity in words beside the crimson bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs you'**
+  String get outboxNeedsYou;
+
+  /// Outbox row state word: blocked on the visit above it. An ordering dependency, explicitly not a fault.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting its turn'**
+  String get outboxWaitingTurn;
+
+  /// The queued state as a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for signal'**
+  String get outboxWaitingSentence;
+
+  /// The sending state as a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Going up now'**
+  String get outboxSendingSentence;
+
+  /// The sent state as a sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'The server has it'**
+  String get outboxSentSentence;
+
+  /// The age line on a queued outbox row. {time} is a clock time.
+  ///
+  /// In en, this message translates to:
+  /// **'queued {time}'**
+  String outboxQueuedAt(String time);
+
+  /// The age line on a sent outbox row.
+  ///
+  /// In en, this message translates to:
+  /// **'sent {time}'**
+  String outboxSentAt(String time);
+
+  /// The age line on a retrying or stuck outbox row. The real last attempt, never an invented next-try time.
+  ///
+  /// In en, this message translates to:
+  /// **'last tried {time}'**
+  String outboxLastTriedAt(String time);
+
+  /// How many send attempts this capture has had, in the sheet’s identifier block.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Not tried yet} =1{Tried once} other{Tried {count} times}}'**
+  String outboxAttempts(int count);
+
+  /// The sheet action that flushes exactly this capture and nothing else.
+  ///
+  /// In en, this message translates to:
+  /// **'Send this one now'**
+  String get outboxSendThisNow;
+
+  /// The sheet action that throws a stuck capture away. Always behind a second step.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this capture'**
+  String get outboxDiscard;
+
+  /// The confirming press on the discard sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, discard it'**
+  String get outboxDiscardConfirm;
+
+  /// The way out of the discard confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get outboxDiscardKeep;
+
+  /// Said plainly before anything is thrown away (#376). {item} is the capture’s own name, e.g. "Stock count".
+  ///
+  /// In en, this message translates to:
+  /// **'This {item} has not reached the server. Discard it and it is gone from this phone — there is no copy anywhere else.'**
+  String outboxDiscardWhatIsLost(String item);
+
+  /// Added to the discard statement when the capture is a visit: its sections, photos and submit cannot send without it, so they are removed too. Said before the agent confirms (#376).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 capture from this visit goes with it, because it cannot send without the visit.} other{{count} captures from this visit go with it, because they cannot send without the visit.}}'**
+  String outboxDiscardTakesDependents(int count);
+
+  /// The sent state’s sheet. A sent row is still tappable, and it says so.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to do — the server has it.'**
+  String get outboxNothingToDo;
+
+  /// Shown on a rejected or too-large capture. The app never repairs a rejected payload behind the agent’s back (#376).
+  ///
+  /// In en, this message translates to:
+  /// **'The server refused this exactly as it is, so sending it again unchanged will fail the same way. Nothing has been altered for you.'**
+  String get outboxRejectedNote;
+
+  /// The ordering dependency, said in the sheet so it is never read as a fault.
+  ///
+  /// In en, this message translates to:
+  /// **'This sends itself as soon as the visit above it does. Nothing is wrong.'**
+  String get outboxWaitingTurnNote;
+
+  /// The one stuck state whose fix has nothing to do with the capture.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session ended. Sign in and this sends itself.'**
+  String get outboxSignedOutNote;
+
+  /// The identifier block in the outbox sheet, in mono. For a support call.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture {id} · {type}'**
+  String outboxItemId(int id, String type);
+
+  /// The picker with an empty list.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores here'**
+  String get pickerEmptyTitle;
+
+  /// The picker’s empty state while it is narrowed. Names both ways out.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is filed under your territories yet. Switch to all stores, or add the one you are standing in.'**
+  String get pickerEmptyBodyMine;
+
+  /// The picker’s empty state with the widest scope. The list is genuinely empty, not filtered.
+  ///
+  /// In en, this message translates to:
+  /// **'This client has no stores on the server yet. Add the one you are standing in.'**
+  String get pickerEmptyBodyAll;
+
+  /// Body of the picker’s load-error state. A list that will not load is not work that is lost.
+  ///
+  /// In en, this message translates to:
+  /// **'Your stores are fetched from the server. Nothing you have captured is affected.'**
+  String get pickerLoadErrorBody;
+
+  /// Section rule above the picker’s scope control.
+  ///
+  /// In en, this message translates to:
+  /// **'Which stores'**
+  String get pickerScopeHeading;
+
+  /// Section rule above the picker’s list.
+  ///
+  /// In en, this message translates to:
+  /// **'Stores'**
+  String get pickerStoresHeading;
+
+  /// The trailing half of the held banner’s screen-reader label.
+  ///
+  /// In en, this message translates to:
+  /// **'tap to open your work'**
+  String get syncBannerOpen;
+
+  /// The Veld Close row on a bottom sheet — in Veld a sheet is a full-screen route and needs a way out that is not a scrim tap.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get commonClose;
+
+  /// One picker row as a screen reader hears it — the store, its code, and what tapping does.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {code}. Double-tap to start a visit here.'**
+  String pickerStartVisitSemantics(String name, String code);
+
+  /// The needs-you banner’s state WORD, without the count. The band renders the figure itself in mono and keeps the count out of the live region — a count inside a live label interrupts an agent once per capture.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{needs you} other{need you}}'**
+  String syncBannerNeedsYou(int count);
 }
 
 class _AppLocalizationsDelegate

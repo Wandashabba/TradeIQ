@@ -294,10 +294,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickerRetry => 'Try again';
 
   @override
-  String get myWorkTitle => 'Your work';
+  String get myWorkTitle => 'My work';
 
   @override
-  String get myWorkSubtitle => 'What is on this phone, and what is sent';
+  String get myWorkSubtitle => 'Everything you’ve captured';
 
   @override
   String get myWorkSyncNow => 'Try sending now';
@@ -2622,4 +2622,287 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get askMapNotInVeld =>
       'Maps are not drawn in Veld. The outlets are listed instead.';
+
+  @override
+  String get visitPinTooFarToReport =>
+      'This is too far to report the pin from here. Ask your manager to correct this store.';
+
+  @override
+  String get pinDisputeEyebrow => 'The pin is wrong';
+
+  @override
+  String get pinDisputeTitle => 'Report the pin and start the visit';
+
+  @override
+  String get pinDisputeEvidenceEyebrow => 'Sent with your report';
+
+  @override
+  String get pinDisputeDistanceLine =>
+      'from where the app has this shop, measured just now';
+
+  @override
+  String pinDisputeDistanceSemantics(int meters) {
+    return 'You are $meters metres from where the app has this shop.';
+  }
+
+  @override
+  String get pinDisputePositionLine =>
+      'Where you are standing, as your phone recorded it';
+
+  @override
+  String get pinDisputePhotoLine => 'Your photo of the storefront';
+
+  @override
+  String get pinDisputeExplain =>
+      'The visit starts outside the fence and stays flagged. Your manager sees where you were and can move the pin. You cannot clear the flag yourself.';
+
+  @override
+  String get pinDisputeNoteLabel => 'What is wrong with the pin? (optional)';
+
+  @override
+  String get pinDisputeNoteHint =>
+      'e.g. the pin is on the depot, the shop is on Main Road';
+
+  @override
+  String get pinDisputeAddPhoto => 'Add a photo of the storefront';
+
+  @override
+  String get pinDisputeRetakePhoto => 'Retake the photo';
+
+  @override
+  String get pinDisputePhotoAdded =>
+      'Storefront photo added. It is sent with the visit.';
+
+  @override
+  String get pinDisputePhotoLabel => 'Storefront';
+
+  @override
+  String get pinDisputePhotoHint =>
+      'Stand back far enough to get the shop name and the door in one shot.';
+
+  @override
+  String get pinDisputeSubmit => 'Start the visit, flagged';
+
+  @override
+  String get pinDisputeBack => 'Back to the distance';
+
+  @override
+  String pinDisputeFailed(String reason) {
+    return 'The visit could not start: $reason';
+  }
+
+  @override
+  String get visitFlagOutOfFence => 'Out of fence';
+
+  @override
+  String visitFlagMetres(int meters) {
+    return '$meters m';
+  }
+
+  @override
+  String visitFlagOutOfFenceSemantics(int meters) {
+    return 'Out of fence, $meters metres. Double-tap for detail.';
+  }
+
+  @override
+  String get visitFlagPinReported => 'Pin reported';
+
+  @override
+  String get visitFlagPinReportedSemantics =>
+      'Pin reported, for your manager to review. Double-tap for detail.';
+
+  @override
+  String get visitFlagSheetTitle => 'Checked in outside the fence';
+
+  @override
+  String visitFlagSheetBody(int meters) {
+    return 'You were $meters m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.';
+  }
+
+  @override
+  String get myWorkSendNow => 'Send now';
+
+  @override
+  String get myWorkSendNowBlocked => 'Nothing is waiting to send.';
+
+  @override
+  String myWorkSignedOutTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'You’re signed out. Sign in and your $count held captures will send.',
+      one: 'You’re signed out. Sign in and your 1 held capture will send.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get myWorkSignIn => 'Sign in';
+
+  @override
+  String get myWorkShowOlder => 'Show older';
+
+  @override
+  String myWorkSentCapped(int shown, int total) {
+    return 'Showing the $shown most recently sent of $total';
+  }
+
+  @override
+  String get myWorkEmptyBody =>
+      'Everything you capture in a store shows up here until the server has it.';
+
+  @override
+  String get myWorkLoadErrorBody =>
+      'Your work is still on this phone. Nothing is lost.';
+
+  @override
+  String get myWorkRetry => 'Try again';
+
+  @override
+  String get outboxWaiting => 'Waiting';
+
+  @override
+  String get outboxSending => 'Sending';
+
+  @override
+  String get outboxRetrying => 'Retrying';
+
+  @override
+  String get outboxSent => 'Sent';
+
+  @override
+  String get outboxNeedsYou => 'Needs you';
+
+  @override
+  String get outboxWaitingTurn => 'Waiting its turn';
+
+  @override
+  String get outboxWaitingSentence => 'Waiting for signal';
+
+  @override
+  String get outboxSendingSentence => 'Going up now';
+
+  @override
+  String get outboxSentSentence => 'The server has it';
+
+  @override
+  String outboxQueuedAt(String time) {
+    return 'queued $time';
+  }
+
+  @override
+  String outboxSentAt(String time) {
+    return 'sent $time';
+  }
+
+  @override
+  String outboxLastTriedAt(String time) {
+    return 'last tried $time';
+  }
+
+  @override
+  String outboxAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Tried $count times',
+      one: 'Tried once',
+      zero: 'Not tried yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxSendThisNow => 'Send this one now';
+
+  @override
+  String get outboxDiscard => 'Discard this capture';
+
+  @override
+  String get outboxDiscardConfirm => 'Yes, discard it';
+
+  @override
+  String get outboxDiscardKeep => 'Keep it';
+
+  @override
+  String outboxDiscardWhatIsLost(String item) {
+    return 'This $item has not reached the server. Discard it and it is gone from this phone — there is no copy anywhere else.';
+  }
+
+  @override
+  String outboxDiscardTakesDependents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count captures from this visit go with it, because they cannot send without the visit.',
+      one:
+          '1 capture from this visit goes with it, because it cannot send without the visit.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxNothingToDo => 'Nothing to do — the server has it.';
+
+  @override
+  String get outboxRejectedNote =>
+      'The server refused this exactly as it is, so sending it again unchanged will fail the same way. Nothing has been altered for you.';
+
+  @override
+  String get outboxWaitingTurnNote =>
+      'This sends itself as soon as the visit above it does. Nothing is wrong.';
+
+  @override
+  String get outboxSignedOutNote =>
+      'Your session ended. Sign in and this sends itself.';
+
+  @override
+  String outboxItemId(int id, String type) {
+    return 'Capture $id · $type';
+  }
+
+  @override
+  String get pickerEmptyTitle => 'No stores here';
+
+  @override
+  String get pickerEmptyBodyMine =>
+      'Nothing is filed under your territories yet. Switch to all stores, or add the one you are standing in.';
+
+  @override
+  String get pickerEmptyBodyAll =>
+      'This client has no stores on the server yet. Add the one you are standing in.';
+
+  @override
+  String get pickerLoadErrorBody =>
+      'Your stores are fetched from the server. Nothing you have captured is affected.';
+
+  @override
+  String get pickerScopeHeading => 'Which stores';
+
+  @override
+  String get pickerStoresHeading => 'Stores';
+
+  @override
+  String get syncBannerOpen => 'tap to open your work';
+
+  @override
+  String get commonClose => 'Close';
+
+  @override
+  String pickerStartVisitSemantics(String name, String code) {
+    return '$name, $code. Double-tap to start a visit here.';
+  }
+
+  @override
+  String syncBannerNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'need you',
+      one: 'needs you',
+    );
+    return '$_temp0';
+  }
 }

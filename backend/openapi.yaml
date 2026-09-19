@@ -104,6 +104,112 @@ paths:
           description: Caller's role may not create outlets (manager/admin only)
         '409':
           description: An outlet with this code already exists
+  /outlets/pin-disputes:
+    get:
+      summary: The manager's queue of "the pin is wrong" claims (#386)
+      description: >
+        Agents' reports that an outlet is pinned in the wrong place, newest
+        first, as a standard keyset page `{ data, nextCursor }`. Each row
+        carries the agent's actual position, the distance from the pin
+        (measured server-side), the pin AS IT READ when the claim was made, the
+        note they typed, and metadata for any storefront photo they attached
+        (section `pin_dispute`; never the bytes). Defaults to the OPEN queue, so
+        that answering a claim takes it off the list. Manager/admin only.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [open, applied, rejected, all] }
+        - name: outletId
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Pin disputes (newest first)
+        '400':
+          description: Invalid status, outletId, limit or cursor
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller's role may not read the queue (manager/admin only)
+  /outlets/{id}:
+    get:
+      summary: One outlet with the evidence about its pin (#386)
+      description: >
+        The outlet, its rejected check-in attempts (each agent's real position
+        and measured distance), the pin disputes filed against it, and the
+        ledger of who has changed it. Manager/admin only — agents keep the
+        unchanged list at GET /outlets. Another tenant's id is a 404, never a
+        403.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Outlet detail with attempt, dispute and change evidence
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller's role may not read outlet detail (manager/admin only)
+        '404':
+          description: No such outlet in the caller's client
+    patch:
+      summary: Correct a wrongly pinned outlet (#386)
+      description: >
+        Moves the pin, renames the outlet, or retires it, writing an audit row
+        in the same transaction. Coordinates come from exactly one source and
+        the body must say which - `lat` + `lng` (typed in, and they move
+        together or not at all) or `fromAttemptId` (the agent's recorded
+        position, read out of that CheckInAttempt server-side). Sending both is
+        a 400. Naming a `disputeId` resolves that claim in the same
+        transaction: `applied` when the pin moved, `rejected` when it did not.
+        Manager/admin only - an agent who could both file a dispute and grant it
+        could move any outlet's fence to wherever they are standing.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string }
+                lat: { type: number, minimum: -90, maximum: 90 }
+                lng: { type: number, minimum: -180, maximum: 180 }
+                status: { type: string, enum: [active, closed] }
+                fromAttemptId: { type: string }
+                disputeId: { type: string }
+                resolutionNote: { type: string }
+      responses:
+        '200':
+          description: The updated outlet, plus `dispute` when one was resolved
+        '400':
+          description: >
+            Unknown field, lat without lng, both lat/lng and fromAttemptId, or
+            an empty body
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Caller's role may not edit outlets (manager/admin only)
+        '404':
+          description: No such outlet, check-in attempt or dispute in the caller's client
+        '409':
+          description: That pin dispute was already resolved
   /skus:
     get:
       summary: List SKUs for the authenticated user's client
@@ -177,6 +283,25 @@ paths:
                     (#379). Persisted as `resumedFromDraft` and returned on GET /visits and
                     GET /visits/{id}. Defaults false, which is what a fresh check-in — and
                     every older app build — honestly is.
+                pinDispute:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    note: { type: string, maxLength: 1000 }
+                  description: >
+                    "The pin is wrong" (#386). Present, a check-in that FAILS the geofence
+                    is allowed through as a recorded override instead of being rejected:
+                    the visit is created with `geofencePass: FALSE` and a PinDispute row
+                    beside it in one transaction, holding the agent's position, the distance
+                    measured server-side (never taken from the device), and the outlet's pin
+                    frozen as it read at the time. It is not a bypass — the fraud engine
+                    scores it (`geofence_override`), the manager's queue at
+                    GET /outlets/pin-disputes lists it, and only a manager can act on it by
+                    moving the pin through PATCH /outlets/{id}. Refused with 422 beyond the
+                    client's `pinDisputeMaxDistanceM` (default 25000 m). A storefront photo
+                    is attached afterwards through the ordinary photo upload against the
+                    created visit, under section `pin_dispute`. Ignored on a check-in that
+                    passes the fence.
       responses:
         '200':
           description: >
@@ -646,9 +771,20 @@ paths:
         - name: outletId
           in: query
           schema: { type: string }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string }, description: '`nextCursor` from the previous page' }
       responses:
         '200':
-          description: Tasks scoped to the caller's client
+          description: One page of tasks scoped to the caller's client
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor, total]
+                properties:
+                  data: { type: array, items: { type: object } }
+                  nextCursor: { type: string, nullable: true }
+                  total: { type: integer, description: Every task the filters match, ignoring the cursor — so a cut list can say how much it left out }
         '400':
           description: Invalid filter value
         '401':
@@ -1031,7 +1167,20 @@ paths:
       parameters:
         - { name: acknowledged, in: query, schema: { type: string, enum: ['true', 'false'] } }
         - { name: severity, in: query, schema: { type: string } }
-      responses: { '200': { description: Alerts } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cursor, in: query, schema: { type: string }, description: '`nextCursor` from the previous page' }
+      responses:
+        '200':
+          description: One page of alerts, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, nextCursor, total]
+                properties:
+                  data: { type: array, items: { type: object } }
+                  nextCursor: { type: string, nullable: true }
+                  total: { type: integer, description: Every alert the filters match, ignoring the cursor — so a cut list can say how much it left out }
   /alerts/{id}/ack:
     patch:
       summary: Acknowledge an alert — manager/admin
