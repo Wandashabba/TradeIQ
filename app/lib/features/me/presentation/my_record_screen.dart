@@ -41,7 +41,7 @@ import '../data/my_record_repository.dart';
 ///   ── My visits ─────────────────────────────────────
 ///   ◧  Kasi Corner Spaza                          71
 ///      Thu 18 Sep · 41 min · 3 tasks raised
-///      ▪ Now scored 71 ▽ — it was 84 when you saw it
+///      ▪ Now scored 71 ▽ — when you saw it, it was 84
 ///   [ nav pill ]
 /// ```
 ///
@@ -78,7 +78,7 @@ import '../data/my_record_repository.dart';
 /// What this screen shows is the **authoritative** number, every time. Where
 /// the server's number differs from the one the agent already read on the way
 /// out of the shop, a [ReconciliationLine] says so in the agent's own voice —
-/// "Now scored 71 — it was 84 when you saw it" — rather than one number
+/// "Now scored 71 — when you saw it, it was 84" — rather than one number
 /// silently replacing another.
 ///
 /// It does **not** carry a [ProvisionalMarker]. unify §1.20 rules that the
@@ -620,10 +620,9 @@ class _VisitRow extends StatelessWidget {
               agentLead: l10n.meScoreChangedLead,
               agentTail: l10n.meScoreChangedTail,
             ),
-            semanticsLabel:
-                '${l10n.meScoreChangedLead} ${score.weightedTotal.round()}. '
-                '${l10n.meScoreChangedTail} ${score.seen!.weightedTotal.round()} '
-                '${l10n.meScoreChangedSeen}.',
+            // No semanticsLabel: the line composes its own from the same two
+            // strings and both figures through TiqNumber, so what is read
+            // aloud is what is drawn, grouping and all.
           ),
         ),
       ],

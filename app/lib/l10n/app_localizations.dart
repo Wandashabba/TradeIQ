@@ -2984,23 +2984,17 @@ abstract class AppLocalizations {
   /// **'Showing what has reached the server. Today\'s work appears here once it sends.'**
   String get meOnThisPhoneDetail;
 
-  /// First half of the reconciliation line, second person: "Now scored 71 — it was 84 when you saw it."
+  /// First half of the reconciliation line, second person: "Now scored 71 — when you saw it, it was 84."
   ///
   /// In en, this message translates to:
   /// **'Now scored'**
   String get meScoreChangedLead;
 
-  /// Second half of the reconciliation line, before the number the agent saw.
+  /// Second half of the reconciliation line, before the number the agent saw. It is shown on screen as well as read aloud, so it carries the whole of 'when you saw it'.
   ///
   /// In en, this message translates to:
-  /// **'— it was'**
+  /// **'— when you saw it, it was'**
   String get meScoreChangedTail;
-
-  /// Trailing words of the reconciliation sentence, for the screen reader.
-  ///
-  /// In en, this message translates to:
-  /// **'when you saw it'**
-  String get meScoreChangedSeen;
 
   /// The whole visit row as one screen-reader sentence.
   ///

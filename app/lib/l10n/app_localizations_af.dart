@@ -1927,10 +1927,7 @@ class AppLocalizationsAf extends AppLocalizations {
   String get meScoreChangedLead => 'Nou gepunt';
 
   @override
-  String get meScoreChangedTail => '— dit was';
-
-  @override
-  String get meScoreChangedSeen => 'toe jy dit gesien het';
+  String get meScoreChangedTail => '— toe jy dit gesien het, was dit';
 
   @override
   String meVisitSemantics(

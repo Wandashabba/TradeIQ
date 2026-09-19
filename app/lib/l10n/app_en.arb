@@ -2403,15 +2403,11 @@
   },
   "meScoreChangedLead": "Now scored",
   "@meScoreChangedLead": {
-    "description": "First half of the reconciliation line, second person: \"Now scored 71 — it was 84 when you saw it.\""
+    "description": "First half of the reconciliation line, second person: \"Now scored 71 — when you saw it, it was 84.\""
   },
-  "meScoreChangedTail": "— it was",
+  "meScoreChangedTail": "— when you saw it, it was",
   "@meScoreChangedTail": {
-    "description": "Second half of the reconciliation line, before the number the agent saw."
-  },
-  "meScoreChangedSeen": "when you saw it",
-  "@meScoreChangedSeen": {
-    "description": "Trailing words of the reconciliation sentence, for the screen reader."
+    "description": "Second half of the reconciliation line, before the number the agent saw. It is shown on screen as well as read aloud, so it carries the whole of 'when you saw it'."
   },
   "meVisitSemantics": "{outlet}, {day}, {dwell}, {tasks}, {score}",
   "@meVisitSemantics": {

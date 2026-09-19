@@ -1906,10 +1906,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meScoreChangedLead => 'Now scored';
 
   @override
-  String get meScoreChangedTail => '— it was';
-
-  @override
-  String get meScoreChangedSeen => 'when you saw it';
+  String get meScoreChangedTail => '— when you saw it, it was';
 
   @override
   String meVisitSemantics(

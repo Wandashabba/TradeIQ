@@ -173,9 +173,10 @@ class TodayFrame extends ConsumerWidget {
   ///
   /// Map is still unbuilt and still absent. When it lands it does not simply
   /// join: four is the ceiling (kit's 360dp arithmetic), so landing Map is a
-  /// decision about which of these four leaves, and Contests is the candidate
-  /// because it is the one destination that is also reachable from Me's
-  /// earnings section.
+  /// decision about which of these four leaves — the owner's call, and not
+  /// one to make quietly. Whichever slot goes must first gain another way in,
+  /// or landing Map removes a capability, which is what Contests was put here
+  /// to prevent.
   static List<TorchNavSlot> slotsIn(
     AppLocalizations l10n, {
     int runningContests = 0,
