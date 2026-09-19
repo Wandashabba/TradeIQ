@@ -322,18 +322,22 @@ class _SkuBlock extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          // A Wrap, not a Row: the name and its price share a line while they
+          // fit, and at 2.0× in Afrikaans — "R 1 284,99" beside a two-line
+          // product name — the price drops beneath the name instead of
+          // overflowing the block by 12dp.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.start,
+            spacing: TiqSpace.s3,
+            runSpacing: TiqSpace.s1,
             children: <Widget>[
-              Expanded(
-                child: Text(
-                  sku.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: skin.text.titleM.style(color: skin.palette.ink1),
-                ),
+              Text(
+                sku.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: skin.text.titleM.style(color: skin.palette.ink1),
               ),
-              const SizedBox(width: TiqSpace.s3),
               // Through the locale formatter, never `toStringAsFixed`: R and
               // the decimal separator are the locale's business.
               FigureSlot(

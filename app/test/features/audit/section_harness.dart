@@ -110,6 +110,23 @@ Future<void> expectAmber(
   );
 }
 
+/// Hold the frame to the skin's budget without naming an exact count — for a
+/// sweep where the count depends on which screenful is showing.
+Future<void> expectAmberWithinBudget(
+  WidgetTester tester, {
+  required SkinMode skin,
+  required String route,
+  required String phase,
+}) async {
+  final census = await amberCensus(tester);
+  expectWithinAmberBudget(
+    census,
+    agentSkinFor(skin),
+    route: route,
+    phase: phase,
+  );
+}
+
 // ── Photo fakes ────────────────────────────────────────────────────────────
 
 /// Records every queued photo.
