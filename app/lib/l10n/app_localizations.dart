@@ -3031,6 +3031,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name}, {code}. Double-tap to start a visit here.'**
   String pickerStartVisitSemantics(String name, String code);
+
+  /// The needs-you banner’s state WORD, without the count. The band renders the figure itself in mono and keeps the count out of the live region — a count inside a live label interrupts an agent once per capture.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{needs you} other{need you}}'**
+  String syncBannerNeedsYou(int count);
 }
 
 class _AppLocalizationsDelegate

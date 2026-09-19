@@ -1913,4 +1913,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String pickerStartVisitSemantics(String name, String code) {
     return '$name, $code. Double-tap to start a visit here.';
   }
+
+  @override
+  String syncBannerNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'need you',
+      one: 'needs you',
+    );
+    return '$_temp0';
+  }
 }

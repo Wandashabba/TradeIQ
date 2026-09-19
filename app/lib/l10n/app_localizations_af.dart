@@ -1934,4 +1934,15 @@ class AppLocalizationsAf extends AppLocalizations {
   String pickerStartVisitSemantics(String name, String code) {
     return '$name, $code. Dubbeltik om hier ’n besoek te begin.';
   }
+
+  @override
+  String syncBannerNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'het jou nodig',
+      one: 'het jou nodig',
+    );
+    return '$_temp0';
+  }
 }

@@ -178,7 +178,14 @@ class _PickerFrame extends ConsumerWidget {
             ref.invalidate(assignedOutletsProvider);
           },
         ),
-        children: children,
+        children: <Widget>[
+          // The banner form of the sync status (unify §1.14): it renders only
+          // when something genuinely needs the agent, and nothing at all
+          // otherwise. Held work stays a chip in the header — a permanent
+          // 56dp band on every screen spends the fold.
+          const TorchSyncBanner(),
+          ...children,
+        ],
       ),
     );
   }

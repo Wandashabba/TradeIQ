@@ -2417,5 +2417,14 @@
         "type": "String"
       }
     }
+  },
+  "syncBannerNeedsYou": "{count, plural, =1{needs you} other{need you}}",
+  "@syncBannerNeedsYou": {
+    "description": "The needs-you banner’s state WORD, without the count. The band renders the figure itself in mono and keeps the count out of the live region — a count inside a live label interrupts an agent once per capture.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

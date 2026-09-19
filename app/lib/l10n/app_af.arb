@@ -488,5 +488,6 @@
   "pickerStoresHeading": "Winkels",
   "syncBannerOpen": "tik om jou werk oop te maak",
   "commonClose": "Maak toe",
-  "pickerStartVisitSemantics": "{name}, {code}. Dubbeltik om hier ’n besoek te begin."
+  "pickerStartVisitSemantics": "{name}, {code}. Dubbeltik om hier ’n besoek te begin.",
+  "syncBannerNeedsYou": "{count, plural, =1{het jou nodig} other{het jou nodig}}"
 }
