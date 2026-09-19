@@ -155,18 +155,22 @@ class TodayFrame extends ConsumerWidget {
 
   final List<Widget> children;
 
-  /// Today · My work · Contests. **Three slots, not the owner's four.**
+  /// Today · My work · Map · Contests. **Four slots, and the bar is now full.**
   ///
-  /// The approved set was Today · My work · Map · Me, and neither Map nor Me
-  /// has a destination: there is no agent map route, and the agent's own
-  /// record is #383/#384, unbuilt. A tab that bounces the user back to where
-  /// they already are is worse than an absent tab — it reads as a broken app,
-  /// and an agent taps it once and never trusts the bar again.
+  /// The owner approved Today · My work · Map · Me. Map was cut at migration
+  /// because it had no destination; it has one now (`/map`), so it is back, in
+  /// the position it was approved in. **Me** is still #383/#384 and still
+  /// unbuilt, and a tab that bounces the user back where they already are
+  /// reads as a broken app — so the fourth slot stays with Contests, which
+  /// would otherwise lose a capability the migration inherited: the agent's
+  /// standings used to hang off the Today app bar (#124), and the new header
+  /// carries the skin cycle in its one trailing slot.
   ///
-  /// Contests takes the third slot because the migration would otherwise
-  /// *remove* a capability: the agent's standings used to hang off the Today
-  /// app bar (#124), and the new header carries the skin cycle in its one
-  /// trailing slot. Map and Me return here when their screens exist.
+  /// **Four is the maximum** ([TorchNavPill] asserts it), so when Me lands
+  /// somebody has to decide what happens to Contests rather than adding a
+  /// fifth. The honest options are a Menu slot like the manager's, or Contests
+  /// moving inside Me — which is where an agent's standings and earnings
+  /// arguably belong anyway.
   static List<TorchNavSlot> slotsIn(
     AppLocalizations l10n, {
     int runningContests = 0,
@@ -180,6 +184,11 @@ class TodayFrame extends ConsumerWidget {
       icon: Icons.inventory_2_outlined,
       activeIcon: Icons.inventory_2,
       label: l10n.navMyWork,
+    ),
+    TorchNavSlot(
+      icon: Icons.map_outlined,
+      activeIcon: Icons.map,
+      label: l10n.navMap,
     ),
     TorchNavSlot(
       icon: Icons.emoji_events_outlined,
@@ -232,8 +241,8 @@ class TodayFrame extends ConsumerWidget {
             l10n,
             runningContests: ref.watch(runningContestsCountProvider).value ?? 0,
           ),
-          activeIndex: 0,
-          onSelect: (i) => _go(context, i),
+          activeIndex: todaySlot,
+          onSelect: (i) => go(context, i),
         ),
         navCircle: TorchNavCircle(
           claimId: TodayScreen.navCircleClaimId,
@@ -253,16 +262,29 @@ class TodayFrame extends ConsumerWidget {
     );
   }
 
-  static void _go(BuildContext context, int index) {
+  /// The slot indices, named. Every agent tab root reads [slotsIn] and [go]
+  /// from here, so the bar is one list in one place — two screens that each
+  /// wrote their own `case 2:` is how a nav bar starts sending the same tab to
+  /// two destinations.
+  static const int todaySlot = 0;
+  static const int myWorkSlot = 1;
+  static const int mapSlot = 2;
+  static const int contestsSlot = 3;
+
+  /// Where each slot goes. `go`, never `push`: a tab is a destination, not a
+  /// page on top of the one the agent was reading.
+  static void go(BuildContext context, int index) {
     switch (index) {
-      case 0:
+      case todaySlot:
         context.go('/today');
-      case 1:
+      case myWorkSlot:
         context.go('/my-work');
+      case mapSlot:
+        context.go('/map');
       // The agent's own contests view (#124). Not /contests, which is the
       // manager's: every contests API but /contests/current is manager-only,
       // so an agent sent there lands on a 403.
-      case 2:
+      case contestsSlot:
         context.go('/leaderboard/contests');
     }
   }
