@@ -118,10 +118,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _showUnavailableMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  /// The field reset (#400): the agent redeems a code their manager read out.
+  /// Whatever is already in the email field goes with them, so it is not
+  /// typed twice.
+  void _forgotPassword() {
+    context.go('/forgot-password', extra: _emailController.text.trim());
   }
 
   @override
@@ -380,8 +381,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () =>
-                    _showUnavailableMessage(l10n.loginPasswordResetUnavailable),
+                key: const ValueKey<String>('login-forgot-password'),
+                onPressed: _forgotPassword,
                 style: TextButton.styleFrom(
                   foregroundColor: glass
                       ? context.lumen.accentInk

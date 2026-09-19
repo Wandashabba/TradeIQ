@@ -93,7 +93,9 @@ void main() {
 
     test('each failure maps to its code', () {
       expect(
-        HumanError.of(_dio(type: DioExceptionType.badResponse, statusCode: 401)),
+        HumanError.of(
+          _dio(type: DioExceptionType.badResponse, statusCode: 401),
+        ),
         HumanError.sessionExpired,
       );
       expect(
@@ -101,10 +103,36 @@ void main() {
         HumanError.unreachable,
       );
       expect(
-        HumanError.of(_dio(type: DioExceptionType.badResponse, statusCode: 500)),
+        HumanError.of(
+          _dio(type: DioExceptionType.badResponse, statusCode: 500),
+        ),
         HumanError.generic,
       );
       expect(HumanError.of(StateError('bug')), HumanError.generic);
+    });
+
+    test('a rate limit and a refused build get their own words (#400)', () {
+      expect(
+        HumanError.of(
+          _dio(type: DioExceptionType.badResponse, statusCode: 429),
+        ),
+        HumanError.tooManyAttempts,
+      );
+      expect(
+        HumanError.of(
+          _dio(type: DioExceptionType.badResponse, statusCode: 426),
+        ),
+        HumanError.updateRequired,
+      );
+      expect(
+        HumanError.tooManyAttempts.message(),
+        'Too many attempts. Wait a few minutes, then try again.',
+      );
+      expect(
+        HumanError.updateRequired.message(af),
+        'Hierdie weergawe van die toep is te oud. Dateer TradeIQ op om voort '
+        'te gaan.',
+      );
     });
 
     test('each code maps to its English and Afrikaans copy', () {
@@ -135,41 +163,40 @@ void main() {
       );
     });
 
-    testWidgets(
-      'the manager console stays English on an Afrikaans device',
-      (tester) async {
-        // AsyncSection is the console's shared error surface. It calls the
-        // helper without an AppLocalizations, so it keeps the English copy the
-        // console has always had even when the device language is Afrikaans.
-        await tester.pumpWidget(
-          MaterialApp(
-            locale: const Locale('af'),
-            supportedLocales: appSupportedLocales,
-            localizationsDelegates: appLocalizationsDelegates,
-            home: Scaffold(
-              body: AsyncSection<List<int>>(
-                value: AsyncValue.error(
-                  _dio(type: DioExceptionType.connectionError),
-                  StackTrace.current,
-                ),
-                label: 'alerts',
-                onRetry: () {},
-                builder: (_) => const SizedBox.shrink(),
+    testWidgets('the manager console stays English on an Afrikaans device', (
+      tester,
+    ) async {
+      // AsyncSection is the console's shared error surface. It calls the
+      // helper without an AppLocalizations, so it keeps the English copy the
+      // console has always had even when the device language is Afrikaans.
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('af'),
+          supportedLocales: appSupportedLocales,
+          localizationsDelegates: appLocalizationsDelegates,
+          home: Scaffold(
+            body: AsyncSection<List<int>>(
+              value: AsyncValue.error(
+                _dio(type: DioExceptionType.connectionError),
+                StackTrace.current,
               ),
+              label: 'alerts',
+              onRetry: () {},
+              builder: (_) => const SizedBox.shrink(),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        expect(
-          find.text(
-            'Failed to load alerts. Could not reach the server. '
-            'Check your connection and try again.',
-          ),
-          findsOneWidget,
-        );
-        expect(find.textContaining('Kon nie die bediener'), findsNothing);
-      },
-    );
+      expect(
+        find.text(
+          'Failed to load alerts. Could not reach the server. '
+          'Check your connection and try again.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Kon nie die bediener'), findsNothing);
+    });
   });
 }

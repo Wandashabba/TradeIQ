@@ -190,10 +190,6 @@ class AppLocalizationsAf extends AppLocalizations {
   String get loginForgotPassword => 'Wagwoord vergeet?';
 
   @override
-  String get loginPasswordResetUnavailable =>
-      'Wagwoordherstel is nog nie beskikbaar nie.';
-
-  @override
   String get todayTitle => 'Vandag';
 
   @override
@@ -301,10 +297,10 @@ class AppLocalizationsAf extends AppLocalizations {
   String get pickerRetry => 'Probeer weer';
 
   @override
-  String get myWorkTitle => 'Jou werk';
+  String get myWorkTitle => 'My werk';
 
   @override
-  String get myWorkSubtitle => 'Wat op hierdie foon is, en wat gestuur is';
+  String get myWorkSubtitle => 'Alles wat jy vasgelê het';
 
   @override
   String get myWorkSyncNow => 'Probeer nou stuur';
@@ -2120,5 +2116,339 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String visitFlagSheetBody(int meters) {
     return 'Jy was $meters m van hierdie winkel se speld af en het die speld as verkeerd aangemeld. Jou posisie en afstand is saam met die besoek gestuur. Jou bestuurder gaan dit na en kan die speld skuif; die vlag bly totdat hulle dit doen.';
+  }
+
+  @override
+  String get myWorkSendNow => 'Stuur nou';
+
+  @override
+  String get myWorkSendNowBlocked => 'Niks wag om gestuur te word nie.';
+
+  @override
+  String myWorkSignedOutTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Jy is afgemeld. Meld aan en jou $count gehoue vasleggings sal stuur.',
+      one: 'Jy is afgemeld. Meld aan en jou 1 gehoue vaslegging sal stuur.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get myWorkSignIn => 'Meld aan';
+
+  @override
+  String get myWorkShowOlder => 'Wys ouer';
+
+  @override
+  String myWorkSentCapped(int shown, int total) {
+    return 'Wys die $shown mees onlangs gestuurdes van $total';
+  }
+
+  @override
+  String get myWorkEmptyBody =>
+      'Alles wat jy in ’n winkel vaslê, verskyn hier totdat die bediener dit het.';
+
+  @override
+  String get myWorkLoadErrorBody =>
+      'Jou werk is steeds op hierdie foon. Niks is verlore nie.';
+
+  @override
+  String get myWorkRetry => 'Probeer weer';
+
+  @override
+  String get outboxWaiting => 'Wag';
+
+  @override
+  String get outboxSending => 'Stuur tans';
+
+  @override
+  String get outboxRetrying => 'Probeer weer';
+
+  @override
+  String get outboxSent => 'Gestuur';
+
+  @override
+  String get outboxNeedsYou => 'Het jou nodig';
+
+  @override
+  String get outboxWaitingTurn => 'Wag sy beurt';
+
+  @override
+  String get outboxWaitingSentence => 'Wag vir sein';
+
+  @override
+  String get outboxSendingSentence => 'Gaan nou op';
+
+  @override
+  String get outboxSentSentence => 'Die bediener het dit';
+
+  @override
+  String outboxQueuedAt(String time) {
+    return 'in ry $time';
+  }
+
+  @override
+  String outboxSentAt(String time) {
+    return 'gestuur $time';
+  }
+
+  @override
+  String outboxLastTriedAt(String time) {
+    return 'laas probeer $time';
+  }
+
+  @override
+  String outboxAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count keer probeer',
+      one: 'Een keer probeer',
+      zero: 'Nog nie probeer nie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxSendThisNow => 'Stuur hierdie een nou';
+
+  @override
+  String get outboxDiscard => 'Gooi hierdie vaslegging weg';
+
+  @override
+  String get outboxDiscardConfirm => 'Ja, gooi dit weg';
+
+  @override
+  String get outboxDiscardKeep => 'Hou dit';
+
+  @override
+  String outboxDiscardWhatIsLost(String item) {
+    return 'Hierdie $item het nie die bediener bereik nie. Gooi dit weg en dit is van hierdie foon af weg — daar is nie ’n kopie enige plek anders nie.';
+  }
+
+  @override
+  String outboxDiscardTakesDependents(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count vasleggings van hierdie besoek gaan saam, want hulle kan nie sonder die besoek stuur nie.',
+      one:
+          '1 vaslegging van hierdie besoek gaan saam, want dit kan nie sonder die besoek stuur nie.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxNothingToDo => 'Niks om te doen nie — die bediener het dit.';
+
+  @override
+  String get outboxRejectedNote =>
+      'Die bediener het dit net so geweier, so om dit onveranderd weer te stuur sal net so misluk. Niks is vir jou verander nie.';
+
+  @override
+  String get outboxWaitingTurnNote =>
+      'Hierdie stuur vanself sodra die besoek bo dit stuur. Niks is verkeerd nie.';
+
+  @override
+  String get outboxSignedOutNote =>
+      'Jou sessie het geëindig. Meld aan en hierdie stuur vanself.';
+
+  @override
+  String outboxItemId(int id, String type) {
+    return 'Vaslegging $id · $type';
+  }
+
+  @override
+  String get pickerEmptyTitle => 'Geen winkels hier nie';
+
+  @override
+  String get pickerEmptyBodyMine =>
+      'Niks is nog onder jou gebiede geliasseer nie. Skakel oor na alle winkels, of voeg die een by waar jy staan.';
+
+  @override
+  String get pickerEmptyBodyAll =>
+      'Hierdie kliënt het nog geen winkels op die bediener nie. Voeg die een by waar jy staan.';
+
+  @override
+  String get pickerLoadErrorBody =>
+      'Jou winkels word van die bediener af gehaal. Niks wat jy vasgelê het, word geraak nie.';
+
+  @override
+  String get pickerScopeHeading => 'Watter winkels';
+
+  @override
+  String get pickerStoresHeading => 'Winkels';
+
+  @override
+  String get syncBannerOpen => 'tik om jou werk oop te maak';
+
+  @override
+  String get commonClose => 'Maak toe';
+
+  @override
+  String pickerStartVisitSemantics(String name, String code) {
+    return '$name, $code. Dubbeltik om hier ’n besoek te begin.';
+  }
+
+  @override
+  String syncBannerNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'het jou nodig',
+      one: 'het jou nodig',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get errorTooManyAttempts =>
+      'Te veel pogings. Wag ’n paar minute en probeer dan weer.';
+
+  @override
+  String get errorUpdateRequired =>
+      'Hierdie weergawe van die toep is te oud. Dateer TradeIQ op om voort te gaan.';
+
+  @override
+  String get passwordRuleHelp =>
+      'Ten minste 12 karakters. Drie gewone woorde is maklik om te tik en moeilik om te raai.';
+
+  @override
+  String get passwordTooShort => 'Te kort: gebruik ten minste 12 karakters.';
+
+  @override
+  String get passwordTooLong =>
+      'Te lank vir ’n wagwoord hier. Gebruik minder karakters.';
+
+  @override
+  String get passwordIsEmail => 'Jou wagwoord kan nie jou e-posadres wees nie.';
+
+  @override
+  String get passwordMismatch => 'Die twee nuwe wagwoorde stem nie ooreen nie.';
+
+  @override
+  String get passwordRejected =>
+      'Daardie wagwoord is nie aanvaar nie. Gebruik ten minste 12 karakters, nie jou e-posadres nie en nie ’n voor die hand liggende frase nie.';
+
+  @override
+  String get passwordShow => 'Wys wagwoorde';
+
+  @override
+  String get passwordNeedsNew => 'Kies ’n nuwe wagwoord';
+
+  @override
+  String get passwordNeedsConfirm => 'Tik die nuwe wagwoord weer';
+
+  @override
+  String get passwordFailedTitle => 'Jou wagwoord is nie verander nie';
+
+  @override
+  String get passwordOtherSessions =>
+      'Ander fone wat by jou rekening aangemeld is, bly aangemeld totdat hul sessie verval, tot 12 uur. As ’n foon verlore is, vra jou bestuurder om die rekening af te skakel.';
+
+  @override
+  String get forgotTitle => 'Stel jou wagwoord terug';
+
+  @override
+  String get forgotBack => 'Terug na aanmelding';
+
+  @override
+  String get forgotIntro =>
+      'Vra jou bestuurder vir ’n herstelkode. Hulle maak dit in TradeIQ en lees dit vir jou voor. Dit werk een keer, vir 15 minute.';
+
+  @override
+  String get forgotEmailLabel => 'E-pos';
+
+  @override
+  String get forgotCodeLabel => 'Herstelkode';
+
+  @override
+  String get forgotCodeHint => '8 syfers';
+
+  @override
+  String get forgotNewPasswordLabel => 'Nuwe wagwoord';
+
+  @override
+  String get forgotConfirmLabel => 'Nuwe wagwoord weer';
+
+  @override
+  String get forgotSubmit => 'Stel nuwe wagwoord';
+
+  @override
+  String get forgotNeedsEmail => 'Tik eers jou e-pos in';
+
+  @override
+  String get forgotNeedsCode => 'Tik die 8-syfer-kode van jou bestuurder in';
+
+  @override
+  String get forgotCodeRejectedTitle => 'Daardie kode het nie gewerk nie';
+
+  @override
+  String get forgotCodeRejectedBody =>
+      'Dit is dalk verkeerd getik, reeds gebruik of ouer as 15 minute. Kyk ook na die e-pos. Jou bestuurder kan ’n nuwe kode maak.';
+
+  @override
+  String get forgotDoneTitle => 'Jou wagwoord is verander';
+
+  @override
+  String get forgotDoneBody => 'Meld aan met jou nuwe wagwoord.';
+
+  @override
+  String get forgotGoToSignIn => 'Gaan na aanmelding';
+
+  @override
+  String get changePasswordTitle => 'Verander wagwoord';
+
+  @override
+  String get changePasswordBack => 'Terug na instellings';
+
+  @override
+  String get changeCurrentLabel => 'Huidige wagwoord';
+
+  @override
+  String get changeNeedsCurrent => 'Tik jou huidige wagwoord in';
+
+  @override
+  String get changeWrongCurrent => 'Dit is nie jou huidige wagwoord nie.';
+
+  @override
+  String get changeDoneTitle => 'Wagwoord verander';
+
+  @override
+  String get changeDoneBody =>
+      'Jy bly op hierdie foon aangemeld. Gebruik die nuwe wagwoord wanneer jy weer aanmeld.';
+
+  @override
+  String get changeDone => 'Klaar';
+
+  @override
+  String get settingsAccountHeading => 'Jou rekening';
+
+  @override
+  String get updateTitle => 'Dateer TradeIQ op';
+
+  @override
+  String get updateBody =>
+      'Hierdie weergawe van die toep is te oud vir die bediener. Installeer die nuutste weergawe van waar jy TradeIQ gekry het, en maak dit dan weer oop.';
+
+  @override
+  String get updateNothingLost =>
+      'Niks wat op hierdie foon gestoor is, word hierdeur uitgevee nie.';
+
+  @override
+  String get updateTryAgain => 'Probeer weer';
+
+  @override
+  String updateVersions(String current, String minimum) {
+    return 'Hierdie foon het weergawe $current. Weergawe $minimum of nuwer is nodig.';
+  }
+
+  @override
+  String updateVersionNoMinimum(String current) {
+    return 'Hierdie foon het weergawe $current. ’n Nuwer weergawe is nodig.';
   }
 }

@@ -7,6 +7,7 @@ import '../../../core/design/torch_scope.dart';
 import '../../../core/location/location_service.dart' show currentFixProvider;
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/agent_location_banners.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
@@ -285,7 +286,9 @@ class AgentMapFrame extends ConsumerWidget {
               door == null ? '/audit' : '/audit/${door.outlet.id}',
             ),
           ),
-          children: children,
+          // Whether the agent is being located has an answer on every agent
+          // screen (#153, POPIA) — see AgentLocationBanners.
+          children: <Widget>[const AgentLocationBanners(), ...children],
         ),
       ),
     );
