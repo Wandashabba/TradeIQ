@@ -9,6 +9,7 @@ import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet/torch_sheet.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 
 import '../../core/design/amber_golden.dart';
@@ -31,6 +32,15 @@ Future<void> pumpSection(
   Size size = const Size(360, 640),
   bool settle = true,
 }) async {
+  // The open-sheet count is app-wide. A test that leaves a sheet up would
+  // extinguish every amber in the next one and the census would blame the
+  // wrong screen — so a leak fails the test that caused it, and is cleared.
+  TorchSheets.resetForTest();
+  addTearDown(() {
+    final leaked = TorchSheets.anyOpen;
+    TorchSheets.resetForTest();
+    expect(leaked, isFalse, reason: 'A Torchlight sheet was left open.');
+  });
   final db = agentTestDb();
   await pumpAgentScreen(
     tester,
