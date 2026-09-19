@@ -126,3 +126,22 @@ class LocationService {
 }
 
 final locationServiceProvider = Provider<LocationService>((ref) => LocationService());
+
+/// One fix, shared by every screen that is looking at the same moment.
+///
+/// A cold GPS fix outdoors costs ten or fifteen seconds, and two screens that
+/// each ask for their own spend it twice — the agent's day route and the map of
+/// their stores would take half a minute between them to say the same two
+/// numbers. This is the one place either of them asks.
+///
+/// It is a [FutureProvider], so it lives exactly as long as something is
+/// watching it: leaving both screens drops the fix, and coming back takes a new
+/// one. A position cached for the life of the app is a position that is wrong
+/// by the time it matters, which is worse than a slow one.
+///
+/// It never throws. [LocationService.getCurrentPosition] resolves to a
+/// [LocationResult] — granted, denied, or an error with a reason — in bounded
+/// time, and the screens word each of those themselves.
+final currentFixProvider = FutureProvider<LocationResult>(
+  (ref) => ref.read(locationServiceProvider).getCurrentPosition(),
+);

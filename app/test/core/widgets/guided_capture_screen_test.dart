@@ -1,28 +1,34 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_palette.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/camera/photo_exposure.dart';
+import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/guided_capture_screen.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 
-// The guided screen is a launch wrapper: it drives the real PhotoCaptureService
-// through the same ImagePickerGateway seam the service tests fake. A file with
-// bytes stands in for a taken photo; null is a cancel; throwErr is a denied
-// permission.
+import '../design/amber_golden.dart';
+import '../../features/agent_harness.dart';
+
+/// PHOTO CAPTURE — PHASE 1, on Torchlight.
+///
+/// The screen is a launch wrapper: a framing card, the OS camera through the
+/// same `ImagePickerGateway` seam the service tests fake, and a review step.
+/// The review step is what this file is mostly about, because it is where a
+/// dark frame stops being silently kept or silently dropped.
+
 class _Gateway implements ImagePickerGateway {
   _Gateway({this.file, this.throwErr = false});
 
   final XFile? file;
   final bool throwErr;
   ImageSource? requested;
+  int calls = 0;
 
   @override
   Future<XFile?> pick({
@@ -30,251 +36,421 @@ class _Gateway implements ImagePickerGateway {
     required double maxWidth,
     required int imageQuality,
   }) async {
+    calls++;
     requested = source;
     if (throwErr) throw Exception('camera denied');
     return file;
   }
 }
 
-// On the VM XFile derives `name` from `path`, so the path carries the extension.
-XFile _xfile(Uint8List bytes, {String name = 'shelf.jpg'}) =>
+/// On the VM `XFile` derives `name` from `path`, so the path carries the
+/// extension the service maps to a MIME type.
+XFile _xfile(Uint8List bytes, {String name = 'shelf.png'}) =>
     XFile.fromData(bytes, name: name, path: name);
 
-const _hint = 'Shoot the whole shelf, edge to edge';
+/// Bytes standing in for a frame. The exposure is *scripted* through
+/// [photoExposureProvider] rather than measured here: decoding an image inside
+/// a widget test does not complete on `FakeAsync`'s clock, so a test that
+/// really decoded would hang with no output. `photo_exposure_test.dart`
+/// measures the real thing inside `tester.runAsync`.
+final _bytes = Uint8List.fromList(<int>[1, 2, 3, 4]);
 
-// A host with a button that pushes the guided screen onto a real Navigator, so
-// the route can pop a value back the way the field awaits it.
-Widget _host(
-  ThemeMode mode, {
+/// An aisle with the lights off.
+const double _dark = 0.08;
+
+/// A lit bay.
+const double _lit = 0.62;
+
+Future<void> _pump(
+  WidgetTester tester, {
   required ImagePickerGateway gateway,
+  double? luma,
+  SkinMode skin = SkinMode.night,
+  double textScale = 1.0,
+  Locale locale = const Locale('en'),
   void Function(CapturedPhoto?)? onResult,
-}) => ProviderScope(
-  overrides: [
-    photoCaptureServiceProvider.overrideWithValue(
-      PhotoCaptureService(gateway: gateway),
-    ),
-  ],
-  child: MaterialApp(
-    theme: AppTheme.light(),
-    darkTheme: AppTheme.dark(),
-    themeMode: mode,
-    home: Scaffold(
-      body: Builder(
-        builder: (context) => Center(
-          child: ElevatedButton(
-            key: const ValueKey('open'),
-            onPressed: () async {
-              final r = await Navigator.of(context).push<CapturedPhoto>(
-                MaterialPageRoute(
-                  builder: (_) => const GuidedCaptureScreen(
-                    label: 'Shelf photo',
-                    hint: _hint,
-                  ),
-                ),
-              );
-              onResult?.call(r);
-            },
-            child: const Text('open'),
-          ),
-        ),
+}) async {
+  final db = agentTestDb();
+  await pumpAgentScreen(
+    tester,
+    _Host(onResult: onResult),
+    path: '/capture',
+    overrides: <Override>[
+      ...agentBaseOverrides(db: db, skin: skin),
+      photoCaptureServiceProvider.overrideWithValue(
+        PhotoCaptureService(gateway: gateway),
       ),
+      photoExposureProvider.overrideWithValue((String dataUrl) async => luma),
+    ],
+    textScale: textScale,
+    locale: locale,
+  );
+}
+
+/// A host with a button that pushes the capture route onto a real Navigator,
+/// so the route can pop a value back the way the field awaits it.
+class _Host extends StatelessWidget {
+  const _Host({this.onResult});
+
+  final void Function(CapturedPhoto?)? onResult;
+
+  static const String hint = 'Shoot the whole shelf, edge to edge';
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: GestureDetector(
+      key: const ValueKey<String>('open'),
+      onTap: () async {
+        final photo = await Navigator.of(context).push<CapturedPhoto>(
+          MaterialPageRoute<CapturedPhoto>(
+            builder: (_) =>
+                const GuidedCaptureScreen(label: 'Shelf photo', hint: hint),
+          ),
+        );
+        onResult?.call(photo);
+      },
+      child: const Text('open'),
     ),
-  ),
-);
+  );
+}
 
 Future<void> _open(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey('open')));
+  await tester.tap(find.byKey(const ValueKey<String>('open')));
   await tester.pumpAndSettle();
 }
 
-double _relLum(Color c) {
-  double chan(double v) {
-    v /= 255.0;
-    return v <= 0.03928
-        ? v / 12.92
-        : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
-  }
-
-  return 0.2126 * chan((c.r * 255).roundToDouble()) +
-      0.7152 * chan((c.g * 255).roundToDouble()) +
-      0.0722 * chan((c.b * 255).roundToDouble());
-}
-
-double _contrast(Color a, Color b) {
-  final la = _relLum(a);
-  final lb = _relLum(b);
-  final hi = math.max(la, lb);
-  final lo = math.min(la, lb);
-  return (hi + 0.05) / (lo + 0.05);
+Future<void> _capture(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey<String>('guided-capture')));
+  await tester.pumpAndSettle();
 }
 
 void main() {
-  group('GuidedCaptureScreen renders full-screen, both themes', () {
-    for (final (name, mode, palette) in [
-      ('light', ThemeMode.light, TiqColors.light),
-      ('dark', ThemeMode.dark, TiqColors.night),
-    ]) {
-      testWidgets('$name: label, hint, brackets, both buttons', (tester) async {
-        await tester.pumpWidget(_host(mode, gateway: _Gateway()));
-        await _open(tester);
+  group('the framing card', () {
+    testWidgets('names what to shoot, draws the bay, and reminds about the '
+        'torch', (tester) async {
+      await _pump(tester, gateway: _Gateway());
+      await _open(tester);
 
-        expect(find.text('Shelf photo'), findsOneWidget);
-        expect(find.text(_hint), findsOneWidget);
-        expect(find.byKey(const ValueKey('framing-brackets')), findsOneWidget);
-        expect(find.byKey(const ValueKey('guided-capture')), findsOneWidget);
-        expect(find.byKey(const ValueKey('guided-gallery')), findsOneWidget);
-      });
+      expect(find.text('Shelf photo'), findsOneWidget);
+      expect(find.text(_Host.hint), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('framing-card')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('framing-brackets')),
+        findsOneWidget,
+      );
+      // TORCH is never an amber block — calling a torch control a light source
+      // is a pun, not a rule. A square glyph and a sentence.
+      final torch = find.byKey(const ValueKey<String>('torch-hint'));
+      expect(torch, findsOneWidget);
+      expect(
+        find.descendant(of: torch, matching: find.byType(RowMarkTile)),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Switch your phone torch on'),
+        findsOneWidget,
+      );
+      // The geotag is stated up front, not discovered afterwards.
+      expect(
+        find.text('Your photo is stamped with the time and where you are.'),
+        findsOneWidget,
+      );
+    });
 
-      testWidgets('$name: the hint text clears 4.5:1 on its ground', (
+    testWidgets('it is a Torchlight route with a thumb zone and a skin cycle', (
+      tester,
+    ) async {
+      await _pump(tester, gateway: _Gateway());
+      await _open(tester);
+      expect(find.byType(TorchShell), findsOneWidget);
+      expect(find.byType(TorchThumbZone), findsOneWidget);
+      // Never a screen without the skin cycle: the one control that gets a
+      // person out of a skin they cannot read.
+      expect(find.byType(TorchSkinCycle), findsOneWidget);
+      expect(find.byType(TorchNavPill), findsNothing);
+    });
+
+    testWidgets('the primary names what it does, for a reader', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, gateway: _Gateway());
+      await _open(tester);
+      expect(
+        find.bySemanticsLabel('Open the camera to photograph the shelf'),
+        findsWidgets,
+      );
+      handle.dispose();
+    });
+  });
+
+  group('the handoff', () {
+    testWidgets('Open camera drives capture(camera)', (tester) async {
+      final gateway = _Gateway(file: _xfile(_bytes));
+      await _pump(tester, gateway: gateway, luma: _lit);
+      await _open(tester);
+      await _capture(tester);
+
+      expect(gateway.requested, ImageSource.camera);
+    });
+
+    testWidgets('the gallery is still reachable — a cracked camera in a dark '
+        'aisle still has to file evidence', (tester) async {
+      final gateway = _Gateway(file: _xfile(_bytes));
+      await _pump(tester, gateway: gateway, luma: _lit);
+      await _open(tester);
+
+      await tester.tap(find.byKey(const ValueKey<String>('guided-gallery')));
+      await tester.pumpAndSettle();
+      expect(gateway.requested, ImageSource.gallery);
+    });
+
+    testWidgets('a cancelled picker leaves the card up — not an error', (
+      tester,
+    ) async {
+      var popped = false;
+      await _pump(
+        tester,
+        gateway: _Gateway(),
+        onResult: (_) => popped = true,
+      );
+      await _open(tester);
+      await _capture(tester);
+
+      expect(find.byType(GuidedCaptureScreen), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('guided-error')), findsNothing);
+      expect(popped, isFalse);
+    });
+
+    testWidgets('a denied permission says so inline, and does not pop', (
+      tester,
+    ) async {
+      await _pump(tester, gateway: _Gateway(throwErr: true));
+      await _open(tester);
+      await _capture(tester);
+
+      // An agent who thinks the button is broken will stop filing evidence.
+      expect(find.byType(GuidedCaptureScreen), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('guided-error')), findsOneWidget);
+    });
+
+    testWidgets('there is no in-app viewfinder, and the screen does not '
+        'pretend', (tester) async {
+      await _pump(tester, gateway: _Gateway());
+      await _open(tester);
+      // Phase 2 is #405 and is out of scope. What is here is a card and a
+      // handoff, and that is what it looks like.
+      expect(find.byType(Image), findsNothing);
+    });
+  });
+
+  group('the review step', () {
+    testWidgets('a captured frame comes back to be looked at, not straight to '
+        'the caller', (tester) async {
+      var popped = false;
+      await _pump(
+        tester,
+        gateway: _Gateway(file: _xfile(_bytes)),
+        luma: _lit,
+        onResult: (_) => popped = true,
+      );
+      await _open(tester);
+      await _capture(tester);
+
+      expect(find.text('Check the photo'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('photo-preview')), findsOneWidget);
+      expect(popped, isFalse, reason: 'the review step owns the pop');
+    });
+
+    testWidgets('a DARK frame is marked for retake — never kept silently, '
+        'never dropped', (tester) async {
+      await _pump(
+        tester,
+        // 8% mean luma: an aisle with the lights off.
+        gateway: _Gateway(file: _xfile(_bytes)),
+        luma: _dark,
+      );
+      await _open(tester);
+      await _capture(tester);
+
+      expect(find.byKey(const ValueKey<String>('photo-dark')), findsOneWidget);
+      expect(find.text('Dark — retake?'), findsOneWidget);
+      // Never auto-rejected: during Stage 6 it may be the only obtainable
+      // evidence, so the frame is still there and "Use it" still works.
+      expect(find.byKey(const ValueKey<String>('photo-preview')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('guided-use-it')), findsOneWidget);
+    });
+
+    testWidgets('a lit frame is not accused of being dark', (tester) async {
+      await _pump(
+        tester,
+        gateway: _Gateway(file: _xfile(_bytes)),
+        luma: _lit,
+      );
+      await _open(tester);
+      await _capture(tester);
+
+      expect(find.byKey(const ValueKey<String>('photo-dark')), findsNothing);
+    });
+
+    testWidgets('a frame nobody can decode is not called dark either', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        // null: the frame could not be decoded, so nothing was measured.
+        gateway: _Gateway(file: _xfile(_bytes)),
+      );
+      await _open(tester);
+      await _capture(tester);
+
+      // Unmeasured is not "bright" and it is not "dark": the app does not
+      // accuse a capture it could not read.
+      expect(find.byKey(const ValueKey<String>('photo-dark')), findsNothing);
+    });
+
+    testWidgets('"Use it" pops the photo, carrying what was measured', (
+      tester,
+    ) async {
+      CapturedPhoto? result;
+      await _pump(
+        tester,
+        gateway: _Gateway(file: _xfile(_bytes)),
+        luma: _dark,
+        onResult: (p) => result = p,
+      );
+      await _open(tester);
+      await _capture(tester);
+
+      await tester.tap(find.byKey(const ValueKey<String>('guided-use-it')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GuidedCaptureScreen), findsNothing);
+      expect(result, isNotNull);
+      expect(result!.dataUrl, startsWith('data:image/png;base64,'));
+      // The fact travels with the evidence rather than being forgotten when
+      // the capture route pops.
+      expect(result!.isUnderexposed, isTrue);
+      // Not asked to geotag, so it never looked for a location.
+      expect(result!.gpsTag, isEmpty);
+    });
+
+    testWidgets('"Retake" re-opens the camera and keeps the frame until a new '
+        'one lands', (tester) async {
+      final gateway = _Gateway(file: _xfile(_bytes));
+      await _pump(tester, gateway: gateway, luma: _dark);
+      await _open(tester);
+      await _capture(tester);
+      expect(gateway.calls, 1);
+
+      await tester.tap(find.byKey(const ValueKey<String>('guided-retake')));
+      await tester.pumpAndSettle();
+
+      expect(gateway.calls, 2);
+      expect(find.byKey(const ValueKey<String>('photo-preview')), findsOneWidget);
+    });
+
+    testWidgets('the meta line states the geotag, present or absent', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        gateway: _Gateway(file: _xfile(_bytes)),
+        luma: _lit,
+      );
+      await _open(tester);
+      await _capture(tester);
+
+      // An absent geotag is stated, not hidden: the geotag is what places a
+      // stock count for the fraud module.
+      expect(
+        find.textContaining('no location on this photo'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('the amber census', () {
+    for (final mode in agentSkinModes) {
+      testWidgets('${mode.name}: framing lights one object — "Open camera"', (
         tester,
       ) async {
-        await tester.pumpWidget(_host(mode, gateway: _Gateway()));
+        await _pump(tester, gateway: _Gateway(), skin: mode);
         await _open(tester);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(mode),
+          route: 'guided-capture',
+          phase: 'framing',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
 
-        final hint = tester.widget<Text>(find.text(_hint));
-        expect(_contrast(hint.style!.color!, palette.plane), greaterThan(4.5));
+      testWidgets('${mode.name}: review lights one object — "Use it"', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          gateway: _Gateway(file: _xfile(_bytes)),
+          luma: _dark,
+          skin: mode,
+        );
+        await _open(tester);
+        await _capture(tester);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(mode),
+          route: 'guided-capture',
+          phase: 'review-dark',
+        );
+        expect(
+          census.objectCount,
+          1,
+          reason:
+              'The dark frame\'s edge is the comparison series, never amber '
+              'and never a severity.\n\n${census.describe()}',
+        );
       });
     }
   });
 
-  // The title is ink on the lit ground: by day a dark ink, measured on the
-  // ground's darker foot; at night a light ink, measured where the ground is
-  // brightest — its top under the violet bloom.
-  for (final (name, mode, ground) in [
-    (
-      'light',
-      ThemeMode.light,
-      LumenPalette.light.groundBottom,
-    ),
-    (
-      'dark: night',
-      ThemeMode.dark,
-      Color.alphaBlend(
-        LumenPalette.dark.bloomViolet,
-        LumenPalette.dark.groundTop,
-      ),
-    ),
-  ]) {
-    testWidgets('$name glass: lit ground, a glass close chip, the guide in a '
-        'glass panel', (tester) async {
-      await tester.pumpWidget(_host(mode, gateway: _Gateway()));
-      await _open(tester);
-
-      expect(
-        find.descendant(
-          of: find.byType(GuidedCaptureScreen),
-          matching: find.byType(LitGround),
-        ),
-        findsOneWidget,
-      );
-
-      final frame = tester.widget<GlassPane>(
-        find.ancestor(
-          of: find.byKey(const ValueKey('framing-brackets')),
-          matching: find.byType(GlassPane),
-        ),
-      );
-      expect(frame.kind, GlassKind.panel);
-
-      // Still the same Cancel control — key, tooltip and tap unchanged.
-      final close = find.byKey(const ValueKey('guided-close'));
-      expect(tester.widget<IconButton>(close).tooltip, 'Cancel');
-      final chip = tester.widget<GlassPane>(
-        find.descendant(of: close, matching: find.byType(GlassPane)),
-      );
-      expect(chip.kind, GlassKind.pill);
-
-      final title = tester.widget<Text>(find.text('Shelf photo'));
-      expect(_contrast(title.style!.color!, ground), greaterThan(4.5));
-    });
-  }
-
-  testWidgets('Capture drives capture(camera) and pops with the photo', (
-    tester,
-  ) async {
-    final bytes = Uint8List.fromList([1, 2, 3, 4]);
-    final gateway = _Gateway(file: _xfile(bytes));
-    CapturedPhoto? result;
-    var called = false;
-    await tester.pumpWidget(
-      _host(
-        ThemeMode.light,
-        gateway: gateway,
-        onResult: (r) {
-          called = true;
-          result = r;
-        },
-      ),
-    );
-    await _open(tester);
-
-    await tester.tap(find.byKey(const ValueKey('guided-capture')));
-    await tester.pumpAndSettle();
-
-    expect(gateway.requested, ImageSource.camera);
-    // A non-null capture pops the route with the photo and its data URL.
-    expect(find.byType(GuidedCaptureScreen), findsNothing);
-    expect(called, isTrue);
-    expect(result!.dataUrl, startsWith('data:image/jpeg;base64,'));
-    // Not asked to geotag, so it never looked for a location.
-    expect(result!.gpsTag, isEmpty);
-  });
-
-  testWidgets('Choose from gallery drives capture(gallery)', (tester) async {
-    final gateway = _Gateway(file: _xfile(Uint8List.fromList([9])));
-    await tester.pumpWidget(_host(ThemeMode.light, gateway: gateway));
-    await _open(tester);
-
-    await tester.tap(find.byKey(const ValueKey('guided-gallery')));
-    await tester.pumpAndSettle();
-
-    expect(gateway.requested, ImageSource.gallery);
-  });
-
-  testWidgets('a cancelled picker leaves the guide up — not an error', (
-    tester,
-  ) async {
-    var called = false;
-    await tester.pumpWidget(
-      _host(
-        ThemeMode.light,
+  group('2.0× and Afrikaans', () {
+    testWidgets('the framing card lays out at 2.0× in Afrikaans', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
         gateway: _Gateway(),
-        onResult: (_) => called = true,
-      ),
-    );
-    await _open(tester);
+        textScale: 2.0,
+        locale: const Locale('af'),
+      );
+      await _open(tester);
+      expect(tester.takeException(), isNull);
+    });
 
-    await tester.tap(find.byKey(const ValueKey('guided-capture')));
-    await tester.pumpAndSettle();
-
-    // Backing out of the camera is normal: the screen stays, nothing pops.
-    expect(find.byType(GuidedCaptureScreen), findsOneWidget);
-    expect(find.byKey(const ValueKey('guided-error')), findsNothing);
-    expect(called, isFalse);
-  });
-
-  testWidgets('a capture error renders inline without crashing or popping', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _host(ThemeMode.light, gateway: _Gateway(throwErr: true)),
-    );
-    await _open(tester);
-
-    await tester.tap(find.byKey(const ValueKey('guided-capture')));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(GuidedCaptureScreen), findsOneWidget);
-    expect(find.byKey(const ValueKey('guided-error')), findsOneWidget);
-  });
-
-  testWidgets('primary Capture is an AgentButton', (tester) async {
-    await tester.pumpWidget(_host(ThemeMode.light, gateway: _Gateway()));
-    await _open(tester);
-
-    expect(
-      tester.widget<AgentButton>(find.byKey(const ValueKey('guided-capture'))),
-      isA<AgentButton>(),
-    );
+    testWidgets('the review step lays out at 2.0× in Afrikaans', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        gateway: _Gateway(file: _xfile(_bytes)),
+        luma: _dark,
+        textScale: 2.0,
+        locale: const Locale('af'),
+      );
+      await _open(tester);
+      await _capture(tester);
+      // At 2.0× the caption is below the fold on a 360×640 phone, which is the
+      // geometry a real agent has — so the test scrolls rather than pumping a
+      // viewport nobody owns.
+      await scrollAgentTo(
+        tester,
+        find.byKey(const ValueKey<String>('photo-dark'), skipOffstage: false),
+      );
+      expect(find.text('Donker — neem weer?'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }
