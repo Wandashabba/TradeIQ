@@ -113,11 +113,12 @@ String answerPlainText(
   return lines.join('\n').trimRight();
 }
 
-/// Inline markdown, removed. The text is the words, not the markers.
-String _plain(String text) => text
-    .replaceAllMapped(RegExp(r'\*\*(.+?)\*\*'), (m) => m[1]!)
-    .replaceAllMapped(RegExp(r'\*(.+?)\*'), (m) => m[1]!)
-    .replaceAllMapped(RegExp(r'`(.+?)`'), (m) => m[1]!)
+/// Inline markdown, removed — through the screen's own parser, so what is
+/// copied is exactly the words that were drawn. A second regex here would be
+/// a second definition of what a marker is, and the two would drift.
+String _plain(String text) => parseInline(text, streaming: false)
+    .map((run) => run.text)
+    .join()
     .trim();
 
 /// One line per figure, with its unit and — where there is one — its movement
@@ -157,8 +158,34 @@ List<String> _figureLines(
         final data = artifact.data;
         if (data is! Map) break;
         final metric = data['metric'];
+        final title = TrendChartCard.metricLabel(
+          l10n,
+          metric is String ? metric : null,
+        );
+        // A chart cannot be pasted, so what the plot said is: where it
+        // started and where it ended, in the reader's own separators.
+        final points = <(String, num)>[
+          for (final row in (data['points'] is List
+              ? data['points'] as List
+              : const <dynamic>[]))
+            if (row is Map &&
+                row['value'] is num &&
+                (row['value'] as num).isFinite)
+              (
+                row['period'] is String ? row['period'] as String : '',
+                row['value'] as num,
+              ),
+        ];
+        final unit = TrendChartCard.percentMetrics.contains(metric)
+            ? TiqUnit.percent
+            : TiqUnit.none;
         lines.add(
-          '- ${TrendChartCard.metricLabel(l10n, metric is String ? metric : null)}',
+          points.length < 2
+              ? '- $title'
+              : '- $title: '
+                    '${points.first.$1} ${number.format(points.first.$2, unit: unit, decimals: 1)} '
+                    '$emDash '
+                    '${points.last.$1} ${number.format(points.last.$2, unit: unit, decimals: 1)}',
         );
       default:
         break;

@@ -13,7 +13,7 @@ import 'ask_harness.dart' show askBlock;
 ChatMessage answer() => ChatMessage(
   role: ChatRole.assistant,
   text: 'Sell-in held steady.\n\n'
-      '- **Soweto** fell hardest\n'
+      '- __Soweto__ fell *hardest*\n'
       '- Sandton rose\n',
   artifacts: const <ChatArtifact>[
     ChatArtifact(
@@ -106,12 +106,55 @@ void main() {
     expect(text, contains('Sell-in held steady.'));
     // The markers are the app's internals, not the words.
     expect(text, contains('- Soweto fell hardest'));
-    expect(text, isNot(contains('**')));
+    expect(text, isNot(contains('*')));
+    expect(text, isNot(contains('_')));
     expect(text, contains('Sell-in, units: 1,284,990.5'));
     expect(text, contains("vs Aug '25"));
     expect(text, contains('${minusSign}12.4%'));
     expect(text, contains('news24.com'));
     expect(text, contains('https://www.news24.com/fin24/retail'));
+  });
+
+  testWidgets('a chart pastes as where it started and where it ended', (
+    tester,
+  ) async {
+    late String text;
+    await tester.pumpWidget(
+      askBlock(
+        Builder(
+          builder: (context) {
+            text = answerPlainText(
+              context,
+              message: const ChatMessage(
+                role: ChatRole.assistant,
+                text: 'Availability recovered.',
+                artifacts: <ChatArtifact>[
+                  ChatArtifact(
+                    id: 'getMetricTrend-0',
+                    type: 'trend_chart',
+                    params: <String, dynamic>{},
+                    data: <String, dynamic>{
+                      'metric': 'availability',
+                      'points': <Map<String, dynamic>>[
+                        <String, dynamic>{'period': '2026-06', 'value': 58},
+                        <String, dynamic>{'period': '2026-08', 'value': 66.4},
+                      ],
+                    },
+                  ),
+                ],
+              ),
+            );
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // A picture cannot be pasted; what the plot said can.
+    expect(text, contains('On-shelf availability'));
+    expect(text, contains('58.0%'));
+    expect(text, contains('66.4%'));
   });
 
   testWidgets('an unknown figure pastes as an unknown, never as a zero', (
