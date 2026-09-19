@@ -389,9 +389,20 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
 
   Widget _page(BuildContext context) {
     final media = MediaQuery.of(context);
-    if (_spec.form == TorchSheetForm.fullScreen) {
-      return SafeArea(child: builder(context));
-    }
+    // A sheet route has no Material above it, so without this every Text in
+    // it inherits the framework's debug fallback — the red-on-yellow double
+    // underline — merged into the skin's token styles, which all inherit.
+    // Replacing (not merging) the ambient style gives the tokens a clean base.
+    final page = _spec.form == TorchSheetForm.fullScreen
+        ? SafeArea(child: builder(context))
+        : _anchored(context, media);
+    return DefaultTextStyle(
+      style: skin.text.body.style(color: skin.palette.ink1),
+      child: page,
+    );
+  }
+
+  Widget _anchored(BuildContext context, MediaQueryData media) {
     return Align(
       alignment: Alignment.bottomCenter,
       child: ConstrainedBox(

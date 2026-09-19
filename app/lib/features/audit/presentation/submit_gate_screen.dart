@@ -92,10 +92,14 @@ class SubmitGateScreen extends ConsumerWidget {
         .maybeWhen(data: (s) => s.pending.isNotEmpty, orElse: () => false);
 
     final l10n = context.l10n;
-    final progress = progressAsync.maybeWhen(
-      data: (p) => p,
-      orElse: () => null,
-    );
+    // Unknown is not zero. A progress that has not answered yet, or cannot be
+    // read, is neither "0 of 0 sections" nor a visit with nothing
+    // can't-confirm in it — and treating it as both printed a clean verdict
+    // over a section nobody could confirm (#389's other half, again). The
+    // last reading that did arrive is still a real reading, so a stream that
+    // errors after a value keeps it.
+    final progress = progressAsync.hasValue ? progressAsync.value : null;
+    final progressUnread = progress == null && progressAsync.hasError;
 
     Widget frame({
       required String phase,
@@ -176,10 +180,27 @@ class SubmitGateScreen extends ConsumerWidget {
           ],
         ),
         data: (review) {
+          // Still waiting on the sections: the same skeleton as the review,
+          // never a count of nothing. The primary stays armed — the captures
+          // are on the phone whether or not this screen has read them yet.
+          if (progress == null && !progressUnread) {
+            return frame(
+              phase: 'loading',
+              children: const <Widget>[_GateSkeleton()],
+            );
+          }
           final cantConfirm = _cantConfirmEntries(l10n, progress);
           final raised = review.willRaise.length + cantConfirm.length;
+          // With the sections unread the gate cannot know what it would have
+          // to raise for them, so it never says "nothing to raise": the list
+          // carries a row that says, in words, what it could not read.
+          final phase = progressUnread
+              ? 'sections-unread'
+              : raised == 0
+              ? 'clean'
+              : 'will-raise';
           return frame(
-            phase: raised == 0 ? 'clean' : 'will-raise',
+            phase: phase,
             children: <Widget>[
               Text(
                 l10n.submitIntro,
@@ -189,16 +210,21 @@ class SubmitGateScreen extends ConsumerWidget {
               ),
               const SizedBox(height: TiqSpace.s4),
               _CapturedBlock(
-                sectionsDone: progress?.doneCount ?? 0,
-                sectionsTotal: progress?.captureCount ?? 0,
+                sectionsDone: progress?.doneCount,
+                sectionsTotal: progress?.captureCount,
                 line: review.capturedLineIn(l10n),
                 unconfirmed: cantConfirm.length,
               ),
               const SizedBox(height: TiqSpace.s7),
-              if (raised == 0)
+              if (raised == 0 && !progressUnread)
                 const _NothingToRaise()
               else ...<Widget>[
-                SectionRule(l10n.submitWillRaiseHeading, count: raised),
+                // No count beside the rule when part of the list is unknown:
+                // a figure there would be a total the gate does not have.
+                SectionRule(
+                  l10n.submitWillRaiseHeading,
+                  count: progressUnread ? null : raised,
+                ),
                 const SizedBox(height: TiqSpace.s5),
                 TorchBleed(
                   extra: context.skin.space.gutter * 2,
@@ -210,6 +236,7 @@ class SubmitGateScreen extends ConsumerWidget {
                           task: task,
                           last:
                               cantConfirm.isEmpty &&
+                              !progressUnread &&
                               i == review.willRaise.length - 1,
                         ),
                       for (final (i, entry) in cantConfirm.indexed)
@@ -217,16 +244,31 @@ class SubmitGateScreen extends ConsumerWidget {
                           entry: entry,
                           last: i == cantConfirm.length - 1,
                         ),
+                      if (progressUnread) const _SectionsUnreadRow(),
                     ],
                   ),
                 ),
-                const SizedBox(height: TiqSpace.s4),
-                Text(
-                  l10n.submitAccusation(raised),
-                  style: context.skin.text.meta.style(
-                    color: context.skin.palette.ink3,
+                // The whole sentence, off the row: a row caps its lines, and
+                // this is the one line on the gate that must not be cut.
+                if (progressUnread) ...<Widget>[
+                  const SizedBox(height: TiqSpace.s4),
+                  Text(
+                    l10n.submitSectionsUnreadNote,
+                    key: const ValueKey<String>('submit-sections-unread-note'),
+                    style: context.skin.text.body.style(
+                      color: context.skin.palette.ink2,
+                    ),
                   ),
-                ),
+                ],
+                if (raised > 0) ...<Widget>[
+                  const SizedBox(height: TiqSpace.s4),
+                  Text(
+                    l10n.submitAccusation(raised),
+                    style: context.skin.text.meta.style(
+                      color: context.skin.palette.ink3,
+                    ),
+                  ),
+                ],
               ],
             ],
           );
@@ -284,8 +326,10 @@ class _CapturedBlock extends StatelessWidget {
     required this.unconfirmed,
   });
 
-  final int sectionsDone;
-  final int sectionsTotal;
+  /// Null when the visit's sections could not be read. Never read as zero:
+  /// the block then says so in words, with no figure at all.
+  final int? sectionsDone;
+  final int? sectionsTotal;
   final String line;
   final int unconfirmed;
 
@@ -293,11 +337,18 @@ class _CapturedBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    final complete = l10n.submitSectionsComplete(sectionsDone, sectionsTotal);
+    final done = sectionsDone;
+    final total = sectionsTotal;
+    final known = done != null && total != null;
+    final complete = known
+        ? l10n.submitSectionsComplete(done, total)
+        : l10n.submitSectionsUnread;
 
     return Semantics(
       container: true,
-      label: l10n.submitCapturedSemantics(sectionsDone, sectionsTotal, line),
+      label: known
+          ? l10n.submitCapturedSemantics(done, total, line)
+          : l10n.submitCapturedUnreadSemantics(line),
       excludeSemantics: true,
       child: Container(
         key: const ValueKey<String>('submit-captured'),
@@ -317,7 +368,13 @@ class _CapturedBlock extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const SectionStateGlyph(state: SectionState.done),
+                // A tick claims the sections are done. With nothing read, the
+                // informational square says only that there is something to
+                // know here.
+                if (known)
+                  const SectionStateGlyph(state: SectionState.done)
+                else
+                  const RowMarkTile(mark: RowMark.square),
                 const SizedBox(width: TiqSpace.s3),
                 Expanded(
                   child: Column(
@@ -325,6 +382,7 @@ class _CapturedBlock extends StatelessWidget {
                     children: <Widget>[
                       Text(
                         complete,
+                        key: const ValueKey<String>('submit-sections-count'),
                         style: skin.text.titleM.style(color: skin.palette.ink1),
                       ),
                       const SizedBox(height: TiqSpace.s1),
@@ -432,6 +490,30 @@ class _CantConfirmRow extends StatelessWidget {
         entry.section,
         entry.reason,
       ),
+    );
+  }
+}
+
+/// THE SECTIONS COULD NOT BE READ — so the list above may be missing a
+/// can't-confirm row, and the gate says that rather than implying a clean
+/// store. An informational square, not a severity: nothing is known to be
+/// wrong, and nothing is known to be right.
+class _SectionsUnreadRow extends StatelessWidget {
+  const _SectionsUnreadRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final title = l10n.submitSectionsUnreadTask;
+    final line = l10n.submitSectionsUnreadRowLine;
+
+    return SoftRow(
+      key: const ValueKey<String>('submit-sections-unread'),
+      title: title,
+      subtitle: line,
+      leading: const RowMarkTile(mark: RowMark.square),
+      separator: SoftRowSeparator.none,
+      semanticsLabel: '$title. $line',
     );
   }
 }

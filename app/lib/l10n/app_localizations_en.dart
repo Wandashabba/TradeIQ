@@ -184,10 +184,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginForgotPassword => 'Forgot password?';
 
   @override
-  String get loginPasswordResetUnavailable =>
-      'Password reset is not available yet.';
-
-  @override
   String get todayTitle => 'Today';
 
   @override
@@ -2740,6 +2736,260 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get visitPinReportedHeld =>
+      'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.';
+
+  @override
+  String get wordYes => 'Yes';
+
+  @override
+  String get wordNo => 'No';
+
+  @override
+  String get sectionSave => 'Save';
+
+  @override
+  String get sectionSaveAndBack => 'Save and go back';
+
+  @override
+  String get sectionSaveFailedTitle => 'Not saved';
+
+  @override
+  String get sectionSaveFailedBody =>
+      'Your answers are still here — try Save again.';
+
+  @override
+  String get sectionCantConfirm => 'Can\'t confirm this section';
+
+  @override
+  String get sectionCantConfirmWhy => 'Why not?';
+
+  @override
+  String sectionCantConfirmLocked(String reason) {
+    return 'Can\'t confirm: $reason';
+  }
+
+  @override
+  String get sectionCantConfirmHeld =>
+      'Held on this phone. Nothing is sent for this yet.';
+
+  @override
+  String get sectionCanConfirmAfterAll => 'I can confirm it after all';
+
+  @override
+  String get sectionLockedBlock => 'This section is marked can\'t confirm';
+
+  @override
+  String get sectionLeaveTitle => 'You have unsaved answers';
+
+  @override
+  String get sectionLeaveWithoutSaving => 'Go back without saving';
+
+  @override
+  String get sectionStayHere => 'Stay here';
+
+  @override
+  String get sectionAddAnother => 'Add another';
+
+  @override
+  String sectionEntryPosition(int index, int total) {
+    return '$index of $total';
+  }
+
+  @override
+  String sectionRemoveEntry(String name, String position) {
+    return 'Remove $name $position';
+  }
+
+  @override
+  String get sectionNotAnsweredYet => 'Not answered yet';
+
+  @override
+  String get sectionPhotoOpenCamera => 'Open camera';
+
+  @override
+  String get sectionPhotoOpenCameraSemantics =>
+      'Open the camera to photograph the shelf';
+
+  @override
+  String get sectionPhotoFraming =>
+      'Stand back far enough to get the whole bay, including the price rail.';
+
+  @override
+  String get sectionPhotoStamped =>
+      'Your photo is stamped with the time and where you are.';
+
+  @override
+  String get sectionPhotoTorchHint =>
+      'Aisle dark? Switch your phone torch on before you shoot.';
+
+  @override
+  String get sectionPhotoHeld => 'Held on this phone · sends with the visit';
+
+  @override
+  String get sectionPhotoNoCamera => 'This phone has no camera we can reach.';
+
+  @override
+  String get sectionPhotoTooLarge =>
+      'That photo is too big to send. Take it again.';
+
+  @override
+  String get sectionPhotoFailed =>
+      'The camera did not hand the photo back. Try again.';
+
+  @override
+  String get sectionPhotoRemoveSemantics => 'Remove the photo';
+
+  @override
+  String sectionPhotoSemantics(String time) {
+    return 'Photo taken $time, held on this phone';
+  }
+
+  @override
+  String get skipReasonStoreRefused => 'The store would not let me';
+
+  @override
+  String get skipReasonStoreRefusedConsequence =>
+      'The manager is told the store refused';
+
+  @override
+  String get skipReasonNotStocked => 'They do not stock this';
+
+  @override
+  String get skipReasonNotStockedConsequence =>
+      'These lines are marked not-stocked for this outlet';
+
+  @override
+  String get skipReasonEquipment => 'The equipment is broken';
+
+  @override
+  String get skipReasonEquipmentConsequence => 'A repair task is raised';
+
+  @override
+  String get skipReasonSomethingElse => 'Something else';
+
+  @override
+  String get skipReasonSomethingElseConsequence => 'You write what happened';
+
+  @override
+  String get skipReasonSave => 'Save reason';
+
+  @override
+  String get skipReasonChange => 'Change reason';
+
+  @override
+  String get skipReasonCancel => 'Cancel';
+
+  @override
+  String get skipReasonNoteLabel => 'What happened?';
+
+  @override
+  String get skipReasonChooseFirst => 'Choose a reason first';
+
+  @override
+  String get skipReasonSayWhatHappened => 'Say what happened';
+
+  @override
+  String s2Summary(int counted, int outOfStock, int toGo) {
+    return '$counted counted · $outOfStock out of stock · $toGo to go';
+  }
+
+  @override
+  String get s2NotCounted => 'Not counted';
+
+  @override
+  String get s2OutOfStockWord => 'Out of stock';
+
+  @override
+  String get s2TypeCount => 'Type a count';
+
+  @override
+  String get s2OneFewer => 'One fewer';
+
+  @override
+  String get s2OneMore => 'One more';
+
+  @override
+  String s2PartCounted(int toGo) {
+    return 'Saving now records $toGo products as not counted — never as empty.';
+  }
+
+  @override
+  String s2CountedOf(int counted, int total) {
+    return '$counted of $total counted';
+  }
+
+  @override
+  String s2StockSavedPartial(int counted, int total) {
+    return 'Saved $counted of $total — the rest are not counted, never empty';
+  }
+
+  @override
+  String get s2JumpToUncounted => 'Jump to the first uncounted';
+
+  @override
+  String get s10NotFinal =>
+      'Worked out on this phone. The final score comes back when the visit sends.';
+
+  @override
+  String get s10NotMeasured => 'Not measured on this visit';
+
+  @override
+  String s10ScoreSemantics(String score, String band) {
+    return 'Weighted total $score out of 100, $band';
+  }
+
+  @override
+  String get s5NoPriceYet => 'No price entered';
+
+  @override
+  String get s6NoCompetitors =>
+      'No competitor on this shelf yet. Add one if you see it.';
+
+  @override
+  String get s8NoRisks => 'Nothing flagged yet.';
+
+  @override
+  String get s9NoTasks => 'No extra tasks yet.';
+
+  @override
+  String s9AddedTasks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tasks queued for sync',
+      one: '1 task queued for sync',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get s2TypeCountFirst => 'Type a count first';
+
+  @override
+  String sectionEntryName(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'Competitor',
+      'risk': 'Risk',
+      'other': 'Task',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String sectionEntryNameLower(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'competitor',
+      'risk': 'risk',
+      'other': 'task',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get sectionEntryUnnamed => 'Not named yet';
+
+  @override
   String get myWorkSendNow => 'Send now';
 
   @override
@@ -2879,6 +3129,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your session ended. Sign in and this sends itself.';
 
   @override
+  String get outboxHeld => 'Held';
+
+  @override
+  String get outboxHeldUntilSignIn => 'Held until you sign in';
+
+  @override
   String outboxItemId(int id, String type) {
     return 'Capture $id · $type';
   }
@@ -2925,4 +3181,177 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get errorTooManyAttempts =>
+      'Too many attempts. Wait a few minutes, then try again.';
+
+  @override
+  String get errorUpdateRequired =>
+      'This version of the app is too old. Update TradeIQ to carry on.';
+
+  @override
+  String get passwordRuleHelp =>
+      'At least 12 characters. Three ordinary words are easy to type and hard to guess.';
+
+  @override
+  String get passwordTooShort => 'Too short: use at least 12 characters.';
+
+  @override
+  String get passwordTooLong =>
+      'Too long for a password here. Use fewer characters.';
+
+  @override
+  String get passwordIsEmail => 'Your password cannot be your email address.';
+
+  @override
+  String get passwordMismatch => 'The two new passwords do not match.';
+
+  @override
+  String get passwordRejected =>
+      'That password was not accepted. Use at least 12 characters, not your email address and not an obvious phrase.';
+
+  @override
+  String get passwordShow => 'Show passwords';
+
+  @override
+  String get passwordNeedsNew => 'Choose a new password';
+
+  @override
+  String get passwordNeedsConfirm => 'Type the new password again';
+
+  @override
+  String get passwordFailedTitle => 'Your password was not changed';
+
+  @override
+  String get passwordOtherSessions =>
+      'Other phones signed in to your account stay signed in until their session ends, up to 12 hours. If a phone is lost, ask your manager to switch the account off.';
+
+  @override
+  String get forgotTitle => 'Reset your password';
+
+  @override
+  String get forgotBack => 'Back to sign in';
+
+  @override
+  String get forgotIntro =>
+      'Ask your manager for a reset code. They make it in TradeIQ and read it out to you. It works once, for 15 minutes.';
+
+  @override
+  String get forgotEmailLabel => 'Email';
+
+  @override
+  String get forgotCodeLabel => 'Reset code';
+
+  @override
+  String get forgotCodeHint => '8 digits';
+
+  @override
+  String get forgotNewPasswordLabel => 'New password';
+
+  @override
+  String get forgotConfirmLabel => 'New password again';
+
+  @override
+  String get forgotSubmit => 'Set new password';
+
+  @override
+  String get forgotNeedsEmail => 'Enter your email first';
+
+  @override
+  String get forgotNeedsCode => 'Enter the 8-digit code from your manager';
+
+  @override
+  String get forgotCodeRejectedTitle => 'That code did not work';
+
+  @override
+  String get forgotCodeRejectedBody =>
+      'It may be mistyped, used already or older than 15 minutes. Check the email too. Your manager can make a new code.';
+
+  @override
+  String get forgotDoneTitle => 'Your password is changed';
+
+  @override
+  String get forgotDoneBody => 'Sign in with your new password.';
+
+  @override
+  String get forgotGoToSignIn => 'Go to sign in';
+
+  @override
+  String get changePasswordTitle => 'Change password';
+
+  @override
+  String get changePasswordBack => 'Back to settings';
+
+  @override
+  String get changeCurrentLabel => 'Current password';
+
+  @override
+  String get changeNeedsCurrent => 'Enter your current password';
+
+  @override
+  String get changeWrongCurrent => 'That is not your current password.';
+
+  @override
+  String get changeDoneTitle => 'Password changed';
+
+  @override
+  String get changeDoneBody =>
+      'You stay signed in on this phone. Use the new password next time you sign in.';
+
+  @override
+  String get changeDone => 'Done';
+
+  @override
+  String get settingsAccountHeading => 'Your account';
+
+  @override
+  String get updateTitle => 'Update TradeIQ';
+
+  @override
+  String get updateBody =>
+      'This version of the app is too old for the server. Install the newest version from where you got TradeIQ, then open it again.';
+
+  @override
+  String get updateNothingLost =>
+      'Nothing saved on this phone is deleted by this.';
+
+  @override
+  String get updateTryAgain => 'Try again';
+
+  @override
+  String updateVersions(String current, String minimum) {
+    return 'This phone has version $current. Version $minimum or newer is needed.';
+  }
+
+  @override
+  String updateVersionNoMinimum(String current) {
+    return 'This phone has version $current. A newer version is needed.';
+  }
+
+  @override
+  String get submitSectionsUnread => 'Could not read which sections are done';
+
+  @override
+  String get submitSectionsUnreadTask => 'Your sections could not be read';
+
+  @override
+  String get submitSectionsUnreadRowLine =>
+      'Something may be missing from this list';
+
+  @override
+  String get submitSectionsUnreadNote =>
+      'A section that could not be confirmed may be missing from this list. Go back and open your sections to check before you submit.';
+
+  @override
+  String submitCapturedUnreadSemantics(String line) {
+    return 'Could not read which sections are done. $line';
+  }
+
+  @override
+  String get outcomePreviousUnknown =>
+      'Your last visit here could not be loaded, so there is nothing to compare this score with.';
+
+  @override
+  String get outboxSeeScore => 'See how it scored';
 }

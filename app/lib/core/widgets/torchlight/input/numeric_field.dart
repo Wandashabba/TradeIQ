@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart'
     show
+<<<<<<< HEAD
+=======
+        InputDecoration,
+        InputDecorationTheme,
+>>>>>>> origin/main
         Material,
         MaterialType,
         TextField,
@@ -183,16 +188,8 @@ class _TorchNumericFieldState extends State<TorchNumericField> {
   /// separator rather than refusing it. An agent who types `1.5` on an
   /// Afrikaans phone has typed one and a half, and telling them otherwise is
   /// the app being right about a rule nobody agreed to.
-  num? _parse(String raw, TiqNumberSymbols symbols) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return null;
-    final normalised = trimmed
-        .replaceAll(symbols.group, '')
-        .replaceAll(' ', '')
-        .replaceAll(' ', '')
-        .replaceAll(',', '.');
-    return num.tryParse(normalised);
-  }
+  num? _parse(String raw, TiqNumberSymbols symbols) =>
+      TiqNumber(symbols).parse(raw);
 
   @override
   Widget build(BuildContext context) {
@@ -383,6 +380,12 @@ class _Editable extends StatelessWidget {
     type: MaterialType.transparency,
     child: Theme(
       data: Theme.of(context).copyWith(
+        // An EMPTY decoration theme. The app theme's input decoration carries
+        // a flame-700 focused underline for the Material forms, and a
+        // collapsed decoration inherits `focusedBorder` from it — which painted
+        // an unclaimed amber line under every focused trough, a second lit
+        // object in Day and Veld. The trough draws the only rule.
+        inputDecorationTheme: const InputDecorationTheme(),
         textSelectionTheme: TextSelectionThemeData(
           cursorColor: style.color,
           selectionColor: selectionFill,

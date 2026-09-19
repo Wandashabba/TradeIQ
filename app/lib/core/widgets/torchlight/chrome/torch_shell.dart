@@ -78,6 +78,7 @@ class TorchShell extends StatelessWidget {
     this.skinCycle,
     this.band,
     this.scrollController,
+    this.pinned,
   }) : assert(
          navPill == null || primary == null,
          'A tab root has no thumb zone and a screen with a primary commit '
@@ -129,6 +130,13 @@ class TorchShell extends StatelessWidget {
 
   final ScrollController? scrollController;
 
+  /// A band that stays at the top of the viewport while the body scrolls
+  /// beneath it — the stock counter's summary rule is the one user. The header
+  /// scrolls away above it as usual, so the band is the only fixed chrome at
+  /// the top. It sits on the ground colour, with no shadow and no blur (the
+  /// paint budget), and is gutter-padded like the body.
+  final Widget? pinned;
+
   /// Whether the nav will actually be on screen — the answer both the shell and
   /// the route's [TorchScope] must use.
   ///
@@ -157,31 +165,65 @@ class TorchShell extends StatelessWidget {
       gutter: gutter,
     );
 
-    final body = ListView(
-      controller: scrollController,
-      padding: EdgeInsets.fromLTRB(
-        gutter,
-        profile == TorchShellProfile.console ? TiqSpace.s6 : TiqSpace.s4,
-        gutter,
-        // The bottom region is a **sibling** of the scroll view, not an
-        // overlay, so the only thing the body reserves is the block gap that
-        // keeps its last row off the chrome. Overlaying it would mean
-        // reserving a height computed from tokens — and at 2.0× the region is
-        // taller than those tokens, which is how the last row of a list ends
-        // up under a nav bar on exactly the devices whose readers need it most.
-        skin.space.blockGap,
-      ),
-      children: <Widget>[
-        if (header != null) ...<Widget>[
-          header!,
-          // 24dp before content, and no divider. The header is separated from
-          // the body by space, which is the only separator that does not also
-          // claim to mean something.
-          const SizedBox(height: TiqSpace.s6),
-        ],
-        ...children,
+    final top = profile == TorchShellProfile.console
+        ? TiqSpace.s6
+        : TiqSpace.s4;
+    final headerBlock = <Widget>[
+      if (header != null) ...<Widget>[
+        header!,
+        // 24dp before content, and no divider. The header is separated from
+        // the body by space, which is the only separator that does not also
+        // claim to mean something.
+        const SizedBox(height: TiqSpace.s6),
       ],
-    );
+    ];
+
+    // The bottom region is a **sibling** of the scroll view, not an overlay,
+    // so the only thing the body reserves is the block gap that keeps its last
+    // row off the chrome. Overlaying it would mean reserving a height computed
+    // from tokens — and at 2.0× the region is taller than those tokens, which
+    // is how the last row of a list ends up under a nav bar on exactly the
+    // devices whose readers need it most.
+    final Widget body;
+    final band = pinned;
+    if (band == null) {
+      body = ListView(
+        controller: scrollController,
+        padding: EdgeInsets.fromLTRB(gutter, top, gutter, skin.space.blockGap),
+        children: <Widget>[...headerBlock, ...children],
+      );
+    } else {
+      body = CustomScrollView(
+        controller: scrollController,
+        slivers: <Widget>[
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(gutter, top, gutter, 0),
+            sliver: SliverList.list(children: headerBlock),
+          ),
+          // Sized by its child, so the band is as tall as its words at 2.0×
+          // rather than a token height that clips them.
+          PinnedHeaderSliver(
+            child: ColoredBox(
+              key: const ValueKey<String>('torch-shell-pinned'),
+              color: skin.palette.ground,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: gutter),
+                child: band,
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              gutter,
+              0,
+              gutter,
+              skin.space.blockGap,
+            ),
+            sliver: SliverList.list(children: children),
+          ),
+        ],
+      );
+    }
 
     // The letterbox falloff is the shell's **ground**, not a wash over its
     // content: four stops in one draw call, painted once, beneath everything.
@@ -190,6 +232,7 @@ class TorchShell extends StatelessWidget {
     final falloff =
         profile == TorchShellProfile.console && skin.mode != SkinMode.veld;
 
+<<<<<<< HEAD
     final keyboard = media.viewInsets.bottom;
 
     // The route's own text style, beneath everything. A Torchlight route has
@@ -218,6 +261,22 @@ class TorchShell extends StatelessWidget {
                 ),
                 child: band,
               ),
+=======
+    // A Torchlight route has no Scaffold or Material above it, so without this
+    // every Text inherits the framework's debug fallback — a red-on-yellow
+    // double underline, merged into the skin's token styles because they all
+    // inherit. It is not decoration a reader should ever see, and the census
+    // counted it as light wherever it crossed a crimson or Oatmeal word.
+    // Replacing (not merging) the ambient style gives the tokens a clean base.
+    return _Ground(
+      skin: skin,
+      falloff: falloff,
+      child: DefaultTextStyle(
+        style: skin.text.body.style(color: skin.palette.ink1),
+        child: Column(
+          children: <Widget>[
+            Expanded(child: body),
+>>>>>>> origin/main
             ?bottom,
             SizedBox(height: safeBottom),
           ],

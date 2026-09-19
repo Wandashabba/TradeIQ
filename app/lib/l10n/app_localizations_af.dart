@@ -190,10 +190,6 @@ class AppLocalizationsAf extends AppLocalizations {
   String get loginForgotPassword => 'Wagwoord vergeet?';
 
   @override
-  String get loginPasswordResetUnavailable =>
-      'Wagwoordherstel is nog nie beskikbaar nie.';
-
-  @override
   String get todayTitle => 'Vandag';
 
   @override
@@ -2772,6 +2768,263 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String get visitPinReportedHeld =>
+      'Op hierdie foon aangeteken. Dit is nog nêrens gestuur nie — daar is nêrens om dit heen te stuur nie.';
+
+  @override
+  String get wordYes => 'Ja';
+
+  @override
+  String get wordNo => 'Nee';
+
+  @override
+  String get sectionSave => 'Stoor';
+
+  @override
+  String get sectionSaveAndBack => 'Stoor en gaan terug';
+
+  @override
+  String get sectionSaveFailedTitle => 'Nie gestoor nie';
+
+  @override
+  String get sectionSaveFailedBody =>
+      'Jou antwoorde is nog hier — probeer weer Stoor.';
+
+  @override
+  String get sectionCantConfirm => 'Kan nie hierdie afdeling bevestig nie';
+
+  @override
+  String get sectionCantConfirmWhy => 'Hoekom nie?';
+
+  @override
+  String sectionCantConfirmLocked(String reason) {
+    return 'Kan nie bevestig nie: $reason';
+  }
+
+  @override
+  String get sectionCantConfirmHeld =>
+      'Gehou op hierdie foon. Niks word nog hiervoor gestuur nie.';
+
+  @override
+  String get sectionCanConfirmAfterAll => 'Ek kan dit tog bevestig';
+
+  @override
+  String get sectionLockedBlock =>
+      'Hierdie afdeling is gemerk as kan-nie-bevestig-nie';
+
+  @override
+  String get sectionLeaveTitle => 'Jy het ongestoorde antwoorde';
+
+  @override
+  String get sectionLeaveWithoutSaving => 'Gaan terug sonder om te stoor';
+
+  @override
+  String get sectionStayHere => 'Bly hier';
+
+  @override
+  String get sectionAddAnother => 'Voeg nog een by';
+
+  @override
+  String sectionEntryPosition(int index, int total) {
+    return '$index van $total';
+  }
+
+  @override
+  String sectionRemoveEntry(String name, String position) {
+    return 'Verwyder $name $position';
+  }
+
+  @override
+  String get sectionNotAnsweredYet => 'Nog nie beantwoord nie';
+
+  @override
+  String get sectionPhotoOpenCamera => 'Maak kamera oop';
+
+  @override
+  String get sectionPhotoOpenCameraSemantics =>
+      'Maak die kamera oop om die rak te fotografeer';
+
+  @override
+  String get sectionPhotoFraming =>
+      'Staan ver genoeg terug om die hele rak te kry, die pryslys ingesluit.';
+
+  @override
+  String get sectionPhotoStamped =>
+      'Jou foto word gestempel met die tyd en waar jy is.';
+
+  @override
+  String get sectionPhotoTorchHint =>
+      'Gang donker? Skakel jou foon se flits aan voor jy skiet.';
+
+  @override
+  String get sectionPhotoHeld =>
+      'Gehou op hierdie foon · stuur saam met die besoek';
+
+  @override
+  String get sectionPhotoNoCamera =>
+      'Hierdie foon het geen kamera wat ons kan bereik nie.';
+
+  @override
+  String get sectionPhotoTooLarge =>
+      'Daardie foto is te groot om te stuur. Neem dit weer.';
+
+  @override
+  String get sectionPhotoFailed =>
+      'Die kamera het nie die foto teruggegee nie. Probeer weer.';
+
+  @override
+  String get sectionPhotoRemoveSemantics => 'Verwyder die foto';
+
+  @override
+  String sectionPhotoSemantics(String time) {
+    return 'Foto geneem $time, gehou op hierdie foon';
+  }
+
+  @override
+  String get skipReasonStoreRefused => 'Die winkel wou my nie toelaat nie';
+
+  @override
+  String get skipReasonStoreRefusedConsequence =>
+      'Die bestuurder word vertel die winkel het geweier';
+
+  @override
+  String get skipReasonNotStocked => 'Hulle hou dit nie aan nie';
+
+  @override
+  String get skipReasonNotStockedConsequence =>
+      'Hierdie lyne word gemerk as nie-aangehou vir hierdie winkel';
+
+  @override
+  String get skipReasonEquipment => 'Die toerusting is stukkend';
+
+  @override
+  String get skipReasonEquipmentConsequence => '\'n Hersteltaak word geskep';
+
+  @override
+  String get skipReasonSomethingElse => 'Iets anders';
+
+  @override
+  String get skipReasonSomethingElseConsequence => 'Jy skryf wat gebeur het';
+
+  @override
+  String get skipReasonSave => 'Stoor rede';
+
+  @override
+  String get skipReasonChange => 'Verander rede';
+
+  @override
+  String get skipReasonCancel => 'Kanselleer';
+
+  @override
+  String get skipReasonNoteLabel => 'Wat het gebeur?';
+
+  @override
+  String get skipReasonChooseFirst => 'Kies eers ’n rede';
+
+  @override
+  String get skipReasonSayWhatHappened => 'Sê wat gebeur het';
+
+  @override
+  String s2Summary(int counted, int outOfStock, int toGo) {
+    return '$counted getel · $outOfStock uit voorraad · $toGo oor';
+  }
+
+  @override
+  String get s2NotCounted => 'Nie getel nie';
+
+  @override
+  String get s2OutOfStockWord => 'Uit voorraad';
+
+  @override
+  String get s2TypeCount => 'Tik ’n telling';
+
+  @override
+  String get s2OneFewer => 'Een minder';
+
+  @override
+  String get s2OneMore => 'Een meer';
+
+  @override
+  String s2PartCounted(int toGo) {
+    return 'Om nou te stoor merk $toGo produkte as nie getel nie — nooit as leeg nie.';
+  }
+
+  @override
+  String s2CountedOf(int counted, int total) {
+    return '$counted van $total getel';
+  }
+
+  @override
+  String s2StockSavedPartial(int counted, int total) {
+    return '$counted van $total gestoor — die res is nie getel nie, nooit leeg nie';
+  }
+
+  @override
+  String get s2JumpToUncounted => 'Spring na die eerste ongetelde';
+
+  @override
+  String get s10NotFinal =>
+      'Op hierdie foon uitgewerk. Die finale telling kom terug wanneer die besoek stuur.';
+
+  @override
+  String get s10NotMeasured => 'Nie op hierdie besoek gemeet nie';
+
+  @override
+  String s10ScoreSemantics(String score, String band) {
+    return 'Geweegde totaal $score uit 100, $band';
+  }
+
+  @override
+  String get s5NoPriceYet => 'Geen prys ingevoer nie';
+
+  @override
+  String get s6NoCompetitors =>
+      'Nog geen mededinger op hierdie rak nie. Voeg een by as jy dit sien.';
+
+  @override
+  String get s8NoRisks => 'Nog niks gemerk nie.';
+
+  @override
+  String get s9NoTasks => 'Nog geen ekstra take nie.';
+
+  @override
+  String s9AddedTasks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count take in die ry vir sinkronisasie',
+      one: '1 taak in die ry vir sinkronisasie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get s2TypeCountFirst => 'Tik eers ’n telling';
+
+  @override
+  String sectionEntryName(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'Mededinger',
+      'risk': 'Risiko',
+      'other': 'Taak',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String sectionEntryNameLower(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'mededinger',
+      'risk': 'risiko',
+      'other': 'taak',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get sectionEntryUnnamed => 'Nog nie benoem nie';
+
+  @override
   String get myWorkSendNow => 'Stuur nou';
 
   @override
@@ -2911,6 +3164,12 @@ class AppLocalizationsAf extends AppLocalizations {
       'Jou sessie het geëindig. Meld aan en hierdie stuur vanself.';
 
   @override
+  String get outboxHeld => 'Gehou';
+
+  @override
+  String get outboxHeldUntilSignIn => 'Gehou totdat jy aanmeld';
+
+  @override
   String outboxItemId(int id, String type) {
     return 'Vaslegging $id · $type';
   }
@@ -2957,4 +3216,178 @@ class AppLocalizationsAf extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get errorTooManyAttempts =>
+      'Te veel pogings. Wag ’n paar minute en probeer dan weer.';
+
+  @override
+  String get errorUpdateRequired =>
+      'Hierdie weergawe van die toep is te oud. Dateer TradeIQ op om voort te gaan.';
+
+  @override
+  String get passwordRuleHelp =>
+      'Ten minste 12 karakters. Drie gewone woorde is maklik om te tik en moeilik om te raai.';
+
+  @override
+  String get passwordTooShort => 'Te kort: gebruik ten minste 12 karakters.';
+
+  @override
+  String get passwordTooLong =>
+      'Te lank vir ’n wagwoord hier. Gebruik minder karakters.';
+
+  @override
+  String get passwordIsEmail => 'Jou wagwoord kan nie jou e-posadres wees nie.';
+
+  @override
+  String get passwordMismatch => 'Die twee nuwe wagwoorde stem nie ooreen nie.';
+
+  @override
+  String get passwordRejected =>
+      'Daardie wagwoord is nie aanvaar nie. Gebruik ten minste 12 karakters, nie jou e-posadres nie en nie ’n voor die hand liggende frase nie.';
+
+  @override
+  String get passwordShow => 'Wys wagwoorde';
+
+  @override
+  String get passwordNeedsNew => 'Kies ’n nuwe wagwoord';
+
+  @override
+  String get passwordNeedsConfirm => 'Tik die nuwe wagwoord weer';
+
+  @override
+  String get passwordFailedTitle => 'Jou wagwoord is nie verander nie';
+
+  @override
+  String get passwordOtherSessions =>
+      'Ander fone wat by jou rekening aangemeld is, bly aangemeld totdat hul sessie verval, tot 12 uur. As ’n foon verlore is, vra jou bestuurder om die rekening af te skakel.';
+
+  @override
+  String get forgotTitle => 'Stel jou wagwoord terug';
+
+  @override
+  String get forgotBack => 'Terug na aanmelding';
+
+  @override
+  String get forgotIntro =>
+      'Vra jou bestuurder vir ’n herstelkode. Hulle maak dit in TradeIQ en lees dit vir jou voor. Dit werk een keer, vir 15 minute.';
+
+  @override
+  String get forgotEmailLabel => 'E-pos';
+
+  @override
+  String get forgotCodeLabel => 'Herstelkode';
+
+  @override
+  String get forgotCodeHint => '8 syfers';
+
+  @override
+  String get forgotNewPasswordLabel => 'Nuwe wagwoord';
+
+  @override
+  String get forgotConfirmLabel => 'Nuwe wagwoord weer';
+
+  @override
+  String get forgotSubmit => 'Stel nuwe wagwoord';
+
+  @override
+  String get forgotNeedsEmail => 'Tik eers jou e-pos in';
+
+  @override
+  String get forgotNeedsCode => 'Tik die 8-syfer-kode van jou bestuurder in';
+
+  @override
+  String get forgotCodeRejectedTitle => 'Daardie kode het nie gewerk nie';
+
+  @override
+  String get forgotCodeRejectedBody =>
+      'Dit is dalk verkeerd getik, reeds gebruik of ouer as 15 minute. Kyk ook na die e-pos. Jou bestuurder kan ’n nuwe kode maak.';
+
+  @override
+  String get forgotDoneTitle => 'Jou wagwoord is verander';
+
+  @override
+  String get forgotDoneBody => 'Meld aan met jou nuwe wagwoord.';
+
+  @override
+  String get forgotGoToSignIn => 'Gaan na aanmelding';
+
+  @override
+  String get changePasswordTitle => 'Verander wagwoord';
+
+  @override
+  String get changePasswordBack => 'Terug na instellings';
+
+  @override
+  String get changeCurrentLabel => 'Huidige wagwoord';
+
+  @override
+  String get changeNeedsCurrent => 'Tik jou huidige wagwoord in';
+
+  @override
+  String get changeWrongCurrent => 'Dit is nie jou huidige wagwoord nie.';
+
+  @override
+  String get changeDoneTitle => 'Wagwoord verander';
+
+  @override
+  String get changeDoneBody =>
+      'Jy bly op hierdie foon aangemeld. Gebruik die nuwe wagwoord wanneer jy weer aanmeld.';
+
+  @override
+  String get changeDone => 'Klaar';
+
+  @override
+  String get settingsAccountHeading => 'Jou rekening';
+
+  @override
+  String get updateTitle => 'Dateer TradeIQ op';
+
+  @override
+  String get updateBody =>
+      'Hierdie weergawe van die toep is te oud vir die bediener. Installeer die nuutste weergawe van waar jy TradeIQ gekry het, en maak dit dan weer oop.';
+
+  @override
+  String get updateNothingLost =>
+      'Niks wat op hierdie foon gestoor is, word hierdeur uitgevee nie.';
+
+  @override
+  String get updateTryAgain => 'Probeer weer';
+
+  @override
+  String updateVersions(String current, String minimum) {
+    return 'Hierdie foon het weergawe $current. Weergawe $minimum of nuwer is nodig.';
+  }
+
+  @override
+  String updateVersionNoMinimum(String current) {
+    return 'Hierdie foon het weergawe $current. ’n Nuwer weergawe is nodig.';
+  }
+
+  @override
+  String get submitSectionsUnread =>
+      'Kon nie lees watter afdelings klaar is nie';
+
+  @override
+  String get submitSectionsUnreadTask =>
+      'Jou afdelings kon nie gelees word nie';
+
+  @override
+  String get submitSectionsUnreadRowLine => 'Iets ontbreek dalk op hierdie lys';
+
+  @override
+  String get submitSectionsUnreadNote =>
+      '’n Afdeling wat nie bevestig kon word nie, ontbreek dalk op hierdie lys. Gaan terug en maak jou afdelings oop om seker te maak voordat jy indien.';
+
+  @override
+  String submitCapturedUnreadSemantics(String line) {
+    return 'Kon nie lees watter afdelings klaar is nie. $line';
+  }
+
+  @override
+  String get outcomePreviousUnknown =>
+      'Jou vorige besoek hier kon nie gelaai word nie, so daar is niks om hierdie telling mee te vergelyk nie.';
+
+  @override
+  String get outboxSeeScore => 'Kyk hoe dit gevaar het';
 }

@@ -74,6 +74,8 @@ class CountStepper extends StatefulWidget {
     this.typeLabel = 'Type a count',
     this.cancelLabel = 'Cancel',
     this.setLabel = 'Set',
+    this.setBlockedReason = 'Type a count first',
+    this.sheetTitle,
   });
 
   final String label;
@@ -103,6 +105,15 @@ class CountStepper extends StatefulWidget {
   final String typeLabel;
   final String cancelLabel;
   final String setLabel;
+
+  /// What the number sheet's disabled `Set` says is missing. A disabled
+  /// primary names what it is waiting for.
+  final String setBlockedReason;
+
+  /// The number sheet's title — the product's name on a stock count, so the
+  /// agent typing a figure can see which shelf it is going to. Defaults to
+  /// [label].
+  final String? sheetTitle;
 
   /// One step tile's extent for a skin. 56 on Night and Day, 64 in Veld.
   static double tileExtentFor(TiqSkin skin) =>
@@ -193,7 +204,9 @@ class _CountStepperState extends State<CountStepper> {
     final result = await showTorchSheet<int?>(
       context,
       builder: (sheetContext) => _CountSheet(
-        title: widget.label,
+        title: widget.sheetTitle ?? widget.label,
+        fieldLabel: widget.label,
+        blockedReason: widget.setBlockedReason,
         initial: widget.value,
         minimum: widget.minimum,
         maximum: widget.maximum,
@@ -201,8 +214,16 @@ class _CountStepperState extends State<CountStepper> {
         setLabel: widget.setLabel,
       ),
     );
-    if (!mounted || result == null) return;
+    if (!mounted || result == null || result == widget.value) return;
     widget.onChanged(result);
+    // A typed zero is the same finding a stepped zero is, and it lands with
+    // the same heavier buzz — the sheet is a way to enter a count, not a way
+    // round the one signal the agent feels in a dark aisle.
+    if (widget.zeroIsFinding && result == 0) {
+      TorchBuzz.finding();
+    } else {
+      TorchBuzz.tick();
+    }
   }
 
   @override
@@ -289,8 +310,13 @@ class _CountStepperState extends State<CountStepper> {
       child: TorchFieldShell(
         label: widget.label,
         spec: spec,
+        // A finding keeps the caller's help beneath its own line: "this raises
+        // a task" says what happens, the help says why it matters, and the
+        // spec's zero state carries both.
         help: _isFinding
-            ? widget.findingLine
+            ? (widget.help == null
+                  ? widget.findingLine
+                  : '${widget.findingLine}\n${widget.help}')
             : widget.value == null
             ? (widget.help ?? widget.notCountedLine)
             : widget.help,
@@ -594,6 +620,8 @@ class _StepGlyphPainter extends CustomPainter {
 class _CountSheet extends StatefulWidget {
   const _CountSheet({
     required this.title,
+    required this.fieldLabel,
+    required this.blockedReason,
     required this.initial,
     required this.minimum,
     required this.maximum,
@@ -602,6 +630,8 @@ class _CountSheet extends StatefulWidget {
   });
 
   final String title;
+  final String fieldLabel;
+  final String blockedReason;
   final int? initial;
   final int minimum;
   final int maximum;
@@ -645,7 +675,8 @@ class _CountSheetState extends State<_CountSheet> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           TorchNumericField(
-            label: widget.title,
+            key: const ValueKey<String>('count-sheet-input'),
+            label: widget.fieldLabel,
             controller: _controller,
             minimum: widget.minimum,
             maximum: widget.maximum,
@@ -653,14 +684,17 @@ class _CountSheetState extends State<_CountSheet> {
           ),
           SizedBox(height: skin.space.blockGap),
           TorchPrimaryButton(
+            key: const ValueKey<String>('count-sheet-set'),
             label: widget.setLabel,
             claimId: 'count-set',
+            blockedReason: valid ? null : widget.blockedReason,
             onPressed: valid
                 ? () => Navigator.of(context).pop(value.toInt())
                 : null,
           ),
           const SizedBox(height: TiqSpace.s3),
           TorchSecondaryButton(
+            key: const ValueKey<String>('count-sheet-cancel'),
             label: widget.cancelLabel,
             onPressed: () => Navigator.of(context).pop(),
           ),

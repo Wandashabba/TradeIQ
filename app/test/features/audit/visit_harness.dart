@@ -240,7 +240,9 @@ Future<void> pumpVisit(
     path: '/audit/o1',
     overrides: <Override>[
       ...agentBaseOverrides(db: db, skin: skin, sync: sync),
-      outletsRepositoryProvider.overrideWithValue(FakeOutlets(outlets: outlets)),
+      outletsRepositoryProvider.overrideWithValue(
+        FakeOutlets(outlets: outlets),
+      ),
       visitsRepositoryProvider.overrideWithValue(visits),
       skusRepositoryProvider.overrideWithValue(skus ?? FakeSkus()),
       templateSectionRepositoryProvider.overrideWithValue(

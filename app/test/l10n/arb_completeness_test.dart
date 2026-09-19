@@ -33,10 +33,9 @@ void main() {
       // plural branch body such as `green{Healthy}` is copy, not a
       // placeholder —
       // hence the lookbehind excluding a selector just before the brace.
-      final used = RegExp(r'(?<![\w=])\{(\w+)(?:\}|,\s*(?:plural|select))')
-          .allMatches(en[key] as String)
-          .map((m) => m.group(1)!)
-          .toSet();
+      final used = RegExp(
+        r'(?<![\w=])\{(\w+)(?:\}|,\s*(?:plural|select))',
+      ).allMatches(en[key] as String).map((m) => m.group(1)!).toSet();
       if (used.isEmpty) continue;
       final meta = en['@$key'] as Map<String, dynamic>?;
       final declared =
@@ -50,12 +49,12 @@ void main() {
       final arb = _arb(file);
 
       test('has exactly the template\'s message keys', () {
-        final missing = _messageKeys(en).toSet().difference(
-          _messageKeys(arb).toSet(),
-        );
-        final extra = _messageKeys(arb).toSet().difference(
-          _messageKeys(en).toSet(),
-        );
+        final missing = _messageKeys(
+          en,
+        ).toSet().difference(_messageKeys(arb).toSet());
+        final extra = _messageKeys(
+          arb,
+        ).toSet().difference(_messageKeys(en).toSet());
         expect(missing, isEmpty, reason: 'untranslated in $file');
         expect(extra, isEmpty, reason: 'not in app_en.arb');
       });
