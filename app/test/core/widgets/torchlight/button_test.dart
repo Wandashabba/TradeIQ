@@ -1,4 +1,6 @@
+
 import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/torch_scope.dart';
@@ -573,6 +575,123 @@ void main() {
               'state is a label.\n${census.describe()}',
         );
       }
+    });
+  });
+
+  // ── THE ACTION, NOT ONLY THE FLAG ─────────────────────────────────────
+  //
+  // Every one of these buttons announced itself as a button and carried no
+  // `SemanticsAction.tap`, for as long as the kit has existed: the node was
+  // a `Semantics(button: true, …, excludeSemantics: true)` wrapped AROUND a
+  // `TorchPressable`, and `excludeSemantics` drops the descendant
+  // `GestureDetector`'s node — the only thing that held the tap. The result
+  // reads correct in the source and is inert in the hand: TalkBack focuses
+  // it, reads it, double-taps, and nothing happens.
+  //
+  // `tester.tap` cannot see this, because it sends a pointer. These fire the
+  // action the platform fires, through the binding.
+  group('a button a screen reader can reach, it can also press', () {
+    Future<void> activate(WidgetTester tester, Finder finder) async {
+      tester.binding.performSemanticsAction(
+        SemanticsActionEvent(
+          type: SemanticsAction.tap,
+          nodeId: tester.getSemantics(finder).id,
+          viewId: tester.view.viewId,
+        ),
+      );
+      await tester.pump();
+    }
+
+    for (final skin in torchSkins) {
+      testWidgets('${skin.mode.name}: every member of the family', (
+        tester,
+      ) async {
+        var taps = 0;
+        await pumpTorch(
+          tester,
+          skin: skin,
+          claims: <TorchClaim>[TorchPrimaryButton.claim(claim)],
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                TorchPrimaryButton(
+                  claimId: claim,
+                  label: 'Send this visit',
+                  onPressed: () => taps++,
+                ),
+                TorchSecondaryButton(label: 'Save a draft', onPressed: () {}),
+                TorchTertiaryButton(label: 'Skip it', onPressed: () {}),
+                TorchDestructiveButton(
+                  label: 'Discard this visit',
+                  onPressed: () {},
+                ),
+                TorchIconButton(
+                  icon: Icons.close,
+                  semanticLabel: 'Close this sheet',
+                  onPressed: () {},
+                ),
+              ],
+            ),
+          ),
+        );
+
+        for (final type in <Type>[
+          TorchPrimaryButton,
+          TorchSecondaryButton,
+          TorchTertiaryButton,
+          TorchDestructiveButton,
+          TorchIconButton,
+        ]) {
+          final node = tester.getSemantics(find.byType(type));
+          expect(
+            node,
+            isSemantics(isButton: true, hasTapAction: true),
+            reason:
+                '$type announces as a button. Without a tap action on the '
+                'same node it is a label: focusable, unactivatable.',
+          );
+        }
+
+        // ...and the action is the real one, with the press debounce and the
+        // haptic behind it, not a second path that skips them.
+        await activate(tester, find.byType(TorchPrimaryButton));
+        expect(taps, 1);
+        await activate(tester, find.byType(TorchPrimaryButton));
+        expect(
+          taps,
+          1,
+          reason:
+              'the semantics tap goes through the SAME debounced fire as the '
+              'finger, so a commit cannot be doubled through assistive tech '
+              'either',
+        );
+      });
+    }
+
+    testWidgets('a disabled primary announces disabled and does not fire', (
+      tester,
+    ) async {
+      await pumpTorch(
+        tester,
+        skin: night,
+        claims: <TorchClaim>[TorchPrimaryButton.claim(claim)],
+        child: primary(blockedReason: 'Nothing to send yet'),
+      );
+      expect(
+        // The blocked form is a Column of the note and the button, so the
+        // button's own node is the pressable's.
+        tester.getSemantics(
+          find.descendant(
+            of: find.byType(TorchPrimaryButton),
+            matching: find.byType(TorchPressable),
+          ),
+        ),
+        isSemantics(isButton: true, isEnabled: false, hasTapAction: false),
+        reason:
+            'a disabled control is ALLOWED to carry no action — that is what '
+            'disabled means, and it is the only thing that is allowed to',
+      );
     });
   });
 }
