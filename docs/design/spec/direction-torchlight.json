@@ -1,0 +1,560 @@
+{
+  "name": "Torchlight Aisle",
+  "oneLiner": "A near-black, photographically lit console where one warm amber behaves as an actual light source rather than a colour — and which hands the field agent a hard, flat, sunlight-proof \"Veld\" sheet the moment they step outside, where the same amber becomes a block you press.",
+  "thesis": "Trade marketing happens in badly lit rooms: a spaza in Tembisa during Stage 6, a forecourt cold-room at 05:40, a Boxer back aisle with the fluorescents off to save load. In all of them the shelf is found by light — a torch, a strip light, a fridge door. So darkness in TradeIQ is the site, not the style, and the single amber is the torch. That gives one rule no generic dark app has: amber is emitted, never labelled. It lights a plate, underlines an active tab, draws the one bar the answer is about, and never becomes a status badge — which is how the brand/warning collision dies. Outside the light source changes: the sun is the torch, so the UI becomes ink on white and amber becomes a block you press.",
+  "palette": [
+    {
+      "token": "ground (abyss-000 / bone-900)",
+      "light": "#EEE9DF",
+      "dark": "#0B1017",
+      "use": "App ground, full bleed. Night: the true black the photographic plate dissolves into. Day: Palladian paper.",
+      "derivedFrom": "NEW #0B1017 — Abyssal #1B2632 taken down the same OKLCH hue line (H 251) from L 26.4 to L 17.1, chroma 0.027→0.017. Corrected from the first draft, which described this as HSL and claimed a desaturation that was actually a saturation increase; in OKLCH it is a genuine chroma reduction. Justification: Abyssal is too light to be a cinematic ground — if the plate fades to Abyssal you see a rectangle. Abyssal is promoted to a surface; a darker true-ground is added beneath it. Day ground is Palladian unchanged."
+    },
+    {
+      "token": "vignette (abyss-050 / bone-880)",
+      "light": "#E6E0D4",
+      "dark": "#0F1620",
+      "use": "Midpoint stop of the ground's vertical letterbox falloff and of the plate's baked edge-dissolve.",
+      "derivedFrom": "NEW — OKLCH L 19.8, sitting on an even ~+2.8 L step from ground. A 2-stop gradient bands on a 6-bit cheap-Android panel; 4 perceptually even stops do not."
+    },
+    {
+      "token": "well (abyss-100 / bone-870)",
+      "light": "#E2DBCC",
+      "dark": "#141D27",
+      "use": "Recessed surfaces: input troughs, nav-bar body, queue chip, mono blocks.",
+      "derivedFrom": "NEW #141D27 — Abyssal at OKLCH L 22.7 (−3.7 from surface), hue held at 251. Gives a 'sunk below the ground' step without a shadow, since shadows are invisible on black."
+    },
+    {
+      "token": "surface (abyss-200 / bone-960)",
+      "light": "#FAF7F2",
+      "dark": "#1B2632",
+      "use": "The one panel surface: AI-answer instrument panel, forms, sheets, dialogs.",
+      "derivedFrom": "Abyssal Anchorfish Blue, unchanged, finally used as intended — a surface, not a background. Day counterpart NEW #FAF7F2 (Palladian lifted toward white) so a card reads above Palladian paper."
+    },
+    {
+      "token": "raised (abyss-300 / bone-930)",
+      "light": "#F4F0E8",
+      "dark": "#22303E",
+      "use": "Stat-tile cells, scrub readouts, the question bubble in the assistant transcript.",
+      "derivedFrom": "NEW #22303E — the OKLCH midpoint of Abyssal (L 26.4) and Blue Fantastic (L 34.7), landing at L 30.3. The two brand navies are 8.3 OKLCH-L apart and a legible dark hierarchy needs one step between them."
+    },
+    {
+      "token": "lifted (abyss-400)",
+      "light": "#2C3B4D",
+      "dark": "#2C3B4D",
+      "use": "Pressed/hover state, chart bar tracks, mono readout blocks. In Day it is the ink block for nav-active.",
+      "derivedFrom": "Blue Fantastic, unchanged."
+    },
+    {
+      "token": "hairline-decorative (abyss-500 / bone-850)",
+      "light": "#DED7C9",
+      "dark": "#3A4B60",
+      "use": "DECORATIVE rules only: section rules, list separators, chart gridlines. Never the sole identifier of anything, and never the only cue that two regions are different.",
+      "derivedFrom": "NEW #3A4B60 — Blue Fantastic +6.0 OKLCH L (the first draft said '12 L*' in HSL and was wrong in both space and magnitude). Day NEW #DED7C9 — Palladian/Oatmeal midpoint."
+    },
+    {
+      "token": "edge-structure (abyss-650 / bone-620)",
+      "light": "#857C6B",
+      "dark": "#5A7088",
+      "use": "The compliant edge for CONTAINERS: the Panel outline, sheet edges, the plate's text-safe divider. Quieter than a control edge, still ≥3:1 against the fill it bounds and the ground it sits on. Not used on the Day well (2.99:1 there).",
+      "derivedFrom": "NEW both, and both exist because of the critique that Night's depth was built from 1.12–1.24:1 fill steps and 1.25–1.39:1 alpha rims — below what a 6-bit LCD at 40% backlight can resolve. Solved in OKLCH at Abyssal's hue for exactly 3.00:1 on abyss-200 (#5A7088, L 53.5) and 3.41:1 on Palladian (#857C6B). The Palladian@8–12% rim survives on top of it as decoration, no longer as the load-bearing cue."
+    },
+    {
+      "token": "edge-control (abyss-700 / bone-650)",
+      "light": "#6E6657",
+      "dark": "#7C93AC",
+      "use": "The compliant edge for CONTROLS: outlined chips, input troughs, ghost buttons, the chip rail. Louder than a container edge on purpose — controls outrank containers.",
+      "derivedFrom": "NEW #7C93AC — Blue Fantastic raised to OKLCH L 65.4 at hue 251, tuned to the value that clears 3:1 on ground (6.02), surface (4.84) and raised (4.25). Day NEW #6E6657 — Oatmeal darkened to clear 3:1 on Palladian (4.69). Both exist purely because WCAG 1.4.11 demanded them."
+    },
+    {
+      "token": "nav-ink-inactive (abyss-750)",
+      "light": "#6E6657",
+      "dark": "#8AA0B8",
+      "use": "Inactive tab-bar icon and label. Day reuses edge-control.",
+      "derivedFrom": "NEW #8AA0B8 — edge-control +4.3 OKLCH L, the smallest step that clears 4.5:1 on the nav body (6.32:1) so an inactive label is real text, not a ghost."
+    },
+    {
+      "token": "ink-mute (abyss-600)",
+      "light": "#9B917F",
+      "dark": "#4C6079",
+      "use": "Disabled ink and unfilled ladder glyphs only. Deliberately sub-AA: disabled controls are exempt under 1.4.3 and must look disabled.",
+      "derivedFrom": "NEW — Blue Fantastic ±, and the Oatmeal line lightened for Day."
+    },
+    {
+      "token": "ink-1 (bone-900 / abyss-200)",
+      "light": "#1B2632",
+      "dark": "#EEE9DF",
+      "use": "Body and headline text, hero figures, the focus bar fill on light grounds.",
+      "derivedFrom": "Palladian and Abyssal, swapped across themes. The deliberate move: warm off-white ink on a cool navy-black ground. It is what makes Night look lit rather than switched off."
+    },
+    {
+      "token": "ink-2 (bone-300 / bone-800)",
+      "light": "#4A4437",
+      "dark": "#C9C1B1",
+      "use": "Secondary text: reasons, subtitles, chip labels, eyebrows.",
+      "derivedFrom": "Oatmeal unchanged for Night. Day NEW #4A4437 — Oatmeal darkened to OKLCH L 38.9 (7.99:1 on Palladian). This hex is shared with Veld's secondary ink, which removes a token rather than adding one. Oatmeal itself cannot be text on Palladian (1.48:1)."
+    },
+    {
+      "token": "ink-3 (bone-500 / bone-700)",
+      "light": "#676052",
+      "dark": "#A79E8C",
+      "use": "Tertiary / meta: timestamps, units, axis labels, source lines.",
+      "derivedFrom": "NEW both. The Day value moved from #857C6B to #676052 (OKLCH L 49.1) because the critique was right: the old token was AA-large-only while the only role that used it — meta at 12px — is small text, in the theme the agent uses all day. #676052 clears 4.5:1 on every Day surface including the well (4.52). There is now no AA-large-only token anywhere in the system; the carve-out is deleted, not managed."
+    },
+    {
+      "token": "chart-neutral (bone-600 / bone-500)",
+      "light": "#676052",
+      "dark": "#8B8271",
+      "use": "The fill of every non-focus ranked bar and every non-focus series. The most-used colour in the data-visualisation layer.",
+      "derivedFrom": "NEW #8B8271 — a dimmed Oatmeal at OKLCH L 61.0, hue held at 83. It exists because Burning Flame and Oatmeal have identical relative luminance (1.00:1) and are therefore the same bar in greyscale, in deuteranopia and on a sun-washed panel. #8B8271 gives 2.12:1 against the amber focus bar in true colour, 2.11:1 in greyscale, 2.21:1 simulated deuteranopia and 1.93:1 protanopia, while still clearing 3.01:1 against the abyss-400 track. Day reuses ink-3."
+    },
+    {
+      "token": "flame-300 (amber-ink)",
+      "light": "#8A4A12",
+      "dark": "#8A4A12",
+      "use": "The ONLY amber allowed as text on a light ground: the 'Veld' label, the torch legend, the amber series' legend swatch in Day.",
+      "derivedFrom": "NEW — Burning Flame taken to OKLCH L 47.8 at hue 56. (The first draft called this 'L*30'; it is CIE L* 38.5 and OKLCH L 47.8 — the notation was HSL throughout and has been corrected across the whole palette.) Exists solely because Burning Flame on Palladian is 1.48:1."
+    },
+    {
+      "token": "flame-500 (pressed)",
+      "light": "#F79742",
+      "dark": "#F79742",
+      "use": "Pressed state of an amber block; the second stop of the strip-light gradient.",
+      "derivedFrom": "NEW — Burning Flame at OKLCH L 76.2 with chroma raised to 0.151. Needed because darkening a high-chroma amber by opacity turns it grey on a navy ground."
+    },
+    {
+      "token": "flame-600 (Burning Flame)",
+      "light": "#FFB162",
+      "dark": "#FFB162",
+      "use": "The signature. Night: strip lights, active-tab underbar, focus rings, the one focus bar in a chart, the primary line series. Day/Veld: one solid block per screen, carrying dark ink.",
+      "derivedFrom": "Burning Flame, unchanged. Its role changes by theme; its hex never does."
+    },
+    {
+      "token": "flame-700 (lift)",
+      "light": "#FFCB94",
+      "dark": "#FFCB94",
+      "use": "Amber as TEXT on dark, focus rings, the hot end of the strip-light bloom.",
+      "derivedFrom": "NEW — Burning Flame +5.5 OKLCH L at hue 68. 12.92:1 on Night ground versus Burning Flame's 10.65 — a brighter, safer amber for type."
+    },
+    {
+      "token": "flame-900 (incandescent)",
+      "light": "#FFF1DE",
+      "dark": "#FFF1DE",
+      "use": "The white-hot core stop of every amber glow gradient. Never used as ink on an amber fill — see the contrast table.",
+      "derivedFrom": "NEW — Burning Flame at OKLCH L 96.4. Real light clips to white at its centre; this single stop is what makes the amber read as emitted rather than painted, and is the core of the owner's 'more luminous' brief."
+    },
+    {
+      "token": "glow-amber",
+      "light": "rgba(255,177,98,0.00–0.55)",
+      "dark": "rgba(255,177,98,0.00–0.55)",
+      "use": "Alpha ramp inside LinearGradient/RadialGradient stops for every bloom. Never a blur filter, never a BoxShadow.",
+      "derivedFrom": "Burning Flame with alpha. Stops: #FFF1DE@0.55 → #FFB162@0.30 → #FFB162@0.00."
+    },
+    {
+      "token": "good (mint-500 / mint-700)",
+      "light": "#14664A",
+      "dark": "#6FE0AE",
+      "use": "On-target: positive deltas, completed ladder steps, the capture bracket's shelf-edge lock.",
+      "derivedFrom": "NEW — the brand set has no green and 'on target' cannot be inferred. Hue set at OKLCH 163–165 (green-cyan) rather than a yellow-green so it cannot be mistaken for Burning Flame under sunlight washout; 98° of OKLCH hue separation from amber. (The first draft claimed 137° in HSL; the honest figure is 98° OKLCH / 123° HSL.) Day NEW #14664A for 5.73:1 on Palladian."
+    },
+    {
+      "token": "good-solid (mint-400 / mint-900)",
+      "light": "#0F5039",
+      "dark": "#C9F5E1",
+      "use": "Mint wash behind a success toast (Night) / solid success block with white ink (Day, Veld).",
+      "derivedFrom": "NEW — ends of the mint ramp at OKLCH L 38.5 and 93.4."
+    },
+    {
+      "token": "bad (crim-400 / crim-700)",
+      "light": "#8C1B2C",
+      "dark": "#FF7D8C",
+      "use": "Off-target at watch level: outline chips, negative deltas, diverging bar fills, the severity bar.",
+      "derivedFrom": "NEW — OKLCH hue 15–19, set apart from Truffle Trouble's hue 37 so 'competitor' and 'critical' cannot be confused in a legend. Day NEW #8C1B2C (7.52:1 on Palladian)."
+    },
+    {
+      "token": "bad-solid (crim-300 / crim-600)",
+      "light": "#7A0F22",
+      "dark": "#E23C55",
+      "use": "Solid critical block. Night uses crim-600 #E23C55 with ground ink; Day and Veld use crim-300 #7A0F22 with white (10.94:1).",
+      "derivedFrom": "NEW — ends of the crimson ramp. This token was referenced in the first draft's component specs but never defined; it is defined now."
+    },
+    {
+      "token": "comparison (truffle-500 / truffle-700)",
+      "light": "#A35139",
+      "dark": "#E08E71",
+      "use": "The comparison series: competitor share, prior period, benchmark. Also the 'held / queued / low-light' warm neutral. NEVER a severity.",
+      "derivedFrom": "Truffle Trouble unchanged in Day. NEW #E08E71 for Night — Truffle raised to OKLCH L 72.4, hue held at 40. Correction to the first draft's prose: Truffle Trouble on the Night ground is 3.45:1, not the 2.1:1 I claimed. It would technically clear 3:1 as a graphical object — the reason for the lighter value is that a 1.5px dashed stroke at 3.45:1 on near-black is unreadable in practice, not that the original is invisible."
+    },
+    {
+      "token": "comparison-wash (truffle-400 / truffle-900)",
+      "light": "#F7DCD2",
+      "dark": "#7A3A28",
+      "use": "Wash behind a 'held' chip, and the 2px edge on an underexposed photo.",
+      "derivedFrom": "NEW — ends of the Truffle ramp."
+    },
+    {
+      "token": "plate-ceiling",
+      "light": "— (Night only)",
+      "dark": "#474747",
+      "use": "The maximum luminance any pixel of a baked photographic plate may reach. Enforced server-side, not client-side, so it cannot be tuned away by a designer.",
+      "derivedFrom": "NEW — 28% white. It is a token because it is a contrast floor: Palladian on a plate pixel at this ceiling is 7.68:1, and with the mandatory text scrim, 10.56:1 even over a full-value amber strip light."
+    },
+    {
+      "token": "veld-ground",
+      "light": "#FFFFFF",
+      "dark": "— (Veld is light-only)",
+      "use": "Veld outdoor ground. Pure white, not Palladian: every point of luminance counts at 40% backlight in highveld sun.",
+      "derivedFrom": "NEW — white. Palladian costs ~6% luminance Veld cannot spare."
+    },
+    {
+      "token": "veld-ink",
+      "light": "#0E141A",
+      "dark": "— (Veld is light-only)",
+      "use": "Veld body ink and 2px borders. 18.52:1.",
+      "derivedFrom": "NEW — Abyssal taken to OKLCH L 14.0 with chroma cut to 0.011 so it survives the blue-shift of cheap LCD panels viewed off-axis."
+    },
+    {
+      "token": "veld-ink-2",
+      "light": "#4A4437",
+      "dark": "— (Veld is light-only)",
+      "use": "Veld secondary text and the neutral ranked-bar fill. 9.66:1 — Veld has no token under 9:1 for text.",
+      "derivedFrom": "Shared with Day ink-2 (bone-300). One hex, one name, two skins."
+    }
+  ],
+  "contrast": [
+    {
+      "pairing": "NIGHT — ink-1 #EEE9DF on ground #0B1017",
+      "ratio": "15.77:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — ink-1 #EEE9DF on surface #1B2632",
+      "ratio": "12.67:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — ink-1 #EEE9DF on raised #22303E",
+      "ratio": "11.12:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — ink-2 Oatmeal #C9C1B1 on ground #0B1017",
+      "ratio": "10.67:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — ink-2 Oatmeal #C9C1B1 on surface #1B2632 (CORRECTED from a claimed 7.53)",
+      "ratio": "8.57:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — ink-3 #A79E8C on ground #0B1017 (12px meta)",
+      "ratio": "7.19:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — ink-3 #A79E8C on raised #22303E (12px meta, the binding case)",
+      "ratio": "5.07:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — hero figure Burning Flame #FFB162 on ground #0B1017",
+      "ratio": "10.65:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — amber text flame-700 #FFCB94 on ground #0B1017",
+      "ratio": "12.92:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — focus ring flame-700 #FFCB94 on surface #1B2632 (CORRECTED: the first draft labelled #22303E as 'surface')",
+      "ratio": "10.38:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — focus ring flame-700 #FFCB94 on raised #22303E",
+      "ratio": "9.11:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — amber rim #FFB162 on raised #22303E (UI edge, needs 3:1)",
+      "ratio": "7.51:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — active-tab underbar #FFB162 on nav body #141D27 (UI state indicator, needs 3:1)",
+      "ratio": "9.49:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — focus bar #FFB162 on chart track #2C3B4D (UI graphic, needs 3:1)",
+      "ratio": "6.37:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — neutral bar chart-neutral #8B8271 on chart track #2C3B4D (UI graphic, needs 3:1)",
+      "ratio": "3.01:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — focus bar #FFB162 vs neutral bar #8B8271 (bar-to-bar separation, not a WCAG pairing; grey 2.11, deutan 2.21, protan 1.93 — shape, weight and a leading marker carry the rest)",
+      "ratio": "2.12:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "NIGHT — BANNED: Burning Flame #FFB162 vs Oatmeal #C9C1B1 as adjacent bar fills. This 1.00:1 is why chart-neutral #8B8271 exists",
+      "ratio": "1.00:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "NIGHT — good #6FE0AE on ground #0B1017",
+      "ratio": "11.76:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — good #6FE0AE on raised #22303E",
+      "ratio": "8.30:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — bad #FF7D8C on ground #0B1017",
+      "ratio": "7.78:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — bad #FF7D8C on raised #22303E",
+      "ratio": "5.49:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — bad #FF7D8C on well #141D27",
+      "ratio": "6.94:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — comparison #E08E71 on ground #0B1017",
+      "ratio": "7.52:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — comparison #E08E71 on raised #22303E",
+      "ratio": "5.30:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — edge-control #7C93AC on ground #0B1017 (UI edge)",
+      "ratio": "6.02:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — edge-control #7C93AC on surface #1B2632 (UI edge; CORRECTED from a claimed 4.25, which was the raised value merged into this row)",
+      "ratio": "4.84:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — edge-control #7C93AC on raised #22303E (UI edge)",
+      "ratio": "4.25:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — edge-structure #5A7088 on surface #1B2632 (Panel outline, needs 3:1 — tuned to exactly this)",
+      "ratio": "3.00:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — edge-structure #5A7088 on ground #0B1017 (Panel outline against the ground it sits on)",
+      "ratio": "3.73:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — ink on amber block: ground #0B1017 on #FFB162",
+      "ratio": "10.65:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — pressed amber block: ground #0B1017 on flame-500 #F79742 (the fix)",
+      "ratio": "8.59:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "NIGHT — BANNED pressed state from the first draft: flame-900 #FFF1DE on flame-500 #F79742",
+      "ratio": "2.00:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "NIGHT — inactive tab ink #8AA0B8 on nav body #141D27",
+      "ratio": "6.32:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "NIGHT — decorative hairline #3A4B60 on ground #0B1017 (exempt: never a sole identifier, never the only cue)",
+      "ratio": "2.14:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "NIGHT — disabled ink-mute #4C6079 on surface #1B2632 (1.4.3 exempt, and must look disabled)",
+      "ratio": "2.38:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "PLATE — ink-1 #EEE9DF on an unscrimmed plate pixel at the #474747 ceiling",
+      "ratio": "7.68:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "PLATE — ink-1 #EEE9DF on the mandatory scrim (abyss-000 @80%) over a full-value #FFB162 strip light: the worst case the hero number can ever encounter",
+      "ratio": "10.56:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "PLATE — ink-2 Oatmeal #C9C1B1 eyebrow on that same worst-case scrimmed amber",
+      "ratio": "7.15:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "DAY — ink-1 #1B2632 on Palladian #EEE9DF",
+      "ratio": "12.67:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "DAY — ink-1 #1B2632 on card #FAF7F2",
+      "ratio": "14.34:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "DAY — ink-2 #4A4437 on Palladian #EEE9DF",
+      "ratio": "7.99:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "DAY — ink-3 #676052 on Palladian #EEE9DF (12px meta — the token that used to fail)",
+      "ratio": "5.15:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "DAY — ink-3 #676052 on well #E2DBCC (the darkest Day surface, binding case for meta)",
+      "ratio": "4.52:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "DAY — BANNED: Burning Flame #FFB162 as text on Palladian. This number is the reason",
+      "ratio": "1.48:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "DAY — flame-300 #8A4A12, the one legal amber text on a light ground",
+      "ratio": "5.66:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "DAY — amber block: #1B2632 ink on Burning Flame #FFB162 (the one primary action)",
+      "ratio": "8.55:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "DAY — good #14664A on Palladian #EEE9DF",
+      "ratio": "5.73:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "DAY — bad #8C1B2C on Palladian #EEE9DF",
+      "ratio": "7.52:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "DAY — comparison Truffle Trouble #A35139 on Palladian #EEE9DF",
+      "ratio": "4.58:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "DAY — edge-control #6E6657 on Palladian #EEE9DF (UI edge)",
+      "ratio": "4.69:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "DAY — edge-structure #857C6B on Palladian #EEE9DF (Panel outline, needs 3:1)",
+      "ratio": "3.41:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "DAY — edge-structure #857C6B on well #E2DBCC — misses 3:1, which is why edge-structure is banned on the Day well",
+      "ratio": "2.99:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "DAY — neutral bar #676052 on chart track #E2DBCC (UI graphic)",
+      "ratio": "4.52:1",
+      "passes": "AA"
+    },
+    {
+      "pairing": "DAY — focus bar #1B2632 on chart track #E2DBCC (amber is not the focus channel on light grounds)",
+      "ratio": "11.12:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "DAY — decorative hairline #DED7C9 on Palladian (exempt; CORRECTED from a claimed 1.48, which was Oatmeal's value copied down a row)",
+      "ratio": "1.18:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "DAY — nav-active: Palladian #EEE9DF on Blue Fantastic #2C3B4D block",
+      "ratio": "9.43:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "VELD — body veld-ink #0E141A on white",
+      "ratio": "18.52:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "VELD — secondary veld-ink-2 #4A4437 on white",
+      "ratio": "9.66:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "VELD — 2px border Abyssal #1B2632 on white (UI edge)",
+      "ratio": "15.33:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "VELD — amber block: veld-ink #0E141A on Burning Flame #FFB162",
+      "ratio": "10.34:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "VELD — pressed amber block: veld-ink #0E141A on flame-500 #F79742",
+      "ratio": "8.34:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "VELD — BANNED: Burning Flame #FFB162 as a line, icon, border or word on white",
+      "ratio": "1.79:1",
+      "passes": "FAIL"
+    },
+    {
+      "pairing": "VELD — good-solid #0F5039 with white ink",
+      "ratio": "9.43:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "VELD — bad-solid #7A0F22 with white ink",
+      "ratio": "10.94:1",
+      "passes": "AAA"
+    },
+    {
+      "pairing": "VELD — white ink on Abyssal #1B2632 block",
+      "ratio": "15.33:1",
+      "passes": "AAA"
+    }
+  ],
+  "typography": "FACES — Archivo Variable (Omnibus-Type, OFL) as the single UI, figure and display face, axes wght 400–700 and wdth 88–112. Fallback: Archivo → Roboto → system-ui → sans-serif. JetBrains Mono Medium survives in exactly one role: machine identifiers — outlet codes, GTINs, batch numbers, order refs, coordinates, where 0/O and 1/l/I genuinely collide. Inter is retired.\n\nWHY ARCHIVO — the case, rebuilt. My first version led with isiZulu string expansion and a \"1 vs l\" glare argument. Both were checked and both were wrong, so both are gone. /Users/asenathleo/TradeIQ/app/lib/l10n/l10n.dart ships `[Locale('en'), Locale('af')]` — there is no isiZulu locale, and across the 403 message pairs Afrikaans expansion is a median 1.11×, p90 1.40×. A width axis from 100 to 88 buys roughly 12%, which does not cover a p90 string; wrapping does. And a stock count is a numeric field where the letter l cannot occur, so the slab-terminal 1 was solving a collision that does not happen there.\n\nThe real case is two things. (1) FOOTPRINT, and it is bigger than I claimed. assets/fonts/ currently holds four Inter TTFs at 1.67 MB and four JetBrains Mono TTFs at 1.09 MB. Archivo's variable [wdth,wght] TTF is ~0.46 MB and replaces all four Inters; mono.ident only uses weight 500, so three JetBrains weights (0.82 MB) go too. Net −2.03 MB of APK on a handset with a 1 GB monthly bundle. Note the mechanism honestly: Flutter tree-shakes icon fonts only, never text fonts, so a `pyftsubset` step to Latin + Latin-Ext belongs in CI or none of this is automatic. (2) NUMERAL LEGIBILITY AT 13px THROUGH GLARE, aimed at the pairs that actually fail — 3/8, 5/6, 6/8, 0/8. Archivo's 0.52 em x-height, open apertures and flat-sided 6/9 bowls separate those better than Inter's more closed forms at the same optical size; this is a specimen test, printed and read outdoors at 40% backlight, not an assertion, and it should be run before the family is committed.\n\nThe display voice comes from the same file at wdth 112 — expanded, not a second typeface. The width axis survives as insurance, not as a system: it is opt-in on two or three specific labels whose overflow has been measured (nav labels, ladder section names), not a global fit-to-width mechanism — Flutter has no condense-to-fit primitive, and building one is a custom two-pass RenderObject plus a separate Skia font instance per wdth value. If isiZulu is funded, the axis is already there.\n\nSCALE (size / weight / line-height / tracking / width). Figures are tabular in every role.\n- hero.figure — 72 / 600 / 0.92 / −2.5% / wdth 112\n- hero.figure.compact — 56 / 600 / 0.95 / −2.0% / wdth 112\n- display — 40 / 600 / 1.00 / −1.5% / wdth 106\n- figure.l — 32 / 600 / 1.05 / −1.0% / wdth 104 (stat tiles)\n- figure.m — 22 / 600 / 1.10 / −0.5% / wdth 100\n- figure.s — 16 / 600 / 1.20 / 0 / wdth 100\n- title.l — 20 / 600 / 1.25 / −0.5% (24 in Field density)\n- title.m — 16 / 600 / 1.30 / −0.25%\n- headline.answer — 22 / 600 / 1.35 / −0.5% / wdth 102, max-width 32em\n- body — 15 / 400 / 1.50 (Field) · 14 / 400 / 1.55 (Console)\n- body.strong — same metrics, 600\n- label — 13 / 500 / 1.35 / +0.5%\n- eyebrow — 11 / 700 / 1.10 / +8%, uppercase, ink-2 only\n- meta — 12 / 400 / 1.40, ink-3\n- mono.ident — 13 / 500 / 1.30 / +1% JetBrains Mono\n\nHERO FITTING RULE — keyed to glyph count, because \"72\" was the friendliest possible demo and R-values are eleven glyphs. ≤3 glyphs → 72. 4–6 → 56. 7+ → 40, with the unit or currency symbol demoted to a 16/500 suffix on its own baseline. Hard single line, tabular, `FittedBox(fit: BoxFit.scaleDown)` inside a min-height box as the last resort. Compact formatting is chosen by the formatter before the fitting rule fires — \"R 1,28 mln\" is four glyphs and stays at 72.\n\nCURRENCY AND NUMBER FORMAT — rich_figures.dart currently hardcodes `NumberFormat('#,##0.#', 'en_US')`, which renders \"1,284,990.5\" to an Afrikaans user whose convention is \"1 284 990,5\". Every figure role goes through one locale-driven formatter: `NumberFormat.compactCurrency(locale: Localizations.localeOf(context).toString(), symbol: 'R ')` above a per-role threshold (hero 4 glyphs, figure.l 6, figure.m 8), plain tabular below it. Null renders as an em dash in ink-3 with the eyebrow intact; zero renders as \"0\" and is never suppressed; negatives take a true minus, never a bracket.\n\nTEXT SCALING — the first draft pinned figure and hero roles to `TextScaler.linear(1.0)` and clamped the app at 1.3/1.6. That was a 1.4.4 failure dressed as a layout policy, and the critique was right: `Text('72')` is text conveying the primary datum. The lock is gone. Clamp is 2.0 in both densities. Layouts absorb it: the hero cluster is a `Wrap` so the delta drops to its own line; the 2×2 stat grid collapses to 1×4 on a `LayoutBuilder` width threshold, not a scale guess; the hero uses the glyph-count rule then scaleDown. One role keeps an exception — hero.figure caps at 1.6 because above that no fitting rule saves a 72px number on a 360dp screen — and that exception is documented in the token, not hidden in a wrapper.",
+  "space": "SPACING — base 4. Scale: 4, 8, 12, 16, 20, 24, 32, 40, 56, 72, 96, named s1…s11. No other value exists; this replaces the 423 raw-numeric EdgeInsets in the audit (96 files).\n\nTwo densities, one scale. Console: gutter 20 phone / 40 at ≥1080; row min-height 44; block gap 24; intra-block 12. Field: gutter 20; row min-height 64; block gap 32; intra-block 16; tap target ≥48, primary actions 56, shutter 72. Veld: gutter 24; row min-height 64; tap target 56 minimum; block gap 40 — fewer things, further apart, because a thumb in the sun is imprecise. Veld is declared SINGLE-DENSITY: there is no Veld × Console. A manager who opens the app outdoors gets Veld × Field, and that is correct, because outdoors nobody is doing analysis.\n\nRADII — four materials, four radii. 0 = rules and dividers. 6 = chips, outlined pills, ladder glyph tiles. 10 = buttons and thumbnails. 14 = the instrument panel, forms, sheets. 20 = photographic plates. Inputs are 10 at the BOTTOM corners and 0 at the top — the first draft had this inverted and called the result a trough, which it was not; a trough holds at the bottom. The 999 radius is gone entirely: it existed only for the active-tab pill, which no longer exists. If a designer cannot name which of the four materials a surface is, it does not get a radius.\n\nDEPTH — Night has no drop shadows; black on black is invisible and the audit's 34 ad-hoc BoxShadows all go. But the first draft then built the whole dark hierarchy out of 1.12–1.24:1 fill steps and 1.25–1.39:1 alpha rims, which is one or two quantisation levels on a 6-bit budget LCD — beautiful on the reviewer's OLED, a flat black rectangle on a Tecno in a back aisle. So a DEVICE FLOOR rule now governs depth: no surface may rely on a fill step alone to be perceived. Four levels: L0 ground, no edge. L1 well (abyss-100, inset, no edge — it is allowed to recede, that is its job). L2 surface (abyss-200 + a 1px edge-structure #5A7088 outline at 3.00:1, plus a 1px top rim of Palladian@10% sitting on top of it as decoration). L3 raised (abyss-300, used only INSIDE an L2 that already has an edge, divided by hairlines). L4 emitted (any fill + an amber gradient bloom; reserved for the plate's strip light, the active-tab underbar, and the one focus bar in a chart — never more than two L4 objects on screen). Day keeps three real shadows: sh1 0 1 2 rgba(27,38,50,.06); sh2 0 4 12 rgba(27,38,50,.08); sh3 0 12 32 rgba(27,38,50,.12), and its Panel takes the same edge-structure treatment at #857C6B. Veld has zero shadows, gradients and rims — only 2px solid borders.\n\nMOTION — durations 120 (press, toggle, chip select), 200 (element enter, 40ms stagger), 320 (plate reveal, sheet, route), 600 (figure count-up, and the button busy loop), 1400 (skeleton progress rule), 3200 (the ambient live pulse). Curves: enter cubic-bezier(0.05,0.70,0.10,1.00); exit cubic-bezier(0.30,0.00,0.80,0.15); state cubic-bezier(0.20,0.00,0.00,1.00); count-up ease-out-quart.\n\nThe first draft claimed \"one ambient loop\" and then specified three animations, one of which put a pulsing amber on a skeleton — which, under my own rule that breathing amber means live, told the manager that a loading placeholder was live data. Corrected: the skeleton's travelling rule is Oatmeal, not amber, and runs at 1400ms (now on the scale). The button busy loop drops from 3200 to 600ms, because 3.2 seconds per cycle reads as frozen. The 3200ms amber pulse belongs to exactly one thing — an object genuinely happening right now. And the budget is stated properly: ONE shared `Ticker` with three subscribers, not one animation. Reduce-motion, battery-saver and Veld kill all three and drop count-up to an instant set.",
+  "components": "PANEL — one surface component. Night: abyss-200, radius 14, 1px edge-structure #5A7088 outline, 1px Palladian@10% top rim over it, no shadow, padding 16. Day: #FAF7F2, radius 14, 1px #857C6B outline, sh1. Veld: white, radius 0, 2px #1B2632 border. Used for exactly three things: the AI answer's instrument cluster, forms, and sheets. The manager dashboard has no panels at all — that restriction is the direction.\n\nPLATE — the photographic surface, and it is now BAKED SERVER-SIDE, not composited on device. `sharp` is already a backend dependency and there is a `src/modules/photos/` module: at upload the plate variant is desaturated to 12% chroma, luminance-crushed so no pixel exceeds the #474747 ceiling, and the radial edge-dissolve is written into the PNG's own alpha channel, at device width. The client draws one `Image`. Zero ShaderMask, zero saveLayer, zero ImageFiltered — which also removes the contradiction in the first draft, where the headline rule was \"glow is never a blur\" and the strip light was an `ImageFiltered(sigma 40)`. The strip light is now what it should always have been: a 2px #FFB162 line with a `LinearGradient` bloom above it (#FFF1DE@0.55 → #FFB162@0.30 → transparent). A gradient is the blur of a line, at zero cost.\n\nTwo rules the plate did not have and needed. TEXT-SAFE ZONE: the strip light is clamped out of the lower 40% of the plate, and a bottom-up `LinearGradient` scrim (abyss-000 0%→80%) sits under any text block over the plate. Worst case measured: ink-1 on the scrim over a full-value strip light is 10.56:1, the eyebrow 7.15:1. Nothing on a plate is unrated any more. ELIGIBILITY: a frame is plate-eligible only if it passes a server-side luma-variance check (rejects flat and blown frames), carries no detected face, is not flagged by the fraud/duplicate module, and belongs to the viewing manager's own territory. Everything else falls through to the generative fallback.\n\nPLATE FALLBACK — no longer one sentence, because privacy filtering will make it common. Five horizontal amber rules receding in perspective on abyss-000 at 0.30 → 0.04 opacity, with the territory's actual OSA trend drawn as the spacing between them — a shelf that reads tighter when availability is worse. It is generated from data, so it is never a placeholder, and on many days it will be the thing managers actually see.\n\nSTAT TILE — no card, no border, no shadow. A cell in an instrument cluster, separated by 1px hairlines, not gaps. Eyebrow 11/700 ink-2. Figure 32/600 tabular ink-1, count-up 600ms, glyph-count fitting rule, locale currency formatter. Delta on the baseline: an 8px solid triangle (up/down/flat — shape carries the meaning) plus the value in 13/600, good or bad. Optional 3px meter under: track abyss-400, fill chart-neutral, target a 2px #FFB162 tick that BREAKS the track's top edge by 2px so it has a silhouette, because a tick that is only a hue change is invisible in greyscale.\n\nRANKED BAR — worst-first, always. Label 13/400 ink-1 left, middle-truncated so the branch survives (\"Shoprite Kli…Mall\"). Track 6px radius 3 abyss-400. Non-focus fill chart-neutral #8B8271 (3.01:1 on track). The single bar the answer's headline names gets FOUR channels, not one: fill #FFB162 (2.12:1 against the neutrals in true colour, 2.11 greyscale, 2.21 deuteranopia), a 12px amber gradient bloom beneath, a filled triangle marker at the bar origin, and its row label at body.strong. Hue alone survives neither greyscale, nor print, nor deuteranopia, nor sun — this is the fix for the 1.00:1 Burning-Flame/Oatmeal collision that made the first draft's focus bar literally identical to its neighbours. Negative values diverge left from a 1px #FFB162 centre axis with a `bad` fill that is HATCHED — 45° hard-stop `LinearGradient` stripes, which stays inside the no-blur budget — because #FF7D8C against #8B8271 is only 1.55:1 in colour and 1.26:1 in protanopia. On Day and Veld the focus channel is not amber at all: focus is ink-1 fill (11.12:1 on track) plus the marker plus the weight, because on a light ground the one amber block is already spent on the primary action.\n\nCHART LEGEND — mandatory on every multi-series chart, every render, showing swatch AND stroke pattern. Not a caveat; a rule.\n\nCHIP — outlined, transparent, 1px edge-control, radius 6, height 44 (Field 48, Veld 56). Optional 16px 2px-stroke icon, figure.s, label beneath at 11/700 ink-2. Selected: fill abyss-400, edge #FFB162 at full value, ink Palladian, label weight 700. Off-target: edge swaps to `bad` plus a filled triangle — never to amber. Assistant follow-up chips are the same component and are never amber, because a follow-up is not the answer.\n\nPRIMARY BUTTON — height 56 Field / 44 Console / 64 Veld, radius 10, label 13/500 (Veld 15/600). Night: fill abyss-400, 1px #FFB162 rim, ink Palladian, amber gradient bleed along the top 2px. Day and Veld: fill Burning Flame, ink #1B2632 (8.55:1) or veld-ink (10.34:1). Pressed: fill flame-500 with the ink STAYING DARK — ground #0B1017 on #F79742 is 8.59:1, where the first draft's flame-900-on-flame-500 was 2.00:1 and made the label vanish at the exact moment of commitment. Press also scales to 0.98, so the state is not colour-only. Busy: three 6px Oatmeal dots on a 600ms travel; never a spinner. Disabled: well fill, ink-mute, no rim.\n\nSECONDARY BUTTON — ghost. Transparent, 1px edge-control, ink-1 label, same heights. No amber.\n\nINPUT — a trough. Night: abyss-100 fill, radius 10 at the BOTTOM corners and 0 at the top, 1px bottom rule in edge-control. Focused: bottom rule becomes 2px flame-700 with a 6px gradient bloom below. Label above at 13/500 ink-2 — never a floating placeholder. Error: bottom rule 2px `bad`, message 12/500 with a filled triangle. Veld: white fill, 2px #1B2632 border, 64 tall, a 3px outer offset ring on focus instead of a glow.\n\nBOTTOM SHEET — radius 14 top, abyss-200, 1px edge-structure, 40×4 Oatmeal@40% grabber, scrim abyss-000@72%, no blur.\n\nTAB BAR — floating, 64 tall, inset 16, 20 above the safe area, radius 14, fill #141D27 FULLY OPAQUE. There is now zero `BackdropFilter` in the application. The first draft had one and swapped it for an opaque fill during scroll, which mutates the layer tree on the two frames a user perceives most sharply and makes the bar visibly change colour whenever anyone touches a list. Opaque always is cheaper, calmer and a cleaner restraint claim. Active state is NOT a pill: a 3px #FFB162 underbar (9.49:1 on the nav body), icon in flame-600, label weight 700 against inactive 500. The pill-behind-the-icon was the single most recognisable borrowed gesture in the set, and it also failed 1.4.11 at 1.5–2.0:1 on every channel; removing it fixes the contrast and the plagiarism in one move. Four slots plus Menu, 24px 2px-stroke icons, label 11/700 beneath, icon-only below 360dp — where the underbar and the weight cue still both survive.\n\nEMPTY STATE — left-aligned, never centred. A 2px-stroke line drawing 64px in edge-control, display-40 headline, one body line, one secondary button. Field empty states name the next physical action (\"No outlets within 2 km. Search by name or scan a shelf barcode.\"), not the absence.\n\nSKELETON — no shimmer. Static blocks at well fill in the exact geometry of the content, one 1px edge-control rule where the real hairline will be; after 600ms a single OATMEAL 2px rule travels the top edge at 1400ms linear. Not amber — a skeleton is loading, not live. Veld: no skeleton, only the word \"Loading\" in body.strong.\n\nSEVERITY — one hue, two commitment levels, plus a glyph silhouette, plus a semantic label. Watch: 1px `bad` outline, transparent fill, `bad` ink, half-filled triangle. Critical: solid `bad-solid` with ground or white ink, filled triangle, 3px left bar on the owning row. Good: mint outline, filled circle. Held/queued/offline: Oatmeal on the well, 1px edge-control, square glyph — deliberately not a severity.\n\nSEMANTICS — specified with the same precision as colour, because glyph silhouettes buy a blind user nothing and the audit found 26 of 30 IconButtons with no label. Every severity level carries its `semanticLabel` string in the same token as its glyph and hue: 'Critical', 'Watch', 'On target', 'Held'. Worklist rows announce severity first. The assistant's working-steps rail is a `Semantics(liveRegion: true)` announcing \"Step 3 of 4\" on change and collapsing to \"4 steps, 2.1 seconds\". The live amber pulse degrades to the word \"Live\" for screen readers using the same mechanism it already uses under reduce-motion. Torch and skin toggles are `Semantics(toggled:)`. A non-empty `semanticLabel` is a REQUIRED constructor argument on the new icon-button component, so the 26 omissions cannot recur.\n\nPHOTO CAPTURE — and this is where the first draft specified a screen the app cannot build. pubspec.yaml has `image_picker: ^1.1.2` and no `camera` package; photo_capture_service.dart hands off to the OS camera. So it ships in two honest phases. PHASE 1, no new dependency: the OS camera handoff stays, preceded by a 96px pre-capture card that names the framing and reminds the agent to switch the phone torch on in dark aisles; on return, a luma-variance check on the returned bytes edges any frame under 18% mean luma with a 2px comparison-wash border and the caption \"Dark — retake?\", never auto-rejecting, because the dark photo may be the only obtainable evidence. Review strip: 72px thumbs, radius 10. PHASE 2, scoped as a real project: `camera: ^0.11`, a full-bleed `CameraController` preview running NIGHT tokens regardless of the active skin (it is a camera, it is dark), four static 2px #FFB162 corner brackets with 32px arms, `setFlashMode(FlashMode.torch)` on a 56dp torch control, a 72dp shutter ring, last-shot thumb at 48dp, and a solid abyss-000@70% control strip — never a blur, since BackdropFilter over a live camera texture is a frame killer. LIVE SHELF-EDGE DETECTION IS CUT, not deferred with a wink: a 30fps YUV edge detector costs 8–15ms/frame on a Snapdragon 4xx and would blow the budget this document sets everywhere else. Static brackets that never move are honest; brackets that promise a snap and stutter are worse than none. The amber→mint bracket snap is therefore gone — and it should have gone anyway, since #6FE0AE against #FFB162 is 1.11:1 in true colour and 1.01:1 in simulated deuteranopia, i.e. the snap was invisible to roughly 8% of men and to everyone in greyscale.",
+  "screens": "SCREEN 1 — MANAGER DASHBOARD, \"The Floor\" (Night, Console density). AMBER BUDGET: 2 objects. Pure #0B1017 edge to edge. The top 44% of the fold is the Plate — a 21:9 baked band from the outlet named in the FIRST ROW of \"Needs a decision\", not the highest-scoring visit of the last 24h. That change matters twice: the hero image now argues with the list instead of decorating it, and there is nothing for an agent to game, because appearing on the boss's dashboard stops being a reward. One amber strip light crosses it, clamped out of the lower 40%. Below the strip light, a bottom-up scrim carries the text block at 10.56:1 worst case. Nothing is centred. At the 40px gutter: eyebrow \"GAUTENG NORTH · WEEK 38\" in Oatmeal. Under it on one baseline, \"72\" at 72/600/wdth112 in Palladian, then a 20px solid caret and \"−19\" in `bad` — NOT amber. The first draft gave the hero delta an amber caret while every stat tile used mint/crim for the same quantity, which meant the one number the screen is built around rendered a collapse and a gain in identically warm, positive amber. Amber has no business on a severity-coded figure; my own law says so. Then \"Territory health\" in body Oatmeal, tappable, because a composite score nobody can decompose is a number you cannot act on — it opens the four weighted inputs.\n\nBelow the plate the ground goes fully black, and here the Opal chip rail is broken on purpose. Coverage, OSA and price-compliance are not peers: OSA is the metric that drives a visit. So instead of three equal outlined pills, the rail is one dominant figure — \"OSA 61%\" at figure.l with a `bad` outline and a half-filled triangle — with coverage and price-compliance as 12px meta on a single line beneath it, and the count varies by territory rather than being fixed at three because the reference had three. Then 40px of nothing. Then a section rule: 1px hairline full width with \"NEEDS A DECISION\" sitting on it, left, ground knocked out 12px either side. Then five 72px rows separated by hairlines: a 3px `bad` left bar (solid critical, 40% watch, absent fine); outlet name in title.m; the reason beneath in body ink-2 (\"OSA 34%, down 19 pts — 3 visits, no order\"); at the right a 64px chart-neutral sparkline whose LAST POINT is a 3px dot in that row's severity colour — not amber. The first draft put an amber dot on all five, then claimed the screen had three amber objects; it had eight, five of them a repeated fill that my own rule bans. Colour that already encodes something costs nothing. Then the figure in figure.m tabular. No cards, no shadows. The tab bar sits at the bottom with a 3px amber underbar under the active slot. Total amber: the strip light, the underbar.\n\nSCREEN 2 — ASK TRADEIQ ANSWER. AMBER BUDGET: 3 in content, plus the chrome underbar. On abyss-000, no plate — the plate is for screens with a real object; an answer is language. The question sits right-aligned in a radius-14 abyss-300 block, max 78% width. Below, the working steps: a 1px vertical rail at x=8 with 8px dots — completed Oatmeal, running #FFB162 on the 3200ms pulse, pending abyss-500; `liveRegion` announcing \"Step 3 of 4\". On completion it collapses to \"4 steps · 2.1s\", tappable. Then the headline, one sentence at 22/600, max 32em: \"Three Gauteng North outlets lost on-shelf availability faster than the territory did, and all three are Shoprite-group forecourts.\" Then a single Panel — abyss-200, radius 14, 1px edge-structure outline, lit top rim — holding the instrument cluster: four stat tiles 2×2 (collapsing to 1×4 on a LayoutBuilder threshold, not a scale guess), divided by hairlines. Under a hairline inside the same panel, the ranked bars, worst-first, chart-neutral fills with one amber focus bar carrying its bloom, its origin triangle and its bolded label. Under another hairline, the trend chart: our series a 2px #FFB162 line with a 12%→0 amber area fill (capped down from 18%, because that wash sitting behind the dashed terracotta comparison line is the worst case for the tightest hue pair in the system); comparison #E08E71 at 1.5px dashed 4-3; a 1px edge-control dashed target rule; horizontal gridlines only in abyss-400; a legend showing swatch and stroke pattern, always. Beneath the panel, outlined follow-up chips in Oatmeal. At the bottom, source rows with the query in mono.ident. The eye's path is forced: one sentence, one panel, one amber bar.\n\nSCREEN 3 — FIELD AGENT VISIT (Day default, Veld one thumb-tap away). Palladian ground, Abyssal ink — deliberately not cinematic, and that is the system's honesty. A 96px header, no AppBar chrome: \"Kasi Corner Spaza\" at 24/600; beneath, 13/400 ink-2: \"Spaza · Tembisa Ext 12 · 1.2 km · last visit 12 Aug\". A \"12 held\" chip in Oatmeal on the well with a square glyph — not red, because queued work is the normal state of South African field connectivity. Below: the Progress Ladder — nine 64px rows, identical layout in every skin. Each carries a 28px radius-6 glyph tile with a 2px border, joined to the tiles above and below by a 2px vertical rule so it reads as a ladder you climb: empty = not started, half-filled = in progress, solid with a tick = done. Section name in title.m, right side \"6/6\" in figure.s or a chevron.\n\nPinned to the thumb: a 96px zone with a hairline above it holding TWO controls — the 56dp SKIN CYCLE on the left and the 56px primary action filling the rest. The skin toggle moved out of the top-right header, which is the classic one-handed dead zone and was 8dp under Veld's own tap-target floor; it is now in the one region an agent holding a crate can actually reach. It cycles three states with three glyphs — sun (Veld), paper (Day), moon (Night) — which also makes Night reachable for the 05:40 forecourt audit the system claims it serves, instead of asserting that and hiding it in settings. The primary action is the one Burning Flame block on the screen, ink #1B2632 at 8.55:1. Tapping \"Photograph the shelf\" opens capture: in Phase 1 the pre-capture framing card and the OS camera; in Phase 2 the full-bleed Night-token preview with static amber brackets, a first-class 56dp torch, and a 72dp shutter. A photo shot under load-shedding returns to the review strip with a comparison-wash edge and \"Dark — retake?\", never deleted.",
+  "fieldMode": "The near-black theme does not go outside. Pretending otherwise is how this aesthetic normally fails. TradeIQ ships three skins: NIGHT (the cinematic dark — managers by default, and agents doing back-of-store or pre-dawn forecourt work), DAY (Palladian paper — the agent default), and VELD (outdoor high-contrast, a genuine third theme with its own token set).\n\nWHY VELD IS A THIRD THEME. In highveld sun at 26°S, an entry Android LCD at 40% backlight loses roughly the bottom two stops of its dynamic range to surface reflection; everything under about 4.5:1 disappears, hairlines vanish, and off-axis blue shift eats the warmth out of Palladian. Veld changes the physics, not the palette: ground becomes pure #FFFFFF, ink #0E141A at 18.52:1, and there is no token in Veld below 9:1 for text or 15:1 for borders. Every hairline becomes a 2px solid #1B2632. Every shadow, gradient, rim, blur and glow is removed — not softened, removed. Type steps up by explicit values, not \"one stop\": body 15→17, label 13→16, meta 12→14, title.m 16→18, figure.m 22→24, with a 600 weight floor, line-height +0.05 and tracking +0.5% because glare fills counters. The first draft's \"one stop\" invented a 17px and collided 15/14 with existing roles; these are declared scale members now. Tap targets 56, rows 64, wdth pinned 100–112. Density halves, and that is correct: precision is what you lose outdoors, not patience.\n\nWHAT VELD DOES TO AMBER. Burning Flame on white is 1.79:1 — it cannot be a line, icon, border or word. In Veld amber appears only as a solid block with #0E141A on it (10.34:1), and only once per screen: the primary commit action. See amberResolution.\n\nHOW VELD TURNS ON. Three mechanisms, down from four, and the fake one is gone. (1) The 56dp skin cycle in the thumb zone of every field screen — always the fastest path, always right, and the only mechanism that is load-bearing. (2) Solar elevation computed locally from the GPS fix already taken at check-in plus the device clock, gated on a STATE CHANGE — crossing 35° elevation, or a check-in at a new outlet — not on a standing condition, and cross-checked against an indoor/outdoor signal we already have for free: GPS horizontal accuracy and the last capture's mean luma both drop sharply indoors. A standing condition fires every midday in a Boxer back aisle and turns a helpful prompt into a daily swipe-away. (3) Memory — if the agent chose Veld at this outlet at this hour last visit, it pre-arms on check-in. Trigger (2) from the first draft, \"system brightness ≥85% for 20 seconds\", is DELETED: entry Androids ship auto-brightness on, `SCREEN_BRIGHTNESS` then returns the stale manual slider rather than panel output, and it would silently never fire for most of the fleet. It would also have needed a plugin that is not in pubspec.\n\nVELD DOES NOT AUTO-EXPIRE. The 120-second idle revert is gone. Glance, work on the shelf for three minutes, glance back was exactly the pattern that triggered it, and it reverted the only readable screen while the agent was still standing in the sun. Veld exits on the skin cycle, on a check-in at a new outlet, or on sustained low ambient — on a state change, never on the absence of touch.\n\nBATTERY, HONESTLY — and the first draft was wrong here by an order of magnitude. On a 6\" LCD at the 85–100% backlight Veld implies, the backlight draws hundreds of milliwatts; removing one blur and six shadows saves single-digit milliwatts of GPU. Veld is not power-neutral and I should not have implied it was. Veld COSTS battery, deliberately, because an unreadable screen costs a visit. It earns back where the power actually is: Veld shortens the screen-on timeout, drops GPS from high-accuracy to balanced between check-ins, and pauses map tile fetches. The \"30% below Day\" GPU figure is deleted — it was presented as measured in a document that had measured nothing.\n\nLOAD-SHEDDING. The torch is a first-class 56dp capture control (Phase 2) and an explicit pre-capture reminder (Phase 1), because during Stage 4–6 a spaza aisle has no light at all. Underexposed photos are edged and questioned, never rejected. The sync queue is a neutral warm Oatmeal state, never an error, because towers go down with the grid and \"12 held\" is a normal Tuesday. And Night is genuinely right for a 05:40 forecourt audit in winter — which is why the skin cycle reaches it in one thumb-tap rather than through settings.\n\nLANGUAGE. Nothing has a fixed width. Afrikaans labels get two lines at every size (measured p90 expansion 1.40×, which wrapping handles and a width axis does not); nav labels drop to icon-only below 360dp; the wdth axis is opt-in on two or three measured labels, not a system mechanism. Truncation order is fixed: truncate the outlet name before the status word, and middle-truncate names so the branch survives. English strings are designed to occupy no more than 60% of available space. isiZulu is a funded workstream — 403 professionally translated keys plus a locale — or it is not cited as a justification for anything.",
+  "amberResolution": "THE AMBER LAW: Burning Flame is a light source, never a label. Amber tells you where to look; it never tells you how bad something is.\n\n1. NIGHT. Amber may appear only as emitted light: the strip light on a plate, a 1px or 2px rim, an underline, a focus ring, the active-tab underbar, a target tick, a stroke-weight line series, and exactly one focus fill per chart — the single bar the answer's sentence is about. Never a chip background, never a repeated series fill, never a status word's colour, never a badge, never an icon tint on a list row, and never the caret on a severity-coded delta. Budget is declared per screen and counted in the screen spec, not asserted in prose.\n\n2. DAY AND VELD — and this is where the first draft dissolved. On light grounds amber inverts from light to ink-carrier, and the law had nothing to say about how many blocks that produced. An agent was tapping an amber block meaning \"do this\", landing in capture where an identical amber block meant \"torch is on\", then a map where an amber block meant \"here\". Three meanings, back to back, on the agent's own screens. Calling a torch-on chip a light source was a pun, not a rule. Restated: IN DAY AND VELD THERE IS EXACTLY ONE AMBER BLOCK PER SCREEN, AND IT IS THE PRIMARY COMMIT ACTION. Torch-on becomes a filled Abyssal block with an amber glyph and the word ON. \"You are here\" becomes an Abyssal disc with a white ring — amber leaves the map entirely. The ranked-bar focus channel on light grounds is ink-1 fill plus a marker plus weight, not amber. And the motion-coded \"live\" pulse is Night-only: in Day and Veld, live is a pulsing abyss-400 dot plus the word Live, because a pulsing amber dot would be a second amber object.\n\n3. SEVERITY ABANDONS AMBER'S HUE BAND ENTIRELY. There is no amber warning in TradeIQ. Severity is one hue at two commitment levels: WATCH is a 1px crimson outline with crimson ink and a half-filled triangle; CRITICAL is a solid crimson block with a filled triangle and a 3px left bar. GOOD is a mint outline with a filled circle. HELD is Oatmeal with a square. Intensity, not hue, carries urgency — which is how instrumentation has always worked, and which frees the whole 25–45° band for the brand. Every level also carries a distinct silhouette and a declared `semanticLabel`, so the resolution survives colour-blindness, sun-washout AND a screen reader.\n\n4. TRUFFLE TROUBLE GETS A REAL JOB. It is the comparison series: competitor share, prior period, benchmark — the most-used comparison in trade marketing. Amber is us, lit; Truffle is them, unlit earth. Our series is a solid amber stroke, theirs a dashed #E08E71. The dashed/solid distinction is MANDATORY, not stylistic, and now I can say exactly why with a number: simulated deuteranopia puts #FFB162 and #E08E71 1.41:1 apart. Hue is doing almost nothing for a dichromat; the stroke pattern is doing all of it, and so a legend showing both swatch and pattern renders on every chart, every time.\n\n5. WHERE HUE IS THE ONLY CHANNEL, HUE IS REPLACED. Burning Flame and Oatmeal have identical relative luminance — 1.00:1 — which made the first draft's entire focus mechanism a no-op in greyscale, in print, on a sun-washed panel and under deuteranopia. The neutral is now chart-neutral #8B8271 (2.12:1 true, 2.11 grey, 2.21 deutan), and every amber focus object additionally carries shape and weight. Diverging negatives are hatched because #FF7D8C against the neutral is 1.55:1 true and 1.26:1 protan. The amber→mint capture-bracket snap is cut outright: 1.11:1 true, 1.01:1 deutan — it was never a signal.\n\n6. THE ONE SEMANTIC AMBER IS MOTION-CODED AND NIGHT-ONLY. A pulsing amber dot on the 3200ms loop means \"happening right now\" — the running AI step, a live visit. A static amber is brand; a breathing amber is live. Because it is defined by animation rather than hue it cannot be confused with a warning, and it degrades to a filled square plus the word \"Live\" under reduce-motion and for screen readers. It is deliberately not applied to skeletons, which was a contradiction in the first draft: loading is not live.\n\n7. THE LINT RULE, per skin. Night: Burning Flame may be assigned to `border`, `gradient` stops, `stroke`, and `color` on a filled block whose foreground is abyss-000 or flame-500's dark pair — and to nothing else. Day/Veld: Burning Flame may appear at most once per route, as a filled block with dark ink, on the widget registered as that route's primary commit action. Violations fail the build, not the review.",
+  "antiSlop": "AVOIDED, deliberately. No purple-blue gradient hero: the ground is a desaturated OKLCH-251 navy-black carried from the brand's own Abyssal, and the only gradient on the dashboard is one amber strip light, which is a depicted light source. No emoji, and no icon in the eyebrow row. Not everything centred: every screen is left-aligned to one gutter, including the hero and the empty states; the only centred element in the system is the capture shutter, because a thumb is centred. No uniform rounded card with one shadow stamped everywhere: four radii tied to four named materials, the manager dashboard contains no cards at all, and Night has zero drop shadows by rule. No lone acid pop on black: the amber is a warm 64° light inside a warm-ink / cool-ground system where Oatmeal and Palladian do most of the carrying. No decorative glassmorphism — and now there is ZERO `BackdropFilter` in the application, down from the first draft's one and the codebase's seven, which is a cleaner claim than \"exactly one\". No 01/02/03: sections are named for what they demand — \"Needs a decision\", \"Held\", \"Not started\".\n\nTHE REFERENCE, ARGUED WITH RATHER THAN TRANSCRIBED. The first draft kept Opal's component inventory almost 1:1 and substituted only the hero object and the glow colour. Three structural borrowings are now broken on domain grounds, not stylistic ones. (a) The three equal outlined chips are gone: coverage, OSA and price-compliance are not peers — OSA is the one that sends someone to an outlet — so the rail is one dominant figure with the others as subordinate meta, and its cardinality varies by territory rather than being fixed at three because the reference had three. (b) The pill behind the active tab is gone, replaced by a 3px amber underbar and a weight shift; it was the most recognisable gesture in the reference and it also failed 1.4.11 on every channel, so removing it fixed the attribution and the accessibility together. (c) The hero object no longer sits centred above the content — it is a full-bleed band with the type hung off the left gutter inside it, which is a dashboard convention, not a gem-on-a-plinth convention.\n\nTHE EYEBROW, EARNED. An 11/700/+8% uppercase kicker is the most template-common dark-UI gesture of the last three years, and using it as the universal section marker while banning emoji and numbering was inconsistent. It now has one job — the plate kicker and the stat-tile label — and the section marker is the knocked-out rule instead, which works on its own typographic logic at title.m, not uppercase.\n\nTHE RISK I AM KEEPING: the hero is not a rendered 3D object — it is an agent's own shelf photograph, crushed nearly to silhouette and relit with one amber strip. I am betting that a real, slightly ugly shelf made cinematic by light is worth more to a trade-marketing manager than any abstract object. It can still fail — a blurred or empty-fridge frame will look like a mistake rather than a mood — and the mitigations (server-baked 12% chroma, a #474747 luminance ceiling, alpha edge-dissolve, luma-variance rejection) do not remove it. What has changed is that the risk is now bounded on two sides it was not before: the plate is sourced from the outlet the manager is about to act on rather than the best-scoring visit, so it cannot become a reward to be gamed; and the generative fallback is a real component drawing the territory's OSA trend as receding shelf rules, not a placeholder, because POPIA filtering will make it common.",
+  "flutter": "ONE TOKEN SOURCE. `TiqSkin extends ThemeExtension<TiqSkin>` with `.night()`, `.day()`, `.veld()` and a `density` field (`Density.console | Density.field`), replacing TiqColors, LumenPalette, LumenGlass, AppColors and status_pill_colors.dart. `ThemeMode` becomes `SkinMode { night, day, veld, auto }`; `auto` runs the solar/memory logic and is overridden by the thumb-zone skin cycle at any time. Veld is declared single-density in the type system, not by convention — `TiqSkin.veld()` takes no density argument, so `Veld × Console` cannot be constructed.\n\nMIGRATION — this is the part the first draft priced wrong. 105 of 212 files in lib/ and 87 of 184 test files reference at least one of the five colour sources; GlassPane alone is in 61 files; 96 files carry raw EdgeInsets; 95 construct raw TextStyles; 18 hold the 34 BoxShadow literals. Replacing TiqColors in one commit turns the entire suite red as a single atomic event. So: land TiqSkin alongside TiqColors with TiqColors reimplemented as a thin delegating shim over the new skin — the 87 test files stay green and feature folders migrate one at a time behind a passing suite. Golden infrastructure and the twelve core-component goldens land in NIGHT ONLY, before any feature screen is ported. Day goldens follow per component; Veld is sequenced LAST, after Night and Day are shipped and stable, because it has the fewest users per day and the highest per-component tax, and shipping it third means its goldens are written against components that have stopped moving. GlassPane is deleted when its 61 call sites are empty, not first.\n\nGLOW IS NEVER A BLUR. Every bloom is a `BoxDecoration(gradient:)` with alpha stops (#FFF1DE@0.55 → #FFB162@0.30 → transparent). Gradients are painted inside the existing draw call — no saveLayer, no shader compile, no offscreen texture. `BoxShadow` with a colour is used nowhere in Night. This is the single biggest performance decision in the direction and it survives unchanged — the first draft simply failed to obey it in two places, both now fixed.\n\nZERO BackdropFilter, ZERO ShaderMask, ZERO ImageFiltered. The tab bar is an opaque `ColoredBox` with a rim; no filter, no scroll-listener swap. The plate's edge-dissolve is baked into the PNG's alpha channel server-side by `sharp` (already a backend dependency; `src/modules/photos/` already exists), along with the chroma reduction, the #474747 luminance ceiling and the luma-variance rejection — so the client draws one `Image` and the dissolve is in the pixels. The strip light is a `LinearGradient`, not `ImageFiltered(sigma 40)`. This turns the plate from the most expensive object on screen into one of the cheapest, and moves the bad-frame rejection to where it can stop a photo before a manager ever sees it. Face detection for the POPIA gate is a separate server-side model — sharp does not do it, and pretending otherwise would be the same kind of hand-wave I am removing elsewhere.\n\nIMAGES. Decoded with `cacheWidth: devicePixelRatio * logicalWidth`, never full resolution — a 12MP shelf photo decoded full-size is an OOM on a 2GB handset and 4MB of someone's data bundle. Plate variants are served pre-sized.\n\nLISTS. No blur, no shadow, no gradient inside any `ListView.builder`/`SliverList` row — rows are `ColoredBox` plus a 1px `Divider`. Each sparkline sits in a `RepaintBoundary` and caches to a `Picture` invalidated only on data change. Ladder and worklist rows are const-constructible.\n\nCHARTS. The existing `CustomPainter`s in charts.dart are kept wholesale — they already do worst-first ordering, diverging bars, comparison series and target rules. `_ChartInks` is repointed at TiqSkin and gains three new responsibilities: the chart-neutral fill, the hatched negative-diverging fill (hard-stop `LinearGradient`, still no blur), and the focus marker triangle.\n\nTYPE AND NUMBERS. Archivo variable via `FontVariation` on wght and wdth, one asset, subset to Latin + Latin-Ext by a `pyftsubset` step in CI (Flutter tree-shakes icon fonts only). `fontFeatures: [FontFeature.tabularFigures()]` on every figure role. One locale-driven `NumberFormat.compactCurrency` replaces the hardcoded `NumberFormat('#,##0.#', 'en_US')` in rich_figures.dart. `MediaQuery.textScaler` clamped at 2.0 in both densities, with hero.figure the single documented exception at 1.6.\n\nMOTION. ONE application-wide `Ticker` with three subscribers — the 3200ms live pulse, the 1400ms skeleton rule, the 600ms busy dots — disabled under `MediaQuery.disableAnimations`, battery-saver and Veld. Count-up uses one `AnimationController` per visible cluster, not per tile.\n\nFRAME BUDGET on a 2GB/Snapdragon-4xx at 1080×2340, aiming for ≤8ms build+paint inside the 16.6ms frame: 0 BackdropFilter, 0 ShaderMask, 0 ImageFiltered, 0 saveLayer outside Flutter's own, 0 BoxShadow in Night and ≤6 in Day, ≤12 gradient decorations per screen, 1 Ticker. The first draft budgeted 3.0ms for a blur, 1.5ms for a ShaderMask and 1.2ms for a static blur; the ShaderMask figure in particular was optimistic — a saveLayer over a 21:9 band at 1080 width is a ~1080×463 offscreen allocation, typically 3–6ms on this silicon, and it re-rasters every frame of the 320ms plate reveal. Removing all three is worth more than budgeting them.\n\nTESTS. Goldens are scoped as skin × density, not skin: Night×Console, Night×Field, Day×Console, Day×Field, Veld (single-density) = 5 states × 12 core components = 60, plus Veld at textScale 2.0 and Afrikaans for the twelve text-bearing components = ~84 golden files, against a suite with exactly zero today. The contrast table is GENERATED — a Dart test walks the TiqSkin factories, emits every declared pairing with its ratio and pass/fail, and fails CI if any declared pairing drops below its floor. The same pass runs a greyscale and a Viénot deuteranopia/protanopia simulation over every chart-series pair and asserts a minimum separation, which is how the 1.00:1 Burning-Flame/Oatmeal collision should have been caught in the first place. A `--profile` integration test fails the build if `frameRasterizerTime` p95 exceeds 12ms on the dashboard and answer screens. And before any of it: buy three sub-R2000 Androids and photograph the Night dashboard at 40% backlight. It is a twenty-minute test that decides whether the dark theme works on the hardware it is for.",
+  "risks": "WHERE IT IS WEAKEST. (1) The plate still eats the fold, and now it eats it with a photograph that may often be the generative fallback rather than a real shelf — because the POPIA gate (no detected faces, own territory, not fraud-flagged, passes luma variance) will reject a lot of real frames. If the fallback is what managers see four days out of five, the emotional argument for the plate weakens considerably and the honest response is to ship the \"collapse plate to 96px\" preference on day one, which I would do rather than argue. (2) The no-card dashboard is hard to extend; the moment a fifth module lands there, one Panel breaks the composition. This needs an owner who will say no. (3) One-accent discipline starves multi-series charts. Three or more series go monochrome chart-neutral at varying alpha plus stroke patterns, which is correct and also dull; a five-brand competitor comparison will look worse here than in a conventional categorical palette. (4) Truffle-as-competitor is a convention nobody arrives knowing, so every comparison chart needs a legend, always, which costs vertical space — now a rule rather than a caveat, so the cost is permanent. (5) The amber/truffle pair is the tightest in the system and is 1.41:1 under deuteranopia; it holds only because the dashed/solid stroke is mandatory. If anyone ships a filled-area comparison, it breaks. (6) Three skins across two densities is five golden states, ~84 golden files, and a permanent per-component tax against a codebase with zero goldens today — plus a migration touching half of lib/ and half of the test suite, which the shim strategy defers but does not eliminate. (7) Veld costs battery at the moment it is most needed. The mitigations are real but they are second-order against backlight draw; an agent at 18% at 14:00 is making a genuine trade, and the product should say so rather than hide it. (8) Photo capture is two phases, and Phase 1 is materially worse than the spec reads — no in-app preview, no framing brackets, no torch control of ours. If Phase 2 is never funded, the field capture experience is the stock Android camera with a reminder card, and the cinematic argument never reaches the agent at all.\n\nWHO WOULD DISLIKE IT. Analysts who want a spreadsheet: this dashboard shows five rows where a table would show forty, and \"Needs a decision\" is an opinion imposed on their data. Field agents who love dark mode on their own phones and will read the Day default as a downgrade — they need to be shown once what Palladian looks like at noon in Tembisa, and they now have a one-thumb path to Night when they are right. Engineers who liked GlassPane: this deletes most of the glass and replaces a beloved primitive with a flat fill and a rim, which will feel like a loss until the frame graph is shown. Any stakeholder expecting brand amber everywhere will find it twice on the dashboard and once per agent screen and conclude the brand was ignored — the Amber Law has to be sold to the owner explicitly, not just implemented. And a compliance owner will not love that the most screenshot-prone screen in the product is built around customer photography; that conversation has to happen before launch, not after the first WhatsApp forward.\n\nWHERE I DID NOT MOVE. Two things the critics pushed on that I am keeping. The eyebrow survives, narrowed to two roles, because the alternative proposed — dropping it entirely — would cost the stat tile its only label channel; I narrowed its scope instead of deleting it. And the plate stays at 44% of the fold by default rather than shipping collapsed, because a direction that opens defensively is not this direction; the preference exists, the default does not change."
+}
