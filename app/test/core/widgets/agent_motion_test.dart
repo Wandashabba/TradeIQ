@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_colors.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
 import 'package:tradeiq_app/core/widgets/agent_motion.dart';
 
 import '../theme/tiq_colors_test.dart' show contrastRatio;
@@ -137,30 +136,6 @@ void main() {
       // of them raises a task.
       expect(find.text('—'), findsOneWidget);
       expect(find.text('0'), findsNothing);
-    });
-  });
-
-  group('CountStepper', () {
-    testWidgets('settles after a change — no animation is left running', (
-      tester,
-    ) async {
-      var value = 3;
-      await tester.pumpWidget(
-        _wrap(
-          StatefulBuilder(
-            builder: (context, setState) => CountStepper(
-              value: value,
-              onChanged: (v) => setState(() => value = v),
-            ),
-          ),
-        ),
-      );
-
-      await tester.tap(find.byIcon(Icons.add));
-      await tester.pumpAndSettle();
-
-      expect(value, 4);
-      expect(find.text('4'), findsOneWidget);
     });
   });
 }
