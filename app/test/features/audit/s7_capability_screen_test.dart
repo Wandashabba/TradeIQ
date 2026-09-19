@@ -1,15 +1,14 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/audit/data/capability_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s7_capability_screen.dart';
 
-class _SpyCapabilityRepository implements CapabilityRepository {
+import '../agent_harness.dart';
+import 'section_harness.dart';
+
+class _SpyCapability implements CapabilityRepository {
   String? visitDraftId;
   CapabilityCapture? capture;
 
@@ -23,159 +22,103 @@ class _SpyCapabilityRepository implements CapabilityRepository {
   }
 }
 
-const _bothThemes = ['light', 'dark'];
+List<Override> _overrides(CapabilityRepository spy) => <Override>[
+  capabilityRepositoryProvider.overrideWithValue(spy),
+];
 
-ThemeData _themeFor(String name) =>
-    name == 'light' ? AppTheme.light() : AppTheme.dark();
+const _screen = S7CapabilityScreen(visitDraftId: 'v1');
 
-Widget _screen(CapabilityRepository spy, {ThemeData? theme, Key? key}) =>
-    ProviderScope(
-      overrides: [capabilityRepositoryProvider.overrideWithValue(spy)],
-      child: MaterialApp(
-        theme: theme,
-        // A fresh key per theme pass so State (the training checkboxes) never
-        // carries across pumps in a both-themes loop.
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: S7CapabilityScreen(key: key, visitDraftId: 'v1'),
-          ),
-        ),
-      ),
-    );
+Finder _key(String k) => find.byKey(ValueKey<String>(k));
 
 void main() {
-  testWidgets(
-    'captures capability and calls saveCapability on Save — training via '
-    'AgentCheck',
-    (tester) async {
-      for (final name in _bothThemes) {
-        final spy = _SpyCapabilityRepository();
-        await tester.pumpWidget(
-          _screen(spy, theme: _themeFor(name), key: ValueKey(name)),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.enterText(find.byKey(const ValueKey('headcount')), '5');
-        // Training topics are now AgentChecks — the topic keys are preserved so
-        // each check drives its own map entry.
-        await tester.tap(
-          find.byKey(const ValueKey('training-productKnowledge')),
-        );
-        await tester.tap(find.byKey(const ValueKey('training-posSystems')));
-        await tester.enterText(find.byKey(const ValueKey('quiz')), '85');
-        await tester.pump();
-
-        await tester.ensureVisible(find.text('Save capability'));
-        await tester.tap(find.text('Save capability'));
-        await tester.pumpAndSettle();
-
-        expect(spy.visitDraftId, 'v1', reason: name);
-        expect(spy.capture!.staffHeadcountConfirmed, 5, reason: name);
-        expect(
-          spy.capture!.repTrainingStatus['productKnowledge'],
-          true,
-          reason: name,
-        );
-        expect(
-          spy.capture!.repTrainingStatus['merchandising'],
-          false,
-          reason: name,
-        );
-        expect(
-          spy.capture!.repTrainingStatus['posSystems'],
-          true,
-          reason: name,
-        );
-        expect(spy.capture!.quizScore, 85, reason: name);
-        expect(
-          find.text('Capability saved — queued for sync'),
-          findsOneWidget,
-          reason: name,
-        );
-      }
-    },
-  );
-
-  testWidgets(
-    'training topics are AgentChecks, fields are AgentFields, save is an '
-    'AgentButton — no raw CheckboxListTile/ElevatedButton',
-    (tester) async {
-      for (final name in _bothThemes) {
-        await tester.pumpWidget(
-          _screen(
-            _SpyCapabilityRepository(),
-            theme: _themeFor(name),
-            key: ValueKey(name),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(
-          find.byType(CheckboxListTile),
-          findsNothing,
-          reason: '$name no CheckboxListTile',
-        );
-        expect(
-          find.byType(ElevatedButton),
-          findsNothing,
-          reason: '$name no ElevatedButton',
-        );
-
-        // Headcount and quiz are labelled AgentFields; the three training
-        // topics are AgentChecks; save is the kit's button.
-        expect(
-          find.byType(AgentField),
-          findsNWidgets(2),
-          reason: '$name two AgentFields',
-        );
-        expect(
-          find.byType(AgentCheck),
-          findsNWidgets(3),
-          reason: '$name three AgentChecks',
-        );
-        expect(
-          find.widgetWithText(AgentButton, 'Save capability'),
-          findsOneWidget,
-          reason: '$name save is AgentButton',
-        );
-      }
-    },
-  );
-
-  testWidgets('Lumen Glass: each question sits on its own glass tile', (
+  testWidgets('captures headcount, training and quiz, and saves them', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      _screen(_SpyCapabilityRepository(), theme: AppTheme.light()),
-    );
-    await tester.pumpAndSettle();
+    final spy = _SpyCapability();
+    await pumpSection(tester, _screen, overrides: _overrides(spy));
 
-    // Headcount, training and quiz each read as their own answer: three
-    // no-blur tiles (the section scrolls), one per question.
-    final tile = find.byWidgetPredicate(
-      (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
+    await typeInSection(tester, _key('headcount'), '5');
+    await tapInSection(tester, _key('training-productKnowledge'));
+    await tapInSection(tester, _key('training-posSystems'));
+    await typeInSection(tester, _key('quiz'), '80');
+    await saveSection(tester);
+
+    expect(spy.visitDraftId, 'v1');
+    expect(spy.capture!.staffHeadcountConfirmed, 5);
+    expect(spy.capture!.repTrainingStatus, <String, bool>{
+      'productKnowledge': true,
+      'merchandising': false,
+      'posSystems': true,
+    });
+    expect(spy.capture!.quizScore, 80);
+    expect(
+      find.textContaining('Capability saved — queued for sync'),
+      findsOneWidget,
     );
-    expect(tile, findsNWidgets(3));
-    for (final label in [
-      'Staff headcount confirmed',
-      'Rep training completed',
-      'Quiz score (0-100)',
-    ]) {
-      expect(
-        find.ancestor(of: find.text(label), matching: tile),
-        findsOneWidget,
-        reason: '"$label" on a glass tile',
-      );
-    }
+    await disposeAgentScreen(tester);
   });
 
-  test('no non-geometry AppColors. remain in the S7 capability source', () {
-    final src = File(
-      'lib/features/audit/presentation/sections/s7_capability_screen.dart',
-    ).readAsStringSync();
-    final offenders = RegExp(
-      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
-    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
-    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
+  testWidgets('the Save is a ghost until something changes, and after', (
+    tester,
+  ) async {
+    await pumpSection(tester, _screen, overrides: _overrides(_SpyCapability()));
+    await scrollAgentTo(tester, sectionSave);
+    await expectAmber(
+      tester,
+      skin: SkinMode.night,
+      route: 'capability',
+      phase: 'untouched',
+      expected: 0,
+    );
+    await typeInSection(tester, _key('headcount'), '3');
+    await scrollAgentTo(tester, sectionSave);
+    await expectAmber(
+      tester,
+      skin: SkinMode.night,
+      route: 'capability',
+      phase: 'dirty',
+      expected: 1,
+    );
+    await saveSection(tester);
+    await expectAmber(
+      tester,
+      skin: SkinMode.night,
+      route: 'capability',
+      phase: 'saved',
+      expected: 0,
+    );
+    await disposeAgentScreen(tester);
+  });
+
+  group('the amber census', () {
+    for (final skin in agentSkinModes) {
+      testWidgets('untouched is zero, armed is one — ${skin.name}', (
+        tester,
+      ) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(_SpyCapability()),
+          skin: skin,
+        );
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'capability',
+          phase: 'untouched',
+          expected: 0,
+        );
+        await tapInSection(tester, _key('training-merchandising'));
+        await scrollAgentTo(tester, sectionSave);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'capability',
+          phase: 'dirty',
+          expected: 1,
+        );
+        await disposeAgentScreen(tester);
+      });
+    }
   });
 }
