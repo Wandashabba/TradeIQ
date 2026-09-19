@@ -1,173 +1,100 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
-import 'package:tradeiq_app/core/widgets/console.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/audit/data/tasks_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s9_action_plan_screen.dart';
 
-class _SpyTasksRepository implements TasksRepository {
-  String? visitDraftId;
-  String? outletId;
-  TaskDraft? task;
+import '../agent_harness.dart';
+import 'section_harness.dart';
+
+class _SpyTasks implements TasksRepository {
+  final calls = <(String, String, TaskDraft)>[];
 
   @override
   Future<void> saveTask({
     required String visitDraftId,
     required String outletId,
     required TaskDraft task,
-  }) async {
-    this.visitDraftId = visitDraftId;
-    this.outletId = outletId;
-    this.task = task;
-  }
+  }) async => calls.add((visitDraftId, outletId, task));
 }
 
-const _bothThemes = ['light', 'dark'];
+List<Override> _overrides(TasksRepository spy) => <Override>[
+  tasksRepositoryProvider.overrideWithValue(spy),
+];
 
-ThemeData _themeFor(String name) =>
-    name == 'light' ? AppTheme.light() : AppTheme.dark();
+const _screen = S9ActionPlanScreen(visitDraftId: 'v1', outletId: 'o1');
 
-Widget _screen(TasksRepository spy, {ThemeData? theme, Key? key}) =>
-    ProviderScope(
-      overrides: [tasksRepositoryProvider.overrideWithValue(spy)],
-      child: MaterialApp(
-        theme: theme,
-        // A fresh key per theme pass so State never carries across pumps.
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: S9ActionPlanScreen(
-              key: key,
-              visitDraftId: 'v1',
-              outletId: 'o1',
-            ),
-          ),
-        ),
-      ),
-    );
+Finder _key(String k) => find.byKey(ValueKey<String>(k));
 
 void main() {
   testWidgets(
-    'captures a manual task and calls saveTask on Add task — priority via '
-    'ChoiceRow',
+    'Add task queues one task with its priority, clears the form, and '
+    'lists it as a row',
     (tester) async {
-      for (final name in _bothThemes) {
-        final spy = _SpyTasksRepository();
-        await tester.pumpWidget(
-          _screen(spy, theme: _themeFor(name), key: ValueKey(name)),
-        );
-        await tester.pumpAndSettle();
+      final spy = _SpyTasks();
+      await pumpSection(tester, _screen, overrides: _overrides(spy));
 
-        await tester.enterText(find.byKey(const ValueKey('task-type')), 'oos');
-        await tester.enterText(
-          find.byKey(const ValueKey('task-fix')),
-          'Restock shelf',
-        );
+      expect(find.text('No extra tasks yet.'), findsOneWidget);
+      await typeInSection(tester, _key('task-type'), 'Planogram gap');
+      await typeInSection(tester, _key('task-fix'), 'Re-face the top shelf');
+      await tapInSection(
+        tester,
+        find.descendant(of: _key('task-priority'), matching: find.text('High')),
+      );
+      expect(sectionSave, findsOneWidget);
+      expect(find.text('Add task'), findsOneWidget);
+      await saveSection(tester);
 
-        // Priority is now a ChoiceRow — tap the chip label, not a dropdown menu.
-        await tester.ensureVisible(find.text('High'));
-        await tester.tap(find.text('High'));
-        await tester.pump();
+      final (visit, outlet, task) = spy.calls.single;
+      expect(visit, 'v1');
+      expect(outlet, 'o1');
+      expect(task.findingType, 'Planogram gap');
+      expect(task.requiredFix, 'Re-face the top shelf');
+      expect(task.priority, 'high');
 
-        await tester.ensureVisible(find.text('Add task'));
-        await tester.tap(find.text('Add task'));
-        await tester.pumpAndSettle();
-
-        expect(spy.visitDraftId, 'v1', reason: name);
-        expect(spy.outletId, 'o1', reason: name);
-        expect(spy.task!.findingType, 'oos', reason: name);
-        expect(spy.task!.requiredFix, 'Restock shelf', reason: name);
-        expect(spy.task!.priority, 'high', reason: name);
-        expect(find.text('Task queued for sync'), findsOneWidget, reason: name);
-
-        // The text fields are cleared after queueing.
-        expect(find.text('oos'), findsNothing, reason: name);
-        expect(find.text('Restock shelf'), findsNothing, reason: name);
-      }
+      // The form is cleared for the next one, and the raised task is a row.
+      await scrollAgentTo(tester, _key('task-raised-0'));
+      expect(
+        find.descendant(
+          of: _key('task-raised-0'),
+          matching: find.text('Planogram gap'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('1 task queued for sync'), findsOneWidget);
+      await disposeAgentScreen(tester);
     },
   );
 
-  testWidgets(
-    'the task form is a PanelCard, fields are AgentFields, save is an '
-    'AgentButton — no raw Card/Dropdown/ElevatedButton',
-    (tester) async {
-      for (final name in _bothThemes) {
-        await tester.pumpWidget(
-          _screen(
-            _SpyTasksRepository(),
-            theme: _themeFor(name),
-            key: ValueKey(name),
-          ),
+  group('the amber census', () {
+    for (final skin in agentSkinModes) {
+      testWidgets('an empty form is zero, a filled one is one — ${skin.name}', (
+        tester,
+      ) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(_SpyTasks()),
+          skin: skin,
         );
-        await tester.pumpAndSettle();
-
-        expect(find.byType(Card), findsNothing, reason: '$name no Card');
-        expect(
-          find.byType(DropdownButtonFormField<String>),
-          findsNothing,
-          reason: '$name no Dropdown',
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'action plan',
+          phase: 'untouched',
+          expected: 0,
         );
-        expect(
-          find.byType(ElevatedButton),
-          findsNothing,
-          reason: '$name no ElevatedButton',
+        await typeInSection(tester, _key('task-type'), 'Dirty shelf');
+        await scrollAgentTo(tester, sectionSave);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'action plan',
+          phase: 'dirty',
+          expected: 1,
         );
-
-        final glass = tester
-            .element(find.byType(S9ActionPlanScreen))
-            .colors
-            .glass;
-        if (glass) {
-          // Lumen Glass: the task being written is one no-blur glass tile.
-          expect(
-            find.byType(PanelCard),
-            findsNothing,
-            reason: '$name no panel',
-          );
-          expect(
-            find.ancestor(
-              of: find.text('Finding type'),
-              matching: find.byWidgetPredicate(
-                (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
-              ),
-            ),
-            findsOneWidget,
-            reason: '$name task glass tile',
-          );
-        } else {
-          expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
-        }
-        expect(
-          find.byType(AgentField),
-          findsNWidgets(2),
-          reason: '$name two AgentFields',
-        );
-        expect(
-          find.byType(ChoiceRow<String>),
-          findsOneWidget,
-          reason: '$name priority ChoiceRow',
-        );
-        expect(
-          find.widgetWithText(AgentButton, 'Add task'),
-          findsOneWidget,
-          reason: '$name save is AgentButton',
-        );
-      }
-    },
-  );
-
-  test('no non-geometry AppColors. remain in the S9 action plan source', () {
-    final src = File(
-      'lib/features/audit/presentation/sections/s9_action_plan_screen.dart',
-    ).readAsStringSync();
-    final offenders = RegExp(
-      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
-    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
-    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
+        await disposeAgentScreen(tester);
+      });
+    }
   });
 }

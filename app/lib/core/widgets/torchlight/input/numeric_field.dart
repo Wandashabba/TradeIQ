@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart'
     show
         InputDecoration,
+        InputDecorationTheme,
         Material,
         MaterialType,
         TextField,
@@ -376,6 +377,12 @@ class _Editable extends StatelessWidget {
     type: MaterialType.transparency,
     child: Theme(
       data: Theme.of(context).copyWith(
+        // An EMPTY decoration theme. The app theme's input decoration carries
+        // a flame-700 focused underline for the Material forms, and a
+        // collapsed decoration inherits `focusedBorder` from it — which painted
+        // an unclaimed amber line under every focused trough, a second lit
+        // object in Day and Veld. The trough draws the only rule.
+        inputDecorationTheme: const InputDecorationTheme(),
         textSelectionTheme: TextSelectionThemeData(
           cursorColor: style.color,
           selectionColor: selectionFill,

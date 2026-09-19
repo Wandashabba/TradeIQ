@@ -1,26 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
 import 'package:tradeiq_app/features/audit/data/template_section_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/client_questions_screen.dart';
-import 'package:tradeiq_app/l10n/l10n.dart';
 
-// The client-questions section body (#122).
+import '../agent_harness.dart';
+import 'section_harness.dart';
+
+// The client-questions section (#122).
 final template = ClientTemplate(
   templateId: 'tpl-1',
   name: 'Promo Check',
   version: 3,
-  schemaJson: const {
-    'sections': [
-      {
+  schemaJson: const <String, Object?>{
+    'sections': <Object?>[
+      <String, Object?>{
         'id': 'promo',
         'title': 'Promo stand',
-        'fields': [
-          {'id': 'standUp', 'label': 'Is the promo stand up?', 'type': 'boolean'},
-          {'id': 'facings', 'label': 'Promo facings', 'type': 'number', 'required': true},
-          {'id': 'comment', 'label': 'Anything else?', 'type': 'text'},
+        'fields': <Object?>[
+          <String, Object?>{
+            'id': 'standUp',
+            'label': 'Is the promo stand up?',
+            'type': 'boolean',
+          },
+          <String, Object?>{
+            'id': 'facings',
+            'label': 'Promo facings',
+            'type': 'number',
+            'required': true,
+          },
+          <String, Object?>{
+            'id': 'comment',
+            'label': 'Anything else?',
+            'type': 'text',
+          },
         ],
       },
     ],
@@ -28,15 +42,17 @@ final template = ClientTemplate(
 );
 
 class FakeTemplateSectionRepository implements TemplateSectionRepository {
-  FakeTemplateSectionRepository({Map<String, Object?> saved = const {}})
-    : saved = Map.of(saved);
+  FakeTemplateSectionRepository({
+    Map<String, Object?> saved = const <String, Object?>{},
+  }) : saved = Map<String, Object?>.of(saved);
 
   Map<String, Object?> saved;
   final saves = <Map<String, Object?>>[];
   final pinned = <String>[];
 
   @override
-  Future<void> pinForVisit(String visitDraftId) async => pinned.add(visitDraftId);
+  Future<void> pinForVisit(String visitDraftId) async =>
+      pinned.add(visitDraftId);
 
   @override
   Future<Map<String, Object?>> savedAnswers({
@@ -50,134 +66,130 @@ class FakeTemplateSectionRepository implements TemplateSectionRepository {
     required ClientTemplate template,
     required Map<String, Object?> answers,
   }) async {
-    saves.add(Map.of(answers));
-    saved = Map.of(answers);
+    saves.add(Map<String, Object?>.of(answers));
+    saved = Map<String, Object?>.of(answers);
   }
 }
 
-Widget clientQuestionsApp(
-  FakeTemplateSectionRepository repo, {
-  ThemeData? theme,
-  Locale? locale,
-}) => ProviderScope(
-  overrides: [templateSectionRepositoryProvider.overrideWithValue(repo)],
-  child: MaterialApp(
-    theme: theme,
-    locale: locale,
-    supportedLocales: appSupportedLocales,
-    localizationsDelegates: appLocalizationsDelegates,
-    localeListResolutionCallback: resolveAppLocale,
-    home: Scaffold(
-      body: SingleChildScrollView(
-        child: ClientQuestionsScreen(visitDraftId: 'v1', template: template),
-      ),
-    ),
-  ),
-);
+List<Override> _overrides(TemplateSectionRepository repo) => <Override>[
+  templateSectionRepositoryProvider.overrideWithValue(repo),
+];
 
-Finder _textCI(String text) =>
-    find.textContaining(RegExp('^${RegExp.escape(text)}\$', caseSensitive: false));
+final _screen = ClientQuestionsScreen(visitDraftId: 'v1', template: template);
+
+Finder _key(String k) => find.byKey(ValueKey<String>(k));
 
 void main() {
-  void tall(WidgetTester tester) {
-    tester.view.physicalSize = const Size(800, 2000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-  }
-
-  testWidgets('renders the client’s questions under the section label', (
-    tester,
-  ) async {
-    tall(tester);
-    await tester.pumpWidget(clientQuestionsApp(FakeTemplateSectionRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('CLIENT QUESTIONS'), findsOneWidget);
+  testWidgets('the client’s questions, under the template’s name and its own '
+      'section rule', (tester) async {
+    await pumpSection(
+      tester,
+      _screen,
+      overrides: _overrides(FakeTemplateSectionRepository()),
+    );
+    expect(find.text('Promo Check'), findsOneWidget);
     expect(find.textContaining('Asked on every visit'), findsOneWidget);
+    expect(find.text('Promo stand'), findsOneWidget);
     expect(find.text('Is the promo stand up?'), findsOneWidget);
     expect(find.text('Promo facings'), findsOneWidget);
     expect(find.text('Required'), findsOneWidget);
-    expect(_textCI('1 required question left'), findsOneWidget);
-    expect(find.text('Save answers'), findsOneWidget);
+    await scrollAgentTo(tester, _key('client-questions-required'));
+    expect(find.text('1 required question left'), findsOneWidget);
+    await disposeAgentScreen(tester);
   });
 
   testWidgets('answering and saving hands the answers to the repository', (
     tester,
   ) async {
-    tall(tester);
     final repo = FakeTemplateSectionRepository();
-    await tester.pumpWidget(clientQuestionsApp(repo));
-    await tester.pumpAndSettle();
+    await pumpSection(tester, _screen, overrides: _overrides(repo));
 
-    await tester.enterText(find.byKey(const ValueKey('field-facings')), '4');
-    await tester.pump();
-    expect(_textCI('All required questions answered'), findsOneWidget);
+    await typeInSection(tester, _key('field-facings'), '4');
+    await scrollAgentTo(tester, _key('client-questions-required'));
+    expect(find.text('All required questions answered'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('client-questions-save')));
-    await tester.pumpAndSettle();
-
-    expect(repo.saves, [
-      {'facings': 4},
+    await saveSection(tester);
+    expect(repo.saves, <Map<String, Object?>>[
+      <String, Object?>{'facings': 4},
     ]);
-    expect(find.text('Answers saved — queued for sync'), findsOneWidget);
+    expect(
+      find.textContaining('Answers saved — queued for sync'),
+      findsOneWidget,
+    );
+    await disposeAgentScreen(tester);
   });
 
-  testWidgets('saving with a required answer missing saves, and marks the gap', (
-    tester,
-  ) async {
-    tall(tester);
-    final repo = FakeTemplateSectionRepository();
-    await tester.pumpWidget(clientQuestionsApp(repo));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'saving with a required answer missing saves, and marks the gap',
+    (tester) async {
+      final repo = FakeTemplateSectionRepository();
+      await pumpSection(tester, _screen, overrides: _overrides(repo));
 
-    await tester.enterText(find.byKey(const ValueKey('field-comment')), 'Busy aisle');
-    await tester.tap(find.byKey(const ValueKey('client-questions-save')));
-    await tester.pumpAndSettle();
+      await typeInSection(tester, _key('field-comment'), 'Busy aisle');
+      await saveSection(tester);
 
-    // A partial save is kept — the hub then shows the section partial and the
-    // submit stays blocked until the required question is answered.
-    expect(repo.saves.single, {'comment': 'Busy aisle'});
-    expect(find.text('Answer this before you submit'), findsOneWidget);
-  });
+      // A partial save is kept — the hub then shows the section partial and the
+      // submit stays blocked until the required question is answered.
+      expect(repo.saves.single, <String, Object?>{'comment': 'Busy aisle'});
+      await scrollAgentTo(tester, _key('field-facings'));
+      expect(find.text('Answer this before you submit'), findsOneWidget);
+      await disposeAgentScreen(tester);
+    },
+  );
 
   testWidgets('reopening starts from what was saved', (tester) async {
-    tall(tester);
-    await tester.pumpWidget(
-      clientQuestionsApp(
-        FakeTemplateSectionRepository(saved: const {'facings': 7, 'standUp': true}),
+    await pumpSection(
+      tester,
+      _screen,
+      overrides: _overrides(
+        FakeTemplateSectionRepository(
+          saved: const <String, Object?>{'facings': 7, 'standUp': true},
+        ),
       ),
     );
-    await tester.pumpAndSettle();
-
-    expect(find.text('7'), findsOneWidget);
-    final toggle = tester.widget<SwitchListTile>(
-      find.byKey(const ValueKey('field-standUp')),
+    expect(
+      find.descendant(of: _key('field-facings'), matching: find.text('7')),
+      findsOneWidget,
+    );
+    final toggle = tester.widget<TorchToggle>(
+      find.descendant(
+        of: _key('field-standUp'),
+        matching: find.byType(TorchToggle),
+      ),
     );
     expect(toggle.value, isTrue);
+    await disposeAgentScreen(tester);
   });
 
-  for (final (name, theme) in [('light', AppTheme.light), ('night', AppTheme.dark)]) {
-    testWidgets('$name: questions sit on glass tiles like the other sections', (
-      tester,
-    ) async {
-      tall(tester);
-      await tester.pumpWidget(
-        clientQuestionsApp(FakeTemplateSectionRepository(), theme: theme()),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('CLIENT QUESTIONS'), findsOneWidget);
-      final tile = tester.widget<GlassPane>(
-        find
-            .ancestor(
-              of: find.byKey(const ValueKey('field-facings')),
-              matching: find.byType(GlassPane),
-            )
-            .first,
-      );
-      expect(tile.kind, GlassKind.tile);
-      expect(tile.blur, isFalse);
-      expect(find.text('Save answers'), findsOneWidget);
-    });
-  }
+  group('the amber census', () {
+    for (final skin in agentSkinModes) {
+      testWidgets('untouched is zero, armed is one — ${skin.name}', (
+        tester,
+      ) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(FakeTemplateSectionRepository()),
+          skin: skin,
+        );
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'client questions',
+          phase: 'untouched',
+          expected: 0,
+        );
+        await typeInSection(tester, _key('field-facings'), '2');
+        await scrollAgentTo(tester, sectionSave);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'client questions',
+          phase: 'dirty',
+          expected: 1,
+        );
+        await disposeAgentScreen(tester);
+      });
+    }
+  });
 }

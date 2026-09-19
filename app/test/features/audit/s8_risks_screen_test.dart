@@ -1,20 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
-import 'package:tradeiq_app/core/widgets/console.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/features/audit/data/risks_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s8_risks_screen.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
+import '../agent_harness.dart';
+import 'section_harness.dart';
 
-class _SpyRisksRepository implements RisksRepository {
+class _SpyRisks implements RisksRepository {
   String? visitDraftId;
   List<RiskEntry>? entries;
 
@@ -28,265 +23,115 @@ class _SpyRisksRepository implements RisksRepository {
   }
 }
 
-const _bothThemes = ['light', 'dark'];
+List<Override> _overrides(RisksRepository spy) => <Override>[
+  risksRepositoryProvider.overrideWithValue(spy),
+];
 
-ThemeData _themeFor(String name) =>
-    name == 'light' ? AppTheme.light() : AppTheme.dark();
+const _screen = S8RisksScreen(visitDraftId: 'v1');
 
-Widget _screen(RisksRepository spy, {ThemeData? theme, Key? key}) =>
-    ProviderScope(
-      overrides: [risksRepositoryProvider.overrideWithValue(spy)],
-      child: MaterialApp(
-        theme: theme,
-        // A fresh key per theme pass so State (the risk list) never carries
-        // across pumps in a both-themes loop.
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: S8RisksScreen(key: key, visitDraftId: 'v1'),
-          ),
-        ),
-      ),
-    );
+Finder _key(String k) => find.byKey(ValueKey<String>(k));
+
+Future<void> _add(WidgetTester tester) =>
+    tapInSection(tester, _key('section-add-entry'));
+
+Future<void> _severity(WidgetTester tester, int i, String word) => tapInSection(
+  tester,
+  find.descendant(of: _key('risk-severity-$i'), matching: find.text(word)),
+);
 
 void main() {
-  testWidgets(
-    'captures risk entries and calls saveRisks on Save — severity via ChoiceRow',
-    (tester) async {
-      for (final name in _bothThemes) {
-        final spy = _SpyRisksRepository();
-        await tester.pumpWidget(
-          _screen(spy, theme: _themeFor(name), key: ValueKey(name)),
-        );
-        await tester.pumpAndSettle();
+  testWidgets('captures a risk with its severity and note, and saves it', (
+    tester,
+  ) async {
+    final spy = _SpyRisks();
+    await pumpSection(tester, _screen, overrides: _overrides(spy));
 
-        await tester.tap(find.text('Flag a risk'));
-        await tester.pump();
-
-        await tester.enterText(
-          find.byKey(const ValueKey('risk-type-0')),
-          'expiredStock',
-        );
-        // Severity is now a ChoiceRow — tap the chip label, not a dropdown menu.
-        await tester.ensureVisible(find.text('Critical'));
-        await tester.tap(find.text('Critical'));
-        await tester.pump();
-        await tester.enterText(
-          find.byKey(const ValueKey('risk-note-0')),
-          'Two cases past date',
-        );
-        await tester.pump();
-
-        await tester.ensureVisible(find.text('Save risks'));
-        await tester.tap(find.text('Save risks'));
-        await tester.pumpAndSettle();
-
-        expect(spy.visitDraftId, 'v1', reason: name);
-        expect(spy.entries, hasLength(1), reason: name);
-        expect(spy.entries!.first.flagType, 'expiredStock', reason: name);
-        expect(spy.entries!.first.severity, 'critical', reason: name);
-        expect(spy.entries!.first.note, 'Two cases past date', reason: name);
-        expect(
-          find.text(
-            'Risks saved — queued for sync; follow-up tasks will be auto-created',
-          ),
-          findsOneWidget,
-          reason: name,
-        );
-      }
-    },
-  );
-
-  testWidgets('skips rows without a flag type on Save', (tester) async {
-    final spy = _SpyRisksRepository();
-
-    await tester.pumpWidget(_screen(spy));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Flag a risk'));
-    await tester.pump();
-
-    await tester.ensureVisible(find.text('Save risks'));
-    await tester.tap(find.text('Save risks'));
-    await tester.pumpAndSettle();
+    await _add(tester);
+    await typeInSection(tester, _key('risk-type-0'), 'Expired stock');
+    await _severity(tester, 0, 'Critical');
+    await typeInSection(tester, _key('risk-note-0'), 'Two cases on the floor');
+    await saveSection(tester);
 
     expect(spy.visitDraftId, 'v1');
-    expect(spy.entries, isEmpty);
+    final e = spy.entries!.single;
+    expect(e.flagType, 'Expired stock');
+    expect(e.severity, 'critical');
+    expect(e.note, 'Two cases on the floor');
+    await disposeAgentScreen(tester);
   });
 
-  testWidgets(
-    'risk rows are PanelCards, fields are AgentFields, add + save are '
-    'AgentButtons — no raw Card/Dropdown/ElevatedButton/TextButton',
-    (tester) async {
-      for (final name in _bothThemes) {
-        await tester.pumpWidget(
-          _screen(
-            _SpyRisksRepository(),
-            theme: _themeFor(name),
-            key: ValueKey(name),
-          ),
+  testWidgets('rows without a flag type are skipped; severity defaults to '
+      'normal', (tester) async {
+    final spy = _SpyRisks();
+    await pumpSection(tester, _screen, overrides: _overrides(spy));
+    await _add(tester);
+    await _add(tester);
+    await typeInSection(tester, _key('risk-type-1'), 'Broken fridge');
+    await saveSection(tester);
+    expect(spy.entries!.single.flagType, 'Broken fridge');
+    expect(spy.entries!.single.severity, 'normal');
+    await disposeAgentScreen(tester);
+  });
+
+  testWidgets('a serious risk says so in words and a silhouette, and says '
+      'saving raises a task — never the hue alone', (tester) async {
+    await pumpSection(tester, _screen, overrides: _overrides(_SpyRisks()));
+    await _add(tester);
+    expect(_key('risk-severity-note-0'), findsNothing);
+
+    await _severity(tester, 0, 'High');
+    final chip = tester.widget<StatusChip>(_key('risk-severity-note-0'));
+    expect(chip.level, StatusLevel.watch);
+    expect(chip.label, 'High risk — saving it raises a follow-up task');
+
+    await _severity(tester, 0, 'Critical');
+    expect(
+      tester.widget<StatusChip>(_key('risk-severity-note-0')).level,
+      StatusLevel.critical,
+    );
+    await disposeAgentScreen(tester);
+  });
+
+  testWidgets('the remove control names the risk it removes', (tester) async {
+    await pumpSection(tester, _screen, overrides: _overrides(_SpyRisks()));
+    await _add(tester);
+    expect(find.text('Risk 1 of 1'), findsOneWidget);
+    expect(
+      tester.widget<TorchIconButton>(_key('entry-remove-0')).semanticLabel,
+      'Remove risk 1 of 1',
+    );
+    await disposeAgentScreen(tester);
+  });
+
+  group('the amber census', () {
+    for (final skin in agentSkinModes) {
+      testWidgets('empty is zero; a critical risk with an armed Save is one — '
+          '${skin.name}', (tester) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(_SpyRisks()),
+          skin: skin,
         );
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Flag a risk'));
-        await tester.pump();
-
-        expect(find.byType(Card), findsNothing, reason: '$name no Card');
-        expect(
-          find.byType(DropdownButtonFormField<String>),
-          findsNothing,
-          reason: '$name no Dropdown',
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'risks',
+          phase: 'untouched',
+          expected: 0,
         );
-        expect(
-          find.byType(ElevatedButton),
-          findsNothing,
-          reason: '$name no ElevatedButton',
+        await _add(tester);
+        await _severity(tester, 0, 'Critical');
+        await scrollAgentTo(tester, sectionSave);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'risks',
+          phase: 'dirty, critical',
+          expected: 1,
         );
-        expect(
-          find.byType(TextButton),
-          findsNothing,
-          reason: '$name no TextButton',
-        );
-
-        // The risk row is a console panel; its inputs are labelled AgentFields;
-        // severity is a segmented ChoiceRow; add + save are the kit's buttons.
-        final glass = tester.element(find.byType(S8RisksScreen)).colors.glass;
-        if (glass) {
-          // Lumen Glass: the risk is a no-blur glass tile, not a console panel.
-          expect(
-            find.byType(PanelCard),
-            findsNothing,
-            reason: '$name no panel',
-          );
-          expect(
-            find.ancestor(
-              of: find.text('Risk 1'),
-              matching: find.byWidgetPredicate(
-                (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
-              ),
-            ),
-            findsOneWidget,
-            reason: '$name risk glass tile',
-          );
-        } else {
-          expect(find.byType(PanelCard), findsOneWidget, reason: '$name panel');
-        }
-        expect(
-          find.byType(AgentField),
-          findsNWidgets(2),
-          reason: '$name two AgentFields',
-        );
-        expect(
-          find.byType(ChoiceRow<String>),
-          findsOneWidget,
-          reason: '$name severity ChoiceRow',
-        );
-        expect(
-          find.widgetWithText(AgentButton, 'Flag a risk'),
-          findsOneWidget,
-          reason: '$name add is AgentButton',
-        );
-        expect(
-          find.widgetWithText(AgentButton, 'Save risks'),
-          findsOneWidget,
-          reason: '$name save is AgentButton',
-        );
-      }
-    },
-  );
-
-  testWidgets(
-    'Lumen Glass: a critical or high risk turns its tile rim to the status and '
-    'spells the severity out on an opaque, AA-safe note',
-    (tester) async {
-      const palette = TiqColors.light;
-      await tester.pumpWidget(
-        _screen(_SpyRisksRepository(), theme: AppTheme.light()),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Flag a risk'));
-      await tester.pumpAndSettle();
-
-      final tile = find.ancestor(
-        of: find.text('Risk 1'),
-        matching: find.byWidgetPredicate(
-          (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
-        ),
-      );
-      // Normal is not a finding: the tile keeps its own rim and has no note.
-      expect(tester.widget<GlassPane>(tile).rimColor, isNull);
-      expect(
-        find.textContaining('saving it raises a follow-up task'),
-        findsNothing,
-      );
-
-      for (final (chip, status) in [
-        ('Critical', LumenStatus.crit),
-        ('High', LumenStatus.warn),
-      ]) {
-        await tester.ensureVisible(find.text(chip));
-        await tester.tap(find.text(chip));
-        await tester.pumpAndSettle();
-
-        final sw = status.swatchOf(palette);
-        expect(
-          tester.widget<GlassPane>(tile).rimColor,
-          sw.rim,
-          reason: '$chip rim',
-        );
-
-        // Never colour alone: the severity is spelled out in the note.
-        final note = find.text('$chip risk — saving it raises a follow-up task');
-        expect(note, findsOneWidget, reason: '$chip note');
-        final fg = tester.widget<Text>(note).style!.color!;
-        expect(fg, sw.ink, reason: '$chip note ink');
-
-        final wash =
-            tester
-                    .widget<Container>(
-                      find
-                          .ancestor(
-                            of: note,
-                            matching: find.byWidgetPredicate(
-                              (w) =>
-                                  w is Container &&
-                                  w.decoration is BoxDecoration &&
-                                  (w.decoration! as BoxDecoration).color !=
-                                      null,
-                            ),
-                          )
-                          .first,
-                    )
-                    .decoration!
-                as BoxDecoration;
-        // OPAQUE: composited over the pane, so AA holds on its own.
-        expect(
-          wash.color,
-          Color.alphaBlend(sw.tint, palette.surface1),
-          reason: '$chip opaque wash',
-        );
-        expect(
-          contrastRatio(fg, wash.color!),
-          greaterThanOrEqualTo(4.5),
-          reason: '$chip note AA (rendered pair)',
-        );
-      }
-
-      // Back to normal: the finding clears.
-      await tester.ensureVisible(find.text('Normal'));
-      await tester.tap(find.text('Normal'));
-      await tester.pumpAndSettle();
-      expect(tester.widget<GlassPane>(tile).rimColor, isNull);
-    },
-  );
-
-  test('no non-geometry AppColors. remain in the S8 risks source', () {
-    final src = File(
-      'lib/features/audit/presentation/sections/s8_risks_screen.dart',
-    ).readAsStringSync();
-    final offenders = RegExp(
-      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
-    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
-    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
+        await disposeAgentScreen(tester);
+      });
+    }
   });
 }
