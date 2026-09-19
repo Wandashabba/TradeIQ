@@ -26,7 +26,13 @@ import 'section_form.dart';
 ///
 /// A dimension with nothing behind it renders an **em dash, a falling hatch
 /// and a reason** — never a zero. "You scored nothing" and "nobody measured
-/// this" are different sentences about a shop.
+/// this" are different sentences about a shop, and until #430 only
+/// `competitive` could tell them apart: the other five arrived from
+/// `ScorecardService` as a measured `0`, so opening Score before capturing
+/// anything reported a store that had scored zero on availability and sat in
+/// the critical band. The supplier now returns UNKNOWN for every dimension
+/// with nothing captured behind it, and a visit with nothing measured at all
+/// has no total and no band — an em dash and a sentence, not a verdict.
 ///
 /// **Amber:** one object, `Finalize`, and only until it has been queued.
 class S10ScorecardScreen extends ConsumerStatefulWidget {
@@ -121,7 +127,8 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
             children: const <Widget>[SkeletonRows(count: 6)],
           );
         }
-        final band = RatingBand.ofWire(scorecard.ratingBand);
+        final total = scorecard.weightedTotal;
+        final wire = scorecard.ratingBand;
 
         return SectionForm(
           title: l10n.visitSectionScore,
@@ -140,7 +147,10 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
             ),
           ],
           children: <Widget>[
-            _ScoreHero(total: scorecard.weightedTotal, band: band),
+            _ScoreHero(
+              total: total,
+              band: wire == null ? null : RatingBand.ofWire(wire),
+            ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -165,27 +175,41 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
 
 /// The weighted total, the band in words, and the sentence that keeps it from
 /// reading as a verdict.
+///
+/// A visit on which **nothing** has been captured has no total: the figure is
+/// an em dash, the sentence says why in words, and there is **no band chip**.
+/// A 0.0 stamped "Gap" is a verdict on a shop nobody measured — the one thing
+/// unify §1.20 says this screen must never do — and a delta or a band beside
+/// nothing is the same error the row grammar forbids everywhere else.
 class _ScoreHero extends StatelessWidget {
   const _ScoreHero({required this.total, required this.band});
 
-  final double total;
-  final RatingBand band;
+  /// Null when no dimension was measured.
+  final double? total;
+
+  /// Null with [total].
+  final RatingBand? band;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
+    final value = total;
+    final rating = band;
     // The chip already draws a silhouette, so the word travels on its own
     // here — `markedWord` would put two marks beside one band.
-    final word = band.word(l10n);
-    final spoken = l10n.s10ScoreSemantics(
-      TiqNumber.of(context).format(total, decimals: 1),
-      word,
-    );
-    final level = switch (band) {
+    final word = rating?.word(l10n);
+    final spoken = value == null || word == null
+        ? l10n.s10NoScoreSemantics
+        : l10n.s10ScoreSemantics(
+            TiqNumber.of(context).format(value, decimals: 1),
+            word,
+          );
+    final level = switch (rating) {
       RatingBand.healthy => StatusLevel.onTarget,
       RatingBand.watch => StatusLevel.watch,
       RatingBand.gap => StatusLevel.critical,
+      null => null,
     };
     return Container(
       key: const ValueKey<String>('score-total'),
@@ -211,7 +235,7 @@ class _ScoreHero extends StatelessWidget {
             runSpacing: TiqSpace.s2,
             children: <Widget>[
               FigureSlot(
-                value: total,
+                value: value,
                 role: skin.text.heroFigureCompact,
                 fit: <TiqTypeToken>[
                   skin.text.heroFigureCompact,
@@ -221,22 +245,28 @@ class _ScoreHero extends StatelessWidget {
                 decimals: 1,
                 semanticsLabel: spoken,
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: TiqSpace.s1),
-                child: StatusChip(
-                  key: const ValueKey<String>('score-band'),
-                  level: level,
-                  label: word,
+              if (level != null && word != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: TiqSpace.s1),
+                  child: StatusChip(
+                    key: const ValueKey<String>('score-band'),
+                    level: level,
+                    label: word,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: TiqSpace.s4),
-          Meter(value: total, target: 80, semanticsValue: spoken),
-          const SizedBox(height: TiqSpace.s4),
-          // The whole reason this screen is not a verdict.
+          // No meter against a target that nothing was measured against: a
+          // track at zero reads as a score of zero.
+          if (value != null) ...<Widget>[
+            Meter(value: value, target: 80, semanticsValue: spoken),
+            const SizedBox(height: TiqSpace.s4),
+          ],
+          // The whole reason this screen is not a verdict — or, with nothing
+          // measured, the sentence that says so in words.
           Text(
-            l10n.s10NotFinal,
+            value == null ? l10n.s10NothingCaptured : l10n.s10NotFinal,
             style: skin.text.meta.style(color: skin.palette.ink3),
           ),
         ],

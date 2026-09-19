@@ -66,21 +66,92 @@ void main() {
     expect(scorecard.dimensionScores['availability'], 50);
     expect(scorecard.dimensionScores['visibility'], 80);
     expect(scorecard.dimensionScores['display'], 80);
-    expect(scorecard.dimensionScores['pricing'], 0);
     expect(scorecard.dimensionScores['salesCapability'], 70);
 
     // No competitor was captured, so share of shelf is UNMEASURABLE — the
-    // dimension is omitted rather than scored 0 (#93).
+    // dimension is omitted rather than scored 0 (#93). Pricing was never
+    // captured either, and it is omitted for exactly the same reason: it used
+    // to arrive as a measured `0`, which read to the agent as "you scored
+    // nothing on pricing" for a section they simply had not reached yet.
     expect(scorecard.dimensionScores.containsKey('competitive'), isFalse);
+    expect(scorecard.dimensionScores.containsKey('pricing'), isFalse);
 
-    // The total normalises by the weights actually used (0.9, not 1.0):
-    // (50*.3 + 80*.25 + 80*.15 + 0*.1 + 70*.1) / 0.9 = 60.0
+    // The total normalises by the weights actually used (0.8, not 1.0):
+    // (50*.3 + 80*.25 + 80*.15 + 70*.1) / 0.8 = 67.5
     //
-    // Scoring the unmeasurable dimension 0 would have dragged this to 54.0 and
+    // Scoring an unmeasurable dimension 0 would have dragged this to 54.0 and
     // put the visit in the red band — punishing an agent for a shelf that had
-    // no competitor on it.
-    expect(scorecard.weightedTotal, 60.0);
+    // no competitor on it and a section nobody had opened.
+    expect(scorecard.weightedTotal, 67.5);
     expect(scorecard.ratingBand, 'amber');
+  });
+
+  // THE VISIT WITH NOTHING ON IT — the state every agent is in when they first
+  // open Score. Five of the six dimensions used to arrive here as a measured
+  // `0` and the hero stamped a critical "Gap" on a shop nobody had measured.
+  test('a visit with nothing captured has no dimensions, no total and no '
+      'band — not a zero in the red', () async {
+    final scorecard = await service.computeForVisit('visit-1');
+
+    expect(scorecard.dimensionScores, isEmpty);
+    for (final key in kScorecardWeights.keys) {
+      expect(
+        scorecard.dimensionScores[key],
+        isNull,
+        reason: '$key was never measured, so it is UNKNOWN and not 0',
+      );
+    }
+    expect(scorecard.weightedTotal, isNull);
+    expect(scorecard.ratingBand, isNull);
+    expect(scorecard.isMeasured, isFalse);
+  });
+
+  test('a shelf on which nothing was counted has no availability', () async {
+    await _enqueue(db, 'stock', {
+      'visitDraftId': 'visit-1',
+      'items': [
+        {'skuId': 'sku-1', 'unitsAvailable': null},
+        {'skuId': 'sku-2', 'unitsAvailable': null},
+      ],
+    });
+
+    final scorecard = await service.computeForVisit('visit-1');
+
+    // A denominator of zero is UNKNOWN. "0% on shelf" is what the app used to
+    // say about a shelf the agent had not walked to.
+    expect(scorecard.dimensionScores.containsKey('availability'), isFalse);
+    expect(scorecard.weightedTotal, isNull);
+  });
+
+  test('a pricing section the agent did save, with nothing in it, is a '
+      'measured zero', () async {
+    await _enqueue(db, 'pricing', {'visitDraftId': 'visit-1', 'items': []});
+
+    final scorecard = await service.computeForVisit('visit-1');
+
+    // Saved-and-empty is a measurement; never-opened is not. This is the line
+    // between the two, and it is the whole point of the change.
+    expect(scorecard.dimensionScores['pricing'], 0);
+    expect(scorecard.weightedTotal, 0.0);
+    expect(scorecard.ratingBand, 'red');
+  });
+
+  test('a capability section with no quiz behind it is UNKNOWN', () async {
+    await _enqueue(db, 'stock', {
+      'visitDraftId': 'visit-1',
+      'items': [
+        {'skuId': 'sku-1', 'unitsAvailable': 12},
+      ],
+    });
+
+    final scorecard = await service.computeForVisit('visit-1');
+
+    expect(scorecard.dimensionScores.containsKey('salesCapability'), isFalse);
+    expect(scorecard.dimensionScores.containsKey('visibility'), isFalse);
+    expect(scorecard.dimensionScores.containsKey('display'), isFalse);
+    // The one measured dimension carries the whole total on its own.
+    expect(scorecard.weightedTotal, 100.0);
+    expect(scorecard.ratingBand, 'green');
   });
 
   test(

@@ -69,7 +69,121 @@ const _screen = S10ScorecardScreen(visitDraftId: 'v1');
 
 Finder _key(String k) => find.byKey(ValueKey<String>(k));
 
+/// The REAL service, over an empty in-memory db: a visit on which no section
+/// has been saved yet, which is the state every agent is in the first time
+/// they open Score.
+ScorecardService _real() {
+  final db = LocalDb(NativeDatabase.memory());
+  addTearDown(db.close);
+  return ScorecardService(
+    db: db,
+    syncService: SyncService(db: db, flusher: _NoopFlusher()),
+  );
+}
+
 void main() {
+  // THE TEST THE FAKE HID. `_FakeScorecard` hand-picks five measured numbers
+  // and one absent dimension, so the only null it exercises is the only null
+  // the real service could produce. Against the real supplier on an empty
+  // visit, availability, visibility, display, pricing and salesCapability each
+  // rendered exactly one "0" and the band chip read "Gap" at critical — "you
+  // scored nothing" printed where "nobody measured this" is the truth.
+  group('a visit with nothing captured, against the real service', () {
+    testWidgets('every dimension is a dash and a reason, never a zero', (
+      tester,
+    ) async {
+      await pumpSection(tester, _screen, overrides: _overrides(_real()));
+
+      for (final key in const <String>[
+        'availability',
+        'visibility',
+        'display',
+        'pricing',
+        'competitive',
+        'salesCapability',
+      ]) {
+        final row = _key('score-$key');
+        await scrollAgentTo(tester, row);
+        expect(
+          find.descendant(of: row, matching: find.byType(NotMeasured)),
+          findsOneWidget,
+          reason: '$key has nothing captured behind it',
+        );
+        expect(
+          find.descendant(of: row, matching: find.text('0')),
+          findsNothing,
+          reason: '$key was not measured — a measured zero is a different fact',
+        );
+      }
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('the hero is an em dash and a sentence, with no band chip and '
+        'no meter — never 0.0 in the Gap band', (tester) async {
+      await pumpSection(tester, _screen, overrides: _overrides(_real()));
+
+      final hero = _key('score-total');
+      expect(
+        find.descendant(of: hero, matching: find.text('0.0')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: hero, matching: find.text('—')),
+        findsOneWidget,
+      );
+      expect(
+        _key('score-band'),
+        findsNothing,
+        reason: 'a band is a verdict, and there is nothing to pass it on',
+      );
+      expect(
+        find.descendant(of: hero, matching: find.byType(Meter)),
+        findsNothing,
+        reason: 'a track at zero reads as a score of zero',
+      );
+      expect(find.text('Gap'), findsNothing);
+      expect(
+        find.text(
+          'Nothing has been captured on this visit yet, so there is no score '
+          'to work out.',
+        ),
+        findsOneWidget,
+      );
+      await disposeAgentScreen(tester);
+    });
+
+    for (final skin in agentSkinModes) {
+      testWidgets('and it is still one lit Finalize — ${skin.name}', (
+        tester,
+      ) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(_real()),
+          skin: skin,
+        );
+        // The hero is an em dash on the ground; the one lit object is the
+        // Finalize, which lives past the fold like every section's Save.
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'score',
+          phase: 'nothing captured, above the fold',
+          expected: 0,
+        );
+        await scrollAgentTo(tester, sectionSave);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'score',
+          phase: 'nothing captured',
+          expected: 1,
+        );
+        await disposeAgentScreen(tester);
+      });
+    }
+  });
+
   testWidgets('the total, the band in words, and the sentence that keeps it '
       'from reading as final', (tester) async {
     await pumpSection(tester, _screen, overrides: _overrides(_fake()));

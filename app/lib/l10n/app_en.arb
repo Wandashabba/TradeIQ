@@ -2991,6 +2991,14 @@
   "@s10NotMeasured": {
     "description": "A dimension with nothing behind it. An em dash, a hatch and this reason."
   },
+  "s10NothingCaptured": "Nothing has been captured on this visit yet, so there is no score to work out.",
+  "@s10NothingCaptured": {
+    "description": "The hero when no dimension was measured. An em dash and this sentence, never a zero in the Gap band."
+  },
+  "s10NoScoreSemantics": "No weighted total yet. Nothing has been captured on this visit.",
+  "@s10NoScoreSemantics": {
+    "description": "The scorecard hero read aloud when nothing was measured."
+  },
   "s10ScoreSemantics": "Weighted total {score} out of 100, {band}",
   "@s10ScoreSemantics": {
     "description": "The scorecard hero read aloud.",

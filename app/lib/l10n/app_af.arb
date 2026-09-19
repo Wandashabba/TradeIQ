@@ -594,6 +594,8 @@
   "s2JumpToUncounted": "Spring na die eerste ongetelde",
   "s10NotFinal": "Op hierdie foon uitgewerk. Die finale telling kom terug wanneer die besoek stuur.",
   "s10NotMeasured": "Nie op hierdie besoek gemeet nie",
+  "s10NothingCaptured": "Niks is nog op hierdie besoek vasgelê nie, so daar is geen telling om uit te werk nie.",
+  "s10NoScoreSemantics": "Nog geen geweegde totaal nie. Niks is op hierdie besoek vasgelê nie.",
   "s10ScoreSemantics": "Geweegde totaal {score} uit 100, {band}",
   "s5NoPriceYet": "Geen prys ingevoer nie",
   "s6NoCompetitors": "Nog geen mededinger op hierdie rak nie. Voeg een by as jy dit sien.",
