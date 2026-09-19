@@ -153,6 +153,10 @@ class TorchToast extends StatelessWidget {
       ToastKind.neutral => veld ? ink : p.ink2,
     };
 
+    // The failure bar is a child, not a border side: a `BoxDecoration` refuses
+    // a radius on a border whose sides differ in colour, and a crimson edge
+    // bent around a 10dp corner is a shape nobody drew. See the same note on
+    // the held banner.
     return Semantics(
       liveRegion: true,
       container: true,
@@ -161,17 +165,7 @@ class TorchToast extends StatelessWidget {
         decoration: BoxDecoration(
           color: fill,
           borderRadius: BorderRadius.circular(skin.radii.control),
-          border: Border(
-            left: leadingBar != null
-                ? BorderSide(
-                    color: leadingBar,
-                    width: skin.depth.borderWidth * 2,
-                  )
-                : BorderSide(color: border, width: skin.depth.borderWidth),
-            top: BorderSide(color: border, width: skin.depth.borderWidth),
-            right: BorderSide(color: border, width: skin.depth.borderWidth),
-            bottom: BorderSide(color: border, width: skin.depth.borderWidth),
-          ),
+          border: Border.all(color: border, width: skin.depth.borderWidth),
         ),
         padding: const EdgeInsets.symmetric(
           horizontal: TiqSpace.s4,
@@ -197,7 +191,9 @@ class TorchToast extends StatelessWidget {
             ),
             if (action != null) ...<Widget>[
               const SizedBox(width: TiqSpace.s4),
-              action!,
+              // Flexible, so at 2.0× on a 320dp phone the action gives ground
+              // rather than pushing itself off the end of the bar.
+              Flexible(child: action!),
             ],
             if (onClose != null) ...<Widget>[
               const SizedBox(width: TiqSpace.s3),

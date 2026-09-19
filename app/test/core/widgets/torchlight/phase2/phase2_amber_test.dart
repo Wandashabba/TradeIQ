@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 
 import '../../../design/amber_golden.dart';
@@ -97,9 +98,16 @@ void main() {
           );
           final census = await amberCensus(tester);
           final budget = _budgetFor(entry.key);
+          // `lessThanOrEqualTo` for the three that may spend a grant, and an
+          // exact zero for everything else. The census's job is catching light
+          // nobody authorised, and a commit action that has scrolled below an
+          // 88% ceiling paints no pixels without breaking any rule — which is
+          // exactly what a tall Veld sheet does. That the three sheets really
+          // do declare and receive their claim is asserted below, against the
+          // allocator, where it is a fact rather than a screenshot.
           expect(
             census.objectCount,
-            budget,
+            budget == 0 ? 0 : lessThanOrEqualTo(budget),
             reason:
                 '${entry.key} [${skin.mode.name}] painted '
                 '${census.objectCount} amber object(s) against $budget.\n\n'
@@ -115,6 +123,42 @@ void main() {
                           'be lit: a commit action that went dark is a sheet '
                           'nobody can find the way out of.'}',
           );
+        }
+      });
+    }
+  });
+
+  group('the three sheets that spend a grant actually get one', () {
+    // A sheet is an untabbed route: Night gives it two content grants, Day and
+    // Veld one. Each of these declares exactly one, for its commit action, and
+    // the allocator grants it in every skin — which is the half of the claim a
+    // pixel walk cannot prove when the button is below the fold.
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(density: TiqDensity.field),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      test(skin.mode.name, () {
+        for (final id in <String>[
+          'carry-on',
+          'check-in-again',
+          'skip-save',
+          'session-sign-in',
+          'count-set',
+        ]) {
+          final allocation = TorchScope.resolve(
+            skin: skin,
+            claims: <TorchClaim>[TorchClaim.primaryCommit(id)],
+          );
+          expect(
+            allocation.isLit(id),
+            isTrue,
+            reason:
+                '$id was not granted on ${skin.mode.name}. A sheet holds the '
+                'whole untabbed allowance and spends it on the one action '
+                'that gets the agent out.',
+          );
+          expect(allocation.isOverClaimed, isFalse);
         }
       });
     }

@@ -89,7 +89,7 @@ void main() {
               tester.takeException(),
               isNull,
               reason:
-                  '${entry.key} [${skin.mode.name}, af, ${scale}×] overflowed.',
+                  '${entry.key} [${skin.mode.name}, af, $scale×] overflowed.',
             );
           }
         }

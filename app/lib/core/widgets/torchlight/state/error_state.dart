@@ -203,6 +203,12 @@ class ErrorState extends StatelessWidget {
   /// blocks are noise.
   final int attempts;
 
+  /// Below twice this, the inline action drops beneath the words instead of
+  /// sitting beside them. It is the width of a two-word ghost action plus its
+  /// 48dp target — narrower than that and the sentence is a column of single
+  /// words.
+  static const double _actionFloor = 96;
+
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
@@ -218,53 +224,79 @@ class ErrorState extends StatelessWidget {
     }());
 
     if (!whole) {
+      final words = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(message.headline, style: skin.text.body.style(color: p.ink1)),
+          const SizedBox(height: TiqSpace.s1),
+          Text(message.body, style: skin.text.meta.style(color: p.ink3)),
+          if (attempts > 1) ...<Widget>[
+            const SizedBox(height: TiqSpace.s1),
+            Text(
+              'Tried $attempts times',
+              style: skin.text.meta.style(color: p.ink3),
+            ),
+          ],
+        ],
+      );
+
       return Semantics(
         liveRegion: true,
         container: true,
         child: Container(
           constraints: BoxConstraints(minHeight: skin.space.tapTarget),
           padding: const EdgeInsets.symmetric(vertical: TiqSpace.s2),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Padding(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // "Trailing or beneath, whichever fits." Measured on the real
+              // width, never on a text-scale guess: at 2.0× in Afrikaans a
+              // Retry beside two wrapped lines has nowhere to be, and a Retry
+              // that has been pushed off the right edge of a region is a
+              // failure the reader cannot act on.
+              final glyph = MarkScale.glyph(context, 12);
+              final room =
+                  constraints.maxWidth - glyph - TiqSpace.s3 - TiqSpace.s3;
+              final beneath =
+                  action != null && (!room.isFinite || room < _actionFloor * 2);
+
+              final lead = Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: TiqMark(
                   shape: MarkShape.watchTriangle,
                   color: p.bad,
-                  size: MarkScale.glyph(context, 12),
+                  size: glyph,
                 ),
-              ),
-              const SizedBox(width: TiqSpace.s3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      message.headline,
-                      style: skin.text.body.style(color: p.ink1),
+              );
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  lead,
+                  const SizedBox(width: TiqSpace.s3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        words,
+                        if (beneath) ...<Widget>[
+                          const SizedBox(height: TiqSpace.s2),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: action!,
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: TiqSpace.s1),
-                    Text(
-                      message.body,
-                      style: skin.text.meta.style(color: p.ink3),
-                    ),
-                    if (attempts > 1) ...<Widget>[
-                      const SizedBox(height: TiqSpace.s1),
-                      Text(
-                        'Tried $attempts times',
-                        style: skin.text.meta.style(color: p.ink3),
-                      ),
-                    ],
+                  ),
+                  if (action != null && !beneath) ...<Widget>[
+                    const SizedBox(width: TiqSpace.s3),
+                    Flexible(child: action!),
                   ],
-                ),
-              ),
-              if (action != null) ...<Widget>[
-                const SizedBox(width: TiqSpace.s3),
-                action!,
-              ],
-            ],
+                ],
+              );
+            },
           ),
         ),
       );

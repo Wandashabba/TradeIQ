@@ -187,7 +187,14 @@ class SessionHeldLine extends StatelessWidget {
               ),
             ),
             const SizedBox(width: TiqSpace.s3),
-            TorchTertiaryButton(label: actionLabel, onPressed: onPressed),
+            // Flexible, so at 2.0× the action gives ground to the sentence
+            // rather than pushing itself off the end of the line.
+            Flexible(
+              child: TorchTertiaryButton(
+                label: actionLabel,
+                onPressed: onPressed,
+              ),
+            ),
           ],
         ),
       ),

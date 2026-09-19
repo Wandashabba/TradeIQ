@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/motion_budget.dart';
@@ -80,9 +81,15 @@ Future<void> pumpPhase2(
       ),
       child: Localizations(
         locale: locale,
+        // The stock default delegates support **only** English, and this
+        // harness deliberately pumps Afrikaans — which is not a pseudo-locale
+        // here, it is the language a large share of this product's agents work
+        // in. Without these, every Afrikaans case dies on "TextField widgets
+        // require MaterialLocalizations", and the Afrikaans pass quietly
+        // becomes a test of error widgets.
         delegates: const <LocalizationsDelegate<dynamic>>[
-          DefaultWidgetsLocalizations.delegate,
-          DefaultMaterialLocalizations.delegate,
+          _AnyLocaleWidgetsLocalizations(),
+          _AnyLocaleMaterialLocalizations(),
         ],
         child: Directionality(
           textDirection: TextDirection.ltr,
@@ -133,6 +140,47 @@ Future<void> pumpPhase2(
     ),
   );
   await tester.pump();
+}
+
+/// Hands Flutter's English strings to any locale.
+///
+/// The app's own Afrikaans strings are the feature's business; what this
+/// stands in for is the framework's — "Scroll left", the selection toolbar's
+/// Copy — which exist in `flutter_localizations` and are not what these tests
+/// are about. The locale still reaches `TiqNumber`, which is the thing under
+/// test: a grouping space and a decimal comma.
+class _AnyLocaleMaterialLocalizations
+    extends LocalizationsDelegate<MaterialLocalizations> {
+  const _AnyLocaleMaterialLocalizations();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<MaterialLocalizations> load(Locale locale) =>
+      SynchronousFuture<MaterialLocalizations>(
+        const DefaultMaterialLocalizations(),
+      );
+
+  @override
+  bool shouldReload(_AnyLocaleMaterialLocalizations old) => false;
+}
+
+class _AnyLocaleWidgetsLocalizations
+    extends LocalizationsDelegate<WidgetsLocalizations> {
+  const _AnyLocaleWidgetsLocalizations();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<WidgetsLocalizations> load(Locale locale) =>
+      SynchronousFuture<WidgetsLocalizations>(
+        const DefaultWidgetsLocalizations(),
+      );
+
+  @override
+  bool shouldReload(_AnyLocaleWidgetsLocalizations old) => false;
 }
 
 /// One named state of one component.

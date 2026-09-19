@@ -243,6 +243,11 @@ class _CountStepperState extends State<CountStepper> {
       ink: figureInk,
       onTap: widget.enabled ? () => _openNumberSheet(context) : null,
       typeLabel: widget.typeLabel,
+      // A null figure is an em dash, and an em dash announced as "em dash" is
+      // not a sentence. `FigureSlot` asserts on a missing value with no words
+      // beside it, which is the rule doing its job: *not counted* has to say
+      // so, out loud, to a reader who cannot see the dash.
+      missingLabel: widget.notCountedLine,
     );
 
     final pair = _StepPair(
@@ -342,6 +347,7 @@ class _ValueTrough extends StatelessWidget {
     required this.ink,
     required this.onTap,
     required this.typeLabel,
+    required this.missingLabel,
   });
 
   final TroughSpec spec;
@@ -349,6 +355,7 @@ class _ValueTrough extends StatelessWidget {
   final Color ink;
   final VoidCallback? onTap;
   final String typeLabel;
+  final String missingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -375,6 +382,7 @@ class _ValueTrough extends StatelessWidget {
             value: value,
             role: skin.text.figureM,
             color: ink,
+            semanticsLabel: value == null ? missingLabel : null,
           ),
         ),
       ),

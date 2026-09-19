@@ -198,14 +198,22 @@ class ChoiceRow<T> extends StatelessWidget {
                       ],
                     );
                   }
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      for (var i = 0; i < tiles.length; i++) ...<Widget>[
-                        if (i > 0) const SizedBox(width: TiqSpace.s2),
-                        Expanded(child: tiles[i]),
+                  // `IntrinsicHeight` rather than `CrossAxisAlignment.stretch`:
+                  // stretch inside a Row whose own height is unbounded forces
+                  // an infinite height on every option. What was wanted is
+                  // "all four the same height as the tallest", which is what
+                  // this says, and a row of at most four options is a cheap
+                  // place to say it.
+                  return IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        for (var i = 0; i < tiles.length; i++) ...<Widget>[
+                          if (i > 0) const SizedBox(width: TiqSpace.s2),
+                          Expanded(child: tiles[i]),
+                        ],
                       ],
-                    ],
+                    ),
                   );
                 },
               ),
