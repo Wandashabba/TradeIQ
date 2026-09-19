@@ -1774,4 +1774,472 @@ class AppLocalizationsAf extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get askTitle => 'Vra TradeIQ';
+
+  @override
+  String get askHistoryAction => 'Geskiedenis';
+
+  @override
+  String askHistoryActionCount(int count) {
+    return 'Geskiedenis · $count';
+  }
+
+  @override
+  String get askComposerLabel => 'Vra ’n vraag';
+
+  @override
+  String get askComposerHint => 'Span, voorraad, rak, mededingers';
+
+  @override
+  String get askComposerRephrase => 'Vra weer, of stel dit anders';
+
+  @override
+  String get askSend => 'Stuur hierdie vraag';
+
+  @override
+  String get askSendUnavailable =>
+      'Stuur, nie beskikbaar nie, het ’n verbinding nodig';
+
+  @override
+  String get askSendNothingTyped =>
+      'Stuur, nie beskikbaar nie, nog niks getik nie';
+
+  @override
+  String get askStop => 'Stop die antwoord';
+
+  @override
+  String get askQuestionSent => 'Vraag gestuur';
+
+  @override
+  String get askYourQuestion => 'Jou vraag';
+
+  @override
+  String get askEmptyHeadline => 'Vra oor jou gebied.';
+
+  @override
+  String get askEmptyBody =>
+      'Ek lees jou verkope-, voorraad-, rak- en mededingerdata en verduidelik wat ek kry. Ek kan niks verander nie.';
+
+  @override
+  String get askTryOneOfThese => 'Probeer een van hierdie';
+
+  @override
+  String get askReadOnlyFootnote =>
+      'Slegs-lees. Niks wat jy hier vra verander jou data nie.';
+
+  @override
+  String get askExampleTeam => 'Hoe vaar my span vandeesmaand?';
+
+  @override
+  String get askExampleTeamReads => 'lees besoekgeskiedenis en punktelkaarte';
+
+  @override
+  String get askExampleStock =>
+      'Watter winkels raak aanhoudend sonder voorraad?';
+
+  @override
+  String get askExampleStockReads => 'lees voorraad op rak, swakste eerste';
+
+  @override
+  String get askExampleShelf => 'Wat is ons rakaandeel jaar tot datum?';
+
+  @override
+  String get askExampleShelfReads => 'lees rakoudits en foto’s';
+
+  @override
+  String get askExampleFraud => 'Wys my enige besoeke wat verdag lyk.';
+
+  @override
+  String get askExampleFraudReads => 'lees gemerkte besoeke en GPS';
+
+  @override
+  String get askSuggestionsGroup => 'Vier voorbeeldvrae';
+
+  @override
+  String askSuggestionSemantic(String question, String reads) {
+    return 'Vra: $question Dit $reads';
+  }
+
+  @override
+  String get askNotEnabledHeadline => 'Nog nie aangeskakel nie.';
+
+  @override
+  String get askNotEnabledBody =>
+      'Vra TradeIQ word geleidelik uitgerol — praat met jou TradeIQ-kontak om ingesluit te word.';
+
+  @override
+  String get askStepsLookingUp => 'Besig om op te soek';
+
+  @override
+  String get askStepsWriting => 'Besig om die antwoord te skryf';
+
+  @override
+  String get askStepsStillWorking => 'Hierdie een neem ’n rukkie';
+
+  @override
+  String get askStepsLive => 'Besig';
+
+  @override
+  String askStepsUnavailable(String label) {
+    return '$label — nie beskikbaar nie';
+  }
+
+  @override
+  String askStepsDidNotFinish(String label) {
+    return '$label — het nie klaargemaak nie';
+  }
+
+  @override
+  String askStepsMore(int count) {
+    return 'Nog $count';
+  }
+
+  @override
+  String askStepsChecked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bronne nagegaan',
+      one: '1 bron nagegaan',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askStepsUnavailableCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nie beskikbaar nie',
+      one: '1 nie beskikbaar nie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askStepsNoneAnswered => 'Geen bron het geantwoord nie';
+
+  @override
+  String get askStepsShow => 'wys die stappe';
+
+  @override
+  String get askStepsHide => 'versteek die stappe';
+
+  @override
+  String askStepsSemantic(String summary, String action) {
+    return '$summary, $action';
+  }
+
+  @override
+  String askStepProgress(int index, int total, String label) {
+    return 'Stap $index van $total, $label';
+  }
+
+  @override
+  String get askCallout => 'Wat dit verklaar';
+
+  @override
+  String get askSources => 'Bronne';
+
+  @override
+  String get askSourcesNothingUsable =>
+      'Die soektog het niks bruikbaars opgelewer nie.';
+
+  @override
+  String askSourcesGroup(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Bronne, $count items',
+      one: 'Bronne, 1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askSourceSemantic(int index, String domain, String title) {
+    return 'Webbron $index, $domain, $title, maak in blaaier oop';
+  }
+
+  @override
+  String get askSourceOpensInBrowser => 'maak in blaaier oop';
+
+  @override
+  String get askSourceUnreachable =>
+      'Kon nie ’n blaaier oopmaak nie. Hou lank om die adres te kopieer.';
+
+  @override
+  String get askSourceCopied => 'Adres gekopieer';
+
+  @override
+  String askShowAllSources(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Wys al $count bronne',
+      one: 'Wys 1 bron',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askShowAll(int count) {
+    return 'Wys al $count';
+  }
+
+  @override
+  String get askNoticeLookupBudget =>
+      'Ek het opgeraak aan opsoeke vir hierdie vraag, so hierdie antwoord is dalk onvolledig.';
+
+  @override
+  String get askNoticeTimeBudget =>
+      'Ek het tyd opgeraak op hierdie vraag, so hierdie antwoord is dalk onvolledig.';
+
+  @override
+  String get askNoticeToolCallRefused =>
+      'Ek het opgehou voor die opsoeke wat ek beplan het, so hierdie antwoord is dalk onvolledig.';
+
+  @override
+  String get askNoticeGeneral => 'Hierdie antwoord is dalk onvolledig.';
+
+  @override
+  String get askNoticeNarrower => 'Vra ’n nouer opvolgvraag om verder te gaan.';
+
+  @override
+  String askNoticeSemantic(String reason, String advice) {
+    return 'Let wel: hierdie antwoord is dalk onvolledig. $reason $advice';
+  }
+
+  @override
+  String get askFigures => 'Syfers vir hierdie antwoord';
+
+  @override
+  String get askWorstFirst => 'Swakste eerste';
+
+  @override
+  String get askOverTime => 'Oor tyd';
+
+  @override
+  String get askUnsupportedView =>
+      'Hierdie antwoord bevat ’n aansig wat jou weergawe van die program nog nie kan teken nie. Die opsomming hierbo geld steeds.';
+
+  @override
+  String get askUnprovenancedFigures =>
+      'Syfers word nie gewys vir antwoorde wat die web gebruik het nie, want hierdie weergawe van die program kan nie sê watter van buite af kom nie.';
+
+  @override
+  String get askLoadingFigures => 'Laai syfers';
+
+  @override
+  String get askLoading => 'Laai';
+
+  @override
+  String askNotEnoughToPlot(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Nie genoeg data om te teken nie — $count tydperke is teruggegee.',
+      one: 'Nie genoeg data om te teken nie — 1 tydperk is teruggegee.',
+      zero: 'Nie genoeg data om te teken nie — niks is teruggegee nie.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askNoComparisonData(String label) {
+    return 'geen data vir $label nie';
+  }
+
+  @override
+  String get askChartSolidLine => 'soliede lyn';
+
+  @override
+  String get askChartDashedLine => 'streeplyn';
+
+  @override
+  String askLegend(String entries) {
+    return 'Sleutel: $entries';
+  }
+
+  @override
+  String askLegendEntry(String name, String channel) {
+    return '$name, $channel';
+  }
+
+  @override
+  String askBarSemantic(String name, String value, int index, int total) {
+    return '$name, $value, posisie $index van $total';
+  }
+
+  @override
+  String get askBarWorst => 'swakste';
+
+  @override
+  String get askOutsideData => 'Data van buite';
+
+  @override
+  String askOutsideRead(String date) {
+    return 'gelees $date';
+  }
+
+  @override
+  String askOutsidePublisher(String publisher, String date) {
+    return '$publisher, gelees $date. Nie TradeIQ-data nie, en nie by enige totaal hierbo getel nie.';
+  }
+
+  @override
+  String askOutsideUnnamed(String date) {
+    return 'Van buite TradeIQ gelees op $date. Nie TradeIQ-data nie, en nie by enige totaal hierbo getel nie.';
+  }
+
+  @override
+  String askOutsideStale(int days) {
+    return '$days dae oud';
+  }
+
+  @override
+  String get askOutsideFigure => 'syfer van buite';
+
+  @override
+  String get askTryAgain => 'Probeer weer';
+
+  @override
+  String get askStopped => 'Gestop.';
+
+  @override
+  String get askStoppedSemantic => 'Gestop. Die antwoord is onvolledig.';
+
+  @override
+  String get askAskAgain => 'Vra weer';
+
+  @override
+  String get askFailedTwice =>
+      'Dit het twee keer misluk. Dit is dalk die verbinding eerder as die vraag.';
+
+  @override
+  String askErrorSemantic(String message) {
+    return 'Fout. $message';
+  }
+
+  @override
+  String get askOffline => 'Geen verbinding nie — Vra TradeIQ het een nodig.';
+
+  @override
+  String get askSessionEnded =>
+      'Jou sessie het geëindig. Teken in om weer te vra.';
+
+  @override
+  String get askSessionEndedSemantic =>
+      'Jou sessie het geëindig. Teken in om weer te vra. Jou antwoorde is steeds op die skerm.';
+
+  @override
+  String get askSignIn => 'Teken in';
+
+  @override
+  String get askHeld => 'Gehou';
+
+  @override
+  String get askHistoryTitle => 'Hierdie gesprek';
+
+  @override
+  String askHistorySubtitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Op hierdie toestel gehou totdat jy die skerm verlaat. $count vrae.',
+      one: 'Op hierdie toestel gehou totdat jy die skerm verlaat. 1 vraag.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askHistoryLimit(int count) {
+    return 'slegs die laaste $count word saam met ’n nuwe vraag gestuur';
+  }
+
+  @override
+  String get askHistoryEmpty => 'Nog niks nie.';
+
+  @override
+  String get askHistoryEmptyBody =>
+      'Jou vrae sal hier gelys word terwyl jy op hierdie skerm is.';
+
+  @override
+  String askHistoryRowSemantic(String time, String question) {
+    return 'Gevra om $time: $question Gaan na hierdie antwoord.';
+  }
+
+  @override
+  String get askNow => 'nou';
+
+  @override
+  String get askStartOver => 'Begin ’n nuwe gesprek';
+
+  @override
+  String get askStartOverTitle => 'Begin ’n nuwe gesprek?';
+
+  @override
+  String askStartOverBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Hierdie een word nie gestoor nie. Die $count vrae en hul antwoorde gaan weg.',
+      one:
+          'Hierdie een word nie gestoor nie. Die 1 vraag en sy antwoord gaan weg.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askCarryOn => 'Gaan voort';
+
+  @override
+  String get askStartOverConfirm => 'Begin oor';
+
+  @override
+  String get askStartOverMidTurnTitle => '’n Vraag word nog beantwoord.';
+
+  @override
+  String get askStartOverMidTurnBody => 'Om oor te begin sal dit stop.';
+
+  @override
+  String get askKeepWaiting => 'Hou aan wag';
+
+  @override
+  String get askStopAndStartOver => 'Stop en begin oor';
+
+  @override
+  String get askShowFullQuestion => 'Wys die hele vraag';
+
+  @override
+  String askFollowUpSemantic(String question) {
+    return 'Vra: $question';
+  }
+
+  @override
+  String get askFollowUpDisabled =>
+      'nie beskikbaar terwyl die antwoord geskryf word nie';
+
+  @override
+  String askSeconds(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String askPoints(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'pte',
+      one: 'pt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askAnswer => 'Antwoord';
 }

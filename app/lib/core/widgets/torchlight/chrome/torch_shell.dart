@@ -76,6 +76,7 @@ class TorchShell extends StatelessWidget {
     this.primary,
     this.secondary,
     this.skinCycle,
+    this.band,
     this.scrollController,
   }) : assert(
          navPill == null || primary == null,
@@ -109,6 +110,22 @@ class TorchShell extends StatelessWidget {
   /// slot, not here; on every other screen it goes at the leading end of the
   /// thumb zone.
   final Widget? skinCycle;
+
+  /// A pinned region between the scroll view and the bottom region: the Ask
+  /// route's composer, and nothing else so far.
+  ///
+  /// It is **not** a thumb zone and it does not carry a commit action of the
+  /// thumb zone's kind — a composer is where a question is written, and it has
+  /// to stay on screen with the keyboard up, which is exactly when the nav is
+  /// not there. Like the bottom region it is a **sibling** of the scroll view
+  /// rather than an overlay, so its height is whatever its content measures at
+  /// 2.0× and nothing is ever underneath it.
+  ///
+  /// The band is gutter-padded by the shell and clears the software keyboard
+  /// itself: without a `Scaffold` nothing else reads `viewInsets`, and a
+  /// composer behind a keyboard is a composer nobody can see themselves
+  /// typing into.
+  final Widget? band;
 
   final ScrollController? scrollController;
 
@@ -173,12 +190,27 @@ class TorchShell extends StatelessWidget {
     final falloff =
         profile == TorchShellProfile.console && skin.mode != SkinMode.veld;
 
+    final keyboard = media.viewInsets.bottom;
+
     return _Ground(
       skin: skin,
       falloff: falloff,
       child: Column(
         children: <Widget>[
           Expanded(child: body),
+          if (band != null)
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                gutter,
+                0,
+                gutter,
+                // The band is the last thing above the keyboard, so it is the
+                // band that clears it. When the keyboard is down this is zero
+                // and the gap to the bottom region is the caller's.
+                keyboard,
+              ),
+              child: band,
+            ),
           ?bottom,
           SizedBox(height: safeBottom),
         ],
