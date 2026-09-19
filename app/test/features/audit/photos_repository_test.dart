@@ -52,31 +52,28 @@ void main() {
       },
     );
 
-    test(
-      'uploadMessageAttachment POSTs purpose + dataUrl with no visit and '
-      'returns the photo id',
-      () async {
-        final adapter = _ThumbAdapter();
-        final repo = DioPhotosRepository(client: client(adapter));
+    test('uploadMessageAttachment POSTs purpose + dataUrl with no visit and '
+        'returns the photo id', () async {
+      final adapter = _ThumbAdapter();
+      final repo = DioPhotosRepository(client: client(adapter));
 
-        final id = await repo.uploadMessageAttachment(
-          'data:image/png;base64,AQID',
-        );
+      final id = await repo.uploadMessageAttachment(
+        'data:image/png;base64,AQID',
+      );
 
-        final request = adapter.requests.single;
-        expect(request.method, 'POST');
-        expect(request.path, '/photos');
-        final data = request.data as Map<String, dynamic>;
-        expect(data['purpose'], 'message_attachment');
-        expect(data['dataUrl'], 'data:image/png;base64,AQID');
-        // The attachment shape: no visit, no section — the server rejects a
-        // message attachment that names a visit.
-        expect(data.containsKey('visitId'), isFalse);
-        expect(data.containsKey('section'), isFalse);
-        expect(DateTime.tryParse(data['timestamp'] as String), isNotNull);
-        expect(id, 'att-1');
-      },
-    );
+      final request = adapter.requests.single;
+      expect(request.method, 'POST');
+      expect(request.path, '/photos');
+      final data = request.data as Map<String, dynamic>;
+      expect(data['purpose'], 'message_attachment');
+      expect(data['dataUrl'], 'data:image/png;base64,AQID');
+      // The attachment shape: no visit, no section — the server rejects a
+      // message attachment that names a visit.
+      expect(data.containsKey('visitId'), isFalse);
+      expect(data.containsKey('section'), isFalse);
+      expect(DateTime.tryParse(data['timestamp'] as String), isNotNull);
+      expect(id, 'att-1');
+    });
 
     test('imageBytes GETs /photos/:id/image as raw bytes, uncached', () async {
       final adapter = _ThumbAdapter();
@@ -276,33 +273,36 @@ void main() {
         return adapter.requests.single.data as Map<String, dynamic>;
       }
 
-      test('the gpsTag and shutter time survive the outbox to POST /photos', () async {
-        final (db, repo) = await setUpQueue();
-        final tag = gpsTagFor(
-          LocationGranted(-26.2041, 28.0473, accuracy: 9, fixedAt: shutter),
-        );
+      test(
+        'the gpsTag and shutter time survive the outbox to POST /photos',
+        () async {
+          final (db, repo) = await setUpQueue();
+          final tag = gpsTagFor(
+            LocationGranted(-26.2041, 28.0473, accuracy: 9, fixedAt: shutter),
+          );
 
-        await repo.queuePhoto(
-          visitDraftId: 'local-v1',
-          section: 'stock',
-          dataUrl: 'data:image/jpeg;base64,AQID',
-          gpsTag: tag,
-          // Handed over in the device zone; stored and sent as UTC.
-          capturedAt: shutter.toLocal(),
-        );
+          await repo.queuePhoto(
+            visitDraftId: 'local-v1',
+            section: 'stock',
+            dataUrl: 'data:image/jpeg;base64,AQID',
+            gpsTag: tag,
+            // Handed over in the device zone; stored and sent as UTC.
+            capturedAt: shutter.toLocal(),
+          );
 
-        final body = await sendQueued(db);
-        expect(body['visitId'], 'remote-v1');
-        expect(body['section'], 'stock');
-        // The shape fraud.service.ts readCoords takes: numeric lat/lng.
-        expect(body['gpsTag'], {
-          'lat': -26.2041,
-          'lng': 28.0473,
-          'accuracy': 9.0,
-          'fixedAt': '2026-09-15T10:04:05.000Z',
-        });
-        expect(body['timestamp'], '2026-09-15T10:04:05.000Z');
-      });
+          final body = await sendQueued(db);
+          expect(body['visitId'], 'remote-v1');
+          expect(body['section'], 'stock');
+          // The shape fraud.service.ts readCoords takes: numeric lat/lng.
+          expect(body['gpsTag'], {
+            'lat': -26.2041,
+            'lng': 28.0473,
+            'accuracy': 9.0,
+            'fixedAt': '2026-09-15T10:04:05.000Z',
+          });
+          expect(body['timestamp'], '2026-09-15T10:04:05.000Z');
+        },
+      );
 
       test('a photo taken with location refused still uploads, with an empty '
           'gpsTag object', () async {
@@ -321,18 +321,21 @@ void main() {
         expect(body['timestamp'], '2026-09-15T10:04:05.000Z');
       });
 
-      test('with no capture time given, the timestamp is still UTC-marked', () async {
-        final (db, repo) = await setUpQueue();
+      test(
+        'with no capture time given, the timestamp is still UTC-marked',
+        () async {
+          final (db, repo) = await setUpQueue();
 
-        await repo.queuePhoto(
-          visitDraftId: 'local-v1',
-          section: 'pricing',
-          dataUrl: 'data:image/jpeg;base64,AQID',
-        );
+          await repo.queuePhoto(
+            visitDraftId: 'local-v1',
+            section: 'pricing',
+            dataUrl: 'data:image/jpeg;base64,AQID',
+          );
 
-        final body = await sendQueued(db);
-        expect(body['timestamp'] as String, endsWith('Z'));
-      });
+          final body = await sendQueued(db);
+          expect(body['timestamp'] as String, endsWith('Z'));
+        },
+      );
     });
   });
 }

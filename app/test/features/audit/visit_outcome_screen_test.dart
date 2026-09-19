@@ -189,9 +189,7 @@ void main() {
       );
       final hatched = tester.widget<Meter>(
         find.descendant(
-          of: find.byKey(
-            const ValueKey<String>('unmeasured-Team capability'),
-          ),
+          of: find.byKey(const ValueKey<String>('unmeasured-Team capability')),
           matching: find.byType(Meter),
         ),
       );
@@ -240,9 +238,14 @@ void main() {
         tester,
         outcome: const VisitOutcome(score: _visit, previous: _previous),
       );
-      expect(find.byKey(const ValueKey<String>('outcome-delta')), findsOneWidget);
-      expect(find.textContaining('from your last visit here (66)'),
-          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('outcome-delta')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('from your last visit here (66)'),
+        findsOneWidget,
+      );
       expect(find.text('+6'), findsOneWidget);
     });
 
@@ -262,8 +265,10 @@ void main() {
         tester,
         outcome: const VisitOutcome(score: _previous, previous: _previous),
       );
-      expect(find.textContaining('Same as your last visit here (66)'),
-          findsOneWidget);
+      expect(
+        find.textContaining('Same as your last visit here (66)'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -278,10 +283,7 @@ void main() {
       // a number that quietly changes once the visit reaches the server.
       expect(find.text('/100'), findsNothing);
       expect(find.byKey(const ValueKey<String>('score-hero')), findsNothing);
-      expect(
-        find.text('Your visit is safe on this phone'),
-        findsOneWidget,
-      );
+      expect(find.text('Your visit is safe on this phone'), findsOneWidget);
       // The refusal is STATED, not left as an absence.
       expect(
         find.text(
@@ -321,11 +323,11 @@ void main() {
     ) async {
       await _pump(tester, throws: true);
       // Failing to read a score is not failing to submit.
-      expect(find.byKey(const ValueKey<String>('outcome-held')), findsOneWidget);
       expect(
-        find.textContaining('Could not reach the server'),
+        find.byKey(const ValueKey<String>('outcome-held')),
         findsOneWidget,
       );
+      expect(find.textContaining('Could not reach the server'), findsOneWidget);
       expect(find.text('/100'), findsNothing);
     });
   });

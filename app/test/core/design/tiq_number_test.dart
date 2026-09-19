@@ -4,6 +4,29 @@ import 'package:tradeiq_app/core/design/tiq_number.dart';
 
 /// The one formatter, in both locales, in every state a figure can be in.
 void main() {
+  group('reading back what was typed', () {
+    test('an Afrikaans price typed with a comma is the price, not zero', () {
+      // A section used to read typed figures with `double.tryParse`, which
+      // turned `24,99` from an Afrikaans keyboard into null and then into a
+      // shelf price of R 0.
+      expect(TiqNumber.af.parse('24,99'), 24.99);
+      expect(TiqNumber.af.parse('1\u00A0284,5'), 1284.5);
+      expect(TiqNumber.af.parse('1.5'), 1.5);
+    });
+
+    test('English reads its own grouping', () {
+      expect(TiqNumber.en.parse('1,284.5'), 1284.5);
+      expect(TiqNumber.en.parse('24.99'), 24.99);
+    });
+
+    test('an empty box is null, never zero', () {
+      expect(TiqNumber.en.parse(''), isNull);
+      expect(TiqNumber.af.parse('   '), isNull);
+      expect(TiqNumber.en.parse('abc'), isNull);
+      expect(TiqNumber.en.parse('0'), 0);
+    });
+  });
+
   group('grouping and the decimal mark', () {
     test('English groups on a comma and marks on a point', () {
       expect(TiqNumber.en.format(1284990.5), '1,284,990.5');

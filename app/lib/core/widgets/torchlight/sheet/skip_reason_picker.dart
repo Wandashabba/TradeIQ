@@ -264,7 +264,11 @@ class _SkipReasonPickerState extends State<SkipReasonPicker> {
                   label: reason.label,
                   // The consequence rides with the reason, into the layout AND
                   // into the semantics node.
-                  consequence: reason.consequence,
+                  // Empty means "no consequence to state yet", and renders no
+                  // line rather than a blank one.
+                  consequence: reason.consequence.isEmpty
+                      ? null
+                      : reason.consequence,
                 ),
             ],
           ),

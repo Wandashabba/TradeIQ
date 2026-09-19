@@ -2119,6 +2119,263 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
+  String get visitPinReportedHeld =>
+      'Op hierdie foon aangeteken. Dit is nog nêrens gestuur nie — daar is nêrens om dit heen te stuur nie.';
+
+  @override
+  String get wordYes => 'Ja';
+
+  @override
+  String get wordNo => 'Nee';
+
+  @override
+  String get sectionSave => 'Stoor';
+
+  @override
+  String get sectionSaveAndBack => 'Stoor en gaan terug';
+
+  @override
+  String get sectionSaveFailedTitle => 'Nie gestoor nie';
+
+  @override
+  String get sectionSaveFailedBody =>
+      'Jou antwoorde is nog hier — probeer weer Stoor.';
+
+  @override
+  String get sectionCantConfirm => 'Kan nie hierdie afdeling bevestig nie';
+
+  @override
+  String get sectionCantConfirmWhy => 'Hoekom nie?';
+
+  @override
+  String sectionCantConfirmLocked(String reason) {
+    return 'Kan nie bevestig nie: $reason';
+  }
+
+  @override
+  String get sectionCantConfirmHeld =>
+      'Gehou op hierdie foon. Niks word nog hiervoor gestuur nie.';
+
+  @override
+  String get sectionCanConfirmAfterAll => 'Ek kan dit tog bevestig';
+
+  @override
+  String get sectionLockedBlock =>
+      'Hierdie afdeling is gemerk as kan-nie-bevestig-nie';
+
+  @override
+  String get sectionLeaveTitle => 'Jy het ongestoorde antwoorde';
+
+  @override
+  String get sectionLeaveWithoutSaving => 'Gaan terug sonder om te stoor';
+
+  @override
+  String get sectionStayHere => 'Bly hier';
+
+  @override
+  String get sectionAddAnother => 'Voeg nog een by';
+
+  @override
+  String sectionEntryPosition(int index, int total) {
+    return '$index van $total';
+  }
+
+  @override
+  String sectionRemoveEntry(String name, String position) {
+    return 'Verwyder $name $position';
+  }
+
+  @override
+  String get sectionNotAnsweredYet => 'Nog nie beantwoord nie';
+
+  @override
+  String get sectionPhotoOpenCamera => 'Maak kamera oop';
+
+  @override
+  String get sectionPhotoOpenCameraSemantics =>
+      'Maak die kamera oop om die rak te fotografeer';
+
+  @override
+  String get sectionPhotoFraming =>
+      'Staan ver genoeg terug om die hele rak te kry, die pryslys ingesluit.';
+
+  @override
+  String get sectionPhotoStamped =>
+      'Jou foto word gestempel met die tyd en waar jy is.';
+
+  @override
+  String get sectionPhotoTorchHint =>
+      'Gang donker? Skakel jou foon se flits aan voor jy skiet.';
+
+  @override
+  String get sectionPhotoHeld =>
+      'Gehou op hierdie foon · stuur saam met die besoek';
+
+  @override
+  String get sectionPhotoNoCamera =>
+      'Hierdie foon het geen kamera wat ons kan bereik nie.';
+
+  @override
+  String get sectionPhotoTooLarge =>
+      'Daardie foto is te groot om te stuur. Neem dit weer.';
+
+  @override
+  String get sectionPhotoFailed =>
+      'Die kamera het nie die foto teruggegee nie. Probeer weer.';
+
+  @override
+  String get sectionPhotoRemoveSemantics => 'Verwyder die foto';
+
+  @override
+  String sectionPhotoSemantics(String time) {
+    return 'Foto geneem $time, gehou op hierdie foon';
+  }
+
+  @override
+  String get skipReasonStoreRefused => 'Die winkel wou my nie toelaat nie';
+
+  @override
+  String get skipReasonStoreRefusedConsequence =>
+      'Die bestuurder word vertel die winkel het geweier';
+
+  @override
+  String get skipReasonNotStocked => 'Hulle hou dit nie aan nie';
+
+  @override
+  String get skipReasonNotStockedConsequence =>
+      'Hierdie lyne word gemerk as nie-aangehou vir hierdie winkel';
+
+  @override
+  String get skipReasonEquipment => 'Die toerusting is stukkend';
+
+  @override
+  String get skipReasonEquipmentConsequence => '\'n Hersteltaak word geskep';
+
+  @override
+  String get skipReasonSomethingElse => 'Iets anders';
+
+  @override
+  String get skipReasonSomethingElseConsequence => 'Jy skryf wat gebeur het';
+
+  @override
+  String get skipReasonSave => 'Stoor rede';
+
+  @override
+  String get skipReasonChange => 'Verander rede';
+
+  @override
+  String get skipReasonCancel => 'Kanselleer';
+
+  @override
+  String get skipReasonNoteLabel => 'Wat het gebeur?';
+
+  @override
+  String get skipReasonChooseFirst => 'Kies eers ’n rede';
+
+  @override
+  String get skipReasonSayWhatHappened => 'Sê wat gebeur het';
+
+  @override
+  String s2Summary(int counted, int outOfStock, int toGo) {
+    return '$counted getel · $outOfStock uit voorraad · $toGo oor';
+  }
+
+  @override
+  String get s2NotCounted => 'Nie getel nie';
+
+  @override
+  String get s2OutOfStockWord => 'Uit voorraad';
+
+  @override
+  String get s2TypeCount => 'Tik ’n telling';
+
+  @override
+  String get s2OneFewer => 'Een minder';
+
+  @override
+  String get s2OneMore => 'Een meer';
+
+  @override
+  String s2PartCounted(int toGo) {
+    return 'Om nou te stoor merk $toGo produkte as nie getel nie — nooit as leeg nie.';
+  }
+
+  @override
+  String s2CountedOf(int counted, int total) {
+    return '$counted van $total getel';
+  }
+
+  @override
+  String s2StockSavedPartial(int counted, int total) {
+    return '$counted van $total gestoor — die res is nie getel nie, nooit leeg nie';
+  }
+
+  @override
+  String get s2JumpToUncounted => 'Spring na die eerste ongetelde';
+
+  @override
+  String get s10NotFinal =>
+      'Op hierdie foon uitgewerk. Die finale telling kom terug wanneer die besoek stuur.';
+
+  @override
+  String get s10NotMeasured => 'Nie op hierdie besoek gemeet nie';
+
+  @override
+  String s10ScoreSemantics(String score, String band) {
+    return 'Geweegde totaal $score uit 100, $band';
+  }
+
+  @override
+  String get s5NoPriceYet => 'Geen prys ingevoer nie';
+
+  @override
+  String get s6NoCompetitors =>
+      'Nog geen mededinger op hierdie rak nie. Voeg een by as jy dit sien.';
+
+  @override
+  String get s8NoRisks => 'Nog niks gemerk nie.';
+
+  @override
+  String get s9NoTasks => 'Nog geen ekstra take nie.';
+
+  @override
+  String s9AddedTasks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count take in die ry vir sinkronisasie',
+      one: '1 taak in die ry vir sinkronisasie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get s2TypeCountFirst => 'Tik eers ’n telling';
+
+  @override
+  String sectionEntryName(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'Mededinger',
+      'risk': 'Risiko',
+      'other': 'Taak',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String sectionEntryNameLower(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'competitor': 'mededinger',
+      'risk': 'risiko',
+      'other': 'taak',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String get sectionEntryUnnamed => 'Nog nie benoem nie';
+
+  @override
   String get myWorkSendNow => 'Stuur nou';
 
   @override
