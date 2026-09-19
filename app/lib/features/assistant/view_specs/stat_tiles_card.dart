@@ -6,6 +6,7 @@ import '../../../core/widgets/torchlight/figure/sample_threshold.dart';
 import '../../../core/widgets/torchlight/figure/stat_cluster.dart';
 import '../../../core/widgets/torchlight/figure/stat_tile.dart';
 import '../../../core/widgets/torchlight/mark/delta.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../l10n/l10n.dart';
 import '../data/chat_controller.dart';
 import 'rich_figures.dart';
@@ -32,32 +33,78 @@ import 'rich_figures.dart';
 /// tick in ink-1 everywhere and `TorchClaim.meterTick` does not exist: four
 /// repeated amber ticks in one cluster would be exactly the repeated fill the
 /// law bans.
-class StatTilesCard extends StatelessWidget {
+class StatTilesCard extends StatefulWidget {
   const StatTilesCard({super.key, required this.artifact});
 
   final ChatArtifact artifact;
 
-  /// Four on a phone, three recommended, two in Veld. Past that the figures
-  /// a reader least often acts on belong in the table twin, not in the fold.
+  /// Four on a phone, three recommended, two in Veld.
+  static int limitFor(TiqSkin skin) => skin.density == TiqDensity.veld
+      ? StatCluster.maximumInVeld
+      : StatCluster.maximumOnPhone;
+
+  /// The tiles the fold shows before "Show all".
   static List<StatTileData> capped(List<StatTileData> tiles, TiqSkin skin) {
-    final limit = skin.density == TiqDensity.veld
-        ? StatCluster.maximumInVeld
-        : StatCluster.maximumOnPhone;
+    final limit = limitFor(skin);
     return tiles.length <= limit ? tiles : tiles.sublist(0, limit);
   }
+
+  @override
+  State<StatTilesCard> createState() => _StatTilesCardState();
+}
+
+class _StatTilesCardState extends State<StatTilesCard> {
+  bool _all = false;
 
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    final tiles = capped(StatTileData.listFrom(artifact.data), skin);
+    final tiles = StatTileData.listFrom(widget.artifact.data);
     // A block with nothing in it is dropped, never rendered empty.
     if (tiles.isEmpty) return const SizedBox.shrink();
 
-    return StatCluster(
-      semanticsLabel: l10n.askFigures,
-      tiles: <StatTile>[
-        for (final tile in tiles) askStatTile(context, tile),
+    // The fold holds four (two in Veld). The figures past it are not
+    // dropped: stat tiles are answer-only — there is no full view to send a
+    // reader to — so a figure cut here would be a figure the narrative
+    // mentions and the screen cannot show. They wait behind one row, and
+    // open as further clusters of the same size, never as one cluster
+    // bigger than the law allows.
+    final limit = StatTilesCard.limitFor(skin);
+    final shown = _all ? tiles.length : StatTilesCard.capped(tiles, skin).length;
+    final clusters = <Widget>[
+      for (var i = 0; i < shown; i += limit)
+        StatCluster(
+          key: ValueKey<String>('stat-cluster-${i ~/ limit}'),
+          semanticsLabel: i == 0 ? l10n.askFigures : null,
+          tiles: <StatTile>[
+            for (final tile in tiles.sublist(
+              i,
+              i + limit > shown ? shown : i + limit,
+            ))
+              askStatTile(context, tile),
+          ],
+        ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (var i = 0; i < clusters.length; i++) ...<Widget>[
+          if (i > 0) SizedBox(height: skin.space.intraBlock),
+          clusters[i],
+        ],
+        if (shown < tiles.length) ...<Widget>[
+          SizedBox(height: skin.space.intraBlock),
+          SoftRow(
+            key: const ValueKey<String>('stat-tiles-show-all'),
+            density: SoftRowDensity.compact,
+            title: l10n.askShowAll(tiles.length),
+            separator: SoftRowSeparator.none,
+            onTap: () => setState(() => _all = true),
+          ),
+        ],
       ],
     );
   }

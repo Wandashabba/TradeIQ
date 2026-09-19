@@ -100,6 +100,9 @@ class OutletMapCard extends StatelessWidget {
                 role: skin.text.figureS,
                 decimals: 0,
                 color: skin.palette.ink1,
+                semanticsLabel: outlets[i].outOfStockLines == null
+                    ? l10n.askTileNoData
+                    : null,
               ),
               semanticsLabel: _pinLabel(l10n, outlets[i]),
               separator: i == outlets.length - 1

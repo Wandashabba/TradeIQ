@@ -166,6 +166,7 @@ class _OutsideRow extends StatelessWidget {
           unit: askUnitFor(l10n, tile.unit, (tile.value ?? 0).abs()),
           decimals: tile.decimals,
           color: skin.palette.ink1,
+          semanticsLabel: tile.value == null ? l10n.askTileNoData : null,
         ),
       ),
       semanticsLabel: '${tile.label}, '

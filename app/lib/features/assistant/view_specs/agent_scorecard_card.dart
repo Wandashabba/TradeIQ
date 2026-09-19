@@ -176,6 +176,10 @@ class _Metric extends StatelessWidget {
           decimals: 0,
           unit: TiqUnit.none,
           color: skin.palette.ink1,
+          // Unknown is a sentence, not "em dash".
+          semanticsLabel: value == null
+              ? '$label, ${context.l10n.askTileNoData}'
+              : null,
         ),
       ],
     );

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import '../../../core/design/figure_slot.dart';
@@ -78,6 +80,26 @@ class _RankedBarsCardState extends State<RankedBarsCard> {
     final title = data.title;
     final comparedTo = data.comparedTo;
 
+    // One value column for every row, as wide as its widest figure. Without
+    // it each track is whatever a row's label and figure leave over, so the
+    // bars start and end in different places and a longer bar can stand for
+    // a smaller number — the one thing a ranking may not do.
+    var valueWidth = 0.0;
+    for (final item in data.items) {
+      valueWidth = math.max(
+        valueWidth,
+        FigureSlot.measure(
+          context,
+          value: item.value,
+          role: skin.text.figureS,
+          unit: askUnitFor(l10n, data.unit, item.value.abs()),
+          decimals: data.decimals,
+          signed: data.diverging,
+        ),
+      );
+    }
+    valueWidth = valueWidth.ceilToDouble() + 1;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -116,6 +138,7 @@ class _RankedBarsCardState extends State<RankedBarsCard> {
             // A single item is never a focus: one bar cannot be ranked.
             focus: i == focus,
             lit: lit,
+            valueWidth: valueWidth,
           ),
         ],
         if (shown < data.items.length) ...<Widget>[
@@ -146,6 +169,7 @@ class _BarRow extends StatelessWidget {
     required this.diverging,
     required this.focus,
     required this.lit,
+    required this.valueWidth,
   });
 
   final RankedBarItem item;
@@ -162,6 +186,9 @@ class _BarRow extends StatelessWidget {
 
   /// Whether the route's arbiter granted this block its one amber object.
   final bool lit;
+
+  /// The shared width of the value column, so every track is the same length.
+  final double valueWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -258,12 +285,17 @@ class _BarRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // 38% of the row, capped, and two lines before anything gives.
-              Flexible(
+              // 38% of the row, and two lines before anything gives. Tight,
+              // so a short name does not hand its space to the track.
+              Expanded(
                 flex: 38,
                 child: Text(item.label, style: labelStyle, maxLines: 2),
               ),
               const SizedBox(width: TiqSpace.s3),
+              // The triangle's slot is kept on every row so the focus row's
+              // track is not shorter than its neighbours'.
+              if (!focus)
+                SizedBox(width: MarkScale.glyph(context, veld ? 9 : 7) + TiqSpace.s1),
               if (focus) ...<Widget>[
                 // A filled triangle at the bar's origin, pointing right. One
                 // of the focus bar's four channels, and the one that survives
@@ -278,7 +310,7 @@ class _BarRow extends StatelessWidget {
                 ),
                 const SizedBox(width: TiqSpace.s1),
               ],
-              Flexible(
+              Expanded(
                 flex: 62,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -289,14 +321,17 @@ class _BarRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: TiqSpace.s3),
-              FigureSlot(
-                value: item.value,
-                role: skin.text.figureS,
-                unit: unit,
-                decimals: decimals,
-                signed: diverging,
-                textAlign: TextAlign.end,
-                color: p.ink1,
+              SizedBox(
+                width: valueWidth,
+                child: FigureSlot(
+                  value: item.value,
+                  role: skin.text.figureS,
+                  unit: unit,
+                  decimals: decimals,
+                  signed: diverging,
+                  textAlign: TextAlign.end,
+                  color: p.ink1,
+                ),
               ),
             ],
           ),
