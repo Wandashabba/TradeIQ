@@ -21,6 +21,7 @@ class SyncItem {
     this.lastError,
     this.lastAttemptAt,
     this.payloadBytes,
+    this.visitDraftId,
   });
 
   final int id;
@@ -36,6 +37,15 @@ class SyncItem {
   /// is not a row of zero bytes, and the outbox row renders nothing rather
   /// than "0 kB".
   final int? payloadBytes;
+
+  /// Which visit this row submitted, on a `visit_submit` row: the local draft
+  /// id, decoded from the payload.
+  ///
+  /// It is what makes a submitted visit re-openable. My work is the only
+  /// place the agent meets a visit again after they have walked out of the
+  /// shop, so it is where the score has to be reachable — otherwise a score
+  /// changed on review is a line nobody is ever on the right screen to read.
+  final String? visitDraftId;
 
   /// The last failure as stored: a [SyncError.code], or — on a row written
   /// before the codes — the English line itself. Word it with [problemIn].
@@ -184,6 +194,9 @@ final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
             lastError: r.lastError,
             lastAttemptAt: r.lastAttemptAt,
             payloadBytes: r.payloadBytes,
+            visitDraftId: r.entityType == 'visit_submit'
+                ? visitDraftIdFromPayload(r.payloadJson)
+                : null,
           ),
         )
         .toList();
@@ -274,6 +287,17 @@ String? outletIdFromPayload(String payloadJson) {
   try {
     final map = jsonDecode(payloadJson) as Map<String, dynamic>;
     return map['outletId'] as String?;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Which visit a `visit_submit` row submitted. Best-effort, for the same
+/// reason: a row whose payload will not parse still has to render.
+String? visitDraftIdFromPayload(String payloadJson) {
+  try {
+    final map = jsonDecode(payloadJson) as Map<String, dynamic>;
+    return map['visitDraftId'] as String?;
   } catch (_) {
     return null;
   }

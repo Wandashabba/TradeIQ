@@ -152,13 +152,21 @@ class VisitOutcome {
   }
 }
 
-/// Everything the outcome screen needs, fetched once when it opens.
+/// Everything the outcome screen needs, fetched when it opens.
 ///
 /// Flushes the outbox first, because the visit and its scorecard marker are
 /// sitting in it — without that, a visit submitted on good signal would still
 /// say "held on this phone" for as long as it took the next flush to come round.
+///
+/// **Auto-dispose, and that is the whole of the reconciliation line working.**
+/// A score the agent read that is later changed on review is the event this
+/// screen exists to catch, and it can only be caught on a LATER open. Kept
+/// alive, the second open would be served the number from the first one —
+/// which always equals what the phone recorded, so the line could never
+/// render outside a test. Every open of a submitted visit's outcome now asks
+/// the server again.
 final visitOutcomeProvider =
-    FutureProvider.family<
+    FutureProvider.autoDispose.family<
       VisitOutcome,
       ({String visitDraftId, String outletId})
     >((ref, args) async {

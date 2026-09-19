@@ -3877,6 +3877,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your last visit here could not be loaded, so there is nothing to compare this score with.'**
   String get outcomePreviousUnknown;
+
+  /// Ghost action on the outbox sheet for a submitted visit the server has: opens that visit's outcome again.
+  ///
+  /// In en, this message translates to:
+  /// **'See how it scored'**
+  String get outboxSeeScore;
 }
 
 class _AppLocalizationsDelegate

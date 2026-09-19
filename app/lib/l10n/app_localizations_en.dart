@@ -2448,4 +2448,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get outcomePreviousUnknown =>
       'Your last visit here could not be loaded, so there is nothing to compare this score with.';
+
+  @override
+  String get outboxSeeScore => 'See how it scored';
 }

@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/torch_scope.dart';
+import '../../../core/storage/local_db.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/sheet.dart';
 import '../../../l10n/l10n.dart';
+import '../../outlets/data/outlets_repository.dart';
 
 /// Which of the six outbox states a queued row is in.
 ///
@@ -137,6 +139,16 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
   bool get _discardable =>
       widget.state == OutboxState.stuck && !_item.sessionEnded;
 
+  /// A submitted visit the server has, so there is a score to go and read.
+  ///
+  /// This is the only way back to a visit's outcome once the agent has walked
+  /// out of the shop — and the reconciliation line ("Now scored 71 — it was
+  /// 84 when you saw it") only ever appears on a LATER open, so without a way
+  /// back it could not appear at all.
+  String? get _submittedVisit => widget.state == OutboxState.sent
+      ? _item.visitDraftId
+      : null;
+
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
@@ -192,6 +204,17 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
                       busy: _busy,
                       onPressed: _busy ? null : _sendOne,
                     ),
+                  if (_submittedVisit case final String draftId) ...<Widget>[
+                    if (_item.sessionEnded || _retryable)
+                      const SizedBox(height: TiqSpace.s2),
+                    // A ghost, never the amber: reading a score you have
+                    // already been shown is not the expected next move.
+                    TorchSecondaryButton(
+                      key: const ValueKey<String>('outbox-see-score'),
+                      label: l10n.outboxSeeScore,
+                      onPressed: _busy ? null : () => _openOutcome(draftId),
+                    ),
+                  ],
                   if (_discardable) ...<Widget>[
                     const SizedBox(height: TiqSpace.s2),
                     TorchTertiaryButton(
@@ -215,6 +238,36 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
     OutboxState.stuck when _item.isRejected => l10n.outboxRejectedNote,
     _ => null,
   };
+
+  /// Open this visit's outcome, read-only as far as the visit is concerned —
+  /// a submitted visit is closed, and this route has always been forward-only.
+  Future<void> _openOutcome(String draftId) async {
+    final db = ref.read(localDbProvider);
+    final draft = await (db.select(
+      db.visitDrafts,
+    )..where((t) => t.id.equals(draftId))).getSingleOrNull();
+    if (!mounted) return;
+    final outletId = draft?.outletId;
+    if (outletId == null) return;
+
+    // The outlet's NAME only if the list is already in memory. Opening a
+    // score must not send a phone in a shop after an outlet list, and the
+    // route already has a fallback for the header.
+    String? name;
+    if (ref.exists(outletsListProvider)) {
+      for (final outlet in ref.read(outletsListProvider).value ?? const []) {
+        if (outlet.id == outletId) {
+          name = outlet.name;
+          break;
+        }
+      }
+    }
+
+    final query = StringBuffer('draft=${Uri.encodeComponent(draftId)}');
+    if (name != null) query.write('&name=${Uri.encodeComponent(name)}');
+    Navigator.of(context).pop();
+    context.go('/audit/${Uri.encodeComponent(outletId)}/done?$query');
+  }
 
   Future<void> _sendOne() async {
     setState(() => _busy = true);

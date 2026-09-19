@@ -2475,4 +2475,7 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get outcomePreviousUnknown =>
       'Jou vorige besoek hier kon nie gelaai word nie, so daar is niks om hierdie telling mee te vergelyk nie.';
+
+  @override
+  String get outboxSeeScore => 'Kyk hoe dit gevaar het';
 }
