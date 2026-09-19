@@ -97,22 +97,24 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
-        () async {
-      dio.httpClientAdapter = _RecordingAdapter(
-        '{"data": [{"id": "t1", "findingType": "out_of_stock", '
-        '"requiredFix": "Restock SKU 42", "priority": "critical", '
-        '"status": "open", "closureVerified": false, "outletId": "o1", '
-        '"slaDueAt": "2026-08-01T10:00:00.000Z"}], '
-        '"nextCursor": "cursor-1"}',
-      );
+    test(
+      'parses the {data, nextCursor} envelope into a PaginatedResponse',
+      () async {
+        dio.httpClientAdapter = _RecordingAdapter(
+          '{"data": [{"id": "t1", "findingType": "out_of_stock", '
+          '"requiredFix": "Restock SKU 42", "priority": "critical", '
+          '"status": "open", "closureVerified": false, "outletId": "o1", '
+          '"slaDueAt": "2026-08-01T10:00:00.000Z"}], '
+          '"nextCursor": "cursor-1"}',
+        );
 
-      final page = await DioTasksAdminRepository().listTasks();
+        final page = await DioTasksAdminRepository().listTasks();
 
-      expect(page, isA<PaginatedResponse<TaskItem>>());
-      expect(page.data, hasLength(1));
-      expect(page.data.first.id, 't1');
-      expect(page.nextCursor, 'cursor-1');
-    });
+        expect(page, isA<PaginatedResponse<TaskItem>>());
+        expect(page.data, hasLength(1));
+        expect(page.data.first.id, 't1');
+        expect(page.nextCursor, 'cursor-1');
+      },
+    );
   });
 }

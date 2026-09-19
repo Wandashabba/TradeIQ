@@ -1,407 +1,540 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/brand_media.dart';
-import '../../../core/camera/photo_capture_service.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/console.dart';
-import '../../../core/widgets/evidence_thumb.dart';
-import '../../../core/widgets/manager_scaffold.dart';
-import '../../../core/widgets/pill_segment.dart';
-import '../../../core/widgets/sla_pill.dart';
-import '../../../core/widgets/worklist.dart';
-import '../../../core/widgets/photo_capture_field.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/console_frame.dart';
+import '../../../core/widgets/torchlight/evidence_thumb.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/marks.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state.dart';
 import '../../audit/data/photos_repository.dart';
+import '../../users/data/users_repository.dart';
 import '../data/tasks_admin_repository.dart';
+import '../data/tasks_view.dart';
+import 'close_with_photo_sheet.dart';
 
+/// TASKS — open work with a clock on it, sorted by consequence.
+///
+/// ```text
+///   Tasks                                         [ ⟳ ]
+///   Risks, stockouts and price deviations open a task
+///   automatically, with a due date set by priority.
+///   ┌────────────────────────────────────────┐
+///   │ ▲  OVERDUE                          3  │
+///   │    12 open · 4 awaiting verification    │
+///   └────────────────────────────────────────┘
+///   ( Open 12 )( Overdue 3 )( Done )( All )
+///   ── Open 12 ──────────────────────────────
+///   ▌ Shelf talker missing              [img]
+///   ▌ Overdue by 2 days · replace the shelf talker
+///   ▌ Kasi Corner Spaza
+///   ▌ Assigned to Thandi Mokoena
+///   ▌ Close with photo
+///   …
+///   Showing the 50 tasks with the earliest deadlines, of 74.
+///   The counts above are of these 50.
+///   [ nav pill ]
+/// ```
+///
+/// ## The one amber, counted
+///
+/// A tab root: the nav pill's active tab is slot 1 and this screen nominates
+/// nothing. The overdue lead figure and the SLA phrasing carry the urgency —
+/// a crimson outline, a filled triangle and a word — and the earlier draft's
+/// reasoning that the filter chip should be lit *because a slot was free* is
+/// not a possibility the ruling leaves open. Day and Veld paint zero.
+///
+/// The one lit object in this feature is `Close task`, and it lives on the
+/// closure sheet, where the amber beneath it has already gone out.
+///
+/// ## The clock is read once
+///
+/// [clock] is the screen's one time source, read once per build and threaded
+/// down, so every "overdue" on the screen agrees on the same instant and a
+/// test can pin it.
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key, this.clock = DateTime.now});
 
-  /// The screen's one time source — read ONCE per build and threaded down, so
-  /// every SLA pill and the Overdue count agree on the same instant, and
-  /// tests can pin it.
   final DateTime Function() clock;
 
   @override
   ConsumerState<TasksScreen> createState() => _TasksScreenState();
 }
 
-/// The chip axis is STATE: Open is all open work (overdue included — overdue
-/// is a focus subset, not a separate state), Overdue narrows to open work
-/// past its SLA, Done is closed, All is everything. Priority lives on the
-/// triage strip, a different axis.
-enum _Filter { open, overdue, done, all }
-
 class _TasksScreenState extends ConsumerState<TasksScreen> {
-  _Filter _filter = _Filter.open;
+  TaskFilter _filter = TaskFilter.open;
+
+  void _refresh() {
+    ref.invalidate(tasksPageProvider);
+    // The Floor reads the plain list; keeping them in step means a manager who
+    // closes a task here does not walk back to a board that still shows it.
+    ref.invalidate(tasksListProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final tasks = ref.watch(tasksListProvider);
-    final now = widget.clock();
+    final page = ref.watch(tasksPageProvider);
 
-    return ManagerScaffold(
-      title: 'Tasks',
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'Risks, stockouts and price deviations open a task automatically, '
-            'with an SLA due date set by priority.',
-            style: TextStyle(fontSize: 12, color: context.colors.ink3),
-          ),
-          const SizedBox(height: 12),
-          AsyncSection<List<TaskItem>>(
-            value: tasks,
+    return page.when(
+      loading: () => _frame(
+        phase: 'loading',
+        children: <Widget>[
+          Skeleton(
             label: 'tasks',
-            onRetry: () => ref.invalidate(tasksListProvider),
-            builder: (list) {
-              final open = list.where((t) => t.status != 'closed').toList();
-              final closed = list.where((t) => t.status == 'closed').toList();
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TriageStrip(
-                    counts: [
-                      (
-                        label: 'Critical',
-                        count: open
-                            .where((t) => t.priority == 'critical')
-                            .length,
-                        level: StatusLevel.critical,
-                      ),
-                      (
-                        label: 'High',
-                        count: open.where((t) => t.priority == 'high').length,
-                        level: StatusLevel.warning,
-                      ),
-                      (
-                        label: 'Normal',
-                        count: open.where((t) => t.priority == 'normal').length,
-                        level: StatusLevel.neutral,
-                      ),
-                      (
-                        label: 'Closed',
-                        count: closed.length,
-                        level: StatusLevel.good,
-                      ),
-                    ],
-                    trailing: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SectionLabel('Awaiting verification'),
-                        const SizedBox(height: 3),
-                        Text(
-                          '${closed.where((t) => !t.closureVerified).length}',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.4,
-                            color: context.colors.ink1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  FilterRow(
-                    children: [
-                      const SectionLabel('State'),
-                      // The chip row is the SINGLE source of list filtering;
-                      // the triage strip above reads on a different axis
-                      // (priority) and filters nothing.
-                      _FilterChips(
-                        chips: [
-                          (label: 'Open · ${open.length}', value: _Filter.open),
-                          (
-                            label:
-                                'Overdue · ${open.where((t) => t.slaDueAt.isBefore(now)).length}',
-                            value: _Filter.overdue,
-                          ),
-                          // Plain, per the spec's example — the count lives
-                          // one tap away, in the list header.
-                          (label: 'Done', value: _Filter.done),
-                          (label: 'All', value: _Filter.all),
-                        ],
-                        selected: _filter,
-                        onChanged: (f) => setState(() => _filter = f),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _TaskList(tasks: _visible(list, now), now: now),
-                ],
-              );
-            },
+            child: const SkeletonRows(count: 4, rowHeight: 76),
           ),
         ],
+      ),
+      error: (error, stack) => _frame(
+        phase: 'error',
+        children: <Widget>[
+          TorchErrorRegion(
+            name: 'tasks',
+            child: ErrorState(
+              message: TorchErrorMessage.sanitise(error),
+              action: TorchSecondaryButton(
+                key: const ValueKey<String>('tasks-retry'),
+                label: 'Try again',
+                onPressed: _refresh,
+              ),
+            ),
+          ),
+        ],
+      ),
+      data: (data) => _loaded(
+        TasksView.resolve(
+          data.entries,
+          widget.clock(),
+          nextCursor: data.nextCursor,
+          total: data.total,
+          owners: <String, String>{
+            for (final user in ref.watch(userDirectoryProvider).values)
+              user.id: user.label,
+          },
+        ),
       ),
     );
   }
 
-  List<TaskItem> _visible(List<TaskItem> all, DateTime now) {
-    final filtered = all.where((t) {
-      final open = t.status != 'closed';
-      return switch (_filter) {
-        _Filter.open => open,
-        _Filter.overdue => open && t.slaDueAt.isBefore(now),
-        _Filter.done => !open,
-        _Filter.all => true,
-      };
-    }).toList();
-
-    const order = {'critical': 0, 'high': 1, 'normal': 2};
-    int rank(TaskItem t) =>
-        (t.status == 'closed' ? 10 : 0) + (order[t.priority] ?? 3);
-    filtered.sort((a, b) => rank(a).compareTo(rank(b)));
-    return filtered;
-  }
-}
-
-/// The sub-2 pill filter treatment, rendered via the shared [PillSegment]:
-/// active is solid brand under white, inactive a surface1 chip with a hairline,
-/// 11px w600, fully rounded. Labels carry the per-filter counts.
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({
-    required this.chips,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final List<({String label, _Filter value})> chips;
-  final _Filter selected;
-  final ValueChanged<_Filter> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final chip in chips)
-          PillSegment(
-            key: ValueKey('filter-${chip.value.name}'),
-            label: chip.label,
-            selected: chip.value == selected,
-            onTap: () => onChanged(chip.value),
-          ),
-      ],
+  Widget _frame({required String phase, required List<Widget> children}) {
+    return ConsoleFrame(
+      phase: phase,
+      active: ConsoleSlot.work,
+      header: TorchAppHeader(
+        title: 'Tasks',
+        facts: const <String>[
+          'Risks, stockouts and price deviations open a task automatically, '
+              'with a due date set by priority.',
+        ],
+        trailing: TorchIconButton(
+          key: const ValueKey<String>('tasks-refresh'),
+          icon: Icons.refresh,
+          semanticLabel: 'Refresh the tasks list',
+          onPressed: _refresh,
+        ),
+      ),
+      children: children,
     );
   }
-}
 
-class _TaskList extends StatelessWidget {
-  const _TaskList({required this.tasks, required this.now});
+  Widget _loaded(TasksView view) {
+    final visible = view.visible(_filter);
+    final gutter = context.skin.space.gutter;
+    final numbers = TiqNumber.of(context);
+    final footer = view.footer((n) => numbers.format(n));
 
-  final List<TaskItem> tasks;
-  final DateTime now;
+    return _frame(
+      phase: view.rows.isEmpty
+          ? 'empty'
+          : visible.isEmpty
+          ? 'filtered-empty'
+          : 'loaded',
+      children: <Widget>[
+        // THE LEAD INDICATOR. Overdue is the dominant figure because the SLA
+        // is the axis that costs something; open and awaiting-verification are
+        // its subordinates, not its peers.
+        _LeadIndicator(view: view),
+        const SizedBox(height: TiqSpace.s6),
 
-  @override
-  Widget build(BuildContext context) {
-    return PanelCard(
-      title: '${tasks.length} ${tasks.length == 1 ? 'task' : 'tasks'}',
-      subtitle: 'Sorted by priority, open first',
-      padded: false,
-      child: tasks.isEmpty
-          ? const EmptyState(
-              message: 'Nothing outstanding',
-              hint:
-                  'Tasks open automatically from risks, stockouts and price '
-                  'deviations on a submitted visit.',
-              illustration: BrandMedia.tasksAllClear,
-            )
-          : Column(
+        TorchBleed(
+          extra: gutter * 2,
+          child: _Filters(
+            filter: _filter,
+            view: view,
+            onChanged: (f) => setState(() => _filter = f),
+          ),
+        ),
+        const SizedBox(height: TiqSpace.s6),
+
+        SectionRule(
+          _sectionName(),
+          count: visible.isEmpty ? null : visible.length,
+        ),
+        const SizedBox(height: TiqSpace.s5),
+
+        if (view.rows.isEmpty)
+          const EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: 'Nothing outstanding.',
+            body:
+                'Tasks open automatically from risks, stockouts and price '
+                'deviations on a submitted visit.',
+          )
+        else if (visible.isEmpty)
+          EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: _filteredEmptyHeadline(),
+            body: 'Clear the filter to see the rest.',
+            action: TorchSecondaryButton(
+              key: const ValueKey<String>('clear-filters'),
+              label: 'Show all tasks',
+              onPressed: () => setState(() => _filter = TaskFilter.all),
+            ),
+          )
+        else
+          TorchBleed(
+            extra: gutter * 2,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < tasks.length; i++)
-                  WorklistCascade(
-                    index: i,
-                    child: _TaskRow(task: tasks[i], now: now),
+              children: <Widget>[
+                for (var i = 0; i < visible.length; i++)
+                  _TaskRowTile(
+                    key: ValueKey<String>('task-row-${visible[i].id}'),
+                    task: visible[i],
+                    last: i == visible.length - 1,
+                    onChanged: _refresh,
                   ),
               ],
             ),
-    );
-  }
-}
-
-class _TaskRow extends ConsumerWidget {
-  const _TaskRow({required this.task, required this.now});
-
-  final TaskItem task;
-
-  /// The screen's clock, taken once per build — see [TasksScreen.clock].
-  final DateTime now;
-
-  /// Closing a task means producing evidence it was actually fixed. The photo is
-  /// the evidence, so the capture is the gate: no photo, no closure. (Until #41
-  /// this uploaded a 1×1 transparent placeholder, which meant "photo-verified
-  /// closure" verified nothing.)
-  ///
-  /// The photo is geotagged at the shutter (#317), so the closure evidence
-  /// also says where the fix was photographed. Its `timestamp` is the capture
-  /// time, in UTC — the same contract as the audit sections (#310). The fraud
-  /// engine does not place a closure photo against its visit's outlet
-  /// (`isTaskClosurePhoto`), so a closure taken away from the outlet, days
-  /// later, flags nobody. No fix means an empty tag and the closure goes ahead.
-  Future<void> _close(BuildContext context, WidgetRef ref) async {
-    final photo = await showDialog<CapturedPhoto>(
-      context: context,
-      builder: (_) => _ClosurePhotoDialog(task: task),
-    );
-    if (photo == null) return;
-
-    final result = await ref
-        .read(photosRepositoryProvider)
-        .uploadPhoto(
-          visitId: task.visitId!,
-          section: 'task_closure',
-          dataUrl: photo.dataUrl,
-          gpsTag: photo.gpsTag,
-          timestamp: photo.capturedAt.toUtc().toIso8601String(),
-        );
-    await ref
-        .read(tasksAdminRepositoryProvider)
-        .closeTask(id: task.id, closurePhotoUrl: result.url);
-    ref.invalidate(tasksListProvider);
-  }
-
-  Future<void> _verify(WidgetRef ref) async {
-    await ref.read(tasksAdminRepositoryProvider).verifyTask(task.id);
-    ref.invalidate(tasksListProvider);
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isClosed = task.status == 'closed';
-    final level = switch (task.priority) {
-      'critical' => StatusLevel.critical,
-      'high' => StatusLevel.warning,
-      _ => StatusLevel.neutral,
-    };
-
-    return WorklistRow(
-      key: ValueKey('task-${task.id}'),
-      title: task.findingType,
-      // The thumbnail IS the evidence — a task without a photo shows no
-      // thumb and no placeholder. evidencePhotoId implies a linked visit,
-      // but the guard keeps a malformed row honest rather than crashing.
-      thumb: task.evidencePhotoId != null && task.visitId != null
-          ? EvidenceThumb(
-              photoId: task.evidencePhotoId!,
-              visitId: task.visitId!,
-            )
-          : null,
-      meta: Row(
-        children: [
-          SlaPill(task.slaDueAt, done: isClosed, now: now),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(task.requiredFix, overflow: TextOverflow.ellipsis),
           ),
-          if (task.closureVerified) ...[
-            const SizedBox(width: 8),
-            // colorOf is the plain `good` in dark and the status INK in glass
-            // — the handoff's ink is the one that reads as words on glass.
-            Icon(
-              Icons.verified_outlined,
-              size: 12,
-              color: StatusLevel.good.colorOf(context.colors),
+
+        // Only where the list was cut, and without an offer to narrow: the
+        // state filter is client-side over this page and cannot reach the
+        // rest.
+        if (footer != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s6),
+          TorchBleed(
+            extra: gutter * 2,
+            child: PaginationFooter(
+              key: const ValueKey<String>('tasks-footer'),
+              summary: footer.summary,
+              narrowLine: footer.scope,
             ),
-            const SizedBox(width: 3),
-            Text(
-              'Verified',
-              style: TextStyle(
-                fontSize: 11,
-                color: StatusLevel.good.colorOf(context.colors),
-              ),
-            ),
-          ],
+          ),
         ],
-      ),
-      level: isClosed ? StatusLevel.good : level,
-      statusLabel: isClosed ? 'Closed' : task.priority,
-      resolved: isClosed && task.closureVerified,
-      actions: [
-        // Closure requires a photo — the backend enforces it, so the button
-        // says so rather than failing after the fact.
-        if (!isClosed && task.visitId != null)
-          RowAction(
-            key: ValueKey('close-${task.id}'),
-            label: 'Close with photo',
-            onPressed: () => _close(context, ref),
-          ),
-        if (isClosed && !task.closureVerified)
-          RowAction(
-            key: ValueKey('verify-${task.id}'),
-            label: 'Verify',
-            onPressed: () => _verify(ref),
-          ),
       ],
     );
   }
+
+  String _sectionName() => switch (_filter) {
+    TaskFilter.open => 'Open',
+    TaskFilter.overdue => 'Overdue',
+    TaskFilter.done => 'Done',
+    TaskFilter.all => 'All tasks',
+  };
+
+  String _filteredEmptyHeadline() => switch (_filter) {
+    TaskFilter.open => 'Nothing outstanding.',
+    TaskFilter.overdue => 'Nothing is overdue.',
+    TaskFilter.done => 'Nothing closed yet.',
+    TaskFilter.all => 'Nothing outstanding.',
+  };
 }
 
-/// The closure gate. Returns the geotagged [CapturedPhoto], or null if the
-/// manager backs out — in which case the task stays open, which is the correct
-/// outcome.
-class _ClosurePhotoDialog extends StatefulWidget {
-  const _ClosurePhotoDialog({required this.task});
+/// Overdue, as the one figure that costs something.
+///
+/// Three channels: the crimson `bad` outline, the filled triangle beside it,
+/// and the word in the eyebrow. Never amber.
+class _LeadIndicator extends StatelessWidget {
+  const _LeadIndicator({required this.view});
 
-  final TaskItem task;
-
-  @override
-  State<_ClosurePhotoDialog> createState() => _ClosurePhotoDialogState();
-}
-
-class _ClosurePhotoDialogState extends State<_ClosurePhotoDialog> {
-  CapturedPhoto? _photo;
+  final TasksView view;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return AlertDialog(
-      backgroundColor: colors.surface1,
-      title: const Text('Close with photo', style: TextStyle(fontSize: 15)),
-      content: SizedBox(
-        width: 360,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.task.requiredFix,
-              style: TextStyle(fontSize: 12.5, color: colors.ink2),
-            ),
-            const SizedBox(height: 14),
-            PhotoCaptureField(
-              label: 'Closure evidence',
-              helperText:
-                  'The photo is what makes the closure verifiable — a manager '
-                  'has to be able to see the fix, not take your word for it.',
-              geotag: true,
-              onPhotoCaptured: (photo) => setState(() => _photo = photo),
-            ),
-          ],
+    final overdue = view.overdue;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(top: TiqSpace.s5),
+          child: SeverityMark(
+            kind: overdue > 0
+                ? SeverityMarkKind.critical
+                : SeverityMarkKind.onTarget,
+          ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          key: const ValueKey('confirm-closure'),
-          // No photo, no closure. Disabled rather than hidden, so the reason the
-          // button will not fire is visible.
-          onPressed: _photo == null
-              ? null
-              : () => Navigator.of(context).pop(_photo),
-          child: const Text('Close task'),
+        const SizedBox(width: TiqSpace.s3),
+        Expanded(
+          child: StatTile(
+            eyebrow: 'Overdue',
+            // A measured zero renders 0 and keeps its place: nothing overdue
+            // is a fact worth reading, not an absence.
+            value: overdue,
+            lead: true,
+            severity: overdue > 0 ? SeverityMarkKind.critical : null,
+            subordinates:
+                '${view.open} open · ${view.awaitingVerification} awaiting '
+                'verification',
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _Filters extends StatelessWidget {
+  const _Filters({
+    required this.filter,
+    required this.view,
+    required this.onChanged,
+  });
+
+  final TaskFilter filter;
+  final TasksView view;
+  final ValueChanged<TaskFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TorchFilterRail(
+      semanticsLabel: 'Filters',
+      chips: <Widget>[
+        TorchFilterChip(
+          key: const ValueKey<String>('filter-open'),
+          label: 'Open',
+          count: view.open,
+          selected: filter == TaskFilter.open,
+          onSelected: () => onChanged(TaskFilter.open),
+        ),
+        TorchFilterChip(
+          key: const ValueKey<String>('filter-overdue'),
+          label: 'Overdue',
+          count: view.overdue,
+          selected: filter == TaskFilter.overdue,
+          onSelected: () => onChanged(TaskFilter.overdue),
+        ),
+        TorchFilterChip(
+          key: const ValueKey<String>('filter-done'),
+          label: 'Done',
+          count: view.closed,
+          selected: filter == TaskFilter.done,
+          onSelected: () => onChanged(TaskFilter.done),
+        ),
+        TorchFilterChip(
+          key: const ValueKey<String>('filter-all'),
+          label: 'All',
+          count: view.rows.length,
+          selected: filter == TaskFilter.all,
+          onSelected: () => onChanged(TaskFilter.all),
+        ),
+      ],
+    );
+  }
+}
+
+/// One task, as a row.
+///
+/// The SLA is a phrase in the reason line, behind its own mark — "Overdue by
+/// 2 days · replace the shelf talker" — rather than a pill. A pill is a badge
+/// somebody decodes; a sentence is read.
+class _TaskRowTile extends ConsumerStatefulWidget {
+  const _TaskRowTile({
+    super.key,
+    required this.task,
+    required this.last,
+    required this.onChanged,
+  });
+
+  final TaskRow task;
+  final bool last;
+  final VoidCallback onChanged;
+
+  @override
+  ConsumerState<_TaskRowTile> createState() => _TaskRowTileState();
+}
+
+class _TaskRowTileState extends ConsumerState<_TaskRowTile> {
+  /// True from the tap until the closure or the verification resolves. One
+  /// tap, one receipt, one outcome.
+  bool _busy = false;
+
+  /// Closing a task means producing evidence it was actually fixed. The photo
+  /// is the evidence, so the capture is the gate: no photo, no closure.
+  ///
+  /// The photo is geotagged at the shutter (#317), so the closure evidence
+  /// also says where the fix was photographed, and its `timestamp` is the
+  /// capture time in UTC — the same contract as the audit sections (#310).
+  /// The fraud engine does not place a closure photo against its visit's
+  /// outlet (`isTaskClosurePhoto`), so a closure taken away from the outlet,
+  /// days later, flags nobody. No fix means an empty tag and the closure goes
+  /// ahead.
+  Future<void> _close() async {
+    if (_busy) return;
+    final photo = await showCloseWithPhotoSheet(context, task: widget.task);
+    // Backing out leaves the task open, which is the correct outcome.
+    if (photo == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final result = await ref
+          .read(photosRepositoryProvider)
+          .uploadPhoto(
+            visitId: widget.task.visitId!,
+            section: 'task_closure',
+            dataUrl: photo.dataUrl,
+            gpsTag: photo.gpsTag,
+            timestamp: photo.capturedAt.toUtc().toIso8601String(),
+          );
+      await ref
+          .read(tasksAdminRepositoryProvider)
+          .closeTask(id: widget.task.id, closurePhotoUrl: result.url);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      widget.onChanged();
+      showTorchToast(
+        context,
+        message: 'Closed · ${widget.task.title}',
+        kind: ToastKind.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      // The task stays open and the failure is named. A closure that silently
+      // did not happen is the worklist lying.
+      setState(() => _busy = false);
+      showTorchToast(
+        context,
+        message: 'That task was not closed. It is still open.',
+        kind: ToastKind.failure,
+        action: TorchTertiaryButton(label: 'Try again', onPressed: _close),
+      );
+    }
+  }
+
+  Future<void> _verify() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(tasksAdminRepositoryProvider).verifyTask(widget.task.id);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      widget.onChanged();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      showTorchToast(
+        context,
+        message: 'That closure was not verified.',
+        kind: ToastKind.failure,
+        action: TorchTertiaryButton(label: 'Try again', onPressed: _verify),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final task = widget.task;
+    final markKind = switch (task.slaState) {
+      TaskSlaState.overdue => SeverityMarkKind.critical,
+      TaskSlaState.dueSoon => SeverityMarkKind.watch,
+      TaskSlaState.closed || TaskSlaState.verified => SeverityMarkKind.onTarget,
+      TaskSlaState.open => null,
+    };
+    final phraseInk = switch (task.slaState) {
+      TaskSlaState.overdue => skin.palette.badSolid,
+      TaskSlaState.dueSoon => skin.palette.bad,
+      _ => skin.palette.ink2,
+    };
+
+    return SoftRow(
+      key: ValueKey<String>('task-${task.id}'),
+      density: SoftRowDensity.tall,
+      title: task.title,
+      subtitle: task.outletName,
+      severity: task.severity,
+      severityLabel: task.severity == SoftRowSeverity.none
+          ? null
+          : task.severityLabel,
+      // The thumbnail IS the evidence — a task with no photo shows no thumb
+      // and no placeholder.
+      trailing: task.evidencePhotoId != null && task.visitId != null
+          ? TorchEvidenceThumb(
+              photoId: task.evidencePhotoId!,
+              semanticLabel:
+                  'Shelf photograph from ${task.outletName} for ${task.title}',
+            )
+          : null,
+      meta: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // The SLA, in words, behind its own silhouette — never a hue alone.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (markKind != null) ...<Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: SeverityMark(kind: markKind),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Text(
+                  '${task.slaPhrase} · ${task.requiredFix}',
+                  style: skin.text.meta.style(color: phraseInk),
+                ),
+              ),
+            ],
+          ),
+          // Who owns the fix, by name. An owner the roster cannot name is
+          // left out rather than printed as an id (#399/#400).
+          if (task.owner != null)
+            Text(
+              'Assigned to ${task.owner}',
+              key: ValueKey<String>('owner-${task.id}'),
+              style: skin.text.meta.style(color: skin.palette.ink2),
+            ),
+          Wrap(
+            spacing: TiqSpace.s4,
+            children: <Widget>[
+              // Closure uploads the photo against the visit, so a task with no
+              // visit gets no closure action at all — not a disabled one that
+              // would fail afterwards.
+              if (!task.isClosed && task.visitId != null)
+                TorchTertiaryButton(
+                  key: ValueKey<String>('close-${task.id}'),
+                  label: 'Close with photo',
+                  busy: _busy,
+                  onPressed: _close,
+                ),
+              if (task.slaState == TaskSlaState.closed)
+                TorchTertiaryButton(
+                  key: ValueKey<String>('verify-${task.id}'),
+                  label: 'Verify',
+                  busy: _busy,
+                  onPressed: _verify,
+                ),
+            ],
+          ),
+        ],
+      ),
+      separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: <String>[
+        if (task.severity != SoftRowSeverity.none) task.severityLabel,
+        task.slaPhrase,
+        task.title,
+        task.requiredFix,
+        task.outletName,
+        if (task.owner != null) 'Assigned to ${task.owner}',
+      ].join('. '),
     );
   }
 }

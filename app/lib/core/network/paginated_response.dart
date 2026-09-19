@@ -5,10 +5,20 @@
 /// `{ "data": [...], "nextCursor": "<id>" | null }` — see
 /// `docs/superpowers/specs/2026-07-23-list-pagination-design.md`.
 class PaginatedResponse<T> {
-  const PaginatedResponse({required this.data, required this.nextCursor});
+  const PaginatedResponse({
+    required this.data,
+    required this.nextCursor,
+    this.total,
+  });
 
   final List<T> data;
   final String? nextCursor;
+
+  /// Every row the request's filters match, ignoring the cursor — or null
+  /// where the endpoint does not count (most do not). A cut list with a total
+  /// can say "the 50 newest of 74"; without one it can only say there are
+  /// more, and must never invent the number.
+  final int? total;
 
   /// [parse] converts one raw JSON element into a `T`.
   factory PaginatedResponse.fromJson(
@@ -19,6 +29,7 @@ class PaginatedResponse<T> {
     return PaginatedResponse(
       data: raw.map(parse).toList(),
       nextCursor: json['nextCursor'] as String?,
+      total: (json['total'] as num?)?.toInt(),
     );
   }
 }

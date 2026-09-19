@@ -424,6 +424,23 @@ describe('tasks routes', () => {
       expect(res.body.nextCursor).not.toBeNull();
     });
 
+    it('says how many tasks the filter matches, not how many are on the page', async () => {
+      const cut = await request(app)
+        .get('/tasks')
+        .query({ outletId: pagedOutletId, limit: 5 })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(cut.status).toBe(200);
+      expect(cut.body.data).toHaveLength(5);
+      expect(cut.body.total).toBe(PAGE_SEED_COUNT);
+
+      const whole = await request(app)
+        .get('/tasks')
+        .query({ outletId: pagedOutletId })
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect(whole.body.nextCursor).toBeNull();
+      expect(whole.body.total).toBe(PAGE_SEED_COUNT);
+    });
+
     it.each([['0'], ['abc'], ['-1']])('rejects ?limit=%s with 400', async (limit) => {
       const res = await request(app)
         .get('/tasks')
