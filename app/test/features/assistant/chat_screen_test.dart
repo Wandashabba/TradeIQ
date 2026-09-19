@@ -329,6 +329,74 @@ void main() {
     });
   });
 
+  group('a long question', () {
+    testWidgets('clamps, offers the whole of itself, and copies on hold', (
+      tester,
+    ) async {
+      final copied = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add(
+              (call.arguments as Map<Object?, Object?>)['text']! as String,
+            );
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      final question =
+          'Which outlets in Soweto ran out of the 500ml line last week, '
+          'and how does that compare with the same week last month, and '
+          'which agents visited them, and what did they report about the '
+          'shelf, and was there a promotion running at the time? ' * 2;
+      await pumpAsk(tester, repository: ScriptedRepository(tilesTurn()));
+      await ask(tester, question);
+
+      final bubble = tester.widget<Text>(
+        find
+            .descendant(of: find.byType(QuestionBubble), matching: find.byType(Text))
+            .first,
+      );
+      // Six lines, then a way to the rest — never a fade over the text.
+      expect(bubble.maxLines, QuestionBubble.clampLines);
+      final showAll = find.text('Show the full question');
+      expect(showAll, findsOneWidget);
+
+      await tester.ensureVisible(showAll);
+      await tester.tap(showAll);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(
+              find
+                  .descendant(
+                    of: find.byType(QuestionBubble),
+                    matching: find.byType(Text),
+                  )
+                  .first,
+            )
+            .maxLines,
+        isNull,
+      );
+
+      // And the full string is never only on screen: a hold copies it.
+      await tester.longPress(find.byType(QuestionBubble));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(copied.single, question.trim());
+      await tester.pump(const Duration(seconds: 4));
+      await disposeAsk(tester);
+    });
+  });
+
   group('the answer actions row', () {
     testWidgets('a settled answer can be copied and asked again', (
       tester,
