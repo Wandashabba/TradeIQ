@@ -82,15 +82,16 @@ export interface ListTasksInput {
 }
 
 export async function listTasks(input: ListTasksInput) {
+  const where = {
+    // Tasks carry no clientId of their own — tenant scope goes through the
+    // outlet relation.
+    outlet: { clientId: input.clientId },
+    ...(input.status ? { status: input.status } : {}),
+    ...(input.priority ? { priority: input.priority } : {}),
+    ...(input.outletId ? { outletId: input.outletId } : {}),
+  };
   const rows = await prisma.task.findMany({
-    where: {
-      // Tasks carry no clientId of their own — tenant scope goes through the
-      // outlet relation.
-      outlet: { clientId: input.clientId },
-      ...(input.status ? { status: input.status } : {}),
-      ...(input.priority ? { priority: input.priority } : {}),
-      ...(input.outletId ? { outletId: input.outletId } : {}),
-    },
+    where,
     // `id` is the unique tiebreaker that makes the cursor deterministic when
     // two tasks share a slaDueAt — same reasoning as alerts.service.ts.
     //
@@ -101,10 +102,16 @@ export async function listTasks(input: ListTasksInput) {
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
   });
   const page = buildPage(rows, input.limit);
+  // `total` is every task the filter matches, ignoring the cursor — see
+  // listAlerts. Counted only when the page was cut.
+  const total =
+    page.nextCursor === null && !input.cursor
+      ? page.data.length
+      : await prisma.task.count({ where });
   // evidencePhotoId (newest photo of the linked visit) — one batched query,
   // AFTER buildPage so the dropped probe row costs nothing and the cursor
   // (last kept row's id) is untouched.
-  return { data: await attachEvidencePhotoIds(page.data), nextCursor: page.nextCursor };
+  return { data: await attachEvidencePhotoIds(page.data), nextCursor: page.nextCursor, total };
 }
 
 export async function findTaskForClient(taskId: string, clientId: string) {
