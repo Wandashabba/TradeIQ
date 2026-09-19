@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/design/torch_scope.dart';
+import 'package:tradeiq_app/core/location/location_sharing.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
@@ -72,6 +73,31 @@ final _signedOut = _status(<SyncItem>[
 
 final _allSent = _status(<SyncItem>[_item(3, 'visit', synced: true)]);
 
+/// A field agent whose location answer is [consent] (null: not yet asked).
+class _Location extends LocationSharingController {
+  _Location(this.consent);
+
+  final LocationConsent? consent;
+
+  @override
+  LocationSharingState build() => LocationSharingState(
+    isAgent: true,
+    settings: LocationSettings(
+      intervalSeconds: 120,
+      noticeVersion: 'v1',
+    ).withDecision(
+      consent == null
+          ? null
+          : LocationDecision(
+              consent: consent!,
+              noticeVersion: 'v1',
+              decidedAt: DateTime(2026, 9, 15),
+            ),
+    ),
+    running: consent == LocationConsent.acknowledged,
+  );
+}
+
 class _Syncing extends SyncingNotifier {
   @override
   bool build() => true;
@@ -95,6 +121,7 @@ Future<_Calls> _pump(
   Locale locale = const Locale('en'),
   bool sending = false,
   int dependents = 0,
+  _Location? location,
 }) async {
   final calls = _Calls()..dependents = dependents;
   final db = agentTestDb();
@@ -120,6 +147,8 @@ Future<_Calls> _pump(
         runningContestsCountProvider.overrideWith((ref) async => 0),
       ],
       if (sending) syncingProvider.overrideWith(_Syncing.new),
+      if (location != null)
+        locationSharingControllerProvider.overrideWith(() => location),
       syncNowProvider.overrideWithValue(() async => calls.syncNow++),
       sendOneProvider.overrideWithValue((id) async => calls.sentOne.add(id)),
       discardCaptureProvider.overrideWithValue(
@@ -550,6 +579,42 @@ void main() {
       tester.widget<TorchNavPill>(find.byType(TorchNavPill)).onSelect(0);
       await tester.pumpAndSettle();
       expect(find.text('Today view'), findsOneWidget);
+    });
+  });
+
+  group('location sharing has an answer here too (#153, POPIA)', () {
+    // The legacy scaffold carried these banners and the controllers behind
+    // them only start when something watches them. A tab root without them
+    // drops the notice, the indicator and the pings.
+    testWidgets('sharing on: the standing indicator', (tester) async {
+      await _pump(
+        tester,
+        sync: _held,
+        location: _Location(LocationConsent.acknowledged),
+      );
+      expect(
+        find.byKey(const ValueKey<String>('location-sharing-indicator')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('not asked yet: the notice, whose yes never lights here', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _held, location: _Location(null));
+      expect(
+        find.byKey(const ValueKey<String>('location-notice')),
+        findsOneWidget,
+      );
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'The route does not declare the consent claim, so its yes takes '
+            'the ink form and Night keeps only the nav tab.\n\n'
+            '${census.describe()}',
+      );
     });
   });
 

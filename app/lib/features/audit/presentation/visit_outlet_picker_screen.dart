@@ -16,6 +16,7 @@ import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
 import '../../../core/widgets/torchlight/sync_status.dart';
+import '../../../core/widgets/agent_location_banners.dart';
 import '../../../l10n/l10n.dart';
 import '../../outlets/data/outlets_repository.dart';
 
@@ -196,6 +197,9 @@ class _PickerFrame extends ConsumerWidget {
           // otherwise. Held work stays a chip in the header — a permanent
           // 56dp band on every screen spends the fold.
           const TorchSyncBanner(),
+          // Whether the agent is being located has an answer on every agent
+          // screen (#153, POPIA) — see AgentLocationBanners.
+          const AgentLocationBanners(),
           ...children,
         ],
       ),

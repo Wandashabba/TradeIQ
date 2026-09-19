@@ -16,6 +16,7 @@ import '../../../core/widgets/torchlight/row/row.dart';
 import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/state.dart';
+import '../../../core/widgets/agent_location_banners.dart';
 import '../../../l10n/l10n.dart';
 import '../../beatplans/presentation/today_screen.dart' show TodayFrame;
 import '../../contests/data/contests_repository.dart';
@@ -184,7 +185,9 @@ class _MyWorkFrame extends ConsumerWidget {
           expectedSemanticLabel: l10n.todayVisitAnotherStore,
           onPressed: () => context.go('/audit'),
         ),
-        children: children,
+        // Whether the agent is being located has an answer on every agent
+        // screen (#153, POPIA) — see AgentLocationBanners.
+        children: <Widget>[const AgentLocationBanners(), ...children],
       ),
     );
   }

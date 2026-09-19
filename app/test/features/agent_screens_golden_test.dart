@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
+import 'package:tradeiq_app/core/network/paginated_response.dart';
+import 'package:tradeiq_app/core/sync/sync_status.dart';
+import 'package:tradeiq_app/features/audit/presentation/my_work_screen.dart';
+import 'package:tradeiq_app/features/audit/presentation/visit_outlet_picker_screen.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -50,6 +54,55 @@ final _route = TodayRoute(
     ),
   ],
 );
+
+/// One stuck capture beside a held one: the state where "Send now" is armed.
+SyncStatus _stuckQueue() {
+  final held = SyncItem(
+    id: 1,
+    entityType: 'stock',
+    queuedAt: DateTime(2026, 9, 18, 7, 58),
+    synced: false,
+    attempts: 0,
+    payloadBytes: 300 * 1024,
+  );
+  final stuck = SyncItem(
+    id: 2,
+    entityType: 'photo',
+    queuedAt: DateTime(2026, 9, 18, 8, 4),
+    synced: false,
+    attempts: 3,
+    lastError: 'sync:rejected:422',
+    lastAttemptAt: DateTime(2026, 9, 18, 14, 20),
+    payloadBytes: 1468006,
+  );
+  return SyncStatus(
+    pending: <SyncItem>[stuck, held],
+    sent: const <SyncItem>[],
+    needsAttention: <SyncItem>[stuck],
+  );
+}
+
+class _TwoStores implements OutletsRepository {
+  @override
+  Future<PaginatedResponse<Outlet>> listOutlets({
+    bool mine = false,
+    int? limit,
+    String? cursor,
+  }) async => const PaginatedResponse<Outlet>(
+    data: <Outlet>[_khumalo, _sunrise],
+    nextCursor: null,
+  );
+
+  @override
+  Future<Outlet> createOutlet({
+    required String name,
+    required String code,
+    required String channelType,
+    required double lat,
+    required double lng,
+    required String territoryId,
+  }) => throw UnimplementedError();
+}
 
 void main() {
   group('Today', () {
@@ -122,6 +175,53 @@ void main() {
           skin: agentSkinFor(mode),
         );
         expectAgentGolden(lines, 'check_in_too_far_${mode.name}');
+      });
+    }
+  });
+
+  group('My work', () {
+    for (final mode in agentSkinModes) {
+      testWidgets('${mode.name} holds its declared shape when stuck', (
+        tester,
+      ) async {
+        await pumpAgentScreen(
+          tester,
+          const MyWorkScreen(),
+          path: '/my-work',
+          overrides: <Override>[
+            ...agentBaseOverrides(
+              db: agentTestDb(),
+              skin: mode,
+              sync: _stuckQueue(),
+            ),
+          ],
+        );
+        final lines = await measureAgentFrame(
+          tester,
+          skin: agentSkinFor(mode),
+        );
+        expectAgentGolden(lines, 'my_work_stuck_${mode.name}');
+      });
+    }
+  });
+
+  group('the store picker', () {
+    for (final mode in agentSkinModes) {
+      testWidgets('${mode.name} holds its declared shape', (tester) async {
+        await pumpAgentScreen(
+          tester,
+          const VisitOutletPickerScreen(),
+          path: '/audit',
+          overrides: <Override>[
+            ...agentBaseOverrides(db: agentTestDb(), skin: mode),
+            outletsRepositoryProvider.overrideWithValue(_TwoStores()),
+          ],
+        );
+        final lines = await measureAgentFrame(
+          tester,
+          skin: agentSkinFor(mode),
+        );
+        expectAgentGolden(lines, 'store_picker_${mode.name}');
       });
     }
   });

@@ -10,6 +10,7 @@ import '../../../core/design/torch_scope.dart';
 import '../../../core/network/human_error.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/agent_location_banners.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
 import '../../../core/widgets/agent_scaffold.dart';
@@ -587,7 +588,9 @@ class VisitFrame extends StatelessWidget {
         skinCycle: const AgentSkinCycle(),
         primary: submit,
         secondary: secondary,
-        children: children,
+        // Whether the agent is being located has an answer on every agent
+        // screen (#153, POPIA) — see AgentLocationBanners.
+        children: <Widget>[const AgentLocationBanners(), ...children],
       ),
     );
   }

@@ -44,7 +44,12 @@ import 'torchlight/sheet.dart';
 /// of text are the panel material, the buttons are the button family, and the
 /// stop confirmation is a [ConfirmSheet]: unify §1.7 deleted the dialog.
 class BackgroundLocationBanner extends ConsumerWidget {
-  const BackgroundLocationBanner({super.key});
+  const BackgroundLocationBanner({super.key, this.inset = true});
+
+  /// Whether the banner brings its own side gutter. The legacy scaffold puts
+  /// it above a body with no padding, so it does; a Torchlight shell's
+  /// children are already inside the gutter, so there it must not.
+  final bool inset;
 
   /// The notice's yes, and the permission prompt's "Open settings". Only one
   /// of the two is ever on screen.
@@ -135,9 +140,9 @@ class BackgroundLocationBanner extends ConsumerWidget {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        skin.space.gutter,
+        inset ? skin.space.gutter : 0,
         TiqSpace.s3,
-        skin.space.gutter,
+        inset ? skin.space.gutter : 0,
         0,
       ),
       child: child,
@@ -309,7 +314,9 @@ class _PermissionPrompt extends StatelessWidget {
           ),
           const SizedBox(height: TiqSpace.s2),
           TorchTertiaryButton(
-            key: const ValueKey<String>('background-location-permission-not-now'),
+            key: const ValueKey<String>(
+              'background-location-permission-not-now',
+            ),
             label: l10n.backgroundLocationPermissionNotNow,
             onPressed: onNotNow,
           ),

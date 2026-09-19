@@ -43,7 +43,12 @@ import 'torchlight/sheet.dart';
 /// still appears on there is no scope to ask, so it renders its ink form — it
 /// can never light itself on a screen that did not count it.
 class LocationSharingBanner extends ConsumerWidget {
-  const LocationSharingBanner({super.key});
+  const LocationSharingBanner({super.key, this.inset = true});
+
+  /// Whether the banner brings its own side gutter. The legacy scaffold puts
+  /// it above a body with no padding, so it does; a Torchlight shell's
+  /// children are already inside the gutter, so there it must not.
+  final bool inset;
 
   /// The notice's "I understand, share my location".
   static const String consentClaimId = 'location-consent';
@@ -99,9 +104,9 @@ class LocationSharingBanner extends ConsumerWidget {
     }
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        skin.space.gutter,
+        inset ? skin.space.gutter : 0,
         TiqSpace.s3,
-        skin.space.gutter,
+        inset ? skin.space.gutter : 0,
         0,
       ),
       child: child,
