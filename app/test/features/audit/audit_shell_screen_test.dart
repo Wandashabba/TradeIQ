@@ -507,6 +507,68 @@ void main() {
         );
         expect(census.objectCount, 1, reason: census.describe());
       });
+
+      // The other three check-in phases each declare exactly one claim — the
+      // radar's live pulse, then the retry — and a phase that declares one and
+      // is never counted is a phase the law is not enforced on.
+      testWidgets('locating at rest emits nothing — ${skin.name}', (
+        tester,
+      ) async {
+        // The check-in never answers, so the screen stays on the radar. Its
+        // pulse is presence, never progress, and it is the agent surface's
+        // only `livePulse` claimant.
+        await pumpVisit(
+          tester,
+          visits: ScriptedVisits.pending(),
+          skin: skin,
+          settle: false,
+        );
+        await tester.pump();
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(skin),
+          route: 'check-in / locating',
+          phase: 'locating',
+        );
+        // ZERO, in all three — and that is the design, not a gap. This
+        // harness pins `disableAnimations`, which is also the frame a
+        // reduce-motion reader meets, and reduce-motion removes the rings
+        // entirely: a static pin and the headline carry the whole message.
+        // The rings ARE the object, so with them gone there is nothing lit.
+        //
+        // Night's moving leading ring is therefore the one amber on the agent
+        // surface a pixel census cannot see. Its claim is asserted instead,
+        // below — and a census that pumped mid-animation would be asserting a
+        // frame that depends on which millisecond it sampled.
+        expect(census.objectCount, 0, reason: census.describe());
+      });
+
+      testWidgets('no GPS is exactly one — ${skin.name}', (tester) async {
+        await pumpVisit(tester, visits: ScriptedVisits.noGps(), skin: skin);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(skin),
+          route: 'check-in / no GPS',
+          phase: 'no-gps',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
+
+      testWidgets('a failed check-in is exactly one — ${skin.name}', (
+        tester,
+      ) async {
+        await pumpVisit(tester, visits: ScriptedVisits.throwing(), skin: skin);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(skin),
+          route: 'check-in / something else',
+          phase: 'check-in-failed',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
     }
 
     testWidgets('an untabbed route still spends at most its two', (
@@ -579,6 +641,29 @@ void main() {
         tester.element(find.byType(TorchShell)),
       );
       expect(scope!.allocation.isLit(AuditShellScreen.submitClaimId), isTrue);
+    });
+
+    testWidgets('locating declares the live pulse, and gets it', (
+      tester,
+    ) async {
+      // The one amber on this surface a pixel census cannot see: the ring is
+      // painted only while it moves, and this harness renders resting frames.
+      // The allocator is where it can still be held to account.
+      await pumpVisit(tester, visits: ScriptedVisits.pending(), settle: false);
+      await tester.pump();
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byType(TorchShell)),
+      );
+      expect(
+        scope!.allocation.isLit(AuditShellScreen.locatingClaimId),
+        isTrue,
+      );
+      // And nothing else asks: there is no primary while waiting, and the
+      // zone does not pretend there is.
+      expect(
+        scope.allocation.isLit(AuditShellScreen.retryClaimId),
+        isFalse,
+      );
     });
   });
 }
