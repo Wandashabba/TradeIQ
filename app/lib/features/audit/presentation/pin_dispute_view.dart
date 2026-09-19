@@ -285,7 +285,7 @@ List<Widget> overrideFlagChips(BuildContext context, CheckInOverridden result) {
     context,
     builder: (sheetContext) => TorchSheet(
       title: sheetContext.l10n.visitFlagSheetTitle,
-      closeLabel: sheetContext.l10n.visitFlagSheetClose,
+      closeLabel: sheetContext.l10n.sheetClose,
       child: Text(
         sheetContext.l10n.visitFlagSheetBody(metres),
         key: const ValueKey<String>('visit-flag-sheet-body'),

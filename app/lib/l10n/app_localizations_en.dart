@@ -1887,6 +1887,120 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get mapTitle => 'Map';
+
+  @override
+  String mapStoresFact(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stores',
+      one: '1 store',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get mapRouteHeading => 'Today’s route';
+
+  @override
+  String get mapRouteEmptyLine => 'No route planned for today.';
+
+  @override
+  String get mapPatchHeading => 'The rest of your patch';
+
+  @override
+  String get mapStateDone => 'Visited today';
+
+  @override
+  String get mapStateNext => 'Next up';
+
+  @override
+  String get mapStatePlanned => 'On today’s route';
+
+  @override
+  String get mapStateTerritory => 'In your patch';
+
+  @override
+  String get mapStateDisputed => 'Pin under review';
+
+  @override
+  String get mapDisputedLine =>
+      'Someone has reported this pin as wrong, so the position on the map may not be the shop.';
+
+  @override
+  String get mapYouAreHere => 'You are here';
+
+  @override
+  String get mapLocationDenied =>
+      'Location is off for this app, so there are no distances and no dot for where you are. The stores are still right.';
+
+  @override
+  String get mapLocationServicesOff =>
+      'Location is switched off on this phone, so there are no distances and no dot for where you are. The stores are still right.';
+
+  @override
+  String get mapLocationNoFix =>
+      'This phone cannot get a fix yet, so there are no distances and no dot for where you are. The stores are still right.';
+
+  @override
+  String get mapTilesOffTitle => 'No map here';
+
+  @override
+  String get mapTilesOffBody =>
+      'The map will not load — there is nothing to fetch it with. Your stores are listed below, and the list needs no connection.';
+
+  @override
+  String get mapVeldNote =>
+      'The map is off in bright sun. Your stores are listed below, nearest first.';
+
+  @override
+  String get mapEmptyTitle => 'No stores yet';
+
+  @override
+  String get mapEmptyBody =>
+      'There is no route for today and no store in your patch. A manager assigns both.';
+
+  @override
+  String get mapLoadErrorTitle => 'Your stores did not load';
+
+  @override
+  String get mapLoadErrorDetail =>
+      'We could not reach the server. Your day still works — pick a store and check in.';
+
+  @override
+  String mapShowingNearest(int shown, int total) {
+    return 'Showing the $shown nearest of $total stores.';
+  }
+
+  @override
+  String mapShowingFirst(int shown, int total) {
+    return 'Showing $shown of $total stores.';
+  }
+
+  @override
+  String get mapCheckInAgain => 'Check in again';
+
+  @override
+  String get mapVisitedTodayLine => 'You checked in here today.';
+
+  @override
+  String mapCircleAtDoor(String name) {
+    return 'Check in at $name';
+  }
+
+  @override
+  String mapPinHint(String name, String state) {
+    return '$name, $state. Double-tap for what you can do here.';
+  }
+
+  @override
+  String get mapLegendLabel => 'What the pins mean';
+
+  @override
+  String get sheetClose => 'Close';
+
+  @override
   String get visitPinTooFarToReport =>
       'This is too far to report the pin from here. Ask your manager to correct this store.';
 
@@ -1981,7 +2095,4 @@ class AppLocalizationsEn extends AppLocalizations {
   String visitFlagSheetBody(int meters) {
     return 'You were $meters m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.';
   }
-
-  @override
-  String get visitFlagSheetClose => 'Close';
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show FadeTransition, MaterialPage;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/agent_map/presentation/agent_map_screen.dart';
 import '../../features/agents/presentation/agent_trail_screen.dart';
 import '../../features/audit/presentation/audit_shell_screen.dart';
 import '../../features/audit/presentation/my_work_screen.dart';
@@ -102,9 +103,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         '/sales-targets',
       };
       final isAuditRoute = loc == '/audit' || loc.startsWith('/audit/');
-      // The agent's route for the day. Their home, and theirs alone — a manager
-      // has a dashboard for this and no use for one agent's walking order.
-      final isAgentOnly = loc == '/today';
+      // The agent's own screens, and theirs alone — a manager has a dashboard
+      // for the day's walking order and a territory map for the stores, and
+      // no use for one agent's version of either.
+      final isAgentOnly = loc == '/today' || loc == '/map';
       // Template subroutes (e.g. /audit-templates/:id/preview) are manager
       // territory too — the exact-match set above only covers the list screen.
       final isTemplatesSubroute = loc.startsWith('/audit-templates/');
@@ -167,6 +169,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // The field agent's home: their route for the day.
       GoRoute(path: '/today', builder: (context, state) => const TodayScreen()),
+      // Where their stores are. The nav's third slot, and the reason it exists
+      // again (#383's sibling): a tab with no destination was cut at
+      // migration rather than faked.
+      GoRoute(path: '/map', builder: (context, state) => const AgentMapScreen()),
       GoRoute(
         path: '/audit',
         builder: (context, state) => const VisitOutletPickerScreen(),

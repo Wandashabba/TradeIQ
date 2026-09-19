@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/features/dashboard/presentation/the_floor_screen.dart';
+import 'package:tradeiq_app/features/agent_map/presentation/agent_map_screen.dart';
 import 'package:tradeiq_app/core/auth/session_controller.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
 import 'package:tradeiq_app/core/push/push_config.dart';
@@ -815,6 +816,17 @@ void main() {
         ),
         findsNothing,
       );
+    });
+
+    testWidgets('a manager sent to /map lands on their own home, not the '
+        'agent\'s map', (tester) async {
+      await goAs(tester, 'manager', '/map');
+
+      // The agent's map is one agent's stores. A manager has the territory
+      // map for the same question at the level they ask it, and the agent's
+      // frame — its nav, its check-in circle — is not theirs to be in.
+      expect(find.byType(TheFloorScreen), findsOneWidget);
+      expect(find.byType(AgentMapScreen), findsNothing);
     });
 
     testWidgets('a manager can open a contest\'s standings', (tester) async {

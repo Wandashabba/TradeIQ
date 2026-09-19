@@ -5,6 +5,8 @@
 // 133 files: 409 bare `TextStyle(`, 38 raw `Color(0x…)` and 30 uses of
 // Material's `Colors.` palette. The submit gate (13) and the visit outcome
 // (24) came off it when the closing screens were migrated: 440 in 72 files.
+// The visit screen (26) and Today (30) had already reached zero in their own
+// migrations and came off with #386: 384 in 70 files.
 //
 // The ratchet is one-sided on purpose. A file may not gain a violation and a
 // file that is not listed may not have one at all — that is what stops the
@@ -91,4 +93,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 440;
+const int torchlightStyleDebtTotal = 384;
