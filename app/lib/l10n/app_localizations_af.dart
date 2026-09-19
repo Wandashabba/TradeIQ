@@ -1926,4 +1926,12 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get syncBannerOpen => 'tik om jou werk oop te maak';
+
+  @override
+  String get commonClose => 'Maak toe';
+
+  @override
+  String pickerStartVisitSemantics(String name, String code) {
+    return '$name, $code. Dubbeltik om hier ’n besoek te begin.';
+  }
 }

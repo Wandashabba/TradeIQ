@@ -2401,5 +2401,21 @@
   "syncBannerOpen": "tap to open your work",
   "@syncBannerOpen": {
     "description": "The trailing half of the held banner’s screen-reader label."
+  },
+  "commonClose": "Close",
+  "@commonClose": {
+    "description": "The Veld Close row on a bottom sheet — in Veld a sheet is a full-screen route and needs a way out that is not a scrim tap."
+  },
+  "pickerStartVisitSemantics": "{name}, {code}. Double-tap to start a visit here.",
+  "@pickerStartVisitSemantics": {
+    "description": "One picker row as a screen reader hears it — the store, its code, and what tapping does.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "code": {
+        "type": "String"
+      }
+    }
   }
 }

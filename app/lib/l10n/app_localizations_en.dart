@@ -1905,4 +1905,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncBannerOpen => 'tap to open your work';
+
+  @override
+  String get commonClose => 'Close';
+
+  @override
+  String pickerStartVisitSemantics(String name, String code) {
+    return '$name, $code. Double-tap to start a visit here.';
+  }
 }

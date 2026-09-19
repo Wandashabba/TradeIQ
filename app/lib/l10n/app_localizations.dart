@@ -3019,6 +3019,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'tap to open your work'**
   String get syncBannerOpen;
+
+  /// The Veld Close row on a bottom sheet — in Veld a sheet is a full-screen route and needs a way out that is not a scrim tap.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get commonClose;
+
+  /// One picker row as a screen reader hears it — the store, its code, and what tapping does.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {code}. Double-tap to start a visit here.'**
+  String pickerStartVisitSemantics(String name, String code);
 }
 
 class _AppLocalizationsDelegate

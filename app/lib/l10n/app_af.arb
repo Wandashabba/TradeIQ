@@ -486,5 +486,7 @@
   "pickerLoadErrorBody": "Jou winkels word van die bediener af gehaal. Niks wat jy vasgelê het, word geraak nie.",
   "pickerScopeHeading": "Watter winkels",
   "pickerStoresHeading": "Winkels",
-  "syncBannerOpen": "tik om jou werk oop te maak"
+  "syncBannerOpen": "tik om jou werk oop te maak",
+  "commonClose": "Maak toe",
+  "pickerStartVisitSemantics": "{name}, {code}. Dubbeltik om hier ’n besoek te begin."
 }
