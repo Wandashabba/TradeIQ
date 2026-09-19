@@ -1,27 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_palette.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/charts.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/mark/delta.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/ranked_bars_card.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/rich_figures.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/stat_tiles_card.dart';
+import 'package:tradeiq_app/features/assistant/view_specs/trend_chart_card.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
+import 'package:tradeiq_app/l10n/l10n.dart';
 
-Widget wrap(Widget child, {required ThemeData theme, bool reduce = false}) =>
-    MaterialApp(
-      theme: theme,
-      home: MediaQuery(
-        data: MediaQueryData(disableAnimations: reduce),
-        child: Scaffold(
-          body: SingleChildScrollView(
-            child: SizedBox(width: 600, child: child),
+import 'ask_harness.dart' show askSkins, screenText;
+
+/// One answer block on its own, in a Torchlight skin, at a phone panel's
+/// inner width.
+Widget wrap(
+  Widget child, {
+  TiqSkin? skin,
+  bool reduce = true,
+  Locale locale = const Locale('en'),
+}) {
+  final resolved = skin ?? TiqSkin.night(density: TiqDensity.console);
+  return MaterialApp(
+    theme: AppTheme.torchlight(resolved),
+    locale: locale,
+    supportedLocales: appSupportedLocales,
+    localizationsDelegates: appLocalizationsDelegates,
+    home: MediaQuery(
+      data: MediaQueryData(disableAnimations: reduce),
+      child: DefaultTextStyle(
+        style: resolved.text.body.style(color: resolved.palette.ink1),
+        child: ColoredBox(
+          color: resolved.palette.surface,
+          child: SingleChildScrollView(
+            child: SizedBox(width: 320, child: child),
           ),
         ),
       ),
-    );
+    ),
+  );
+}
 
 ChatArtifact artifact(String type, Object data) =>
     ChatArtifact(id: 'a1', type: type, params: const {}, data: data);
@@ -72,301 +93,368 @@ const _bars = {
 };
 
 void main() {
-  for (final (name, theme, palette, colors) in [
-    ('light', AppTheme.light(), LumenPalette.light, TiqColors.light),
-    ('night', AppTheme.dark(), LumenPalette.dark, TiqColors.night),
-  ]) {
-    group('$name: StatTilesCard', () {
-      testWidgets('renders every readable tile, counted up to its value',
-          (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(artifact: artifact('stat_tiles', _tiles)),
-          theme: theme,
-        ));
-        // Mid count-up the figure is on its way, not yet there.
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(find.text('48,210'), findsNothing);
+  for (final skin in askSkins) {
+    final name = skin.mode.name;
 
+    group('$name: StatTilesCard', () {
+      testWidgets('four tiles on a phone, every figure through the formatter', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(ArtifactView(artifact: artifact('stat_tiles', _tiles)), skin: skin),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.byType(StatTilesCard), findsOneWidget);
-        expect(find.text('48,210'), findsOneWidget);
-        expect(find.text('81%'), findsOneWidget);
-        expect(find.text('88%'), findsOneWidget);
-        expect(find.text('17'), findsOneWidget);
-        expect(find.text("vs 55,034 · Aug '25"), findsOneWidget);
-        // A tile whose value is not a number is skipped, never drawn as 0.
-        expect(find.text('Unreadable'), findsNothing);
+        final text = screenText(tester);
+        expect(text, contains('48,210'));
+        expect(text, contains('81%'));
+        expect(text, contains('88%'));
+        expect(text, contains('17'));
+        // Four on a phone, three recommended: the rest belong in the table
+        // twin, not in the fold.
+        expect(text, isNot(contains('Neutral one')));
       });
 
-      testWidgets('the delta pill is the server verdict, in its colour',
-          (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(artifact: artifact('stat_tiles', _tiles)),
-          theme: theme,
-        ));
+      testWidgets('the delta is the server verdict, never inferred', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(ArtifactView(artifact: artifact('stat_tiles', _tiles)), skin: skin),
+        );
         await tester.pumpAndSettle();
 
-        Color inkOf(String text) => tester.widget<Text>(find.text(text)).style!.color!;
-        expect(inkOf('▼ 12.4%'), palette.critical);
-        expect(inkOf('▼ 4 pts'), colors.warn);
-        // A count that went UP but is good is green: direction is the glyph,
-        // sentiment is the colour, and neither is inferred from the other.
-        expect(inkOf('▲ 9'), colors.good);
-        expect(inkOf('0'), palette.inkMuted);
+        final deltas = tester
+            .widgetList<Delta>(find.byType(Delta))
+            .map((d) => (d.data.direction, d.data.sentiment))
+            .toList();
+        expect(deltas, <(DeltaDirection, TiqSentiment)>[
+          (DeltaDirection.down, TiqSentiment.bad),
+          // The wire's `warn` is neutral: there is no amber warning.
+          (DeltaDirection.down, TiqSentiment.neutral),
+          // A count that went UP but is good: direction is the glyph,
+          // sentiment is the ink, and neither is inferred from the other.
+          (DeltaDirection.up, TiqSentiment.good),
+        ]);
       });
 
-      testWidgets('the meter fills to its share', (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(artifact: artifact('stat_tiles', _tiles)),
-          theme: theme,
-        ));
+      testWidgets('the meter fills to its share, and only where asked', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(ArtifactView(artifact: artifact('stat_tiles', _tiles)), skin: skin),
+        );
         await tester.pumpAndSettle();
-        final fill = tester.widget<FractionallySizedBox>(
-            find.byKey(const ValueKey('stat-tile-meter-fill')));
-        expect(fill.widthFactor, closeTo(0.81, 1e-9));
-        // Only the tile that asked for one has a meter.
-        expect(find.byKey(const ValueKey('stat-tile-meter-fill')), findsOneWidget);
+        final meters = find.byType(Meter);
+        expect(meters, findsOneWidget);
+        final paint = tester.widget<CustomPaint>(
+          find.descendant(of: meters, matching: find.byType(CustomPaint)),
+        );
+        expect((paint.painter! as MeterPainter).fraction, closeTo(0.81, 1e-9));
       });
     });
 
     group('$name: RankedBarsCard', () {
-      testWidgets('diverging bars scaled to the largest magnitude',
-          (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(artifact: artifact('ranked_bars', _bars)),
-          theme: theme,
-        ));
+      testWidgets('diverging bars scaled to the largest magnitude', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(ArtifactView(artifact: artifact('ranked_bars', _bars)), skin: skin),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
+        // What is ranked, and against what, in the server's words.
         expect(find.text('Change by territory'), findsOneWidget);
         expect(find.text("vs Aug '25"), findsOneWidget);
 
         double factor(int i) => tester
             .widget<FractionallySizedBox>(
-                find.byKey(ValueKey('ranked-bar-fill-$i')))
+              find.byKey(ValueKey<String>('ranked-bar-fill-$i')),
+            )
             .widthFactor!;
         expect(factor(0), 1.0);
         expect(factor(1), closeTo(9 / 31, 1e-9));
         expect(factor(3), closeTo(7 / 31, 1e-9));
-        // Zero draws no bar at all.
-        expect(find.byKey(const ValueKey('ranked-bar-fill-4')), findsNothing);
-
-        // A fall sits left of the zero line, a rise to its right.
-        final zero = tester.getCenter(find.byKey(const ValueKey('ranked-bar-fill-0'))).dx;
-        final rise = tester.getCenter(find.byKey(const ValueKey('ranked-bar-fill-3'))).dx;
-        expect(zero, lessThan(rise));
-
-        Color inkOf(String text) => tester.widget<Text>(find.text(text)).style!.color!;
-        expect(inkOf('${minusSign}31%'), palette.critical);
-        expect(inkOf('+7%'), colors.good);
+        // A measured zero draws no bar and prints 0.
         expect(
-          (tester.widget<Container>(find.descendant(
-            of: find.byKey(const ValueKey('ranked-bar-fill-0')),
-            matching: find.byType(Container),
-          )).decoration! as BoxDecoration).color,
-          palette.critical,
+          find.byKey(const ValueKey<String>('ranked-bar-fill-4')),
+          findsNothing,
         );
+
+        // A fall sits left of the axis, a rise to its right.
+        final fall = tester
+            .getCenter(find.byKey(const ValueKey<String>('ranked-bar-fill-0')))
+            .dx;
+        final rise = tester
+            .getCenter(find.byKey(const ValueKey<String>('ranked-bar-fill-3')))
+            .dx;
+        expect(fall, lessThan(rise));
+
+        // Every value is signed when the bars diverge, with a true minus.
+        final text = screenText(tester);
+        expect(text, contains('${minusSign}31%'));
+        expect(text, contains('+7%'));
       });
 
-      testWidgets('all non-negative: plain bars from a left baseline, unsigned',
-          (tester) async {
-        // What the backend emits today: worst-first counts.
-        await tester.pumpWidget(wrap(
-          ArtifactView(
-            artifact: artifact('ranked_bars', const {
-              'title': 'Out-of-stock lines by outlet',
-              'comparedTo': "1–17 Sep '26",
-              'unit': 'count',
-              'items': [
-                {'label': 'Spar Soweto', 'value': 6},
-                {'label': 'Shoprite Tembisa', 'value': 12},
-                {'label': 'Pick n Pay CBD', 'value': 3},
-              ],
-            }),
+      testWidgets('all non-negative: plain bars from one baseline, unsigned', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(
+            ArtifactView(
+              artifact: artifact('ranked_bars', const {
+                'title': 'Out-of-stock lines by outlet',
+                'comparedTo': "1–17 Sep '26",
+                'unit': 'count',
+                'items': [
+                  {'label': 'Spar Soweto', 'value': 6},
+                  {'label': 'Shoprite Tembisa', 'value': 12},
+                  {'label': 'Pick n Pay CBD', 'value': 3},
+                ],
+              }),
+            ),
+            skin: skin,
           ),
-          theme: theme,
-        ));
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
-        // The period-only comparedTo is shown verbatim.
         expect(find.text("1–17 Sep '26"), findsOneWidget);
-        // Counts are not signed.
-        expect(find.text('6'), findsOneWidget);
-        expect(find.text('12'), findsOneWidget);
-        expect(find.textContaining('+'), findsNothing);
+        expect(screenText(tester), isNot(contains('+')));
 
         double factor(int i) => tester
             .widget<FractionallySizedBox>(
-                find.byKey(ValueKey('ranked-bar-fill-$i')))
+              find.byKey(ValueKey<String>('ranked-bar-fill-$i')),
+            )
             .widthFactor!;
         expect(factor(1), 1.0);
         expect(factor(0), closeTo(0.5, 1e-9));
 
-        // Every bar starts at the same left baseline and uses the full track:
-        // the longest reaches much further right than a diverging half could.
-        final left0 = tester.getTopLeft(find.byKey(const ValueKey('ranked-bar-fill-0'))).dx;
-        final left1 = tester.getTopLeft(find.byKey(const ValueKey('ranked-bar-fill-1'))).dx;
-        final left2 = tester.getTopLeft(find.byKey(const ValueKey('ranked-bar-fill-2'))).dx;
-        expect(left0, left1);
-        expect(left1, left2);
-        final bar1 = tester.getSize(find.byKey(const ValueKey('ranked-bar-fill-1'))).width;
-        final row = tester.getSize(find.byKey(const ValueKey('ranked-bars-row-1'))).width;
-        expect(bar1, greaterThan(row * 0.5));
+        final lefts = <double>[
+          for (var i = 0; i < 3; i++)
+            tester
+                .getTopLeft(find.byKey(ValueKey<String>('ranked-bar-fill-$i')))
+                .dx,
+        ];
+        expect(lefts.toSet(), hasLength(1));
 
-        // A count has no verdict: accent, not good or critical.
-        final fill = tester.widget<Container>(find.descendant(
-          of: find.byKey(const ValueKey('ranked-bar-fill-1')),
-          matching: find.byType(Container),
-        ));
-        expect((fill.decoration! as BoxDecoration).color, palette.accentSolid);
-
-        // The server's first item leads, even though it is not the largest.
-        final leader = find.byKey(const ValueKey('ranked-bars-leader'));
-        expect(
-          tester.widget<Text>(find.descendant(of: leader, matching: find.text('Spar Soweto')))
-              .style!.fontWeight,
-          FontWeight.w600,
-        );
-        // Order is the server's, not re-sorted.
+        // Order is the server's, never re-sorted client-side.
         expect(
           tester.getTopLeft(find.text('Spar Soweto')).dy,
           lessThan(tester.getTopLeft(find.text('Shoprite Tembisa')).dy),
         );
-      });
-
-      testWidgets('the first item leads', (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(artifact: artifact('ranked_bars', _bars)),
-          theme: theme,
-        ));
-        await tester.pumpAndSettle();
-
-        final leader = find.byKey(const ValueKey('ranked-bars-leader'));
-        expect(leader, findsOneWidget);
-        final name = tester.widget<Text>(
-            find.descendant(of: leader, matching: find.text('Soweto')));
-        expect(name.style!.fontWeight, FontWeight.w600);
+        // No focus field: no focus bar. The old build guessed index 0.
         expect(
-          tester.widget<Text>(find.text('Pretoria East')).style!.fontWeight,
-          FontWeight.w400,
+          find.byKey(const ValueKey<String>('ranked-bars-focus')),
+          findsNothing,
         );
       });
 
-      testWidgets('bars grow in, and reduced motion draws them full at once',
-          (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(artifact: artifact('ranked_bars', _bars)),
-          theme: theme,
-        ));
-        await tester.pump(const Duration(milliseconds: 50));
-        final growing = tester
-            .widget<FractionallySizedBox>(
-                find.byKey(const ValueKey('ranked-bar-fill-0')))
-            .widthFactor!;
-        expect(growing, lessThan(1));
+      testWidgets('the server names the focus; it keeps marker and weight', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(
+            ArtifactView(
+              artifact: artifact('ranked_bars', <String, Object>{
+                ..._bars,
+                'focusIndex': 1,
+              }),
+            ),
+            skin: skin,
+          ),
+        );
         await tester.pumpAndSettle();
 
-        await tester.pumpWidget(const SizedBox());
-        await tester.pumpWidget(wrap(
-          ArtifactView(artifact: artifact('ranked_bars', _bars)),
-          theme: theme,
-          reduce: true,
-        ));
+        final focus = find.byKey(const ValueKey<String>('ranked-bars-focus'));
+        expect(focus, findsOneWidget);
+        final label = tester.widget<Text>(
+          find.descendant(of: focus, matching: find.text('Tembisa')),
+        );
+        expect(label.style!.fontWeight, skin.text.bodyStrong.weight);
+        // Outside a route that claimed the light, the focus is ink.
         expect(
-          tester
-              .widget<FractionallySizedBox>(
-                  find.byKey(const ValueKey('ranked-bar-fill-0')))
-              .widthFactor,
-          1.0,
+          tester.widget<Text>(find.text('Pretoria East')).style!.fontWeight,
+          skin.text.body.weight,
         );
       });
     });
 
-    group('$name: trend_chart comparison', () {
+    group('$name: trend_chart', () {
       const points = [
         {'period': '2026-08-01', 'value': 1600},
         {'period': '2026-08-02', 'value': 1700},
         {'period': '2026-08-03', 'value': 1500},
       ];
 
-      testWidgets('with a comparison: a dashed second series, named',
-          (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(
-            artifact: artifact('trend_chart', const {
-              'metric': 'sell_in',
-              'interval': 'day',
-              'points': points,
-              'comparison': {
-                'label': 'month to date last year',
+      testWidgets('with a comparison: a dashed second series, named', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(
+            ArtifactView(
+              artifact: artifact('trend_chart', const {
+                'metric': 'sell_in',
+                'interval': 'day',
+                'points': points,
+                'comparison': {
+                  'label': 'month to date last year',
+                  'points': [
+                    {'period': '2025-08-01', 'value': 1700},
+                    {'period': '2025-08-02', 'value': 1800},
+                    {'period': '2025-08-03', 'value': 1750},
+                  ],
+                },
+              }),
+            ),
+            skin: skin,
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        final legend = tester.widget<ChartLegend>(find.byType(ChartLegend));
+        expect(legend.entries, hasLength(2));
+        expect(legend.entries.last.label, 'month to date last year');
+        expect(legend.entries.last.dashed, isTrue);
+        // A legend is a label: never amber, lit or not.
+        expect(legend.entries.first.colour, skin.palette.ink1);
+      });
+
+      testWidgets('a comparison that had no data: no line, a quiet note', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(
+            ArtifactView(
+              artifact: artifact('trend_chart', const {
+                'metric': 'availability',
+                'interval': 'day',
+                'points': points,
+                'comparison': {'label': 'month to date last year', 'points': []},
+              }),
+            ),
+            skin: skin,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        final legend = tester.widget<ChartLegend>(find.byType(ChartLegend));
+        expect(legend.entries, hasLength(1));
+        expect(
+          find.text('no data for month to date last year'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('fewer than two readable points is not a chart', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          wrap(
+            ArtifactView(
+              artifact: artifact('trend_chart', const {
+                'metric': 'availability',
                 'points': [
-                  {'period': '2025-08-01', 'value': 1700},
-                  {'period': '2025-08-02', 'value': 1800},
-                  {'period': '2025-08-03', 'value': 1750},
+                  {'period': '2026-08-01', 'value': 90},
+                  {'period': '2026-08-02', 'value': 'n/a'},
                 ],
-              },
-            }),
+              }),
+            ),
+            skin: skin,
           ),
-          theme: theme,
-        ));
+        );
         await tester.pumpAndSettle();
-
-        final chart = tester.widget<LineChart>(find.byType(LineChart));
-        expect(chart.comparison, hasLength(3));
-        expect(chart.comparisonName, 'month to date last year');
-        expect(chart.dashedComparison, isTrue);
-        // The label is the server's text, verbatim, in the legend.
-        expect(find.text('month to date last year'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      });
-
-      testWidgets('with a comparison that had no data: no line, a quiet note',
-          (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(
-            artifact: artifact('trend_chart', const {
-              'metric': 'availability',
-              'interval': 'day',
-              'points': points,
-              'comparison': {'label': 'month to date last year', 'points': []},
-            }),
-          ),
-          theme: theme,
-        ));
-        await tester.pumpAndSettle();
-
-        expect(tester.takeException(), isNull);
-        final chart = tester.widget<LineChart>(find.byType(LineChart));
-        expect(chart.comparison, isEmpty);
-        expect(find.text('month to date last year'), findsNothing);
-        expect(find.text('By day · no data for month to date last year'),
-            findsOneWidget);
-      });
-
-      testWidgets('without one: exactly as before, one series and no legend',
-          (tester) async {
-        await tester.pumpWidget(wrap(
-          ArtifactView(
-            artifact: artifact('trend_chart', const {
-              'metric': 'availability',
-              'interval': 'day',
-              'points': points,
-            }),
-          ),
-          theme: theme,
-        ));
-        await tester.pumpAndSettle();
-
-        final chart = tester.widget<LineChart>(find.byType(LineChart));
-        expect(chart.comparison, isEmpty);
-        expect(find.text('Comparison'), findsNothing);
-        expect(find.text('On-shelf availability'), findsWidgets);
+        expect(
+          find.byKey(const ValueKey<String>('trend-not-enough')),
+          findsOneWidget,
+        );
+        expect(find.byType(ChartLegend), findsNothing);
       });
     });
   }
+
+  group('Afrikaans', () {
+    testWidgets('tiles and bars take the reader\'s separators', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          Column(
+            children: <Widget>[
+              ArtifactView(artifact: artifact('stat_tiles', _tiles)),
+              ArtifactView(artifact: artifact('ranked_bars', _bars)),
+            ],
+          ),
+          locale: const Locale('af'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final text = screenText(tester);
+      expect(text, contains('48\u00A0210'));
+      expect(text, contains('12,4%'));
+      expect(text, contains('${minusSign}31%'));
+      expect(text, isNot(contains('48,210')));
+    });
+  });
+
+  group('motion', () {
+    testWidgets('bars grow in, and reduced motion draws them full at once', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(ArtifactView(artifact: artifact('ranked_bars', _bars)), reduce: false),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      final growing = tester
+          .widget<FractionallySizedBox>(
+            find.byKey(const ValueKey<String>('ranked-bar-fill-0')),
+          )
+          .widthFactor!;
+      expect(growing, lessThan(1));
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        wrap(ArtifactView(artifact: artifact('ranked_bars', _bars))),
+      );
+      expect(
+        tester
+            .widget<FractionallySizedBox>(
+              find.byKey(const ValueKey<String>('ranked-bar-fill-0')),
+            )
+            .widthFactor,
+        1.0,
+      );
+    });
+
+    testWidgets('more than six rows: six, and a row that shows the rest', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          ArtifactView(
+            artifact: artifact('ranked_bars', <String, Object>{
+              'unit': 'count',
+              'items': <Map<String, Object>>[
+                for (var i = 0; i < 9; i++) <String, Object>{
+                  'label': 'Outlet $i',
+                  'value': 20 - i,
+                },
+              ],
+            }),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Outlet 6'), findsNothing);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('ranked-bars-show-all')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Outlet 8'), findsOneWidget);
+    });
+  });
 
   group('figures', () {
     test('units format as the design shows them', () {
@@ -412,10 +500,10 @@ void main() {
             'direction': direction,
             'sentiment': 'bad',
           })!;
-      expect(delta('down').text, '▼ 12.4%');
-      expect(delta('up').text, '▲ 12.4%');
-      // Never negated by the client.
-      expect(delta('down').text, isNot(contains(minusSign)));
+      // No U+25BC: Onest never carried it and package:pdf drew it as nothing
+      // (#401). The sign is the direction, and the table twin reads it.
+      expect(delta('down').text, '${minusSign}12.4%');
+      expect(delta('up').text, '+12.4%');
     });
 
     testWidgets('malformed data renders without throwing', (tester) async {
@@ -425,7 +513,6 @@ void main() {
             ArtifactView(artifact: artifact('stat_tiles', data)),
             ArtifactView(artifact: artifact('ranked_bars', data)),
           ]),
-          theme: AppTheme.light(),
         ));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
