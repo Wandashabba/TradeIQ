@@ -110,6 +110,9 @@ Future<void> _pump(
         path: '/leaderboard/contests',
         builder: (c, s) => const Text('Contests view'),
       ),
+      // The agent's own record (#383/#384) — the destination that brought the
+      // fourth tab back.
+      GoRoute(path: '/me', builder: (c, s) => const Text('My record')),
     ],
   );
 }
@@ -348,23 +351,27 @@ void main() {
   });
 
   group('the chrome', () {
-    testWidgets('three nav slots, and the skin cycle is the one trailing icon', (
+    testWidgets('four nav slots, and the skin cycle is the one trailing icon', (
       tester,
     ) async {
       await _pump(tester, route: _route());
       final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
-      // THE DEVIATION, asserted rather than commented. unify §1.2 approved
-      // Today · My work · Map · Me. Neither Map nor Me has a screen — there
-      // is no agent map route and the agent's own record is #383/#384,
-      // unbuilt — and a tab that returns you to the tab you are already on
-      // reads as a broken app. Contests takes the third slot because the
-      // migration would otherwise *remove* a capability: the agent's
-      // standings hung off this app bar (#124), and the header's one trailing
-      // slot now carries the skin cycle. See `TodayFrame.slotsIn`.
+      // THE SET, asserted rather than commented. unify §1.2 approved
+      // Today · My work · Map · Me, and the migration shipped three because
+      // neither Map nor Me had a screen: a tab that returns you to the tab
+      // you are already on reads as a broken app. Contests took the third
+      // slot rather than the migration silently *removing* a capability —
+      // the agent's standings hung off this app bar (#124), and the header's
+      // one trailing slot now carries the skin cycle.
+      //
+      // Me now exists (#383/#384), so it is back and the bar is full at four.
+      // Map is still unbuilt and still absent, and landing it later is a
+      // decision about which of these four leaves. See `TodayFrame.slotsIn`.
       expect(pill.slots.map((s) => s.label), <String>[
         'Today',
         'My work',
         'Contests',
+        'Me',
       ]);
       final header = tester.widget<TorchAppHeader>(
         find.byType(TorchAppHeader),
@@ -378,10 +385,12 @@ void main() {
     testWidgets('every slot but the current one leaves this screen', (
       tester,
     ) async {
-      // The rule the three-slot set exists to keep: no slot is a no-op.
+      // The rule the set exists to keep: no slot is a no-op. It is the
+      // reason Map is still absent and the reason Me is now present.
       for (final (index, landing) in <(int, String)>[
         (1, 'My work'),
         (2, 'Contests view'),
+        (3, 'My record'),
       ]) {
         await _pump(tester, route: _route());
         tester

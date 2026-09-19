@@ -654,9 +654,9 @@ class _VisitEvidence extends StatelessWidget {
       children: <Widget>[
         Text(
           l10n.meCapturedCount(
-            visit.photos,
             visit.sectionsCaptured,
             visit.sectionsTotal,
+            visit.photos,
           ),
           style: skin.text.meta.style(color: skin.palette.ink3),
         ),

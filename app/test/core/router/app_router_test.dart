@@ -20,6 +20,9 @@ import 'package:tradeiq_app/features/reports/data/report_schedules_repository.da
 import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
+import 'package:tradeiq_app/features/gamification/data/gamification_repository.dart';
+import 'package:tradeiq_app/features/me/data/my_record_repository.dart';
+import 'package:tradeiq_app/features/me/presentation/my_record_screen.dart';
 import 'package:tradeiq_app/features/sales_targets/presentation/sales_targets_screen.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 
@@ -134,6 +137,29 @@ class _FakeSucceedingVisitsRepository implements VisitsRepository {
 
   @override
   Future<void> submitVisit(String visitDraftId) async {}
+}
+
+/// Answers /me's two reads from memory. The route is only being asserted to
+/// EXIST here; what it renders is `test/features/me`'s job.
+class _FakeMyRecordRepository implements MyRecordRepository {
+  @override
+  Future<MyVisitsPage> myVisits({String? cursor}) async =>
+      const MyVisitsPage(visits: <MyVisit>[]);
+
+  @override
+  Future<MyEarnings> myEarnings() async => const MyEarnings(
+    entry: LeaderboardEntry(
+      agentId: 'a1',
+      email: 'agent@example.com',
+      visitsSubmitted: 0,
+      tasksClosed: 0,
+      rank: 0,
+      avgScorecard: 0,
+      points: 0,
+    ),
+    ledger: <PointsEntry>[],
+    schemes: <IncentiveScheme>[],
+  );
 }
 
 Widget _appWithOverrides(List<Override> overrides) {
@@ -388,6 +414,61 @@ void main() {
     // /orders is a shared route: the field agent is NOT bounced back to /audit.
     expect(find.text('Orders'), findsOneWidget);
     expect(find.text('Select an Outlet'), findsNothing);
+  });
+
+  testWidgets(
+    'a field_agent reaches /me — the one tab that used to bounce them',
+    (tester) async {
+      await tester.pumpWidget(
+        _appWithOverrides([
+          sessionControllerProvider.overrideWith(
+            () => _FixedSessionController(
+              const SessionState(role: 'field_agent'),
+            ),
+          ),
+          myRecordRepositoryProvider.overrideWithValue(
+            _FakeMyRecordRepository(),
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      container.read(routerProvider).go('/me');
+      await tester.pumpAndSettle();
+
+      // #384's whole complaint was a silent redirect: Sipho tapped his own
+      // row, was thrown back to /today with no message, and tapped it again.
+      // This is the assertion that it does not happen any more.
+      expect(find.byType(MyRecordScreen), findsOneWidget);
+      expect(find.byType(TodayScreen), findsNothing);
+    },
+  );
+
+  testWidgets('a manager opening /me sees their own (empty) record', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _appWithOverrides([
+        sessionControllerProvider.overrideWith(
+          () => _FixedSessionController(const SessionState(role: 'manager')),
+        ),
+        myRecordRepositoryProvider.overrideWithValue(_FakeMyRecordRepository()),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    container.read(routerProvider).go('/me');
+    await tester.pumpAndSettle();
+
+    // Not in `managerOnly` and not agent-only: the endpoints behind it are
+    // self-scoped, so "my own record" is a true answer for any role.
+    expect(find.byType(MyRecordScreen), findsOneWidget);
   });
 
   testWidgets(
