@@ -2558,6 +2558,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askMetricCompetitorFacings => 'Competitor facings';
 
   @override
+  String get askMetricExecutionScore => 'Execution score';
+
+  @override
+  String get askMetricPerfectStore => 'Perfect-store rate';
+
+  @override
   String get askScorecardTitle => 'Agent scorecard';
 
   @override

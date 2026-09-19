@@ -44,15 +44,22 @@ class TrendChartCard extends StatelessWidget {
 
   final ChatArtifact artifact;
 
-  /// Titles per metric. An unknown metric falls back to its raw key — a
-  /// server that grows the enum before this build ships still gets a titled
-  /// chart rather than a nameless one.
-  static const Map<String, String> metricLabels = {
-    'execution_score': 'Execution score',
-    'availability': 'On-shelf availability',
-    'perfect_store': 'Perfect-store rate',
-    'share_of_shelf': 'Share of shelf',
-  };
+  /// A metric's title in the reader's language. An unknown metric falls
+  /// back to its key, de-snake-cased — a server that grows the enum before
+  /// this build ships still gets a titled chart rather than a nameless one.
+  static String metricLabel(AppLocalizations l10n, String? metric) {
+    final known = switch (metric) {
+      'execution_score' => l10n.askMetricExecutionScore,
+      'availability' => l10n.askMetricOsa,
+      'perfect_store' => l10n.askMetricPerfectStore,
+      'share_of_shelf' => l10n.askMetricShareOfShelf,
+      _ => null,
+    };
+    if (known != null) return known;
+    if (metric == null || metric.trim().isEmpty) return l10n.askOverTime;
+    final spaced = metric.replaceAll('_', ' ').trim();
+    return spaced[0].toUpperCase() + spaced.substring(1);
+  }
 
   /// The metrics whose values are percentages.
   static const Set<String> percentMetrics = {
@@ -118,7 +125,7 @@ class TrendChartCard extends StatelessWidget {
     final skin = context.skin;
     final l10n = context.l10n;
     final metric = _string('metric');
-    final title = metricLabels[metric] ?? metric ?? l10n.askOverTime;
+    final title = metricLabel(l10n, metric);
     final comparisonLabel = _comparisonLabel;
     final comparison = _points(_comparison['points']);
     final points = _points(_data['points']);
@@ -370,13 +377,19 @@ class _Plot extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Text(
-                points.first.label,
-                style: skin.text.axisLabel.style(color: skin.palette.ink3),
+              Flexible(
+                child: Text(
+                  points.first.label,
+                  style: skin.text.axisLabel.style(color: skin.palette.ink3),
+                ),
               ),
-              Text(
-                points.last.label,
-                style: skin.text.axisLabel.style(color: skin.palette.ink3),
+              const SizedBox(width: TiqSpace.s2),
+              Flexible(
+                child: Text(
+                  points.last.label,
+                  textAlign: TextAlign.end,
+                  style: skin.text.axisLabel.style(color: skin.palette.ink3),
+                ),
               ),
             ],
           ),
@@ -387,22 +400,31 @@ class _Plot extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              FigureSlot(
-                value: points.first.value,
-                role: skin.text.figureS,
-                unit: unit,
-                decimals: 1,
-                color: skin.palette.ink2,
-                semanticsLabel: l10n.askOverTime,
+              // Each half of the row is the figure's to fit in: FigureSlot
+              // measures itself down a role rather than overflowing at 2.0x.
+              Flexible(
+                child: FigureSlot(
+                  value: points.first.value,
+                  role: skin.text.figureS,
+                  fit: <TiqTypeToken>[skin.text.figureS, skin.text.monoIdent],
+                  unit: unit,
+                  decimals: 1,
+                  color: skin.palette.ink2,
+                  semanticsLabel: l10n.askOverTime,
+                ),
               ),
-              FigureSlot(
-                value: points.last.value,
-                role: skin.text.figureS,
-                unit: unit,
-                decimals: 1,
-                color: skin.palette.ink1,
-                textAlign: TextAlign.end,
-                semanticsLabel: l10n.askOverTime,
+              const SizedBox(width: TiqSpace.s2),
+              Flexible(
+                child: FigureSlot(
+                  value: points.last.value,
+                  role: skin.text.figureS,
+                  fit: <TiqTypeToken>[skin.text.figureS, skin.text.monoIdent],
+                  unit: unit,
+                  decimals: 1,
+                  color: skin.palette.ink1,
+                  textAlign: TextAlign.end,
+                  semanticsLabel: l10n.askOverTime,
+                ),
               ),
             ],
           ),

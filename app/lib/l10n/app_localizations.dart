@@ -4016,6 +4016,18 @@ abstract class AppLocalizations {
   /// **'Competitor facings'**
   String get askMetricCompetitorFacings;
 
+  /// A trend chart's title for the execution score metric.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution score'**
+  String get askMetricExecutionScore;
+
+  /// A trend chart's title for the perfect-store rate metric.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect-store rate'**
+  String get askMetricPerfectStore;
+
   /// Ask TradeIQ answer card.
   ///
   /// In en, this message translates to:

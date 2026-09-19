@@ -3353,6 +3353,14 @@
   "@askMetricCompetitorFacings": {
     "description": "Ask TradeIQ answer card."
   },
+  "askMetricExecutionScore": "Execution score",
+  "@askMetricExecutionScore": {
+    "description": "A trend chart's title for the execution score metric."
+  },
+  "askMetricPerfectStore": "Perfect-store rate",
+  "@askMetricPerfectStore": {
+    "description": "A trend chart's title for the perfect-store rate metric."
+  },
   "askScorecardTitle": "Agent scorecard",
   "@askScorecardTitle": {
     "description": "Ask TradeIQ answer card."

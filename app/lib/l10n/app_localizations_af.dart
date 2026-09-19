@@ -2590,6 +2590,12 @@ class AppLocalizationsAf extends AppLocalizations {
   String get askMetricCompetitorFacings => 'Mededinger-fasette';
 
   @override
+  String get askMetricExecutionScore => 'Uitvoeringtelling';
+
+  @override
+  String get askMetricPerfectStore => 'Perfekte-winkel-koers';
+
+  @override
   String get askScorecardTitle => 'Agent-telkaart';
 
   @override

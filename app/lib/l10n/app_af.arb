@@ -653,6 +653,8 @@
   "askMetricOutOfStockLines": "Uitverkoopte lyne",
   "askMetricLinesObserved": "Lyne waargeneem",
   "askMetricCompetitorFacings": "Mededinger-fasette",
+  "askMetricExecutionScore": "Uitvoeringtelling",
+  "askMetricPerfectStore": "Perfekte-winkel-koers",
   "askScorecardTitle": "Agent-telkaart",
   "askScorecardScored": "{count, plural, =1{1 besoek met ’n telling} other{{count} besoeke met ’n telling}}",
   "askScorecardAverage": "Gemiddelde telling",

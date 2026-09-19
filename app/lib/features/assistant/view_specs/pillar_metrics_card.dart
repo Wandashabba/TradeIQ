@@ -249,52 +249,61 @@ class _FigureRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: TiqSpace.s3),
-          FigureSlot(
-            value: value,
-            role: skin.text.figureS,
-            unit: percent ? TiqUnit.percent : TiqUnit.none,
-            decimals: decimals,
-            textAlign: TextAlign.end,
-            color: p.ink1,
-          ),
-          if (d != null) ...<Widget>[
-            const SizedBox(width: TiqSpace.s2),
-            Delta(
-              compact: true,
-              data: DeltaData(
-                direction: d.absolute > 0
-                    ? DeltaDirection.up
-                    : (d.absolute < 0
-                          ? DeltaDirection.down
-                          : DeltaDirection.flat),
-                // The tool result carries no sentiment, and the sign cannot
-                // supply one: more stock-outs is up and bad, more share of
-                // shelf is up and good. Neutral is the honest reading until
-                // the server says which way is better.
-                sentiment: TiqSentiment.neutral,
-                magnitude: d.absolute.abs(),
-                // A percentage metric moves in points.
-                unit: percent
-                    ? askUnitFor(l10n, 'pts', d.absolute.abs())
-                    : TiqUnit.none,
-                decimals: 1,
-              ),
+          // The figure and its movement are one group that wraps as a group:
+          // at 2.0x, or in Afrikaans, the movement drops beneath the figure
+          // rather than pushing the row off the panel.
+          Flexible(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: TiqSpace.s2,
+              runSpacing: TiqSpace.s1,
+              children: <Widget>[
+                FigureSlot(
+                  value: value,
+                  role: skin.text.figureS,
+                  unit: percent ? TiqUnit.percent : TiqUnit.none,
+                  decimals: decimals,
+                  textAlign: TextAlign.end,
+                  color: p.ink1,
+                ),
+                if (d != null)
+                  Delta(
+                    compact: true,
+                    data: DeltaData(
+                      direction: d.absolute > 0
+                          ? DeltaDirection.up
+                          : (d.absolute < 0
+                                ? DeltaDirection.down
+                                : DeltaDirection.flat),
+                      // The tool result carries no sentiment, and the sign
+                      // cannot supply one: more stock-outs is up and bad, more
+                      // share of shelf is up and good. Neutral is the honest
+                      // reading until the server says which way is better.
+                      sentiment: TiqSentiment.neutral,
+                      magnitude: d.absolute.abs(),
+                      // A percentage metric moves in points.
+                      unit: percent
+                          ? askUnitFor(l10n, 'pts', d.absolute.abs())
+                          : TiqUnit.none,
+                      decimals: 1,
+                    ),
+                  ),
+                // The relative change beside the absolute one. Absent — never
+                // "0%" and never "n/a" — when the baseline was zero, because
+                // "up from nothing" has no percentage.
+                if (d != null && d.pct != null)
+                  FigureSlot(
+                    value: d.pct,
+                    role: skin.text.monoIdent,
+                    unit: TiqUnit.percent,
+                    decimals: 1,
+                    signed: true,
+                    color: p.ink3,
+                  ),
+              ],
             ),
-            // The relative change beside the absolute one. Absent — never
-            // "0%" and never "n/a" — when the baseline was zero, because
-            // "up from nothing" has no percentage.
-            if (d.pct != null) ...<Widget>[
-              const SizedBox(width: TiqSpace.s1),
-              FigureSlot(
-                value: d.pct,
-                role: skin.text.monoIdent,
-                unit: TiqUnit.percent,
-                decimals: 1,
-                signed: true,
-                color: p.ink3,
-              ),
-            ],
-          ],
+          ),
         ],
       ),
     );
