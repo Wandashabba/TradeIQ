@@ -20,6 +20,7 @@ class SyncItem {
     required this.attempts,
     this.lastError,
     this.lastAttemptAt,
+    this.payloadBytes,
   });
 
   final int id;
@@ -27,6 +28,14 @@ class SyncItem {
   final DateTime queuedAt;
   final bool synced;
   final int attempts;
+
+  /// The **decoded** payload size, as `SyncQueueItems.payloadBytes` stores it
+  /// (#410): the base64 length overstates a photo by about a third, and the
+  /// figure exists so an agent on a 1 GB bundle can decide whether to send
+  /// now. Null on a row queued before the column existed — an unmeasured row
+  /// is not a row of zero bytes, and the outbox row renders nothing rather
+  /// than "0 kB".
+  final int? payloadBytes;
 
   /// The last failure as stored: a [SyncError.code], or — on a row written
   /// before the codes — the English line itself. Word it with [problemIn].
@@ -45,6 +54,23 @@ class SyncItem {
   /// connection: that is what offline looks like, not something broken.
   bool get needsAttention =>
       !synced && lastError != null && !(error?.clearsItself ?? false);
+
+  /// Blocked on the visit above it reaching the server. An ordering
+  /// dependency, explicitly not a fault — the outbox row says so in those
+  /// words and never calls it stuck.
+  bool get waitsForVisit => error?.problem == SyncProblem.waitingForVisit;
+
+  /// The session ended under it. The one failure whose fix is "sign in"
+  /// rather than anything to do with this capture.
+  bool get sessionEnded => error?.problem == SyncProblem.signedOut;
+
+  /// A failure the server will never accept as it stands, so retrying it
+  /// unchanged fails identically. #376: the app must never quietly repair the
+  /// payload — the agent chooses between sending it to support and throwing
+  /// it away.
+  bool get isRejected =>
+      error?.problem == SyncProblem.rejected ||
+      error?.problem == SyncProblem.tooLarge;
 
   /// The last failure in [l10n]'s language (English when omitted), or null if
   /// the last attempt did not fail. A stored line we cannot name is shown as
@@ -101,6 +127,19 @@ class SyncStatus {
 
   bool get allSent => pending.isEmpty;
 
+  /// Pending captures that are simply waiting — the normal state. Never an
+  /// error, and never counted with the ones that need a human.
+  List<SyncItem> get waiting =>
+      pending.where((i) => !i.needsAttention).toList();
+
+  /// Pending captures held back because the session ended.
+  ///
+  /// Signing in is then the expected next move, and it is the one case where
+  /// this screen's amber moves off "Send now" — pressing that button with no
+  /// session sends nothing.
+  List<SyncItem> get sessionEnded =>
+      needsAttention.where((i) => i.sessionEnded).toList();
+
   /// When we last got something through. Null if we never have.
   DateTime? get lastSentAt {
     final stamps = sent.map((i) => i.lastAttemptAt).whereType<DateTime>().toList();
@@ -144,6 +183,7 @@ final syncStatusProvider = StreamProvider<SyncStatus>((ref) {
             attempts: r.attempts,
             lastError: r.lastError,
             lastAttemptAt: r.lastAttemptAt,
+            payloadBytes: r.payloadBytes,
           ),
         )
         .toList();
@@ -188,6 +228,35 @@ final syncNowProvider = Provider<Future<void> Function()>((ref) {
       ref.read(syncingProvider.notifier).set(false);
     }
   };
+});
+
+/// "Send this one now" — one capture, not the whole queue (#376).
+///
+/// Separate from [syncNowProvider] because the two are different promises: the
+/// screen's button means *try everything*, and a row's action means *try this
+/// photo*. Sharing one provider would make a row's tap flush forty other
+/// items, which is not what the row says it does.
+final sendOneProvider = Provider<Future<void> Function(int)>((ref) {
+  return (int id) async {
+    ref.read(syncingProvider.notifier).set(true);
+    try {
+      await ref.read(syncServiceProvider).sendOne(id);
+    } catch (_) {
+      // The outcome is recorded on the row itself; a throw here would take
+      // the sheet down over a failure the row is about to display.
+    } finally {
+      ref.read(syncingProvider.notifier).set(false);
+    }
+  };
+});
+
+/// "Discard this capture" — the other half of #376.
+///
+/// The screen says what is lost before it calls this, and the row never
+/// disappears on its own: a capture leaves the phone because the agent said
+/// so, or because the server took it.
+final discardCaptureProvider = Provider<Future<void> Function(int)>((ref) {
+  return (int id) => ref.read(syncServiceProvider).discard(id);
 });
 
 /// Which outlet a queued visit belongs to, for labelling rows on the sync

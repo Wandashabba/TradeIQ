@@ -290,6 +290,44 @@ class SyncService {
     return true;
   }
 
+  /// Try **one** queued capture now (#376).
+  ///
+  /// A stuck row has to offer the agent something to do, and "flush the whole
+  /// queue" is not it: an agent looking at one photo that will not send wants
+  /// that photo tried, not forty minutes of everything else. The payload is
+  /// sent exactly as it was captured — nothing here repairs a rejected body
+  /// behind the agent's back.
+  ///
+  /// Returns false when the row is gone, already sent, or not this agent's.
+  Future<bool> sendOne(int id) async {
+    final owner = currentLocalUserId;
+    if (owner == null) return false;
+    final row =
+        await (db.select(db.syncQueueItems)..where(
+              (tbl) =>
+                  tbl.id.equals(id) &
+                  tbl.userId.equals(owner) &
+                  tbl.synced.equals(false),
+            ))
+            .getSingleOrNull();
+    if (row == null) return false;
+    return _sendOne(row);
+  }
+
+  /// Throw one queued capture away (#376).
+  ///
+  /// The other half of "something to do": a payload the server will never
+  /// take is otherwise a row that sits in the outbox for ever, and an agent
+  /// who cannot clear it stops trusting the count. The screen states what is
+  /// lost before it calls this, and only the agent's own rows can be reached.
+  Future<void> discard(int id) async {
+    final owner = currentLocalUserId;
+    if (owner == null) return;
+    await (db.delete(db.syncQueueItems)
+          ..where((tbl) => tbl.id.equals(id) & tbl.userId.equals(owner)))
+        .go();
+  }
+
   /// Sends the location outbox (#153 T1): answers to the location notice
   /// first, then pings in batches of [maxPingsPerBatch].
   ///

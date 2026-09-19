@@ -294,10 +294,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickerRetry => 'Try again';
 
   @override
-  String get myWorkTitle => 'Your work';
+  String get myWorkTitle => 'My work';
 
   @override
-  String get myWorkSubtitle => 'What is on this phone, and what is sent';
+  String get myWorkSubtitle => 'Everything you’ve captured';
 
   @override
   String get myWorkSyncNow => 'Try sending now';
@@ -1753,4 +1753,156 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get myWorkSendNow => 'Send now';
+
+  @override
+  String get myWorkSendNowBlocked => 'Nothing is waiting to send.';
+
+  @override
+  String myWorkSignedOutTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'You’re signed out. Sign in and your $count held captures will send.',
+      one: 'You’re signed out. Sign in and your 1 held capture will send.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get myWorkSignIn => 'Sign in';
+
+  @override
+  String get myWorkShowOlder => 'Show older';
+
+  @override
+  String myWorkSentCapped(int shown, int total) {
+    return 'Showing the $shown most recently sent of $total';
+  }
+
+  @override
+  String get myWorkEmptyBody =>
+      'Everything you capture in a store shows up here until the server has it.';
+
+  @override
+  String get myWorkLoadErrorBody =>
+      'Your work is still on this phone. Nothing is lost.';
+
+  @override
+  String get outboxWaiting => 'Waiting';
+
+  @override
+  String get outboxSending => 'Sending';
+
+  @override
+  String get outboxRetrying => 'Retrying';
+
+  @override
+  String get outboxSent => 'Sent';
+
+  @override
+  String get outboxNeedsYou => 'Needs you';
+
+  @override
+  String get outboxWaitingTurn => 'Waiting its turn';
+
+  @override
+  String get outboxWaitingSentence => 'Waiting for signal';
+
+  @override
+  String get outboxSendingSentence => 'Going up now';
+
+  @override
+  String get outboxSentSentence => 'The server has it';
+
+  @override
+  String outboxQueuedAt(String time) {
+    return 'queued $time';
+  }
+
+  @override
+  String outboxSentAt(String time) {
+    return 'sent $time';
+  }
+
+  @override
+  String outboxLastTriedAt(String time) {
+    return 'last tried $time';
+  }
+
+  @override
+  String outboxAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Tried $count times',
+      one: 'Tried once',
+      zero: 'Not tried yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outboxSendThisNow => 'Send this one now';
+
+  @override
+  String get outboxDiscard => 'Discard this capture';
+
+  @override
+  String get outboxDiscardConfirm => 'Yes, discard it';
+
+  @override
+  String get outboxDiscardKeep => 'Keep it';
+
+  @override
+  String outboxDiscardWhatIsLost(String item) {
+    return 'This $item has not reached the server. Discard it and it is gone from this phone — there is no copy anywhere else.';
+  }
+
+  @override
+  String get outboxNothingToDo => 'Nothing to do — the server has it.';
+
+  @override
+  String get outboxRejectedNote =>
+      'The server refused this exactly as it is, so sending it again unchanged will fail the same way. Nothing has been altered for you.';
+
+  @override
+  String get outboxWaitingTurnNote =>
+      'This sends itself as soon as the visit above it does. Nothing is wrong.';
+
+  @override
+  String get outboxSignedOutNote =>
+      'Your session ended. Sign in and this sends itself.';
+
+  @override
+  String outboxItemId(int id, String type) {
+    return 'Capture $id · $type';
+  }
+
+  @override
+  String get pickerEmptyTitle => 'No stores here';
+
+  @override
+  String get pickerEmptyBodyMine =>
+      'Nothing is filed under your territories yet. Switch to all stores, or add the one you are standing in.';
+
+  @override
+  String get pickerEmptyBodyAll =>
+      'This client has no stores on the server yet. Add the one you are standing in.';
+
+  @override
+  String get pickerLoadErrorBody =>
+      'Your stores are fetched from the server. Nothing you have captured is affected.';
+
+  @override
+  String get pickerScopeHeading => 'Which stores';
+
+  @override
+  String get pickerStoresHeading => 'Stores';
+
+  @override
+  String get syncBannerOpen => 'tap to open your work';
 }
