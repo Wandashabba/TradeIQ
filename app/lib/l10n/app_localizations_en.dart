@@ -2681,10 +2681,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get visitPinReportedHeld =>
-      'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.';
-
-  @override
   String get meTitle => 'Me';
 
   @override

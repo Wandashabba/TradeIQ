@@ -4244,12 +4244,6 @@ abstract class AppLocalizations {
   /// **'This phone has version {current}. A newer version is needed.'**
   String updateVersionNoMinimum(String current);
 
-  /// Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does.
-  ///
-  /// In en, this message translates to:
-  /// **'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.'**
-  String get visitPinReportedHeld;
-
   /// Title of the agent's own record — their visits and what they have earned. Nav slot 4.
   ///
   /// In en, this message translates to:
