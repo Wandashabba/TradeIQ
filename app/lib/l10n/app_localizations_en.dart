@@ -119,7 +119,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get captureButton => 'Capture';
+  String get captureButton => 'Open camera';
 
   @override
   String get captureGalleryButton => 'Choose from gallery';
@@ -648,6 +648,54 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get submitNothingToRaise =>
       'Nothing to raise. No stockouts, no risks — this store is in good shape.';
+
+  @override
+  String submitNotConfirmedLine(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sections could not be confirmed — the manager is told',
+      one: '1 section could not be confirmed — the manager is told',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String submitCantConfirmTask(String section) {
+    return '$section could not be confirmed';
+  }
+
+  @override
+  String get submitCantConfirmTaskLine => 'The manager is told · not confirmed';
+
+  @override
+  String submitTaskSemanticsUrgent(String title, String line) {
+    return 'Urgent. $title. $line';
+  }
+
+  @override
+  String submitTaskSemanticsRoutine(String title, String line) {
+    return 'Routine. $title. $line';
+  }
+
+  @override
+  String submitCantConfirmSemantics(String section, String reason) {
+    return 'Not confirmed. $section. $reason';
+  }
+
+  @override
+  String get submitPrimarySemantics => 'Submit this visit to your manager';
+
+  @override
+  String submitCapturedSemantics(int done, int total, String line) {
+    return '$done of $total sections complete. $line';
+  }
+
+  @override
+  String get submitNothingToRaiseHeadline => 'Nothing to raise';
+
+  @override
+  String get submitGateBack => 'Go back and change something';
 
   @override
   String get outcomeTitle => 'Visit submitted';
@@ -1752,5 +1800,93 @@ class AppLocalizationsEn extends AppLocalizations {
       one: '1 section can’t be confirmed',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get outcomeOpenMyWork => 'Open my work';
+
+  @override
+  String outcomeHeroSemantics(int score, String band) {
+    return 'Perfect-store score, $score out of 100. $band.';
+  }
+
+  @override
+  String outcomeDimensionSemantics(String name, int value) {
+    return '$name, $value out of 100.';
+  }
+
+  @override
+  String outcomeDimensionUnmeasuredSemantics(String name, String reason) {
+    return '$name, not measured. $reason';
+  }
+
+  @override
+  String get outcomeNotMeasuredGeneric => 'Not measured in this visit.';
+
+  @override
+  String get outcomeFirstScored => 'First scored visit here.';
+
+  @override
+  String get outcomeReconciledLead => 'Now scored';
+
+  @override
+  String get outcomeReconciledTail => '— it was';
+
+  @override
+  String outcomeReconciledSemantics(int now, int seen) {
+    return 'Now scored $now. It was $seen when you saw it.';
+  }
+
+  @override
+  String get outcomeReconciledReason => 'It was scored again after you saw it.';
+
+  @override
+  String get outcomeNextStoreSemantics => 'Go on to the next store';
+
+  @override
+  String get outcomeHeldSemantics =>
+      'Submitted. Held on this phone until you have signal.';
+
+  @override
+  String get captureOpenCameraSemantics =>
+      'Open the camera to photograph the shelf';
+
+  @override
+  String get captureTorchHint =>
+      'Aisle dark? Switch your phone torch on before you shoot.';
+
+  @override
+  String get captureStampNote =>
+      'Your photo is stamped with the time and where you are.';
+
+  @override
+  String get captureReviewTitle => 'Check the photo';
+
+  @override
+  String get captureDarkCaption => 'Dark — retake?';
+
+  @override
+  String get captureDarkSemantics => 'Dark — you may want to retake this.';
+
+  @override
+  String get captureUseIt => 'Use it';
+
+  @override
+  String get captureNoCamera => 'This phone has no camera we can reach.';
+
+  @override
+  String get captureGeotagged => 'geotagged';
+
+  @override
+  String get captureNoGeotag => 'no location on this photo';
+
+  @override
+  String capturePhotoMeta(String time, String tag) {
+    return '$time · $tag';
+  }
+
+  @override
+  String capturePhotoSemantics(String time) {
+    return 'Photo taken $time, held on this phone.';
   }
 }

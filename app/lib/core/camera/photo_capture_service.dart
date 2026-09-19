@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../location/photo_geotagger.dart';
+import 'photo_exposure.dart';
 
 /// Where a photo came from. Gallery is not a convenience — an agent standing in
 /// a dark aisle with a cracked camera still has to be able to file evidence.
@@ -17,10 +18,32 @@ class CapturedPhoto {
     required this.byteLength,
     required this.capturedAt,
     this.gpsTag = const <String, dynamic>{},
+    this.meanLuma,
   });
 
   final String dataUrl;
   final int byteLength;
+
+  /// How bright the frame turned out, 0..1, once something has measured it.
+  ///
+  /// Null means **nobody has looked**, not "bright": the service does not
+  /// decode the image (a 12 MP decode on the capture path is an OOM on a 2 GB
+  /// handset and the capture is not the moment to spend it), so the review
+  /// step measures it with [meanLumaOfDataUrl] and hands the photo on with
+  /// this filled in. An unmeasured photo is never called dark.
+  final double? meanLuma;
+
+  /// Whether the frame is dark enough for the review step to ask about.
+  bool get isUnderexposed => meanLuma != null && meanLuma! < kDarkFrameLuma;
+
+  /// The same photo with its exposure recorded.
+  CapturedPhoto withMeanLuma(double? luma) => CapturedPhoto(
+    dataUrl: dataUrl,
+    byteLength: byteLength,
+    capturedAt: capturedAt,
+    gpsTag: gpsTag,
+    meanLuma: luma,
+  );
 
   /// The device clock when the picker handed the photo back. This, not the
   /// moment the section is saved or the outbox sends, is the photo's

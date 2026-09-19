@@ -251,7 +251,7 @@ abstract class AppLocalizations {
   /// Guided photo screen: button that opens the camera.
   ///
   /// In en, this message translates to:
-  /// **'Capture'**
+  /// **'Open camera'**
   String get captureButton;
 
   /// Guided photo screen: button that opens the photo gallery.
@@ -1105,6 +1105,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing to raise. No stockouts, no risks — this store is in good shape.'**
   String get submitNothingToRaise;
+
+  /// Second line on the submit gate's captured block when sections are can't-confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 section could not be confirmed — the manager is told} other{{count} sections could not be confirmed — the manager is told}}'**
+  String submitNotConfirmedLine(int count);
+
+  /// Title of a can't-confirm row on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'{section} could not be confirmed'**
+  String submitCantConfirmTask(String section);
+
+  /// Meta line under a can't-confirm row on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'The manager is told · not confirmed'**
+  String get submitCantConfirmTaskLine;
+
+  /// Screen-reader line for an urgent raised task.
+  ///
+  /// In en, this message translates to:
+  /// **'Urgent. {title}. {line}'**
+  String submitTaskSemanticsUrgent(String title, String line);
+
+  /// Screen-reader line for a routine raised task.
+  ///
+  /// In en, this message translates to:
+  /// **'Routine. {title}. {line}'**
+  String submitTaskSemanticsRoutine(String title, String line);
+
+  /// Screen-reader line for a can't-confirm row on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Not confirmed. {section}. {reason}'**
+  String submitCantConfirmSemantics(String section, String reason);
+
+  /// Screen-reader label for the submit gate's primary button.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit this visit to your manager'**
+  String get submitPrimarySemantics;
+
+  /// Screen-reader line for the submit gate's captured block.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} sections complete. {line}'**
+  String submitCapturedSemantics(int done, int total, String line);
+
+  /// Headline of the clean-store block on the submit gate.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to raise'**
+  String get submitNothingToRaiseHeadline;
+
+  /// Ghost action under the submit gate's primary.
+  ///
+  /// In en, this message translates to:
+  /// **'Go back and change something'**
+  String get submitGateBack;
 
   /// App bar title on the screen shown after a visit is submitted.
   ///
@@ -2791,6 +2851,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 section can’t be confirmed} other{{count} sections can’t be confirmed}}'**
   String visitCantConfirmCount(int count);
+
+  /// Ghost action on the outcome screen: open the outbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Open my work'**
+  String get outcomeOpenMyWork;
+
+  /// Screen-reader line for the outcome hero.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect-store score, {score} out of 100. {band}.'**
+  String outcomeHeroSemantics(int score, String band);
+
+  /// Screen-reader line for one scored dimension.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {value} out of 100.'**
+  String outcomeDimensionSemantics(String name, int value);
+
+  /// Screen-reader line for an unmeasured dimension.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, not measured. {reason}'**
+  String outcomeDimensionUnmeasuredSemantics(String name, String reason);
+
+  /// Reason shown on an unmeasured dimension the server gave no reason for.
+  ///
+  /// In en, this message translates to:
+  /// **'Not measured in this visit.'**
+  String get outcomeNotMeasuredGeneric;
+
+  /// Shown instead of a delta when there is no previous visit.
+  ///
+  /// In en, this message translates to:
+  /// **'First scored visit here.'**
+  String get outcomeFirstScored;
+
+  /// First half of the reconciliation line: 'Now scored 71 — it was 84'.
+  ///
+  /// In en, this message translates to:
+  /// **'Now scored'**
+  String get outcomeReconciledLead;
+
+  /// Second half of the reconciliation line.
+  ///
+  /// In en, this message translates to:
+  /// **'— it was'**
+  String get outcomeReconciledTail;
+
+  /// Screen-reader line for the reconciliation line.
+  ///
+  /// In en, this message translates to:
+  /// **'Now scored {now}. It was {seen} when you saw it.'**
+  String outcomeReconciledSemantics(int now, int seen);
+
+  /// Reason under the reconciliation line.
+  ///
+  /// In en, this message translates to:
+  /// **'It was scored again after you saw it.'**
+  String get outcomeReconciledReason;
+
+  /// Screen-reader label for the outcome's primary.
+  ///
+  /// In en, this message translates to:
+  /// **'Go on to the next store'**
+  String get outcomeNextStoreSemantics;
+
+  /// Screen-reader line announcing the held-on-phone outcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted. Held on this phone until you have signal.'**
+  String get outcomeHeldSemantics;
+
+  /// Screen-reader label for the pre-capture card's primary.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the camera to photograph the shelf'**
+  String get captureOpenCameraSemantics;
+
+  /// Shown on the pre-capture card when the last shot was underexposed.
+  ///
+  /// In en, this message translates to:
+  /// **'Aisle dark? Switch your phone torch on before you shoot.'**
+  String get captureTorchHint;
+
+  /// Meta line on the pre-capture card.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photo is stamped with the time and where you are.'**
+  String get captureStampNote;
+
+  /// Title of the photo review step.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the photo'**
+  String get captureReviewTitle;
+
+  /// Caption under an underexposed photo in the review strip.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark — retake?'**
+  String get captureDarkCaption;
+
+  /// Screen-reader announcement for an underexposed photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark — you may want to retake this.'**
+  String get captureDarkSemantics;
+
+  /// Primary on the photo review step: keep this photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Use it'**
+  String get captureUseIt;
+
+  /// Shown when the camera cannot be opened at all.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has no camera we can reach.'**
+  String get captureNoCamera;
+
+  /// Word in the photo's meta line when it carries a location.
+  ///
+  /// In en, this message translates to:
+  /// **'geotagged'**
+  String get captureGeotagged;
+
+  /// Word in the photo's meta line when it carries no location.
+  ///
+  /// In en, this message translates to:
+  /// **'no location on this photo'**
+  String get captureNoGeotag;
+
+  /// The photo's meta line in the review step.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} · {tag}'**
+  String capturePhotoMeta(String time, String tag);
+
+  /// Screen-reader label for the reviewed photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo taken {time}, held on this phone.'**
+  String capturePhotoSemantics(String time);
 }
 
 class _AppLocalizationsDelegate
