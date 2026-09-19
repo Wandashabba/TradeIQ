@@ -125,7 +125,7 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
-  String get captureButton => 'Neem foto';
+  String get captureButton => 'Maak kamera oop';
 
   @override
   String get captureGalleryButton => 'Kies uit galery';
@@ -655,6 +655,57 @@ class AppLocalizationsAf extends AppLocalizations {
   @override
   String get submitNothingToRaise =>
       'Niks om te skep nie. Niks uit voorraad, geen risiko’s nie — hierdie winkel is in goeie toestand.';
+
+  @override
+  String submitNotConfirmedLine(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count afdelings kon nie bevestig word nie — die bestuurder word vertel',
+      one: '1 afdeling kon nie bevestig word nie — die bestuurder word vertel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String submitCantConfirmTask(String section) {
+    return '$section kon nie bevestig word nie';
+  }
+
+  @override
+  String get submitCantConfirmTaskLine =>
+      'Die bestuurder word vertel · nie bevestig nie';
+
+  @override
+  String submitTaskSemanticsUrgent(String title, String line) {
+    return 'Dringend. $title. $line';
+  }
+
+  @override
+  String submitTaskSemanticsRoutine(String title, String line) {
+    return 'Roetine. $title. $line';
+  }
+
+  @override
+  String submitCantConfirmSemantics(String section, String reason) {
+    return 'Nie bevestig nie. $section. $reason';
+  }
+
+  @override
+  String get submitPrimarySemantics =>
+      'Stuur hierdie besoek aan jou bestuurder';
+
+  @override
+  String submitCapturedSemantics(int done, int total, String line) {
+    return '$done van $total afdelings voltooi. $line';
+  }
+
+  @override
+  String get submitNothingToRaiseHeadline => 'Niks om aan te meld nie';
+
+  @override
+  String get submitGateBack => 'Gaan terug en verander iets';
 
   @override
   String get outcomeTitle => 'Besoek ingedien';
@@ -1773,6 +1824,96 @@ class AppLocalizationsAf extends AppLocalizations {
       one: '1 afdeling kan nie bevestig word nie',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get outcomeOpenMyWork => 'Maak my werk oop';
+
+  @override
+  String outcomeHeroSemantics(int score, String band) {
+    return 'Perfekte-winkel-telling, $score uit 100. $band.';
+  }
+
+  @override
+  String outcomeDimensionSemantics(String name, int value) {
+    return '$name, $value uit 100.';
+  }
+
+  @override
+  String outcomeDimensionUnmeasuredSemantics(String name, String reason) {
+    return '$name, nie gemeet nie. $reason';
+  }
+
+  @override
+  String get outcomeNotMeasuredGeneric => 'Nie in hierdie besoek gemeet nie.';
+
+  @override
+  String get outcomeFirstScored => 'Eerste getelde besoek hier.';
+
+  @override
+  String get outcomeReconciledLead => 'Nou getel';
+
+  @override
+  String get outcomeReconciledTail => '— dit was';
+
+  @override
+  String outcomeReconciledSemantics(int now, int seen) {
+    return 'Nou getel $now. Dit was $seen toe jy dit gesien het.';
+  }
+
+  @override
+  String get outcomeReconciledReason =>
+      'Dit is weer getel nadat jy dit gesien het.';
+
+  @override
+  String get outcomeNextStoreSemantics => 'Gaan aan na die volgende winkel';
+
+  @override
+  String get outcomeHeldSemantics =>
+      'Gestuur. Op hierdie foon gehou totdat jy sein het.';
+
+  @override
+  String get captureOpenCameraSemantics =>
+      'Maak die kamera oop om die rak te fotografeer';
+
+  @override
+  String get captureTorchHint =>
+      'Gang donker? Skakel jou foon se flitslig aan voordat jy skiet.';
+
+  @override
+  String get captureStampNote =>
+      'Jou foto word gemerk met die tyd en waar jy is.';
+
+  @override
+  String get captureReviewTitle => 'Kyk na die foto';
+
+  @override
+  String get captureDarkCaption => 'Donker — neem weer?';
+
+  @override
+  String get captureDarkSemantics => 'Donker — jy wil dit dalk weer neem.';
+
+  @override
+  String get captureUseIt => 'Gebruik dit';
+
+  @override
+  String get captureNoCamera =>
+      'Hierdie foon het geen kamera wat ons kan bereik nie.';
+
+  @override
+  String get captureGeotagged => 'geo-gemerk';
+
+  @override
+  String get captureNoGeotag => 'geen ligging op hierdie foto nie';
+
+  @override
+  String capturePhotoMeta(String time, String tag) {
+    return '$time · $tag';
+  }
+
+  @override
+  String capturePhotoSemantics(String time) {
+    return 'Foto geneem $time, op hierdie foon gehou.';
   }
 
   @override

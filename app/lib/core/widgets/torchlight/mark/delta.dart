@@ -232,13 +232,25 @@ class Delta extends StatelessWidget {
         spacing: 8,
         runSpacing: 4,
         children: <Widget>[
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              TiqMark(shape: shape, color: ink, size: triangle),
-              const SizedBox(width: 4),
-              magnitude,
-            ],
+          // The triangle and its magnitude are one object, so they stay on
+          // one line — but the magnitude is `Flexible`, because in the
+          // withheld-comparison states it is a SENTENCE and not a figure
+          // ("Same as your last visit here (66)."), and a sentence inside a
+          // min-size Row inside a Wrap overflows on the right rather than
+          // wrapping. The Wrap gives this Row the full line width, so the
+          // sentence has somewhere to go.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                TiqMark(shape: shape, color: ink, size: triangle),
+                const SizedBox(width: 4),
+                Flexible(child: magnitude),
+              ],
+            ),
           ),
           if (data.comparedTo != null)
             Text(data.comparedTo!, style: metaStyle),

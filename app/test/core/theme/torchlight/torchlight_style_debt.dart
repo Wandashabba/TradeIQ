@@ -3,7 +3,8 @@
 // The style debt that existed in `lib/features/**` when the Torchlight Aisle
 // tokens landed, one entry per file. 477 hardcoded style decisions in 74 of
 // 133 files: 409 bare `TextStyle(`, 38 raw `Color(0x…)` and 30 uses of
-// Material's `Colors.` palette.
+// Material's `Colors.` palette. The submit gate (13) and the visit outcome
+// (24) came off it when the closing screens were migrated: 440 in 72 files.
 //
 // The ratchet is one-sided on purpose. A file may not gain a violation and a
 // file that is not listed may not have one at all — that is what stops the
@@ -45,8 +46,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'audit/presentation/sections/s7_capability_screen.dart': 2,
   'audit/presentation/sections/s8_risks_screen.dart': 4,
   'audit/presentation/sections/s9_action_plan_screen.dart': 3,
-  'audit/presentation/submit_gate_screen.dart': 13,
-  'audit/presentation/visit_outcome_screen.dart': 24,
   'audit/presentation/visit_outlet_picker_screen.dart': 3,
   'auth/presentation/landing_screen.dart': 5,
   'auth/presentation/login_screen.dart': 13,
@@ -94,4 +93,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 477;
+const int torchlightStyleDebtTotal = 440;
