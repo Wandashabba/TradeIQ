@@ -2223,6 +2223,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get askSourceCopied => 'Address copied';
 
   @override
+  String askSourceCopiedPreview(String snippet) {
+    return 'Address copied. The page says: $snippet';
+  }
+
+  @override
   String askShowAllSources(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -2890,6 +2890,15 @@
   "@askSourceCopied": {
     "description": "Toast after long-pressing a source row."
   },
+  "askSourceCopiedPreview": "Address copied. The page says: {snippet}",
+  "@askSourceCopiedPreview": {
+    "description": "Toast after long-pressing a source row whose search result carried a preview. The preview is the page's own words, in plain text.",
+    "placeholders": {
+      "snippet": {
+        "type": "String"
+      }
+    }
+  },
   "askShowAllSources": "{count, plural, =1{Show 1 source} other{Show all {count} sources}}",
   "@askShowAllSources": {
     "description": "Expands the cited sources list in place.",

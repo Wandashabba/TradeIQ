@@ -209,6 +209,12 @@ class _SoftRowState extends State<SoftRow> {
       button: tappable,
       enabled: widget.enabled,
       label: widget.semanticsLabel ?? _label(),
+      // The actions are declared on the node itself. `excludeSemantics`
+      // drops the gesture detector's own, so without these a screen-reader
+      // user could hear the row and never activate it — the row would be an
+      // announcement of something they cannot reach.
+      onTap: tappable ? _handleTap : null,
+      onLongPress: widget.onLongPress == null ? null : _handleLongPress,
       excludeSemantics: true,
       child: gesture,
     );

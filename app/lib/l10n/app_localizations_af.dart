@@ -2252,6 +2252,11 @@ class AppLocalizationsAf extends AppLocalizations {
   String get askSourceCopied => 'Adres gekopieer';
 
   @override
+  String askSourceCopiedPreview(String snippet) {
+    return 'Adres gekopieer. Die bladsy sê: $snippet';
+  }
+
+  @override
   String askShowAllSources(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

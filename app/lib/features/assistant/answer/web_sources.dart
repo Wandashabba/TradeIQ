@@ -146,6 +146,8 @@ class SourceRow extends StatefulWidget {
 }
 
 class _SourceRowState extends State<SourceRow> {
+  static const int _previewLength = 160;
+
   /// The platform refused the launch. The row stays — it is still provenance
   /// — and says what to do instead.
   bool _unreachable = false;
@@ -163,7 +165,21 @@ class _SourceRowState extends State<SourceRow> {
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: widget.source.url.toString()));
     if (!mounted) return;
-    showTorchToast(context, message: context.l10n.askSourceCopied);
+    final l10n = context.l10n;
+    // The search result's preview rides on the same long-press, in plain
+    // text: a preview costs the transcript no height, and it is never parsed
+    // as markdown. Clipped, because a toast is a report and not a page.
+    final snippet = widget.source.snippet?.trim();
+    showTorchToast(
+      context,
+      message: snippet == null || snippet.isEmpty
+          ? l10n.askSourceCopied
+          : l10n.askSourceCopiedPreview(
+              snippet.length <= _previewLength
+                  ? snippet
+                  : '${snippet.substring(0, _previewLength).trimRight()}…',
+            ),
+    );
   }
 
   @override

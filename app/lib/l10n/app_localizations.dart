@@ -3518,6 +3518,12 @@ abstract class AppLocalizations {
   /// **'Address copied'**
   String get askSourceCopied;
 
+  /// Toast after long-pressing a source row whose search result carried a preview. The preview is the page's own words, in plain text.
+  ///
+  /// In en, this message translates to:
+  /// **'Address copied. The page says: {snippet}'**
+  String askSourceCopiedPreview(String snippet);
+
   /// Expands the cited sources list in place.
   ///
   /// In en, this message translates to:

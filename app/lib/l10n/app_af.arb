@@ -570,6 +570,7 @@
   "askSourceOpensInBrowser": "maak in blaaier oop",
   "askSourceUnreachable": "Kon nie ’n blaaier oopmaak nie. Hou lank om die adres te kopieer.",
   "askSourceCopied": "Adres gekopieer",
+  "askSourceCopiedPreview": "Adres gekopieer. Die bladsy sê: {snippet}",
   "askShowAllSources": "{count, plural, =1{Wys 1 bron} other{Wys al {count} bronne}}",
   "askShowAll": "Wys al {count}",
   "askNoticeLookupBudget": "Ek het opgeraak aan opsoeke vir hierdie vraag, so hierdie antwoord is dalk onvolledig.",
