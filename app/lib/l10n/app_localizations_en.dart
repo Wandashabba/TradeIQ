@@ -1665,10 +1665,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get visitPinIsWrong => 'The pin is wrong';
 
   @override
-  String get visitPinReportedHeld =>
-      'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.';
-
-  @override
   String get visitNoGpsFixPermission =>
       'Allow location for TradeIQ in your phone’s settings. You can allow it just while using the app.';
 
@@ -2003,6 +1999,102 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sheetClose => 'Close';
+
+  @override
+  String get visitPinTooFarToReport =>
+      'This is too far to report the pin from here. Ask your manager to correct this store.';
+
+  @override
+  String get pinDisputeEyebrow => 'The pin is wrong';
+
+  @override
+  String get pinDisputeTitle => 'Report the pin and start the visit';
+
+  @override
+  String get pinDisputeEvidenceEyebrow => 'Sent with your report';
+
+  @override
+  String get pinDisputeDistanceLine =>
+      'from where the app has this shop, measured just now';
+
+  @override
+  String pinDisputeDistanceSemantics(int meters) {
+    return 'You are $meters metres from where the app has this shop.';
+  }
+
+  @override
+  String get pinDisputePositionLine =>
+      'Where you are standing, as your phone recorded it';
+
+  @override
+  String get pinDisputePhotoLine => 'Your photo of the storefront';
+
+  @override
+  String get pinDisputeExplain =>
+      'The visit starts outside the fence and stays flagged. Your manager sees where you were and can move the pin. You cannot clear the flag yourself.';
+
+  @override
+  String get pinDisputeNoteLabel => 'What is wrong with the pin? (optional)';
+
+  @override
+  String get pinDisputeNoteHint =>
+      'e.g. the pin is on the depot, the shop is on Main Road';
+
+  @override
+  String get pinDisputeAddPhoto => 'Add a photo of the storefront';
+
+  @override
+  String get pinDisputeRetakePhoto => 'Retake the photo';
+
+  @override
+  String get pinDisputePhotoAdded =>
+      'Storefront photo added. It is sent with the visit.';
+
+  @override
+  String get pinDisputePhotoLabel => 'Storefront';
+
+  @override
+  String get pinDisputePhotoHint =>
+      'Stand back far enough to get the shop name and the door in one shot.';
+
+  @override
+  String get pinDisputeSubmit => 'Start the visit, flagged';
+
+  @override
+  String get pinDisputeBack => 'Back to the distance';
+
+  @override
+  String pinDisputeFailed(String reason) {
+    return 'The visit could not start: $reason';
+  }
+
+  @override
+  String get visitFlagOutOfFence => 'Out of fence';
+
+  @override
+  String visitFlagMetres(int meters) {
+    return '$meters m';
+  }
+
+  @override
+  String visitFlagOutOfFenceSemantics(int meters) {
+    return 'Out of fence, $meters metres. Double-tap for detail.';
+  }
+
+  @override
+  String get visitFlagPinReported => 'Pin reported';
+
+  @override
+  String get visitFlagPinReportedSemantics =>
+      'Pin reported, for your manager to review. Double-tap for detail.';
+
+  @override
+  String get visitFlagSheetTitle => 'Checked in outside the fence';
+
+  @override
+  String visitFlagSheetBody(int meters) {
+    return 'You were $meters m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.';
+  }
 
   @override
   String get myWorkSendNow => 'Send now';

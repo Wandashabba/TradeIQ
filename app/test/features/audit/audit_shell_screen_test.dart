@@ -361,26 +361,7 @@ void main() {
         findsOneWidget,
       );
     });
-
-    testWidgets('"The pin is wrong" records locally and says exactly that', (
-      tester,
-    ) async {
-      await pumpVisit(tester, visits: ScriptedVisits.tooFar(180));
-
-      final action = find.byKey(const ValueKey<String>('pin-is-wrong'));
-      await scrollAgentTo(tester, action);
-      await tester.tap(action);
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey<String>('pin-reported')), findsOneWidget);
-      // Never "thanks, we'll look into it": there is no endpoint, and the
-      // copy must not pretend a server heard it.
-      expect(
-        find.textContaining('It has not been sent anywhere yet'),
-        findsOneWidget,
-      );
-      expect(action, findsNothing);
-    });
+    // "The pin is wrong" (#386) has its own file: pin_dispute_test.dart.
   });
 
   group('check-in — no GPS', () {
