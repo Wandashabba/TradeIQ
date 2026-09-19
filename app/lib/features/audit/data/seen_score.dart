@@ -1,5 +1,3 @@
-import 'dart:async' show unawaited;
-
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -99,9 +97,15 @@ final seenScoreStoreProvider = Provider<SeenScoreStore>(
 /// a reconciliation line appears on the *next* open instead of this one, which
 /// is exactly when the design says it should appear anyway.
 class SeenScores extends Notifier<Map<String, int>> {
+  /// Completes when the disk has answered. [record] awaits it, so a write
+  /// started on the first frame cannot land *before* the read and clobber what
+  /// the agent actually saw last time — which would erase the referent the
+  /// reconciliation line exists to keep.
+  late Future<void> _ready;
+
   @override
   Map<String, int> build() {
-    unawaited(_load());
+    _ready = _load();
     return const <String, int>{};
   }
 
@@ -123,6 +127,7 @@ class SeenScores extends Notifier<Map<String, int>> {
   /// would quietly make the line say "now 71 — it was 71" and then never
   /// appear again.
   Future<void> record(String visitDraftId, int score) async {
+    await _ready;
     if (state.containsKey(visitDraftId)) return;
     final next = <String, int>{...state, visitDraftId: score};
     state = next;

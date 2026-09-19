@@ -159,12 +159,6 @@ class _Scored extends ConsumerStatefulWidget {
 }
 
 class _ScoredState extends ConsumerState<_Scored> {
-  /// What this phone had shown for this visit *before* this build — read once,
-  /// because recording the current number immediately afterwards would
-  /// otherwise make the line vanish on its own first frame.
-  int? _seenBefore;
-  bool _read = false;
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -173,20 +167,22 @@ class _ScoredState extends ConsumerState<_Scored> {
     final band = RatingBand.ofWire(score.ratingBand);
     final total = score.weightedTotal.round();
 
-    final seen = ref.watch(seenScoresProvider);
-    if (!_read) {
-      _seenBefore = seen[widget.visitDraftId];
-      _read = true;
-    }
+    // No latch and no local copy. `record` never overwrites an entry, so once
+    // the store has answered this map either holds the number the agent saw
+    // last time — and the line renders for as long as the visit exists — or it
+    // holds this one, and there is nothing to reconcile. A latch taken on the
+    // first frame would read the empty map the notifier starts with and the
+    // line would never appear at all.
+    final seenBefore = ref.watch(seenScoresProvider)[widget.visitDraftId];
     // Record what is on the screen now, so a change made on review later has
-    // something to reconcile against. Deferred to after the frame: it writes
-    // to a provider, and a provider written during build is a rebuild loop.
+    // something to reconcile against. Deferred to after the frame: a provider
+    // written during build is a rebuild loop.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(seenScoresProvider.notifier).record(widget.visitDraftId, total);
     });
 
-    final changed = _seenBefore != null && _seenBefore != total;
+    final changed = seenBefore != null && seenBefore != total;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,32 +200,31 @@ class _ScoredState extends ConsumerState<_Scored> {
             spacing: TiqSpace.s3,
             runSpacing: TiqSpace.s2,
             children: <Widget>[
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  FigureSlot(
-                    key: const ValueKey<String>('score-hero'),
-                    value: total,
-                    role: skin.text.heroFigure,
-                    fit: <TiqTypeToken>[
-                      skin.text.heroFigure,
-                      skin.text.heroFigureCompact,
-                      skin.text.display,
-                    ],
-                    // ink-1, never the band's hue: a severity-coded figure at
-                    // 72px is a colour doing a number's job. The band is the
-                    // mark and the word, both of which survive greyscale.
-                    color: skin.palette.ink1,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: TiqSpace.s2),
-                    child: Text(
-                      '/100',
-                      style: skin.text.figureM.style(color: skin.palette.ink3),
-                    ),
-                  ),
+              FigureSlot(
+                key: const ValueKey<String>('score-hero'),
+                value: total,
+                role: skin.text.heroFigure,
+                fit: <TiqTypeToken>[
+                  skin.text.heroFigure,
+                  skin.text.heroFigureCompact,
+                  skin.text.display,
                 ],
+                // ink-1, never the band's hue: a severity-coded figure at 72px
+                // is a colour doing a number's job. The band is the mark and
+                // the word, both of which survive greyscale.
+                color: skin.palette.ink1,
+              ),
+              // The unit is a sibling of the figure inside the Wrap and not a
+              // child of a min-size Row beside it: at 2.0× a 115px figure plus
+              // a 48px unit is wider than a 320dp gutter box, and the Row's
+              // answer to that is to overflow rather than to wrap. The unit,
+              // the band and the delta each take their own line instead.
+              Padding(
+                padding: const EdgeInsets.only(bottom: TiqSpace.s2),
+                child: Text(
+                  '/100',
+                  style: skin.text.figureM.style(color: skin.palette.ink3),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: TiqSpace.s2),
@@ -238,11 +233,13 @@ class _ScoredState extends ConsumerState<_Scored> {
                   children: <Widget>[
                     SeverityMark(kind: _markFor(band)),
                     const SizedBox(width: TiqSpace.s2),
-                    Text(
-                      band.word(l10n),
-                      key: const ValueKey<String>('score-band'),
-                      style: skin.text.label.style(
-                        color: _bandInk(skin, band),
+                    Flexible(
+                      child: Text(
+                        band.word(l10n),
+                        key: const ValueKey<String>('score-band'),
+                        style: skin.text.label.style(
+                          color: _bandInk(skin, band),
+                        ),
                       ),
                     ),
                   ],
@@ -256,7 +253,7 @@ class _ScoredState extends ConsumerState<_Scored> {
           ReconciliationLine(
             key: const ValueKey<String>('outcome-reconciled'),
             finalValue: total,
-            seenValue: _seenBefore!,
+            seenValue: seenBefore,
             voice: ReconciliationVoice.agent,
             reason: l10n.outcomeReconciledReason,
             strings: ReconciliationStrings(
@@ -265,7 +262,7 @@ class _ScoredState extends ConsumerState<_Scored> {
             ),
             semanticsLabel: l10n.outcomeReconciledSemantics(
               total,
-              _seenBefore!,
+              seenBefore,
             ),
           ),
         ],

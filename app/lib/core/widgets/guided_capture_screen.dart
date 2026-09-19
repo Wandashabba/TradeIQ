@@ -112,7 +112,7 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
       // Measured here and not in the service: the service runs on the capture
       // path, where a full-size decode is an OOM on a 2 GB handset, and this
       // is the one moment the answer is actually needed.
-      final luma = await meanLumaOfDataUrl(photo.dataUrl);
+      final luma = await ref.read(photoExposureProvider)(photo.dataUrl);
       if (!mounted) return;
       setState(() {
         _review = photo.withMeanLuma(luma);

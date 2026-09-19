@@ -18,6 +18,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Mean luma below which a frame is called dark.
 ///
@@ -99,3 +100,19 @@ Future<double?> meanLumaOfDataUrl(String dataUrl) async {
 /// An unmeasured frame (null) is **not** dark. The app does not accuse a
 /// capture it could not read.
 bool isUnderexposed(double? luma) => luma != null && luma < kDarkFrameLuma;
+
+/// The seam the capture route reads the exposure through.
+///
+/// It exists for the same reason `ImagePickerGateway` does: the real
+/// implementation decodes an image, and **decoding an image inside a widget
+/// test does not complete on `FakeAsync`'s clock** — `pumpAndSettle` waits for
+/// a Future the engine will resolve on a real thread, and the test hangs with
+/// no output. `photo_exposure_test.dart` exercises the real measurement inside
+/// `tester.runAsync`, where decoding works; the screen tests override this with
+/// a scripted answer, which is also how they script a dark aisle without
+/// shipping a photograph of one.
+typedef PhotoExposureReader = Future<double?> Function(String dataUrl);
+
+final photoExposureProvider = Provider<PhotoExposureReader>(
+  (ref) => meanLumaOfDataUrl,
+);

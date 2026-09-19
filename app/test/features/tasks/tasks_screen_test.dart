@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/brand_media.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/camera/photo_exposure.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
@@ -241,6 +242,11 @@ Widget _app(
         clock: () => _shutter,
       ),
     ),
+    // The capture route measures the returned frame's exposure, and decoding
+    // an image does not complete on FakeAsync's clock — see
+    // `photo_exposure_test.dart`, which measures the real thing inside
+    // `tester.runAsync`.
+    photoExposureProvider.overrideWithValue((String dataUrl) async => null),
   ],
 );
 
@@ -489,6 +495,10 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('guided-capture')));
         await tester.pumpAndSettle();
+        // Capture lands on the review step first — a dark shot is never kept
+        // silently — so accepting the frame is what pops it back.
+        await tester.tap(find.byKey(const ValueKey('guided-use-it')));
+        await tester.pumpAndSettle();
         await tester.tap(confirm);
         await tester.pumpAndSettle();
 
@@ -514,6 +524,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-capture')));
       await tester.pumpAndSettle();
+      // Capture lands on the review step first; accepting pops the frame back.
+      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('confirm-closure')));
       await tester.pumpAndSettle();
 
@@ -535,6 +548,9 @@ void main() {
       // out of it to land on the sheet with no photo.
       await tester.tap(find.byKey(const ValueKey('guided-capture')));
       await tester.pumpAndSettle();
+      // A cancel never reaches the review step at all: there is nothing to
+      // review, so the card stays exactly as it was.
+      expect(find.byKey(const ValueKey('guided-use-it')), findsNothing);
       await tester.tap(find.byKey(const ValueKey('guided-close')));
       await tester.pumpAndSettle();
 
@@ -567,6 +583,10 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('photo-add')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('guided-capture')));
+        await tester.pumpAndSettle();
+        // Capture lands on the review step first — a dark shot is never kept
+        // silently — so accepting the frame is what pops it back.
+        await tester.tap(find.byKey(const ValueKey('guided-use-it')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('confirm-closure')));
         await tester.pumpAndSettle();
@@ -659,6 +679,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('photo-add')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guided-capture')));
+      await tester.pumpAndSettle();
+      // Capture lands on the review step first; accepting pops the frame back.
+      await tester.tap(find.byKey(const ValueKey('guided-use-it')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('confirm-closure')));
 
