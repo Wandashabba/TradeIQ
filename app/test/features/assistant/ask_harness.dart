@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
@@ -70,9 +71,11 @@ class LiveRepository implements AssistantRepository {
 
   void emit(AssistantEvent event) => _turn!.add(event);
 
+  /// End the stream. Not awaited: after Stop the listener has cancelled, and
+  /// a cancelled single-subscription controller's `close()` never completes.
   Future<void> close() async {
     final turn = _turn;
-    if (turn != null && !turn.isClosed) await turn.close();
+    if (turn != null && !turn.isClosed) unawaited(turn.close());
   }
 
   /// Drop the connection without a `done` frame.
@@ -291,6 +294,9 @@ Future<void> pumpFrames(WidgetTester tester, {int frames = 6}) async {
 Future<void> disposeAsk(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump(const Duration(seconds: 1));
+  // A sheet left open when the tree is torn down never pops, and the sheet
+  // count is static: the next test's first sheet would be "a second sheet".
+  TorchSheets.resetForTest();
 }
 
 /// Every string a reader can currently see in rich text.

@@ -207,16 +207,17 @@ class _AskState extends ConsumerState<_Ask> {
   }
 
   Future<void> _openHistory() async {
-    await showTorchSheet<void>(
+    final startOver = await showTorchSheet<bool>(
       context,
       builder: (sheetContext) => AskHistorySheet(
-        onGoToTurn: (index) => Navigator.of(sheetContext).pop(),
-        onStartOver: () {
-          Navigator.of(sheetContext).pop();
-          _openStartOver();
-        },
+        onGoToTurn: (index) => Navigator.of(sheetContext).pop(false),
+        // Sheets do not stack: the history sheet closes with its answer and
+        // the decision opens after it, rather than on top of it while it is
+        // still leaving.
+        onStartOver: () => Navigator.of(sheetContext).pop(true),
       ),
     );
+    if (startOver == true && mounted) await _openStartOver();
   }
 
   Future<void> _openStartOver() async {
