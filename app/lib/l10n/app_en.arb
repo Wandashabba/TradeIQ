@@ -337,9 +337,9 @@
   "@pickerLoadErrorTitle": {},
   "pickerRetry": "Try again",
   "@pickerRetry": {},
-  "myWorkTitle": "Your work",
+  "myWorkTitle": "My work",
   "@myWorkTitle": {},
-  "myWorkSubtitle": "What is on this phone, and what is sent",
+  "myWorkSubtitle": "Everything you’ve captured",
   "@myWorkSubtitle": {},
   "myWorkSyncNow": "Try sending now",
   "@myWorkSyncNow": {},
@@ -2704,6 +2704,242 @@
       }
     },
     "description": "Body of the sheet explaining the override flags."
+  },
+  "myWorkSendNow": "Send now",
+  "@myWorkSendNow": {
+    "description": "The action inside the My work summary block. A ghost by default — the queue sends itself — and the screen’s one amber block only when something is stuck."
+  },
+  "myWorkSendNowBlocked": "Nothing is waiting to send.",
+  "@myWorkSendNowBlocked": {
+    "description": "Why \"Send now\" is off. A disabled primary always names what is missing."
+  },
+  "myWorkSignedOutTitle": "{count, plural, =1{You’re signed out. Sign in and your 1 held capture will send.} other{You’re signed out. Sign in and your {count} held captures will send.}}",
+  "@myWorkSignedOutTitle": {
+    "description": "The signed-out block above the My work summary. The only state where the amber moves off \"Send now\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkSignIn": "Sign in",
+  "@myWorkSignIn": {
+    "description": "The signed-out block’s action."
+  },
+  "myWorkShowOlder": "Show older",
+  "@myWorkShowOlder": {
+    "description": "Ghost action under the capped Sent list."
+  },
+  "myWorkSentCapped": "Showing the {shown} most recently sent of {total}",
+  "@myWorkSentCapped": {
+    "description": "The Sent group is capped so a long outbox does not become a scroll. Says what it is showing and out of how many.",
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkEmptyBody": "Everything you capture in a store shows up here until the server has it.",
+  "@myWorkEmptyBody": {
+    "description": "The empty My work screen. Says what the screen is for rather than apologising."
+  },
+  "myWorkLoadErrorBody": "Your work is still on this phone. Nothing is lost.",
+  "@myWorkLoadErrorBody": {
+    "description": "Body of the My work load-error state. The outbox failing to READ is not the outbox failing to hold."
+  },
+  "myWorkRetry": "Try again",
+  "@myWorkRetry": {
+    "description": "Reads the outbox again after a failed read. The captures themselves were never in doubt — only the reading of them."
+  },
+  "outboxWaiting": "Waiting",
+  "@outboxWaiting": {
+    "description": "Outbox row state word: queued, waiting for signal. Never an error."
+  },
+  "outboxSending": "Sending",
+  "@outboxSending": {
+    "description": "Outbox row state word: bytes are moving."
+  },
+  "outboxRetrying": "Retrying",
+  "@outboxRetrying": {
+    "description": "Outbox row state word: a failed attempt that will clear itself."
+  },
+  "outboxSent": "Sent",
+  "@outboxSent": {
+    "description": "Outbox row state word: the server has it."
+  },
+  "outboxNeedsYou": "Needs you",
+  "@outboxNeedsYou": {
+    "description": "Outbox row state word for the one severity-bearing state, and the severity in words beside the crimson bar."
+  },
+  "outboxWaitingTurn": "Waiting its turn",
+  "@outboxWaitingTurn": {
+    "description": "Outbox row state word: blocked on the visit above it. An ordering dependency, explicitly not a fault."
+  },
+  "outboxWaitingSentence": "Waiting for signal",
+  "@outboxWaitingSentence": {
+    "description": "The queued state as a sentence."
+  },
+  "outboxSendingSentence": "Going up now",
+  "@outboxSendingSentence": {
+    "description": "The sending state as a sentence."
+  },
+  "outboxSentSentence": "The server has it",
+  "@outboxSentSentence": {
+    "description": "The sent state as a sentence."
+  },
+  "outboxQueuedAt": "queued {time}",
+  "@outboxQueuedAt": {
+    "description": "The age line on a queued outbox row. {time} is a clock time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "outboxSentAt": "sent {time}",
+  "@outboxSentAt": {
+    "description": "The age line on a sent outbox row.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "outboxLastTriedAt": "last tried {time}",
+  "@outboxLastTriedAt": {
+    "description": "The age line on a retrying or stuck outbox row. The real last attempt, never an invented next-try time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "outboxAttempts": "{count, plural, =0{Not tried yet} =1{Tried once} other{Tried {count} times}}",
+  "@outboxAttempts": {
+    "description": "How many send attempts this capture has had, in the sheet’s identifier block.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outboxSendThisNow": "Send this one now",
+  "@outboxSendThisNow": {
+    "description": "The sheet action that flushes exactly this capture and nothing else."
+  },
+  "outboxDiscard": "Discard this capture",
+  "@outboxDiscard": {
+    "description": "The sheet action that throws a stuck capture away. Always behind a second step."
+  },
+  "outboxDiscardConfirm": "Yes, discard it",
+  "@outboxDiscardConfirm": {
+    "description": "The confirming press on the discard sheet."
+  },
+  "outboxDiscardKeep": "Keep it",
+  "@outboxDiscardKeep": {
+    "description": "The way out of the discard confirm."
+  },
+  "outboxDiscardWhatIsLost": "This {item} has not reached the server. Discard it and it is gone from this phone — there is no copy anywhere else.",
+  "@outboxDiscardWhatIsLost": {
+    "description": "Said plainly before anything is thrown away (#376). {item} is the capture’s own name, e.g. \"Stock count\".",
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "outboxDiscardTakesDependents": "{count, plural, =1{1 capture from this visit goes with it, because it cannot send without the visit.} other{{count} captures from this visit go with it, because they cannot send without the visit.}}",
+  "@outboxDiscardTakesDependents": {
+    "description": "Added to the discard statement when the capture is a visit: its sections, photos and submit cannot send without it, so they are removed too. Said before the agent confirms (#376).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outboxNothingToDo": "Nothing to do — the server has it.",
+  "@outboxNothingToDo": {
+    "description": "The sent state’s sheet. A sent row is still tappable, and it says so."
+  },
+  "outboxRejectedNote": "The server refused this exactly as it is, so sending it again unchanged will fail the same way. Nothing has been altered for you.",
+  "@outboxRejectedNote": {
+    "description": "Shown on a rejected or too-large capture. The app never repairs a rejected payload behind the agent’s back (#376)."
+  },
+  "outboxWaitingTurnNote": "This sends itself as soon as the visit above it does. Nothing is wrong.",
+  "@outboxWaitingTurnNote": {
+    "description": "The ordering dependency, said in the sheet so it is never read as a fault."
+  },
+  "outboxSignedOutNote": "Your session ended. Sign in and this sends itself.",
+  "@outboxSignedOutNote": {
+    "description": "The one stuck state whose fix has nothing to do with the capture."
+  },
+  "outboxItemId": "Capture {id} · {type}",
+  "@outboxItemId": {
+    "description": "The identifier block in the outbox sheet, in mono. For a support call.",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "pickerEmptyTitle": "No stores here",
+  "@pickerEmptyTitle": {
+    "description": "The picker with an empty list."
+  },
+  "pickerEmptyBodyMine": "Nothing is filed under your territories yet. Switch to all stores, or add the one you are standing in.",
+  "@pickerEmptyBodyMine": {
+    "description": "The picker’s empty state while it is narrowed. Names both ways out."
+  },
+  "pickerEmptyBodyAll": "This client has no stores on the server yet. Add the one you are standing in.",
+  "@pickerEmptyBodyAll": {
+    "description": "The picker’s empty state with the widest scope. The list is genuinely empty, not filtered."
+  },
+  "pickerLoadErrorBody": "Your stores are fetched from the server. Nothing you have captured is affected.",
+  "@pickerLoadErrorBody": {
+    "description": "Body of the picker’s load-error state. A list that will not load is not work that is lost."
+  },
+  "pickerScopeHeading": "Which stores",
+  "@pickerScopeHeading": {
+    "description": "Section rule above the picker’s scope control."
+  },
+  "pickerStoresHeading": "Stores",
+  "@pickerStoresHeading": {
+    "description": "Section rule above the picker’s list."
+  },
+  "syncBannerOpen": "tap to open your work",
+  "@syncBannerOpen": {
+    "description": "The trailing half of the held banner’s screen-reader label."
+  },
+  "commonClose": "Close",
+  "@commonClose": {
+    "description": "The Veld Close row on a bottom sheet — in Veld a sheet is a full-screen route and needs a way out that is not a scrim tap."
+  },
+  "pickerStartVisitSemantics": "{name}, {code}. Double-tap to start a visit here.",
+  "@pickerStartVisitSemantics": {
+    "description": "One picker row as a screen reader hears it — the store, its code, and what tapping does.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "syncBannerNeedsYou": "{count, plural, =1{needs you} other{need you}}",
+  "@syncBannerNeedsYou": {
+    "description": "The needs-you banner’s state WORD, without the count. The band renders the figure itself in mono and keeps the count out of the live region — a count inside a live label interrupts an agent once per capture.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "errorTooManyAttempts": "Too many attempts. Wait a few minutes, then try again.",
   "@errorTooManyAttempts": {

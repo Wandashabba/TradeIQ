@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../l10n/l10n.dart';
 import '../../sync/sync_status.dart';
 import 'mark/status_chip.dart';
+import 'state/held_banner.dart';
 
 /// THE SYNC CHIP — the answer to the question a field agent asks all day:
 /// *is my work safe?*
@@ -13,9 +14,10 @@ import 'mark/status_chip.dart';
 /// word and a tap target; the silhouette, the geometry, the contrast and the
 /// "no amber, ever" all come from the mark set. unify §1.14 rules one
 /// component in two forms — the chip is the default and the 56dp banner
-/// renders only for NEEDS-YOU and OFFLINE-ENTIRELY. The banner form is not
-/// built yet; the chip carries the needs-you state at its `critical` level
-/// meanwhile, and says so in words.
+/// ([TorchSyncBanner]) renders only for NEEDS-YOU. The chip still carries the
+/// needs-you state at its `critical` level, because a screen may show both:
+/// the header answers "is my work safe?" at a glance and the band says what
+/// to do about it.
 ///
 /// The one rule this component exists to enforce: **held is never an error**.
 /// Twelve captures on the phone with no signal is the normal state of South
@@ -47,7 +49,7 @@ class TorchSyncChip extends ConsumerWidget {
       final n = data.needsAttention.length;
       return StatusChip(
         level: StatusLevel.critical,
-        label: l10n.syncChipNeedsYou(n),
+        label: l10n.syncBannerNeedsYou(n),
         onTap: go,
         semanticsLabel: l10n.syncChipNeedsYouSemantics(n),
       );
@@ -68,6 +70,49 @@ class TorchSyncChip extends ConsumerWidget {
       label: l10n.syncChipHeld(n),
       onTap: go,
       semanticsLabel: l10n.syncChipHeldSemantics(n),
+    );
+  }
+}
+
+/// THE BANNER FORM — the same component, promoted (unify §1.14).
+///
+/// A chip in the header is the default and this band is the exception: it
+/// renders **only for NEEDS-YOU**, because a permanent 56dp strip on every
+/// screen spends the fold, and because held work is not news. Everything else
+/// — held, sending, all sent — stays a chip.
+///
+/// **OFFLINE-ENTIRELY is not built.** The ruling gives the banner two states
+/// and the second one needs a connectivity channel this app does not have: no
+/// plugin, no provider, nothing that knows whether a radio is up. A band that
+/// announced "No signal" on a guess would be worse than one that says nothing,
+/// and the held state already tells the truth about what is on the phone.
+///
+/// Held is Oatmeal and needs-you is the only state that raises a colour —
+/// [OfflineHeldBanner] owns both, and neither of them is ever amber.
+class TorchSyncBanner extends ConsumerWidget {
+  const TorchSyncBanner({super.key, this.onTap});
+
+  /// Where the band goes. Defaults to My work; pass null on the screen it
+  /// opens, where it would be a link to itself.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final data = ref.watch(syncStatusProvider).value;
+    // It never guesses, and it never claims everything is fine: an absent
+    // answer renders nothing at all.
+    if (data == null || data.needsAttention.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final n = data.needsAttention.length;
+    return OfflineHeldBanner(
+      state: SyncState.needsYou,
+      count: n,
+      label: l10n.syncBannerNeedsYou(n),
+      subtitle: l10n.syncAttentionSubtitle,
+      openLabel: l10n.syncBannerOpen,
+      onTap: onTap ?? () => context.go('/my-work'),
     );
   }
 }
