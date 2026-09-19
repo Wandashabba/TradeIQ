@@ -11,6 +11,7 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/sync_status.dart';
@@ -166,6 +167,26 @@ SyncStatus _held() {
   );
 }
 
+/// [count] queued captures, each failing with [code].
+SyncStatus _failing(int count, String code) {
+  final items = <SyncItem>[
+    for (var i = 0; i < count; i++)
+      SyncItem(
+        id: 10 + i,
+        entityType: 'photo',
+        queuedAt: DateTime(2026, 9, 18),
+        synced: false,
+        attempts: 2,
+        lastError: code,
+      ),
+  ];
+  return SyncStatus(
+    pending: items,
+    sent: const <SyncItem>[],
+    needsAttention: items.where((i) => i.needsAttention).toList(),
+  );
+}
+
 void main() {
   group('the list', () {
     testWidgets('a whole row is the way into a visit', (tester) async {
@@ -249,11 +270,7 @@ void main() {
       final handle = tester.ensureSemantics();
       expect(
         tester.getSemantics(find.byKey(const ValueKey<String>('scope-mine'))),
-        isSemantics(
-          isSelected: true,
-          isButton: true,
-          label: 'My territories',
-        ),
+        isSemantics(isSelected: true, isButton: true, label: 'My territories'),
       );
       handle.dispose();
     });
@@ -373,6 +390,46 @@ void main() {
       await tester.tap(band);
       await tester.pumpAndSettle();
       expect(find.text('My work view'), findsOneWidget);
+    });
+  });
+
+  group('the sync chip and band tell held from stuck', () {
+    Finder inChip(Finder f) =>
+        find.descendant(of: find.byType(TorchSyncChip), matching: f);
+
+    // The chip once borrowed the band's bare word, which the band pairs with
+    // a figure the chip has no slot for: three rejected captures read "need
+    // you", with no count.
+    testWidgets('needs-you: the chip says how many', (tester) async {
+      await _pump(tester, sync: _failing(3, 'sync:rejected:422'));
+      expect(inChip(find.text('3 need you')), findsOneWidget);
+      expect(inChip(find.text('need you')), findsNothing);
+      final chip = tester.widget<StatusChip>(inChip(find.byType(StatusChip)));
+      expect(chip.level, StatusLevel.critical);
+    });
+
+    testWidgets('needs-you, one: the singular carries its figure too', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _failing(1, 'sync:rejected:422'));
+      expect(inChip(find.text('1 needs you')), findsOneWidget);
+    });
+
+    // unify §1.13: a capture held because the session ended is HELD. It
+    // sends itself after sign-in, so it never raises the crimson band ("They
+    // will not send on their own") and never a critical chip.
+    testWidgets('signed out: held on the chip, and no band', (tester) async {
+      await _pump(tester, sync: _failing(2, 'sync:signedOut'));
+      expect(
+        find.descendant(
+          of: find.byType(TorchSyncBanner),
+          matching: find.byType(OfflineHeldBanner),
+        ),
+        findsNothing,
+      );
+      final chip = tester.widget<StatusChip>(inChip(find.byType(StatusChip)));
+      expect(chip.level, StatusLevel.held);
+      expect(inChip(find.text('2 held on this phone')), findsOneWidget);
     });
   });
 

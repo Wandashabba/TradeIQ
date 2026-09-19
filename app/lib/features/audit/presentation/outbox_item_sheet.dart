@@ -16,10 +16,14 @@ import '../../../l10n/l10n.dart';
 /// derivation. The order matters: *sent* first because a synced row is
 /// finished whatever else is stored on it, then the ordering dependency —
 /// which throws and therefore has a `lastError`, but is not a fault and must
-/// never be shown as one.
+/// never be shown as one. Then the ended session, for the same reason: the
+/// capture is fine and signing in sends it, so it is **held** — an Oatmeal
+/// square and a word, never the crimson stuck state (unify §1.13). A flush
+/// in flight does not move it either: with no session it sends nothing.
 OutboxState outboxStateFor(SyncItem item, {required bool sending}) {
   if (item.synced) return OutboxState.sent;
   if (item.waitsForVisit) return OutboxState.waitingForVisit;
+  if (item.sessionEnded) return OutboxState.queued;
   if (item.needsAttention) return OutboxState.stuck;
   if (sending) return OutboxState.sending;
   // A failure that clears itself — no signal, a 5xx. It is retrying, not
@@ -31,15 +35,22 @@ OutboxState outboxStateFor(SyncItem item, {required bool sending}) {
 /// The state in one or two words. Sentence case at the `label` role: unify
 /// §1.17 legalises the uppercase eyebrow in three places and a queue row's
 /// trailing word is not one of them.
-String outboxStateWord(OutboxState state, AppLocalizations l10n) =>
-    switch (state) {
-      OutboxState.queued => l10n.outboxWaiting,
-      OutboxState.sending => l10n.outboxSending,
-      OutboxState.retrying => l10n.outboxRetrying,
-      OutboxState.sent => l10n.outboxSent,
-      OutboxState.stuck => l10n.outboxNeedsYou,
-      OutboxState.waitingForVisit => l10n.outboxWaitingTurn,
-    };
+///
+/// Pass [item] where there is one: a capture held because the session ended
+/// is queued, and its word is "Held" rather than "Waiting".
+String outboxStateWord(
+  OutboxState state,
+  AppLocalizations l10n, {
+  SyncItem? item,
+}) => switch (state) {
+  OutboxState.queued when item?.sessionEnded ?? false => l10n.outboxHeld,
+  OutboxState.queued => l10n.outboxWaiting,
+  OutboxState.sending => l10n.outboxSending,
+  OutboxState.retrying => l10n.outboxRetrying,
+  OutboxState.sent => l10n.outboxSent,
+  OutboxState.stuck => l10n.outboxNeedsYou,
+  OutboxState.waitingForVisit => l10n.outboxWaitingTurn,
+};
 
 /// The state as a sentence. For everything that failed, that sentence is the
 /// **stored reason**, worded in the agent's language — never a euphemism, and
@@ -49,6 +60,9 @@ String outboxSentence(
   OutboxState state,
   AppLocalizations l10n,
 ) => switch (state) {
+  // Not the stored "Signed out — sign in again": that line is a failure's
+  // wording, and this capture has not failed. It is held, and says why.
+  OutboxState.queued when item.sessionEnded => l10n.outboxHeldUntilSignIn,
   OutboxState.queued => l10n.outboxWaitingSentence,
   OutboxState.sending => l10n.outboxSendingSentence,
   OutboxState.sent => l10n.outboxSentSentence,
@@ -133,7 +147,9 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
   /// Only a capture that is stuck on its own account. A session that ended is
   /// not the capture's fault — signing in sends it — and throwing work away
   /// because a token expired is the one discard nobody meant. (With no
-  /// session the service could not reach the row to remove it anyway.)
+  /// session the service could not reach the row to remove it anyway.) Such
+  /// a capture is derived as held, never stuck; the second clause stays so
+  /// the rule holds whatever state a caller passes.
   bool get _discardable =>
       widget.state == OutboxState.stuck && !_item.sessionEnded;
 
@@ -211,7 +227,7 @@ class _OutboxItemSheetState extends ConsumerState<_OutboxItemSheet> {
   String? _note(AppLocalizations l10n) => switch (widget.state) {
     OutboxState.sent => l10n.outboxNothingToDo,
     OutboxState.waitingForVisit => l10n.outboxWaitingTurnNote,
-    OutboxState.stuck when _item.sessionEnded => l10n.outboxSignedOutNote,
+    _ when _item.sessionEnded => l10n.outboxSignedOutNote,
     OutboxState.stuck when _item.isRejected => l10n.outboxRejectedNote,
     _ => null,
   };

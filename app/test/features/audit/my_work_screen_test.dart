@@ -76,6 +76,13 @@ final _signedOut = _status(<SyncItem>[
 
 final _allSent = _status(<SyncItem>[_item(3, 'visit', synced: true)]);
 
+/// Signed out, beside a capture the server genuinely refused.
+final _signedOutAndStuck = _status(<SyncItem>[
+  _item(5, 'photo', lastError: 'sync:signedOut'),
+  _item(4, 'pricing', lastError: 'sync:rejected:422', payloadBytes: 900),
+  _item(1, 'stock'),
+]);
+
 /// A field agent whose location answer is [consent] (null: not yet asked).
 class _Location extends LocationSharingController {
   _Location(this.consent);
@@ -85,18 +92,16 @@ class _Location extends LocationSharingController {
   @override
   LocationSharingState build() => LocationSharingState(
     isAgent: true,
-    settings: LocationSettings(
-      intervalSeconds: 120,
-      noticeVersion: 'v1',
-    ).withDecision(
-      consent == null
-          ? null
-          : LocationDecision(
-              consent: consent!,
-              noticeVersion: 'v1',
-              decidedAt: DateTime(2026, 9, 15),
-            ),
-    ),
+    settings: LocationSettings(intervalSeconds: 120, noticeVersion: 'v1')
+        .withDecision(
+          consent == null
+              ? null
+              : LocationDecision(
+                  consent: consent!,
+                  noticeVersion: 'v1',
+                  decidedAt: DateTime(2026, 9, 15),
+                ),
+        ),
     running: consent == LocationConsent.acknowledged,
   );
 }
@@ -335,6 +340,72 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('sign-in')));
       await tester.pumpAndSettle();
       expect(find.text('Login view'), findsOneWidget);
+    });
+
+    // unify §1.13 names session-ended among the HELD states. These captures
+    // send themselves the moment the agent signs in, so nothing about them is
+    // a severity: this screen once drew a crimson triangle over "1 item will
+    // not send · Everything else is safe", a crimson-bordered sign-in block
+    // and a "Needs you" row — for work that was fine.
+    testWidgets('signed out is held: Oatmeal, a square and a word', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _signedOut);
+      final skin = agentSkinFor(SkinMode.night);
+
+      final mark = _summaryMark(tester);
+      expect(mark.shape, MarkShape.heldSquare);
+      expect(mark.color, skin.palette.ink2);
+      expect(find.text('2 items held on this phone'), findsOneWidget);
+      expect(find.textContaining('will not send'), findsNothing);
+      expect(find.text('Everything else is safe'), findsNothing);
+      // "They will send themselves" is untrue with no session; it says why.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('work-summary')),
+          matching: find.text('Held until you sign in'),
+        ),
+        findsOneWidget,
+      );
+
+      final block = tester.widget<Container>(
+        find.byKey(const ValueKey<String>('signed-out')),
+      );
+      final edge = ((block.decoration! as BoxDecoration).border! as Border).top;
+      expect(edge.color, skin.palette.edgeStructure);
+      expect(edge.color, isNot(skin.palette.bad));
+
+      final row = await _see(tester, 5);
+      expect(row.state, isNot(OutboxState.stuck));
+      expect(row.state, OutboxState.queued);
+      expect(row.stuckLabel, isNull);
+      expect(row.stateWord, 'Held');
+      expect(row.sentence, 'Held until you sign in');
+      expect(find.text('Needs you'), findsNothing);
+      expect(find.text('Waiting to send'), findsOneWidget);
+    });
+
+    testWidgets('signed out while a flush runs: still held, never sending', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _signedOut, sending: true);
+      expect((await _see(tester, 5)).state, OutboxState.queued);
+    });
+
+    testWidgets('signed out beside a refusal: only the refusal is crimson', (
+      tester,
+    ) async {
+      await _pump(tester, sync: _signedOutAndStuck);
+      final skin = agentSkinFor(SkinMode.night);
+      final mark = _summaryMark(tester);
+      expect(mark.shape, MarkShape.criticalTriangle);
+      expect(mark.color, skin.palette.bad);
+      // One refused capture, not two: the held one is not counted.
+      expect(find.text('1 item will not send'), findsOneWidget);
+      expect(_allocation(tester).isLit(MyWorkScreen.signInClaimId), isTrue);
+
+      expect((await _see(tester, 4)).state, OutboxState.stuck);
+      expect((await _see(tester, 5)).state, OutboxState.queued);
     });
   });
 

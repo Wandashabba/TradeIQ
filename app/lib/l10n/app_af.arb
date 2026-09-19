@@ -636,6 +636,8 @@
   "outboxRejectedNote": "Die bediener het dit net so geweier, so om dit onveranderd weer te stuur sal net so misluk. Niks is vir jou verander nie.",
   "outboxWaitingTurnNote": "Hierdie stuur vanself sodra die besoek bo dit stuur. Niks is verkeerd nie.",
   "outboxSignedOutNote": "Jou sessie het geëindig. Meld aan en hierdie stuur vanself.",
+  "outboxHeld": "Gehou",
+  "outboxHeldUntilSignIn": "Gehou totdat jy aanmeld",
   "outboxItemId": "Vaslegging {id} · {type}",
   "pickerEmptyTitle": "Geen winkels hier nie",
   "pickerEmptyBodyMine": "Niks is nog onder jou gebiede geliasseer nie. Skakel oor na alle winkels, of voeg die een by waar jy staan.",
