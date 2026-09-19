@@ -382,10 +382,7 @@ void main() {
       expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
       // And the action actually runs the row's callback, which is the half a
       // flag cannot prove.
-      tester.binding.pipelineOwner.semanticsOwner!.performAction(
-        node.id,
-        SemanticsAction.tap,
-      );
+      tester.semantics.tap(find.semantics.byLabel('Kasi Corner Spaza'));
       await tester.pump();
       expect(taps, 1);
       handle.dispose();
