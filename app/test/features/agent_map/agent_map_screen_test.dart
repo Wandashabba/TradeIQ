@@ -65,9 +65,14 @@ class _WalkingPhone extends LocationService {
 
 /// The ordinary frame: one stop done, one next, one store in the patch, and a
 /// fix that is 1,2 km from anything — so nothing is at the door.
+///
+/// [atDoor] stands the agent 12 m from Sunrise, the stop that is **next** — a
+/// store a check-in is owed at. [atVisitedDoor] stands them 12 m from Kasi,
+/// the stop already done today, where a second check-in is not the move.
 AgentMapView _view({
   bool located = true,
   bool atDoor = false,
+  bool atVisitedDoor = false,
   bool disputed = false,
   int patch = 1,
 }) {
@@ -78,13 +83,13 @@ AgentMapView _view({
         outlet: _kasi,
         state: MapPinState.doneToday,
         sequence: 1,
-        distanceMeters: metres(atDoor ? 12 : 1200),
+        distanceMeters: metres(atVisitedDoor ? 12 : 1200),
       ),
       MapOutlet(
         outlet: _sunrise,
         state: MapPinState.nextUp,
         sequence: 2,
-        distanceMeters: metres(1330),
+        distanceMeters: metres(atDoor ? 12 : 1330),
         disputed: disputed,
       ),
       for (var i = 0; i < patch; i++)
@@ -102,7 +107,11 @@ AgentMapView _view({
           distanceMeters: metres(2400.0 + i),
         ),
     ],
-    here: located ? const Coordinates(lat: -26.2399, lng: 27.858) : null,
+    here: !located
+        ? null
+        : atDoor
+        ? const Coordinates(lat: -26.2519, lng: 27.858)
+        : const Coordinates(lat: -26.2399, lng: 27.858),
     problem: located ? null : MapLocationProblem.denied,
     planName: 'Naledi · Soweto East',
   );
@@ -336,7 +345,10 @@ void main() {
       await _pump(tester, skin: SkinMode.veld);
 
       expect(find.byType(FlutterMap), findsNothing);
-      expect(find.textContaining('The map is off in bright sun'), findsOneWidget);
+      expect(
+        find.textContaining('The map is off in bright sun'),
+        findsOneWidget,
+      );
       expect(find.text('Kasi Corner Spaza'), findsWidgets);
     });
 
@@ -391,7 +403,9 @@ void main() {
       await _pump(tester);
 
       await _openSheet(tester, 'o2');
-      await tester.tap(find.byKey(const ValueKey<String>('map-sheet-check-in')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('map-sheet-check-in')),
+      );
       await _frames(tester, count: 8);
 
       expect(find.text('Visit o2'), findsOneWidget);
@@ -422,10 +436,7 @@ void main() {
 
       await _openSheet(tester, 'o2');
 
-      expect(
-        find.textContaining('reported this pin as wrong'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('reported this pin as wrong'), findsOneWidget);
       expect(
         find.text('Next up'),
         findsWidgets,
@@ -522,7 +533,8 @@ void main() {
       expect(
         door(tester)?.outlet.id,
         'o2',
-        reason: 'a cached fix would still arm "check in here" for Kasi, and '
+        reason:
+            'a cached fix would still arm "check in here" for Kasi, and '
             'route the circle to /audit/o1, while the agent stands in Sunrise',
       );
     });
@@ -542,7 +554,8 @@ void main() {
       expect(
         door(tester)?.outlet.id,
         'o1',
-        reason: 'an agent who turned location on and came back must not need '
+        reason:
+            'an agent who turned location on and came back must not need '
             'to restart the app to be located',
       );
     });
@@ -590,7 +603,9 @@ void main() {
         overrides: <Override>[
           ...agentBaseOverrides(db: db),
           // Never completes: the loading frame is the subject.
-          agentMapProvider.overrideWith((ref) => Completer<AgentMapView>().future),
+          agentMapProvider.overrideWith(
+            (ref) => Completer<AgentMapView>().future,
+          ),
         ],
         settle: false,
       );
@@ -702,6 +717,53 @@ void main() {
             'inside a store\'s own fence, "check in here" is the move — and '
             'it is the screen\'s one content grant\n\n${census.describe()}',
       );
+      expect(
+        tester
+            .widget<AgentMapFrame>(find.byType(AgentMapFrame))
+            .atDoor
+            ?.outlet
+            .id,
+        'o2',
+        reason: 'the store lit for is the one a check-in is owed at: next up',
+      );
+    });
+
+    testWidgets('Night, still standing in a shop already visited: one — the '
+        'tab, and the circle is not lit', (tester) async {
+      // Visit submitted, agent still at the till. The store's own sheet says
+      // a second check-in is not the expected move; the circle must agree.
+      await _pump(tester, view: _view(atVisitedDoor: true));
+      final census = await amberCensus(tester);
+
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'map',
+        phase: 'loaded',
+      );
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'a store done today is not armed, so the nav tab is the only lit '
+            'object\n\n${census.describe()}',
+      );
+      final frame = tester.widget<AgentMapFrame>(find.byType(AgentMapFrame));
+      expect(frame.atDoor, isNull);
+      expect(
+        find.bySemanticsLabel('Check in at Kasi Corner Spaza'),
+        findsNothing,
+        reason: 'the circle must not name a visited store as the next move',
+      );
+
+      await tester.tap(find.byType(TorchNavCircle));
+      await _frames(tester, count: 8);
+      expect(
+        find.text('Visit o1'),
+        findsNothing,
+        reason: 'one tap must not start a second visit at a store already done',
+      );
+      expect(find.text('Outlet picker'), findsOneWidget);
     });
 
     for (final skin in <SkinMode>[SkinMode.day, SkinMode.veld]) {
@@ -737,7 +799,9 @@ void main() {
         path: '/map',
         overrides: <Override>[
           ...agentBaseOverrides(db: db),
-          agentMapProvider.overrideWith((ref) => Completer<AgentMapView>().future),
+          agentMapProvider.overrideWith(
+            (ref) => Completer<AgentMapView>().future,
+          ),
         ],
         settle: false,
       );

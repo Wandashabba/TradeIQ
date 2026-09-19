@@ -26,7 +26,6 @@ import '../../../core/location/location_service.dart';
 import '../../beatplans/data/today_route.dart';
 import '../../outlets/data/outlets_repository.dart';
 
-
 /// What a pin on the map *is*, beyond where it is.
 ///
 /// The four states are drawn as four different silhouettes and named in words
@@ -153,30 +152,42 @@ class AgentMapView {
 
   bool get hasLocation => here != null;
 
-  List<MapOutlet> get planned =>
-      <MapOutlet>[for (final p in pins) if (p.state != MapPinState.territory) p];
+  List<MapOutlet> get planned => <MapOutlet>[
+    for (final p in pins)
+      if (p.state != MapPinState.territory) p,
+  ];
 
-  List<MapOutlet> get territory =>
-      <MapOutlet>[for (final p in pins) if (p.state == MapPinState.territory) p];
+  List<MapOutlet> get territory => <MapOutlet>[
+    for (final p in pins)
+      if (p.state == MapPinState.territory) p,
+  ];
 
   /// What the map actually draws, and what the list actually lists — one
   /// budget, so the two can never disagree about which stores exist.
-  List<MapOutlet> get drawn =>
-      pins.length <= agentMapMarkerBudget
+  List<MapOutlet> get drawn => pins.length <= agentMapMarkerBudget
       ? pins
       : pins.take(agentMapMarkerBudget).toList();
 
   int get hidden => pins.length - drawn.length;
 
   /// The store the agent is standing in, if any: the nearest one inside its
-  /// own check-in fence.
+  /// own check-in fence that has **not** been visited today.
   ///
   /// This is what makes the nav circle honest. "Check in here" is the expected
   /// next move when *here* is a shop, and a plus sign the rest of the time.
+  ///
+  /// A stop already done today is never it. An agent who has just submitted a
+  /// visit is usually still standing in the shop, and a second check-in there
+  /// is not what anybody expects — the store's own sheet demotes it to a ghost
+  /// "Check in again" with no amber. Lighting the circle for it would put the
+  /// one expected move on a screen whose own sheet says otherwise, and amber on
+  /// a screen where nothing is armed. So a visited store is skipped: an
+  /// unvisited one in range still wins, and a visited one alone gives null.
   MapOutlet? get atDoor {
     MapOutlet? best;
     for (final pin in pins) {
       if (!pin.atDoor) continue;
+      if (pin.state == MapPinState.doneToday) continue;
       if (best == null || pin.distanceMeters! < best.distanceMeters!) {
         best = pin;
       }
