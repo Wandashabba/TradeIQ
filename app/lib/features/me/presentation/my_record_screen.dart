@@ -26,18 +26,19 @@ import '../data/my_record_repository.dart';
 /// at Lesedi on Tuesday" (#383/#384).
 ///
 /// ```text
-///   Me                        [ 12 held on this phone ]  [ ☾ ]
+///   Me · All time             [ 12 held on this phone ]  [ ☾ ]
 ///   ── What I've earned ──────────────────────────────
 ///   1 840  of 2 000 points
 ///   ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬░░░░░░┃
 ///   160 to go · R 250 airtime
 ///   ┌───────────────────┬───────────────────┐
-///   │ POINTS THIS MONTH │ RANK              │
+///   │ POINTS ALL TIME   │ RANK              │
 ///   │ 1 840             │ 4                 │
 ///   └───────────────────┴───────────────────┘
 ///   ── How you earned it ─────────────────────────────
 ///   ▣  Visit submitted        Thu 18 Sep     +5
 ///   ▣  Task closed            Thu 18 Sep     +5
+///   ▣  Scorecard              Wed 17 Sep     85
 ///   Points are worked out on the server. They can change
 ///   if a visit is reviewed.
 ///   ── My visits ─────────────────────────────────────
@@ -90,6 +91,16 @@ import '../data/my_record_repository.dart';
 /// give a reviewer and a guess shown to the person who produced it is not.
 /// A visit the server has not scored therefore reads "Waiting to be scored",
 /// with a hatched mark, and no number at all.
+///
+/// ## The period, named
+///
+/// Every figure here is the agent's **whole record**. `/gamification/me` is
+/// read with no `from`/`to`, so it always was — but the header printed the
+/// month name and three strings said "this month", which made a career total
+/// read as September's. The words moved to the data rather than the other way
+/// round, because the incentive payout engine has no period either and a
+/// month-scoped bar would promise a reward the engine will not pay. The
+/// reasoning is in `DioMyRecordRepository.myEarnings`.
 ///
 /// ## Self-scoped, and not a leaderboard
 ///
@@ -173,7 +184,13 @@ class MeFrame extends ConsumerWidget {
         profile: TorchShellProfile.agent,
         header: TorchAppHeader(
           title: l10n.meTitle,
-          facts: <String>[formatMonthHeading(context, DateTime.now())],
+          // "All time", and not the month it used to print. `/gamification/me`
+          // is read with no window, so every figure below is the agent's whole
+          // record; a header reading "September" over a career total is the
+          // exact failure — a number labelled as something it is not — that
+          // this screen exists to end. See `DioMyRecordRepository.myEarnings`
+          // for why the window is absent rather than added.
+          facts: <String>[l10n.meAllTime],
           trailing: skinCycleIconButton(context, ref),
           flagChips: const <Widget>[TorchSyncChip()],
         ),
@@ -355,14 +372,17 @@ class _PointsCluster extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final entry = earnings.entry;
-    // A measured zero is a zero: an agent who has earned nothing this month
-    // has earned 0, and "0" is the true and useful thing to print. Null is
-    // reserved for a figure nobody measured.
+    // A measured zero is a zero: an agent who has earned nothing has earned 0,
+    // and "0" is the true and useful thing to print. Null is reserved for a
+    // figure nobody measured.
     final points = entry.points;
-    // Rank 0 is the server's "not ranked" sentinel, not a zeroth place. It is
-    // the one figure here that is genuinely unknown, so it takes the em dash
-    // and the sentence.
-    final ranked = entry.rank > 0;
+    // Null, not a sentinel. The server answers `rank: null` for a caller who
+    // is not on the board — which is every caller who is not a field agent,
+    // and `/me` is open to managers on purpose. It used to answer
+    // `leaderboard.length + 1` and this line used to read `entry.rank > 0`
+    // against a zero the server never sent, so the em-dash path was
+    // unreachable and a manager was shown a fabricated place instead.
+    final rank = earnings.rank;
 
     return StatCluster(
       tiles: <StatTile>[
@@ -378,9 +398,9 @@ class _PointsCluster extends StatelessWidget {
         // the whole leaderboard, which is the peer comparison Contests owns.
         StatTile(
           eyebrow: l10n.meRankEyebrow,
-          value: ranked ? entry.rank : null,
+          value: rank,
           decimals: 0,
-          noDataReason: ranked ? null : l10n.meNotRanked,
+          noDataReason: rank == null ? l10n.meNotRanked : null,
         ),
       ],
     );
@@ -410,6 +430,28 @@ class _Ledger extends StatelessWidget {
   }
 }
 
+/// THE REASON, IN THE AGENT'S LANGUAGE.
+///
+/// `PointsEntry.reasonLabel` is a Dart switch returning English literals. It
+/// is the right thing for the manager console, which is English-only; on this
+/// screen it drew "Visit submitted" inside an otherwise Afrikaans page and
+/// read it aloud inside an Afrikaans sentence — "Visit submitted, Do. 17 Sep.,
+/// plus 5 punte".
+///
+/// The three reasons the server can write (`pointsLedger.ts`: `PointsReason`)
+/// are translated. Anything else — a reason invented by a server newer than
+/// this build — keeps `reasonLabel`'s untranslated wire form rather than being
+/// guessed at, because a machine word shown as a machine word is honest and a
+/// mistranslated one is not.
+String meReasonLabel(AppLocalizations l10n, PointsEntry entry) =>
+    switch (entry.reason) {
+      'visit_submitted' => l10n.meReasonVisitSubmitted,
+      'task_closed' => l10n.meReasonTaskClosed,
+      'scorecard' => l10n.meReasonScorecard,
+      '' => l10n.meReasonPoints,
+      _ => entry.reasonLabel,
+    };
+
 class _LedgerRow extends StatelessWidget {
   const _LedgerRow({required this.entry, required this.last});
 
@@ -421,43 +463,99 @@ class _LedgerRow extends StatelessWidget {
     final l10n = context.l10n;
     final skin = context.skin;
     final day = formatDayShort(context, entry.occurredAt);
-    final reversal = entry.points < 0;
-    final words = reversal
-        ? l10n.mePointsMinus(entry.points.abs())
-        : l10n.mePointsPlus(entry.points);
+    final reason = meReasonLabel(l10n, entry);
+    // A SCORECARD CONTRIBUTED A SCORE, NOT POINTS.
+    //
+    // `PointsEntry.points` is 0 for every `scorecard` row — the board adds the
+    // *average* of the scores, not the rows — and roughly half an agent's
+    // ledger is scorecard rows. Drawn as a delta they became a rising triangle
+    // in the palette's `good` ink beside "0", and spoken as "plus 0 points": a
+    // movement that did not happen, in the colour reserved for good news,
+    // while the 85 that actually fed the average was thrown away. A delta
+    // never stands beside nothing.
+    final score = entry.reason == 'scorecard' ? entry.score : null;
 
     return SoftRow(
       key: ValueKey<String>('ledger-${entry.id}'),
       title: entry.outletName?.trim().isNotEmpty == true
           ? entry.outletName!
-          : entry.reasonLabel,
+          : reason,
       titleTruncation: SoftRowTruncation.middle,
-      subtitle: entry.reasonLabel,
+      subtitle: reason,
       leading: const RowMarkTile(mark: RowMark.disc),
       trailing: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          // Server sentiment, drawn: a reversal is a fall and a grant is a
-          // rise, and the word in the semantics carries it for anyone the
-          // triangle does not reach.
-          Delta(
-            data: DeltaData(
-              direction: reversal ? DeltaDirection.down : DeltaDirection.up,
-              // The server's own sign, not a guess from the direction: points
-              // going up is good and a reversal is bad, and this is the one
-              // place in the product where those two happen to agree.
-              sentiment: reversal ? TiqSentiment.bad : TiqSentiment.good,
-              magnitude: entry.points.abs(),
-              decimals: 0,
-            ),
-            semanticsLabel: words,
-          ),
+          if (score != null)
+            _LedgerScore(score: score)
+          else
+            _LedgerDelta(points: entry.points),
           Text(day, style: skin.text.meta.style(color: skin.palette.ink3)),
         ],
       ),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      semanticsLabel: l10n.meLedgerRowSemantics(entry.reasonLabel, day, words),
+      semanticsLabel: score != null
+          ? l10n.meLedgerScoreRowSemantics(
+              reason,
+              day,
+              TiqNumber.of(context).format(score, decimals: 0),
+            )
+          : l10n.meLedgerRowSemantics(reason, day, _pointWords(l10n, entry.points)),
+    );
+  }
+}
+
+/// "plus 5 points" / "minus 5 points". The sign in words, for the reader the
+/// triangle does not reach.
+String _pointWords(AppLocalizations l10n, int points) => points < 0
+    ? l10n.mePointsMinus(points.abs())
+    : l10n.mePointsPlus(points);
+
+/// The score a scorecard row fed into the average — a level, so no triangle
+/// and no sentiment. `FigureSlot`, like every other figure on this screen, and
+/// whole points, like every other score on it.
+class _LedgerScore extends StatelessWidget {
+  const _LedgerScore({required this.score});
+
+  final double score;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return FigureSlot(
+      value: score,
+      role: skin.text.figureS,
+      decimals: 0,
+      semanticsLabel: context.l10n.meScoredSemantics(
+        TiqNumber.of(context).format(score, decimals: 0),
+      ),
+    );
+  }
+}
+
+/// Points granted or taken back. Server sentiment, drawn: a reversal is a fall
+/// and a grant is a rise, and the word in the semantics carries it for anyone
+/// the triangle does not reach.
+class _LedgerDelta extends StatelessWidget {
+  const _LedgerDelta({required this.points});
+
+  final int points;
+
+  @override
+  Widget build(BuildContext context) {
+    final reversal = points < 0;
+    return Delta(
+      data: DeltaData(
+        direction: reversal ? DeltaDirection.down : DeltaDirection.up,
+        // The server's own sign, not a guess from the direction: points going
+        // up is good and a reversal is bad, and this is the one place in the
+        // product where those two happen to agree.
+        sentiment: reversal ? TiqSentiment.bad : TiqSentiment.good,
+        magnitude: points.abs(),
+        decimals: 0,
+      ),
+      semanticsLabel: _pointWords(context.l10n, points),
     );
   }
 }

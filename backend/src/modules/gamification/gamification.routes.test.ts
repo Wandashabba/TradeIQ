@@ -338,13 +338,16 @@ describe('gamification routes', () => {
     ]);
   });
 
-  it('returns a zeroed last-place entry and no history from /me for a caller with no activity', async () => {
+  it('returns a zeroed, UNRANKED entry and no history from /me for a caller with no activity', async () => {
     const res = await request(app)
       .get('/gamification/me')
       .set('Authorization', `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    // Manager is not a field agent, so absent from the 2-agent board -> rank 3.
+    // The manager is not a field agent, so they are not on the 2-agent board
+    // at all. That is an absence, not a third place: this used to answer
+    // `rank: 3` — a place computed as `length + 1` from a list the caller is
+    // not in — and the agent app printed it as a measured figure.
     expect(res.body).toEqual({
       agentId: expect.any(String),
       email: 'game-manager@example.com',
@@ -353,9 +356,32 @@ describe('gamification routes', () => {
       tasksClosed: 0,
       avgScorecard: 0,
       points: 0,
-      rank: 3,
+      rank: null,
       recentEntries: [],
     });
+  });
+
+  it('never invents a place: /me is ranked for a board member and null for everyone else', async () => {
+    // The failure this pins is a fabricated rank reaching a client that cannot
+    // tell it from a measured one. A real row keeps a real place; a caller off
+    // the board gets null and never a number one past the end.
+    const [agent, manager] = await Promise.all([
+      request(app).get('/gamification/me').set('Authorization', `Bearer ${agentAToken}`),
+      request(app).get('/gamification/me').set('Authorization', `Bearer ${managerToken}`),
+    ]);
+
+    const board = await request(app)
+      .get('/gamification/leaderboard')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(agent.body.rank).toBeGreaterThanOrEqual(1);
+    expect(agent.body.rank).toBeLessThanOrEqual(board.body.length);
+    expect(manager.body.rank).toBeNull();
+    expect(manager.body.rank).not.toBe(board.body.length + 1);
+    // And every row of the board itself still carries a place.
+    expect(
+      board.body.every((row: { rank: unknown }) => typeof row.rank === 'number' && row.rank >= 1),
+    ).toBe(true);
   });
 
   describe('GET /gamification/agents/:agentId/points', () => {

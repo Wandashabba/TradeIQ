@@ -4441,9 +4441,13 @@
   "@meLedgerHeading": {
     "description": "Section rule above the points ledger rows."
   },
-  "mePointsEyebrow": "POINTS THIS MONTH",
+  "mePointsEyebrow": "POINTS ALL TIME",
   "@mePointsEyebrow": {
-    "description": "Stat tile label. Uppercase; the component does not upper-case it for you."
+    "description": "Stat tile label. Uppercase; the component does not upper-case it for you. `/gamification/me` is read with no from/to, so the figure is the agent's whole record and the label says so — see DioMyRecordRepository.myEarnings."
+  },
+  "meAllTime": "All time",
+  "@meAllTime": {
+    "description": "The header fact under 'Me': the period every figure on this screen covers. It is the agent's whole record, because the incentive payout engine has no period either."
   },
   "meRankEyebrow": "RANK",
   "@meRankEyebrow": {
@@ -4453,15 +4457,15 @@
   "@meLoadErrorDetail": {
     "description": "Body of an inline load error on the agent's own record. Names the work's safety first."
   },
-  "meNotRanked": "Not ranked yet — too few agents have points this month.",
+  "meNotRanked": "Only field agents are ranked, so you do not have a place on this board.",
   "@meNotRanked": {
-    "description": "Sentence in place of a rank figure. An em dash alone is a puzzle."
+    "description": "Sentence in place of a rank figure, shown when the server returns rank: null. An em dash alone is a puzzle. The only caller with no rank is one who is not a field agent — /me is open to managers — so the sentence names that rather than guessing at a thin board."
   },
-  "meNoPointsYet": "No points yet this month. Points arrive when a visit is submitted or a task is closed.",
+  "meNoPointsYet": "No points yet. Points arrive when a visit is submitted or a task is closed.",
   "@meNoPointsYet": {
     "description": "Sentence under a null points figure."
   },
-  "meNoScheme": "No reward is running this month.",
+  "meNoScheme": "No reward is running.",
   "@meNoScheme": {
     "description": "Body line in place of the progress bar. An empty bar would read as zero progress, which is a different and false statement."
   },
@@ -4511,7 +4515,7 @@
   "@mePointsHonesty": {
     "description": "The honesty line under the ledger. Read aloud, never skipped."
   },
-  "meLedgerEmpty": "Nothing has earned points yet this month.",
+  "meLedgerEmpty": "Nothing has earned points yet.",
   "@meLedgerEmpty": {
     "description": "Empty line on the ledger section rule."
   },
@@ -4706,6 +4710,31 @@
   "meEarningsLoadError": "Your points did not load",
   "@meEarningsLoadError": {
     "description": "Headline when the earnings read fails. The visit list is a separate region with its own retry."
+  },
+  "meReasonVisitSubmitted": "Visit submitted",
+  "@meReasonVisitSubmitted": {
+    "description": "Ledger row reason. The wire sends the machine value `visit_submitted`; this is the agent's word for it."
+  },
+  "meReasonTaskClosed": "Task closed",
+  "@meReasonTaskClosed": {
+    "description": "Ledger row reason for the wire value `task_closed`."
+  },
+  "meReasonScorecard": "Scorecard",
+  "@meReasonScorecard": {
+    "description": "Ledger row reason for the wire value `scorecard`. A scorecard earns no points of its own; it contributes a score to the average."
+  },
+  "meReasonPoints": "Points",
+  "@meReasonPoints": {
+    "description": "Ledger row reason when the wire sends no reason at all."
+  },
+  "meLedgerScoreRowSemantics": "{reason}, {day}, scored {score}",
+  "@meLedgerScoreRowSemantics": {
+    "description": "The whole spoken sentence for a scorecard ledger row. It contributed a score to the average rather than points, so it never says 'plus 0 points'.",
+    "placeholders": {
+      "reason": { "type": "String" },
+      "day": { "type": "String" },
+      "score": { "type": "String" }
+    }
   },
   "meContestsDetail": "See where you stand",
   "@meContestsDetail": {
