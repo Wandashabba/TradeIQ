@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
+import 'package:tradeiq_app/core/design/tiq_number.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/mark/delta.dart';
@@ -12,36 +12,14 @@ import 'package:tradeiq_app/features/assistant/view_specs/trend_chart_card.dart'
 import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
 import 'package:tradeiq_app/l10n/l10n.dart';
 
-import 'ask_harness.dart' show askSkins, screenText;
+import 'ask_harness.dart' show askBlock, askSkins, screenText;
 
-/// One answer block on its own, in a Torchlight skin, at a phone panel's
-/// inner width.
 Widget wrap(
   Widget child, {
   TiqSkin? skin,
   bool reduce = true,
   Locale locale = const Locale('en'),
-}) {
-  final resolved = skin ?? TiqSkin.night(density: TiqDensity.console);
-  return MaterialApp(
-    theme: AppTheme.torchlight(resolved),
-    locale: locale,
-    supportedLocales: appSupportedLocales,
-    localizationsDelegates: appLocalizationsDelegates,
-    home: MediaQuery(
-      data: MediaQueryData(disableAnimations: reduce),
-      child: DefaultTextStyle(
-        style: resolved.text.body.style(color: resolved.palette.ink1),
-        child: ColoredBox(
-          color: resolved.palette.surface,
-          child: SingleChildScrollView(
-            child: SizedBox(width: 320, child: child),
-          ),
-        ),
-      ),
-    ),
-  );
-}
+}) => askBlock(child, skin: skin, reduce: reduce, locale: locale);
 
 ChatArtifact artifact(String type, Object data) =>
     ChatArtifact(id: 'a1', type: type, params: const {}, data: data);
@@ -96,7 +74,7 @@ void main() {
     final name = skin.mode.name;
 
     group('$name: StatTilesCard', () {
-      testWidgets('four tiles on a phone, every figure through the formatter', (
+      testWidgets('the fold holds the lawful count; Show all reaches the rest', (
         tester,
       ) async {
         await tester.pumpWidget(
@@ -105,14 +83,42 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.byType(StatTilesCard), findsOneWidget);
-        final text = screenText(tester);
+        final veld = skin.density == TiqDensity.veld;
+        var text = screenText(tester);
         expect(text, contains('48,210'));
         expect(text, contains('81%'));
+        // Four on a phone, two in Veld: two figures is a reading, four is
+        // analysis, and nobody does analysis in the sun.
+        if (veld) {
+          expect(text, isNot(contains('88%')));
+        } else {
+          expect(text, contains('88%'));
+          expect(text, contains('17'));
+        }
+        expect(text, isNot(contains('NEUTRAL ONE')));
+        // A fall is signed as a fall: the sign is the direction's, never a
+        // '+' beside a down triangle.
+        expect(text, contains('${minusSign}12.4%'));
+        expect(text, isNot(contains('+12.4%')));
+
+        // Stat tiles are answer-only: there is no full view to send a reader
+        // to, so a figure past the fold must still be reachable here.
+        final showAll = find.byKey(const ValueKey<String>('stat-tiles-show-all'));
+        expect(showAll, findsOneWidget);
+        expect(screenText(tester), contains('Show all 6'));
+        await tester.ensureVisible(showAll);
+        await tester.tap(showAll);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        text = screenText(tester);
         expect(text, contains('88%'));
         expect(text, contains('17'));
-        // Four on a phone, three recommended: the rest belong in the table
-        // twin, not in the fold.
-        expect(text, isNot(contains('Neutral one')));
+        expect(text, contains('NEUTRAL ONE'));
+        // A tile whose value is not a number keeps its place as an unknown —
+        // an em dash and a sentence — and is never drawn as 0.
+        expect(text, contains('UNREADABLE'));
+        expect(text, contains('Nothing measured in this window'));
+        expect(showAll, findsNothing);
       });
 
       testWidgets('the delta is the server verdict, never inferred', (
@@ -122,10 +128,15 @@ void main() {
           wrap(ArtifactView(artifact: artifact('stat_tiles', _tiles)), skin: skin),
         );
         await tester.pumpAndSettle();
+        final showAll = find.byKey(const ValueKey<String>('stat-tiles-show-all'));
+        await tester.ensureVisible(showAll);
+        await tester.tap(showAll);
+        await tester.pumpAndSettle();
 
         final deltas = tester
             .widgetList<Delta>(find.byType(Delta))
             .map((d) => (d.data.direction, d.data.sentiment))
+            .take(3)
             .toList();
         expect(deltas, <(DeltaDirection, TiqSentiment)>[
           (DeltaDirection.down, TiqSentiment.bad),
@@ -230,13 +241,20 @@ void main() {
         expect(factor(1), 1.0);
         expect(factor(0), closeTo(0.5, 1e-9));
 
-        final lefts = <double>[
-          for (var i = 0; i < 3; i++)
-            tester
-                .getTopLeft(find.byKey(ValueKey<String>('ranked-bar-fill-$i')))
-                .dx,
-        ];
-        expect(lefts.toSet(), hasLength(1));
+        // The painted bars, not their slots: every one grows from the same
+        // origin, and their lengths keep the values' proportions.
+        Rect barOf(int i) => tester.getRect(
+          find
+              .descendant(
+                of: find.byKey(ValueKey<String>('ranked-bar-fill-$i')),
+                matching: find.byType(DecoratedBox),
+              )
+              .first,
+        );
+        final bars = <Rect>[for (var i = 0; i < 3; i++) barOf(i)];
+        expect(bars.map((r) => r.left.toStringAsFixed(3)).toSet(), hasLength(1));
+        expect(bars[0].width / bars[1].width, closeTo(0.5, 1e-6));
+        expect(bars[2].width / bars[1].width, closeTo(0.25, 1e-6));
 
         // Order is the server's, never re-sorted client-side.
         expect(
@@ -501,8 +519,12 @@ void main() {
           })!;
       // No U+25BC: Onest never carried it and package:pdf drew it as nothing
       // (#401). The sign is the direction, and the table twin reads it.
-      expect(delta('down').text, '${minusSign}12.4%');
-      expect(delta('up').text, '+12.4%');
+      expect(delta('down').text(), '${minusSign}12.4%');
+      expect(delta('up').text(), '+12.4%');
+      expect(
+        delta('down').text(number: TiqNumber.af),
+        '${minusSign}12,4%',
+      );
     });
 
     testWidgets('malformed data renders without throwing', (tester) async {

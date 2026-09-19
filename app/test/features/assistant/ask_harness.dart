@@ -320,3 +320,45 @@ List<TiqSkin> get askSkins => <TiqSkin>[
   TiqSkin.day(density: TiqDensity.console),
   TiqSkin.veld(),
 ];
+
+/// One answer block on its own, in a Torchlight skin, at a phone panel's
+/// inner width — for the cards, without the route around them.
+///
+/// [reduce] defaults to true, so a bar's grow-in lands on the first frame and
+/// nothing repeats; pass false to watch the motion.
+Widget askBlock(
+  Widget child, {
+  TiqSkin? skin,
+  bool reduce = true,
+  Locale locale = const Locale('en'),
+  double width = 320,
+  double textScale = 1.0,
+}) {
+  final resolved = skin ?? TiqSkin.night(density: TiqDensity.console);
+  return MaterialApp(
+    theme: AppTheme.torchlight(resolved),
+    locale: locale,
+    supportedLocales: appSupportedLocales,
+    localizationsDelegates: appLocalizationsDelegates,
+    home: Builder(
+      builder: (context) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          disableAnimations: reduce,
+          textScaler: TextScaler.linear(textScale),
+        ),
+        child: DefaultTextStyle(
+          style: resolved.text.body.style(color: resolved.palette.ink1),
+          child: ColoredBox(
+            color: resolved.palette.surface,
+            child: SingleChildScrollView(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(width: width, child: child),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}

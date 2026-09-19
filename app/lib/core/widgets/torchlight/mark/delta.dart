@@ -209,15 +209,19 @@ class Delta extends StatelessWidget {
         !compact) {
       magnitude = Text(strings.noChange, style: metaStyle);
     } else {
+      final size = data.magnitude!.abs();
       magnitude = FigureSlot(
-        value: data.magnitude,
+        // The magnitude arrives unsigned; the sign is the direction's. A fall
+        // printed "+12.4%" beside a down triangle said two things at once.
+        value: data.direction == DeltaDirection.down ? -size : size,
         role: compact ? skin.text.monoIdent : skin.text.figureS,
         unit: data.unit,
         decimals: data.decimals,
         // Signed, because the sign is the arithmetic and the triangle is the
         // reading. A rounds-to-zero magnitude prints unsigned — the formatter
-        // already refuses to claim a movement that did not happen.
-        signed: true,
+        // already refuses to claim a movement that did not happen — and so
+        // does a flat one.
+        signed: data.direction != DeltaDirection.flat,
         color: ink,
       );
     }

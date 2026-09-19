@@ -317,7 +317,19 @@ class _BarRow extends StatelessWidget {
                     color: p.lifted,
                     borderRadius: BorderRadius.circular(veld ? 0 : track / 2),
                   ),
-                  child: SizedBox(height: track * 2, child: Center(child: SizedBox(height: track, child: trackRow))),
+                  child: SizedBox(
+                    height: track * 2,
+                    child: Center(
+                      // Tight across: a fractional bar under a loose Center
+                      // takes its own width and is centred — every bar would
+                      // grow from a different origin.
+                      child: SizedBox(
+                        height: track,
+                        width: double.infinity,
+                        child: trackRow,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: TiqSpace.s3),
