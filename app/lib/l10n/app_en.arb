@@ -2583,5 +2583,334 @@
   "sheetClose": "Close",
   "@sheetClose": {
     "description": "The close action on a bottom sheet, and the 56dp close row of the full-screen route it becomes in Veld."
+  },
+  "wordYes": "Yes",
+  "@wordYes": {
+    "description": "The affirmative state word beside a toggle. Never the only signal."
+  },
+  "wordNo": "No",
+  "@wordNo": {
+    "description": "The negative state word beside a toggle."
+  },
+  "sectionSave": "Save",
+  "@sectionSave": {
+    "description": "The inline save on every capture section — the only control that persists the section."
+  },
+  "sectionSaveAndBack": "Save and go back",
+  "@sectionSaveAndBack": {
+    "description": "The thumb zone's action on a capture section: save, then return to the visit hub."
+  },
+  "sectionSaveFailedTitle": "Not saved",
+  "@sectionSaveFailedTitle": {
+    "description": "Headline when a section save failed. The values are untouched."
+  },
+  "sectionSaveFailedBody": "Your answers are still here — try Save again.",
+  "@sectionSaveFailedBody": {
+    "description": "Body of the failed-save line. Names the work’s safety first."
+  },
+  "sectionCantConfirm": "Can't confirm this section",
+  "@sectionCantConfirm": {
+    "description": "Ghost action beneath the save, opening the skip-reason picker."
+  },
+  "sectionCantConfirmWhy": "Why not?",
+  "@sectionCantConfirmWhy": {
+    "description": "Headline of the skip-reason sheet."
+  },
+  "sectionCantConfirmLocked": "Can't confirm: {reason}",
+  "@sectionCantConfirmLocked": {
+    "description": "The locked section’s line, naming the reason the agent gave.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "sectionCantConfirmHeld": "Held on this phone. Nothing is sent for this yet.",
+  "@sectionCantConfirmHeld": {
+    "description": "Honest note under a can’t-confirm reason: the wire has no field for it yet."
+  },
+  "sectionCanConfirmAfterAll": "I can confirm it after all",
+  "@sectionCanConfirmAfterAll": {
+    "description": "Ghost action that unlocks a section the agent marked can’t-confirm."
+  },
+  "sectionLockedBlock": "This section is marked can't confirm",
+  "@sectionLockedBlock": {
+    "description": "Why the thumb zone’s save is unavailable on a locked section."
+  },
+  "sectionLeaveTitle": "You have unsaved answers",
+  "@sectionLeaveTitle": {
+    "description": "Title of the sheet shown when leaving a dirty section."
+  },
+  "sectionLeaveWithoutSaving": "Go back without saving",
+  "@sectionLeaveWithoutSaving": {
+    "description": "The ghost that leaves a dirty section without saving."
+  },
+  "sectionStayHere": "Stay here",
+  "@sectionStayHere": {
+    "description": "The tertiary that dismisses the leaving-dirty sheet."
+  },
+  "sectionAddAnother": "Add another",
+  "@sectionAddAnother": {
+    "description": "The ghost beneath a repeating card set."
+  },
+  "sectionEntryPosition": "{index} of {total}",
+  "@sectionEntryPosition": {
+    "description": "An entry’s place in a repeating card set, in mono.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sectionRemoveEntry": "Remove {name} {position}",
+  "@sectionRemoveEntry": {
+    "description": "Semantic label of a repeating entry’s remove control.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+  "sectionNotAnsweredYet": "Not answered yet",
+  "@sectionNotAnsweredYet": {
+    "description": "What a choice row with nothing selected says. Nothing-selected is a state."
+  },
+  "sectionPhotoOpenCamera": "Open camera",
+  "@sectionPhotoOpenCamera": {
+    "description": "The pre-capture card’s action, handing off to the OS camera."
+  },
+  "sectionPhotoOpenCameraSemantics": "Open the camera to photograph the shelf",
+  "@sectionPhotoOpenCameraSemantics": {
+    "description": "Semantic label of the pre-capture card’s action."
+  },
+  "sectionPhotoFraming": "Stand back far enough to get the whole bay, including the price rail.",
+  "@sectionPhotoFraming": {
+    "description": "The framing instruction on the pre-capture card."
+  },
+  "sectionPhotoStamped": "Your photo is stamped with the time and where you are.",
+  "@sectionPhotoStamped": {
+    "description": "What the app records with a capture. Stated, never hidden."
+  },
+  "sectionPhotoTorchHint": "Aisle dark? Switch your phone torch on before you shoot.",
+  "@sectionPhotoTorchHint": {
+    "description": "Shown when the aisle is likely dark. TORCH is never an amber block."
+  },
+  "sectionPhotoHeld": "Held on this phone · sends with the visit",
+  "@sectionPhotoHeld": {
+    "description": "What a captured photo is doing before the visit sends."
+  },
+  "sectionPhotoNoCamera": "This phone has no camera we can reach.",
+  "@sectionPhotoNoCamera": {
+    "description": "Camera-unavailable state. The section stays completable without a photo."
+  },
+  "sectionPhotoTooLarge": "That photo is too big to send. Take it again.",
+  "@sectionPhotoTooLarge": {
+    "description": "The device-side size cap, in a sentence an agent can act on."
+  },
+  "sectionPhotoFailed": "The camera did not hand the photo back. Try again.",
+  "@sectionPhotoFailed": {
+    "description": "Handoff failure, stated here rather than on a lost route."
+  },
+  "sectionPhotoRemoveSemantics": "Remove the photo",
+  "@sectionPhotoRemoveSemantics": {
+    "description": "Semantic label of the photo’s remove control."
+  },
+  "sectionPhotoSemantics": "Photo taken {time}, held on this phone",
+  "@sectionPhotoSemantics": {
+    "description": "Semantic label of the captured photo tile.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "skipReasonStoreRefused": "The store would not let me",
+  "@skipReasonStoreRefused": {
+    "description": "Skip reason: the store refused."
+  },
+  "skipReasonStoreRefusedConsequence": "The manager is told the store refused",
+  "@skipReasonStoreRefusedConsequence": {
+    "description": "What the store-refused reason does downstream."
+  },
+  "skipReasonNotStocked": "They do not stock this",
+  "@skipReasonNotStocked": {
+    "description": "Skip reason: the outlet does not stock these lines."
+  },
+  "skipReasonNotStockedConsequence": "These lines are marked not-stocked for this outlet",
+  "@skipReasonNotStockedConsequence": {
+    "description": "What the not-stocked reason does downstream."
+  },
+  "skipReasonEquipment": "The equipment is broken",
+  "@skipReasonEquipment": {
+    "description": "Skip reason: the equipment needed is unavailable."
+  },
+  "skipReasonEquipmentConsequence": "A repair task is raised",
+  "@skipReasonEquipmentConsequence": {
+    "description": "What the broken-equipment reason does downstream."
+  },
+  "skipReasonSomethingElse": "Something else",
+  "@skipReasonSomethingElse": {
+    "description": "Skip reason: none of the three fits, and the agent writes what happened."
+  },
+  "skipReasonSomethingElseConsequence": "You write what happened",
+  "@skipReasonSomethingElseConsequence": {
+    "description": "What the something-else reason requires."
+  },
+  "skipReasonSave": "Save reason",
+  "@skipReasonSave": {
+    "description": "The skip sheet’s commit action."
+  },
+  "skipReasonChange": "Change reason",
+  "@skipReasonChange": {
+    "description": "The skip sheet’s commit action when a reason is already set."
+  },
+  "skipReasonCancel": "Cancel",
+  "@skipReasonCancel": {
+    "description": "The skip sheet’s ghost. Dismissal is always safe."
+  },
+  "skipReasonNoteLabel": "What happened?",
+  "@skipReasonNoteLabel": {
+    "description": "Label of the required note under “Something else”."
+  },
+  "skipReasonChooseFirst": "Choose a reason first",
+  "@skipReasonChooseFirst": {
+    "description": "Why the skip sheet’s commit is unavailable."
+  },
+  "skipReasonSayWhatHappened": "Say what happened",
+  "@skipReasonSayWhatHappened": {
+    "description": "Why the skip sheet’s commit is unavailable with “Something else” chosen."
+  },
+  "s2Summary": "{counted} counted · {outOfStock} out of stock · {toGo} to go",
+  "@s2Summary": {
+    "description": "The sticky summary rule under the stock header. A live region.",
+    "placeholders": {
+      "counted": {
+        "type": "int"
+      },
+      "outOfStock": {
+        "type": "int"
+      },
+      "toGo": {
+        "type": "int"
+      }
+    }
+  },
+  "s2NotCounted": "Not counted",
+  "@s2NotCounted": {
+    "description": "A SKU nobody has reached yet. Never spoken as “zero”."
+  },
+  "s2OutOfStockWord": "Out of stock",
+  "@s2OutOfStockWord": {
+    "description": "The finding word beside a zero count."
+  },
+  "s2TypeCount": "Type a count",
+  "@s2TypeCount": {
+    "description": "Opens the number sheet, so a stray tap can never replace a count."
+  },
+  "s2OneFewer": "One fewer",
+  "@s2OneFewer": {
+    "description": "The stepper’s decrease action, named by what it does."
+  },
+  "s2OneMore": "One more",
+  "@s2OneMore": {
+    "description": "The stepper’s increase action, named by what it does."
+  },
+  "s2PartCounted": "Saving now records {toGo} products as not counted — never as empty.",
+  "@s2PartCounted": {
+    "description": "What a part-finished stock save does. #410 made null a first-class count.",
+    "placeholders": {
+      "toGo": {
+        "type": "int"
+      }
+    }
+  },
+  "s2CountedOf": "{counted} of {total} counted",
+  "@s2CountedOf": {
+    "description": "How far the stock count has got, on the sticky rule’s semantics.",
+    "placeholders": {
+      "counted": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "s10NotFinal": "Worked out on this phone. The final score comes back when the visit sends.",
+  "@s10NotFinal": {
+    "description": "The agent app never shows a provisional score as though it were final."
+  },
+  "s10NotMeasured": "Not measured on this visit",
+  "@s10NotMeasured": {
+    "description": "A dimension with nothing behind it. An em dash, a hatch and this reason."
+  },
+  "s10ScoreSemantics": "Weighted total {score} out of 100, {band}",
+  "@s10ScoreSemantics": {
+    "description": "The scorecard hero read aloud.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      },
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "s5NoPriceYet": "No price entered",
+  "@s5NoPriceYet": {
+    "description": "A SKU the agent has not priced. Untouched SKUs are not sent."
+  },
+  "s6NoCompetitors": "No competitor on this shelf yet. Add one if you see it.",
+  "@s6NoCompetitors": {
+    "description": "The competitive section’s empty line. An empty shelf is a real outcome."
+  },
+  "s8NoRisks": "Nothing flagged yet.",
+  "@s8NoRisks": {
+    "description": "The risks section’s empty line."
+  },
+  "s9NoTasks": "No extra tasks yet.",
+  "@s9NoTasks": {
+    "description": "The action plan’s empty line."
+  },
+  "s9AddedTasks": "{count, plural, =1{1 task queued for sync} other{{count} tasks queued for sync}}",
+  "@s9AddedTasks": {
+    "description": "How many manual tasks this visit has raised.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "s2TypeCountFirst": "Type a count first",
+  "@s2TypeCountFirst": {
+    "description": "Why the number sheet's Set is disabled: nothing valid has been typed."
+  },
+  "sectionEntryName": "{kind, select, competitor{Competitor} risk{Risk} other{Task}}",
+  "@sectionEntryName": {
+    "description": "The name of one entry in a repeating list, at the start of its header row ('Competitor 2 of 3').",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "sectionEntryNameLower": "{kind, select, competitor{competitor} risk{risk} other{task}}",
+  "@sectionEntryNameLower": {
+    "description": "The same entry name mid-sentence, for the remove control ('Remove competitor 2 of 3').",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "sectionEntryUnnamed": "Not named yet",
+  "@sectionEntryUnnamed": {
+    "description": "An entry's header line before the agent has typed what it is."
   }
 }

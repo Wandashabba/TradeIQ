@@ -245,12 +245,13 @@ void main() {
       expect(p.detailCodes[AuditSection.risks], const SectionDetail.risks(0));
       // The English map and the codes say the same thing.
       for (final MapEntry(:key, :value) in p.detailCodes.entries) {
-        expect(p.details[key], value.text(englishLocalizations), reason: '$key');
+        expect(
+          p.details[key],
+          value.text(englishLocalizations),
+          reason: '$key',
+        );
       }
-      expect(
-        p.detailIn(AuditSection.outletInfo, af),
-        'Bevestig by aanmelding',
-      );
+      expect(p.detailIn(AuditSection.outletInfo, af), 'Bevestig by aanmelding');
       expect(p.detailIn(AuditSection.pricing, af), '2 van 4 SKU’s');
       expect(p.detailIn(AuditSection.risks, af), 'Geen gemerk nie');
     });
@@ -262,17 +263,33 @@ void main() {
           'Confirmed at check-in',
           'Bevestig by aanmelding',
         ),
-        (const SectionDetail.skusOfTotal(7, 12), '7 of 12 SKUs', '7 van 12 SKU’s'),
+        (
+          const SectionDetail.skusOfTotal(7, 12),
+          '7 of 12 SKUs',
+          '7 van 12 SKU’s',
+        ),
         (const SectionDetail.stock(12, 0), '12 SKUs counted', '12 SKU’s getel'),
         (
           const SectionDetail.stock(12, 2),
           '12 SKUs · 2 out of stock',
           '12 SKU’s · 2 uit voorraad',
         ),
-        (const SectionDetail.skusPriced(12), '12 SKUs priced', '12 SKU’s geprys'),
-        (const SectionDetail.competitors(0), 'None on shelf', 'Geen op die rak nie'),
+        (
+          const SectionDetail.skusPriced(12),
+          '12 SKUs priced',
+          '12 SKU’s geprys',
+        ),
+        (
+          const SectionDetail.competitors(0),
+          'None on shelf',
+          'Geen op die rak nie',
+        ),
         (const SectionDetail.competitors(1), '1 competitor(s)', '1 mededinger'),
-        (const SectionDetail.competitors(3), '3 competitor(s)', '3 mededingers'),
+        (
+          const SectionDetail.competitors(3),
+          '3 competitor(s)',
+          '3 mededingers',
+        ),
         (const SectionDetail.captured(), 'Captured', 'Vasgelê'),
         (const SectionDetail.risks(0), 'None raised', 'Geen gemerk nie'),
         (const SectionDetail.risks(2), '2 raised', '2 gemerk'),

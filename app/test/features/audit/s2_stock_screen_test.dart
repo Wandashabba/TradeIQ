@@ -1,509 +1,534 @@
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
-import 'package:tradeiq_app/core/camera/photo_exposure.dart';
-import 'package:tradeiq_app/core/location/location_service.dart';
-import 'package:tradeiq_app/core/location/photo_geotagger.dart';
-import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
 import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
 import 'package:tradeiq_app/features/audit/data/stock_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s2_stock_screen.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
+import '../agent_harness.dart';
+import 'section_harness.dart';
 
-class _FakeSkusRepository implements SkusRepository {
+const _cola = Sku(
+  id: 's1',
+  name: 'Test Cola',
+  category: 'Beverages',
+  minFacingsStandard: 4,
+  rrp: 19.99,
+  daysOutOfStock: 0,
+  velocityAvg: 4.2,
+  effectivePrice: 19.99,
+);
+
+const _chips = Sku(
+  id: 's2',
+  name: 'Salt Crisps 125g',
+  category: 'Snacks',
+  minFacingsStandard: 2,
+  rrp: 12.5,
+  daysOutOfStock: 0,
+  velocityAvg: 1.5,
+  effectivePrice: 12.5,
+);
+
+/// One prior in-stock reading: `daysOutOfStock` needs one history point,
+/// `velocityAvg` needs two — so a rate of zero beside a nonzero out-of-stock
+/// count is a legitimate state, not a contradiction.
+const _noHistory = Sku(
+  id: 's1',
+  name: 'Test Cola',
+  category: 'Beverages',
+  minFacingsStandard: 4,
+  rrp: 19.99,
+  daysOutOfStock: 5,
+  velocityAvg: 0,
+  effectivePrice: 19.99,
+);
+
+class _Skus implements SkusRepository {
+  _Skus([this.skus = const <Sku>[_cola]]);
+
+  final List<Sku> skus;
+
   @override
   Future<PaginatedResponse<Sku>> listSkus({
     required String outletId,
     int? limit,
     String? cursor,
-  }) async => const PaginatedResponse(
-    data: [
-      Sku(
-        id: 's1',
-        name: 'Test Cola',
-        category: 'Beverages',
-        minFacingsStandard: 4,
-        rrp: 19.99,
-        daysOutOfStock: 0,
-        velocityAvg: 4.2,
-        effectivePrice: 19.99,
-      ),
-    ],
-    nextCursor: null,
-  );
+  }) async => PaginatedResponse<Sku>(data: skus, nextCursor: null);
 }
 
-/// A SKU with exactly one prior in-stock reading: `daysOutOfStock` only needs
-/// one history point, `velocityAvg` needs two — so this combination (a rate of
-/// zero alongside a nonzero out-of-stock count) is a legitimate state, not a
-/// contradiction.
-class _FakeSkusRepositoryNoHistory implements SkusRepository {
-  @override
-  Future<PaginatedResponse<Sku>> listSkus({
-    required String outletId,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(
-    data: [
-      Sku(
-        id: 's1',
-        name: 'Test Cola',
-        category: 'Beverages',
-        minFacingsStandard: 4,
-        rrp: 19.99,
-        daysOutOfStock: 5,
-        velocityAvg: 0,
-        effectivePrice: 19.99,
-      ),
-    ],
-    nextCursor: null,
-  );
-}
-
-class _SpyStockRepository implements StockRepository {
+class _SpyStock implements StockRepository {
   String? visitDraftId;
   List<StockEntry>? entries;
+  int saves = 0;
 
   @override
   Future<void> saveStock({
     required String visitDraftId,
     required List<StockEntry> entries,
   }) async {
+    saves++;
     this.visitDraftId = visitDraftId;
     this.entries = entries;
   }
 }
 
-class _SpyQueuedPhotos implements QueuedPhotosRepository {
-  final calls = <Map<String, Object?>>[];
-
-  @override
-  Future<void> queuePhoto({
-    required String visitDraftId,
-    required String section,
-    required String dataUrl,
-    Map<String, dynamic> gpsTag = const {},
-    DateTime? capturedAt,
-  }) async => calls.add({
-    'visitDraftId': visitDraftId,
-    'section': section,
-    'dataUrl': dataUrl,
-    'gpsTag': gpsTag,
-    'capturedAt': capturedAt,
-  });
-}
-
-class _PhotoGateway implements ImagePickerGateway {
-  @override
-  Future<XFile?> pick({
-    required ImageSource source,
-    required double maxWidth,
-    required int imageQuality,
-  }) async =>
-      XFile.fromData(Uint8List.fromList([1, 2, 3]), path: 'shelf.jpg');
-}
-
-class _GrantedLocation extends LocationService {
-  @override
-  Future<LocationResult> getPositionIfPermitted() async =>
-      LocationGranted(-26.2041, 28.0473, accuracy: 7);
-}
-
-const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
-
-ThemeData _themeFor(String name) =>
-    name == 'light' ? AppTheme.light() : AppTheme.dark();
-
-Widget _screen({
+List<Override> _overrides({
   required StockRepository stock,
-  SkusRepository? skus,
-  ThemeData? theme,
-}) => ProviderScope(
-  overrides: [
-    skusRepositoryProvider.overrideWithValue(skus ?? _FakeSkusRepository()),
-    stockRepositoryProvider.overrideWithValue(stock),
-  ],
-  child: MaterialApp(
-    theme: theme,
-    home: const Scaffold(
-      body: SingleChildScrollView(
-        child: S2StockScreen(visitDraftId: 'v1', outletId: 'o1'),
-      ),
-    ),
+  List<Sku> skus = const <Sku>[_cola],
+  QueuedPhotosRepository? photos,
+  PhotoCaptureService? capture,
+  double? luma = 0.5,
+}) => <Override>[
+  scriptedExposure(luma),
+  skusRepositoryProvider.overrideWithValue(_Skus(skus)),
+  stockRepositoryProvider.overrideWithValue(stock),
+  if (photos != null) queuedPhotosRepositoryProvider.overrideWithValue(photos),
+  if (capture != null) photoCaptureServiceProvider.overrideWithValue(capture),
+];
+
+const _screen = S2StockScreen(visitDraftId: 'v1', outletId: 'o1');
+
+Finder _stepper(String skuId) => find.byKey(ValueKey<String>('units-$skuId'));
+
+Finder _step(String skuId, String label) => find.descendant(
+  of: _stepper(skuId),
+  matching: find.byWidgetPredicate(
+    (w) => w is Semantics && w.properties.label == label,
   ),
 );
 
-/// The decoration of the nearest ancestor Container of [inner] that carries a
-/// BoxDecoration colour — the console card the element sits on.
-BoxDecoration _cardDecoration(WidgetTester tester, Finder inner) {
-  final container = find
-      .ancestor(
-        of: inner,
-        matching: find.byWidgetPredicate(
-          (w) =>
-              w is Container &&
-              w.decoration is BoxDecoration &&
-              (w.decoration! as BoxDecoration).color != null,
-        ),
-      )
-      .first;
-  return tester.widget<Container>(container).decoration! as BoxDecoration;
+/// Open the number sheet by tapping the figure, type, and Set.
+Future<void> _typeCount(WidgetTester tester, String skuId, String text) async {
+  await tapInSection(tester, _step(skuId, 'Type a count'));
+  await tester.enterText(
+    find.descendant(
+      of: find.byKey(const ValueKey<String>('count-sheet-input')),
+      matching: find.byType(EditableText),
+    ),
+    text,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey<String>('count-sheet-set')));
+  await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('a shelf photo is queued once as stock evidence, with its '
-      'gpsTag and shutter time (#310)', (tester) async {
-    final shutter = DateTime.utc(2026, 9, 15, 10, 4, 5);
-    final photos = _SpyQueuedPhotos();
+  group('the count that is not zero', () {
+    testWidgets('an untouched SKU is saved as null, a typed 0 as 0 (#389)', (
+      tester,
+    ) async {
+      // The bug: this screen used to send `_units[sku.id] ?? 0`, so a shelf the
+      // agent had not walked to yet was submitted as an empty one — raising a
+      // restock task and dragging on-shelf availability down for a SKU nobody
+      // had looked at. Null and 0 leave here as different findings, because
+      // the server (#410) treats them as different findings.
+      final spy = _SpyStock();
+      await pumpSection(tester, _screen, overrides: _overrides(stock: spy));
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-          stockRepositoryProvider.overrideWithValue(_SpyStockRepository()),
-          queuedPhotosRepositoryProvider.overrideWithValue(photos),
-          photoCaptureServiceProvider.overrideWithValue(
-            PhotoCaptureService(
-              gateway: _PhotoGateway(),
-              geotagger: PhotoGeotagger(location: _GrantedLocation()),
-              clock: () => shutter,
-            ),
-          ),
-          // Decoding an image does not complete on FakeAsync's clock, so the
-          // capture route's exposure check is scripted here; the real
-          // measurement is `photo_exposure_test.dart`.
-          photoExposureProvider.overrideWithValue((String url) async => null),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: S2StockScreen(visitDraftId: 'v1', outletId: 'o1'),
-            ),
-          ),
+      // Nothing touched: the Save is a ghost, but it still saves.
+      await saveSection(tester);
+      expect(spy.entries!.single.unitsAvailable, isNull);
+
+      await _typeCount(tester, 's1', '0');
+      await saveSection(tester);
+      expect(spy.entries!.single.unitsAvailable, 0);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('a part-counted save sends null for every SKU not reached', (
+      tester,
+    ) async {
+      final spy = _SpyStock();
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: spy, skus: const <Sku>[_cola, _chips]),
+      );
+
+      await tapInSection(tester, _step('s1', 'One more'));
+      // The summary says what a Save would record before it is pressed.
+      expect(find.text('1 counted · 0 out of stock · 1 to go'), findsOneWidget);
+      expect(
+        find.text(
+          'Saving now records 1 products as not counted — never as empty.',
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        findsOneWidget,
+      );
 
-    await tester.ensureVisible(find.byKey(const ValueKey('photo-add')));
-    await tester.tap(find.byKey(const ValueKey('photo-add')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('guided-capture')));
-    await tester.pumpAndSettle();
-    // Capture now lands on the review step — a dark shot is never kept
-    // silently — so accepting the frame is what pops it back to the section.
-    await tester.tap(find.byKey(const ValueKey('guided-use-it')));
-    await tester.pumpAndSettle();
+      await saveSection(tester);
+      final byId = {for (final e in spy.entries!) e.skuId: e.unitsAvailable};
+      expect(byId, <String, int?>{'s1': 1, 's2': null});
+      await disposeAgentScreen(tester);
+    });
 
-    await tester.ensureVisible(find.text('Save stock'));
-    await tester.tap(find.text('Save stock'));
-    await tester.pumpAndSettle();
+    testWidgets('from not counted, minus means "there are none" and plus '
+        'means "I counted one"', (tester) async {
+      final spy = _SpyStock();
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: spy, skus: const <Sku>[_cola, _chips]),
+      );
 
-    expect(photos.calls, hasLength(1));
-    final call = photos.calls.single;
-    expect(call['visitDraftId'], 'v1');
-    expect(call['section'], 'stock');
-    expect(call['dataUrl'], startsWith('data:image/jpeg;base64,'));
-    expect(call['gpsTag'], {'lat': -26.2041, 'lng': 28.0473, 'accuracy': 7.0});
-    expect(call['capturedAt'], shutter);
+      await tapInSection(tester, _step('s1', 'One fewer'));
+      await tapInSection(tester, _step('s2', 'One more'));
+      await tapInSection(tester, _step('s2', 'One more'));
+      await tapInSection(tester, _step('s2', 'One more'));
+      await saveSection(tester);
 
-    // Saving the counts again does not queue the same photo twice.
-    await tester.tap(find.text('Save stock'));
-    await tester.pumpAndSettle();
-    expect(photos.calls, hasLength(1));
+      final byId = {for (final e in spy.entries!) e.skuId: e.unitsAvailable};
+      expect(byId, <String, int?>{'s1': 0, 's2': 3});
+      await disposeAgentScreen(tester);
+    });
   });
 
-  testWidgets('shows read-only server context and calls saveStock on Save', (
-    tester,
-  ) async {
-    final spy = _SpyStockRepository();
+  group('the number sheet', () {
+    testWidgets('typing opens a sheet titled with the product; Set lands the '
+        'count', (tester) async {
+      final spy = _SpyStock();
+      await pumpSection(tester, _screen, overrides: _overrides(stock: spy));
 
-    await tester.pumpWidget(_screen(stock: spy));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Selling ~4.2/day'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('units-s1')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('units-input-s1')), '20');
-    await tester.tap(find.byKey(const ValueKey('units-confirm-s1')));
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Save stock'));
-    await tester.tap(find.text('Save stock'));
-    await tester.pumpAndSettle();
-
-    expect(spy.visitDraftId, 'v1');
-    expect(spy.entries, hasLength(1));
-    expect(spy.entries!.first.skuId, 's1');
-    expect(spy.entries!.first.unitsAvailable, 20);
-    expect(find.text('Stock saved — queued for sync'), findsOneWidget);
-  });
-
-  testWidgets('the +/- stepper adjusts the count without a keyboard', (
-    tester,
-  ) async {
-    final spy = _SpyStockRepository();
-
-    await tester.pumpWidget(_screen(stock: spy));
-    await tester.pumpAndSettle();
-
-    final plus = find.descendant(
-      of: find.byKey(const ValueKey('units-s1')),
-      matching: find.byIcon(Icons.add),
-    );
-    await tester.tap(plus);
-    await tester.pump();
-    await tester.tap(plus);
-    await tester.pump();
-    await tester.tap(plus);
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Save stock'));
-    await tester.tap(find.text('Save stock'));
-    await tester.pumpAndSettle();
-
-    expect(spy.entries!.first.unitsAvailable, 3);
-  });
-
-  testWidgets('an untouched SKU is saved as null, a typed 0 as 0 (#389)', (
-    tester,
-  ) async {
-    // The bug: this screen used to send `_units[sku.id] ?? 0`, so a shelf the
-    // agent had not walked to yet was submitted as an empty one — raising a
-    // high-priority restock task and dragging on-shelf availability down for a
-    // SKU nobody had looked at. Null and 0 have to leave here as different
-    // findings, because the server treats them as different findings.
-    final spy = _SpyStockRepository();
-
-    await tester.pumpWidget(_screen(stock: spy));
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Save stock'));
-    await tester.tap(find.text('Save stock'));
-    await tester.pumpAndSettle();
-
-    expect(spy.entries!.first.unitsAvailable, isNull);
-
-    // The same SKU, now actually counted and found empty. That IS a finding.
-    await tester.tap(find.byKey(const ValueKey('units-s1')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('units-input-s1')), '0');
-    await tester.tap(find.byKey(const ValueKey('units-confirm-s1')));
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Save stock'));
-    await tester.tap(find.text('Save stock'));
-    await tester.pumpAndSettle();
-
-    expect(spy.entries!.first.unitsAvailable, 0);
-  });
-
-  testWidgets('a zero count is shown as the finding it is', (tester) async {
-    await tester.pumpWidget(_screen(stock: _SpyStockRepository()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('units-s1')));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('units-input-s1')), '0');
-    await tester.tap(find.byKey(const ValueKey('units-confirm-s1')));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Out of stock — this raises a task for the manager'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets(
-    'with no velocity history yet, the context line stands on its own',
-    (tester) async {
-      await tester.pumpWidget(
-        _screen(
-          stock: _SpyStockRepository(),
-          skus: _FakeSkusRepositoryNoHistory(),
+      await tapInSection(tester, _step('s1', 'Type a count'));
+      // The product's name is the sheet's title, so the agent can see which
+      // shelf the figure is going to.
+      expect(find.text('Test Cola'), findsNWidgets(2));
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('count-sheet-input')),
+          matching: find.byType(EditableText),
         ),
+        '20',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey<String>('count-sheet-set')));
+      await tester.pumpAndSettle();
+
+      await saveSection(tester);
+      expect(spy.visitDraftId, 'v1');
+      expect(spy.entries!.single.unitsAvailable, 20);
+      expect(
+        find.textContaining('Stock saved — queued for sync'),
+        findsOneWidget,
+      );
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('Cancel leaves the count exactly as it was — a stray tap never '
+        'replaces a count', (tester) async {
+      final spy = _SpyStock();
+      await pumpSection(tester, _screen, overrides: _overrides(stock: spy));
+
+      await tapInSection(tester, _step('s1', 'One more'));
+      await tapInSection(tester, _step('s1', 'One more'));
+
+      await tapInSection(tester, _step('s1', 'Type a count'));
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('count-sheet-input')),
+          matching: find.byType(EditableText),
+        ),
+        '7',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('count-sheet-cancel')),
       );
       await tester.pumpAndSettle();
 
-      // A rate of zero does not mean "Selling no sales history yet" — it means
-      // there isn't yet a rate to report, and that can still come with a known
-      // out-of-stock count from a single prior reading.
+      await saveSection(tester);
+      expect(spy.entries!.single.unitsAvailable, 2);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('an empty sheet cannot Set, and says what it is waiting for', (
+      tester,
+    ) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: _SpyStock()),
+      );
+      await tapInSection(tester, _step('s1', 'Type a count'));
+      final set = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('count-sheet-set')),
+      );
+      expect(set.onPressed, isNull);
+      expect(find.text('Type a count first'), findsOneWidget);
+      // Close it: the open-sheet count is app-wide, and a sheet left open at
+      // teardown would extinguish every amber in the tests after this one.
+      await tester.tap(
+        find.byKey(const ValueKey<String>('count-sheet-cancel')),
+      );
+      await tester.pumpAndSettle();
+      await disposeAgentScreen(tester);
+    });
+  });
+
+  group('zero is a finding', () {
+    testWidgets('a zero shows the bar, the words, and the reason', (
+      tester,
+    ) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: _SpyStock()),
+      );
+      await tapInSection(tester, _step('s1', 'One fewer'));
+
+      expect(find.byKey(const ValueKey<String>('finding-s1')), findsOneWidget);
+      expect(
+        find.text(
+          'Out of stock — this raises a task for the manager\n'
+          '70% of shoppers switch brand when the product is missing.',
+        ),
+        findsOneWidget,
+      );
+      // The word on its chip, so the finding is never carried by colour alone.
+      expect(find.text('Out of stock'), findsOneWidget);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets(
+      'landing on zero buzzes heavier than a step, typed or stepped',
+      (tester) async {
+        final buzzes = <String>[];
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async {
+            if (call.method == 'HapticFeedback.vibrate') {
+              buzzes.add(call.arguments as String);
+            }
+            return null;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform,
+            null,
+          ),
+        );
+
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(
+            stock: _SpyStock(),
+            skus: const <Sku>[_cola, _chips],
+          ),
+        );
+        buzzes.clear();
+        await tapInSection(tester, _step('s1', 'One more'));
+        expect(buzzes, isNot(contains('HapticFeedbackType.heavyImpact')));
+
+        await tapInSection(tester, _step('s1', 'One fewer'));
+        expect(buzzes.last, 'HapticFeedbackType.heavyImpact');
+
+        buzzes.clear();
+        await _typeCount(tester, 's2', '0');
+        expect(buzzes, contains('HapticFeedbackType.heavyImpact'));
+        await disposeAgentScreen(tester);
+      },
+    );
+  });
+
+  group('server context', () {
+    testWidgets('velocity is read-only context, through the locale formatter', (
+      tester,
+    ) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: _SpyStock()),
+      );
+      expect(find.text('Selling ~4.2/day'), findsOneWidget);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('Afrikaans reads the same velocity with a comma', (
+      tester,
+    ) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: _SpyStock()),
+        locale: const Locale('af'),
+      );
+      expect(find.text('Verkoop ~4,2/dag'), findsOneWidget);
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('with no velocity history the context line stands on its own', (
+      tester,
+    ) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(
+          stock: _SpyStock(),
+          skus: const <Sku>[_noHistory],
+        ),
+      );
+      // A rate of zero does not mean "Selling 0/day" — there is no rate yet,
+      // and that can still come with a known out-of-stock count.
       expect(
         find.text('No sales history yet · out of stock 5d'),
         findsOneWidget,
       );
-    },
-  );
+      await disposeAgentScreen(tester);
+    });
+  });
 
-  testWidgets(
-    'SKU rows are console cards and the save is an AgentButton — no raw '
-    'Card/ElevatedButton',
-    (tester) async {
-      for (final (name, palette) in _bothThemes) {
-        await tester.pumpWidget(
-          _screen(stock: _SpyStockRepository(), theme: _themeFor(name)),
+  group('the shelf photo', () {
+    testWidgets('is queued once as stock evidence, with its gpsTag and shutter '
+        'time (#310)', (tester) async {
+      final shutter = DateTime.utc(2026, 9, 15, 10, 4, 5);
+      final photos = SpyQueuedPhotos();
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(
+          stock: _SpyStock(),
+          photos: photos,
+          capture: fakeCapture(shutter: shutter),
+        ),
+      );
+
+      await takeSectionPhoto(tester);
+      expect(
+        find.byKey(const ValueKey<String>('photo-preview')),
+        findsOneWidget,
+      );
+
+      await saveSection(tester);
+      expect(photos.calls, hasLength(1));
+      final call = photos.calls.single;
+      expect(call['visitDraftId'], 'v1');
+      expect(call['section'], 'stock');
+      expect(call['dataUrl'], startsWith('data:image/jpeg;base64,'));
+      expect(call['gpsTag'], <String, Object>{
+        'lat': -26.2041,
+        'lng': 28.0473,
+        'accuracy': 7.0,
+      });
+      expect(call['capturedAt'], shutter);
+
+      // A second Save re-sends the counts, not a duplicate photo.
+      await saveSection(tester);
+      expect(photos.calls, hasLength(1));
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('the gallery is still there when the camera is not', (
+      tester,
+    ) async {
+      final gateway = FakePhotoGateway();
+      final photos = SpyQueuedPhotos();
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(
+          stock: _SpyStock(),
+          photos: photos,
+          capture: fakeCapture(gateway: gateway),
+        ),
+      );
+
+      await takeSectionPhoto(tester, gallery: true);
+      expect(gateway.sources, <ImageSource>[ImageSource.gallery]);
+      await saveSection(tester);
+      expect(photos.calls.single['section'], 'stock');
+      await disposeAgentScreen(tester);
+    });
+  });
+
+  testWidgets('a dark frame is questioned before it is kept, and stays marked '
+      'in the section once kept', (tester) async {
+    final photos = SpyQueuedPhotos();
+    await pumpSection(
+      tester,
+      _screen,
+      overrides: _overrides(
+        stock: _SpyStock(),
+        photos: photos,
+        capture: fakeCapture(),
+        luma: 0.05,
+      ),
+    );
+    await takeSectionPhoto(tester);
+    await scrollAgentTo(
+      tester,
+      find.byKey(const ValueKey<String>('section-photo-dark')),
+    );
+    expect(find.text('Dark — retake?'), findsOneWidget);
+    await saveSection(tester);
+    // Kept, never dropped: during Stage 6 it may be the only evidence.
+    expect(photos.calls, hasLength(1));
+    await disposeAgentScreen(tester);
+  });
+
+  group('no SKUs', () {
+    testWidgets('is an empty state with no Save, and can be declared '
+        "can't-confirm", (tester) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(stock: _SpyStock(), skus: const <Sku>[]),
+      );
+      expect(find.text('No SKUs configured for this client.'), findsOneWidget);
+      expect(sectionSave, findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('section-cant-confirm')),
+        findsOneWidget,
+      );
+      await disposeAgentScreen(tester);
+    });
+  });
+
+  group('the amber census', () {
+    for (final skin in agentSkinModes) {
+      testWidgets('untouched is zero — ${skin.name}', (tester) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(stock: _SpyStock()),
+          skin: skin,
         );
-        await tester.pumpAndSettle();
-
-        // The console has one container — a bordered surface1 panel. No raw
-        // Material Card, and the save is the kit's AgentButton, not a raw
-        // ElevatedButton.
-        expect(find.byType(Card), findsNothing, reason: '$name no Card');
-        expect(
-          find.byType(ElevatedButton),
-          findsNothing,
-          reason: '$name no ElevatedButton',
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'stock',
+          phase: 'untouched',
+          expected: 0,
         );
-        expect(
-          find.widgetWithText(AgentButton, 'Save stock'),
-          findsOneWidget,
-          reason: '$name save is AgentButton',
+        await disposeAgentScreen(tester);
+      });
+
+      testWidgets('a zero finding with an armed Save is exactly one — '
+          '${skin.name}', (tester) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(stock: _SpyStock()),
+          skin: skin,
         );
-
-        if (palette.glass) {
-          // Lumen Glass: each SKU is a no-blur glass tile (it repeats).
-          final tile = find.ancestor(
-            of: find.text('Test Cola'),
-            matching: find.byWidgetPredicate(
-              (w) => w is GlassPane && w.kind == GlassKind.tile && !w.blur,
-            ),
-          );
-          expect(tile, findsOneWidget, reason: '$name row is a glass tile');
-        } else {
-          // The SKU row is a console card: surface1 under the line hairline.
-          final deco = _cardDecoration(tester, find.text('Test Cola'));
-          expect(deco.color, palette.surface1, reason: '$name row surface');
-          expect(
-            (deco.border! as Border).top.color,
-            palette.line,
-            reason: '$name row hairline',
-          );
-        }
-      }
-    },
-  );
-
-  testWidgets(
-    'the out-of-stock warning sets its words in critText, AA-safe on the '
-    'card in both themes; the glyph keeps crit',
-    (tester) async {
-      const warning = 'Out of stock — this raises a task for the manager';
-      for (final (name, palette) in _bothThemes) {
-        await tester.pumpWidget(
-          _screen(stock: _SpyStockRepository(), theme: _themeFor(name)),
+        await tapInSection(tester, _step('s1', 'One fewer'));
+        await scrollAgentTo(tester, sectionSave);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'stock',
+          phase: 'dirty, finding',
+          expected: 1,
         );
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byKey(const ValueKey('units-s1')));
-        await tester.pumpAndSettle();
-        await tester.enterText(
-          find.byKey(const ValueKey('units-input-s1')),
-          '0',
-        );
-        await tester.tap(find.byKey(const ValueKey('units-confirm-s1')));
-        await tester.pumpAndSettle();
-
-        // The word is the AA-safe crit-text tint; the icon may stay raw crit
-        // (a glyph, paired with the word — not colour-alone).
-        final textColor = tester.widget<Text>(find.text(warning)).style!.color;
-        expect(
-          textColor,
-          // Glass: the handoff's crit ink on the note's own opaque crit wash.
-          palette.glass
-              ? LumenStatus.crit.swatchOf(palette).ink
-              : palette.critText,
-          reason: '$name warning words',
-        );
-        final iconColor = tester
-            .widget<Icon>(find.byIcon(Icons.warning_amber_outlined))
-            .color;
-        expect(iconColor, palette.crit, reason: '$name warning glyph');
-
-        // Measured on the rendered pair: the words over the card ground clear
-        // 4.5:1. Raw crit as text would collapse this in dark and fail here.
-        final ground = _cardDecoration(tester, find.text(warning)).color!;
-        expect(
-          contrastRatio(textColor!, ground),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name warning AA (rendered pair)',
-        );
-      }
-    },
-  );
-
-  testWidgets(
-    'the count dialog is a console surface, not a raw AlertDialog, and keeps '
-    'its keys + behaviour',
-    (tester) async {
-      final spy = _SpyStockRepository();
-      for (final (name, palette) in _bothThemes) {
-        await tester.pumpWidget(_screen(stock: spy, theme: _themeFor(name)));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byKey(const ValueKey('units-s1')));
-        await tester.pumpAndSettle();
-
-        // Off the raw AlertDialog onto a console Dialog on surface1; no raw
-        // ElevatedButton in the actions row either.
-        expect(
-          find.byType(AlertDialog),
-          findsNothing,
-          reason: '$name no AlertDialog',
-        );
-        final dialog = tester.widget<Dialog>(find.byType(Dialog));
-        expect(
-          dialog.backgroundColor,
-          palette.surface1,
-          reason: '$name dialog surface',
-        );
-        expect(
-          find.byType(ElevatedButton),
-          findsNothing,
-          reason: '$name dialog no ElevatedButton',
-        );
-
-        // The keys and behaviour survive: type a count, confirm, and it lands.
-        await tester.enterText(
-          find.byKey(const ValueKey('units-input-s1')),
-          '7',
-        );
-        await tester.tap(find.byKey(const ValueKey('units-confirm-s1')));
-        await tester.pumpAndSettle();
-
-        await tester.ensureVisible(find.text('Save stock'));
-        await tester.tap(find.text('Save stock'));
-        await tester.pumpAndSettle();
-        expect(
-          spy.entries!.first.unitsAvailable,
-          7,
-          reason: '$name dialog count lands',
-        );
-      }
-    },
-  );
-
-  test('no non-geometry AppColors. remain in the S2 stock source', () {
-    // Geometry (radii) stays on AppColors; every colour reads from the ambient
-    // theme via context.colors, so both themes render.
-    final src = File(
-      'lib/features/audit/presentation/sections/s2_stock_screen.dart',
-    ).readAsStringSync();
-    final offenders = RegExp(
-      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
-    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
-    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
+        await disposeAgentScreen(tester);
+      });
+    }
   });
 }

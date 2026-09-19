@@ -173,15 +173,24 @@ class TorchShell extends StatelessWidget {
     final falloff =
         profile == TorchShellProfile.console && skin.mode != SkinMode.veld;
 
+    // A Torchlight route has no Scaffold or Material above it, so without this
+    // every Text inherits the framework's debug fallback — a red-on-yellow
+    // double underline, merged into the skin's token styles because they all
+    // inherit. It is not decoration a reader should ever see, and the census
+    // counted it as light wherever it crossed a crimson or Oatmeal word.
+    // Replacing (not merging) the ambient style gives the tokens a clean base.
     return _Ground(
       skin: skin,
       falloff: falloff,
-      child: Column(
-        children: <Widget>[
-          Expanded(child: body),
-          ?bottom,
-          SizedBox(height: safeBottom),
-        ],
+      child: DefaultTextStyle(
+        style: skin.text.body.style(color: skin.palette.ink1),
+        child: Column(
+          children: <Widget>[
+            Expanded(child: body),
+            ?bottom,
+            SizedBox(height: safeBottom),
+          ],
+        ),
       ),
     );
   }

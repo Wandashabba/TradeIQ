@@ -1,55 +1,29 @@
-import 'dart:io';
-import 'dart:math' as math;
-
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
 import 'package:tradeiq_app/core/sync/sync_service.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
-import 'package:tradeiq_app/core/widgets/console.dart';
-import 'package:tradeiq_app/core/widgets/lumen_kit.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/features/audit/data/scorecard_service.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s10_scorecard_screen.dart';
 
-// WCAG 2.x contrast ratio — the recurring "coloured band text must clear
-// 4.5:1" guard, computed off the rendered colour so a token slip fails loudly.
-double _linearize(double c) =>
-    c <= 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
-
-double _relativeLuminance(Color c) =>
-    0.2126 * _linearize(c.r) +
-    0.7152 * _linearize(c.g) +
-    0.0722 * _linearize(c.b);
-
-double _contrastRatio(Color a, Color b) {
-  final la = _relativeLuminance(a);
-  final lb = _relativeLuminance(b);
-  final hi = math.max(la, lb);
-  final lo = math.min(la, lb);
-  return (hi + 0.05) / (lo + 0.05);
-}
+import '../agent_harness.dart';
+import 'section_harness.dart';
 
 class _NoopFlusher implements QueueFlusher {
   @override
   Future<void> flush(SyncQueueItem item) async {}
 }
 
-class _FakeScorecardService extends ScorecardService {
-  _FakeScorecardService({
+class _FakeScorecard extends ScorecardService {
+  _FakeScorecard({
     required super.db,
     required super.syncService,
     this.band = 'red',
   });
 
-  // Parametrized so a test can drive the green/amber/red branch it needs —
-  // the band AA + word guards below must cover all three, not just red.
   final String band;
-
   int computeCalls = 0;
   String? finalizedVisitDraftId;
 
@@ -57,16 +31,16 @@ class _FakeScorecardService extends ScorecardService {
   Future<LocalScorecard> computeForVisit(String visitDraftId) async {
     computeCalls++;
     return LocalScorecard(
-      dimensionScores: const {
+      // `competitive` is ABSENT — no competitor on shelf to measure against —
+      // and `pricing` is a measured zero. Two different facts.
+      dimensionScores: const <String, double>{
         'availability': 50,
         'visibility': 80,
         'display': 80,
         'pricing': 0,
-        'competitive': 0,
         'salesCapability': 70,
       },
       weightedTotal: 54.0,
-      // A failing score — shown honestly, never softened.
       ratingBand: band,
     );
   }
@@ -77,305 +51,137 @@ class _FakeScorecardService extends ScorecardService {
   }
 }
 
-const _bothThemes = ['light', 'dark'];
-
-ThemeData _themeFor(String name) =>
-    name == 'light' ? AppTheme.light() : AppTheme.dark();
-
-TiqColors _colorsFor(String name) =>
-    name == 'light' ? TiqColors.light : TiqColors.dark;
-
-Widget _screen(ScorecardService svc, {ThemeData? theme, Key? key}) =>
-    ProviderScope(
-      overrides: [scorecardServiceProvider.overrideWithValue(svc)],
-      child: MaterialApp(
-        theme: theme,
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: S10ScorecardScreen(key: key, visitDraftId: 'v1'),
-          ),
-        ),
-      ),
-    );
-
-_FakeScorecardService _fake({String band = 'red'}) {
+_FakeScorecard _fake({String band = 'red'}) {
   final db = LocalDb(NativeDatabase.memory());
   addTearDown(db.close);
-  return _FakeScorecardService(
+  return _FakeScorecard(
     db: db,
     syncService: SyncService(db: db, flusher: _NoopFlusher()),
     band: band,
   );
 }
 
+List<Override> _overrides(ScorecardService svc) => <Override>[
+  scorecardServiceProvider.overrideWithValue(svc),
+];
+
+const _screen = S10ScorecardScreen(visitDraftId: 'v1');
+
+Finder _key(String k) => find.byKey(ValueKey<String>(k));
+
 void main() {
-  testWidgets(
-    'renders dimension scores, total and band; refresh recomputes; finalize '
-    'queues — both themes',
-    (tester) async {
-      for (final name in _bothThemes) {
-        final fake = _fake();
-        await tester.pumpWidget(
-          _screen(fake, theme: _themeFor(name), key: ValueKey(name)),
-        );
-        await tester.pumpAndSettle();
+  testWidgets('the total, the band in words, and the sentence that keeps it '
+      'from reading as final', (tester) async {
+    await pumpSection(tester, _screen, overrides: _overrides(_fake()));
 
-        // No inline screen header — the shared section wrapper titles it.
-        // The content itself is what must render:
-        for (final key in const [
-          'score-availability',
-          'score-visibility',
-          'score-display',
-          'score-pricing',
-          'score-competitive',
-          'score-salesCapability',
-        ]) {
-          expect(
-            find.byKey(ValueKey(key)),
-            findsOneWidget,
-            reason: '$name $key',
-          );
-        }
-        expect(find.text('Availability'), findsOneWidget, reason: name);
-        expect(find.text('50'), findsOneWidget, reason: name);
-        expect(find.text('70'), findsOneWidget, reason: name);
-
-        // The prominent readout: total figure + spelled-out band, both keyed.
-        expect(
-          find.byKey(const ValueKey('score-total')),
-          findsOneWidget,
-          reason: name,
-        );
-        expect(find.text('54.0'), findsOneWidget, reason: name);
-        expect(
-          find.byKey(const ValueKey('score-band')),
-          findsOneWidget,
-          reason: name,
-        );
-        // Band carries a mark and a word (never colour alone); the wire value
-        // 'red' is shown as '✕ Gap'.
-        expect(find.text('✕ Gap'), findsOneWidget, reason: name);
-
-        // Refresh recomputes — an AgentButton, not a raw TextButton.
-        await tester.ensureVisible(find.widgetWithText(AgentButton, 'Refresh'));
-        await tester.tap(find.widgetWithText(AgentButton, 'Refresh'));
-        await tester.pumpAndSettle();
-        expect(fake.computeCalls, 2, reason: name);
-
-        // Finalize queues the marker via finalizeScorecard.
-        await tester.ensureVisible(
-          find.widgetWithText(AgentButton, 'Finalize scorecard'),
-        );
-        await tester.tap(
-          find.widgetWithText(AgentButton, 'Finalize scorecard'),
-        );
-        await tester.pumpAndSettle();
-        expect(fake.finalizedVisitDraftId, 'v1', reason: name);
-        expect(
-          find.text('Scorecard queued for sync'),
-          findsOneWidget,
-          reason: name,
-        );
-      }
-    },
-  );
-
-  testWidgets(
-    'score is on console cards/rows — no raw Card/ElevatedButton/TextButton',
-    (tester) async {
-      for (final name in _bothThemes) {
-        await tester.pumpWidget(
-          _screen(_fake(), theme: _themeFor(name), key: ValueKey(name)),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.byType(Card), findsNothing, reason: '$name no Card');
-        expect(
-          find.byType(ElevatedButton),
-          findsNothing,
-          reason: '$name no ElevatedButton',
-        );
-        expect(
-          find.byType(TextButton),
-          findsNothing,
-          reason: '$name no TextButton',
-        );
-        // Dimensions and the readout each sit in a console panel.
-        expect(find.byType(PanelCard), findsWidgets, reason: '$name panels');
-      }
-    },
-  );
-
-  // Every band, both themes: the band is spelled out AND marked (never colour
-  // alone) and its rendered colour clears AA text contrast on surface1.
-  // Hardwiring the fake to one band would let the other branches rot — a
-  // reviewer pointing Watch back at a warn/amber token, mutating a word's
-  // colour to raw crit (3.76:1 dark), or dropping a word or a mark must fail
-  // here. The wire values are unchanged: `amber` still goes in, "Watch" comes
-  // out.
-  const bands = {
-    'green': ('Healthy', '✓'),
-    'amber': ('Watch', '!'),
-    'red': ('Gap', '✕'),
-  };
-  for (final MapEntry(key: band, value: (word, mark)) in bands.entries) {
-    testWidgets(
-      'the $band band spells out "$word", marks it "$mark" and clears 4.5:1 '
-      'on surface1 — both themes',
-      (tester) async {
-        for (final name in _bothThemes) {
-          final fake = _fake(band: band);
-          await tester.pumpWidget(
-            _screen(fake, theme: _themeFor(name), key: ValueKey('$band-$name')),
-          );
-          await tester.pumpAndSettle();
-
-          // (a) never colour alone — the word AND its non-colour mark are both
-          // present under the band key, and they travel together as one label
-          // so no surface can keep one and drop the other.
-          final bandText = tester.widget<Text>(
-            find.descendant(
-              of: find.byKey(const ValueKey('score-band')),
-              matching: find.byType(Text),
-            ),
-          );
-          expect(bandText.data, '$mark $word', reason: '$band/$name label');
-
-          // (b) the colour the tree actually rendered it with clears AA text
-          // contrast on surface1.
-          final ratio = _contrastRatio(
-            bandText.style!.color!,
-            _colorsFor(name).surface1,
-          );
-          expect(
-            ratio,
-            greaterThanOrEqualTo(4.5),
-            reason:
-                '$band/$name band word is $ratio:1 on surface1 — a coloured '
-                'band label must clear AA text contrast (critText for Watch '
-                'and Gap, not the crit mark).',
-          );
-
-          final palette = _colorsFor(name);
-          if (palette.glass) {
-            // Lumen Glass sets the word on its own OPAQUE status wash, in the
-            // swatch's ink — so measure it on that wash too.
-            // No `warn` branch on purpose: a band never reaches for amber's
-            // slot, so Watch takes crit alongside Gap.
-            final sw = switch (band) {
-              'green' => LumenStatus.good,
-              _ => LumenStatus.crit,
-            }.swatchOf(palette);
-            final wash =
-                tester
-                        .widget<Container>(
-                          find
-                              .descendant(
-                                of: find.byKey(const ValueKey('score-band')),
-                                matching: find.byType(Container),
-                              )
-                              .first,
-                        )
-                        .decoration!
-                    as BoxDecoration;
-            expect(
-              wash.color,
-              Color.alphaBlend(sw.tint, palette.surface1),
-              reason: '$band/$name opaque wash',
-            );
-            expect(bandText.style!.color, sw.ink, reason: '$band/$name ink');
-            expect(
-              _contrastRatio(bandText.style!.color!, wash.color!),
-              greaterThanOrEqualTo(4.5),
-              reason: '$band/$name band word AA on its wash',
-            );
-          }
-        }
-      },
+    expect(
+      find.descendant(of: _key('score-total'), matching: find.text('54.0')),
+      findsOneWidget,
     );
+    expect(tester.widget<StatusChip>(_key('score-band')).label, 'Gap');
+    // Derived on this phone, and it says so — never presented as the verdict.
+    expect(
+      find.text(
+        'Worked out on this phone. The final score comes back when the visit '
+        'sends.',
+      ),
+      findsOneWidget,
+    );
+    await disposeAgentScreen(tester);
+  });
+
+  testWidgets('an unmeasured dimension is a dash and a reason; a measured zero '
+      'is 0', (tester) async {
+    await pumpSection(tester, _screen, overrides: _overrides(_fake()));
+
+    await scrollAgentTo(tester, _key('score-competitive'));
+    final competitive = _key('score-competitive');
+    expect(
+      find.descendant(of: competitive, matching: find.byType(NotMeasured)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: competitive, matching: find.text('0')),
+      findsNothing,
+    );
+
+    await scrollAgentTo(tester, _key('score-pricing'));
+    final pricing = _key('score-pricing');
+    expect(
+      find.descendant(of: pricing, matching: find.text('0')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: pricing, matching: find.byType(NotMeasured)),
+      findsNothing,
+    );
+    await disposeAgentScreen(tester);
+  });
+
+  testWidgets('Refresh recomputes; Finalize queues, and then rests', (
+    tester,
+  ) async {
+    final svc = _fake();
+    await pumpSection(tester, _screen, overrides: _overrides(svc));
+    expect(svc.computeCalls, 1);
+
+    await tapInSection(tester, _key('score-refresh'));
+    expect(svc.computeCalls, 2);
+
+    await tapInSection(tester, sectionSave);
+    expect(svc.finalizedVisitDraftId, 'v1');
+    expect(find.textContaining('Scorecard queued for sync'), findsOneWidget);
+    await disposeAgentScreen(tester);
+  });
+
+  for (final (wire, word, level) in <(String, String, StatusLevel)>[
+    ('green', 'Healthy', StatusLevel.onTarget),
+    ('amber', 'Watch', StatusLevel.watch),
+    ('red', 'Gap', StatusLevel.critical),
+  ]) {
+    testWidgets('the $wire band is the word "$word" on a silhouette', (
+      tester,
+    ) async {
+      await pumpSection(
+        tester,
+        _screen,
+        overrides: _overrides(_fake(band: wire)),
+      );
+      final chip = tester.widget<StatusChip>(_key('score-band'));
+      expect(chip.label, word);
+      expect(chip.level, level);
+      await disposeAgentScreen(tester);
+    });
   }
 
-  testWidgets(
-    'Lumen Glass: every dimension is a mono figure over its benchmark bar, and '
-    'the total carries its compliance word',
-    (tester) async {
-      const palette = TiqColors.light;
-      await tester.pumpWidget(_screen(_fake(), theme: AppTheme.light()));
-      await tester.pumpAndSettle();
-
-      // Each row is drawn against the Healthy line it is banded by.
-      for (final key in const [
-        'availability',
-        'visibility',
-        'display',
-        'pricing',
-        'competitive',
-        'salesCapability',
-      ]) {
-        final bar = tester.widget<BenchmarkBar>(
-          find.descendant(
-            of: find.byKey(ValueKey('score-$key')),
-            matching: find.byType(BenchmarkBar),
-          ),
+  group('the amber census', () {
+    for (final skin in agentSkinModes) {
+      testWidgets('Finalize is the one object until queued, then none — '
+          '${skin.name}', (tester) async {
+        await pumpSection(
+          tester,
+          _screen,
+          overrides: _overrides(_fake()),
+          skin: skin,
         );
-        expect(bar.target, 80, reason: '$key tick at the Healthy line');
-      }
-      // Six dimensions plus the total.
-      expect(find.byType(BenchmarkBar), findsNWidgets(7));
-
-      // Figures are mono, in their status ink. A dimension figure is not a
-      // rating band — it keeps the three-step status scale — so 50 sits below
-      // the 60 cut-off and 70 between 60 and 80, on the same numbers the band
-      // word is worked out from.
-      final fifty = tester.widget<Text>(find.text('50')).style!;
-      expect(fifty.fontFamily, LumenGlass.mono);
-      expect(fifty.color, LumenStatus.crit.swatchOf(palette).ink);
-      expect(
-        tester.widget<Text>(find.text('70')).style!.color,
-        LumenStatus.warn.swatchOf(palette).ink,
-      );
-      for (final status in [
-        LumenStatus.good,
-        LumenStatus.warn,
-        LumenStatus.crit,
-      ]) {
-        expect(
-          _contrastRatio(status.swatchOf(palette).ink, palette.surface1),
-          greaterThanOrEqualTo(4.5),
-          reason: '$status figure ink AA',
+        await scrollAgentTo(tester, sectionSave);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'score',
+          phase: 'armed',
+          expected: 1,
         );
-      }
-      expect(
-        tester
-            .widget<Text>(find.byKey(const ValueKey('score-total')))
-            .style!
-            .fontFamily,
-        LumenGlass.mono,
-      );
-
-      // The pill beside the total carries the BAND's word and mark — the same
-      // vocabulary as the readout next to it, not the pill's own compliance
-      // words — on an AA-safe wash.
-      final pill = tester.widget<LumenStatusPill>(find.byType(LumenStatusPill));
-      expect(pill.status, LumenStatus.crit);
-      expect(pill.label, '✕ Gap');
-      expect(find.text('✕ GAP'), findsOneWidget);
-      expect(find.text('BREACH'), findsNothing);
-      final crit = LumenStatus.crit.swatchOf(palette);
-      expect(
-        _contrastRatio(crit.ink, Color.alphaBlend(crit.tint, palette.surface1)),
-        greaterThanOrEqualTo(4.5),
-      );
-    },
-  );
-
-  test('no non-geometry AppColors. remain in the S10 scorecard source', () {
-    final src = File(
-      'lib/features/audit/presentation/sections/s10_scorecard_screen.dart',
-    ).readAsStringSync();
-    final offenders = RegExp(
-      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
-    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
-    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
+        await tapInSection(tester, sectionSave);
+        await expectAmber(
+          tester,
+          skin: skin,
+          route: 'score',
+          phase: 'queued',
+          expected: 0,
+        );
+        await disposeAgentScreen(tester);
+      });
+    }
   });
 }
