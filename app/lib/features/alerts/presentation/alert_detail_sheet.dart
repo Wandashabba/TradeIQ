@@ -263,7 +263,18 @@ class _AlreadyAcknowledged extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        SeverityMark(kind: SeverityMarkKind.held),
+        // A done tick, not the held square: Held (unify §1.13) means queued
+        // work waiting to go out, and an acknowledged alert is not waiting
+        // for anything. The word beside it is what carries the state; the
+        // mark only has to not claim a different one.
+        TiqMark(
+          shape: MarkShape.sectionTickDisc,
+          color: skin.palette.ink2,
+          size: MarkScale.glyph(context, 12),
+          // The tick is knocked out in the sheet's own fill, not the route's
+          // ground beneath it.
+          ground: skin.palette.surface,
+        ),
         const SizedBox(width: 6),
         Flexible(
           child: Text(

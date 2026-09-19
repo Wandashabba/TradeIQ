@@ -2086,6 +2086,10 @@
   "@visitPinIsWrong": {
     "description": "A third, quieter action on the too-far screen: the agent is at the shop and the stored coordinates are not."
   },
+  "visitPinReportedHeld": "Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.",
+  "@visitPinReportedHeld": {
+    "description": "Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does."
+  },
   "visitNoGpsFixPermission": "Allow location for TradeIQ in your phone’s settings. You can allow it just while using the app.",
   "@visitNoGpsFixPermission": {
     "description": "The fix, as its own paragraph, when location permission was denied."
@@ -2576,6 +2580,903 @@
   "@sheetClose": {
     "description": "The close action on a bottom sheet, and the 56dp close row of the full-screen route it becomes in Veld."
   },
+  "askTitle": "Ask TradeIQ",
+  "@askTitle": {
+    "description": "The Ask TradeIQ route's title."
+  },
+  "askHistoryAction": "History",
+  "@askHistoryAction": {
+    "description": "Opens the conversation history sheet."
+  },
+  "askHistoryActionCount": "History · {count}",
+  "@askHistoryActionCount": {
+    "description": "History with the number of questions in this session.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askComposerLabel": "Ask a question",
+  "@askComposerLabel": {
+    "description": "The standing label above the composer trough. It never moves."
+  },
+  "askComposerHint": "Team, stock, shelf, competitors",
+  "@askComposerHint": {
+    "description": "Placeholder inside the empty composer."
+  },
+  "askComposerRephrase": "Ask again, or rephrase",
+  "@askComposerRephrase": {
+    "description": "Replaces the composer label after a failed turn."
+  },
+  "askSend": "Send this question",
+  "@askSend": {
+    "description": "The composer's commit action."
+  },
+  "askSendUnavailable": "Send, unavailable, needs a connection",
+  "@askSendUnavailable": {
+    "description": "Spoken when Send is disabled offline."
+  },
+  "askSendNothingTyped": "Send, unavailable, nothing typed yet",
+  "@askSendNothingTyped": {
+    "description": "Spoken when Send is disabled because the trough is empty."
+  },
+  "askStop": "Stop the answer",
+  "@askStop": {
+    "description": "Replaces Send while a turn streams."
+  },
+  "askQuestionSent": "Question sent",
+  "@askQuestionSent": {
+    "description": "Announced when a question is sent."
+  },
+  "askYourQuestion": "Your question",
+  "@askYourQuestion": {
+    "description": "Semantics label on the question bubble."
+  },
+  "askEmptyHeadline": "Ask about your territory.",
+  "@askEmptyHeadline": {
+    "description": "First-run headline."
+  },
+  "askEmptyBody": "I read your sales, stock, shelf and competitor data and explain what I find. I cannot change anything.",
+  "@askEmptyBody": {
+    "description": "First-run body — says plainly that the assistant is read-only."
+  },
+  "askTryOneOfThese": "Try one of these",
+  "@askTryOneOfThese": {
+    "description": "Section rule above the example questions."
+  },
+  "askReadOnlyFootnote": "Read-only. Nothing you ask here changes your data.",
+  "@askReadOnlyFootnote": {
+    "description": "Closing line of the first-run screen."
+  },
+  "askExampleTeam": "How has my team been performing this month?",
+  "@askExampleTeam": {
+    "description": "First-run example question."
+  },
+  "askExampleTeamReads": "reads visit history and scorecards",
+  "@askExampleTeamReads": {
+    "description": "What the team example question will actually read."
+  },
+  "askExampleStock": "Which outlets keep running out of stock?",
+  "@askExampleStock": {
+    "description": "First-run example question."
+  },
+  "askExampleStockReads": "reads stock on shelf, worst first",
+  "@askExampleStockReads": {
+    "description": "What the stock example question will actually read."
+  },
+  "askExampleShelf": "What is our share of shelf year to date?",
+  "@askExampleShelf": {
+    "description": "First-run example question."
+  },
+  "askExampleShelfReads": "reads shelf audits and photos",
+  "@askExampleShelfReads": {
+    "description": "What the shelf example question will actually read."
+  },
+  "askExampleFraud": "Show me any visits that look suspicious.",
+  "@askExampleFraud": {
+    "description": "First-run example question."
+  },
+  "askExampleFraudReads": "reads flagged visits and GPS",
+  "@askExampleFraudReads": {
+    "description": "What the fraud example question will actually read."
+  },
+  "askSuggestionsGroup": "Four example questions",
+  "@askSuggestionsGroup": {
+    "description": "Semantics label for the first-run suggestion group."
+  },
+  "askSuggestionSemantic": "Ask: {question} This {reads}",
+  "@askSuggestionSemantic": {
+    "description": "Spoken label of a first-run suggestion row; the second line is the teaching.",
+    "placeholders": {
+      "question": {
+        "type": "String"
+      },
+      "reads": {
+        "type": "String"
+      }
+    }
+  },
+  "askNotEnabledHeadline": "Not switched on yet.",
+  "@askNotEnabledHeadline": {
+    "description": "Shown when the tenant is outside the rollout."
+  },
+  "askNotEnabledBody": "Ask TradeIQ is being rolled out gradually — speak to your TradeIQ contact to be included.",
+  "@askNotEnabledBody": {
+    "description": "Names who can actually act, because a client admin cannot switch this on."
+  },
+  "askStepsLookingUp": "Looking things up",
+  "@askStepsLookingUp": {
+    "description": "The working-steps rail header while tools run."
+  },
+  "askStepsWriting": "Writing the answer",
+  "@askStepsWriting": {
+    "description": "The rail header once every tool has finished."
+  },
+  "askStepsStillWorking": "This one is taking a while",
+  "@askStepsStillWorking": {
+    "description": "Shown under a step that has run for more than twelve seconds."
+  },
+  "askStepsStarting": "Reading your question",
+  "@askStepsStarting": {
+    "description": "The rail header before the first lookup starts: the model is deciding what to look up."
+  },
+  "askStepsStillWorkingOn": "Still working on {label}.",
+  "@askStepsStillWorkingOn": {
+    "description": "Announced once to a screen reader when a step has been silent for twelve seconds.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "askStopShort": "Stop",
+  "@askStopShort": {
+    "description": "The ghost button offered under the rail after thirty silent seconds. Stopping keeps what is already written."
+  },
+  "askNavFloor": "Floor",
+  "@askNavFloor": {
+    "description": "Manager nav slot 1: The Floor, the dashboard."
+  },
+  "askNavWork": "Work",
+  "@askNavWork": {
+    "description": "Manager nav slot 2: alerts and tasks."
+  },
+  "askNavAsk": "Ask",
+  "@askNavAsk": {
+    "description": "Manager nav slot 3: Ask TradeIQ."
+  },
+  "askNavMenu": "Menu",
+  "@askNavMenu": {
+    "description": "Manager nav slot 4: everything else."
+  },
+  "askStepsLive": "Live",
+  "@askStepsLive": {
+    "description": "The word that carries the live pulse when it is not amber, and under reduce-motion."
+  },
+  "askStepsUnavailable": "{label} — unavailable",
+  "@askStepsUnavailable": {
+    "description": "A step whose source did not answer.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "askStepsDidNotFinish": "{label} — did not finish",
+  "@askStepsDidNotFinish": {
+    "description": "A step still open when the stream ended.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "askStepsMore": "{count} more",
+  "@askStepsMore": {
+    "description": "The collapsed middle of a rail with more than eight steps.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askStepsChecked": "{count, plural, =1{Checked 1 source} other{Checked {count} sources}}",
+  "@askStepsChecked": {
+    "description": "The collapsed provenance row.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askStepsUnavailableCount": "{count, plural, =1{1 unavailable} other{{count} unavailable}}",
+  "@askStepsUnavailableCount": {
+    "description": "How many sources did not answer.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askStepsNoneAnswered": "No sources answered",
+  "@askStepsNoneAnswered": {
+    "description": "Every tool failed — the explanation for a thin answer."
+  },
+  "askStepsShow": "show the steps",
+  "@askStepsShow": {
+    "description": "The collapsed provenance row's action, spoken."
+  },
+  "askStepsHide": "hide the steps",
+  "@askStepsHide": {
+    "description": "The expanded provenance row's action, spoken."
+  },
+  "askStepsSemantic": "{summary}, {action}",
+  "@askStepsSemantic": {
+    "description": "Spoken label of the provenance row.",
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      },
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "askStepProgress": "Step {index} of {total}, {label}",
+  "@askStepProgress": {
+    "description": "Announced by the rail's live region as a step changes.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "askCallout": "What explains it",
+  "@askCallout": {
+    "description": "The section rule above the answer's one cause."
+  },
+  "askSources": "Sources",
+  "@askSources": {
+    "description": "The section rule above the cited pages."
+  },
+  "askSourcesNothingUsable": "The web search returned nothing usable.",
+  "@askSourcesNothingUsable": {
+    "description": "Shown when a search ran and cited nothing."
+  },
+  "askSourcesGroup": "{count, plural, =1{Sources, 1 item} other{Sources, {count} items}}",
+  "@askSourcesGroup": {
+    "description": "Semantics label for the sources group.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askSourceSemantic": "Web source {index}, {domain}, {title}, opens in browser",
+  "@askSourceSemantic": {
+    "description": "Spoken label of one cited page.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "domain": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "askSourceOpensInBrowser": "opens in browser",
+  "@askSourceOpensInBrowser": {
+    "description": "The source row's third line."
+  },
+  "askSourceUnreachable": "Could not open a browser. Long-press to copy the address.",
+  "@askSourceUnreachable": {
+    "description": "Shown on a source row whose launch the platform refused."
+  },
+  "askSourceCopied": "Address copied",
+  "@askSourceCopied": {
+    "description": "Toast after long-pressing a source row."
+  },
+  "askSourceCopiedPreview": "Address copied. The page says: {snippet}",
+  "@askSourceCopiedPreview": {
+    "description": "Toast after long-pressing a source row whose search result carried a preview. The preview is the page's own words, in plain text.",
+    "placeholders": {
+      "snippet": {
+        "type": "String"
+      }
+    }
+  },
+  "askShowAllSources": "{count, plural, =1{Show 1 source} other{Show all {count} sources}}",
+  "@askShowAllSources": {
+    "description": "Expands the cited sources list in place.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askShowAll": "Show all {count}",
+  "@askShowAll": {
+    "description": "Expands a ranked list in place.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askNoticeLookupBudget": "I ran out of lookups for this question, so this answer may be incomplete.",
+  "@askNoticeLookupBudget": {
+    "description": "The incomplete notice when the lookup budget ran out."
+  },
+  "askNoticeTimeBudget": "I ran out of time on this question, so this answer may be incomplete.",
+  "@askNoticeTimeBudget": {
+    "description": "The incomplete notice when the time budget ran out."
+  },
+  "askNoticeToolCallRefused": "I stopped short of the lookups I planned, so this answer may be incomplete.",
+  "@askNoticeToolCallRefused": {
+    "description": "The incomplete notice when the provider's extra tool calls were refused."
+  },
+  "askNoticeGeneral": "This answer may be incomplete.",
+  "@askNoticeGeneral": {
+    "description": "The incomplete notice for a reason this build does not know."
+  },
+  "askNoticeNarrower": "Ask a narrower follow-up to go further.",
+  "@askNoticeNarrower": {
+    "description": "The incomplete notice's second line."
+  },
+  "askNoticeSemantic": "Notice: this answer may be incomplete. {reason} {advice}",
+  "@askNoticeSemantic": {
+    "description": "Spoken label of the incomplete notice.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      },
+      "advice": {
+        "type": "String"
+      }
+    }
+  },
+  "askFigures": "Figures for this answer",
+  "@askFigures": {
+    "description": "Semantics label of the instrument panel."
+  },
+  "askWorstFirst": "Worst first",
+  "@askWorstFirst": {
+    "description": "Block label above the ranked bars."
+  },
+  "askOverTime": "Over time",
+  "@askOverTime": {
+    "description": "Block label above the trend chart."
+  },
+  "askUnsupportedView": "This answer includes a view your app version cannot draw yet. The summary above still applies.",
+  "@askUnsupportedView": {
+    "description": "Shown in place of a view spec this build cannot render."
+  },
+  "askUnprovenancedFigures": "Figures are not shown for answers that used the web, because this app version cannot tell which came from outside.",
+  "@askUnprovenancedFigures": {
+    "description": "Why a web-touched turn's panel was dropped."
+  },
+  "askLoadingFigures": "Loading figures",
+  "@askLoadingFigures": {
+    "description": "Semantics label of the artifact skeleton."
+  },
+  "askLoading": "Loading",
+  "@askLoading": {
+    "description": "Veld has no skeleton — one word instead."
+  },
+  "askNotEnoughToPlot": "{count, plural, =0{Not enough data to plot — nothing returned.} =1{Not enough data to plot — 1 period returned.} other{Not enough data to plot — {count} periods returned.}}",
+  "@askNotEnoughToPlot": {
+    "description": "Replaces a plot with fewer than two readable points.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askNoComparisonData": "no data for {label}",
+  "@askNoComparisonData": {
+    "description": "A comparison was asked for and the earlier window had none.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "askChartSolidLine": "solid line",
+  "@askChartSolidLine": {
+    "description": "The legend names the channel, not the colour."
+  },
+  "askChartDashedLine": "dashed line",
+  "@askChartDashedLine": {
+    "description": "The legend names the channel, not the colour."
+  },
+  "askLegend": "Legend: {entries}",
+  "@askLegend": {
+    "description": "Spoken before the plot's summary.",
+    "placeholders": {
+      "entries": {
+        "type": "String"
+      }
+    }
+  },
+  "askLegendEntry": "{name}, {channel}",
+  "@askLegendEntry": {
+    "description": "One legend entry, spoken as a name and a stroke pattern.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "channel": {
+        "type": "String"
+      }
+    }
+  },
+  "askBarSemantic": "{name}, {value}, position {index} of {total}",
+  "@askBarSemantic": {
+    "description": "Spoken label of one ranked bar.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      },
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "askBarWorst": "worst",
+  "@askBarWorst": {
+    "description": "Appended to the top ranked bar's spoken label."
+  },
+  "askOutsideData": "Outside data",
+  "@askOutsideData": {
+    "description": "The outside-data band's label."
+  },
+  "askOutsideRead": "read {date}",
+  "@askOutsideRead": {
+    "description": "When outside data was retrieved.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "askOutsidePublisher": "{publisher}, read {date}. Not TradeIQ data, and not added to any total above.",
+  "@askOutsidePublisher": {
+    "description": "The outside-data band's permanent sentence.",
+    "placeholders": {
+      "publisher": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "askOutsideUnnamed": "Read from outside TradeIQ on {date}. Not TradeIQ data, and not added to any total above.",
+  "@askOutsideUnnamed": {
+    "description": "The outside-data band when the source names no publisher.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "askOutsideStale": "{days} days old",
+  "@askOutsideStale": {
+    "description": "Appended to the outside-data band when the read date is over a week old.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "askOutsideFigure": "outside figure",
+  "@askOutsideFigure": {
+    "description": "Spoken after the value of an outside figure."
+  },
+  "askTryAgain": "Try again",
+  "@askTryAgain": {
+    "description": "Re-sends the identical question as a new turn."
+  },
+  "askStopped": "Stopped.",
+  "@askStopped": {
+    "description": "Appended to a turn the manager stopped."
+  },
+  "askStoppedSemantic": "Stopped. The answer is incomplete.",
+  "@askStoppedSemantic": {
+    "description": "Spoken when a turn is stopped."
+  },
+  "askAskAgain": "Ask again",
+  "@askAskAgain": {
+    "description": "Re-sends the question that produced this turn."
+  },
+  "askCopyAnswer": "Copy this answer",
+  "@askCopyAnswer": {
+    "description": "The copy action beneath a settled answer. A phrase, because an icon button's label is read on its own."
+  },
+  "askAnswerCopied": "Answer copied",
+  "@askAnswerCopied": {
+    "description": "Toast after copying an answer."
+  },
+  "askAskAgainAnswer": "Ask this question again",
+  "@askAskAgainAnswer": {
+    "description": "The re-ask action beneath a settled answer."
+  },
+  "askFailedTwice": "This has failed twice. It may be the connection rather than the question.",
+  "@askFailedTwice": {
+    "description": "Shown on the second failure of the same question."
+  },
+  "askErrorSemantic": "Error. {message}",
+  "@askErrorSemantic": {
+    "description": "Spoken severity first, then the message.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "askOffline": "No connection — Ask TradeIQ needs one.",
+  "@askOffline": {
+    "description": "The composer's offline band."
+  },
+  "askSessionEnded": "Your session ended. Sign in to ask again.",
+  "@askSessionEnded": {
+    "description": "The composer's session-ended band."
+  },
+  "askSessionEndedSemantic": "Your session ended. Sign in to ask again. Your answers are still on screen.",
+  "@askSessionEndedSemantic": {
+    "description": "The last clause is spoken because a screen reader cannot see the held work behind the band."
+  },
+  "askSignIn": "Sign in",
+  "@askSignIn": {
+    "description": "Takes the manager to the auth route and back."
+  },
+  "askHeld": "Held",
+  "@askHeld": {
+    "description": "The square glyph's label on the offline and session-ended bands — deliberately not a severity."
+  },
+  "askHistoryTitle": "This conversation",
+  "@askHistoryTitle": {
+    "description": "The history sheet's title."
+  },
+  "askHistorySubtitle": "{count, plural, =1{Held on this device until you leave the screen. 1 question.} other{Held on this device until you leave the screen. {count} questions.}}",
+  "@askHistorySubtitle": {
+    "description": "The history sheet says exactly what it is: a session, not an archive.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askHistoryLimit": "only the last {count} are sent with a new question",
+  "@askHistoryLimit": {
+    "description": "The real history limit, and why a very old follow-up may not land.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askHistoryEmpty": "Nothing yet.",
+  "@askHistoryEmpty": {
+    "description": "The history sheet with no turns."
+  },
+  "askHistoryEmptyBody": "Your questions will be listed here while you are on this screen.",
+  "@askHistoryEmptyBody": {
+    "description": "The history sheet's empty explanation."
+  },
+  "askHistoryRowSemantic": "Asked at {time}: {question} Go to this answer.",
+  "@askHistoryRowSemantic": {
+    "description": "Spoken label of a history row.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "askNow": "now",
+  "@askNow": {
+    "description": "Replaces the time on a turn that is still streaming."
+  },
+  "askStartOver": "Start a new conversation",
+  "@askStartOver": {
+    "description": "The foot of the history sheet."
+  },
+  "askStartOverTitle": "Start a new conversation?",
+  "@askStartOverTitle": {
+    "description": "The start-over decision sheet's title."
+  },
+  "askStartOverBody": "{count, plural, =1{This one is not saved. The 1 question and its answer go.} other{This one is not saved. The {count} questions and their answers go.}}",
+  "@askStartOverBody": {
+    "description": "Names the consequence, specifically.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askCarryOn": "Carry on",
+  "@askCarryOn": {
+    "description": "The safe action, and the primary: carrying on is the expected next move."
+  },
+  "askStartOverConfirm": "Start over",
+  "@askStartOverConfirm": {
+    "description": "The destructive action, never the lit one."
+  },
+  "askStartOverMidTurnTitle": "A question is still being answered.",
+  "@askStartOverMidTurnTitle": {
+    "description": "The start-over sheet while a turn streams."
+  },
+  "askStartOverMidTurnBody": "Starting over will stop it.",
+  "@askStartOverMidTurnBody": {
+    "description": "The consequence of starting over mid-turn."
+  },
+  "askKeepWaiting": "Keep waiting",
+  "@askKeepWaiting": {
+    "description": "The safe action while a turn streams."
+  },
+  "askStopAndStartOver": "Stop and start over",
+  "@askStopAndStartOver": {
+    "description": "The destructive action while a turn streams."
+  },
+  "askShowFullQuestion": "Show the full question",
+  "@askShowFullQuestion": {
+    "description": "Expands a question bubble clamped at six lines."
+  },
+  "askFollowUpSemantic": "Ask: {question}",
+  "@askFollowUpSemantic": {
+    "description": "Spoken label of a follow-up chip.",
+    "placeholders": {
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "askFollowUpDisabled": "unavailable while the answer is being written",
+  "@askFollowUpDisabled": {
+    "description": "Spoken when a follow-up chip is disabled."
+  },
+  "askSeconds": "{seconds}s",
+  "@askSeconds": {
+    "description": "A measured step duration, in the rail.",
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "askPoints": "{count, plural, =1{pt} other{pts}}",
+  "@askPoints": {
+    "description": "The points unit, as a word beside a figure.",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "askAnswer": "Answer",
+  "@askAnswer": {
+    "description": "Announced before an assistant turn."
+  },
+  "askOpenFullView": "Open full view",
+  "@askOpenFullView": {
+    "description": "The row at the foot of a panel block that leads to the full, table-backed view."
+  },
+  "askOpenFullViewOf": "Open the full view of {name}",
+  "@askOpenFullViewOf": {
+    "description": "Names the block the expand row belongs to, rather than saying Open full view three times in one panel.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "askQuestionCopied": "Question copied",
+  "@askQuestionCopied": {
+    "description": "Toast after long-pressing a question bubble."
+  },
+  "askTileNoData": "Nothing measured in this window",
+  "@askTileNoData": {
+    "description": "The sentence under a stat tile whose figure is unknown. Never a zero, never a hidden tile."
+  },
+  "askTileUpdatedTo": "Updated to",
+  "@askTileUpdatedTo": {
+    "description": "Leads the reconciliation line on a figure the server recomputed while it was on screen."
+  },
+  "askTileUpdatedFrom": "from",
+  "@askTileUpdatedFrom": {
+    "description": "Joins the reconciliation line to the figure the reader saw first."
+  },
+  "askTileUpdatedAt": "Updated at {time}.",
+  "@askTileUpdatedAt": {
+    "description": "When the figure was recomputed. A fact, never a fault.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "askTileWasValue": "Was {value} at {time}.",
+  "@askTileWasValue": {
+    "description": "A figure that was measured and is now unknown: what it was, and when it stopped being true.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "askPillarSales": "Sales",
+  "@askPillarSales": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarStock": "Stock",
+  "@askPillarStock": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarVisibility": "Visibility",
+  "@askPillarVisibility": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarCompetition": "Competition",
+  "@askPillarCompetition": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarFigures": "Pillar figures",
+  "@askPillarFigures": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarNoFigures": "No figures were returned for this period.",
+  "@askPillarNoFigures": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarComparedWith": "Change is measured against {label}.",
+  "@askPillarComparedWith": {
+    "description": "Ask TradeIQ answer card.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "askMetricOsa": "On-shelf availability",
+  "@askMetricOsa": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricShareOfShelf": "Share of shelf",
+  "@askMetricShareOfShelf": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricVisibility": "Visibility compliance",
+  "@askMetricVisibility": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricPrice": "Price compliance",
+  "@askMetricPrice": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricAttainment": "Attainment",
+  "@askMetricAttainment": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricRateOfSale": "Rate of sale",
+  "@askMetricRateOfSale": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricOutletsWithStockout": "Outlets with a stockout",
+  "@askMetricOutletsWithStockout": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricOutOfStockLines": "Out-of-stock lines",
+  "@askMetricOutOfStockLines": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricLinesObserved": "Lines observed",
+  "@askMetricLinesObserved": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricCompetitorFacings": "Competitor facings",
+  "@askMetricCompetitorFacings": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricExecutionScore": "Execution score",
+  "@askMetricExecutionScore": {
+    "description": "A trend chart's title for the execution score metric."
+  },
+  "askMetricPerfectStore": "Perfect-store rate",
+  "@askMetricPerfectStore": {
+    "description": "A trend chart's title for the perfect-store rate metric."
+  },
+  "askScorecardTitle": "Agent scorecard",
+  "@askScorecardTitle": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardScored": "{count, plural, =1{1 scored visit} other{{count} scored visits}}",
+  "@askScorecardScored": {
+    "description": "Ask TradeIQ answer card.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askScorecardAverage": "Average score",
+  "@askScorecardAverage": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardTeam": "Team average",
+  "@askScorecardTeam": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardNoTeam": "No other agent has a scored visit in this period.",
+  "@askScorecardNoTeam": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardVisits": "Visits",
+  "@askScorecardVisits": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardOutlets": "Outlets",
+  "@askScorecardOutlets": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardVsTeam": "vs team",
+  "@askScorecardVsTeam": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMapTitle": "Outlets with stockouts",
+  "@askMapTitle": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMapCount": "{count, plural, =1{1 outlet} other{{count} outlets}}",
+  "@askMapCount": {
+    "description": "Ask TradeIQ answer card.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askMapUnreadable": "The outlet locations for this answer could not be read. The summary above still applies.",
+  "@askMapUnreadable": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMapPin": "{name}, {count, plural, =1{1 line} other{{count} lines}} out of stock",
+  "@askMapPin": {
+    "description": "Ask TradeIQ answer card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askMapNotInVeld": "Maps are not drawn in Veld. The outlets are listed instead.",
+  "@askMapNotInVeld": {
+    "description": "Ask TradeIQ answer card."
+  },
   "visitPinTooFarToReport": "This is too far to report the pin from here. Ask your manager to correct this store.",
   "@visitPinTooFarToReport": {
     "description": "Too-far screen, beyond the distance where a wrong-pin report is accepted. Replaces the pin action."
@@ -2704,10 +3605,6 @@
       }
     },
     "description": "Body of the sheet explaining the override flags."
-  },
-  "visitPinReportedHeld": "Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.",
-  "@visitPinReportedHeld": {
-    "description": "Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does."
   },
   "wordYes": "Yes",
   "@wordYes": {
@@ -3527,5 +4424,291 @@
   "outboxSeeScore": "See how it scored",
   "@outboxSeeScore": {
     "description": "Ghost action on the outbox sheet for a submitted visit the server has: opens that visit's outcome again."
+  },
+  "meTitle": "Me",
+  "@meTitle": {
+    "description": "Title of the agent's own record — their visits and what they have earned. Nav slot 4."
+  },
+  "meEarnedHeading": "What I've earned",
+  "@meEarnedHeading": {
+    "description": "Section rule above the reward bar, the points cluster and the ledger."
+  },
+  "meVisitsHeading": "My visits",
+  "@meVisitsHeading": {
+    "description": "Section rule above the agent's own visit list."
+  },
+  "meLedgerHeading": "How you earned it",
+  "@meLedgerHeading": {
+    "description": "Section rule above the points ledger rows."
+  },
+  "mePointsEyebrow": "POINTS THIS MONTH",
+  "@mePointsEyebrow": {
+    "description": "Stat tile label. Uppercase; the component does not upper-case it for you."
+  },
+  "meRankEyebrow": "RANK",
+  "@meRankEyebrow": {
+    "description": "Stat tile label for the agent's place in the standings."
+  },
+  "meLoadErrorDetail": "Your work is safe on this phone. This part comes from the server and fills in when it answers.",
+  "@meLoadErrorDetail": {
+    "description": "Body of an inline load error on the agent's own record. Names the work's safety first."
+  },
+  "meNotRanked": "Not ranked yet — too few agents have points this month.",
+  "@meNotRanked": {
+    "description": "Sentence in place of a rank figure. An em dash alone is a puzzle."
+  },
+  "meNoPointsYet": "No points yet this month. Points arrive when a visit is submitted or a task is closed.",
+  "@meNoPointsYet": {
+    "description": "Sentence under a null points figure."
+  },
+  "meNoScheme": "No reward is running this month.",
+  "@meNoScheme": {
+    "description": "Body line in place of the progress bar. An empty bar would read as zero progress, which is a different and false statement."
+  },
+  "meRewardProgress": "{value} of {total}",
+  "@meRewardProgress": {
+    "description": "The fraction beside the reward bar.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "meRewardToGo": "{remaining} to go · {reward}",
+  "@meRewardToGo": {
+    "description": "The line always beneath the reward bar. Never the bar alone.",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      },
+      "reward": {
+        "type": "String"
+      }
+    }
+  },
+  "meRewardReached": "Reward reached — {reward}.",
+  "@meRewardReached": {
+    "description": "Line beneath a completed reward bar. Nothing flashes and nothing celebrates.",
+    "placeholders": {
+      "reward": {
+        "type": "String"
+      }
+    }
+  },
+  "meRewardPoints": "{points, plural, =1{1 point} other{{points} points}}",
+  "@meRewardPoints": {
+    "description": "What a scheme pays out, when it has no reward detail in words.",
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "mePointsHonesty": "Points are worked out on the server. They can change if a visit is reviewed.",
+  "@mePointsHonesty": {
+    "description": "The honesty line under the ledger. Read aloud, never skipped."
+  },
+  "meLedgerEmpty": "Nothing has earned points yet this month.",
+  "@meLedgerEmpty": {
+    "description": "Empty line on the ledger section rule."
+  },
+  "meVisitsEmpty": "No visits yet",
+  "@meVisitsEmpty": {
+    "description": "Whole-screen empty headline when the agent has no visits at all."
+  },
+  "meVisitsEmptyDetail": "Every store you check into shows up here — when you went, how long you stayed, and what it scored.",
+  "@meVisitsEmptyDetail": {
+    "description": "Body of the empty state."
+  },
+  "meVisitsLoadError": "Your visits did not load",
+  "@meVisitsLoadError": {
+    "description": "Headline when GET /visits/me fails."
+  },
+  "meNotScoredYet": "Waiting to be scored",
+  "@meNotScoredYet": {
+    "description": "In place of a score on a visit the server has not scored. Never a bare em dash."
+  },
+  "meVisitOpen": "Still open on this phone",
+  "@meVisitOpen": {
+    "description": "Meta line for a visit that was never submitted."
+  },
+  "meVisitMeta": "{day} · {dwell} · {tasks}",
+  "@meVisitMeta": {
+    "description": "The meta line on a visit row: day, dwell, tasks raised.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "dwell": {
+        "type": "String"
+      },
+      "tasks": {
+        "type": "String"
+      }
+    }
+  },
+  "meDwellMinutes": "{minutes} min",
+  "@meDwellMinutes": {
+    "description": "Dwell time in the shop, in minutes.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "meDwellUnknown": "time not recorded",
+  "@meDwellUnknown": {
+    "description": "In place of a dwell figure when the device never stamped a submit time. Not zero."
+  },
+  "meTasksRaised": "{count, plural, =0{no tasks raised} =1{1 task raised} other{{count} tasks raised}}",
+  "@meTasksRaised": {
+    "description": "How many tasks a visit raised. A measured zero is said in words, never hidden.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "meCapturedCount": "{captured} of {total} sections · {photos, plural, =0{no photos} =1{1 photo} other{{photos} photos}}",
+  "@meCapturedCount": {
+    "description": "What the agent captured on a visit — the evidence half of the proof.",
+    "placeholders": {
+      "captured": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "photos": {
+        "type": "int"
+      }
+    }
+  },
+  "meDistanceMeters": "{metres} m from the door",
+  "@meDistanceMeters": {
+    "description": "How far the check-in landed from the outlet's pin.",
+    "placeholders": {
+      "metres": {
+        "type": "int"
+      }
+    }
+  },
+  "meDistanceUnknown": "distance not measured",
+  "@meDistanceUnknown": {
+    "description": "When the phone had no usable fix. Not zero metres."
+  },
+  "meOutOfFence": "Out of fence",
+  "@meOutOfFence": {
+    "description": "Flag chip word on a check-in outside the geofence. A fact, not a verdict, and never crimson."
+  },
+  "meReviewed": "Reviewed",
+  "@meReviewed": {
+    "description": "Flag chip word when a manager has ruled on this visit."
+  },
+  "mePinReported": "You reported the pin as wrong",
+  "@mePinReported": {
+    "description": "Said on one of the agent's own visits that they started by reporting the outlet's pin as wrong (#386). Their own act, in their words; not a flag and not a verdict."
+  },
+  "meOnThisPhone": "{count, plural, =1{1 capture has not sent} other{{count} captures have not sent}}",
+  "@meOnThisPhone": {
+    "description": "Standalone row above the visit list when work is still held on the device.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "meOnThisPhoneDetail": "Showing what has reached the server. Today's work appears here once it sends.",
+  "@meOnThisPhoneDetail": {
+    "description": "Second line of the on-this-phone row."
+  },
+  "meVisitSemantics": "{outlet}, {day}, {dwell}, {tasks}, {score}",
+  "@meVisitSemantics": {
+    "description": "The whole visit row as one screen-reader sentence.",
+    "placeholders": {
+      "outlet": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "tasks": {
+        "type": "String"
+      },
+      "dwell": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "meScoredSemantics": "scored {score}",
+  "@meScoredSemantics": {
+    "description": "The score half of a visit row's sentence.",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "meRewardSemantics": "Progress to reward: {value} of {total}. {line}",
+  "@meRewardSemantics": {
+    "description": "The reward bar as one node.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "meLedgerRowSemantics": "{reason}, {day}, {points}",
+  "@meLedgerRowSemantics": {
+    "description": "One ledger row as a sentence. Direction is the word, never the triangle alone.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      },
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "mePointsPlus": "{points, plural, =1{plus 1 point} other{plus {points} points}}",
+  "@mePointsPlus": {
+    "description": "A positive ledger entry, in words.",
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "mePointsMinus": "{points, plural, =1{minus 1 point} other{minus {points} points}}",
+  "@mePointsMinus": {
+    "description": "A reversal, in words.",
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "meEarningsLoadError": "Your points did not load",
+  "@meEarningsLoadError": {
+    "description": "Headline when the earnings read fails. The visit list is a separate region with its own retry."
+  },
+  "meContestsDetail": "See where you stand",
+  "@meContestsDetail": {
+    "description": "Second line of the Contests row on Me when no contest is running. The row replaced the Contests nav slot; with contests running it shows the running count instead."
   }
 }

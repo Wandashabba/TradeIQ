@@ -155,22 +155,30 @@ class TodayFrame extends ConsumerWidget {
 
   final List<Widget> children;
 
-  /// Today · My work · Map · Contests. **Four slots, and the bar is now full.**
+  /// Today · My work · Map · Me. **The owner's four, exactly as approved.**
   ///
-  /// The owner approved Today · My work · Map · Me. Map was cut at migration
-  /// because it had no destination; it has one now (`/map`), so it is back, in
-  /// the position it was approved in. **Me** is still #383/#384 and still
-  /// unbuilt, and a tab that bounces the user back where they already are
-  /// reads as a broken app — so the fourth slot stays with Contests, which
-  /// would otherwise lose a capability the migration inherited: the agent's
-  /// standings used to hang off the Today app bar (#124), and the new header
-  /// carries the skin cycle in its one trailing slot.
+  /// ## The history, because it explains the set
   ///
-  /// **Four is the maximum** ([TorchNavPill] asserts it), so when Me lands
-  /// somebody has to decide what happens to Contests rather than adding a
-  /// fifth. The honest options are a Menu slot like the manager's, or Contests
-  /// moving inside Me — which is where an agent's standings and earnings
-  /// arguably belong anyway.
+  /// The owner approved Today · My work · Map · Me. The migration shipped
+  /// three, because neither Map nor Me had a destination, and a tab that
+  /// bounces the user back where they already are reads as a broken app — an
+  /// agent taps it once and never trusts the bar again. Contests took the
+  /// freed slot rather than the migration quietly *removing* a capability:
+  /// the agent's standings used to hang off the Today app bar (#124), and the
+  /// new header carries the skin cycle in its one trailing slot. Map came
+  /// back when `/map` existed, in the position it was approved in.
+  ///
+  /// **Me now exists** — `/me`, the agent's own visits and what they have
+  /// earned (#383/#384) — so the fourth slot is Me, and Contests moves
+  /// *inside* it, next to the points and the reward it is part of. Four is
+  /// the maximum ([TorchNavPill] asserts it), so this was a move, not an
+  /// addition, and the capability goes with it rather than vanishing:
+  ///
+  /// * Me carries a Contests row that opens the agent's standings
+  ///   (`/leaderboard/contests`), wearing the running count.
+  /// * The Me slot here wears the same running-contests badge and says it in
+  ///   words to a screen reader, so Today still tells an agent a contest is
+  ///   on without their having to go and look.
   static List<TorchNavSlot> slotsIn(
     AppLocalizations l10n, {
     int runningContests = 0,
@@ -191,15 +199,15 @@ class TodayFrame extends ConsumerWidget {
       label: l10n.navMap,
     ),
     TorchNavSlot(
-      icon: Icons.emoji_events_outlined,
-      activeIcon: Icons.emoji_events,
-      label: l10n.contestsTitle,
-      // The count the old app-bar action carried (#124). A zero is not a
-      // badge: nothing running is not news.
+      icon: Icons.person_outline,
+      activeIcon: Icons.person,
+      label: l10n.navMe,
+      // The count the old Contests action carried (#124), kept on the slot
+      // that now leads to Contests. A zero is not a badge: nothing running is
+      // not news.
       badgeCount: runningContests > 0 ? runningContests : null,
-      // The old action said the count in words in its tooltip, which was also
-      // its screen-reader label. A badge is a digit floating beside a glyph,
-      // so the sentence moves here or it is lost.
+      // A badge is a digit floating beside a glyph, so the sentence the old
+      // tooltip said moves here or it is lost.
       semanticLabel: runningContests > 0
           ? l10n.contestsRunningHint(runningContests)
           : null,
@@ -269,7 +277,7 @@ class TodayFrame extends ConsumerWidget {
   static const int todaySlot = 0;
   static const int myWorkSlot = 1;
   static const int mapSlot = 2;
-  static const int contestsSlot = 3;
+  static const int meSlot = 3;
 
   /// Where each slot goes. `go`, never `push`: a tab is a destination, not a
   /// page on top of the one the agent was reading.
@@ -281,11 +289,11 @@ class TodayFrame extends ConsumerWidget {
         context.go('/my-work');
       case mapSlot:
         context.go('/map');
-      // The agent's own contests view (#124). Not /contests, which is the
-      // manager's: every contests API but /contests/current is manager-only,
-      // so an agent sent there lands on a 403.
-      case contestsSlot:
-        context.go('/leaderboard/contests');
+      // The agent's own record (#383/#384), and inside it their contests
+      // (#124). Self-scoped end to end: every endpoint behind it reads the
+      // agent id off the token.
+      case meSlot:
+        context.go('/me');
     }
   }
 }

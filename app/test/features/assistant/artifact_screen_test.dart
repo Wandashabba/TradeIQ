@@ -265,8 +265,9 @@ void main() {
 
     // SectionLabel renders its header uppercase.
     expect(find.text('CHANGE'), findsOneWidget);
-    // 74.0 against 70.0 — up 4, which is 5.7%.
-    expect(find.text('5.7%'), findsOneWidget);
+    // 74.0 against 70.0 — up 4, which is +5.7%. Signed: a percentage in a
+    // Change column with no sign is a movement whose direction is a guess.
+    expect(find.text('+5.7%'), findsOneWidget);
     // And the compared bucket is named, because the two series are aligned by
     // position rather than by date.
     expect(find.textContaining('1 Jul'), findsOneWidget);
@@ -659,7 +660,7 @@ void main() {
         LumenGlass.mono,
       );
       expect(
-        tester.widget<Text>(find.text('5.7%')).style!.fontFamily,
+        tester.widget<Text>(find.text('+5.7%')).style!.fontFamily,
         LumenGlass.mono,
       );
       final row = tester.widget<Container>(

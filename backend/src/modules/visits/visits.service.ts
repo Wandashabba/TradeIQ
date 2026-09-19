@@ -1,7 +1,12 @@
 import { prisma } from '../../lib/prisma';
 import { buildPage } from '../../lib/pagination';
 import { haversineDistanceMeters, isWithinGeofence } from '../../lib/geofence';
-import { GeofenceRejectedError, NotFoundError } from '../../middleware/errorHandler';
+import {
+  ConflictError,
+  GeofenceRejectedError,
+  NotFoundError,
+  TooManyRequestsError,
+} from '../../middleware/errorHandler';
 import { Prisma, type Visit } from '@prisma/client';
 import type { AuthTokenPayload } from '../auth/auth.service';
 import { dispatchWebhookEvent } from '../webhooks/webhooks.service';
@@ -14,7 +19,7 @@ import {
 } from '../scorecards/scorecards.service';
 import { coverageStatus } from '../../services/forecast.service';
 import { kpiThreshold } from '../../lib/kpiThresholds';
-import { DEFAULT_CLIENT_TIME_ZONE } from '../../lib/clientTime';
+import { DEFAULT_CLIENT_TIME_ZONE, localCalendarDate, startOfLocalDay } from '../../lib/clientTime';
 import { markRouteStopsVisited } from '../beatplans/beatplans.service';
 import { recordPointsBestEffort, recordVisitSubmitted } from '../gamification/pointsLedger';
 
@@ -48,6 +53,44 @@ export const DEFAULT_PIN_DISPUTE_MAX_DISTANCE_M = 25_000;
 // docs/operations/pin-repair-and-geofence-override.md
 /** Longest note an agent may attach to a pin dispute. */
 export const MAX_PIN_DISPUTE_NOTE_LENGTH = 1000;
+
+/**
+ * How many pin disputes one agent may open in one CLIENT-LOCAL day.
+ *
+ * The distance cap above bounds one claim. Nothing bounded the tenth. An agent
+ * sitting at home is within 25 km of every outlet in their metro, and each
+ * claim, scored on its own, came to 30 — under the 50 review threshold — so a
+ * morning of them reached no manager at all while every visit earned its
+ * points. A cap is the crude half of the answer (the fraud engine's
+ * override-rate and override-cluster signals are the other half): past N the
+ * eleventh claim is REFUSED, not merely scored.
+ *
+ * Per client, from `Client.kpiThresholds`, like every other tunable.
+ */
+export const PIN_DISPUTE_DAILY_CAP_KEY = 'pinDisputeDailyCap';
+/**
+ * Three a day.
+ *
+ * An honest agent meets a wrongly pinned outlet rarely — the depot-onboarding
+ * case puts several on one beat, which is why this is not one — but an agent
+ * who files a fourth in a day is either working a beat that needs a bulk fix
+ * from the office or is not where they say they are. Both want a person, and
+ * the ceiling is what gets one: it turns an unbounded morning into three
+ * claims and a message naming the manager's queue.
+ *
+ * A tenant whose data really is that broken can raise it. Zero or negative is
+ * a typo, not a policy — "no agent may ever report a wrong pin" reinstates the
+ * bug this whole feature exists for — and falls back to the default.
+ */
+export const DEFAULT_PIN_DISPUTE_DAILY_CAP = 3;
+
+/** The daily cap for one client, defended against a typo. See the default. */
+export function pinDisputeDailyCap(kpiThresholds: unknown): number {
+  const raw = Math.floor(
+    kpiThreshold(kpiThresholds, PIN_DISPUTE_DAILY_CAP_KEY, DEFAULT_PIN_DISPUTE_DAILY_CAP),
+  );
+  return raw > 0 ? raw : DEFAULT_PIN_DISPUTE_DAILY_CAP;
+}
 
 export interface CheckInInput {
   outletId: string;
@@ -84,6 +127,20 @@ export interface CheckInInput {
    * See `checkIn` for why it is not a bypass.
    */
   pinDispute?: { note?: string };
+  /**
+   * What the device said about the QUALITY of the fix it just sent (#386
+   * follow-up): its reported horizontal accuracy in metres, and whether the
+   * platform called it a mock location.
+   *
+   * Both optional and both recorded, never acted on as a permission: they
+   * cannot make a failing check-in pass, and a build that sends neither
+   * behaves exactly as it did. What they change is the repair — a manager
+   * adopting an agent's position onto an outlet's pin is moving an access
+   * boundary on one phone's word, and `isMocked: true` makes that refusable
+   * rather than invisible.
+   */
+  accuracyM?: number;
+  isMocked?: boolean;
 }
 
 export interface CheckInResult {
@@ -160,6 +217,11 @@ export async function checkIn(input: CheckInInput): Promise<CheckInResult> {
       lng: input.lng,
       distanceM,
       passed: geofencePass,
+      // Recorded on EVERY attempt, passing or not: the attempt a manager later
+      // adopts as an outlet's pin is usually a failed one, and by then the only
+      // thing that can say whether that coordinate was real is this row.
+      accuracyM: input.accuracyM,
+      isMocked: input.isMocked,
     },
   });
 
@@ -188,11 +250,12 @@ export async function checkIn(input: CheckInInput): Promise<CheckInResult> {
   //  4. It cannot be self-granted. Resolving a dispute means moving the pin,
   //     and PATCH /outlets/:id is manager/admin only.
   if (!geofencePass && input.pinDispute) {
+    const client = await prisma.client.findUnique({
+      where: { id: input.clientId },
+      select: { kpiThresholds: true, timezone: true },
+    });
     const maxDistanceM = kpiThreshold(
-      (await prisma.client.findUnique({
-        where: { id: input.clientId },
-        select: { kpiThresholds: true },
-      }))?.kpiThresholds,
+      client?.kpiThresholds,
       PIN_DISPUTE_MAX_DISTANCE_M_KEY,
       DEFAULT_PIN_DISPUTE_MAX_DISTANCE_M,
     );
@@ -204,6 +267,48 @@ export async function checkIn(input: CheckInInput): Promise<CheckInResult> {
         `Check-in is ${Math.round(distanceM)}m from this outlet, beyond the ` +
           `${maxDistanceM}m limit for reporting a wrong pin. Ask a manager to ` +
           'correct the outlet instead.',
+      );
+    }
+
+    // ── The two bounds the distance cap does not give (#386 follow-up) ────
+    //
+    // Both read the same range — this agent's claims since the start of their
+    // client's local day — and both refuse rather than score, because a score
+    // under the review threshold is a refusal nobody performs.
+    //
+    // The day is the CLIENT's, not UTC: an agent checking in at 01:00 SAST is
+    // still on the same working day, and a cap that reset in the middle of a
+    // night shift would be a cap that reset in the middle of a night shift.
+    const timeZone = client?.timezone ?? DEFAULT_CLIENT_TIME_ZONE;
+    const now = new Date();
+    const dayStart = startOfLocalDay(localCalendarDate(now, timeZone), timeZone);
+    const todaysClaims = await prisma.pinDispute.findMany({
+      where: { clientId: input.clientId, agentId: input.agentId, createdAt: { gte: dayStart } },
+      select: { id: true, outletId: true, visitId: true, status: true },
+    });
+
+    // 1. The REPLAY. One failed position posted three times made three visits,
+    //    three disputes and three submitted-visit counts, because a POST with
+    //    no clientVisitId is deduplicated by nothing. A second claim about the
+    //    same pin on the same day says nothing the first did not: the pin has
+    //    not moved, and the manager's queue does not need the claim twice.
+    //    409 with the existing visit named, so the app can resume it rather
+    //    than reading the refusal as "your evidence was lost".
+    const alreadyClaimed = todaysClaims.find((claim) => claim.outletId === input.outletId);
+    if (alreadyClaimed) {
+      throw new ConflictError(
+        alreadyClaimed.status === 'open'
+          ? `You already reported this pin (visit ${alreadyClaimed.visitId}); a manager has not answered it yet.`
+          : `You already reported this pin today (visit ${alreadyClaimed.visitId}).`,
+      );
+    }
+
+    // 2. The RATE. Nothing stopped the tenth override, or the hundredth.
+    const dailyCap = pinDisputeDailyCap(client?.kpiThresholds);
+    if (todaysClaims.length >= dailyCap) {
+      throw new TooManyRequestsError(
+        `You have reported ${todaysClaims.length} wrong pins today, which is the limit of ` +
+          `${dailyCap}. Ask a manager to correct these outlets before reporting more.`,
       );
     }
 
@@ -246,6 +351,11 @@ export async function checkIn(input: CheckInInput): Promise<CheckInResult> {
             outletLat: outlet.lat,
             outletLng: outlet.lng,
             note: input.pinDispute?.note ?? null,
+            // Frozen onto the claim beside the coordinate, so the manager who
+            // judges it months later reads the quality of the fix and not only
+            // the fix. Null means the device did not say.
+            accuracyM: input.accuracyM,
+            isMocked: input.isMocked,
           },
         });
         return created;
@@ -1001,5 +1111,176 @@ function summariseRisks(
       .slice(0, VISIT_DETAIL_MAX_FINDINGS)
       .map((r) => `${r.severity}: ${r.flagType}, ${r.note}`),
     truncated: count > rows.length,
+  };
+}
+
+// ── GET /visits/me — the agent's own record (#383) ─────────────────────────
+//
+// The counterweight to a fraud engine that scores an agent on evidence the
+// agent cannot see. Everything here is about the CALLER's own work: the
+// `agentId` is taken from the token and is never a parameter, so there is no
+// shape of this request that returns somebody else's day.
+//
+// It is deliberately NOT `getVisitDetail` with a relaxed guard. That read is
+// supervisory — fraud signals, per-section findings, the reviewer's evidence —
+// and handing an agent the scoring function's inputs teaches them to game it.
+// What an agent needs is the proof they were there and the number they were
+// given: where, when, how far from the door, how long, how much they captured,
+// and the authoritative score.
+
+/** Capturable sections on a visit. `outletInfo` is excluded — it is completed
+ *  by checking in — which is unify §6's `captureCount`. */
+export const MY_VISIT_SECTION_TOTAL = 7;
+
+export interface MyVisitScore {
+  /** The SERVER's number. The only score this endpoint calls a score. */
+  weightedTotal: number;
+  ratingBand: string;
+  scoredAt: Date;
+  /** What the DEVICE showed the agent on the way out, when it recorded one.
+   *  Null means there is nothing to reconcile, not that the two agreed. */
+  seen: { weightedTotal: number; ratingBand: string; seenAt: Date | null } | null;
+}
+
+export interface MyVisitSummary {
+  id: string;
+  outletId: string;
+  outletName: string;
+  outletCode: string;
+  checkinTs: Date;
+  /** Metres from the outlet's pin at check-in, when the fix was good enough to
+   *  measure one. Null is "not measured", which is not zero. */
+  checkinDistanceM: number | null;
+  geofencePass: boolean;
+  status: string;
+  /** Minutes between check-in and submit, both on the DEVICE's clock (#101).
+   *  Null on a visit with no client submit stamp — an honest gap, never a
+   *  subtraction across two clocks. */
+  dwellMinutes: number | null;
+  sectionsCaptured: number;
+  sectionsTotal: number;
+  photos: number;
+  tasksRaised: number;
+  score: MyVisitScore | null;
+  /** A reviewer ruled on this visit. A fact the agent is entitled to, and the
+   *  only fraud output exposed here: the risk score and its signals stay on
+   *  the console. */
+  reviewedVerdict: string | null;
+  /** The agent said "the pin is wrong" to start this visit (#386). Their own
+   *  claim, so it is theirs to see — and it is why a visit they were allowed
+   *  to start still reads out of fence. */
+  pinReported: boolean;
+}
+
+export async function listMyVisits(input: {
+  clientId: string;
+  agentId: string;
+  limit: number;
+  cursor?: string;
+}): Promise<{ data: MyVisitSummary[]; nextCursor: string | null }> {
+  const rows = await prisma.visit.findMany({
+    where: { clientId: input.clientId, agentId: input.agentId },
+    select: {
+      id: true,
+      outletId: true,
+      checkinTs: true,
+      checkinDistanceM: true,
+      geofencePass: true,
+      status: true,
+      submittedAtClient: true,
+      outlet: { select: { name: true, code: true } },
+      scorecard: {
+        select: {
+          weightedTotal: true,
+          ratingBand: true,
+          scoredAt: true,
+          provisionalTotal: true,
+          provisionalBand: true,
+          provisionalAt: true,
+        },
+      },
+      fraudVerdict: { select: { verdict: true } },
+      pinDispute: { select: { id: true } },
+      visibility: { select: { visitId: true } },
+      capability: { select: { visitId: true } },
+      _count: {
+        select: {
+          stock: true,
+          pricing: true,
+          competitive: true,
+          risks: true,
+          photos: true,
+          tasks: true,
+          templateResponses: true,
+        },
+      },
+    },
+    // The same keyset the tenant-wide list uses, and for the same reason: a
+    // day's offline visits sync in a burst, so equal `checkinTs` values are
+    // ordinary and `id` is the tiebreaker that keeps a page boundary stable.
+    orderBy: [{ checkinTs: 'desc' }, { id: 'desc' }],
+    take: input.limit + 1,
+    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
+  });
+
+  const page = buildPage(rows, input.limit);
+  return {
+    data: page.data.map((row) => {
+      const captured = [
+        row._count.stock > 0,
+        row.visibility !== null,
+        row._count.pricing > 0,
+        row._count.competitive > 0,
+        row._count.risks > 0,
+        row.capability !== null,
+        row._count.templateResponses > 0,
+      ].filter(Boolean).length;
+
+      const card = row.scorecard;
+      return {
+        id: row.id,
+        outletId: row.outletId,
+        outletName: row.outlet.name,
+        outletCode: row.outlet.code,
+        checkinTs: row.checkinTs,
+        checkinDistanceM: row.checkinDistanceM,
+        geofencePass: row.geofencePass,
+        status: row.status,
+        dwellMinutes:
+          row.submittedAtClient === null
+            ? null
+            : Math.max(
+                0,
+                Math.round(
+                  (row.submittedAtClient.getTime() - row.checkinTs.getTime()) / 60_000,
+                ),
+              ),
+        sectionsCaptured: captured,
+        sectionsTotal: MY_VISIT_SECTION_TOTAL,
+        photos: row._count.photos,
+        tasksRaised: row._count.tasks,
+        score:
+          card === null
+            ? null
+            : {
+                weightedTotal: card.weightedTotal,
+                ratingBand: card.ratingBand,
+                scoredAt: card.scoredAt,
+                // Both halves or neither, exactly as `toScorecardResponse`
+                // folds them: a total without a band is not a score anyone saw.
+                seen:
+                  card.provisionalTotal !== null && card.provisionalBand !== null
+                    ? {
+                        weightedTotal: card.provisionalTotal,
+                        ratingBand: card.provisionalBand,
+                        seenAt: card.provisionalAt,
+                      }
+                    : null,
+              },
+        reviewedVerdict: row.fraudVerdict?.verdict ?? null,
+        pinReported: row.pinDispute !== null,
+      };
+    }),
+    nextCursor: page.nextCursor,
   };
 }

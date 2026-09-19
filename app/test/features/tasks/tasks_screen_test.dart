@@ -244,6 +244,100 @@ void main() {
       );
     });
 
+    testWidgets('a High task and a Normal task can be told apart', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(
+            id: 't-high',
+            priority: 'high',
+            due: _now.add(const Duration(days: 4)),
+          ),
+          _task(
+            id: 't-normal',
+            priority: 'normal',
+            outletId: 'o2',
+            due: _now.add(const Duration(days: 4)),
+          ),
+        ],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('priority-t-normal')),
+      );
+      // The bar is the SLA: both rows are `watch`, so without the word the
+      // axis the list is sorted by is invisible.
+      final rows = tester.widgetList<SoftRow>(find.byType(SoftRow)).toList();
+      expect(
+        rows.every((r) => r.severity == SoftRowSeverity.watch),
+        isTrue,
+        reason: 'the premise: the bar cannot tell these two apart',
+      );
+      expect(find.text('High priority'), findsOneWidget);
+      expect(find.text('Normal priority'), findsOneWidget);
+    });
+
+    testWidgets('a closed task drops the priority line, not the row', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task(id: 't-closed', status: 'closed')],
+      );
+
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-done')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('filter-done')));
+      await tester.pumpAndSettle();
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(
+        find.byKey(const ValueKey<String>('priority-t-closed')),
+        findsNothing,
+        reason: 'a closed task has no priority left to act on',
+      );
+      expect(find.text('Critical priority'), findsNothing);
+    });
+
+    testWidgets('the row\'s verbs reach the semantics tree', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 't-closed', status: 'closed', outletId: 'o2'),
+        ],
+      );
+
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-all')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('filter-all')));
+      await tester.pumpAndSettle();
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('verify-t-closed')),
+      );
+
+      // A button inside the row's excluded label paints and is announced
+      // nowhere: a TalkBack manager hears the task and cannot close it.
+      expect(
+        find.bySemanticsLabel('Close with photo'),
+        findsOneWidget,
+        reason: 'the closure verb has to be a node, not only pixels',
+      );
+      expect(find.bySemanticsLabel('Verify'), findsOneWidget);
+      handle.dispose();
+    });
+
     testWidgets('the finding is the title, in words rather than a slug', (
       tester,
     ) async {
@@ -687,6 +781,101 @@ void main() {
       expect(find.text('Showing the first 2. There are more.'), findsOneWidget);
       expect(find.textContaining('Narrow'), findsNothing);
       expect(find.text('The counts above are of these 2.'), findsOneWidget);
+    });
+
+    testWidgets('a cut list withholds the overdue verdict instead of '
+        'painting a green zero', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        // Two closed tasks, nothing overdue ON THIS PAGE — and a server that
+        // holds 74. The server orders by deadline across all statuses, so the
+        // overdue work is on page 2.
+        tasks: <TaskItem>[
+          _task(id: 't1', status: 'closed'),
+          _task(id: 't2', status: 'closed', outletId: 'o2'),
+        ],
+        nextCursor: 'cursor-2',
+        total: 74,
+      );
+
+      final tile = find.byType(StatTile);
+      // Not a measured nought: an em dash and the reason, because zero
+      // overdue among the loaded rows says nothing about the rest.
+      expect(
+        find.descendant(of: tile, matching: find.text('0')),
+        findsNothing,
+        reason: 'a count over a cut page is not a count of the list',
+      );
+      expect(
+        find.descendant(of: tile, matching: find.text(emDash)),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('None among the 2 tasks loaded'),
+        findsOneWidget,
+      );
+      // And no on-target circle over it: green is a verdict nobody measured.
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.byType(SeverityMark))
+            .where((m) => m.kind == SeverityMarkKind.onTarget),
+        isEmpty,
+      );
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.byType(SeverityMark))
+            .where((m) => m.kind == SeverityMarkKind.notMeasured)
+            .length,
+        1,
+      );
+    });
+
+    testWidgets('a whole list still renders its measured zero', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task(id: 't1', status: 'closed')],
+      );
+
+      // The other half of the law: a measured zero keeps its place and its
+      // on-target mark. Withholding it everywhere would be the same lie in
+      // the other direction.
+      expect(
+        find.descendant(of: find.byType(StatTile), matching: find.text('0')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.byType(SeverityMark))
+            .where((m) => m.kind == SeverityMarkKind.onTarget)
+            .length,
+        1,
+      );
+    });
+
+    testWidgets('a cut list with overdue work says how far the count goes', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[
+          _task(id: 'late', due: _now.subtract(const Duration(days: 2))),
+        ],
+        nextCursor: 'cursor-2',
+        total: 74,
+      );
+
+      expect(
+        find.descendant(of: find.byType(StatTile), matching: find.text('1')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('At least this many'),
+        findsOneWidget,
+        reason: 'a lower bound is not a total, and has to say so',
+      );
     });
 
     testWidgets('a cut list with a server total names it, in the order used', (

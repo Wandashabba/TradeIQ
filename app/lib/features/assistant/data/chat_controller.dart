@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../view_specs/rich_figures.dart';
 import 'assistant_events.dart';
 import 'assistant_repository.dart';
 
@@ -14,6 +16,7 @@ class ChatArtifact {
     required this.params,
     required this.data,
     this.toolCall,
+    this.reconciled = const <String, TileReconciliation>{},
   });
 
   final String id;
@@ -30,6 +33,59 @@ class ChatArtifact {
   /// tool's tiles stand in for that same tool's `pillar_metrics` card without
   /// parsing id formats.
   final int? toolCall;
+
+  /// What a figure in this card was when the reader first saw it, and when it
+  /// stopped being that — keyed by the tile's label (#410 patches a card in
+  /// place under the same id).
+  ///
+  /// Empty on a card that has not been patched, which is nearly all of them.
+  /// A figure that changes under a reader with nothing said about it is the
+  /// event the reconciliation line exists to narrate.
+  final Map<String, TileReconciliation> reconciled;
+}
+
+/// One figure's previous reading.
+///
+/// [seen] is the **original** value, not the one before last: patched twice,
+/// a manager needs what she saw and when it stopped being true, not a chain.
+@immutable
+class TileReconciliation {
+  const TileReconciliation({required this.seen, required this.at});
+
+  final num? seen;
+  final DateTime at;
+}
+
+/// What each figure in a patched `stat_tiles` card was before the patch.
+///
+/// A figure the server recomputes while a manager is reading it is a fact, not
+/// a fault: nothing flashes, nothing is struck through, and the tile says what
+/// it was and when it stopped being true. Only a value that actually MOVED is
+/// recorded — a patch that changes nothing has nothing worth saying.
+Map<String, TileReconciliation> _reconcile(
+  ChatArtifact previous,
+  dynamic data,
+  DateTime at,
+) {
+  if (previous.type != 'stat_tiles') {
+    return const <String, TileReconciliation>{};
+  }
+  final before = <String, num?>{
+    for (final tile in StatTileData.listFrom(previous.data)) tile.label: tile.value,
+  };
+  final out = <String, TileReconciliation>{...previous.reconciled};
+  for (final tile in StatTileData.listFrom(data)) {
+    if (!before.containsKey(tile.label)) continue;
+    final was = before[tile.label];
+    if (was == tile.value) continue;
+    out[tile.label] = TileReconciliation(
+      // The ORIGINAL reading is kept across a second patch; only the time
+      // moves, because the time is when what she saw stopped being true.
+      seen: out[tile.label]?.seen ?? was,
+      at: at,
+    );
+  }
+  return out;
 }
 
 /// What a tool did, for the working-steps timeline.
@@ -82,7 +138,13 @@ class ChatMessage {
     this.tools = const [],
     this.sources = const [],
     this.error,
+    this.errorCode,
+    this.notice,
+    this.focus = const <String, int>{},
     this.streaming = false,
+    this.stopped = false,
+    this.askedAt,
+    this.lastEventAt,
   });
 
   final ChatRole role;
@@ -95,8 +157,42 @@ class ChatMessage {
 
   /// A user-safe message from the server. Rendered instead of prose, not
   /// alongside it — a half-answer followed by an error reads as a bug.
+  ///
+  /// **Already sanitised**: see [sanitiseAssistantError]. The old build
+  /// rendered the wire's string verbatim on the strength of a prose comment
+  /// saying the server guaranteed it was safe, which is the exact path by
+  /// which a 500's exception text reaches a customer's screenshot.
   final String? error;
+
+  /// The wire's `code`, for the block's diagnostic line. `unknown` is not
+  /// shown — it is not a diagnostic, it is the absence of one.
+  final String? errorCode;
+
+  /// The turn ran out of lookups or time (#410). Rendered as a component
+  /// below the answer, never as prose in the model's own voice.
+  final NoticeEvent? notice;
+
+  /// The server's `focus` events: artifact id → the index of the one figure
+  /// in it the sentence is about. Not every artifact has one, and an artifact
+  /// with none lights nothing.
+  final Map<String, int> focus;
+
   final bool streaming;
+
+  /// The manager pressed Stop. Not an error: the partial answer stays exactly
+  /// as written and one line says it was stopped.
+  final bool stopped;
+
+  /// When the question was asked. The history sheet's left column, and the
+  /// only thing on this surface that needs a wall clock.
+  final DateTime? askedAt;
+
+  /// When this client last heard anything about this turn — any event at all.
+  ///
+  /// The stall thresholds are measured from here, on the client, because
+  /// what a manager waited is what the surface should describe: a lookup that
+  /// streams a token every second is not stalled however long it runs.
+  final DateTime? lastEventAt;
 
   ChatMessage copyWith({
     String? text,
@@ -104,7 +200,12 @@ class ChatMessage {
     List<ToolActivity>? tools,
     List<WebSource>? sources,
     String? error,
+    String? errorCode,
+    NoticeEvent? notice,
+    Map<String, int>? focus,
     bool? streaming,
+    bool? stopped,
+    DateTime? lastEventAt,
   }) =>
       ChatMessage(
         role: role,
@@ -113,8 +214,65 @@ class ChatMessage {
         tools: tools ?? this.tools,
         sources: sources ?? this.sources,
         error: error ?? this.error,
+        errorCode: errorCode ?? this.errorCode,
+        notice: notice ?? this.notice,
+        focus: focus ?? this.focus,
         streaming: streaming ?? this.streaming,
+        stopped: stopped ?? this.stopped,
+        askedAt: askedAt,
+        lastEventAt: lastEventAt ?? this.lastEventAt,
       );
+}
+
+/// What the server appends to an answer a budget cut short.
+///
+/// Shipped on both sides — `BUDGET_NOTICE` in `orchestrator.ts`. The client
+/// lifts it out of the prose so the fact is rendered as the product
+/// explaining itself rather than as the assistant apologising in a trailing
+/// paragraph below its own follow-ups fence.
+const String budgetNoticeProse =
+    'I reached the limit on how many lookups I can make for one question, so '
+    'this answer may be incomplete. Ask a narrower follow-up to go further.';
+
+/// [text] with the server's budget sentence removed.
+///
+/// A no-op when the constant has drifted, which is the point: the notice
+/// block is an upgrade on a fallback and never a dependency. If the strings
+/// stop matching, the sentence stays in the prose and nothing breaks.
+String stripBudgetNotice(String text) {
+  final at = text.indexOf(budgetNoticeProse);
+  if (at == -1) return text;
+  final without =
+      text.substring(0, at) + text.substring(at + budgetNoticeProse.length);
+  return without.trimRight();
+}
+
+/// The most of a server error message that reaches a screen.
+const int assistantErrorMessageCap = 160;
+
+/// What is rendered in place of a message that cannot be trusted on a screen.
+const String assistantErrorFallback = 'Something went wrong on our side.';
+
+/// A server error message, made safe to draw.
+///
+/// Newlines collapse to spaces; anything over [assistantErrorMessageCap]
+/// characters, carrying markup or angle brackets, or shaped like a stack
+/// trace is replaced wholesale and the code row carries the diagnostic
+/// instead. A guarantee written in a prose comment is not a guarantee.
+String sanitiseAssistantError(String raw) {
+  final flat = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (flat.isEmpty) return assistantErrorFallback;
+  if (flat.length > assistantErrorMessageCap) return assistantErrorFallback;
+  if (flat.contains('<') || flat.contains('>')) return assistantErrorFallback;
+  // `at Object.foo (/srv/app.js:12:9)`, `Error: ECONNREFUSED`, `#0 main`.
+  if (RegExp(r'(^|\s)(at\s+\S+\s*\(|#\d+\s|[A-Za-z]+Error:|Exception:)')
+      .hasMatch(flat)) {
+    return assistantErrorFallback;
+  }
+  if (flat.contains('\\') || RegExp(r'/[\w.-]+/[\w.-]+').hasMatch(flat)) {
+    return assistantErrorFallback;
+  }
+  return flat;
 }
 
 class ChatState {
@@ -137,6 +295,12 @@ class ChatState {
 /// conversation rows, and this is the seam that changes.
 class ChatController extends Notifier<ChatState> {
   CancelToken? _cancelToken;
+
+  /// Completes when the live turn ends, however it ends. Held so that Stop
+  /// and leaving the screen both release the `await` inside [send] — a
+  /// cancelled subscription fires neither `onDone` nor `onError`, so without
+  /// this the future a caller awaited would never complete.
+  Completer<void>? _turn;
   StreamSubscription<AssistantEvent>? _subscription;
 
   /// The server's id for this conversation, learned from the first turn.
@@ -176,8 +340,17 @@ class ChatController extends Notifier<ChatState> {
     state = state.copyWith(
       messages: [
         ...state.messages,
-        ChatMessage(role: ChatRole.user, text: trimmed),
-        const ChatMessage(role: ChatRole.assistant, text: '', streaming: true),
+        ChatMessage(
+          role: ChatRole.user,
+          text: trimmed,
+          askedAt: ref.read(assistantClockProvider)(),
+        ),
+        ChatMessage(
+          role: ChatRole.assistant,
+          text: '',
+          streaming: true,
+          lastEventAt: ref.read(assistantClockProvider)(),
+        ),
       ],
       sending: true,
     );
@@ -186,6 +359,7 @@ class ChatController extends Notifier<ChatState> {
     _cancelToken = cancelToken;
 
     final completer = Completer<void>();
+    _turn = completer;
     _subscription = ref
         .read(assistantRepositoryProvider)
         .chat(
@@ -240,7 +414,10 @@ class ChatController extends Notifier<ChatState> {
     final messages = [...state.messages];
     if (messages.isEmpty) return;
     final index = messages.length - 1;
-    final current = messages[index];
+    // Every event is a sign of life, whatever it carries.
+    final current = messages[index].copyWith(
+      lastEventAt: ref.read(assistantClockProvider)(),
+    );
 
     switch (event) {
       case ConversationEvent(:final id):
@@ -295,6 +472,14 @@ class ChatController extends Notifier<ChatState> {
           toolCall: at != -1
               ? artifacts[at].toolCall
               : (current.tools.isEmpty ? null : current.tools.length - 1),
+          // And it remembers what the reader was looking at before it landed.
+          reconciled: at == -1
+              ? const <String, TileReconciliation>{}
+              : _reconcile(
+                  artifacts[at],
+                  data,
+                  ref.read(assistantClockProvider)(),
+                ),
         );
         if (at == -1) {
           artifacts.add(artifact);
@@ -302,11 +487,30 @@ class ChatController extends Notifier<ChatState> {
           artifacts[at] = artifact;
         }
         messages[index] = current.copyWith(artifacts: artifacts);
+      case FocusEvent(:final artifactId, index: final bar):
+        // Held beside the artifacts rather than written into one: the
+        // artifact's data is the tool's result, and a focus that arrives
+        // before its artifact (it never should) still lands.
+        messages[index] = current.copyWith(
+          focus: <String, int>{...current.focus, artifactId: bar},
+        );
       case SourcesEvent(:final sources):
         // One per turn by contract; a repeat replaces rather than duplicates.
         messages[index] = current.copyWith(sources: sources);
-      case ErrorEvent(:final message):
-        messages[index] = current.copyWith(error: message, streaming: false);
+      case NoticeEvent():
+        // The same fact twice on the wire — once as prose for older builds,
+        // once as a code. This build takes the code and lifts the sentence
+        // out of the text.
+        messages[index] = current.copyWith(
+          notice: event,
+          text: stripBudgetNotice(current.text),
+        );
+      case ErrorEvent(:final code, :final message):
+        messages[index] = current.copyWith(
+          error: sanitiseAssistantError(message),
+          errorCode: code == 'unknown' ? null : code,
+          streaming: false,
+        );
       case UsageEvent():
         // Nothing to render. The cost dashboard reads this server-side; the
         // manager asking about stock does not need a token count.
@@ -329,7 +533,14 @@ class ChatController extends Notifier<ChatState> {
       if (last.streaming) {
         messages[index] = last.copyWith(
           streaming: false,
-          error: last.text.isEmpty && last.error == null
+          // A stream that died after prose arrived keeps its prose and takes
+          // the "Stopped." line: half an answer is worth more than an error
+          // that erases it, and presenting it as finished would be a lie.
+          stopped: _stopping || last.text.isNotEmpty,
+          // A turn the manager stopped is not a failure and never takes the
+          // error block: half an answer she asked to keep is worth more than
+          // a message that erases it.
+          error: !_stopping && last.text.isEmpty && last.error == null
               ? 'The assistant stopped responding. Please try again.'
               : null,
         );
@@ -338,6 +549,32 @@ class ChatController extends Notifier<ChatState> {
     state = state.copyWith(messages: messages, sending: false);
     _cancelToken = null;
     _subscription = null;
+    _stopping = false;
+    final turn = _turn;
+    _turn = null;
+    if (turn != null && !turn.isCompleted) turn.complete();
+  }
+
+  /// Whether the live turn is being cancelled by the manager rather than by
+  /// the network or by leaving the screen.
+  bool _stopping = false;
+
+  /// STOP. Keeps everything already written and stops paying for the rest.
+  ///
+  /// Distinct from [cancel], which is what leaving the screen does: that turn
+  /// is simply not there when she comes back, because a transcript is a
+  /// session. A stopped turn stays, with its partial answer and one line
+  /// saying it was stopped.
+  void stop() {
+    if (!state.sending) return;
+    _stopping = true;
+    _subscription?.cancel();
+    _subscription = null;
+    if (_cancelToken?.isCancelled == false) {
+      _cancelToken?.cancel('stopped by the manager');
+    }
+    _cancelToken = null;
+    _finish();
   }
 
   void cancel() {
@@ -347,6 +584,9 @@ class ChatController extends Notifier<ChatState> {
       _cancelToken?.cancel('left the conversation');
     }
     _cancelToken = null;
+    final turn = _turn;
+    _turn = null;
+    if (turn != null && !turn.isCompleted) turn.complete();
   }
 
   void clear() {

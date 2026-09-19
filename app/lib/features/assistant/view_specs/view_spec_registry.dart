@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../l10n/l10n.dart';
+import '../answer/answer_notes.dart';
 import '../data/chat_controller.dart';
 import 'agent_scorecard_card.dart';
+import 'instrument_panel.dart';
 import 'outlet_map_card.dart';
 import 'pillar_metrics_card.dart';
 import 'ranked_bars_card.dart';
@@ -28,10 +29,12 @@ import 'trend_chart_card.dart';
 /// It also has to survive the *older* direction: a server that has added a spec
 /// this build does not know about. That is not an error state, it is a normal
 /// consequence of shipping the backend and the app separately.
-typedef ViewSpecBuilder = Widget Function(BuildContext context, ChatArtifact artifact);
+typedef ViewSpecBuilder =
+    Widget Function(BuildContext context, ChatArtifact artifact);
 
 final Map<String, ViewSpecBuilder> viewSpecRegistry = {
-  'agent_scorecard': (context, artifact) => AgentScorecardCard(artifact: artifact),
+  'agent_scorecard': (context, artifact) =>
+      AgentScorecardCard(artifact: artifact),
   'trend_chart': (context, artifact) => TrendChartCard(artifact: artifact),
   'outlet_map': (context, artifact) => OutletMapCard(artifact: artifact),
   'pillar_metrics': (context, artifact) => PillarMetricsCard(artifact: artifact),
@@ -46,7 +49,7 @@ final Map<String, ViewSpecBuilder> viewSpecRegistry = {
 /// UUID-shaped id still offers no control that leads nowhere.
 const Set<String> answerOnlySpecTypes = {'stat_tiles', 'ranked_bars'};
 
-/// The cards an answer shows, in the order it shows them.
+/// The cards an answer shows, in the order the panel holds them.
 ///
 /// **One clean set of numbers.** A pillar tool emits its `pillar_metrics` card
 /// and then `stat_tiles` carrying the same figures; when tiles came from the
@@ -55,11 +58,12 @@ const Set<String> answerOnlySpecTypes = {'stat_tiles', 'ranked_bars'};
 /// call — including one whose neighbouring call produced tiles — stays exactly
 /// as it was, and no other type is ever hidden.
 ///
-/// **Ordered by type, not arrival.** Tiles first, then every other card as it
-/// arrived, then `ranked_bars` — the answer design's order. The server emits a
-/// tool's own card before its tiles, so arrival order would bury the headline
-/// figures under the chart they summarise. A turn with neither new type keeps
-/// its order exactly.
+/// **Ordered by type, not arrival: tiles, then bars, then everything else.**
+/// The direction's own screen puts the ranking above the chart, and the old
+/// ranks (`stat_tiles` 0, everything 1, `ranked_bars` 2) put the chart above
+/// the ranking. The server emits a tool's own card before its tiles, so
+/// arrival order would bury the headline figures under the chart they
+/// summarise. A turn with neither new type keeps its order exactly.
 List<ChatArtifact> arrangeAnswerArtifacts(List<ChatArtifact> artifacts) {
   final tiledCalls = {
     for (final a in artifacts)
@@ -73,16 +77,26 @@ List<ChatArtifact> arrangeAnswerArtifacts(List<ChatArtifact> artifacts) {
         (i, artifacts[i]),
   ];
   int rank(ChatArtifact a) => switch (a.type) {
-        'stat_tiles' => 0,
-        'ranked_bars' => 2,
-        _ => 1,
-      };
+    'stat_tiles' => 0,
+    'ranked_bars' => 1,
+    _ => 2,
+  };
   shown.sort((a, b) {
     final byRank = rank(a.$2).compareTo(rank(b.$2));
     return byRank != 0 ? byRank : a.$1.compareTo(b.$1);
   });
   return [for (final (_, artifact) in shown) artifact];
 }
+
+/// The block label a type takes inside the panel.
+///
+/// Null on `stat_tiles`, which is always first and therefore unlabelled: a
+/// panel that opens with a label is a panel labelling itself.
+String? panelEyebrowFor(AppLocalizations l10n, String type) => switch (type) {
+  'ranked_bars' => l10n.askWorstFirst,
+  'trend_chart' => l10n.askOverTime,
+  _ => null,
+};
 
 /// Render an artifact, or explain why it could not be drawn.
 class ArtifactView extends StatelessWidget {
@@ -94,8 +108,8 @@ class ArtifactView extends StatelessWidget {
 
   final ChatArtifact artifact;
 
-  /// Whether to offer the Expand affordance beneath the card. False inside
-  /// Expanded mode itself, which is where the link would lead.
+  /// Whether to offer the expand affordance beneath the card. False inside
+  /// the full view itself, which is where the link would lead.
   final bool expandable;
 
   /// Whether this artifact exists as a row the artifact routes can find.
@@ -105,12 +119,18 @@ class ArtifactView extends StatelessWidget {
   /// fallback, but `/artifact/getStockLevels-0` is a 404 waiting to happen, and
   /// a control that cannot work is worse than an absent one.
   static bool isPersisted(String id) => RegExp(
-        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
-        r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-      ).hasMatch(id);
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  ).hasMatch(id);
+
+  /// Whether the expand row should be offered at all.
+  static bool offersFullView(ChatArtifact artifact) =>
+      !answerOnlySpecTypes.contains(artifact.type) && isPersisted(artifact.id);
 
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
     final builder = viewSpecRegistry[artifact.type];
     if (builder == null) return UnsupportedArtifactNote(type: artifact.type);
 
@@ -125,83 +145,64 @@ class ArtifactView extends StatelessWidget {
       return UnsupportedArtifactNote(type: artifact.type);
     }
 
-    if (!expandable ||
-        answerOnlySpecTypes.contains(artifact.type) ||
-        !isPersisted(artifact.id)) {
-      return card;
-    }
+    if (!expandable || !offersFullView(artifact)) return card;
 
+    final name = panelEyebrowFor(l10n, artifact.type) ?? l10n.askFigures;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
-      children: [
+      children: <Widget>[
         card,
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            // `push`, not `go`: the chat is where the user came from and where
-            // they expect Back to return them, transcript intact.
-            onPressed: () => context.push('/artifact/${artifact.id}'),
-            icon: const Icon(Icons.open_in_full, size: 14),
-            label: const Text('Expand', style: TextStyle(fontSize: 12)),
-          ),
+        SizedBox(height: skin.space.intraBlock),
+        // A row inside a panel, not a button: no fill, no radius, and it is
+        // offered only where it can actually lead somewhere.
+        SoftRow(
+          density: SoftRowDensity.compact,
+          title: l10n.askOpenFullView,
+          trailing: const SoftRowChevron(),
+          separator: SoftRowSeparator.none,
+          semanticsLabel: l10n.askOpenFullViewOf(name),
+          // `push`, not `go`: the chat is where the manager came from and
+          // where Back must return her, transcript intact.
+          onTap: () => context.push('/artifact/${artifact.id}'),
         ),
       ],
     );
   }
 }
 
-class UnsupportedArtifactNote extends StatelessWidget {
-  const UnsupportedArtifactNote({super.key, required this.type});
+/// The panel an answer's internal figures live in, or nothing.
+///
+/// The arrangement, the block labels, the unprovenanced guard and the
+/// suppression line are all resolved here, so a turn's figures are decided in
+/// one place rather than in the screen that draws them.
+class AnswerPanel extends StatelessWidget {
+  const AnswerPanel({super.key, required this.figures, this.expandable = true});
 
-  final String type;
+  final AnswerFigures figures;
+  final bool expandable;
 
   @override
   Widget build(BuildContext context) {
-    if (context.colors.glass) {
-      final muted = context.lumen.inkMuted;
-      // An unblurred tile: it sits in the transcript like any other turn.
-      return GlassPane(
-        kind: GlassKind.tile,
-        blur: false,
-        shadow: false,
-        radius: LumenGlass.radiusControl,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, size: 16, color: muted),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'This answer includes a “$type” view your app version cannot '
-                'draw yet. The summary above still applies.',
-                style: TextStyle(fontSize: 12, height: 1.4, color: muted),
-              ),
-            ),
-          ],
-        ),
-      );
+    final l10n = context.l10n;
+    if (figures.suppressed && figures.internal.isEmpty) {
+      return const UnprovenancedFiguresNote();
     }
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.dividerColor),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, size: 16, color: theme.hintColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'This answer includes a “$type” view your app version cannot '
-              'draw yet. The summary above still applies.',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
-            ),
+    final ordered = arrangeAnswerArtifacts(figures.internal);
+    if (ordered.isEmpty) {
+      return figures.suppressed
+          ? const UnprovenancedFiguresNote()
+          : const SizedBox.shrink();
+    }
+    return InstrumentPanel(
+      blocks: <PanelBlock>[
+        for (final artifact in ordered)
+          PanelBlock(
+            key: ValueKey<String>('artifact-${artifact.id}'),
+            eyebrow: panelEyebrowFor(l10n, artifact.type),
+            child: ArtifactView(artifact: artifact, expandable: expandable),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

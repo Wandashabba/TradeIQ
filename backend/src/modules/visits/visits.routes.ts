@@ -7,9 +7,14 @@ import {
   MAX_PIN_DISPUTE_NOTE_LENGTH,
   checkIn,
   getVisitDetail,
+  listMyVisits,
   listVisits,
   submitVisit,
 } from './visits.service';
+
+/** "The last month of my work" — the window My visits opens on. An explicit
+ *  ?limit= overrides it like any other list. */
+const MY_VISITS_DEFAULT_LIMIT = 30;
 
 const VISIT_STATUSES = ['in_progress', 'submitted'] as const;
 type VisitStatusFilter = (typeof VISIT_STATUSES)[number];
@@ -37,15 +42,18 @@ const CLIENT_VISIT_ID_RE = /^[A-Za-z0-9._:-]+$/;
 // bodies are a visit with an `id`, so an older client — which sends no key and
 // only reads `id` — is unaffected in either direction.
 visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {
-  const { outletId, lat, lng, checkinTs, clientVisitId, resumed, pinDispute } = req.body as {
-    outletId?: string;
-    lat?: number;
-    lng?: number;
-    checkinTs?: string;
-    clientVisitId?: unknown;
-    resumed?: unknown;
-    pinDispute?: unknown;
-  };
+  const { outletId, lat, lng, checkinTs, clientVisitId, resumed, pinDispute, accuracyM, isMocked } =
+    req.body as {
+      outletId?: string;
+      lat?: number;
+      lng?: number;
+      checkinTs?: string;
+      clientVisitId?: unknown;
+      resumed?: unknown;
+      pinDispute?: unknown;
+      accuracyM?: unknown;
+      isMocked?: unknown;
+    };
 
   if (!outletId || lat === undefined || lng === undefined) {
     res.status(400).json({ error: 'outletId, lat, and lng are required' });
@@ -69,6 +77,22 @@ visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
 
   if (resumed !== undefined && typeof resumed !== 'boolean') {
     res.status(400).json({ error: 'resumed must be a boolean when given' });
+    return;
+  }
+
+  // What the device says about the fix it just sent (#386 follow-up). Recorded,
+  // never obeyed: neither value can make a failing check-in pass, and both are
+  // optional so an older build is unaffected. A negative accuracy is not a
+  // reading, and a non-finite one is not a number.
+  if (
+    accuracyM !== undefined &&
+    (typeof accuracyM !== 'number' || !Number.isFinite(accuracyM) || accuracyM < 0)
+  ) {
+    res.status(400).json({ error: 'accuracyM must be a non-negative number of metres when given' });
+    return;
+  }
+  if (isMocked !== undefined && typeof isMocked !== 'boolean') {
+    res.status(400).json({ error: 'isMocked must be a boolean when given' });
     return;
   }
 
@@ -111,6 +135,8 @@ visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
     clientVisitId: clientVisitId as string | undefined,
     resumed: resumed as boolean | undefined,
     pinDispute: pinDisputeInput,
+    accuracyM: accuracyM as number | undefined,
+    isMocked: isMocked as boolean | undefined,
     clientId: req.user!.clientId,
     agentId: req.user!.userId,
   });
@@ -132,6 +158,29 @@ visitsRouter.post('/:id/submit', requireRole('field_agent'), async (req: AuthedR
       typeof submittedAtClient === 'string' ? submittedAtClient : undefined,
   });
   res.status(200).json(visit);
+});
+
+// The caller's OWN visits (#383): where they were, when, how far from the
+// door, how long, how much they captured, and what it scored.
+//
+// Self-scoped by construction. The agent id comes off the token and is not a
+// parameter, so there is no query string that turns this into somebody else's
+// record — which is the whole reason it is a separate route rather than a
+// relaxed `?agentId=` on the list below. Open to every signed-in role because
+// "my own work" is a coherent question for any of them; a manager with no
+// visits gets an empty page rather than a 403.
+//
+// Registered BEFORE '/:id', which would otherwise read the word 'me' as a
+// visit id and bounce a field agent off a manager-only guard.
+visitsRouter.get('/me', async (req: AuthedRequest, res) => {
+  const { limit, cursor } = parsePagination(req, MY_VISITS_DEFAULT_LIMIT);
+  const page = await listMyVisits({
+    clientId: req.user!.clientId,
+    agentId: req.user!.userId,
+    limit,
+    cursor,
+  });
+  res.status(200).json(page);
 });
 
 // The manager's review of one visit (#208): outlet, agent, score, section

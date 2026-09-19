@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/theme/torchlight/console_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/state/skeleton.dart';
+import '../../../l10n/l10n.dart';
 import '../../clients/data/clients_repository.dart';
+import 'ask_first_run.dart';
 import 'chat_screen.dart';
 
 /// The entry point, gated on the rollout flag.
@@ -32,87 +34,75 @@ class AssistantGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(clientConfigProvider).when(
-          data: (config) => config.assistantEnabled
-              ? const AssistantChatScreen()
-              : const _NotEnabled(),
-          error: (_, _) => const AssistantChatScreen(),
-          loading: () => const ManagerScaffold(
-            title: 'Ask TradeIQ',
-            body: Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          ),
-        );
+    final state = ref.watch(clientConfigProvider);
+    final config = state.value;
+    if (config != null) {
+      return config.assistantEnabled
+          ? const AssistantChatScreen()
+          : const _GateFrame(child: AskNotEnabled());
+    }
+    // Read before `loading`, and not through `when`: a provider that failed
+    // is retried, and while it retries it is *both* erroring and loading. A
+    // `when` would hold the skeleton on screen through every retry — a
+    // manager watching a grey shape because one unrelated call timed out.
+    if (state.hasError) return const AssistantChatScreen();
+    // The skeleton geometry of one empty transcript, not a centred spinner:
+    // the shape a manager is about to read, held still.
+    return const _GateFrame(child: _GateSkeleton());
   }
 }
 
-class _NotEnabled extends StatelessWidget {
-  const _NotEnabled();
+/// The chrome the gate's own two states wear, so the header does not appear
+/// to arrive late.
+class _GateFrame extends ConsumerWidget {
+  const _GateFrame({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ConsoleTorchlightRoute(
+      child: Builder(
+        builder: (context) => TorchScope(
+          skin: context.skin,
+          phase: 'gate',
+          navRenders: false,
+          tabbedRoute: true,
+          // Nothing is armed here, in any skin: the count is zero plus the
+          // nav, and the nav is not rendering.
+          claims: const <TorchClaim>[],
+          child: TorchShell(
+            profile: TorchShellProfile.console,
+            header: TorchAppHeader(
+              title: context.l10n.askTitle,
+              trailing: consoleSkinCycleButton(context, ref),
+            ),
+            children: <Widget>[child],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GateSkeleton extends StatelessWidget {
+  const _GateSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    final lumen = context.lumen;
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.auto_awesome_outlined,
-          size: 28,
-          color: glass ? lumen.accentInk : colors.ink4,
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Not switched on for your organisation yet',
-          textAlign: TextAlign.center,
-          style: glass
-              ? LumenGlass.title(size: 18, color: lumen.ink)
-              : TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: colors.ink1,
-                ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          // Names who can act, because "contact your administrator" sends
-          // people to the wrong place — a client admin cannot turn this
-          // on, by design.
-          'Ask TradeIQ answers questions about your sales, stock, shelf '
-          'and competitors. It is being rolled out gradually — speak to '
-          'your TradeIQ contact to be included.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12.5,
-            height: 1.5,
-            color: glass ? lumen.inkMuted : colors.ink3,
-          ),
-        ),
-      ],
-    );
-
-    return ManagerScaffold(
-      title: 'Ask TradeIQ',
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          // Glass: the explanation is one panel on the ground, not loose text.
-          child: glass
-              ? ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: GlassPane(
-                    padding: const EdgeInsets.all(28),
-                    child: content,
-                  ),
-                )
-              : content,
-        ),
+    final skin = context.skin;
+    return Skeleton(
+      label: context.l10n.askLoading,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          SkeletonLine(role: skin.text.display, widthFactor: 0.7),
+          SizedBox(height: skin.space.intraBlock),
+          SkeletonLine(role: skin.text.body, widthFactor: 0.9),
+          SizedBox(height: skin.space.blockGap),
+          const SkeletonRows(count: 4),
+        ],
       ),
     );
   }

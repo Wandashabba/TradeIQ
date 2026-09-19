@@ -1,80 +1,32 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show SelectionArea;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
+import '../../../core/design/motion_budget.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/input/filter_chip.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../l10n/l10n.dart';
 import '../data/chat_controller.dart';
 import 'answer_markdown.dart';
 import 'answer_motion.dart';
+import 'answer_runs.dart';
 
-/// The inks and type an answer is set in, read once per build.
-class AnswerInks {
-  AnswerInks(BuildContext context)
-      : glass = context.colors.glass,
-        ink = context.colors.glass ? context.lumen.ink : context.colors.ink1,
-        muted =
-            context.colors.glass ? context.lumen.inkMuted : context.colors.ink3,
-        accent = context.colors.glass
-            ? context.lumen.accentInk
-            : context.colors.brand,
-        warn = context.colors.warn,
-        codeWash =
-            context.colors.glass ? context.lumen.track : context.colors.surface2;
+/// The readability cap on a column of prose, in ems of the body role.
+///
+/// 32em is a measure, not a layout: the transcript column can be wider and on
+/// a console usually is, but a line of body text that runs the whole of it is
+/// a line nobody's eye returns from cleanly.
+const double answerProseEms = 32;
 
-  final bool glass;
-  final Color ink;
-  final Color muted;
-  final Color accent;
-  final Color warn;
-  final Color codeWash;
+/// The prose measure in logical pixels, at this skin's body size.
+double answerProseWidth(TiqSkin skin) => skin.text.body.size * answerProseEms;
 
-  TextStyle get body => TextStyle(fontSize: 14, height: 1.55, color: ink);
-
-  /// The one sentence a manager should be able to stop at.
-  TextStyle get headline => TextStyle(
-        fontSize: 20,
-        height: 1.3,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.25,
-        color: ink,
-      );
-}
-
-/// Inline runs as spans. [boldColor] lets the headline lift its emphasis into
-/// the accent, as the mockup does for the fact the sentence turns on.
-List<InlineSpan> inlineSpans(
-  String text, {
-  required bool streaming,
-  required TextStyle base,
-  required AnswerInks inks,
-  Color? boldColor,
-}) {
-  return [
-    for (final run in parseInline(text, streaming: streaming))
-      TextSpan(
-        text: run.text,
-        style: base.copyWith(
-          fontWeight: run.bold
-              ? (boldColor != null ? FontWeight.w700 : FontWeight.w600)
-              : null,
-          fontStyle: run.italic ? FontStyle.italic : null,
-          color: run.bold && boldColor != null ? boldColor : null,
-          fontFamily: run.code ? LumenGlass.mono : null,
-          fontSize: run.code ? (base.fontSize ?? 14) * 0.9 : null,
-          backgroundColor: run.code ? inks.codeWash : null,
-        ),
-      ),
-  ];
-}
-
-const _caretSpan = WidgetSpan(
-  alignment: PlaceholderAlignment.middle,
-  child: StreamingCaret(),
-);
-
-/// One block of prose. [caret] appends the streaming caret to its last line.
+/// One block of prose.
+///
+/// **Amber: none.** Not the caret, not a list marker, not an inline emphasis.
+/// The old build tinted bold runs in the headline and every list bullet with
+/// the accent; a word is never a light source.
 class AnswerBlockView extends StatelessWidget {
   const AnswerBlockView({
     super.key,
@@ -86,117 +38,172 @@ class AnswerBlockView extends StatelessWidget {
 
   final AnswerBlock block;
   final bool streaming;
+
+  /// Whether this is the answer's one sentence, set at `headline.answer`.
   final bool headline;
+
   final bool caret;
 
   @override
   Widget build(BuildContext context) {
-    final inks = AnswerInks(context);
+    final skin = context.skin;
+    final p = skin.palette;
 
-    Text rich(String text, TextStyle style, {Color? boldColor, bool end = true}) =>
-        Text.rich(
-          TextSpan(children: [
-            ...inlineSpans(
-              text,
-              streaming: streaming,
-              base: style,
-              inks: inks,
-              boldColor: boldColor,
+    Widget rich(TextStyle style, String text, {bool end = true}) => Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          ...answerSpans(
+            answerRuns(text, streaming: streaming),
+            skin: skin,
+            base: style,
+          ),
+          if (caret && end)
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: StreamingCaret(height: (style.fontSize ?? 14) + 2),
             ),
-            if (caret && end) _caretSpan,
-          ]),
-          style: style,
-        );
+        ],
+      ),
+      style: style,
+    );
 
     switch (block.kind) {
       case AnswerBlockKind.paragraph:
-        return headline
-            ? rich(block.text, inks.headline, boldColor: inks.accent)
-            : rich(block.text, inks.body);
+        return rich(
+          headline
+              ? skin.text.headlineAnswer.style(color: p.ink1)
+              : skin.text.body.style(color: p.ink1),
+          block.text,
+        );
       case AnswerBlockKind.heading:
-        final style = TextStyle(
-          fontSize: block.level <= 3 ? 15 : 13.5,
-          height: 1.35,
-          fontWeight: FontWeight.w600,
-          color: inks.ink,
-        );
-        return Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Semantics(header: true, child: rich(block.text, style)),
-        );
+        // Level ≤3 is a real heading; deeper is a label. Both are ink, and
+        // both are reachable by heading navigation.
+        final style = block.level <= 3
+            ? skin.text.titleM.style(color: p.ink1)
+            : skin.text.label.style(color: p.ink2);
+        return Semantics(header: true, child: rich(style, block.text));
       case AnswerBlockKind.bullets:
       case AnswerBlockKind.numbered:
-        final numbered = block.kind == AnswerBlockKind.numbered;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < block.items.length; i++)
-              Padding(
-                padding: EdgeInsets.only(top: i == 0 ? 0 : 5),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: numbered ? 22 : 16,
-                      child: Text(
-                        numbered ? '${i + 1}.' : '•',
-                        style: numbered
-                            ? inks.body.copyWith(
-                                fontFamily: LumenGlass.mono,
-                                fontSize: 12.5,
-                                color: inks.muted,
-                              )
-                            : inks.body.copyWith(color: inks.accent),
-                      ),
-                    ),
-                    Expanded(
-                      child: rich(
-                        block.items[i],
-                        inks.body,
-                        end: i == block.items.length - 1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+        return _ListBlock(
+          block: block,
+          streaming: streaming,
+          caret: caret,
         );
       case AnswerBlockKind.quote:
-        return InsightCallout(
+        return AskCallout(
           kicker: block.kicker,
           body: block.text,
           streaming: streaming,
           caret: caret,
         );
       case AnswerBlockKind.code:
+        // Horizontal scroll inside its own container: the page body never
+        // scrolls sideways, at any width or text scale.
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(TiqSpace.s3),
           decoration: BoxDecoration(
-            color: inks.codeWash,
-            borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
+            color: p.well,
+            borderRadius: BorderRadius.circular(skin.radii.control),
+            border: skin.mode == SkinMode.veld
+                ? Border.all(color: p.ink1, width: skin.depth.borderWidth)
+                : null,
           ),
-          child: Text.rich(
-            TextSpan(children: [
-              TextSpan(text: block.text),
-              if (caret) _caretSpan,
-            ]),
-            style: LumenGlass.figure(
-              size: 12.5,
-              color: inks.ink,
-              weight: FontWeight.w400,
-            ).copyWith(height: 1.45),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: rich(skin.text.monoIdent.style(color: p.ink1), block.text),
           ),
         );
     }
   }
 }
 
-/// A blockquote, drawn as the answer's insight: the cause named with its
-/// figures, set apart so it cannot be skimmed past.
-class InsightCallout extends StatelessWidget {
-  const InsightCallout({
+/// A bulleted or numbered list.
+///
+/// The marker is a **4dp filled square** in ink-3 — not a dot, not an emoji,
+/// never an icon, and never the accent. A numbered list sets its number in
+/// `mono.ident`, because a list index is a figure.
+class _ListBlock extends StatelessWidget {
+  const _ListBlock({
+    required this.block,
+    required this.streaming,
+    required this.caret,
+  });
+
+  final AnswerBlock block;
+  final bool streaming;
+  final bool caret;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final p = skin.palette;
+    final numbered = block.kind == AnswerBlockKind.numbered;
+    final body = skin.text.body.style(color: p.ink1);
+    // The marker column scales with the text, because at 2.0× a fixed 16dp
+    // gutter puts a two-digit number under the first word.
+    final scale = MediaQuery.textScalerOf(context);
+    final markerWidth = scale.scale(numbered ? 24 : 16);
+    final square = scale.scale(4).clamp(4.0, 8.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (var i = 0; i < block.items.length; i++)
+          Padding(
+            padding: EdgeInsets.only(top: i == 0 ? 0 : TiqSpace.s1 + 1),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SizedBox(
+                  width: markerWidth,
+                  child: numbered
+                      ? Text(
+                          '${i + 1}.',
+                          style: skin.text.monoIdent.style(color: p.ink3),
+                        )
+                      : Padding(
+                          padding: EdgeInsets.only(
+                            top: scale.scale(body.fontSize ?? 14) * 0.55,
+                          ),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: SizedBox.square(
+                              dimension: square,
+                              child: ColoredBox(color: p.ink3),
+                            ),
+                          ),
+                        ),
+                ),
+                Expanded(
+                  child: AnswerBlockView(
+                    block: AnswerBlock.paragraph(block.items[i]),
+                    streaming: streaming,
+                    caret: caret && i == block.items.length - 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// "WHAT EXPLAINS IT" — the one cause the answer turns on.
+///
+/// **No container at all.** The old build drew this as a warn-washed box with
+/// a `!` tile in it, which is a colour that reads as a severity on a block
+/// that is not one. What sets it apart is the [SectionRule] and the 24dp of
+/// clear space either side of it — structure, which survives greyscale, sun, a
+/// printed export and a screen reader identically.
+///
+/// Sentence case, at `title.m`, per unify §1.17: every screen-level section
+/// marker on this surface is the knocked-out rule, and the uppercase eyebrow
+/// is legal in three places and this is not one of them.
+class AskCallout extends StatelessWidget {
+  const AskCallout({
     super.key,
     required this.body,
     this.kicker,
@@ -204,172 +211,153 @@ class InsightCallout extends StatelessWidget {
     this.caret = false,
   });
 
+  /// The model's own bold first line, when it wrote one. It replaces the
+  /// standing name — still sentence case, still on the rule.
   final String? kicker;
+
   final String body;
   final bool streaming;
   final bool caret;
 
+  /// The longest kicker that goes on the rule. Past this the standing name is
+  /// used, because a rule is a marker and a marker is not a sentence.
+  static const int kickerLimit = 32;
+
   @override
   Widget build(BuildContext context) {
-    final inks = AnswerInks(context);
-    final warn = inks.warn;
-    final bodyStyle = inks.body.copyWith(fontSize: 13.5);
-    final colors = context.colors;
-    // The wash is composited over the tile rather than laid on it translucent,
-    // so the words sit on an opaque colour whatever is behind the transcript.
-    final tile = inks.glass ? context.lumen.tileFill : colors.surface1;
+    final skin = context.skin;
+    final own = kicker?.trim();
+    final name = own != null && own.isNotEmpty && own.length <= kickerLimit
+        ? own
+        : context.l10n.askCallout;
 
-    return Container(
-      key: const ValueKey('insight-callout'),
-      padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(warn.withValues(alpha: 0.11), tile),
-        border: Border.all(color: warn.withValues(alpha: 0.30)),
-        borderRadius: BorderRadius.circular(LumenGlass.radiusControl),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ExcludeSemantics(
-            child: Container(
-              width: 26,
-              height: 26,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: warn.withValues(alpha: 0.20),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '!',
-                style: LumenGlass.figure(
-                  size: 14,
-                  color: warn,
-                  weight: FontWeight.w700,
-                ),
-              ),
+    return Column(
+      key: const ValueKey<String>('ask-callout'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SectionRule(name),
+        SizedBox(height: skin.space.intraBlock),
+        if (body.isNotEmpty || caret)
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: answerProseWidth(skin)),
+            child: AnswerBlockView(
+              block: AnswerBlock.paragraph(body),
+              streaming: streaming,
+              caret: caret,
             ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (kicker != null && kicker!.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.only(bottom: body.isEmpty ? 0 : 5),
-                    child: Text(
-                      kicker!.toUpperCase(),
-                      key: const ValueKey('insight-callout-kicker'),
-                      style: LumenGlass.kickerStyle(color: warn, size: 11)
-                          .copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                if (body.isNotEmpty || caret)
-                  Text.rich(
-                    TextSpan(children: [
-                      ...inlineSpans(
-                        body,
-                        streaming: streaming,
-                        base: bodyStyle,
-                        inks: inks,
-                      ),
-                      if (caret) _caretSpan,
-                    ]),
-                    style: bodyStyle,
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The follow-up questions, one tap each.
-class FollowUpChips extends ConsumerWidget {
-  const FollowUpChips({super.key, required this.questions});
-
-  final List<String> questions;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sending = ref.watch(chatControllerProvider.select((s) => s.sending));
-    return Wrap(
-      spacing: 7,
-      runSpacing: 7,
-      children: [
-        for (final question in questions.take(maxFollowUps))
-          _FollowUpChip(
-            question: question,
-            onTap: sending
-                ? null
-                : () => ref.read(chatControllerProvider.notifier).send(question),
           ),
       ],
     );
   }
 }
 
-class _FollowUpChip extends StatelessWidget {
-  const _FollowUpChip({required this.question, required this.onTap});
+/// Three next questions, one tap each — and never the answer, so never amber.
+///
+/// They are the **filter chip** component (unify §1.6): one selected
+/// vocabulary across chips and choices, and a chip that is never selected
+/// here. Three amber chips would be the repeated fill the law bans outright.
+class FollowUpChips extends ConsumerWidget {
+  const FollowUpChips({super.key, required this.questions, this.enabled = true});
 
-  final String question;
-  final VoidCallback? onTap;
+  final List<String> questions;
+
+  /// False while a turn streams or while offline. A disabled chip stays
+  /// visible: hiding it would hide the fact that there is something to ask.
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final sending = ref.watch(chatControllerProvider.select((s) => s.sending));
+    final live = enabled && !sending;
+    return Wrap(
+      spacing: TiqSpace.s2,
+      runSpacing: TiqSpace.s2,
+      children: <Widget>[
+        for (final question in questions.take(maxFollowUps))
+          TorchFilterChip(
+            key: ValueKey<String>('follow-up-$question'),
+            label: question,
+            selected: false,
+            // The corner arrow says "this asks something", and it is the
+            // mark's own silhouette rather than a tinted glyph.
+            semanticsLabel: live
+                ? l10n.askFollowUpSemantic(question)
+                : '${l10n.askFollowUpSemantic(question)}, '
+                      '${l10n.askFollowUpDisabled}',
+            onSelected: live
+                ? () => ref.read(chatControllerProvider.notifier).send(question)
+                : null,
+          ),
+      ],
+    );
+  }
+}
+
+/// The text caret at the end of an answer still being written.
+///
+/// A 2dp ink-2 bar, blinking at 1000ms, inside its own `RepaintBoundary` so a
+/// blink cannot repaint a forty-block answer. In Veld it is 3dp, solid
+/// veld-ink, and it does **not** blink — it is simply present until the turn
+/// ends, because motion is off out there and a caret is not information.
+class StreamingCaret extends StatefulWidget {
+  const StreamingCaret({super.key, this.height = 16});
+
+  final double height;
+
+  @override
+  State<StreamingCaret> createState() => _StreamingCaretState();
+}
+
+class _StreamingCaretState extends State<StreamingCaret>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _blink = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MotionBudget.of(context).still) {
+      _blink.stop();
+      _blink.value = 0;
+    } else if (!_blink.isAnimating) {
+      _blink.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _blink.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    final lumen = context.lumen;
-    final enabled = onTap != null;
-    final label = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      child: Text.rich(
-        TextSpan(children: [
-          TextSpan(
-            text: '↳ ',
-            style: TextStyle(color: glass ? lumen.accentSolid : colors.brand),
-          ),
-          TextSpan(text: question),
-        ]),
-        style: TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w500,
-          color: glass ? lumen.ink : colors.ink2,
-        ),
-      ),
+    final skin = context.skin;
+    final veld = skin.mode == SkinMode.veld;
+    final bar = Container(
+      key: const ValueKey<String>('streaming-caret'),
+      width: veld ? 3 : 2,
+      height: veld ? widget.height + 4 : widget.height,
+      margin: const EdgeInsets.only(left: 2),
+      color: veld ? skin.palette.ink1 : skin.palette.ink2,
     );
-    final tappable = Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: label,
-      ),
-    );
-
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: 'Ask: $question',
-      excludeSemantics: true,
-      child: Opacity(
-        opacity: enabled ? 1 : 0.6,
-        child: glass
-            ? GlassPane(
-                kind: GlassKind.pill,
-                radius: 999,
-                shadow: false,
-                child: tappable,
-              )
-            : DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(color: colors.line),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: tappable,
+    // ExcludeSemantics: the caret is decoration. That the answer is still
+    // being written is the rail's live region's job, and saying it twice is
+    // how a screen reader user learns to ignore both.
+    return ExcludeSemantics(
+      child: RepaintBoundary(
+        child: MotionBudget.of(context).still
+            ? bar
+            : AnimatedBuilder(
+                animation: _blink,
+                // steps(1): fully on for the first half, off for the second.
+                builder: (context, child) =>
+                    Opacity(opacity: _blink.value < 0.5 ? 1 : 0, child: child),
+                child: bar,
               ),
       ),
     );
@@ -378,9 +366,10 @@ class _FollowUpChip extends StatelessWidget {
 
 /// The whole prose of a rich answer, around the artifacts it drew.
 ///
-/// Order follows the approved design: the working steps, then the **headline**
-/// (the first paragraph), then the figures the turn drew, then everything else
-/// the model wrote — callout, headings, lists — and finally the follow-ups.
+/// Order: the **headline** first and it never moves — artifacts mount *below*
+/// it, so a landing chart cannot push the sentence the manager is reading —
+/// then the panel, then everything else the model wrote, then the notice, then
+/// the follow-ups.
 class RichAnswer extends StatelessWidget {
   const RichAnswer({
     super.key,
@@ -388,42 +377,49 @@ class RichAnswer extends StatelessWidget {
     required this.streaming,
     required this.artifacts,
     required this.animate,
+    this.trailing = const <Widget>[],
+    this.followUpsEnabled = true,
   });
 
   final ParsedAnswer parsed;
   final bool streaming;
 
-  /// Already-built artifact cards, in arrival order.
+  /// Already-built artifact blocks, in the order the panel holds them.
   final List<Widget> artifacts;
 
   /// Whether blocks slide in as they mount (a live turn).
   final bool animate;
 
-  static const gap = 12.0;
-  static const maxProseWidth = 680.0;
+  /// The incomplete notice and the outside-data band, between the prose and
+  /// the follow-ups — the order in which they are useful.
+  final List<Widget> trailing;
+
+  final bool followUpsEnabled;
 
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
     final blocks = parsed.blocks;
     final hasHeadline = parsed.headline != null;
     final lead = hasHeadline ? blocks.sublist(0, 1) : blocks;
     final rest = hasHeadline ? blocks.sublist(1) : const <AnswerBlock>[];
-    // The caret rides the last words written, wherever they sit.
     final caretOnLead = streaming && rest.isEmpty;
     final caretOnRest = streaming && rest.isNotEmpty;
 
     Widget prose(List<AnswerBlock> group, int offset, {required bool caret}) {
       return ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: maxProseWidth),
+        constraints: BoxConstraints(maxWidth: answerProseWidth(skin)),
         child: SelectionArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < group.length; i++) ...[
-                if (i > 0) SizedBox(height: _gapBefore(group[i])),
+            children: <Widget>[
+              for (var i = 0; i < group.length; i++) ...<Widget>[
+                if (i > 0) SizedBox(height: _gapBefore(group[i], skin)),
                 Arrive(
-                  key: ValueKey('block-${offset + i}-${group[i].kind.name}'),
+                  key: ValueKey<String>(
+                    'block-${offset + i}-${group[i].kind.name}',
+                  ),
                   enabled: animate,
                   // Words are legible the frame they land; only the block's
                   // place eases in.
@@ -448,29 +444,35 @@ class RichAnswer extends StatelessWidget {
       if (lead.isNotEmpty) prose(lead, 0, caret: caretOnLead),
       for (final card in artifacts) card,
       if (rest.isNotEmpty) prose(rest, 1, caret: caretOnRest),
+      ...trailing,
       if (parsed.followUps.isNotEmpty)
         Arrive(
-          key: const ValueKey('followups'),
+          key: const ValueKey<String>('followups'),
           enabled: animate,
-          child: FollowUpChips(questions: parsed.followUps),
+          child: FollowUpChips(
+            questions: parsed.followUps,
+            enabled: followUpsEnabled,
+          ),
         ),
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(height: gap),
+      children: <Widget>[
+        for (var i = 0; i < children.length; i++) ...<Widget>[
+          if (i > 0) SizedBox(height: skin.space.blockGap),
           children[i],
         ],
       ],
     );
   }
 
-  static double _gapBefore(AnswerBlock block) => switch (block.kind) {
-        AnswerBlockKind.heading => 14,
-        AnswerBlockKind.quote => 12,
-        _ => 8,
+  static double _gapBefore(AnswerBlock block, TiqSkin skin) =>
+      switch (block.kind) {
+        // 16dp before a heading, 24 before the callout, 8 between paragraphs.
+        AnswerBlockKind.heading => TiqSpace.s4,
+        AnswerBlockKind.quote => skin.space.blockGap,
+        _ => TiqSpace.s2,
       };
 }

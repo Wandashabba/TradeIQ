@@ -111,6 +111,19 @@ class TaskRow {
   final String? visitId;
   final String? evidencePhotoId;
 
+  /// The priority in words, as the row paints it.
+  ///
+  /// The bar is the SLA and the SLA alone — a `high` and a `normal` task both
+  /// due on Friday get the same watch bar — so the priority the list is
+  /// *sorted* by has to be said somewhere a person can see. An unknown
+  /// priority reads as itself rather than being rounded down to "Normal".
+  String get priorityPhrase => switch (priority) {
+    'critical' => 'Critical priority',
+    'high' => 'High priority',
+    'normal' => 'Normal priority',
+    _ => '$priority priority',
+  };
+
   bool get isClosed =>
       slaState == TaskSlaState.closed || slaState == TaskSlaState.verified;
 

@@ -63,6 +63,7 @@ class GuidedCaptureScreen extends ConsumerStatefulWidget {
     required this.label,
     required this.hint,
     this.geotag = false,
+    this.allowGallery = true,
   });
 
   /// The section this evidence belongs to — the screen's title.
@@ -74,6 +75,19 @@ class GuidedCaptureScreen extends ConsumerStatefulWidget {
   /// Tag the photo with where the device is as it is taken (#310). See
   /// [PhotoCaptureService.capture].
   final bool geotag;
+
+  /// Whether the gallery is offered beside the camera.
+  ///
+  /// True almost everywhere, and deliberately: a cracked camera in a dark
+  /// aisle still has to be able to file evidence. False for the one capture
+  /// where the picture IS the claim — a wrong-pin report's storefront photo
+  /// (#386). A gallery image is stamped with the moment it was picked and the
+  /// position at that moment, so a screenshot chosen at home arrives with a
+  /// fresh time and a home tag that agree with the claimed position perfectly.
+  /// The server refuses one for that section; this is the same rule where the
+  /// agent can see it, so the refusal is a button that is not there rather
+  /// than an error after the work.
+  final bool allowGallery;
 
   /// The primary's claim id. One id across both phases: only one primary is
   /// ever on screen, and a census failure names the phase.
@@ -170,14 +184,17 @@ class _GuidedCaptureScreenState extends ConsumerState<GuidedCaptureScreen> {
         busy: _busy,
         onPressed: _busy ? null : () => _capture(PhotoSource.camera),
       ),
-      secondary: TorchSecondaryButton(
-        key: const ValueKey<String>('guided-gallery'),
-        // Gallery is not a convenience — a cracked camera in a dark aisle
-        // still has to be able to file evidence.
-        label: l10n.captureGalleryButton,
-        icon: Icons.photo_library_outlined,
-        onPressed: _busy ? null : () => _capture(PhotoSource.gallery),
-      ),
+      secondary: widget.allowGallery
+          ? TorchSecondaryButton(
+              key: const ValueKey<String>('guided-gallery'),
+              // Gallery is not a convenience — a cracked camera in a dark aisle
+              // still has to be able to file evidence. The one exception is
+              // [GuidedCaptureScreen.allowGallery]; see it for why.
+              label: l10n.captureGalleryButton,
+              icon: Icons.photo_library_outlined,
+              onPressed: _busy ? null : () => _capture(PhotoSource.gallery),
+            )
+          : null,
       onClose: () => Navigator.of(context).pop(),
       closeLabel: l10n.captureCancelTooltip,
       children: <Widget>[
@@ -315,7 +332,7 @@ class _CaptureFrame extends StatelessWidget {
   final List<String> facts;
   final bool busy;
   final Widget primary;
-  final Widget secondary;
+  final Widget? secondary;
   final VoidCallback onClose;
   final String closeLabel;
   final List<Widget> children;

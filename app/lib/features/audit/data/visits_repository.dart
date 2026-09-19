@@ -34,7 +34,13 @@ class CheckInOverridden extends CheckInSucceeded {
 }
 
 class CheckInGeofenceFailed extends CheckInResult {
-  CheckInGeofenceFailed(this.distanceMeters, {this.lat, this.lng});
+  CheckInGeofenceFailed(
+    this.distanceMeters, {
+    this.lat,
+    this.lng,
+    this.accuracyM,
+    this.isMocked,
+  });
   final double distanceMeters;
 
   /// Where the phone was when the fence failed — the position a "the pin is
@@ -42,6 +48,15 @@ class CheckInGeofenceFailed extends CheckInResult {
   /// not measure one, and then the report cannot be filed.
   final double? lat;
   final double? lng;
+
+  /// What the platform said about the QUALITY of that fix: its horizontal
+  /// accuracy in metres, and whether it called the fix mocked (#386).
+  ///
+  /// They travel with the report because a manager answering it may move the
+  /// outlet's pin onto this very coordinate. Null means the device did not
+  /// say, which the server records as unknown rather than as fine.
+  final double? accuracyM;
+  final bool? isMocked;
 
   /// Whether this failure can carry a "the pin is wrong" report at all.
   ///
@@ -156,6 +171,8 @@ abstract class VisitsRepository {
     required double lng,
     required double distanceMeters,
     String? note,
+    double? accuracyM,
+    bool? isMocked,
   });
 
   /// Marks the visit submitted locally and queues the submit for sync
@@ -217,13 +234,21 @@ class DriftVisitsRepository implements VisitsRepository {
             ),
             null => CheckInLocationUnavailable(message),
           },
-        LocationGranted(:final lat, :final lng) => await _checkInAt(
-          outletId,
-          outletLat,
-          outletLng,
-          lat,
-          lng,
-        ),
+        LocationGranted(
+          :final lat,
+          :final lng,
+          :final accuracy,
+          :final isMocked,
+        ) =>
+          await _checkInAt(
+            outletId,
+            outletLat,
+            outletLng,
+            lat,
+            lng,
+            accuracy,
+            isMocked,
+          ),
       };
     } catch (error, stack) {
       // The agent gets the app's one voice; the detail goes to the log, which
@@ -251,6 +276,8 @@ class DriftVisitsRepository implements VisitsRepository {
     double outletLng,
     double lat,
     double lng,
+    double? accuracyM,
+    bool? isMocked,
   ) async {
     final distance = haversineDistanceMeters(
       Coordinates(lat: outletLat, lng: outletLng),
@@ -258,7 +285,13 @@ class DriftVisitsRepository implements VisitsRepository {
     );
     final geofencePass = distance <= defaultGeofenceRadiusMeters;
     if (!geofencePass) {
-      return CheckInGeofenceFailed(distance, lat: lat, lng: lng);
+      return CheckInGeofenceFailed(
+        distance,
+        lat: lat,
+        lng: lng,
+        accuracyM: accuracyM,
+        isMocked: isMocked,
+      );
     }
 
     final id = await _startVisit(
@@ -266,6 +299,8 @@ class DriftVisitsRepository implements VisitsRepository {
       lat: lat,
       lng: lng,
       geofencePass: geofencePass,
+      accuracyM: accuracyM,
+      isMocked: isMocked,
     );
     return CheckInSucceeded(id);
   }
@@ -277,6 +312,8 @@ class DriftVisitsRepository implements VisitsRepository {
     required double lng,
     required double distanceMeters,
     String? note,
+    double? accuracyM,
+    bool? isMocked,
   }) async {
     try {
       final trimmed = note?.trim();
@@ -284,6 +321,8 @@ class DriftVisitsRepository implements VisitsRepository {
         outletId: outletId,
         lat: lat,
         lng: lng,
+        accuracyM: accuracyM,
+        isMocked: isMocked,
         // The measurement, never a permission: this visit is OUTSIDE the
         // fence and says so everywhere it is stored.
         geofencePass: false,
@@ -314,6 +353,8 @@ class DriftVisitsRepository implements VisitsRepository {
     required double lng,
     required bool geofencePass,
     Map<String, Object?>? pinDispute,
+    double? accuracyM,
+    bool? isMocked,
   }) async {
     final id = _uuid.v4();
     final checkinTs = DateTime.now();
@@ -340,6 +381,13 @@ class DriftVisitsRepository implements VisitsRepository {
           'checkinTs': checkinTs.toUtc().toIso8601String(),
           'geofencePass': geofencePass,
           'pinDispute': ?pinDispute,
+          // What the platform said about this fix. Recorded by the server on
+          // the attempt and on any wrong-pin claim, and read when a manager
+          // decides whether that coordinate may become the outlet's pin
+          // (#386). Omitted when the device did not say, so the server stores
+          // unknown rather than a made-up zero.
+          'accuracyM': ?accuracyM,
+          'isMocked': ?isMocked,
         }),
       );
     });

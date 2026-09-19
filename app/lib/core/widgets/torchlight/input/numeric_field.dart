@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart'
     show
-        InputDecoration,
         InputDecorationTheme,
         Material,
         MaterialType,
@@ -405,7 +404,7 @@ class _Editable extends StatelessWidget {
           FilteringTextInputFormatter.allow(RegExp(r'[0-9.,\- ]')),
         ],
         onChanged: onChanged,
-        decoration: InputDecoration.collapsed(
+        decoration: troughDecoration(
           // An EMPTY numeric trough shows an em dash, not a zero and not a
           // ghosted example: not counted and counted-as-none are different facts
           // and this is where they diverge.

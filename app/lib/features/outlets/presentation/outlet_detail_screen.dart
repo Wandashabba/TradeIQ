@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
+import '../../audit/data/photos_repository.dart';
 import '../data/outlets_repository.dart';
 
 /// One outlet, and the screen where a wrong pin gets fixed (#386).
@@ -356,11 +357,17 @@ class _FailedAttempts extends StatelessWidget {
                 ),
                 subtitle: Text(
                   '${_metres(a.distanceM)} away · ${a.agentLabel} · '
-                  '${_when(a.createdAt)}',
+                  '${_when(a.createdAt)}\n${_fixQuality(a.accuracyM, a.isMocked)}',
                 ),
+                isThreeLine: true,
                 trailing: TextButton(
                   key: ValueKey<String>('use-attempt-${a.id}'),
-                  onPressed: () => onUse(a),
+                  // A position the platform called fake, or one only good to
+                  // hundreds of metres, cannot become the place a shop is: the
+                  // pin decides who may check in there. The server refuses it
+                  // too (outlets.service) — this is the same rule where the
+                  // manager can see it before they press.
+                  onPressed: a.isAdoptable ? () => onUse(a) : null,
                   child: const Text('Use this'),
                 ),
               ),
@@ -409,16 +416,31 @@ class _Disputes extends StatelessWidget {
                     'the pin, which then read ${d.outletLat.toStringAsFixed(5)}, '
                     '${d.outletLng.toStringAsFixed(5)}.',
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    key: ValueKey<String>('dispute-fix-${d.id}'),
+                    _fixQuality(d.accuracyM, d.isMocked),
+                  ),
+                  if (d.agentIsOnlyVisitor) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      key: ValueKey<String>('dispute-sole-${d.id}'),
+                      // Not a refusal. A store visited once by one agent is
+                      // also a store visited once by one agent.
+                      'No other agent has ever visited this outlet, so nobody '
+                      "else's check-ins can disagree with a pin moved here.",
+                    ),
+                  ],
                   if (d.note != null && d.note!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text('"${d.note}"'),
                   ],
-                  if (d.photoIds.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '${d.photoIds.length} storefront photo'
-                      '${d.photoIds.length == 1 ? '' : 's'} attached.',
-                    ),
+                  if (d.photos.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    // The photo itself, not a count of photos. A manager
+                    // deciding where a shop is from "1 storefront photo
+                    // attached." is deciding from nothing.
+                    for (final photo in d.photos) _DisputePhoto(photo: photo),
                   ],
                   const SizedBox(height: 8),
                   if (d.isOpen)
@@ -442,8 +464,9 @@ class _Disputes extends StatelessWidget {
                         if (_attemptFor(d) != null)
                           TextButton(
                             key: ValueKey<String>('adopt-${d.id}'),
-                            onPressed: () =>
-                                onUse(_attemptFor(d)!, disputeId: d.id),
+                            onPressed: _attemptFor(d)!.isAdoptable
+                                ? () => onUse(_attemptFor(d)!, disputeId: d.id)
+                                : null,
                             child: const Text('Use their position'),
                           ),
                       ],
@@ -507,7 +530,7 @@ class _ChangeLedger extends StatelessWidget {
       parts.add(
         'Pin moved from ${_coord(c.before['lat'])}, ${_coord(c.before['lng'])} '
         'to ${_coord(c.after['lat'])}, ${_coord(c.after['lng'])}'
-        '${c.pinSource == 'agent_position' ? " (an agent's recorded position)" : ''}',
+        '${c.pinSource == 'agent_position' ? " (an agent's recorded position${c.fromAgentId == null ? '' : ', agent ${c.fromAgentId}'})" : ''}',
       );
     }
     if (c.after.containsKey('name')) {
@@ -521,6 +544,82 @@ class _ChangeLedger extends StatelessWidget {
 
   String _coord(Object? value) =>
       value is num ? value.toDouble().toStringAsFixed(5) : '?';
+}
+
+/// One storefront photo, with both accounts of it side by side.
+///
+/// The device's timestamp is what the agent's phone said; `Received` is when
+/// this server took delivery, and the source is how the image was obtained. A
+/// picture chosen from the gallery is stamped with the moment it was PICKED,
+/// so a screenshot taken at home arrives with a fresh time and a home position
+/// that agree with the claim perfectly. The server refuses a gallery image for
+/// this section; older evidence may say nothing, and unknown is shown as
+/// unknown.
+class _DisputePhoto extends ConsumerWidget {
+  const _DisputePhoto({required this.photo});
+
+  final PinDisputePhoto photo;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bytes = ref.watch(thumbnailBytesProvider(photo.id));
+    return Padding(
+      key: ValueKey<String>('dispute-photo-${photo.id}'),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 72,
+            height: 72,
+            child: bytes.when(
+              data: (data) => Image.memory(data, fit: BoxFit.cover),
+              loading: () => const Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              error: (_, _) => const Center(child: Text('—')),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  switch (photo.source) {
+                    'camera' => 'Taken with the camera',
+                    'gallery' => 'Chosen from the gallery',
+                    _ => 'Source not recorded',
+                  },
+                ),
+                Text('Phone said ${_when(photo.timestamp)}'),
+                Text('Received ${_when(photo.receivedAt)}'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the device said about a fix, in words — including when it said nothing.
+String _fixQuality(double? accuracyM, bool? isMocked) {
+  if (isMocked == true) {
+    return 'The device reported this position as a MOCK location. It cannot '
+        "become this outlet's pin.";
+  }
+  if (accuracyM == null) {
+    return 'The device did not report how accurate this position was.';
+  }
+  final rounded = accuracyM.round();
+  return accuracyM > 100
+      ? 'Accurate to about $rounded m — too coarse to set a pin with.'
+      : 'Accurate to about $rounded m.';
 }
 
 String _metres(double m) =>

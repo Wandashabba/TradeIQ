@@ -191,6 +191,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
             dataUrl: photo.dataUrl,
             gpsTag: photo.gpsTag,
             capturedAt: photo.capturedAt,
+            source: photo.source.name,
           );
       // Queued once. A second Save re-sends the counts, not a duplicate photo.
       _photo = null;

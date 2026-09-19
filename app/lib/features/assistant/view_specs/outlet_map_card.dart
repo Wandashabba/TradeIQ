@@ -1,12 +1,15 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/design/figure_slot.dart';
 import '../../../core/geo/mercator_fit.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/tiq_colors.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/basemap.dart';
-import '../../../core/widgets/console.dart';
+import '../../../core/widgets/torchlight/figure/eyebrow.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../l10n/l10n.dart';
 import '../data/chat_controller.dart';
 
 /// The `outlet_map` spec, rendered inline in the chat stream.
@@ -62,34 +65,57 @@ class OutletMapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
     final outlets = _outlets();
 
+    final Widget body;
     if (outlets.isEmpty) {
       // The tool only declares this spec when it has outlets to point at, so
       // arriving here means the result's shape moved under this build. An
       // empty world map would read as "no problem anywhere", which is not
       // something we know — say what happened instead.
-      return PanelCard(
-        title: 'Outlets with stockouts',
-        child: Text(
-          'The outlet locations for this answer could not be read. '
-          'The summary above still applies.',
-          style: TextStyle(fontSize: 12, color: context.colors.ink3),
-        ),
+      body = Text(
+        l10n.askMapUnreadable,
+        style: skin.text.meta.style(color: skin.palette.ink3),
       );
-    }
-
-    return PanelCard(
-      title: 'Outlets with stockouts',
-      subtitle: '${outlets.length} outlet${outlets.length == 1 ? '' : 's'}',
-      child: SizedBox(
+    } else if (skin.mode == SkinMode.veld) {
+      // Veld draws no maps (unify §4): a tile layer in glare is a smudge.
+      // The same outlets, as a list a thumb can read.
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            l10n.askMapNotInVeld,
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+          for (var i = 0; i < outlets.length; i++)
+            SoftRow(
+              key: ValueKey<String>('stockout-row-${outlets[i].id}'),
+              density: SoftRowDensity.compact,
+              title: outlets[i].name,
+              trailing: FigureSlot(
+                value: outlets[i].outOfStockLines,
+                role: skin.text.figureS,
+                decimals: 0,
+                color: skin.palette.ink1,
+                semanticsLabel: outlets[i].outOfStockLines == null
+                    ? l10n.askTileNoData
+                    : null,
+              ),
+              semanticsLabel: _pinLabel(l10n, outlets[i]),
+              separator: i == outlets.length - 1
+                  ? SoftRowSeparator.none
+                  : SoftRowSeparator.auto,
+            ),
+        ],
+      );
+    } else {
+      body = SizedBox(
         height: _mapHeight,
         child: ClipRRect(
-          // Glass rounds the map to the control radius, so it nests inside
-          // the panel's larger corners rather than fighting them.
-          borderRadius: BorderRadius.circular(
-            context.colors.glass ? LumenGlass.radiusControl : 10,
-          ),
+          borderRadius: BorderRadius.circular(skin.radii.control),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final size = constraints.biggest;
@@ -142,9 +168,32 @@ class OutletMapCard extends StatelessWidget {
             },
           ),
         ),
-      ),
+      );
+    }
+
+    return Column(
+      key: const ValueKey<String>('outlet-map'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Eyebrow(l10n.askMapTitle),
+        if (outlets.isNotEmpty) ...<Widget>[
+          const SizedBox(height: TiqSpace.s1),
+          Text(
+            l10n.askMapCount(outlets.length),
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+        ],
+        SizedBox(height: skin.space.intraBlock),
+        body,
+      ],
     );
   }
+}
+
+String _pinLabel(AppLocalizations l10n, _MappedOutlet outlet) {
+  final lines = outlet.outOfStockLines;
+  return lines == null ? outlet.name : l10n.askMapPin(outlet.name, lines);
 }
 
 class _MappedOutlet {
@@ -174,8 +223,8 @@ class _StockoutPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final lines = outlet.outOfStockLines;
+    final skin = context.skin;
+    final p = skin.palette;
 
     return Semantics(
       // Its own node, not a merge into the map's: a screen reader should walk
@@ -183,25 +232,23 @@ class _StockoutPin extends StatelessWidget {
       // ancestor (the territory pin gets the same effect from `button: true`,
       // which would be a lie here — these pins do nothing when tapped).
       container: true,
-      label: lines == null
-          ? outlet.name
-          : '${outlet.name}, $lines ${lines == 1 ? 'line' : 'lines'} out of stock',
+      label: _pinLabel(context.l10n, outlet),
       child: DecoratedBox(
-        // A white disc under the glyph: tiles range from pale fields to dark
-        // roads, so a bare icon has no guaranteed contrast anywhere.
+        // A ground disc under the glyph with a real edge: tiles range from
+        // pale fields to dark roads, so a bare icon has no guaranteed
+        // contrast anywhere. No shadow — the edge is the separation.
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: p.surface,
           shape: BoxShape.circle,
-          border: Border.all(color: colors.line, width: 1),
-          boxShadow: const [
-            BoxShadow(color: Color(0x33000000), blurRadius: 3, offset: Offset(0, 1)),
-          ],
+          border: Border.all(color: p.edgeControl, width: 1),
         ),
         child: Center(
           child: Icon(
             Icons.location_on,
             key: ValueKey<String>('stockout-pin-icon-${outlet.id}'),
-            color: colors.crit,
+            // Crimson with its silhouette: a stock-out is a finding, and the
+            // pin's shape and the label carry it without the hue.
+            color: p.bad,
             size: 22,
           ),
         ),
