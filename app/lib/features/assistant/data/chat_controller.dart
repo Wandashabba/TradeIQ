@@ -423,12 +423,12 @@ class ChatController extends Notifier<ChatState> {
           artifacts[at] = artifact;
         }
         messages[index] = current.copyWith(artifacts: artifacts);
-      case FocusEvent(:final artifactId, :final index):
+      case FocusEvent(:final artifactId, index: final bar):
         // Held beside the artifacts rather than written into one: the
         // artifact's data is the tool's result, and a focus that arrives
         // before its artifact (it never should) still lands.
         messages[index] = current.copyWith(
-          focus: <String, int>{...current.focus, artifactId: index},
+          focus: <String, int>{...current.focus, artifactId: bar},
         );
       case SourcesEvent(:final sources):
         // One per turn by contract; a repeat replaces rather than duplicates.

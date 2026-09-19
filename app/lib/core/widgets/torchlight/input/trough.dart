@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show InputBorder, InputDecoration;
 import 'package:flutter/widgets.dart';
 
 import '../../../theme/torchlight/tiq_skin.dart';
@@ -331,3 +332,21 @@ class TroughRulePainter extends CustomPainter {
       old.spec.bottomRuleWidth != spec.bottomRuleWidth ||
       old.spec.radius != spec.radius;
 }
+
+/// A collapsed decoration that paints **nothing**, in any state.
+///
+/// `InputDecoration.collapsed` sets `border` and leaves the per-state borders
+/// null — and `InputDecorator` fills a null `focusedBorder` from the ambient
+/// theme. Under `AppTheme.torchlight` that theme's focused border is a 2px
+/// flame-700 underline, so every trough painted an amber rule under the text
+/// the moment it took focus: a light nobody declared, on every route with a
+/// field. The trough's own [TroughRulePainter] is the only rule it has.
+InputDecoration troughDecoration({String? hintText, TextStyle? hintStyle}) =>
+    InputDecoration.collapsed(hintText: hintText, hintStyle: hintStyle)
+        .copyWith(
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+        );

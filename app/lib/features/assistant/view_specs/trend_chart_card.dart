@@ -145,10 +145,13 @@ class TrendChartCard extends StatelessWidget {
         children: <Widget>[
           ChartLegend(
             entries: <ChartLegendEntry>[
+              // Ink, lit or not. A legend is a label, and amber is never a
+              // label: the swatch beside the lit series would be a second
+              // lit object on the route. The solid/dashed pattern carries it.
               ChartLegendEntry(
                 label: title,
                 dashed: false,
-                colour: AskLight.focusFill(skin, lit: lit),
+                colour: skin.palette.ink1,
               ),
               if (comparisonLabel != null && comparison.isNotEmpty)
                 ChartLegendEntry(
@@ -238,9 +241,13 @@ class ChartLegend extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  entry.label,
-                  style: skin.text.label.style(color: skin.palette.ink2),
+                // Wraps rather than overflowing: a metric name at 2.0× or in
+                // Afrikaans is wider than a 360dp phone's panel.
+                Flexible(
+                  child: Text(
+                    entry.label,
+                    style: skin.text.label.style(color: skin.palette.ink2),
+                  ),
                 ),
               ],
             ),

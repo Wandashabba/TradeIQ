@@ -66,11 +66,10 @@ class _QuestionBubbleState extends State<QuestionBubble> {
                   padding: EdgeInsets.all(veld ? TiqSpace.s4 : TiqSpace.s3),
                   decoration: BoxDecoration(
                     color: veld ? p.ground : p.raised,
-                    borderRadius:
-                        BorderRadius.circular(veld ? 0 : skin.radii.panel),
-                    border: veld
-                        ? Border.all(color: p.ink1, width: 2)
-                        : null,
+                    borderRadius: BorderRadius.circular(
+                      veld ? 0 : skin.radii.panel,
+                    ),
+                    border: veld ? Border.all(color: p.ink1, width: 2) : null,
                   ),
                   child: Text.rich(
                     TextSpan(
@@ -158,69 +157,75 @@ class AnswerErrorBlock extends StatelessWidget {
     return Semantics(
       container: true,
       label: l10n.askErrorSemantic(message),
-      child: Row(
+      // The bar is the block's own left border, not a stretched sibling: a
+      // Row asked to stretch inside a scroll view has no height to stretch
+      // to, and the first error a manager met took the transcript down.
+      child: DecoratedBox(
         key: const ValueKey<String>('answer-error'),
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          SizedBox(
-            width: veld ? 4 : 3,
-            child: ColoredBox(color: veld ? p.badSolid : p.bad),
-          ),
-          const SizedBox(width: TiqSpace.s3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.only(top: TiqSpace.s1),
-                      child: TiqMark(
-                        shape: MarkShape.criticalTriangle,
-                        color: veld ? p.badSolid : p.bad,
-                        size: MarkScale.glyph(context, veld ? 14 : 9),
-                      ),
-                    ),
-                    const SizedBox(width: TiqSpace.s3 - 2),
-                    Expanded(
-                      child: Text(
-                        message,
-                        style: skin.text.body.style(color: p.ink1),
-                      ),
-                    ),
-                  ],
-                ),
-                if (repeated) ...<Widget>[
-                  const SizedBox(height: TiqSpace.s1),
-                  Text(
-                    l10n.askFailedTwice,
-                    style: skin.text.meta.style(color: p.ink3),
-                  ),
-                ],
-                SizedBox(height: skin.space.intraBlock),
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: TorchSecondaryButton(
-                    label: l10n.askTryAgain,
-                    onPressed: onRetry,
-                  ),
-                ),
-                if (code != null) ...<Widget>[
-                  const SizedBox(height: TiqSpace.s2),
-                  Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: Text(
-                      code!,
-                      style: skin.text.monoIdent.style(color: p.ink3),
-                    ),
-                  ),
-                ],
-              ],
+        decoration: BoxDecoration(
+          border: BorderDirectional(
+            start: BorderSide(
+              color: veld ? p.badSolid : p.bad,
+              width: veld ? 4 : 3,
             ),
           ),
-        ],
+        ),
+        child: Padding(
+          padding: EdgeInsetsDirectional.only(
+            start: (veld ? 4 : 3) + TiqSpace.s3,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.only(top: TiqSpace.s1),
+                    child: TiqMark(
+                      shape: MarkShape.criticalTriangle,
+                      color: veld ? p.badSolid : p.bad,
+                      size: MarkScale.glyph(context, veld ? 14 : 9),
+                    ),
+                  ),
+                  const SizedBox(width: TiqSpace.s3 - 2),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: skin.text.body.style(color: p.ink1),
+                    ),
+                  ),
+                ],
+              ),
+              if (repeated) ...<Widget>[
+                const SizedBox(height: TiqSpace.s1),
+                Text(
+                  l10n.askFailedTwice,
+                  style: skin.text.meta.style(color: p.ink3),
+                ),
+              ],
+              SizedBox(height: skin.space.intraBlock),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TorchSecondaryButton(
+                  label: l10n.askTryAgain,
+                  onPressed: onRetry,
+                ),
+              ),
+              if (code != null) ...<Widget>[
+                const SizedBox(height: TiqSpace.s2),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Text(
+                    code!,
+                    style: skin.text.monoIdent.style(color: p.ink3),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -253,10 +258,7 @@ class StoppedLine extends StatelessWidget {
             style: skin.text.meta.style(color: skin.palette.ink3),
           ),
           const SizedBox(height: TiqSpace.s2),
-          TorchSecondaryButton(
-            label: l10n.askAskAgain,
-            onPressed: onAskAgain,
-          ),
+          TorchSecondaryButton(label: l10n.askAskAgain, onPressed: onAskAgain),
         ],
       ),
     );
@@ -321,10 +323,7 @@ class AskHeldBand extends StatelessWidget {
             ),
             const SizedBox(width: TiqSpace.s2),
             Expanded(
-              child: Text(
-                message,
-                style: skin.text.label.style(color: p.ink2),
-              ),
+              child: Text(message, style: skin.text.label.style(color: p.ink2)),
             ),
             if (action != null && onAction != null) ...<Widget>[
               const SizedBox(width: TiqSpace.s2),
@@ -342,10 +341,7 @@ class AskHeldBand extends StatelessWidget {
 /// Exactly as replies have always rendered: one selectable run of text. A
 /// plain reply does not get the rich layout, and does not need it.
 class PlainAnswer extends StatelessWidget {
-  const PlainAnswer({
-    super.key,
-    required this.message,
-  });
+  const PlainAnswer({super.key, required this.message});
 
   final ChatMessage message;
 

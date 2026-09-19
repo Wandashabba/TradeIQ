@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart'
     show
-        InputDecoration,
         Material,
         MaterialType,
         TextField,
@@ -206,7 +205,7 @@ class _TorchTextFieldState extends State<TorchTextField> {
           // A trough scrolls the focused field into view above the keyboard with
           // a gutter of margin — the sheet itself never resizes under a thumb.
           scrollPadding: EdgeInsets.all(skin.space.gutter),
-          decoration: InputDecoration.collapsed(
+          decoration: troughDecoration(
             hintText: widget.hint,
             hintStyle: role.style(color: spec.hintInk),
           ),

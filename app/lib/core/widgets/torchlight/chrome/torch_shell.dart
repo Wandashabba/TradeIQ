@@ -192,28 +192,36 @@ class TorchShell extends StatelessWidget {
 
     final keyboard = media.viewInsets.bottom;
 
-    return _Ground(
-      skin: skin,
-      falloff: falloff,
-      child: Column(
-        children: <Widget>[
-          Expanded(child: body),
-          if (band != null)
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                gutter,
-                0,
-                gutter,
-                // The band is the last thing above the keyboard, so it is the
-                // band that clears it. When the keyboard is down this is zero
-                // and the gap to the bottom region is the caller's.
-                keyboard,
+    // The route's own text style, beneath everything. A Torchlight route has
+    // no `Material` ancestor, and without one every `Text` inherits
+    // MaterialApp's error style: a yellow double underline under every word,
+    // in release builds too. A role style names its face, size and ink, never
+    // its decoration, so this is where the decoration is decided — once.
+    return DefaultTextStyle(
+      style: skin.text.body.style(color: skin.palette.ink1),
+      child: _Ground(
+        skin: skin,
+        falloff: falloff,
+        child: Column(
+          children: <Widget>[
+            Expanded(child: body),
+            if (band != null)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  gutter,
+                  0,
+                  gutter,
+                  // The band is the last thing above the keyboard, so it is the
+                  // band that clears it. When the keyboard is down this is zero
+                  // and the gap to the bottom region is the caller's.
+                  keyboard,
+                ),
+                child: band,
               ),
-              child: band,
-            ),
-          ?bottom,
-          SizedBox(height: safeBottom),
-        ],
+            ?bottom,
+            SizedBox(height: safeBottom),
+          ],
+        ),
       ),
     );
   }

@@ -379,6 +379,15 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
+    // A sheet is its own route, above the shell's text style: without this
+    // every word in it inherits MaterialApp's yellow-underlined error style.
+    return DefaultTextStyle(
+      style: skin.text.body.style(color: skin.palette.ink1),
+      child: _page(context),
+    );
+  }
+
+  Widget _page(BuildContext context) {
     final media = MediaQuery.of(context);
     if (_spec.form == TorchSheetForm.fullScreen) {
       return SafeArea(child: builder(context));
@@ -413,12 +422,10 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
       return FadeTransition(opacity: animation, child: child);
     }
     return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(0, 1),
-        end: Offset.zero,
-      ).animate(
-        CurvedAnimation(parent: animation, curve: TiqMotion.enterCurve),
-      ),
+      position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+          .animate(
+            CurvedAnimation(parent: animation, curve: TiqMotion.enterCurve),
+          ),
       child: child,
     );
   }
@@ -480,11 +487,7 @@ Future<T?> showTorchSheet<T>(
 /// (unify §1.21): the proof block cross-fades to "Delete and start over",
 /// bad-outlined, and never to a second modal.
 class TorchSheetSwap extends StatelessWidget {
-  const TorchSheetSwap({
-    super.key,
-    required this.paneKey,
-    required this.child,
-  });
+  const TorchSheetSwap({super.key, required this.paneKey, required this.child});
 
   /// Changes when the pane changes. A `String` name reads better in a test
   /// failure than an index.
