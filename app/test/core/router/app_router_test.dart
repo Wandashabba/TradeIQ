@@ -18,6 +18,8 @@ import 'package:tradeiq_app/features/orders/data/orders_repository.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 import 'package:tradeiq_app/features/reports/data/report_schedules_repository.dart';
 import 'package:tradeiq_app/features/sales_targets/data/sales_targets_repository.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/sales_targets/presentation/sales_targets_screen.dart';
 import 'package:tradeiq_app/features/templates/data/templates_repository.dart';
 
@@ -241,7 +243,7 @@ void main() {
 
       // The first question of an agent's day is "where am I going", not "which
       // of these 400 outlets would you like to audit".
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
     },
   );
 
@@ -357,7 +359,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Guarded away from the manager dashboard, back to the audit outlet picker.
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.byType(TheFloorScreen), findsNothing);
     },
   );
@@ -414,7 +416,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The preview subroute is manager territory, like /audit-templates.
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('Grocery Audit'), findsNothing);
     },
   );
@@ -442,7 +444,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // /visits/:id is supervisory (#208): its API is manager/admin-only.
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('Visit review'), findsNothing);
     },
   );
@@ -471,7 +473,7 @@ void main() {
 
       // /leaderboard/:agentId is supervisory (#124): its API is
       // manager/admin-only, so an agent would only ever land on a 403.
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('Points history'), findsNothing);
     },
   );
@@ -499,7 +501,7 @@ void main() {
       container.read(routerProvider).go('/reports/schedules');
       await tester.pumpAndSettle();
 
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('Report schedules'), findsNothing);
     },
   );
@@ -530,7 +532,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Sales targets are manager/admin (#119): the API refuses agents.
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.byType(SalesTargetsScreen), findsNothing);
     },
   );
@@ -627,7 +629,7 @@ void main() {
 
       // Only managers/admins may write rules (requireRole on the backend), so
       // the screen is manager-only — an agent lands back on the outlet picker.
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('Alert rules'), findsNothing);
     },
   );
@@ -658,7 +660,7 @@ void main() {
       // The trail map is manager/admin territory (requireRole on the
       // backend), so the screen is manager-only — an agent lands back on
       // their route for the day.
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('Agent trail'), findsNothing);
     },
   );
@@ -727,7 +729,7 @@ void main() {
         await goAs(tester, 'field_agent', location);
 
         // Running contests and their full standings are manager/admin APIs.
-        expect(find.text('Today'), findsOneWidget);
+        expect(find.byType(TodayScreen), findsOneWidget);
         expect(find.text('Contest standings'), findsNothing);
       });
     }
@@ -742,8 +744,8 @@ void main() {
       });
     }
 
-    testWidgets('a field_agent reaches Contests from the Today app bar, and '
-        'back returns to Today', (tester) async {
+    testWidgets('a field_agent reaches Contests from Today\'s nav, and comes '
+        'back to Today', (tester) async {
       await goAs(
         tester,
         'field_agent',
@@ -757,10 +759,18 @@ void main() {
         ],
       );
 
-      final action = find.byKey(const ValueKey('today-contests'));
+      // Contests moved from the Today app bar into the agent's nav pill: the
+      // Torchlight header allows exactly one trailing icon button and on a tab
+      // root that one is the skin cycle (unify §1.2). The capability is
+      // unchanged — reach the standings, see how many are running, come back —
+      // so this asserts the capability, not the widget it used to be.
+      final action = find.descendant(
+        of: find.byType(TorchNavPill),
+        matching: find.text('Contests'),
+      );
       expect(action, findsOneWidget);
       expect(
-        find.descendant(of: action, matching: find.text('1')),
+        find.descendant(of: find.byType(TorchNavPill), matching: find.text('1')),
         findsOneWidget,
       );
 
@@ -769,9 +779,12 @@ void main() {
       expect(find.text('October Sprint'), findsOneWidget);
       expect(find.text('1 contest running'), findsNothing);
 
+      // A nav slot `go`es, so the Contests screen has nothing to pop — its
+      // back has to take an agent home rather than to the leaderboard they
+      // never came from.
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('October Sprint'), findsNothing);
     });
 
@@ -781,7 +794,18 @@ void main() {
       await goAs(tester, 'manager', '/today');
 
       expect(find.byType(TheFloorScreen), findsOneWidget);
-      expect(find.byKey(const ValueKey('today-contests')), findsNothing);
+      // Not "the trophy button is absent" — that key no longer exists and the
+      // assertion would pass on a blank screen. The fact is that a manager
+      // never gets the agent's frame at all, and the agent's way into
+      // Contests lives in that frame.
+      expect(find.byType(TodayScreen), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(TorchNavPill),
+          matching: find.text('Contests'),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('a manager can open a contest\'s standings', (tester) async {
@@ -818,7 +842,7 @@ void main() {
 
       expect(find.text(title), findsOneWidget);
       expect(find.text('Overdue tasks'), findsOneWidget);
-      expect(find.text('Today'), findsNothing);
+      expect(find.byType(TodayScreen), findsNothing);
       expect(find.byType(TheFloorScreen), findsNothing);
     });
   }

@@ -10,7 +10,6 @@ import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
-import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -78,13 +77,19 @@ Future<void> _pump(
   Locale locale = const Locale('en'),
   SyncStatus sync = SyncStatus.empty,
   LocalDb? db,
+  int runningContests = 0,
 }) async {
   final database = db ?? agentTestDb();
   await pumpAgentScreen(
     tester,
     const TodayScreen(),
     overrides: <Override>[
-      ...agentBaseOverrides(db: database, skin: skin, sync: sync),
+      ...agentBaseOverrides(
+        db: database,
+        skin: skin,
+        sync: sync,
+        runningContests: runningContests,
+      ),
       todayRouteProvider.overrideWith((ref) async {
         if (error) throw StateError('no signal');
         return route;
@@ -99,6 +104,12 @@ Future<void> _pump(
         builder: (c, s) => Text('Visit ${s.pathParameters['outletId']}'),
       ),
       GoRoute(path: '/my-work', builder: (c, s) => const Text('My work')),
+      // The agent's standings, NOT /contests — that one is manager-only and
+      // an agent sent there lands on a 403.
+      GoRoute(
+        path: '/leaderboard/contests',
+        builder: (c, s) => const Text('Contests view'),
+      ),
     ],
   );
 }
@@ -337,16 +348,23 @@ void main() {
   });
 
   group('the chrome', () {
-    testWidgets('four nav slots, and the skin cycle is the one trailing icon', (
+    testWidgets('three nav slots, and the skin cycle is the one trailing icon', (
       tester,
     ) async {
       await _pump(tester, route: _route());
       final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
+      // THE DEVIATION, asserted rather than commented. unify §1.2 approved
+      // Today · My work · Map · Me. Neither Map nor Me has a screen — there
+      // is no agent map route and the agent's own record is #383/#384,
+      // unbuilt — and a tab that returns you to the tab you are already on
+      // reads as a broken app. Contests takes the third slot because the
+      // migration would otherwise *remove* a capability: the agent's
+      // standings hung off this app bar (#124), and the header's one trailing
+      // slot now carries the skin cycle. See `TodayFrame.slotsIn`.
       expect(pill.slots.map((s) => s.label), <String>[
         'Today',
         'My work',
-        'Map',
-        'Me',
+        'Contests',
       ]);
       final header = tester.widget<TorchAppHeader>(
         find.byType(TorchAppHeader),
@@ -355,6 +373,47 @@ void main() {
       // A tab root has NO thumb zone: 64dp of nav plus 96dp of thumb zone is
       // a quarter of a 640dp screen given to chrome.
       expect(find.byType(TorchThumbZone), findsNothing);
+    });
+
+    testWidgets('every slot but the current one leaves this screen', (
+      tester,
+    ) async {
+      // The rule the three-slot set exists to keep: no slot is a no-op.
+      for (final (index, landing) in <(int, String)>[
+        (1, 'My work'),
+        (2, 'Contests view'),
+      ]) {
+        await _pump(tester, route: _route());
+        tester
+            .widget<TorchNavPill>(find.byType(TorchNavPill))
+            .onSelect(index);
+        await tester.pumpAndSettle();
+        expect(
+          find.text(landing),
+          findsOneWidget,
+          reason: 'slot $index must have a destination of its own',
+        );
+        expect(find.byType(TodayScreen), findsNothing);
+      }
+    });
+
+    testWidgets('the Contests slot carries the running count', (tester) async {
+      await _pump(tester, route: _route(), runningContests: 2);
+      expect(
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).slots[2]
+            .badgeCount,
+        2,
+      );
+    });
+
+    testWidgets('a zero is not a badge', (tester) async {
+      await _pump(tester, route: _route());
+      expect(
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).slots[2]
+            .badgeCount,
+        isNull,
+        reason: 'nothing running is not news',
+      );
     });
 
     testWidgets('the skin cycle names the next state, not this one', (
@@ -370,13 +429,6 @@ void main() {
       );
     });
 
-    testWidgets('My work is a real destination', (tester) async {
-      await _pump(tester, route: _route());
-      final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
-      pill.onSelect(1);
-      await tester.pumpAndSettle();
-      expect(find.text('My work'), findsOneWidget);
-    });
   });
 
   group('2.0× text', () {

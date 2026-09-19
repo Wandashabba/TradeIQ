@@ -15,6 +15,7 @@ import '../../../core/widgets/torchlight/section_rule.dart';
 import '../../../core/widgets/torchlight/skin_controls.dart';
 import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../l10n/l10n.dart';
+import '../../contests/data/contests_repository.dart';
 import '../data/today_route.dart';
 
 /// TODAY — the agent's home, and the answer to the only question that matters
@@ -153,9 +154,22 @@ class TodayFrame extends ConsumerWidget {
 
   final List<Widget> children;
 
-  /// Today · My work · Map · Me. Four slots, because five do not fit the
-  /// 360dp arithmetic once the circle is drawn.
-  static List<TorchNavSlot> slotsIn(AppLocalizations l10n) => <TorchNavSlot>[
+  /// Today · My work · Contests. **Three slots, not the owner's four.**
+  ///
+  /// The approved set was Today · My work · Map · Me, and neither Map nor Me
+  /// has a destination: there is no agent map route, and the agent's own
+  /// record is #383/#384, unbuilt. A tab that bounces the user back to where
+  /// they already are is worse than an absent tab — it reads as a broken app,
+  /// and an agent taps it once and never trusts the bar again.
+  ///
+  /// Contests takes the third slot because the migration would otherwise
+  /// *remove* a capability: the agent's standings used to hang off the Today
+  /// app bar (#124), and the new header carries the skin cycle in its one
+  /// trailing slot. Map and Me return here when their screens exist.
+  static List<TorchNavSlot> slotsIn(
+    AppLocalizations l10n, {
+    int runningContests = 0,
+  }) => <TorchNavSlot>[
     TorchNavSlot(
       icon: Icons.today_outlined,
       activeIcon: Icons.today,
@@ -167,14 +181,18 @@ class TodayFrame extends ConsumerWidget {
       label: l10n.navMyWork,
     ),
     TorchNavSlot(
-      icon: Icons.map_outlined,
-      activeIcon: Icons.map,
-      label: l10n.navMap,
-    ),
-    TorchNavSlot(
-      icon: Icons.person_outline,
-      activeIcon: Icons.person,
-      label: l10n.navMe,
+      icon: Icons.emoji_events_outlined,
+      activeIcon: Icons.emoji_events,
+      label: l10n.contestsTitle,
+      // The count the old app-bar action carried (#124). A zero is not a
+      // badge: nothing running is not news.
+      badgeCount: runningContests > 0 ? runningContests : null,
+      // The old action said the count in words in its tooltip, which was also
+      // its screen-reader label. A badge is a digit floating beside a glyph,
+      // so the sentence moves here or it is lost.
+      semanticLabel: runningContests > 0
+          ? l10n.contestsRunningHint(runningContests)
+          : null,
     ),
   ];
 
@@ -209,7 +227,10 @@ class TodayFrame extends ConsumerWidget {
           flagChips: const <Widget>[TorchSyncChip()],
         ),
         navPill: TorchNavPill(
-          slots: slotsIn(l10n),
+          slots: slotsIn(
+            l10n,
+            runningContests: ref.watch(runningContestsCountProvider).value ?? 0,
+          ),
           activeIndex: 0,
           onSelect: (i) => _go(context, i),
         ),
@@ -235,14 +256,11 @@ class TodayFrame extends ConsumerWidget {
         context.go('/today');
       case 1:
         context.go('/my-work');
-      // Map and Me are the owner's four slots and neither destination is
-      // built: there is no agent map route and no "Me" screen on the router
-      // today. A slot that silently does nothing is worse than one that says
-      // so, so both land on the one place an agent can always get to from
-      // here, and the follow-up tickets carry the real destinations.
+      // The agent's own contests view (#124). Not /contests, which is the
+      // manager's: every contests API but /contests/current is manager-only,
+      // so an agent sent there lands on a 403.
       case 2:
-      case 3:
-        context.go('/today');
+        context.go('/leaderboard/contests');
     }
   }
 }

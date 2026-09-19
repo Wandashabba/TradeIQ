@@ -13,10 +13,16 @@ import '../../../core/widgets/glass.dart';
 import '../../../l10n/l10n.dart';
 import '../data/contests_repository.dart';
 
-/// The agent's Contests view (#124), opened from the leaderboard: what is
-/// running, how long is left, what the prize is, where they stand, and the
-/// top of the board. Recently ended contests follow, so a result can still be
-/// seen after the last day.
+/// The agent's Contests view (#124): what is running, how long is left, what
+/// the prize is, where they stand, and the top of the board. Recently ended
+/// contests follow, so a result can still be seen after the last day.
+///
+/// Two ways in, and they want different ways out. A manager **pushes** it from
+/// the leaderboard, so back pops to the leaderboard. An agent arrives from the
+/// third slot of Today's nav pill, which `go`es — there is nothing to pop, and
+/// the leaderboard is not where they were. Back is therefore `/today`, which
+/// the router already resolves per role: an agent lands on their route, a
+/// manager deep-linking here lands on The Floor. Either way, home.
 class MyContestsScreen extends ConsumerWidget {
   const MyContestsScreen({super.key});
 
@@ -29,8 +35,7 @@ class MyContestsScreen extends ConsumerWidget {
       title: l10n.contestsTitle,
       subtitle: l10n.contestsSubtitle,
       showSyncChip: false,
-      onBack: () =>
-          context.canPop() ? context.pop() : context.go('/leaderboard'),
+      onBack: () => context.canPop() ? context.pop() : context.go('/today'),
       body: contests.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => ListView(
