@@ -484,6 +484,67 @@ void main() {
     });
   });
 
+  group('figures', () {
+    testWidgets('take the reader\'s locale: 1 284 990,5 in Afrikaans', (
+      tester,
+    ) async {
+      await pumpAsk(
+        tester,
+        locale: const Locale('af'),
+        repository: ScriptedRepository(tilesTurn()),
+      );
+      await ask(tester, 'Hoe lyk verkope?');
+
+      // The old build hard-coded NumberFormat('#,##0.#', 'en_US') and printed
+      // "1,284,990.5" to a reader whose convention is the opposite.
+      expect(screenText(tester), contains('1\u00A0284\u00A0990,5'));
+      expect(screenText(tester), isNot(contains('1,284,990.5')));
+      await disposeAsk(tester);
+    });
+
+    testWidgets('and 1,284,990.5 in English', (tester) async {
+      await pumpAsk(tester, repository: ScriptedRepository(tilesTurn()));
+      await ask(tester, 'How is sell-in?');
+      expect(screenText(tester), contains('1,284,990.5'));
+      await disposeAsk(tester);
+    });
+
+    testWidgets('an unknown figure keeps its tile, as a dash and a sentence', (
+      tester,
+    ) async {
+      await pumpAsk(
+        tester,
+        repository: ScriptedRepository(tilesTurn(value: null)),
+      );
+      await ask(tester, 'How is sell-in?');
+
+      expect(screenText(tester), contains('SELL-IN, UNITS'));
+      expect(screenText(tester), contains('—'));
+      expect(screenText(tester), contains('Nothing measured in this window'));
+      expect(
+        tester
+            .widgetList<RichText>(find.byType(RichText))
+            .any((t) => t.text.toPlainText().trim() == '0'),
+        isFalse,
+        reason: 'an unknown is never drawn as a zero',
+      );
+      await disposeAsk(tester);
+    });
+
+    testWidgets('a measured zero is a zero', (tester) async {
+      await pumpAsk(tester, repository: ScriptedRepository(tilesTurn(value: 0)));
+      await ask(tester, 'How is sell-in?');
+      expect(screenText(tester), isNot(contains('Nothing measured')));
+      expect(
+        tester
+            .widgetList<RichText>(find.byType(RichText))
+            .any((t) => t.text.toPlainText().trim() == '0'),
+        isTrue,
+      );
+      await disposeAsk(tester);
+    });
+  });
+
   group('2.0× text', () {
     testWidgets('the first run and a landed answer lay out without overflow', (
       tester,

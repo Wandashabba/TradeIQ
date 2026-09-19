@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
 import 'package:tradeiq_app/features/assistant/answer/answer_view.dart';
 import 'package:tradeiq_app/features/assistant/answer/ask_turn.dart';
 import 'package:tradeiq_app/features/assistant/answer/web_sources.dart';
@@ -252,7 +253,7 @@ void main() {
       final (repo, _) = await pumpLive(tester);
       repo.emit(const ToolStartEvent(name: 'webSearch', pillar: 'web'));
       await pumpEvent(tester);
-      expect(find.text('Searching the web'), findsOneWidget);
+      expect(find.text('Searching the web · Live'), findsOneWidget);
       repo.emit(const ToolEndEvent(name: 'webSearch', ok: true));
       repo.emit(const TokenEvent('Shoprite opened three stores.'));
       await pumpEvent(tester);
@@ -285,7 +286,7 @@ void main() {
         const ToolStartEvent(name: 'getEconomicContext', pillar: 'context'),
       );
       await pumpEvent(tester);
-      expect(find.text('Economy'), findsOneWidget);
+      expect(find.text('Economy · Live'), findsOneWidget);
       repo.emit(const ToolEndEvent(name: 'getEconomicContext', ok: true));
       repo.emit(const TokenEvent('Food inflation eased to 0.9%.'));
       repo.emit(
@@ -438,8 +439,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.sent.last, 'Which agents cover Soweto?');
-      // It lands in the transcript as the manager's own turn.
-      expect(find.text('Which agents cover Soweto?'), findsOneWidget);
+      // It lands in the transcript as the manager's own turn — identical in
+      // every way to typing it.
+      expect(
+        find.descendant(
+          of: find.byType(QuestionBubble),
+          matching: find.textContaining('Which agents cover Soweto?'),
+        ),
+        findsOneWidget,
+      );
     });
   });
 
@@ -483,7 +491,7 @@ void main() {
     });
   });
 
-  testWidgets('cards are laid out by type: tiles, then the rest, then bars', (
+  testWidgets('cards are laid out by type: tiles, then bars, then the rest', (
     tester,
   ) async {
     final (repo, _) = await pumpLive(tester);
@@ -531,7 +539,9 @@ void main() {
         .widgetList<ArtifactView>(find.byType(ArtifactView))
         .map((v) => v.artifact.type)
         .toList();
-    expect(types, ['stat_tiles', 'pillar_metrics', 'ranked_bars']);
+    // The direction's order: the ranking above everything else, so the
+    // headline figures are followed by the list the sentence is about.
+    expect(types, ['stat_tiles', 'ranked_bars', 'pillar_metrics']);
     double top(String type) => tester
         .getTopLeft(
           find.byWidgetPredicate(
@@ -539,8 +549,8 @@ void main() {
           ),
         )
         .dy;
-    expect(top('stat_tiles'), lessThan(top('pillar_metrics')));
-    expect(top('pillar_metrics'), lessThan(top('ranked_bars')));
+    expect(top('stat_tiles'), lessThan(top('ranked_bars')));
+    expect(top('ranked_bars'), lessThan(top('pillar_metrics')));
     expect(find.text('Expand'), findsNothing);
   });
 
@@ -754,15 +764,14 @@ void main() {
     // A single frame: no tween may stand between the data and the screen.
     await pumpEvent(tester);
 
-    expect(find.text('48,210'), findsOneWidget);
-    expect(
-      tester
-          .widget<FractionallySizedBox>(
-            find.byKey(const ValueKey('stat-tile-meter-fill')),
-          )
-          .widthFactor,
-      closeTo(0.81, 1e-9),
+    expect(screenText(tester), contains('48,210'));
+    final meter = tester.widget<CustomPaint>(
+      find.descendant(
+        of: find.byType(Meter),
+        matching: find.byType(CustomPaint),
+      ),
     );
+    expect((meter.painter! as MeterPainter).fraction, closeTo(0.81, 1e-9));
     for (final opacity in tester.widgetList<Opacity>(
       find.descendant(
         of: find.byType(RichAnswer),

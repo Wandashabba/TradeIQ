@@ -296,6 +296,33 @@ void main() {
       },
     );
 
+    testWidgets('tiles, a ranking and a chart in one panel: one bar is lit', (
+      tester,
+    ) async {
+      // The ranking takes the light; the chart's series stays ink, because
+      // the ledger lights a trend only when the answer has no ranking.
+      final ranked = rankedTurn();
+      final tiles = tilesTurn();
+      final chart = chartTurn();
+      await pumpAsk(
+        tester,
+        size: const Size(360, 1600),
+        repository: ScriptedRepository(<AssistantEvent>[
+          ...tiles.sublist(0, 3),
+          ...ranked.sublist(0, 4),
+          ...chart.sublist(0, 3),
+          const TokenEvent('Stock is tight in three outlets.'),
+          const DoneEvent(),
+        ]),
+      );
+      await ask(tester, 'How is stock?');
+      expect(tester.takeException(), isNull);
+      expect(phaseOf(tester), AskPhase.landedFocus);
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 2, reason: census.describe());
+      await disposeAsk(tester);
+    });
+
     testWidgets('a ranking with no server focus lights nothing', (
       tester,
     ) async {

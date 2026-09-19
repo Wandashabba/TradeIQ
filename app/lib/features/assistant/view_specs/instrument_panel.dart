@@ -70,9 +70,11 @@ class InstrumentPanel extends StatelessWidget {
       label: context.l10n.askFigures,
       child: Container(
         key: const ValueKey<String>('instrument-panel'),
-        // Set with padding-inline/padding-block so a shorthand can never zero
-        // the side gutters.
-        padding: EdgeInsets.symmetric(horizontal: padding, vertical: padding),
+        // Vertical padding only: the side gutters are each block's own, so
+        // the rules between blocks can run edge to edge without a negative
+        // margin — which Container refuses, and which took down every answer
+        // with more than one block.
+        padding: EdgeInsets.symmetric(vertical: padding),
         decoration: BoxDecoration(
           color: p.surface,
           borderRadius: BorderRadius.circular(veld ? 0 : skin.radii.panel),
@@ -99,18 +101,26 @@ class InstrumentPanel extends StatelessWidget {
                 // Full-bleed: the rule runs to the panel's inside edges, so
                 // it reads as the instrument's grid rather than as an
                 // underline on the block above it.
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: -padding),
+                SizedBox(
                   height: ruleWidth,
-                  color: veld ? p.ink1 : p.edgeStructure,
+                  child: ColoredBox(color: veld ? p.ink1 : p.edgeStructure),
                 ),
                 SizedBox(height: gap / 2),
               ],
-              if (blocks[i].eyebrow != null && i > 0) ...<Widget>[
-                Eyebrow(blocks[i].eyebrow!),
-                SizedBox(height: skin.space.intraBlock),
-              ],
-              KeyedSubtree(key: blocks[i].key, child: blocks[i].child),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: padding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (blocks[i].eyebrow != null && i > 0) ...<Widget>[
+                      Eyebrow(blocks[i].eyebrow!),
+                      SizedBox(height: skin.space.intraBlock),
+                    ],
+                    KeyedSubtree(key: blocks[i].key, child: blocks[i].child),
+                  ],
+                ),
+              ),
             ],
           ],
         ),

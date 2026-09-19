@@ -492,8 +492,10 @@ class _Turn extends ConsumerWidget {
       ],
       if (message.stopped)
         StoppedLine(onAskAgain: () => onAsk(_question(context, ref))),
-      // A turn that errored has no answer to cite.
-      if (message.error == null)
+      // A turn that errored has no answer to cite, and a turn still being
+      // written has not cited yet: sources arrive after the tokens, and a
+      // searched turn saying "nothing usable" before they land is false.
+      if (message.error == null && !message.streaming)
         WebSources(
           sources: message.sources,
           searched: message.tools.any(
