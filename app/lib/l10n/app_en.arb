@@ -132,7 +132,7 @@
       }
     }
   },
-  "captureButton": "Capture",
+  "captureButton": "Open camera",
   "@captureButton": {
     "description": "Guided photo screen: button that opens the camera."
   },
@@ -756,6 +756,91 @@
   },
   "submitNothingToRaise": "Nothing to raise. No stockouts, no risks — this store is in good shape.",
   "@submitNothingToRaise": {},
+  "submitNotConfirmedLine": "{count, plural, =1{1 section could not be confirmed — the manager is told} other{{count} sections could not be confirmed — the manager is told}}",
+  "@submitNotConfirmedLine": {
+    "description": "Second line on the submit gate's captured block when sections are can't-confirm.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "submitCantConfirmTask": "{section} could not be confirmed",
+  "@submitCantConfirmTask": {
+    "description": "Title of a can't-confirm row on the submit gate.",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "submitCantConfirmTaskLine": "The manager is told · not confirmed",
+  "@submitCantConfirmTaskLine": {
+    "description": "Meta line under a can't-confirm row on the submit gate."
+  },
+  "submitTaskSemanticsUrgent": "Urgent. {title}. {line}",
+  "@submitTaskSemanticsUrgent": {
+    "description": "Screen-reader line for an urgent raised task.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "submitTaskSemanticsRoutine": "Routine. {title}. {line}",
+  "@submitTaskSemanticsRoutine": {
+    "description": "Screen-reader line for a routine raised task.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "submitCantConfirmSemantics": "Not confirmed. {section}. {reason}",
+  "@submitCantConfirmSemantics": {
+    "description": "Screen-reader line for a can't-confirm row on the submit gate.",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "submitPrimarySemantics": "Submit this visit to your manager",
+  "@submitPrimarySemantics": {
+    "description": "Screen-reader label for the submit gate's primary button."
+  },
+  "submitCapturedSemantics": "{done} of {total} sections complete. {line}",
+  "@submitCapturedSemantics": {
+    "description": "Screen-reader line for the submit gate's captured block.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "submitNothingToRaiseHeadline": "Nothing to raise",
+  "@submitNothingToRaiseHeadline": {
+    "description": "Headline of the clean-store block on the submit gate."
+  },
+  "submitGateBack": "Go back and change something",
+  "@submitGateBack": {
+    "description": "Ghost action under the submit gate's primary."
+  },
   "outcomeTitle": "Visit submitted",
   "@outcomeTitle": {
     "description": "App bar title on the screen shown after a visit is submitted."
@@ -2201,6 +2286,147 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "outcomeOpenMyWork": "Open my work",
+  "@outcomeOpenMyWork": {
+    "description": "Ghost action on the outcome screen: open the outbox."
+  },
+  "outcomeHeroSemantics": "Perfect-store score, {score} out of 100. {band}.",
+  "@outcomeHeroSemantics": {
+    "description": "Screen-reader line for the outcome hero.",
+    "placeholders": {
+      "score": {
+        "type": "int"
+      },
+      "band": {
+        "type": "String"
+      }
+    }
+  },
+  "outcomeDimensionSemantics": "{name}, {value} out of 100.",
+  "@outcomeDimensionSemantics": {
+    "description": "Screen-reader line for one scored dimension.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "outcomeDimensionUnmeasuredSemantics": "{name}, not measured. {reason}",
+  "@outcomeDimensionUnmeasuredSemantics": {
+    "description": "Screen-reader line for an unmeasured dimension.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "outcomeNotMeasuredGeneric": "Not measured in this visit.",
+  "@outcomeNotMeasuredGeneric": {
+    "description": "Reason shown on an unmeasured dimension the server gave no reason for."
+  },
+  "outcomeFirstScored": "First scored visit here.",
+  "@outcomeFirstScored": {
+    "description": "Shown instead of a delta when there is no previous visit."
+  },
+  "outcomeReconciledLead": "Now scored",
+  "@outcomeReconciledLead": {
+    "description": "First half of the reconciliation line: 'Now scored 71 — it was 84'."
+  },
+  "outcomeReconciledTail": "— it was",
+  "@outcomeReconciledTail": {
+    "description": "Second half of the reconciliation line."
+  },
+  "outcomeReconciledSemantics": "Now scored {now}. It was {seen} when you saw it.",
+  "@outcomeReconciledSemantics": {
+    "description": "Screen-reader line for the reconciliation line.",
+    "placeholders": {
+      "now": {
+        "type": "int"
+      },
+      "seen": {
+        "type": "int"
+      }
+    }
+  },
+  "outcomeReconciledReason": "It was scored again after you saw it.",
+  "@outcomeReconciledReason": {
+    "description": "Reason under the reconciliation line."
+  },
+  "outcomeNextStoreSemantics": "Go on to the next store",
+  "@outcomeNextStoreSemantics": {
+    "description": "Screen-reader label for the outcome's primary."
+  },
+  "outcomeHeldSemantics": "Submitted. Held on this phone until you have signal.",
+  "@outcomeHeldSemantics": {
+    "description": "Screen-reader line announcing the held-on-phone outcome."
+  },
+  "captureOpenCameraSemantics": "Open the camera to photograph the shelf",
+  "@captureOpenCameraSemantics": {
+    "description": "Screen-reader label for the pre-capture card's primary."
+  },
+  "captureTorchHint": "Aisle dark? Switch your phone torch on before you shoot.",
+  "@captureTorchHint": {
+    "description": "Shown on the pre-capture card when the last shot was underexposed."
+  },
+  "captureStampNote": "Your photo is stamped with the time and where you are.",
+  "@captureStampNote": {
+    "description": "Meta line on the pre-capture card."
+  },
+  "captureReviewTitle": "Check the photo",
+  "@captureReviewTitle": {
+    "description": "Title of the photo review step."
+  },
+  "captureDarkCaption": "Dark — retake?",
+  "@captureDarkCaption": {
+    "description": "Caption under an underexposed photo in the review strip."
+  },
+  "captureDarkSemantics": "Dark — you may want to retake this.",
+  "@captureDarkSemantics": {
+    "description": "Screen-reader announcement for an underexposed photo."
+  },
+  "captureUseIt": "Use it",
+  "@captureUseIt": {
+    "description": "Primary on the photo review step: keep this photo."
+  },
+  "captureNoCamera": "This phone has no camera we can reach.",
+  "@captureNoCamera": {
+    "description": "Shown when the camera cannot be opened at all."
+  },
+  "captureGeotagged": "geotagged",
+  "@captureGeotagged": {
+    "description": "Word in the photo's meta line when it carries a location."
+  },
+  "captureNoGeotag": "no location on this photo",
+  "@captureNoGeotag": {
+    "description": "Word in the photo's meta line when it carries no location."
+  },
+  "capturePhotoMeta": "{time} · {tag}",
+  "@capturePhotoMeta": {
+    "description": "The photo's meta line in the review step.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "capturePhotoSemantics": "Photo taken {time}, held on this phone.",
+  "@capturePhotoSemantics": {
+    "description": "Screen-reader label for the reviewed photo.",
+    "placeholders": {
+      "time": {
+        "type": "String"
       }
     }
   }
