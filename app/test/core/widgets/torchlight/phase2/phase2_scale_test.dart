@@ -24,7 +24,17 @@ import 'phase2_harness.dart';
 /// width as well as at 360, because the 40dp between them is where a
 /// `[−][+]` pair stops fitting beside a four-digit mono figure.
 void main() {
-  final sizes = <Size>[const Size(320, 720), const Size(360, 720)];
+  // THE WIDTH IS THE INSTRUMENT; THE HEIGHT IS ROOM TO GROW.
+  //
+  // Every real screen puts these components inside something that scrolls, so
+  // a block that is genuinely taller than a phone is not a bug — it is a
+  // paragraph at 2.0×. What IS a bug is a **pin**: a height that refuses to
+  // grow, a row that cannot wrap, a track with a fixed box around growing
+  // text. Those still overflow inside a 2000dp column, and they are what this
+  // catches. The narrowest phone this product supports is 320dp, and the 40dp
+  // between 320 and 360 is where a `[−][+]` pair stops fitting beside a
+  // four-digit mono figure.
+  final sizes = <Size>[const Size(320, 2000), const Size(360, 2000)];
 
   group('nothing overflows at 2.0× text', () {
     for (final skin in <TiqSkin>[
@@ -71,7 +81,7 @@ void main() {
               tester,
               skin: skin,
               child: entry.value,
-              size: const Size(320, 720),
+              size: const Size(320, 2000),
               textScale: scale,
               locale: const Locale('af'),
             );

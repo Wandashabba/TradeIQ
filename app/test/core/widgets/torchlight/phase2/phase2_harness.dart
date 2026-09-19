@@ -96,7 +96,14 @@ Future<void> pumpPhase2(
                   color: skin.palette.ground,
                   child: SizedBox.fromSize(
                     size: size,
+                    // THE KEY IS LOAD-BEARING. A `Navigator` element is reused
+                    // across pumps and `onGenerateRoute` only ever runs for
+                    // the initial route, so without it a second `pumpPhase2`
+                    // in the same test keeps rendering the FIRST case — which
+                    // would make the census a check on one widget repeated
+                    // forty times.
                     child: Navigator(
+                      key: ValueKey<int>(identityHashCode(child)),
                       onGenerateRoute: (settings) => PageRouteBuilder<void>(
                         settings: settings,
                         pageBuilder: (context, _, _) => TorchScope(

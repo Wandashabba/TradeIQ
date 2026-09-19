@@ -30,19 +30,51 @@ import 'phase2_harness.dart';
 ///    make are for a `TorchPrimaryButton`, which asks the allocator like every
 ///    other primary in the app.
 ///
-/// ## Why the census renders these components *outside* a granting scope
+/// ## Zero, and the three deliberate ones
 ///
-/// Because that is the claim being made. The harness builds a real
-/// `TorchScope` with **no claims**, so every `TorchScope.lit` call in the tree
-/// answers false and every emitter takes its ink form. A component that
-/// painted amber anyway would be a component lighting itself without asking —
-/// which has happened in this codebase, twice — and it is exactly what the
-/// pixel walk catches.
+/// The harness builds a real `TorchScope` with **no claims of its own**, so a
+/// component that lit itself without asking would light anyway and be counted.
+/// Every Phase 2 component comes back at zero — with three exceptions the
+/// ruling puts there on purpose.
+///
+/// A sheet is an **untabbed route**: it opens its own `TorchScope`, and unify
+/// §1.21 says in as many words that the decision sheet *"declares
+/// `TorchClaim.primaryCommit` for 'Carry on' — the correct place for the
+/// torch, because it points at the safe path"*. The skip-reason picker and the
+/// session-ended sheet spend their one grant the same way, on the action that
+/// gets the agent out. So those three are asserted at **exactly one**, which
+/// is the untabbed budget on a light ground and half of it in Night — not at
+/// "at most one", because a sheet whose commit went dark would be a sheet
+/// nobody could find the way out of.
+///
+/// The confirm sheet is at zero, categorically: a destructive confirm is
+/// severity, and severity never touches amber.
 const List<String> _phase2Folders = <String>[
   'lib/core/widgets/torchlight/sheet',
   'lib/core/widgets/torchlight/state',
   'lib/core/widgets/torchlight/input',
 ];
+
+/// The cases that are allowed their one grant, by exact name, and why.
+///
+/// `SkipReasonPicker` is **not** in this list and `SkipReasonPicker.threshold`
+/// is, which is the rule rather than an oversight: the picker opens with
+/// nothing chosen and its commit disabled, and a disabled commit is not lit.
+/// The torch appears when there is something to commit.
+const Map<String, String> _litCommitCases = <String, String>{
+  'DecisionSheet': "the safe path — 'Carry on from 11:04'",
+  'DecisionSheet.stale':
+      "'Check in again' — a geofence fix from yesterday is not evidence of "
+          'being here now',
+  'DecisionSheet.counting':
+      'the safe path, still lit while its own dots run — the light says which '
+          'way out, and that does not change while a count resolves',
+  'SkipReasonPicker.threshold': "the commit — 'Change reason'",
+  'SessionEndedSheet': "the way back in — 'Sign in to send them'",
+};
+
+/// How many lit objects a case may paint.
+int _budgetFor(String caseName) => _litCommitCases.containsKey(caseName) ? 1 : 0;
 
 void main() {
   group('no Phase 2 component paints a lit object, in any skin', () {
@@ -64,18 +96,24 @@ void main() {
             reason: '${entry.key} [${skin.mode.name}] failed to build.',
           );
           final census = await amberCensus(tester);
+          final budget = _budgetFor(entry.key);
           expect(
             census.objectCount,
-            0,
+            budget,
             reason:
                 '${entry.key} [${skin.mode.name}] painted '
-                '${census.objectCount} amber object(s).\n\n'
+                '${census.objectCount} amber object(s) against $budget.\n\n'
                 '${census.describe()}\n'
-                'Burning Flame is a light source, never a label. It is never '
-                'a chip, flag, status, badge, tick, divider, gridline, axis, '
-                'toggle, toast, skeleton, sparkline, delta, empty state, icon '
-                'tint, section marker, word, or anything repeated. A sheet, a '
-                'state and an input are all four of the last three.',
+                '${budget == 0 ? 'Burning Flame is a light source, never a '
+                          'label. It is never a chip, flag, status, badge, '
+                          'tick, divider, gridline, axis, toggle, toast, '
+                          'skeleton, sparkline, delta, empty state, icon '
+                          'tint, section marker, word, or anything repeated. '
+                          'A sheet, a state and an input are all four of the '
+                          'last three.' : 'This sheet spends its one grant on '
+                          '${_litCommitCases[entry.key]}, and it must actually '
+                          'be lit: a commit action that went dark is a sheet '
+                          'nobody can find the way out of.'}',
           );
         }
       });

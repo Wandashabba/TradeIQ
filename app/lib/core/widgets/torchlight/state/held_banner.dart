@@ -192,10 +192,17 @@ class OfflineHeldBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: <Widget>[
-                    FigureSlot(
-                      value: count,
-                      role: skin.text.figureS,
-                      color: p.ink1,
+                    // The figure is EXCLUDED from the tree, not because it is
+                    // decoration but because it is already the node's `value`.
+                    // Left in, it joins the merged label — and the merged
+                    // label is what a live region announces, which is how the
+                    // count came to interrupt an agent twelve times a visit.
+                    ExcludeSemantics(
+                      child: FigureSlot(
+                        value: count,
+                        role: skin.text.figureS,
+                        color: p.ink1,
+                      ),
                     ),
                     const SizedBox(width: TiqSpace.s1),
                     Flexible(
@@ -230,37 +237,39 @@ class OfflineHeldBanner extends StatelessWidget {
       ],
     );
 
+    // THE SEVERITY BAR IS A CHILD, NOT A BORDER SIDE. A `BoxDecoration` refuses
+    // a radius on a border whose sides differ in colour — and it is right to:
+    // a 3px crimson edge that has to follow a 14dp corner arc is a crimson
+    // corner, which is a shape nobody drew. It is a straight bar down the
+    // leading edge, inside the outline.
     final band = Container(
       constraints: BoxConstraints(minHeight: heightFor(skin)),
       decoration: BoxDecoration(
         color: p.well,
         borderRadius: BorderRadius.circular(skin.radii.panel),
-        border: Border(
-          left: token.leadingBar == null
-              ? BorderSide.none
-              : BorderSide(
-                  color: token.leadingBar!,
-                  width: skin.depth.borderWidth * 3,
-                ),
-          top: BorderSide(
-            color: p.edgeStructure,
-            width: skin.depth.borderWidth,
-          ),
-          right: BorderSide(
-            color: p.edgeStructure,
-            width: skin.depth.borderWidth,
-          ),
-          bottom: BorderSide(
-            color: p.edgeStructure,
-            width: skin.depth.borderWidth,
-          ),
+        border: Border.all(
+          color: p.edgeStructure,
+          width: skin.depth.borderWidth,
         ),
       ),
       padding: EdgeInsets.symmetric(
         horizontal: skin.space.gutter,
         vertical: TiqSpace.s3,
       ),
-      child: content,
+      child: token.leadingBar == null
+          ? content
+          : Stack(
+              children: <Widget>[
+                content,
+                PositionedDirectional(
+                  start: -skin.space.gutter + skin.depth.borderWidth,
+                  top: -TiqSpace.s3,
+                  bottom: -TiqSpace.s3,
+                  width: skin.depth.borderWidth * 3,
+                  child: ColoredBox(color: token.leadingBar!),
+                ),
+              ],
+            ),
     );
 
     return Semantics(
