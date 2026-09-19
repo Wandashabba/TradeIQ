@@ -2068,10 +2068,10 @@ does not accuse a capture it could not read.
 "Now scored 71 — it was 84 when you saw it" needs to know what this phone
 displayed the first time. The server knows what it scored, not what was on the
 screen, so `seenScoresProvider` records the number the moment the outcome paints
-it — in `flutter_secure_storage`, beside the pin report (#386), for the reasons
-that file already gives: a drift migration for a per-visit integer nobody
-queries is a schema version for a preference, and a queued item for an endpoint
-that does not exist retries until it is `stuck`.
+it — in `flutter_secure_storage`, for the reasons the phone-only pin report
+once gave (that report now goes to the server; #386): a drift migration for a
+per-visit integer nobody queries is a schema version for a preference, and a
+queued item for an endpoint that does not exist retries until it is `stuck`.
 
 Two rules make it work rather than cancel itself out:
 

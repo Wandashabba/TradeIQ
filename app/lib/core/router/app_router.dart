@@ -14,6 +14,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
 import '../../features/dashboard/presentation/the_floor_screen.dart';
 import '../../features/outlets/presentation/create_outlet_screen.dart';
+import '../../features/outlets/presentation/outlet_detail_screen.dart';
 import '../../features/outlets/presentation/outlets_list_screen.dart';
 import '../../features/tasks/presentation/tasks_screen.dart';
 import '../../features/campaigns/presentation/campaigns_screen.dart';
@@ -205,6 +206,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/outlets/create',
         pageBuilder: (context, state) =>
             managerPage(const CreateOutletScreen()),
+      ),
+      // One outlet, where a wrongly pinned store gets fixed (#386). Registered
+      // AFTER /outlets/create, or "create" is read as an outlet id and the
+      // create form becomes unreachable.
+      GoRoute(
+        path: '/outlets/:id',
+        pageBuilder: (context, state) => managerPage(
+          OutletDetailScreen(outletId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: '/tasks',
