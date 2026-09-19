@@ -310,8 +310,13 @@ class _CountStepperState extends State<CountStepper> {
       child: TorchFieldShell(
         label: widget.label,
         spec: spec,
+        // A finding keeps the caller's help beneath its own line: "this raises
+        // a task" says what happens, the help says why it matters, and the
+        // spec's zero state carries both.
         help: _isFinding
-            ? widget.findingLine
+            ? (widget.help == null
+                  ? widget.findingLine
+                  : '${widget.findingLine}\n${widget.help}')
             : widget.value == null
             ? (widget.help ?? widget.notCountedLine)
             : widget.help,
