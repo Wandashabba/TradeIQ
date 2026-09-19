@@ -117,6 +117,8 @@ model Client {
   competitorPriceCollectionLog        CompetitorPriceCollectionEvent[]
   competitorPriceAudit                CompetitorPriceCollectionAudit[]
   fraudVerdicts                       FraudVerdict[]
+  passwordResetCodes                  PasswordResetCode[]
+  passwordChangeEvents                PasswordChangeEvent[]
 
   /// The audit template whose questions field agents answer on every visit, as
   /// an extra section after the fixed S1–S10 (#122). It SUPPLEMENTS the fixed
@@ -1663,4 +1665,70 @@ model EconomicSourceRefresh {
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@map("economic_source_refreshes")
+}
+
+/// A one-time code a manager generates and reads out to an agent standing in
+/// front of them (#400).
+///
+/// Not email-based on purpose: there is no SMTP in this deployment, agents share
+/// cheap handsets, and a link in an inbox is useless to someone who cannot sign
+/// in to read it. The manager is the out-of-band channel.
+///
+/// **The plaintext code exists in exactly two places**: the response to the
+/// manager who generated it, and the agent's ear. What is stored is a bcrypt
+/// hash, so a database dump does not hand anyone a live reset.
+///
+/// `attempts` is the control that actually bounds guessing. Rate limits are
+/// per-IP and per-email and an attacker can move between both; this counter
+/// lives with the code itself and burns it after a handful of wrong guesses
+/// wherever they came from.
+model PasswordResetCode {
+  id        String    @id @default(uuid())
+  clientId  String    @map("client_id")
+  client    Client    @relation(fields: [clientId], references: [id])
+  /// Whose password this resets. A bare column rather than a relation, for the
+  /// same reason the ledgers use one: the row must survive the user.
+  userId    String    @map("user_id")
+  /// bcrypt of the code. Never the code.
+  codeHash  String    @map("code_hash")
+  /// The manager or admin who generated it.
+  issuedBy  String    @map("issued_by")
+  expiresAt DateTime  @map("expires_at")
+  /// Set the moment it is redeemed, and also when a newer code supersedes it or
+  /// the password changes by any other route — single use means single use.
+  usedAt    DateTime? @map("used_at")
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  /// Redemption looks up "the newest live code for this user".
+  @@index([userId, createdAt])
+  @@index([clientId, createdAt])
+  @@map("password_reset_codes")
+}
+
+/// Every password change, and every reset code issued (#400).
+///
+/// A ledger, not a log: it answers "who reset whose password, and when" long
+/// after the people involved have been deactivated, so `userId` and `actorId`
+/// are bare columns rather than relations. It never carries a password, a hash
+/// or a code — only that a change happened, by whom, by which route.
+model PasswordChangeEvent {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id])
+  /// Whose password (or whose account a code was issued for).
+  userId    String   @map("user_id")
+  /// Who did it. Equal to `userId` for a self-service change.
+  actorId   String   @map("actor_id")
+  /// The actor's role AT THE TIME. Denormalised deliberately — re-deriving it
+  /// when the ledger is read would rewrite history every time someone is
+  /// promoted, and "what were they allowed to do then" is what an auditor asks.
+  actorRole String   @map("actor_role")
+  /// self_change · staff_set · code_issued · code_redeemed
+  method    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([clientId, createdAt])
+  @@index([clientId, userId, createdAt])
+  @@map("password_change_events")
 }
