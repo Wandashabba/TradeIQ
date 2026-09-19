@@ -215,6 +215,25 @@ class TiqNumber {
   static TiqNumber forLocale(Locale? locale) =>
       TiqNumber(TiqNumberSymbols.forLanguage(locale?.languageCode ?? 'en'));
 
+  /// Read back what an agent typed, in either locale's notation.
+  ///
+  /// The inverse of [format], and deliberately forgiving: `24,99` and `24.99`
+  /// are both twenty-four ninety-nine, because an Afrikaans keyboard offers a
+  /// comma and an agent who types `1.5` on it has still typed one and a half.
+  /// Group separators and spaces are dropped. Empty is **null** — an untyped
+  /// box is not a zero — and so is anything that is not a number.
+  num? parse(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final normalised = trimmed
+        .replaceAll(symbols.group, '')
+        .replaceAll('\u00A0', '')
+        .replaceAll('\u202F', '')
+        .replaceAll(' ', '')
+        .replaceAll(',', '.');
+    return num.tryParse(normalised);
+  }
+
   /// Format [value], split into its runs.
   ///
   /// [decimals] is the server's `decimals` field where there is one: how many

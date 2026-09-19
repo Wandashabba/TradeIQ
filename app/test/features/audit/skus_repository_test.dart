@@ -184,24 +184,31 @@ void main() {
   // This sweep exists because unbounded reads kill processes. An unbounded
   // CLIENT loop is the same bug wearing different clothes, so the fetch-all
   // providers must not trust the server's cursor to terminate.
-  test('skusListProvider fails loudly on a cursor that never advances', () async {
-    final fake = _StalledCursorSkusRepository();
-    final container = ProviderContainer(
-      overrides: [skusRepositoryProvider.overrideWithValue(fake)],
-    );
-    addTearDown(container.dispose);
+  test(
+    'skusListProvider fails loudly on a cursor that never advances',
+    () async {
+      final fake = _StalledCursorSkusRepository();
+      final container = ProviderContainer(
+        overrides: [skusRepositoryProvider.overrideWithValue(fake)],
+      );
+      addTearDown(container.dispose);
 
-    await expectLater(
-      container.read(skusListProvider('outlet-1').future),
-      throwsA(
-        isA<StateError>().having((e) => e.message, 'message', contains('stalled')),
-      ),
-    );
+      await expectLater(
+        container.read(skusListProvider('outlet-1').future),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('stalled'),
+          ),
+        ),
+      );
 
-    // Caught on the second call — the first cannot know the cursor is stuck,
-    // the second can. It must not keep going.
-    expect(fake.calls, 2);
-  });
+      // Caught on the second call — the first cannot know the cursor is stuck,
+      // the second can. It must not keep going.
+      expect(fake.calls, 2);
+    },
+  );
 
   test('Sku.fromJson parses numeric fields', () {
     final sku = Sku.fromJson({
@@ -232,21 +239,23 @@ void main() {
       dio.httpClientAdapter = originalAdapter;
     });
 
-    test('parses the {data, nextCursor} envelope into a PaginatedResponse',
-        () async {
-      dio.httpClientAdapter = _RecordingAdapter(
-        '{"data": [{"id": "s1", "name": "Test Cola", "category": "Beverages", '
-        '"minFacingsStandard": 4, "rrp": 19.99, "daysOutOfStock": 0, '
-        '"velocityAvg": 0, "effectivePrice": 19.99}], "nextCursor": "cursor-1"}',
-      );
+    test(
+      'parses the {data, nextCursor} envelope into a PaginatedResponse',
+      () async {
+        dio.httpClientAdapter = _RecordingAdapter(
+          '{"data": [{"id": "s1", "name": "Test Cola", "category": "Beverages", '
+          '"minFacingsStandard": 4, "rrp": 19.99, "daysOutOfStock": 0, '
+          '"velocityAvg": 0, "effectivePrice": 19.99}], "nextCursor": "cursor-1"}',
+        );
 
-      final page = await DioSkusRepository().listSkus(outletId: 'outlet-1');
+        final page = await DioSkusRepository().listSkus(outletId: 'outlet-1');
 
-      expect(page, isA<PaginatedResponse<Sku>>());
-      expect(page.data, hasLength(1));
-      expect(page.data.first.id, 's1');
-      expect(page.nextCursor, 'cursor-1');
-    });
+        expect(page, isA<PaginatedResponse<Sku>>());
+        expect(page.data, hasLength(1));
+        expect(page.data.first.id, 's1');
+        expect(page.nextCursor, 'cursor-1');
+      },
+    );
 
     test('forwards outletId/limit/cursor as query parameters', () async {
       final adapter = _RecordingAdapter('{"data": [], "nextCursor": null}');

@@ -27,7 +27,12 @@ Map<String, Object?> _schema({bool required = true}) => {
     {
       'id': 'promo',
       'fields': [
-        {'id': 'facings', 'label': 'Facings', 'type': 'number', 'required': required},
+        {
+          'id': 'facings',
+          'label': 'Facings',
+          'type': 'number',
+          'required': required,
+        },
         {'id': 'note', 'label': 'Note', 'type': 'text'},
       ],
     },
@@ -80,16 +85,27 @@ void main() {
         ),
       );
 
-  Future<void> saveAnswers(Map<String, Object?> answers) => enqueue(
-    templateResponseEntityType,
-    {'visitDraftId': 'v1', 'templateId': 'tpl-1', 'templateVersion': 3, 'answers': answers},
-  );
+  Future<void> saveAnswers(Map<String, Object?> answers) =>
+      enqueue(templateResponseEntityType, {
+        'visitDraftId': 'v1',
+        'templateId': 'tpl-1',
+        'templateVersion': 3,
+        'answers': answers,
+      });
 
   /// Listens like a widget does, and waits until the template read has landed
   /// — the progress stream emits before and after it.
   Future<VisitProgress> progress() async {
-    final skus = container.listen(skusListProvider('ou1'), (_, _) {}, fireImmediately: true);
-    final tpl = container.listen(visitTemplateProvider('v1'), (_, _) {}, fireImmediately: true);
+    final skus = container.listen(
+      skusListProvider('ou1'),
+      (_, _) {},
+      fireImmediately: true,
+    );
+    final tpl = container.listen(
+      visitTemplateProvider('v1'),
+      (_, _) {},
+      fireImmediately: true,
+    );
     await container.read(skusListProvider('ou1').future);
     await container.read(visitTemplateProvider('v1').future);
 
@@ -136,33 +152,39 @@ void main() {
     expect(p.captureCount, 8); // the 7 fixed captures + the client's section
   });
 
-  test('saved with a required answer missing is partial, and still blocks', () async {
-    await pin();
-    await finishFixedRequired();
-    await saveAnswers({'note': 'hello'});
-    final p = await progress();
+  test(
+    'saved with a required answer missing is partial, and still blocks',
+    () async {
+      await pin();
+      await finishFixedRequired();
+      await saveAnswers({'note': 'hello'});
+      final p = await progress();
 
-    expect(p.template!.state, CaptureState.partial);
-    expect(p.template!.requiredLeft, 1);
-    expect(p.canSubmit, isFalse);
-    expect(
-      p.template!.detailIn(englishLocalizations),
-      'Client questions · 1 of 2 answered',
-    );
-  });
+      expect(p.template!.state, CaptureState.partial);
+      expect(p.template!.requiredLeft, 1);
+      expect(p.canSubmit, isFalse);
+      expect(
+        p.template!.detailIn(englishLocalizations),
+        'Client questions · 1 of 2 answered',
+      );
+    },
+  );
 
-  test('every required question answered: done, counted, and submittable', () async {
-    await pin();
-    await finishFixedRequired();
-    await saveAnswers({'note': 'first'});
-    await saveAnswers({'facings': 4}); // the newest save wins
-    final p = await progress();
+  test(
+    'every required question answered: done, counted, and submittable',
+    () async {
+      await pin();
+      await finishFixedRequired();
+      await saveAnswers({'note': 'first'});
+      await saveAnswers({'facings': 4}); // the newest save wins
+      final p = await progress();
 
-    expect(p.template!.state, CaptureState.done);
-    expect(p.template!.answers, {'facings': 4});
-    expect(p.canSubmit, isTrue);
-    expect(p.doneCount, 5); // the 4 required fixed captures + the client's
-  });
+      expect(p.template!.state, CaptureState.done);
+      expect(p.template!.answers, {'facings': 4});
+      expect(p.canSubmit, isTrue);
+      expect(p.doneCount, 5); // the 4 required fixed captures + the client's
+    },
+  );
 
   test('optional client questions never block, even unanswered', () async {
     await pin(required: false);
@@ -172,7 +194,10 @@ void main() {
     expect(p.template!.isRequired, isFalse);
     expect(p.templateBlocking, isFalse);
     expect(p.canSubmit, isTrue);
-    expect(p.template!.detailIn(englishLocalizations), 'Client questions · Optional');
+    expect(
+      p.template!.detailIn(englishLocalizations),
+      'Client questions · Optional',
+    );
   });
 
   test('another visit’s answers do not count', () async {

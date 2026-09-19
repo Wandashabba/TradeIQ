@@ -1,6 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
@@ -10,8 +10,9 @@ import 'package:tradeiq_app/features/audit/data/tasks_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/s9_action_plan_screen.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
-import 'package:tradeiq_app/l10n/l10n.dart';
 
+import '../features/agent_harness.dart';
+import '../features/audit/section_harness.dart';
 import '../helpers/routed_app.dart';
 
 class _NoopTasksRepository implements TasksRepository {
@@ -37,19 +38,14 @@ Widget _today(Locale locale) {
   );
 }
 
-Widget _actionPlan(Locale locale) => ProviderScope(
-  overrides: [tasksRepositoryProvider.overrideWithValue(_NoopTasksRepository())],
-  child: MaterialApp(
-    locale: locale,
-    supportedLocales: appSupportedLocales,
-    localizationsDelegates: appLocalizationsDelegates,
-    localeListResolutionCallback: resolveAppLocale,
-    home: const Scaffold(
-      body: SingleChildScrollView(
-        child: S9ActionPlanScreen(visitDraftId: 'v1', outletId: 'o1'),
-      ),
-    ),
-  ),
+Future<void> _actionPlan(WidgetTester tester, Locale locale) => pumpSection(
+  tester,
+  const S9ActionPlanScreen(visitDraftId: 'v1', outletId: 'o1'),
+  overrides: <Override>[
+    tasksRepositoryProvider.overrideWithValue(_NoopTasksRepository()),
+  ],
+  locale: locale,
+  size: const Size(360, 1400),
 );
 
 void main() {
@@ -90,14 +86,14 @@ void main() {
     testWidgets('an audit section (S9 action plan) renders in Afrikaans', (
       tester,
     ) async {
-      await tester.pumpWidget(_actionPlan(const Locale('af')));
-      await tester.pumpAndSettle();
+      await _actionPlan(tester, const Locale('af'));
 
       expect(find.text('Soort bevinding'), findsOneWidget);
       expect(find.text('Prioriteit'), findsOneWidget);
       expect(find.text('Kritiek'), findsOneWidget);
       expect(find.text('Voeg taak by'), findsOneWidget);
       expect(find.text('Add task'), findsNothing);
+      await disposeAgentScreen(tester);
     });
   });
 
@@ -129,11 +125,11 @@ void main() {
     });
 
     testWidgets('an unsupported locale renders S9 in English', (tester) async {
-      await tester.pumpWidget(_actionPlan(const Locale('zu')));
-      await tester.pumpAndSettle();
+      await _actionPlan(tester, const Locale('zu'));
 
       expect(find.text('Finding type'), findsOneWidget);
       expect(find.text('Add task'), findsOneWidget);
+      await disposeAgentScreen(tester);
     });
   });
 }
