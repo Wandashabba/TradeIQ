@@ -190,10 +190,6 @@ class AppLocalizationsAf extends AppLocalizations {
   String get loginForgotPassword => 'Wagwoord vergeet?';
 
   @override
-  String get loginPasswordResetUnavailable =>
-      'Wagwoordherstel is nog nie beskikbaar nie.';
-
-  @override
   String get todayTitle => 'Vandag';
 
   @override
@@ -2564,5 +2560,152 @@ class AppLocalizationsAf extends AppLocalizations {
       one: 'het jou nodig',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get errorTooManyAttempts =>
+      'Te veel pogings. Wag ’n paar minute en probeer dan weer.';
+
+  @override
+  String get errorUpdateRequired =>
+      'Hierdie weergawe van die toep is te oud. Dateer TradeIQ op om voort te gaan.';
+
+  @override
+  String get passwordRuleHelp =>
+      'Ten minste 12 karakters. Drie gewone woorde is maklik om te tik en moeilik om te raai.';
+
+  @override
+  String get passwordTooShort => 'Te kort: gebruik ten minste 12 karakters.';
+
+  @override
+  String get passwordTooLong =>
+      'Te lank vir ’n wagwoord hier. Gebruik minder karakters.';
+
+  @override
+  String get passwordIsEmail => 'Jou wagwoord kan nie jou e-posadres wees nie.';
+
+  @override
+  String get passwordMismatch => 'Die twee nuwe wagwoorde stem nie ooreen nie.';
+
+  @override
+  String get passwordRejected =>
+      'Daardie wagwoord is nie aanvaar nie. Gebruik ten minste 12 karakters, nie jou e-posadres nie en nie ’n voor die hand liggende frase nie.';
+
+  @override
+  String get passwordShow => 'Wys wagwoorde';
+
+  @override
+  String get passwordNeedsNew => 'Kies ’n nuwe wagwoord';
+
+  @override
+  String get passwordNeedsConfirm => 'Tik die nuwe wagwoord weer';
+
+  @override
+  String get passwordFailedTitle => 'Jou wagwoord is nie verander nie';
+
+  @override
+  String get passwordOtherSessions =>
+      'Ander fone wat by jou rekening aangemeld is, bly aangemeld totdat hul sessie verval, tot 12 uur. As ’n foon verlore is, vra jou bestuurder om die rekening af te skakel.';
+
+  @override
+  String get forgotTitle => 'Stel jou wagwoord terug';
+
+  @override
+  String get forgotBack => 'Terug na aanmelding';
+
+  @override
+  String get forgotIntro =>
+      'Vra jou bestuurder vir ’n herstelkode. Hulle maak dit in TradeIQ en lees dit vir jou voor. Dit werk een keer, vir 15 minute.';
+
+  @override
+  String get forgotEmailLabel => 'E-pos';
+
+  @override
+  String get forgotCodeLabel => 'Herstelkode';
+
+  @override
+  String get forgotCodeHint => '8 syfers';
+
+  @override
+  String get forgotNewPasswordLabel => 'Nuwe wagwoord';
+
+  @override
+  String get forgotConfirmLabel => 'Nuwe wagwoord weer';
+
+  @override
+  String get forgotSubmit => 'Stel nuwe wagwoord';
+
+  @override
+  String get forgotNeedsEmail => 'Tik eers jou e-pos in';
+
+  @override
+  String get forgotNeedsCode => 'Tik die 8-syfer-kode van jou bestuurder in';
+
+  @override
+  String get forgotCodeRejectedTitle => 'Daardie kode het nie gewerk nie';
+
+  @override
+  String get forgotCodeRejectedBody =>
+      'Dit is dalk verkeerd getik, reeds gebruik of ouer as 15 minute. Kyk ook na die e-pos. Jou bestuurder kan ’n nuwe kode maak.';
+
+  @override
+  String get forgotDoneTitle => 'Jou wagwoord is verander';
+
+  @override
+  String get forgotDoneBody => 'Meld aan met jou nuwe wagwoord.';
+
+  @override
+  String get forgotGoToSignIn => 'Gaan na aanmelding';
+
+  @override
+  String get changePasswordTitle => 'Verander wagwoord';
+
+  @override
+  String get changePasswordBack => 'Terug na instellings';
+
+  @override
+  String get changeCurrentLabel => 'Huidige wagwoord';
+
+  @override
+  String get changeNeedsCurrent => 'Tik jou huidige wagwoord in';
+
+  @override
+  String get changeWrongCurrent => 'Dit is nie jou huidige wagwoord nie.';
+
+  @override
+  String get changeDoneTitle => 'Wagwoord verander';
+
+  @override
+  String get changeDoneBody =>
+      'Jy bly op hierdie foon aangemeld. Gebruik die nuwe wagwoord wanneer jy weer aanmeld.';
+
+  @override
+  String get changeDone => 'Klaar';
+
+  @override
+  String get settingsAccountHeading => 'Jou rekening';
+
+  @override
+  String get updateTitle => 'Dateer TradeIQ op';
+
+  @override
+  String get updateBody =>
+      'Hierdie weergawe van die toep is te oud vir die bediener. Installeer die nuutste weergawe van waar jy TradeIQ gekry het, en maak dit dan weer oop.';
+
+  @override
+  String get updateNothingLost =>
+      'Niks wat op hierdie foon gestoor is, word hierdeur uitgevee nie.';
+
+  @override
+  String get updateTryAgain => 'Probeer weer';
+
+  @override
+  String updateVersions(String current, String minimum) {
+    return 'Hierdie foon het weergawe $current. Weergawe $minimum of nuwer is nodig.';
+  }
+
+  @override
+  String updateVersionNoMinimum(String current) {
+    return 'Hierdie foon het weergawe $current. ’n Nuwer weergawe is nodig.';
   }
 }

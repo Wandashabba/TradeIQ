@@ -56,9 +56,16 @@ class TorchTextField extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.textInputAction,
+    this.obscureText = false,
+    this.autofillHints,
   }) : assert(
          maximumLines >= minLines,
          'A field cannot grow to fewer lines than it starts at.',
+       ),
+       assert(
+         !obscureText || maximumLines == 1,
+         'A hidden field is one line: a multi-line secret has nowhere to put '
+         'the line breaks it hides.',
        );
 
   /// Sentence case, and the semantic label. Never a floating placeholder.
@@ -103,6 +110,14 @@ class TorchTextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final TextInputAction? textInputAction;
+
+  /// A password. The characters are hidden, and autocorrect and suggestions
+  /// are off — a keyboard that learns a password offers it back to the next
+  /// person who borrows the phone.
+  final bool obscureText;
+
+  /// Lets a password manager fill the field, e.g. [AutofillHints.password].
+  final Iterable<String>? autofillHints;
 
   @override
   State<TorchTextField> createState() => _TorchTextFieldState();
@@ -202,8 +217,12 @@ class _TorchTextFieldState extends State<TorchTextField> {
           // An outlet code is not a sentence and must never be autocorrected
           // into one; a GTIN "0736" becoming "736" is a record nobody can find
           // again.
-          autocorrect: widget.identifier ? false : widget.autocorrect,
-          enableSuggestions: !widget.identifier,
+          autocorrect: widget.identifier || widget.obscureText
+              ? false
+              : widget.autocorrect,
+          enableSuggestions: !widget.identifier && !widget.obscureText,
+          obscureText: widget.obscureText,
+          autofillHints: widget.autofillHints,
           textInputAction: widget.textInputAction,
           onChanged: widget.onChanged,
           onSubmitted: widget.onSubmitted,

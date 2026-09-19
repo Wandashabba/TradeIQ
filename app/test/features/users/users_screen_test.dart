@@ -119,7 +119,8 @@ class _FakeUsersRepository implements UsersRepository {
 
 class _ThrowingUsersRepository implements UsersRepository {
   @override
-  Future<PaginatedResponse<AppUser>> listUsers() async => throw Exception('boom');
+  Future<PaginatedResponse<AppUser>> listUsers() async =>
+      throw Exception('boom');
 
   @override
   Future<AppUser> createUser({
@@ -127,8 +128,7 @@ class _ThrowingUsersRepository implements UsersRepository {
     required String password,
     required String role,
     String? displayName,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<AppUser> setActive(String id, bool active) async =>
@@ -169,11 +169,7 @@ class _RoleSession extends SessionController {
 }
 
 /// Defaults to admin: only admins get the create, activate and edit controls.
-Widget _app(
-  UsersRepository repo, {
-  ThemeData? theme,
-  String? role = 'admin',
-}) =>
+Widget _app(UsersRepository repo, {ThemeData? theme, String? role = 'admin'}) =>
     routedApp(
       const UsersScreen(),
       theme: theme,
@@ -226,31 +222,33 @@ void main() {
   for (final theme in [AppTheme.light(), null]) {
     final label = theme == null ? 'dark' : 'light';
     testWidgets(
-        '$label: a named user is titled by name, with the email kept as '
-        'the supporting line', (tester) async {
-      await tester.pumpWidget(
-        _app(
-          _FakeUsersRepository(users: const [_namedUser, _activeUser]),
-          theme: theme,
-        ),
-      );
-      await tester.pumpAndSettle();
+      '$label: a named user is titled by name, with the email kept as '
+      'the supporting line',
+      (tester) async {
+        await tester.pumpWidget(
+          _app(
+            _FakeUsersRepository(users: const [_namedUser, _activeUser]),
+            theme: theme,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Sipho Ndlovu'), findsOneWidget);
-      // Still on the page — it is what they sign in with — but not the title.
-      expect(
-        find.byKey(const ValueKey<String>('email-u-named')),
-        findsOneWidget,
-      );
-      expect(find.text('agent7@example.com'), findsOneWidget);
-      // An unnamed user falls back to the email as the title, and does not
-      // repeat it on the supporting line.
-      expect(find.text('active@example.com'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('email-u-active')),
-        findsNothing,
-      );
-    });
+        expect(find.text('Sipho Ndlovu'), findsOneWidget);
+        // Still on the page — it is what they sign in with — but not the title.
+        expect(
+          find.byKey(const ValueKey<String>('email-u-named')),
+          findsOneWidget,
+        );
+        expect(find.text('agent7@example.com'), findsOneWidget);
+        // An unnamed user falls back to the email as the title, and does not
+        // repeat it on the supporting line.
+        expect(find.text('active@example.com'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('email-u-active')),
+          findsNothing,
+        );
+      },
+    );
   }
 
   testWidgets('toggling the active switch records setActive', (tester) async {
@@ -293,8 +291,9 @@ void main() {
     expect(find.text('Optional. Shown instead of the email.'), findsOneWidget);
   });
 
-  testWidgets('creating a user sends the trimmed Name as displayName',
-      (tester) async {
+  testWidgets('creating a user sends the trimmed Name as displayName', (
+    tester,
+  ) async {
     final repo = _FakeUsersRepository();
     await tester.pumpWidget(_app(repo));
     await tester.pumpAndSettle();
@@ -330,17 +329,18 @@ void main() {
 
   group('role gating', () {
     Finder mutatingControls(String userId) => find.byWidgetPredicate(
-          (w) =>
-              w.key == ValueKey<String>('active-$userId') ||
-              w.key == ValueKey<String>('edit-name-$userId'),
-        );
+      (w) =>
+          w.key == ValueKey<String>('active-$userId') ||
+          w.key == ValueKey<String>('edit-name-$userId'),
+    );
 
     for (final (label, theme) in [
       ('light', AppTheme.light()),
       ('dark', AppTheme.dark()),
     ]) {
-      testWidgets('$label: an admin gets create, active switch and Edit name',
-          (tester) async {
+      testWidgets('$label: an admin gets create, active switch and Edit name', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           _app(
             _FakeUsersRepository(users: const [_namedUser, _activeUser]),
@@ -352,14 +352,8 @@ void main() {
         expect(find.byType(FloatingActionButton), findsOneWidget);
         expect(find.byIcon(Icons.person_add), findsOneWidget);
         for (final id in ['u-named', 'u-active']) {
-          expect(
-            find.byKey(ValueKey<String>('active-$id')),
-            findsOneWidget,
-          );
-          expect(
-            find.byKey(ValueKey<String>('edit-name-$id')),
-            findsOneWidget,
-          );
+          expect(find.byKey(ValueKey<String>('active-$id')), findsOneWidget);
+          expect(find.byKey(ValueKey<String>('edit-name-$id')), findsOneWidget);
         }
         expect(find.byType(Switch), findsNWidgets(2));
         expect(
@@ -372,8 +366,7 @@ void main() {
         );
       });
 
-      testWidgets(
-          '$label: a manager gets a read-only list with a note and no '
+      testWidgets('$label: a manager gets a read-only list with a note and no '
           'mutating controls', (tester) async {
         await tester.pumpWidget(
           _app(
@@ -406,7 +399,10 @@ void main() {
           find.byKey(const ValueKey<String>('users-read-only-note')),
           findsOneWidget,
         );
-        expect(find.text('Only admins can add or change users.'), findsOneWidget);
+        expect(
+          find.text('Only admins can add or change users.'),
+          findsOneWidget,
+        );
         expect(
           find.text('Deactivating a user revokes sign-in immediately.'),
           findsNothing,
@@ -416,8 +412,9 @@ void main() {
   });
 
   group('edit name', () {
-    testWidgets('sets a name on an unnamed user and refreshes the list',
-        (tester) async {
+    testWidgets('sets a name on an unnamed user and refreshes the list', (
+      tester,
+    ) async {
       final repo = _FakeUsersRepository();
       await tester.pumpWidget(_app(repo, theme: AppTheme.light()));
       await tester.pumpAndSettle();
@@ -469,8 +466,9 @@ void main() {
       expect(find.text('Sipho Ndlovu'), findsNothing);
     });
 
-    testWidgets('a blank name clears it and the row falls back to the email',
-        (tester) async {
+    testWidgets('a blank name clears it and the row falls back to the email', (
+      tester,
+    ) async {
       final repo = _FakeUsersRepository(users: const [_namedUser]);
       await tester.pumpWidget(_app(repo));
       await tester.pumpAndSettle();
@@ -488,10 +486,7 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
       expect(find.text('Sipho Ndlovu'), findsNothing);
       expect(find.text('agent7@example.com'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('email-u-named')),
-        findsNothing,
-      );
+      expect(find.byKey(const ValueKey<String>('email-u-named')), findsNothing);
     });
 
     testWidgets('an unchanged name closes without a request', (tester) async {
@@ -506,8 +501,9 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('over 120 characters is rejected before sending',
-        (tester) async {
+    testWidgets('over 120 characters is rejected before sending', (
+      tester,
+    ) async {
       final repo = _FakeUsersRepository();
       await tester.pumpWidget(_app(repo));
       await tester.pumpAndSettle();
@@ -536,8 +532,9 @@ void main() {
       expect(find.byType(AlertDialog), findsNothing);
     });
 
-    testWidgets('a failed save keeps the dialog open with a plain error',
-        (tester) async {
+    testWidgets('a failed save keeps the dialog open with a plain error', (
+      tester,
+    ) async {
       final repo = _FakeUsersRepository(failUpdate: true);
       await tester.pumpWidget(_app(repo));
       await tester.pumpAndSettle();
@@ -580,13 +577,11 @@ void main() {
       ('light', AppTheme.light()),
       ('night', AppTheme.dark()),
     ]) {
-      testWidgets('$label: the edit dialog is a glass pane from the theme',
-          (tester) async {
+      testWidgets('$label: the edit dialog is a glass pane from the theme', (
+        tester,
+      ) async {
         await tester.pumpWidget(
-          _app(
-            _FakeUsersRepository(users: const [_namedUser]),
-            theme: theme,
-          ),
+          _app(_FakeUsersRepository(users: const [_namedUser]), theme: theme),
         );
         await tester.pumpAndSettle();
 
@@ -616,9 +611,54 @@ void main() {
     await tester.pumpWidget(_app(_ThrowingUsersRepository()));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Failed to load users'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Failed to load users'), findsOneWidget);
+  });
+
+  group('reset password (#400)', () {
+    Finder reset(String id) =>
+        find.byKey(ValueKey<String>('reset-password-$id'));
+
+    testWidgets('an admin may reset anyone', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          _FakeUsersRepository(
+            users: const [_namedUser, _activeUser, _inactiveUser],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      for (final id in ['u-named', 'u-active', 'u-inactive']) {
+        expect(reset(id), findsOneWidget, reason: id);
+      }
+      // A real label, naming whose password it is.
+      expect(find.byTooltip('Reset password for Sipho Ndlovu'), findsOneWidget);
+    });
+
+    testWidgets('a manager may reset field agents and nobody else', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          _FakeUsersRepository(
+            users: const [_namedUser, _activeUser, _inactiveUser],
+          ),
+          role: 'manager',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(reset('u-named'), findsOneWidget);
+      expect(reset('u-inactive'), findsOneWidget);
+      // u-active is a manager: the server would answer 403, so the console
+      // does not offer the door.
+      expect(reset('u-active'), findsNothing);
+    });
+  });
+
+  testWidgets('the create dialog states the password rule', (tester) async {
+    await tester.pumpWidget(_app(_FakeUsersRepository()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('At least 12 characters'), findsOneWidget);
   });
 }
