@@ -15,6 +15,14 @@ enum HumanError {
   /// timeout.
   unreachable,
 
+  /// A 429: the server's rate limiter said wait. Retrying at once would only
+  /// spend another attempt, so it gets its own words (#400).
+  tooManyAttempts,
+
+  /// A 426 from the version gate: this build is older than the server's
+  /// minimum. The router is already showing the update screen (#400).
+  updateRequired,
+
   /// Anything else: a server error, a parsing bug, a programmer error.
   generic;
 
@@ -27,6 +35,8 @@ enum HumanError {
       // login screen, where a 401 *does* mean bad credentials, keeps its own
       // wording (see loginErrorMessage).
       if (error.response?.statusCode == 401) return HumanError.sessionExpired;
+      if (error.response?.statusCode == 429) return HumanError.tooManyAttempts;
+      if (error.response?.statusCode == 426) return HumanError.updateRequired;
       switch (error.type) {
         case DioExceptionType.connectionError:
         case DioExceptionType.connectionTimeout:
@@ -49,6 +59,8 @@ enum HumanError {
     return switch (this) {
       HumanError.sessionExpired => l.errorSessionExpired,
       HumanError.unreachable => l.errorUnreachable,
+      HumanError.tooManyAttempts => l.errorTooManyAttempts,
+      HumanError.updateRequired => l.errorUpdateRequired,
       HumanError.generic => l.errorGeneric,
     };
   }
