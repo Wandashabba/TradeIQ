@@ -10,7 +10,6 @@ import 'package:tradeiq_app/features/assistant/view_specs/rich_figures.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/stat_tiles_card.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/trend_chart_card.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
-import 'package:tradeiq_app/l10n/l10n.dart';
 
 import 'ask_harness.dart' show askBlock, askSkins, screenText;
 
