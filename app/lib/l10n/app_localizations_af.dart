@@ -2531,4 +2531,127 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get askQuestionCopied => 'Vraag gekopieer';
+
+  @override
+  String get askTileNoData => 'Niks in hierdie tydperk gemeet nie';
+
+  @override
+  String get askPillarSales => 'Verkope';
+
+  @override
+  String get askPillarStock => 'Voorraad';
+
+  @override
+  String get askPillarVisibility => 'Sigbaarheid';
+
+  @override
+  String get askPillarCompetition => 'Mededinging';
+
+  @override
+  String get askPillarFigures => 'Pilaarsyfers';
+
+  @override
+  String get askPillarNoFigures =>
+      'Geen syfers is vir hierdie tydperk teruggestuur nie.';
+
+  @override
+  String askPillarComparedWith(String label) {
+    return 'Verandering word teen $label gemeet.';
+  }
+
+  @override
+  String get askMetricOsa => 'Beskikbaarheid op die rak';
+
+  @override
+  String get askMetricShareOfShelf => 'Rakaandeel';
+
+  @override
+  String get askMetricVisibility => 'Sigbaarheidsnakoming';
+
+  @override
+  String get askMetricPrice => 'Prysnakoming';
+
+  @override
+  String get askMetricAttainment => 'Bereiking';
+
+  @override
+  String get askMetricRateOfSale => 'Verkoopstempo';
+
+  @override
+  String get askMetricOutletsWithStockout => 'Winkels met ’n uitverkoping';
+
+  @override
+  String get askMetricOutOfStockLines => 'Uitverkoopte lyne';
+
+  @override
+  String get askMetricLinesObserved => 'Lyne waargeneem';
+
+  @override
+  String get askMetricCompetitorFacings => 'Mededinger-fasette';
+
+  @override
+  String get askScorecardTitle => 'Agent-telkaart';
+
+  @override
+  String askScorecardScored(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count besoeke met ’n telling',
+      one: '1 besoek met ’n telling',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askScorecardAverage => 'Gemiddelde telling';
+
+  @override
+  String get askScorecardTeam => 'Spangemiddeld';
+
+  @override
+  String get askScorecardNoTeam =>
+      'Geen ander agent het in hierdie tydperk ’n besoek met ’n telling nie.';
+
+  @override
+  String get askScorecardVisits => 'Besoeke';
+
+  @override
+  String get askScorecardOutlets => 'Winkels';
+
+  @override
+  String get askScorecardVsTeam => 'teen die span';
+
+  @override
+  String get askMapTitle => 'Winkels met uitverkopings';
+
+  @override
+  String askMapCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count winkels',
+      one: '1 winkel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askMapUnreadable =>
+      'Die winkelliggings vir hierdie antwoord kon nie gelees word nie. Die opsomming hierbo geld steeds.';
+
+  @override
+  String askMapPin(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lyne',
+      one: '1 lyn',
+    );
+    return '$name, $_temp0 uit voorraad';
+  }
+
+  @override
+  String get askMapNotInVeld =>
+      'Kaarte word nie in Veld geteken nie. Die winkels word eerder gelys.';
 }

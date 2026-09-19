@@ -282,6 +282,15 @@ Future<void> ask(
   }
 }
 
+/// Let an emitted event reach the screen.
+///
+/// Two frames: the stream delivers on a microtask, which can land after the
+/// frame the first pump builds, so the rebuild it schedules is the second.
+Future<void> pumpEvent(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump();
+}
+
 /// A handful of fixed frames, for a route with something repeating on it.
 Future<void> pumpFrames(WidgetTester tester, {int frames = 6}) async {
   for (var i = 0; i < frames; i++) {

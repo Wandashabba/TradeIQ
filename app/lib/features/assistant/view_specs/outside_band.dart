@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../core/design/figure_slot.dart';
+import '../../../core/design/tiq_number.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/torchlight/figure/eyebrow.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -162,13 +163,14 @@ class _OutsideRow extends StatelessWidget {
         child: FigureSlot(
           value: tile.value,
           role: skin.text.figureS,
-          unit: askUnitFor(l10n, tile.unit, tile.value.abs()),
+          unit: askUnitFor(l10n, tile.unit, (tile.value ?? 0).abs()),
           decimals: tile.decimals,
           color: skin.palette.ink1,
         ),
       ),
       semanticsLabel: '${tile.label}, '
-          '${tile.formatted()}, ${l10n.askOutsideFigure}',
+          '${tile.formatted(number: TiqNumber.of(context))}, '
+          '${l10n.askOutsideFigure}',
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
     );
   }

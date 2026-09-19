@@ -3907,6 +3907,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Question copied'**
   String get askQuestionCopied;
+
+  /// The sentence under a stat tile whose figure is unknown. Never a zero, never a hidden tile.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing measured in this window'**
+  String get askTileNoData;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales'**
+  String get askPillarSales;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock'**
+  String get askPillarStock;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility'**
+  String get askPillarVisibility;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Competition'**
+  String get askPillarCompetition;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Pillar figures'**
+  String get askPillarFigures;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'No figures were returned for this period.'**
+  String get askPillarNoFigures;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Change is measured against {label}.'**
+  String askPillarComparedWith(String label);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'On-shelf availability'**
+  String get askMetricOsa;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Share of shelf'**
+  String get askMetricShareOfShelf;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility compliance'**
+  String get askMetricVisibility;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Price compliance'**
+  String get askMetricPrice;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Attainment'**
+  String get askMetricAttainment;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate of sale'**
+  String get askMetricRateOfSale;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets with a stockout'**
+  String get askMetricOutletsWithStockout;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Out-of-stock lines'**
+  String get askMetricOutOfStockLines;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Lines observed'**
+  String get askMetricLinesObserved;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Competitor facings'**
+  String get askMetricCompetitorFacings;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent scorecard'**
+  String get askScorecardTitle;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 scored visit} other{{count} scored visits}}'**
+  String askScorecardScored(int count);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Average score'**
+  String get askScorecardAverage;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Team average'**
+  String get askScorecardTeam;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'No other agent has a scored visit in this period.'**
+  String get askScorecardNoTeam;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits'**
+  String get askScorecardVisits;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets'**
+  String get askScorecardOutlets;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'vs team'**
+  String get askScorecardVsTeam;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets with stockouts'**
+  String get askMapTitle;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 outlet} other{{count} outlets}}'**
+  String askMapCount(int count);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'The outlet locations for this answer could not be read. The summary above still applies.'**
+  String get askMapUnreadable;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {count, plural, =1{1 line} other{{count} lines}} out of stock'**
+  String askMapPin(String name, int count);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Maps are not drawn in Veld. The outlets are listed instead.'**
+  String get askMapNotInVeld;
 }
 
 class _AppLocalizationsDelegate

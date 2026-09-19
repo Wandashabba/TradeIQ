@@ -3275,5 +3275,152 @@
   "askQuestionCopied": "Question copied",
   "@askQuestionCopied": {
     "description": "Toast after long-pressing a question bubble."
+  },
+  "askTileNoData": "Nothing measured in this window",
+  "@askTileNoData": {
+    "description": "The sentence under a stat tile whose figure is unknown. Never a zero, never a hidden tile."
+  },
+  "askPillarSales": "Sales",
+  "@askPillarSales": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarStock": "Stock",
+  "@askPillarStock": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarVisibility": "Visibility",
+  "@askPillarVisibility": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarCompetition": "Competition",
+  "@askPillarCompetition": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarFigures": "Pillar figures",
+  "@askPillarFigures": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarNoFigures": "No figures were returned for this period.",
+  "@askPillarNoFigures": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askPillarComparedWith": "Change is measured against {label}.",
+  "@askPillarComparedWith": {
+    "description": "Ask TradeIQ answer card.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "askMetricOsa": "On-shelf availability",
+  "@askMetricOsa": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricShareOfShelf": "Share of shelf",
+  "@askMetricShareOfShelf": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricVisibility": "Visibility compliance",
+  "@askMetricVisibility": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricPrice": "Price compliance",
+  "@askMetricPrice": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricAttainment": "Attainment",
+  "@askMetricAttainment": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricRateOfSale": "Rate of sale",
+  "@askMetricRateOfSale": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricOutletsWithStockout": "Outlets with a stockout",
+  "@askMetricOutletsWithStockout": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricOutOfStockLines": "Out-of-stock lines",
+  "@askMetricOutOfStockLines": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricLinesObserved": "Lines observed",
+  "@askMetricLinesObserved": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMetricCompetitorFacings": "Competitor facings",
+  "@askMetricCompetitorFacings": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardTitle": "Agent scorecard",
+  "@askScorecardTitle": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardScored": "{count, plural, =1{1 scored visit} other{{count} scored visits}}",
+  "@askScorecardScored": {
+    "description": "Ask TradeIQ answer card.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askScorecardAverage": "Average score",
+  "@askScorecardAverage": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardTeam": "Team average",
+  "@askScorecardTeam": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardNoTeam": "No other agent has a scored visit in this period.",
+  "@askScorecardNoTeam": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardVisits": "Visits",
+  "@askScorecardVisits": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardOutlets": "Outlets",
+  "@askScorecardOutlets": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askScorecardVsTeam": "vs team",
+  "@askScorecardVsTeam": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMapTitle": "Outlets with stockouts",
+  "@askMapTitle": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMapCount": "{count, plural, =1{1 outlet} other{{count} outlets}}",
+  "@askMapCount": {
+    "description": "Ask TradeIQ answer card.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askMapUnreadable": "The outlet locations for this answer could not be read. The summary above still applies.",
+  "@askMapUnreadable": {
+    "description": "Ask TradeIQ answer card."
+  },
+  "askMapPin": "{name}, {count, plural, =1{1 line} other{{count} lines}} out of stock",
+  "@askMapPin": {
+    "description": "Ask TradeIQ answer card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askMapNotInVeld": "Maps are not drawn in Veld. The outlets are listed instead.",
+  "@askMapNotInVeld": {
+    "description": "Ask TradeIQ answer card."
   }
 }

@@ -2500,4 +2500,126 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askQuestionCopied => 'Question copied';
+
+  @override
+  String get askTileNoData => 'Nothing measured in this window';
+
+  @override
+  String get askPillarSales => 'Sales';
+
+  @override
+  String get askPillarStock => 'Stock';
+
+  @override
+  String get askPillarVisibility => 'Visibility';
+
+  @override
+  String get askPillarCompetition => 'Competition';
+
+  @override
+  String get askPillarFigures => 'Pillar figures';
+
+  @override
+  String get askPillarNoFigures => 'No figures were returned for this period.';
+
+  @override
+  String askPillarComparedWith(String label) {
+    return 'Change is measured against $label.';
+  }
+
+  @override
+  String get askMetricOsa => 'On-shelf availability';
+
+  @override
+  String get askMetricShareOfShelf => 'Share of shelf';
+
+  @override
+  String get askMetricVisibility => 'Visibility compliance';
+
+  @override
+  String get askMetricPrice => 'Price compliance';
+
+  @override
+  String get askMetricAttainment => 'Attainment';
+
+  @override
+  String get askMetricRateOfSale => 'Rate of sale';
+
+  @override
+  String get askMetricOutletsWithStockout => 'Outlets with a stockout';
+
+  @override
+  String get askMetricOutOfStockLines => 'Out-of-stock lines';
+
+  @override
+  String get askMetricLinesObserved => 'Lines observed';
+
+  @override
+  String get askMetricCompetitorFacings => 'Competitor facings';
+
+  @override
+  String get askScorecardTitle => 'Agent scorecard';
+
+  @override
+  String askScorecardScored(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count scored visits',
+      one: '1 scored visit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askScorecardAverage => 'Average score';
+
+  @override
+  String get askScorecardTeam => 'Team average';
+
+  @override
+  String get askScorecardNoTeam =>
+      'No other agent has a scored visit in this period.';
+
+  @override
+  String get askScorecardVisits => 'Visits';
+
+  @override
+  String get askScorecardOutlets => 'Outlets';
+
+  @override
+  String get askScorecardVsTeam => 'vs team';
+
+  @override
+  String get askMapTitle => 'Outlets with stockouts';
+
+  @override
+  String askMapCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count outlets',
+      one: '1 outlet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askMapUnreadable =>
+      'The outlet locations for this answer could not be read. The summary above still applies.';
+
+  @override
+  String askMapPin(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lines',
+      one: '1 line',
+    );
+    return '$name, $_temp0 out of stock';
+  }
+
+  @override
+  String get askMapNotInVeld =>
+      'Maps are not drawn in Veld. The outlets are listed instead.';
 }

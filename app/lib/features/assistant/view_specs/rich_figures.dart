@@ -221,7 +221,10 @@ class StatTileData {
   });
 
   final String label;
-  final num value;
+
+  /// Null is a state, not an absence: the tile still renders, with an em
+  /// dash and a sentence, because a tile is never hidden (unify §4).
+  final num? value;
   final String? unit;
   final TileDelta? delta;
   final String? comparedTo;
@@ -243,8 +246,9 @@ class StatTileData {
 
   final FigureProvenance provenance;
 
-  String formatted({TiqNumber number = TiqNumber.en}) =>
-      formatAmount(value, unit, number: number, decimals: decimals);
+  String formatted({TiqNumber number = TiqNumber.en}) => value == null
+      ? '—'
+      : formatAmount(value!, unit, number: number, decimals: decimals);
 
   static List<StatTileData> listFrom(dynamic data) {
     final tiles = data is Map ? data['tiles'] : null;
@@ -254,7 +258,10 @@ class StatTileData {
       if (raw is! Map) continue;
       final label = raw['label'];
       final value = raw['value'];
-      if (label is! String || value is! num || !value.isFinite) continue;
+      // A tile with a label is a tile. A value that is absent or unreadable
+      // is unknown — an em dash and a sentence — and never a dropped tile or
+      // a zero.
+      if (label is! String || label.trim().isEmpty) continue;
       final unit = raw['unit'];
       final comparedTo = raw['comparedTo'];
       final meter = raw['meter'];
@@ -262,7 +269,7 @@ class StatTileData {
       final places = decimals is int ? decimals : null;
       out.add(StatTileData(
         label: label,
-        value: value,
+        value: value is num && value.isFinite ? value : null,
         unit: unit is String ? unit : null,
         delta: TileDelta.tryParse(raw['delta']),
         comparedTo:
@@ -355,7 +362,10 @@ class RankedBarsData {
         if (entry is! Map) continue;
         final label = entry['label'];
         final value = entry['value'];
-        if (label is! String || value is! num || !value.isFinite) continue;
+        // A tile with a label is a tile. A value that is absent or unreadable
+      // is unknown — an em dash and a sentence — and never a dropped tile or
+      // a zero.
+      if (label is! String || label.trim().isEmpty) continue;
         items.add(RankedBarItem(
           label,
           value.toDouble(),

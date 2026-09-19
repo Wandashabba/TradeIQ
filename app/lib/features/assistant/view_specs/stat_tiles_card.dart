@@ -76,14 +76,17 @@ StatTile askStatTile(BuildContext context, StatTileData tile) {
   return StatTile(
     eyebrow: tile.label,
     value: tile.value,
-    unit: askUnitFor(l10n, tile.unit, tile.value.abs()),
+    // An unknown figure keeps its tile, drops its unit and its delta, and
+    // says so in words.
+    noDataReason: tile.value == null ? l10n.askTileNoData : null,
+    unit: askUnitFor(l10n, tile.unit, (tile.value ?? 0).abs()),
     decimals: tile.decimals,
     sampling: FigureSampling(
       kind: _kindOf(tile.unit),
       n: tile.sampleSize,
       baselineN: tile.baselineSampleSize,
     ),
-    delta: delta == null
+    delta: delta == null || tile.value == null
         ? null
         : DeltaData(
             direction: switch (delta.up) {

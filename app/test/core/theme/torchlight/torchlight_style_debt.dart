@@ -5,8 +5,8 @@
 // 133 files: 409 bare `TextStyle(`, 38 raw `Color(0x…)` and 30 uses of
 // Material's `Colors.` palette. The submit gate (13) and the visit outcome
 // (24) came off it when the closing screens were migrated: 440 in 72 files.
-// Ask TradeIQ's answer surface, Today and the audit shell took it to 357 in
-// 63 files.
+// Ask TradeIQ's answer surface, Today and the audit shell took it to 345 in
+// 60 files.
 //
 // The ratchet is one-sided on purpose. A file may not gain a violation and a
 // file that is not listed may not have one at all — that is what stops the
@@ -25,10 +25,7 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'alerts/presentation/alerts_screen.dart': 5,
   'assistant/presentation/artifact_filters.dart': 9,
   'assistant/presentation/artifact_screen.dart': 6,
-  'assistant/view_specs/agent_scorecard_card.dart': 4,
   'assistant/view_specs/expanded_views.dart': 6,
-  'assistant/view_specs/outlet_map_card.dart': 3,
-  'assistant/view_specs/pillar_metrics_card.dart': 5,
   'audit/presentation/my_work_screen.dart': 6,
   'audit/presentation/sections/client_questions_screen.dart': 3,
   'audit/presentation/sections/s10_scorecard_screen.dart': 8,
@@ -86,4 +83,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 357;
+const int torchlightStyleDebtTotal = 345;
