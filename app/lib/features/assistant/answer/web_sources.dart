@@ -1,10 +1,15 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
+import '../../../core/design/figure_slot.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/mark/tiq_mark.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/state/toast.dart';
+import '../../../l10n/l10n.dart';
 import '../data/assistant_events.dart';
 
 /// Opens a cited page. Injected so a widget test can see the tapped [Uri]
@@ -26,198 +31,199 @@ Future<bool> openWebSource(Uri url) async {
   }
 }
 
-/// The live web pages an answer cited, as numbered footnotes under it.
+/// WHERE THE ANSWER'S OUTSIDE FACTS CAME FROM.
 ///
-/// Deliberately quiet: the answer is the point, and these say where its
-/// outside facts came from. Every string is drawn as plain text — a title or
-/// snippet off the open web is never parsed as markdown.
-class WebSources extends StatelessWidget {
+/// A [SectionRule] and a list of rows — the same grammar as the callout, so
+/// this surface has exactly two section markers and they look like each other.
+/// Sentence case, `title.m`, knocked out of the rule: unify §1.17 retires the
+/// uppercase eyebrow as a screen-level marker, and "SOURCES" was one.
+///
+/// Every string is drawn as plain text: a title off the open web is never
+/// parsed as markdown.
+///
+/// **Amber: none.** The old build tinted the index in the accent. A footnote
+/// number is not a light source.
+class WebSources extends StatefulWidget {
   const WebSources({
     super.key,
     required this.sources,
     this.launcher = openWebSource,
+    this.searched = false,
   });
 
   final List<WebSource> sources;
   final WebSourceLauncher launcher;
 
-  /// "Sources", not "Web sources": the outside-context tools (Stats SA, the
-  /// school calendar, Open-Meteo) cite their publishers in the same list.
-  static const label = 'Sources';
+  /// Whether a web search actually ran. A turn that searched and cited
+  /// nothing says so; a turn that never searched shows no header at all — an
+  /// empty "Sources" heading is never rendered.
+  final bool searched;
+
+  /// Rows shown before the expander.
+  static const int shownRows = 4;
+
+  @override
+  State<WebSources> createState() => _WebSourcesState();
+}
+
+class _WebSourcesState extends State<WebSources> {
+  bool _all = false;
 
   @override
   Widget build(BuildContext context) {
-    if (sources.isEmpty) return const SizedBox.shrink();
-
-    final colors = context.colors;
-    final glass = colors.glass;
-    final lumen = context.lumen;
-    final muted = glass ? lumen.inkMuted : colors.ink3;
-    final ink = glass ? lumen.ink : colors.ink1;
-    final accent = glass ? lumen.accentInk : colors.brand;
-
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Semantics(
-          header: true,
-          child: Text(
-            label,
-            key: const ValueKey('web-sources-label'),
-            style: LumenGlass.figure(
-              size: 12,
-              color: muted,
-              weight: FontWeight.w500,
-            ).copyWith(height: 1.2),
-          ),
-        ),
-        const SizedBox(height: 5),
-        for (var i = 0; i < sources.length; i++)
-          _SourceRow(
-            key: ValueKey('web-source-$i'),
-            index: i + 1,
-            source: sources[i],
-            ink: ink,
-            muted: muted,
-            accent: accent,
-            onTap: () {
-              final url = sources[i].url;
-              if (WebSource.isWebUri(url)) launcher(url);
-            },
-          ),
-      ],
-    );
-
-    const padding = EdgeInsets.fromLTRB(8, 9, 8, 6);
-    if (glass) {
-      return GlassPane(
-        key: const ValueKey('web-sources'),
-        kind: GlassKind.tile,
-        blur: false,
-        shadow: false,
-        radius: LumenGlass.radiusControl,
-        padding: padding,
-        child: body,
-      );
+    final l10n = context.l10n;
+    final skin = context.skin;
+    if (widget.sources.isEmpty && !widget.searched) {
+      return const SizedBox.shrink();
     }
-    return Container(
-      key: const ValueKey('web-sources'),
-      padding: padding,
-      decoration: BoxDecoration(
-        color: colors.surface1,
-        border: Border.all(color: colors.line),
-        borderRadius: BorderRadius.circular(colors.radiusCard),
+
+    final shown = _all
+        ? widget.sources
+        : widget.sources.take(WebSources.shownRows).toList();
+    final hidden = widget.sources.length - shown.length;
+
+    return Semantics(
+      container: true,
+      label: l10n.askSourcesGroup(widget.sources.length),
+      child: Column(
+        key: const ValueKey<String>('web-sources'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          SectionRule(
+            l10n.askSources,
+            count: widget.sources.isEmpty ? null : widget.sources.length,
+            // A search that found nothing usable is a fact about the search,
+            // not an empty state — the rule stays and says so.
+            emptyLine:
+                widget.sources.isEmpty ? l10n.askSourcesNothingUsable : null,
+          ),
+          if (shown.isNotEmpty) SizedBox(height: skin.space.intraBlock),
+          for (var i = 0; i < shown.length; i++)
+            SourceRow(
+              key: ValueKey<String>('web-source-$i'),
+              index: i + 1,
+              source: shown[i],
+              launcher: widget.launcher,
+              last: i == shown.length - 1 && hidden == 0,
+            ),
+          if (hidden > 0)
+            SoftRow(
+              key: const ValueKey<String>('web-sources-show-all'),
+              density: SoftRowDensity.compact,
+              title: l10n.askShowAllSources(widget.sources.length),
+              separator: SoftRowSeparator.none,
+              onTap: () => setState(() => _all = true),
+            ),
+        ],
       ),
-      child: body,
     );
   }
 }
 
-class _SourceRow extends StatelessWidget {
-  const _SourceRow({
+/// ONE CITED PAGE, readable as a row and honest that it leaves the app.
+///
+/// Two lines, not one — a one-line row is where long titles and Afrikaans
+/// both die. The index is a figure and goes through `FigureSlot`; the domain
+/// middle-truncates before the title does, because the host is the half you
+/// cannot guess.
+class SourceRow extends StatefulWidget {
+  const SourceRow({
     super.key,
     required this.index,
     required this.source,
-    required this.ink,
-    required this.muted,
-    required this.accent,
-    required this.onTap,
+    required this.launcher,
+    this.last = false,
   });
 
   final int index;
   final WebSource source;
-  final Color ink;
-  final Color muted;
-  final Color accent;
-  final VoidCallback onTap;
+  final WebSourceLauncher launcher;
+  final bool last;
+
+  @override
+  State<SourceRow> createState() => _SourceRowState();
+}
+
+class _SourceRowState extends State<SourceRow> {
+  static const int _previewLength = 160;
+
+  /// The platform refused the launch. The row stays — it is still provenance
+  /// — and says what to do instead.
+  bool _unreachable = false;
+
+  Future<void> _open() async {
+    final url = widget.source.url;
+    if (!WebSource.isWebUri(url)) {
+      setState(() => _unreachable = true);
+      return;
+    }
+    final ok = await widget.launcher(url);
+    if (!ok && mounted) setState(() => _unreachable = true);
+  }
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.source.url.toString()));
+    if (!mounted) return;
+    final l10n = context.l10n;
+    // The search result's preview rides on the same long-press, in plain
+    // text: a preview costs the transcript no height, and it is never parsed
+    // as markdown. Clipped, because a toast is a report and not a page.
+    final snippet = widget.source.snippet?.trim();
+    showTorchToast(
+      context,
+      message: snippet == null || snippet.isEmpty
+          ? l10n.askSourceCopied
+          : l10n.askSourceCopiedPreview(
+              snippet.length <= _previewLength
+                  ? snippet
+                  : '${snippet.substring(0, _previewLength).trimRight()}…',
+            ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final row = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 20,
-            child: Text(
-              '$index',
-              style: LumenGlass.figure(
-                size: 11,
-                color: accent,
-                weight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 160),
-            child: Text(
-              source.domain,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.3,
-                fontWeight: FontWeight.w600,
-                color: ink,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              source.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12.5, height: 1.3, color: muted),
-            ),
-          ),
-          if (source.pageAge != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              source.pageAge!,
-              maxLines: 1,
-              style: LumenGlass.figure(
-                size: 10.5,
-                color: muted,
-                weight: FontWeight.w400,
-              ),
-            ),
-          ],
-          const SizedBox(width: 6),
-          Icon(Icons.north_east, size: 12, color: muted),
-        ],
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final p = skin.palette;
+    final source = widget.source;
+
+    final meta = <String>[
+      if (source.pageAge != null) source.pageAge!,
+      if (_unreachable) l10n.askSourceUnreachable else
+        l10n.askSourceOpensInBrowser,
+    ].join(' · ');
+
+    return SoftRow(
+      density: SoftRowDensity.tall,
+      leading: Padding(
+        padding: const EdgeInsets.only(top: TiqSpace.s1),
+        child: FigureSlot(
+          value: widget.index,
+          role: skin.text.monoIdent,
+          color: p.ink3,
+        ),
       ),
-    );
-
-    Widget tappable = Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
-        child: row,
+      title: source.domain,
+      // The host middle-truncates; the title below it wraps and the row
+      // grows. A status word is never truncated before a name is.
+      titleTruncation: SoftRowTruncation.middle,
+      subtitle: source.title,
+      meta: Text(meta, style: skin.text.meta.style(color: p.ink3)),
+      trailing: Icon(
+        _unreachable ? Icons.link_off : Icons.north_east,
+        size: MarkScale.glyph(context, 14),
+        color: p.ink3,
       ),
-    );
-
-    // The snippet is a preview, not content: a hover/long-press tooltip, in
-    // plain text, so it costs the transcript no height.
-    final snippet = source.snippet;
-    if (snippet != null) {
-      tappable = Tooltip(
-        message: snippet,
-        excludeFromSemantics: true,
-        waitDuration: const Duration(milliseconds: 500),
-        child: tappable,
-      );
-    }
-
-    return Semantics(
-      button: true,
-      link: true,
-      label: 'Web source: ${source.title}, ${source.domain}, opens in browser',
-      excludeSemantics: true,
-      onTap: onTap,
-      child: tappable,
+      separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: l10n.askSourceSemantic(
+        widget.index,
+        source.domain,
+        source.title,
+      ),
+      onTap: _open,
+      onLongPress: _copy,
     );
   }
 }

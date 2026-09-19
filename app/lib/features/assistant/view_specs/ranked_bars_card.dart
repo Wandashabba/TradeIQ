@@ -1,76 +1,157 @@
-import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/console.dart';
+import 'package:flutter/widgets.dart';
+
+import '../../../core/design/figure_slot.dart';
+import '../../../core/design/hatch_paint.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/mark/tiq_mark.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../l10n/l10n.dart';
 import '../answer/answer_motion.dart';
+import '../answer/ask_light.dart';
 import '../data/chat_controller.dart';
+import 'answer_focus.dart';
 import 'rich_figures.dart';
-import 'stat_tiles_card.dart' show sentimentColor;
+import 'stat_tiles_card.dart' show askUnitFor;
 
-/// The `ranked_bars` spec: a ranking, as bars.
+/// THE `ranked_bars` SPEC — a ranking, worst first.
 ///
-/// **Two shapes, chosen by the data.** When every value is non-negative (the
-/// common case — "out-of-stock lines by outlet"), bars grow from a left
-/// baseline across the full track, in the accent: a count has no verdict of
-/// its own. When any value is negative, the bars **diverge** around a centre
-/// zero line — falls in critical, rises in good — and every value is printed
-/// with its sign, so direction never rides on colour alone. Either way each
-/// bar is scaled against the largest magnitude in the set.
+/// ## The one lit bar is the server's choice
 ///
-/// Items keep the server's order, which is worst-first, and the **first**
-/// item leads in a heavier weight.
-class RankedBarsCard extends StatelessWidget {
+/// It used to be "the first", which was an inference dressed as a fact: what
+/// "worst" means depends on the metric, and the sentence above may be about
+/// the third outlet. #410 put `focusIndex` on the wire, so the light lands
+/// where the sentence points — and when the server names none, **nothing is
+/// lit**, which is the honest answer rather than a guess.
+///
+/// ## Four channels, not a hue
+///
+/// The focus bar carries fill, a 12dp bloom drawn inside the same
+/// `BoxDecoration`, a 7dp filled triangle at its origin, and its label at
+/// `body.strong`. Three of those four survive greyscale, deuteranopia, a
+/// printed export and a sun-washed panel — which is why Day and Veld can drop
+/// the hue entirely and lose nothing.
+///
+/// ## The label takes two lines before anything truncates
+///
+/// The previous build middle-truncated a single line, so "Shoprite
+/// Klipfontein Mall" and "Shoprite Klipfontein Mall Ext 2" both rendered as
+/// "Shoprite Kli…Mall" — on a row that is not tappable, so there was no path
+/// to the full string. A ranked row is a name and a number, and the name is
+/// the half you cannot guess.
+class RankedBarsCard extends StatefulWidget {
   const RankedBarsCard({super.key, required this.artifact});
 
   final ChatArtifact artifact;
 
+  /// Rows shown before the expander. The schema allows twelve.
+  static const int shownRows = 6;
+
+  @override
+  State<RankedBarsCard> createState() => _RankedBarsCardState();
+}
+
+class _RankedBarsCardState extends State<RankedBarsCard> {
+  bool _all = false;
+
   @override
   Widget build(BuildContext context) {
-    final data = RankedBarsData.from(artifact.data);
-    final max = data.maxAbs;
-    final leader = data.leaderIndex;
+    final l10n = context.l10n;
+    final number = TiqNumber.of(context);
+    final data = RankedBarsData.from(widget.artifact.data);
+    // An empty set is dropped entirely — never a block saying there is
+    // nothing to rank.
+    if (data.items.isEmpty) return const SizedBox.shrink();
 
-    return PanelCard(
-      title: data.title ?? 'Ranking',
-      subtitle: data.comparedTo,
-      child: data.items.isEmpty
-          ? Text(
-              'Nothing to rank.',
-              style: TextStyle(
-                fontSize: 12.5,
-                color: context.colors.glass
-                    ? context.lumen.inkMuted
-                    : context.colors.ink3,
-              ),
-            )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final narrow = constraints.maxWidth < 360;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < data.items.length; i++) ...[
-                      if (i > 0) const SizedBox(height: 7),
-                      _BarRow(
-                        key: ValueKey(i == leader
-                            ? 'ranked-bars-leader'
-                            : 'ranked-bars-row-$i'),
-                        item: data.items[i],
-                        fraction: max == 0 ? 0 : data.items[i].value.abs() / max,
-                        valueLabel: data.label(data.items[i].value),
-                        diverging: data.diverging,
-                        lead: i == leader,
-                        index: i,
-                        nameWidth: narrow ? 92 : 118,
-                      ),
-                    ],
-                  ],
-                );
-              },
+    final max = data.maxAbs;
+    // The server's choice, through the turn's `focus` events; lit only when
+    // this block is the route's one target and the route holds the grant.
+    final focus = AnswerFocusScope.focusIndexFor(context, widget.artifact);
+    final lit = AnswerFocusScope.isLit(context, widget.artifact);
+    final shown = _all
+        ? data.items.length
+        : (data.items.length <= RankedBarsCard.shownRows
+              ? data.items.length
+              : RankedBarsCard.shownRows);
+
+    final skin = context.skin;
+    final title = data.title;
+    final comparedTo = data.comparedTo;
+
+    // One value column for every row, as wide as its widest figure. Without
+    // it each track is whatever a row's label and figure leave over, so the
+    // bars start and end in different places and a longer bar can stand for
+    // a smaller number — the one thing a ranking may not do.
+    var valueWidth = 0.0;
+    for (final item in data.items) {
+      valueWidth = math.max(
+        valueWidth,
+        FigureSlot.measure(
+          context,
+          value: item.value,
+          role: skin.text.figureS,
+          unit: askUnitFor(l10n, data.unit, item.value.abs()),
+          decimals: data.decimals,
+          signed: data.diverging,
+        ),
+      );
+    }
+    valueWidth = valueWidth.ceilToDouble() + 1;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        // What is being ranked, and over what — the server's words. Without
+        // them a column of sixes and fours is a ranking of nothing.
+        if (title != null) ...<Widget>[
+          Text(
+            title,
+            key: const ValueKey<String>('ranked-bars-title'),
+            style: skin.text.label.style(color: skin.palette.ink1),
+          ),
+          if (comparedTo != null) ...<Widget>[
+            const SizedBox(height: TiqSpace.s1),
+            Text(
+              comparedTo,
+              style: skin.text.meta.style(color: skin.palette.ink3),
             ),
+          ],
+          SizedBox(height: skin.space.intraBlock),
+        ],
+        for (var i = 0; i < shown; i++) ...<Widget>[
+          if (i > 0) const SizedBox(height: TiqSpace.s2),
+          _BarRow(
+            key: ValueKey<String>(
+              i == focus ? 'ranked-bars-focus' : 'ranked-bars-row-$i',
+            ),
+            item: data.items[i],
+            index: i,
+            total: data.items.length,
+            fraction: max == 0 ? 0 : data.items[i].value.abs() / max,
+            valueLabel: data.label(data.items[i].value, number: number),
+            unit: askUnitFor(l10n, data.unit, data.items[i].value.abs()),
+            decimals: data.decimals,
+            diverging: data.diverging,
+            // A single item is never a focus: one bar cannot be ranked.
+            focus: i == focus,
+            lit: lit,
+            valueWidth: valueWidth,
+          ),
+        ],
+        if (shown < data.items.length) ...<Widget>[
+          const SizedBox(height: TiqSpace.s2),
+          SoftRow(
+            key: const ValueKey<String>('ranked-bars-show-all'),
+            density: SoftRowDensity.compact,
+            title: l10n.askShowAll(data.items.length),
+            separator: SoftRowSeparator.none,
+            onTap: () => setState(() => _all = true),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -79,133 +160,253 @@ class _BarRow extends StatelessWidget {
   const _BarRow({
     super.key,
     required this.item,
+    required this.index,
+    required this.total,
     required this.fraction,
     required this.valueLabel,
+    required this.unit,
+    required this.decimals,
     required this.diverging,
-    required this.lead,
-    required this.index,
-    required this.nameWidth,
+    required this.focus,
+    required this.lit,
+    required this.valueWidth,
   });
 
   final RankedBarItem item;
+  final int index;
+  final int total;
 
   /// |value| / the largest |value|, 0–1.
   final double fraction;
   final String valueLabel;
+  final TiqUnit unit;
+  final int? decimals;
   final bool diverging;
-  final bool lead;
-  final int index;
-  final double nameWidth;
+  final bool focus;
+
+  /// Whether the route's arbiter granted this block its one amber object.
+  final bool lit;
+
+  /// The shared width of the value column, so every track is the same length.
+  final double valueWidth;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    final lumen = context.lumen;
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final p = skin.palette;
+    final veld = skin.mode == SkinMode.veld;
     final negative = item.value < 0;
-    final ink = glass ? lumen.ink : colors.ink1;
-    final Color barColor;
-    final Color valueColor;
-    if (!diverging) {
-      barColor = glass ? lumen.accentSolid : colors.series1;
-      valueColor = ink;
-    } else if (item.value == 0) {
-      barColor = valueColor = sentimentColor(context, DeltaSentiment.neutral);
+    final zero = item.value == 0;
+    final track = veld ? 8.0 : 6.0;
+
+    final Color fill;
+    if (focus) {
+      fill = AskLight.focusFill(skin, lit: lit);
+    } else if (diverging) {
+      // Positives solid `good`; negatives `bad` AND hatched, because
+      // #FF7D8C against chart-neutral is 1.55:1 in colour and 1.26:1 in
+      // protanopia. The hatch is the channel; the hue is the courtesy.
+      fill = negative ? p.bad : p.good;
     } else {
-      barColor = valueColor = sentimentColor(
-        context,
-        negative ? DeltaSentiment.bad : DeltaSentiment.good,
+      fill = p.chartNeutral;
+    }
+
+    Widget bar(AlignmentGeometry from) {
+      if (zero) {
+        // No bar drawn, "0" printed, and a 2dp tick at the origin so the row
+        // is not read as missing. A measured zero is a reading.
+        return Align(
+          alignment: from,
+          child: SizedBox(width: 2, height: track, child: ColoredBox(color: p.ink3)),
+        );
+      }
+      return GrowIn(
+        duration: const Duration(milliseconds: 600),
+        delay: Duration(milliseconds: 60 * index),
+        builder: (context, t) => FractionallySizedBox(
+          key: ValueKey<String>('ranked-bar-fill-$index'),
+          alignment: from,
+          widthFactor: (fraction * t).clamp(0.0, 1.0),
+          child: _Bar(
+            height: track,
+            fill: fill,
+            hatched: diverging && negative,
+            // The bloom is drawn inside the bar's own decoration — never a
+            // blur, never a BoxShadow, and never a second draw call.
+            bloom: focus ? AskLight.focusBloom(skin, lit: lit) : null,
+            radius: veld ? 0 : track / 2,
+          ),
+        ),
       );
     }
-    final zeroLine = glass ? lumen.inkMuted.withValues(alpha: 0.28) : colors.axis;
 
-    Widget bar(Alignment from) => item.value == 0
-        ? const SizedBox.shrink()
-        : GrowIn(
-            delay: Duration(milliseconds: 60 * index),
-            builder: (context, t) => FractionallySizedBox(
-              key: ValueKey('ranked-bar-fill-$index'),
-              alignment: from,
-              widthFactor: (fraction * t).clamp(0.0, 1.0),
-              child: Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  color: barColor,
-                  borderRadius: BorderRadius.circular(5),
+    final Widget trackRow;
+    if (diverging) {
+      trackRow = Row(
+        children: <Widget>[
+          Expanded(
+            child: negative ? bar(AlignmentDirectional.centerEnd) : const SizedBox(),
+          ),
+          // The centre axis is edge-control, never amber: a 1dp ink axis at
+          // 15:1 is more visible than amber would be, and amber there would
+          // displace the focus row for no legibility gain.
+          SizedBox(
+            width: skin.depth.borderWidth,
+            height: track * 2,
+            child: ColoredBox(color: p.edgeControl),
+          ),
+          Expanded(
+            child: negative ? const SizedBox() : bar(AlignmentDirectional.centerStart),
+          ),
+        ],
+      );
+    } else {
+      trackRow = bar(AlignmentDirectional.centerStart);
+    }
+
+    final labelStyle = focus
+        ? skin.text.bodyStrong.style(color: p.ink1)
+        : skin.text.body.style(color: p.ink1);
+
+    return Semantics(
+      label: <String>[
+        item.label,
+        valueLabel,
+        l10n.askBarSemantic(item.label, valueLabel, index + 1, total),
+        // The server orders worst first and names the bar the sentence is
+        // about; "worst" is said of that bar, not guessed from position.
+        if (focus) l10n.askBarWorst,
+      ].skip(2).join(', '),
+      excludeSemantics: true,
+      child: RepaintBoundary(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: veld ? TiqSpace.s3 : TiqSpace.s2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              // 38% of the row, and two lines before anything gives. Tight,
+              // so a short name does not hand its space to the track.
+              Expanded(
+                flex: 38,
+                child: Text(item.label, style: labelStyle, maxLines: 2),
+              ),
+              const SizedBox(width: TiqSpace.s3),
+              // The triangle's slot is kept on every row so the focus row's
+              // track is not shorter than its neighbours'.
+              if (!focus)
+                SizedBox(width: MarkScale.glyph(context, veld ? 9 : 7) + TiqSpace.s1),
+              if (focus) ...<Widget>[
+                // A filled triangle at the bar's origin, pointing right. One
+                // of the focus bar's four channels, and the one that survives
+                // greyscale and a printed export.
+                RotatedBox(
+                  quarterTurns: 1,
+                  child: TiqMark(
+                    shape: MarkShape.deltaUp,
+                    color: AskLight.focusFill(skin, lit: lit),
+                    size: MarkScale.glyph(context, veld ? 9 : 7),
+                  ),
+                ),
+                const SizedBox(width: TiqSpace.s1),
+              ],
+              Expanded(
+                flex: 62,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: p.lifted,
+                    borderRadius: BorderRadius.circular(veld ? 0 : track / 2),
+                  ),
+                  child: SizedBox(
+                    height: track * 2,
+                    child: Center(
+                      // Tight across: a fractional bar under a loose Center
+                      // takes its own width and is centred — every bar would
+                      // grow from a different origin.
+                      child: SizedBox(
+                        height: track,
+                        width: double.infinity,
+                        child: trackRow,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          );
-
-    final Widget track;
-    if (diverging) {
-      track = Row(
-        children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: negative ? bar(Alignment.centerRight) : null,
-            ),
-          ),
-          Container(width: 1, height: 16, color: zeroLine),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: negative ? null : bar(Alignment.centerLeft),
-            ),
-          ),
-        ],
-      );
-    } else {
-      track = Row(
-        children: [
-          Container(width: 1, height: 16, color: zeroLine),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: bar(Alignment.centerLeft),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        SizedBox(
-          width: nameWidth,
-          child: Text(
-            item.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: lead ? FontWeight.w600 : FontWeight.w400,
-              color: ink,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: SizedBox(height: 16, child: track)),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 56,
-          // Scaled down rather than clipped: a long count still reads whole.
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerRight,
-            child: Text(
-              valueLabel,
-              maxLines: 1,
-              style: LumenGlass.figure(
-                size: 12,
-                color: valueColor,
-                weight: lead ? FontWeight.w700 : FontWeight.w600,
+              const SizedBox(width: TiqSpace.s3),
+              SizedBox(
+                width: valueWidth,
+                child: FigureSlot(
+                  value: item.value,
+                  role: skin.text.figureS,
+                  unit: unit,
+                  decimals: decimals,
+                  signed: diverging,
+                  textAlign: TextAlign.end,
+                  color: p.ink1,
+                ),
               ),
-            ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
+}
+
+/// One bar: a fill, optionally hatched, optionally blooming.
+class _Bar extends StatelessWidget {
+  const _Bar({
+    required this.height,
+    required this.fill,
+    required this.hatched,
+    required this.bloom,
+    required this.radius,
+  });
+
+  final double height;
+  final Color fill;
+  final bool hatched;
+  final Gradient? bloom;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final body = DecoratedBox(
+      decoration: BoxDecoration(
+        color: fill,
+        gradient: bloom,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      child: SizedBox(height: height),
+    );
+    if (!hatched) return body;
+    // 45° hard-stop stripes, drawn by the shared registry — never a pattern
+    // under 4dp, and never inside a glyph. The stripe direction is what
+    // carries the sign; the hue is the courtesy.
+    return CustomPaint(
+      foregroundPainter: _NegativeHatch(
+        HatchPaint.spec(skin, HatchPattern.negative),
+      ),
+      child: body,
+    );
+  }
+}
+
+/// The negative side of a diverging bar, striped.
+class _NegativeHatch extends CustomPainter {
+  const _NegativeHatch(this.spec);
+
+  final HatchSpec spec;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // The registry refuses anything under 4dp, and a 6dp track is the
+    // smallest thing on this surface that may carry a pattern at all.
+    if (size.shortestSide < HatchPaint.minimumMarkExtent) return;
+    HatchPaint.paint(canvas, Offset.zero & size, spec);
+  }
+
+  @override
+  bool shouldRepaint(_NegativeHatch old) => old.spec != spec;
 }

@@ -193,6 +193,22 @@ class TorchlightScanner {
     //                   goes out on every light ground, where the light source
     //                   outside is the sun.
     'core/widgets/torchlight/check_in_radar.dart',
+    // The Ask TradeIQ route. The seventh emitter, and the only one that is a
+    // *screen's* rather than a component's:
+    //
+    //   ask_light       Send's rim and block (rung 1), the answer's one focus
+    //                   object — a ranked bar or a trend series — and its
+    //                   bloom (rung 3), and the working-steps rail's running
+    //                   dot (rung 6). All three ask TorchScope first.
+    //
+    // It is one file and not four because the three objects are drawn by
+    // three different widgets on three different rungs: a composer, a bar
+    // painter and a rail. If each reached for `flame600` itself there would
+    // be three places to get the law wrong instead of one, and the census
+    // would find it a week later on whichever phase nobody wrote a golden
+    // for. Every other file under `features/assistant/**` is scanned as
+    // normal, so a fourth emitter cannot appear there by accident.
+    'features/assistant/answer/ask_light.dart',
   };
 
   /// Scan [root] (expected to be `lib/`) for amber tokens named outside the

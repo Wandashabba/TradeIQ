@@ -148,6 +148,44 @@ class FigureSlot extends StatelessWidget {
   /// cap. Applied through `TextScaler`, never as a factor multiplied into a
   /// font size — a factor stops being right the moment the platform stops
   /// being linear.
+  /// The width this figure takes at [role] and the live text scale, affixes
+  /// included — for a column of figures that must share one width, so the
+  /// thing beside them (a bar's track) starts and ends in the same place on
+  /// every row. Measured exactly as the slot lays itself out.
+  static double measure(
+    BuildContext context, {
+    required num? value,
+    required TiqTypeToken role,
+    TiqUnit unit = TiqUnit.none,
+    int? decimals,
+    bool signed = false,
+  }) {
+    final slot = FigureSlot(
+      value: value,
+      role: role,
+      unit: unit,
+      decimals: decimals,
+      signed: signed,
+      semanticsLabel: '',
+    );
+    final figure = TiqNumber.of(context).split(
+      value,
+      unit: unit,
+      decimals: decimals,
+      signed: signed,
+      state: FigureState.measured,
+    );
+    final painter = TextPainter(
+      text: slot._span(role, figure, context.skin),
+      textDirection: TextDirection.ltr,
+      textScaler: slot._scalerFor(context, role),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
+  }
+
   TextScaler _scalerFor(BuildContext context, TiqTypeToken token) {
     final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     final cap = token.maxTextScale;

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../core/design/tiq_number.dart';
 import '../view_specs/artifact_table.dart';
 
 /// The print mode of an artifact — paginated, controls stripped.
@@ -272,8 +273,8 @@ pw.Widget _table(
                           color: i == 0 ? ink2 : (i == 1 ? ink1 : ink3),
                         ),
                       )
-                    // The Change column, last. The sign is spelled out and the
-                    // arrow is a character, so direction survives greyscale,
+                    // The Change column, last. The sign is a character — `+`
+                    // or a true minus — so direction survives greyscale,
                     // photocopying and colour-vision deficiency — colour only
                     // reinforces it.
                     : pw.Text(
@@ -295,9 +296,12 @@ pw.Widget _table(
 String _changeText(ArtifactTableRow row) {
   final delta = row.delta;
   if (delta == null) return '—';
-  final arrow = delta < 0 ? '▼' : '▲';
-  final pct = row.deltaPct == null ? 'n/a' : '${row.deltaPct!.toStringAsFixed(1)}%';
-  return '$arrow ${trimNumber(delta.abs())}  ($pct)';
+  // Signed, not arrowed: U+25B2/U+25BC are not in the PDF's base font and
+  // drew as nothing (#401). A true minus survives greyscale printing too.
+  final amount = TiqNumber.en.format(delta, signed: true);
+  final pct = row.deltaPct;
+  // No percentage is invented from a zero baseline: the bracket is dropped.
+  return pct == null ? amount : '$amount  (${formatChangePct(pct)})';
 }
 
 String _stamp(DateTime at) {

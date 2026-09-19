@@ -65,7 +65,7 @@ void main() {
       }
       expect(
         TorchlightScanner.amberAllowlist,
-        hasLength(11),
+        hasLength(12),
         reason:
             'Pinned. Five in core/theme — the token source, the skin, the '
             'contrast contract and the two shims that map an old screen onto '
@@ -73,8 +73,13 @@ void main() {
             'button, the nav pill, the nav circle, the keyboard focus ring, '
             'the plate\'s strip light and the check-in radar\'s leading ring '
             '(TorchClaim.livePulse, the one rung the agent surface claims '
-            'that the console does not). Still to come: the chart focus bar, '
-            'argued in its own PR.',
+            'that the console does not). The twelfth is Ask TradeIQ\'s '
+            '`ask_light.dart`, which holds that route\'s whole ledger: Send '
+            'at rung 1, the answer\'s one focus object — a ranked bar or a '
+            'trend series — at rung 3, and the working-steps rail\'s running '
+            'dot at rung 6. One file rather than four, because the three are '
+            'drawn by three different widgets and three places to get the law '
+            'wrong is three places it will be got wrong.',
       );
     });
   });

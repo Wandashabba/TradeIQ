@@ -1,605 +1,554 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/manager_scaffold.dart';
+import '../../../core/auth/session_controller.dart';
+import '../../../core/design/motion_budget.dart';
+import '../../../core/design/torch_scope.dart';
+import '../../../core/theme/torchlight/console_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input/filter_chip.dart';
+import '../../../core/widgets/torchlight/sheet.dart';
+import '../../../l10n/l10n.dart';
 import '../answer/answer_markdown.dart';
 import '../answer/answer_motion.dart';
+import '../answer/answer_notes.dart';
 import '../answer/answer_view.dart';
+import '../answer/answer_copy.dart';
+import '../answer/ask_light.dart';
+import '../answer/ask_phase.dart';
+import '../answer/ask_turn.dart';
+import '../answer/composer.dart';
 import '../answer/web_sources.dart';
 import '../answer/working_steps.dart';
 import '../data/chat_controller.dart';
+import '../view_specs/answer_focus.dart';
+import '../view_specs/instrument_panel.dart';
+import '../view_specs/outside_band.dart';
 import '../view_specs/view_spec_registry.dart';
+import 'ask_first_run.dart';
+import 'ask_history_sheet.dart';
 
-/// The conversational surface.
+/// Whether the app believes it can reach the assistant.
 ///
-/// Phase 0 is **read-only and manager-only**: it answers questions about sales,
-/// stock, visibility, competition and execution, and it cannot change anything.
-/// The empty state says so in as many words, because an assistant that silently
-/// declines the first thing you ask it teaches you not to ask again.
-class AssistantChatScreen extends ConsumerStatefulWidget {
+/// **A seam with no producer yet.** There is no connectivity channel in this
+/// app — no `connectivity_plus`, no platform stream — so nothing sets this
+/// false in production today and the offline state is reached only by a test
+/// or by an override. It is declared rather than omitted because the state is
+/// designed, built and asserted: the day a connectivity signal lands, this is
+/// the one line that changes, and nothing else moves.
+///
+/// It is deliberately **not** derived from the last turn's error. "Could not
+/// reach the assistant" is already rendered as that turn's error block, and a
+/// band saying the same thing above the composer would be the product telling
+/// a manager twice.
+final askOnlineProvider = Provider<bool>((ref) => true);
+
+/// Whether the manager's session has ended under her.
+///
+/// Derived from the real thing — the session controller losing its token,
+/// which is what `onUnauthorized` does on any 401. Today the router's
+/// `refreshListenable` usually navigates to `/login` before this band can be
+/// read; when it does, the band is simply never seen, which is exactly
+/// today's behaviour rather than a regression. The state exists so that
+/// "held work visible behind it" (#380) has somewhere to land.
+final askSessionEndedProvider = Provider<bool>((ref) {
+  final session = ref.watch(sessionControllerProvider);
+  return session.hasValue && session.value!.token == null;
+});
+
+/// ASK TRADEIQ.
+///
+/// ```text
+///   Ask TradeIQ                     [ 6 questions ]   [ ☾ ]
+///   ─────────────────────────────────────────────────────
+///                                 ┌──────────────────┐
+///                                 │ how is Tumo…     │   the question
+///                                 └──────────────────┘
+///   ● Checked 5 sources · 2.1s                    ⌄       the provenance
+///   Three Gauteng North outlets lost on-shelf             the headline
+///   availability faster than the territory did.
+///   ┌─────────────────────────────────────────────┐
+///   │ ON-SHELF AVAILABILITY              61%      │       the panel
+///   │ ─────────────────────────────────────────── │
+///   │ WORST FIRST                                 │
+///   │ Shoprite Klipfontein  ▬▬▬▬▬▬▬▬▬     34%     │
+///   └─────────────────────────────────────────────┘
+///   ── Sources 5 ────────────────────────────────
+///   [ ↳ which outlets recovered? ]
+///   Ask a question
+///   [ ____________________________________ ]  [ ↑ ]        the composer
+///   [ nav pill ]
+/// ```
+///
+/// Darkness is the room; the answer is the light. One sentence, one panel,
+/// one lit object — and the light is **counted**, not asserted.
+///
+/// ## The amber census, per phase
+///
+/// | phase | Night | Day / Veld | which |
+/// |---|---|---|---|
+/// | first run | 1 | 0 | the nav tab; Send is disabled |
+/// | thinking | 2 | 0 | the nav tab, the running step |
+/// | writing | 1 | 0 | the nav tab — the amber goes out before the turn ends |
+/// | landed, focus | 2 | 0 | the nav tab, one bar or one series |
+/// | landed, tiles only | 1 | 0 | the nav tab; four numbers are the reading |
+/// | typing | 1 | 1 | Send — the keyboard took the nav, and its grant with it |
+/// | error, offline, session ended | 1 | 0 | the nav tab |
+///
+/// ## What the shell does and does not carry
+///
+/// A tab root, so the nav pill renders and there is **no thumb zone**: the
+/// composer is a `TorchShell.band`, a pinned sibling of the scroll view that
+/// clears the keyboard itself. There is **no nav circle** on this route — the
+/// manager's circle is "raise a task / assign a visit", there is nothing here
+/// to raise one about, and a route-local override would give one control two
+/// meanings. History is a header chip rather than a second trailing icon
+/// button, because the header's rule is exactly one and the top-right corner
+/// is the worst reachable point on a 6.5in phone.
+class AssistantChatScreen extends StatelessWidget {
   const AssistantChatScreen({super.key});
 
   @override
-  ConsumerState<AssistantChatScreen> createState() => _AssistantChatScreenState();
+  Widget build(BuildContext context) =>
+      const ConsoleTorchlightRoute(child: _Ask());
 }
 
-class _AssistantChatScreenState extends ConsumerState<AssistantChatScreen> {
+class _Ask extends ConsumerStatefulWidget {
+  const _Ask();
+
+  @override
+  ConsumerState<_Ask> createState() => _AskState();
+}
+
+class _AskState extends ConsumerState<_Ask> {
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
 
+  /// The trough holds text. Kept as state rather than read from the
+  /// controller during build, so the phase — and therefore the claim set —
+  /// changes exactly once when the trough goes from empty to not.
+  bool _typed = false;
+
+  /// The hand-off, latched. When the trough first takes text after a turn has
+  /// landed, the answer's focus object drops its bloom **once and permanently
+  /// for that turn**. Clearing the trough does not light it again: the
+  /// attention moved from reading to asking, and a bar that came back alight
+  /// when a manager deleted a word would be the flicker the counted budget
+  /// exists to prevent.
+  bool _handedOff = false;
+
+  /// A turn is following the tail. One upward scroll releases it.
+  bool _following = true;
+
+  int _turns = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
   @override
   void dispose() {
+    _scroll.removeListener(_onScroll);
     _input.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
-  void _send() {
-    final text = _input.text;
-    if (text.trim().isEmpty) return;
-    _input.clear();
-    ref.read(chatControllerProvider.notifier).send(text);
-    _scrollToEnd();
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final atTail = _scroll.position.pixels >=
+        _scroll.position.maxScrollExtent - 24;
+    if (atTail != _following) setState(() => _following = atTail);
   }
 
-  void _scrollToEnd() {
-    // After the frame, so the list has laid out the message we just added.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
+  void _onChanged(String text) {
+    final typed = text.trim().isNotEmpty;
+    if (typed == _typed) return;
+    setState(() {
+      _typed = typed;
+      if (typed) _handedOff = true;
     });
   }
 
+  void _send([String? text]) {
+    final question = text ?? _input.text;
+    if (question.trim().isEmpty) return;
+    _input.clear();
+    setState(() {
+      _typed = false;
+      _handedOff = false;
+      _following = true;
+    });
+    ref.read(chatControllerProvider.notifier).send(question);
+    _pinToTail();
+  }
+
+  /// A single `jumpTo` scheduled at most once per frame.
+  ///
+  /// The old build listened to every controller change and ran a 220ms
+  /// `animateTo`, which fires on every token — roughly thirty times a second,
+  /// each call cancelling the last. That is deleted: while a turn streams the
+  /// list is pinned, not animated, and a smooth scroll is used only when the
+  /// manager asks for one.
+  bool _scheduled = false;
+
+  void _pinToTail() {
+    if (_scheduled || !_following) return;
+    _scheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      if (!mounted || !_scroll.hasClients || !_following) return;
+      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    });
+  }
+
+  Future<void> _openHistory() async {
+    final startOver = await showTorchSheet<bool>(
+      context,
+      builder: (sheetContext) => AskHistorySheet(
+        onGoToTurn: (index) => Navigator.of(sheetContext).pop(false),
+        // Sheets do not stack: the history sheet closes with its answer and
+        // the decision opens after it, rather than on top of it while it is
+        // still leaving.
+        onStartOver: () => Navigator.of(sheetContext).pop(true),
+      ),
+    );
+    if (startOver == true && mounted) await _openStartOver();
+  }
+
+  Future<void> _openStartOver() async {
+    final state = ref.read(chatControllerProvider);
+    final questions =
+        state.messages.where((m) => m.role == ChatRole.user).length;
+    await showTorchSheet<void>(
+      context,
+      builder: (sheetContext) => AskStartOverSheet(
+        questions: questions,
+        midTurn: state.sending,
+        onCarryOn: () => Navigator.of(sheetContext).pop(),
+        onStartOver: () {
+          Navigator.of(sheetContext).pop();
+          ref.read(chatControllerProvider.notifier).clear();
+          _input.clear();
+          setState(() {
+            _typed = false;
+            _handedOff = false;
+          });
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
     final state = ref.watch(chatControllerProvider);
-    // Tokens arrive many times a second; following them keeps the newest text
-    // on screen without the user chasing it.
-    ref.listen(chatControllerProvider, (_, _) => _scrollToEnd());
+    final online = ref.watch(askOnlineProvider);
+    final sessionEnded = ref.watch(askSessionEndedProvider);
 
-    return ManagerScaffold(
-      title: 'Ask TradeIQ',
-      body: Column(
-        children: [
-          Expanded(
-            child: state.messages.isEmpty
-                ? const _EmptyState()
-                : ListView.separated(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    itemCount: state.messages.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 14),
-                    itemBuilder: (context, i) =>
-                        _MessageView(message: state.messages[i]),
-                  ),
-          ),
-          _Composer(
-            controller: _input,
-            sending: state.sending,
-            onSend: _send,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  /// Suggestions are the four pillars plus execution, in the manager's own
-  /// words. They are not decoration: a blank chat box is the hardest possible
-  /// first move, and these are what the tools are actually good at.
-  static const _examples = [
-    'How has my team been performing this month?',
-    'Which outlets keep running out of stock?',
-    'What is our share of shelf year to date?',
-    'Show me any visits that look suspicious.',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              'Ask about sales, stock, visibility or competition',
-              textAlign: TextAlign.center,
-              style: colors.glass
-                  ? LumenGlass.title(size: 20, color: context.lumen.ink)
-                  : TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: colors.ink1,
-                    ),
-            ),
-            SizedBox(height: colors.glass ? 8 : 6),
-            Text(
-              'I can read your data and explain it. I cannot change anything yet.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: colors.glass ? 12.5 : 12,
-                color: colors.glass ? context.lumen.inkMuted : colors.ink3,
-              ),
-            ),
-            const SizedBox(height: 20),
-            for (final example in _examples)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _ExampleChip(text: example),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ExampleChip extends ConsumerWidget {
-  const _ExampleChip({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    void ask() => ref.read(chatControllerProvider.notifier).send(text);
-
-    if (colors.glass) {
-      // A glass pill. The ink sits on a transparent Material inside the pane,
-      // so the press is painted over the glass rather than buried beneath it.
-      return GlassPane(
-        kind: GlassKind.pill,
-        radius: 999,
-        shadow: false,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: ask,
-            borderRadius: BorderRadius.circular(999),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Text(
-                text,
-                style: TextStyle(fontSize: 12.5, color: context.lumen.ink),
-              ),
-            ),
-          ),
-        ),
-      );
+    // Pin the tail whenever the transcript grows, once per frame — not per
+    // token, and not through a listener that cancels its own animation.
+    if (state.messages.length != _turns) {
+      _turns = state.messages.length;
+      _pinToTail();
+    } else if (state.sending) {
+      _pinToTail();
     }
 
-    return InkWell(
-      onTap: ask,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          border: Border.all(color: colors.line),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(fontSize: 12.5, color: colors.ink2),
+    final last = state.messages.isEmpty ? null : state.messages.last;
+    final answer = last?.role == ChatRole.assistant ? last : null;
+    final toolRunning =
+        answer != null && answer.tools.any((t) => t.ok == null);
+    // Resolved once per build from the server's word, and handed to exactly
+    // one turn: the claim and the paint read the same target, so they cannot
+    // disagree about whether — or where — the answer is lit.
+    final focusTarget =
+        answer == null ? null : AnswerFocusTarget.resolve(answer);
+    final focusArtifact = focusTarget != null;
+
+    final phase = resolveAskPhase(
+      transcriptEmpty: state.messages.isEmpty,
+      streaming: state.sending,
+      toolRunning: toolRunning,
+      typed: _typed,
+      lastTurnErrored: answer?.error != null,
+      hasFocusObject: focusArtifact,
+      handedOff: _handedOff,
+      online: online,
+      sessionEnded: sessionEnded,
+    );
+
+    final questions =
+        state.messages.where((m) => m.role == ChatRole.user).length;
+
+    return TorchSheetAware(
+      builder: (context, beneathSheet) => TorchScope(
+        skin: skin,
+        phase: phase.name,
+        navRenders: TorchShell.navWillRender(context, hasNav: true),
+        tabbedRoute: true,
+        beneathSheet: beneathSheet,
+        claims: phase.claims,
+        child: TorchShell(
+          profile: TorchShellProfile.console,
+          scrollController: _scroll,
+          header: TorchAppHeader(
+            title: l10n.askTitle,
+            trailing: consoleSkinCycleButton(context, ref),
+            flagChips: <Widget>[
+              // A session, not an archive — and absent entirely while there
+              // is nothing to look back at.
+              if (questions > 0)
+                TorchFilterChip(
+                  key: const ValueKey<String>('ask-history-chip'),
+                  label: l10n.askHistoryAction,
+                  count: questions,
+                  selected: false,
+                  onSelected: _openHistory,
+                ),
+            ],
+          ),
+          navPill: TorchNavPill(
+            slots: askNavSlots(l10n),
+            activeIndex: 2,
+            onSelect: (i) => _go(context, i),
+          ),
+          band: QuestionComposer(
+            controller: _input,
+            phase: phase,
+            onSend: _send,
+            onStop: () => ref.read(chatControllerProvider.notifier).stop(),
+            onChanged: _onChanged,
+            lastTurnErrored: answer?.error != null,
+            band: _band(context, phase),
+          ),
+          children: state.messages.isEmpty
+              ? <Widget>[
+                  AskFirstRun(onAsk: _send, enabled: phase.canSend),
+                ]
+              : <Widget>[
+                  for (var i = 0; i < state.messages.length; i++) ...<Widget>[
+                    if (i > 0) SizedBox(height: skin.space.blockGap + 8),
+                    AnswerFocusScope(
+                      key: ValueKey<int>(i),
+                      focus: state.messages[i].focus,
+                      target: i == state.messages.length - 1
+                          ? focusTarget
+                          : null,
+                      child: _Turn(
+                        message: state.messages[i],
+                        previous: i >= 2 ? state.messages[i - 2] : null,
+                        phase: phase,
+                        onAsk: _send,
+                      ),
+                    ),
+                  ],
+                ],
         ),
       ),
     );
   }
+
+  /// Floor · Work · Ask · Menu. Four slots, because five do not fit the 360dp
+  /// arithmetic, and Ask is the third.
+  static List<TorchNavSlot> askNavSlots(AppLocalizations l10n) =>
+      <TorchNavSlot>[
+        TorchNavSlot(
+          icon: Icons.inventory_2_outlined,
+          activeIcon: Icons.inventory_2,
+          label: l10n.askNavFloor,
+        ),
+        TorchNavSlot(
+          icon: Icons.checklist_outlined,
+          activeIcon: Icons.checklist,
+          label: l10n.askNavWork,
+        ),
+        TorchNavSlot(
+          icon: Icons.forum_outlined,
+          activeIcon: Icons.forum,
+          label: l10n.askNavAsk,
+        ),
+        TorchNavSlot(
+          icon: Icons.menu,
+          activeIcon: Icons.menu_open,
+          label: l10n.askNavMenu,
+        ),
+      ];
+
+  static void _go(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.go('/dashboard');
+      case 1:
+        context.go('/tasks');
+      case 2:
+        context.go('/assistant');
+      case 3:
+        context.go('/dashboard/overview');
+    }
+  }
+
+  Widget? _band(BuildContext context, AskPhase phase) {
+    final l10n = context.l10n;
+    return switch (phase) {
+      AskPhase.sessionEnded => AskHeldBand(
+        message: l10n.askSessionEnded,
+        semanticsLabel: l10n.askSessionEndedSemantic,
+        action: l10n.askSignIn,
+        onAction: () => context.push('/login'),
+      ),
+      AskPhase.offline => AskHeldBand(
+        message: l10n.askOffline,
+        semanticsLabel: l10n.askOffline,
+      ),
+      _ => null,
+    };
+  }
 }
 
-class _MessageView extends StatelessWidget {
-  const _MessageView({required this.message});
+/// One turn in the transcript.
+class _Turn extends ConsumerWidget {
+  const _Turn({
+    required this.message,
+    required this.previous,
+    required this.phase,
+    required this.onAsk,
+  });
 
   final ChatMessage message;
 
+  /// The same speaker's previous turn, for the repeated-failure line.
+  final ChatMessage? previous;
+
+  final AskPhase phase;
+  final ValueChanged<String> onAsk;
+
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final skin = context.skin;
     if (message.role == ChatRole.user) {
-      return colors.glass ? _glassUser(context.lumen) : _flatUser(colors);
+      return QuestionBubble(text: message.text);
     }
 
-    // Parsed on every build: tokens arrive many times a second, and the parse
-    // is a single linear pass over one answer's worth of text.
+    final animate = message.streaming && !MotionBudget.of(context).still;
     final parsed = parseAnswer(message.text, streaming: message.streaming);
-    // Blocks slide in only while the turn is live. A finished answer rebuilt
-    // by scrolling it back into view is simply there.
-    final animate = message.streaming;
+    final figures = AnswerFigures.of(message);
+    final writing = message.streaming && message.tools.every((t) => t.ok != null);
 
-    final steps = message.tools.isEmpty
-        ? null
-        : ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: RichAnswer.maxProseWidth),
-            child: WorkingSteps(
-              tools: message.tools,
-              streaming: message.streaming,
-              animate: animate,
-            ),
-          );
-
-    final artifacts = [
-      for (final artifact in arrangeAnswerArtifacts(message.artifacts))
-        Arrive(
-          key: ValueKey('artifact-${artifact.id}'),
-          enabled: animate,
-          // Expandable here and only here: the inline card is deliberately
-          // impoverished, and Expand is how the filter controls and the table
-          // twin are reached without putting a date picker in every chat
-          // bubble.
-          child: ArtifactView(artifact: artifact, expandable: true),
-        ),
-    ];
-
-    // **A reply that used none of the answer conventions renders exactly as
-    // replies always have**: one selectable run of text, then its artifacts.
-    // Only a reply that wrote markdown or follow-ups takes the rich layout.
     final rich = message.error == null &&
         (parsed.hasMarkdown || parsed.followUps.isNotEmpty);
 
-    final Widget body;
-    if (rich) {
-      body = RichAnswer(
-        parsed: parsed,
-        streaming: message.streaming,
-        artifacts: artifacts,
-        animate: animate,
-      );
-    } else {
-      body = colors.glass
-          ? _glassPlain(context.lumen, artifacts)
-          : _flatPlain(colors, artifacts);
-    }
+    final trailing = <Widget>[
+      if (message.notice != null) AnswerNotice(notice: message.notice!),
+      if (figures.outside.isNotEmpty)
+        OutsideDataBand(artifacts: figures.outside, now: DateTime.now()),
+    ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // The steps sit above the answer: their whole job is to explain a
-        // pause before there is any text to show, and afterwards to say what
-        // the answer was built from.
-        if (steps != null) ...[steps, const SizedBox(height: 10)],
-        body,
-        // Where the answer's outside facts came from, after the answer — a
-        // turn that errored has no answer to cite.
-        if (message.sources.isNotEmpty && message.error == null) ...[
-          const SizedBox(height: 10),
-          Arrive(
-            key: const ValueKey('web-sources-arrive'),
-            enabled: animate,
-            child: ConstrainedBox(
-              constraints:
-                  const BoxConstraints(maxWidth: RichAnswer.maxProseWidth),
-              child: WebSources(sources: message.sources),
-            ),
-          ),
-        ],
+    final body = <Widget>[
+      // The rail sits above the answer: its whole job is to explain a pause
+      // before there is any text to show, and afterwards to say what the
+      // answer was built from.
+      //
+      // It also stands in the gap before the first event, header only, so a
+      // question never sits above a blank space that reads as a dropped send.
+      if (message.streaming &&
+          (message.tools.isNotEmpty || message.text.isEmpty))
+        WorkingSteps(
+          tools: message.tools,
+          streaming: true,
+          animate: animate,
+          writing: writing,
+          lastEventAt: message.lastEventAt,
+          now: ref.read(assistantClockProvider),
+          onStop: () => ref.read(chatControllerProvider.notifier).stop(),
+        )
+      else if (message.tools.isNotEmpty)
+        StepsSummaryRow(tools: message.tools),
+      if (message.error != null)
+        AnswerErrorBlock(
+          message: message.error!,
+          code: message.errorCode,
+          repeated: previous?.error != null,
+          onRetry: () => onAsk(_question(context, ref)),
+        )
+      else if (rich)
+        RichAnswer(
+          parsed: parsed,
+          streaming: message.streaming,
+          animate: animate,
+          followUpsEnabled: phase.canSend,
+          trailing: trailing,
+          artifacts: <Widget>[AnswerPanel(figures: figures)],
+        )
+      else ...<Widget>[
+        if (message.text.isNotEmpty) PlainAnswer(message: message),
+        AnswerPanel(figures: figures),
+        ...trailing,
       ],
-    );
-  }
-
-  Widget _flatUser(TiqColors colors) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 520),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: colors.surface2,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          message.text,
-          style: TextStyle(fontSize: 13.5, height: 1.4, color: colors.ink1),
-        ),
-      ),
-    );
-  }
-
-  /// A plain reply's text. Selectable once it is finished; while it streams,
-  /// the same text and style carry the caret at their end.
-  Widget _plainText(TextStyle style) {
-    if (!message.streaming) return SelectableText(message.text, style: style);
-    return SelectionArea(
-      child: Text.rich(
-        TextSpan(children: [
-          TextSpan(text: message.text),
-          const WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: StreamingCaret(),
-          ),
-        ]),
-        style: style,
-      ),
-    );
-  }
-
-  Widget _flatPlain(TiqColors colors, List<Widget> artifacts) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (message.error != null)
-          _ErrorNote(message: message.error!)
-        else ...[
-          if (message.text.isNotEmpty)
-            _plainText(
-              TextStyle(fontSize: 13.5, height: 1.5, color: colors.ink1),
-            ),
-          // A turn that has called a tool but produced no text yet: without
-          // this the screen looks frozen between tool_end and the first token.
-          if (message.text.isEmpty && message.streaming)
-            const _ThinkingDots(),
-        ],
-        for (final artifact in artifacts) ...[
-          const SizedBox(height: 10),
-          artifact,
-        ],
-      ],
-    );
-  }
-
-  /// Lumen Glass: the manager's turn is the action glass in its own ink; the
-  /// assistant's is a tile — a list item, so unblurred. Anything the turn drew
-  /// lands below its bubble as its own panel, never a pane inside a pane.
-  Widget _glassUser(LumenPalette lumen) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: GlassPane(
-          kind: GlassKind.action,
-          radius: LumenGlass.radiusCard,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Text(
-            message.text,
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.4,
-              color: lumen.actionInk,
-            ),
+      if (message.stopped)
+        StoppedLine(onAskAgain: () => onAsk(_question(context, ref))),
+      // A turn that errored has no answer to cite, and a turn still being
+      // written has not cited yet: sources arrive after the tokens, and a
+      // searched turn saying "nothing usable" before they land is false.
+      if (message.error == null && !message.streaming)
+        WebSources(
+          sources: message.sources,
+          searched: message.tools.any(
+            (t) => AnswerFigures.webTools.contains(t.name),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _glassPlain(LumenPalette lumen, List<Widget> artifacts) {
-    final thinking = message.text.isEmpty && message.streaming;
-    final answer = message.error != null || message.text.isNotEmpty || thinking;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // A turn that is only an artifact gets no empty bubble above it.
-        if (answer)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
-            child: GlassPane(
-              kind: GlassKind.tile,
-              blur: false,
-              radius: LumenGlass.radiusCard,
-              padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (message.error != null)
-                    _ErrorNote(message: message.error!)
-                  else ...[
-                    if (message.text.isNotEmpty)
-                      _plainText(
-                        TextStyle(fontSize: 13.5, height: 1.5, color: lumen.ink),
-                      ),
-                    if (thinking) const _ThinkingDots(),
-                  ],
-                ],
-              ),
+      // What a manager does with the answer once it has landed. Absent while
+      // it streams, on an errored turn, and on a stopped one — which offers
+      // its own way to ask again rather than two.
+      if (message.error == null && !message.streaming && !message.stopped)
+        Builder(
+          builder: (context) => AnswerActionsRow(
+            text: answerPlainText(
+              context,
+              message: message,
+              question: _question(context, ref),
             ),
-          ),
-        for (final artifact in artifacts) ...[
-          const SizedBox(height: 10),
-          artifact,
-        ],
-      ],
-    );
-  }
-}
-
-class _ThinkingDots extends StatelessWidget {
-  const _ThinkingDots();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: SizedBox(
-        width: 14,
-        height: 14,
-        child: CircularProgressIndicator(
-          strokeWidth: 1.5,
-          color: context.colors.ink4,
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorNote extends StatelessWidget {
-  const _ErrorNote({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.error_outline, size: 15, color: colors.critText),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            // Rendered verbatim: the server guarantees this string is
-            // user-safe, and never a stack trace or a vendor error.
-            message,
-            style: TextStyle(fontSize: 12.5, height: 1.4, color: colors.critText),
+            onAskAgain: () => onAsk(_question(context, ref)),
           ),
         ),
-      ],
-    );
-  }
-}
+    ];
 
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.sending,
-    required this.onSend,
-  });
-
-  final TextEditingController controller;
-  final bool sending;
-  final VoidCallback onSend;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) return _glass(context.lumen);
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: colors.line)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: !sending,
-              minLines: 1,
-              maxLines: 5,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => onSend(),
-              style: TextStyle(fontSize: 13.5, color: colors.ink1),
-              decoration: InputDecoration(
-                hintText: 'Ask about your team, stock, shelf or competitors',
-                hintStyle: TextStyle(fontSize: 13, color: colors.ink4),
-                filled: true,
-                fillColor: colors.surface2,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: colors.line),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: colors.line),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: sending ? null : onSend,
-            icon: const Icon(Icons.arrow_upward),
-            tooltip: 'Send',
-            style: IconButton.styleFrom(
-              backgroundColor: sending ? colors.surface3 : colors.brand,
-              foregroundColor: sending ? colors.ink4 : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// The composer as a floating glass bar: the field is borderless inside it,
-  /// and Send is the action pill. Sending dims the pill but keeps its arrow in
-  /// the action ink, so a blocked send still reads.
-  Widget _glass(LumenPalette lumen) {
-    const none = InputBorder.none;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: GlassPane(
-        kind: GlassKind.bar,
-        radius: LumenGlass.radiusHero,
-        padding: const EdgeInsets.all(6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                enabled: !sending,
-                minLines: 1,
-                maxLines: 5,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                style: TextStyle(fontSize: 13.5, color: lumen.ink),
-                decoration: InputDecoration(
-                  hintText: 'Ask about your team, stock, shelf or competitors',
-                  // inkMuted, not ink4: a hint is words, and ink4 is for marks.
-                  hintStyle: TextStyle(fontSize: 13, color: lumen.inkMuted),
-                  filled: false,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  border: none,
-                  enabledBorder: none,
-                  focusedBorder: none,
-                  disabledBorder: none,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(LumenGlass.radiusButton),
-                boxShadow: sending
-                    ? null
-                    : [
-                        BoxShadow(
-                          color: lumen.shadow,
-                          blurRadius: 26,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
-              ),
-              child: IconButton(
-                onPressed: sending ? null : onSend,
-                icon: const Icon(Icons.arrow_upward),
-                tooltip: 'Send',
-                style: IconButton.styleFrom(
-                  backgroundColor: lumen.actionFill,
-                  disabledBackgroundColor: lumen.actionDisabled,
-                  foregroundColor: lumen.actionInk,
-                  disabledForegroundColor: lumen.actionInk,
-                  side: BorderSide(color: lumen.actionRim),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LumenGlass.radiusButton),
-                  ),
-                ),
-              ),
+    return Semantics(
+      container: true,
+      label: context.l10n.askAnswer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (var i = 0; i < body.length; i++) ...<Widget>[
+            if (i > 0) SizedBox(height: skin.space.blockGap),
+            Arrive(
+              key: ValueKey<int>(i),
+              enabled: false,
+              child: body[i],
             ),
           ],
-        ),
+        ],
       ),
     );
   }
+
+  /// The question this turn answered — what "Try again" and "Ask again" send.
+  String _question(BuildContext context, WidgetRef ref) {
+    final messages = ref.read(chatControllerProvider).messages;
+    final at = messages.indexOf(message);
+    for (var i = at - 1; i >= 0; i--) {
+      if (messages[i].role == ChatRole.user) return messages[i].text;
+    }
+    return '';
+  }
 }
+
+/// Exported so the amber census can name the claim it expects to find.
+const String askFocusClaimId = AskLight.focusClaimId;

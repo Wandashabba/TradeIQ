@@ -68,6 +68,25 @@ sealed class AssistantEvent {
         );
       case 'sources':
         return SourcesEvent(WebSource.listFrom(data['sources']));
+      case 'focus':
+        // #406/#410. Which single figure the answer's sentence is about, sent
+        // straight after the artifact it points at. A frame that does not name
+        // both is dropped: a guessed focus is the thing this event replaced.
+        final artifactId = data['artifactId'];
+        final index = data['index'];
+        if (artifactId is! String || index is! int || index < 0) return null;
+        return FocusEvent(artifactId: artifactId, index: index);
+      case 'notice':
+        // #410. The same fact the prose already carries, without the English:
+        // an answer that ran out of lookups, time, or had its tool calls
+        // refused. A code this build has never heard of still renders — the
+        // component's default sentence is the one the server also wrote into
+        // the prose, so an unknown reason degrades to a true statement rather
+        // than to nothing.
+        return NoticeEvent(
+          code: AnswerNoticeCode.parse(data['code']),
+          message: str('message', ''),
+        );
       case 'usage':
         final cost = data['costCents'];
         return UsageEvent(
@@ -233,6 +252,61 @@ class WebSource {
 class SourcesEvent extends AssistantEvent {
   const SourcesEvent(this.sources);
   final List<WebSource> sources;
+}
+
+/// The one figure in an artifact that the answer's sentence is about.
+///
+/// **The server's choice**, because the server is the only side that knows
+/// which way "worst" runs for the metric (`SENTIMENT` in `figures.ts`): the
+/// app used to guess from the biggest or the first bar, which is right for
+/// stock-outs and wrong for sell-in change. At most one per artifact, and not
+/// every artifact gets one — and when none does, nothing is lit.
+class FocusEvent extends AssistantEvent {
+  const FocusEvent({required this.artifactId, required this.index});
+
+  final String artifactId;
+  final int index;
+}
+
+/// Why an answer stopped short of everything it was asked (#410).
+///
+/// A closed vocabulary on the wire, and a closed enum here — with
+/// [AnswerNoticeCode.unknown] for the code a later server sends that this
+/// build has not been taught. An unknown reason is still a real notice: the
+/// answer really did stop short, and saying so with the general sentence is
+/// more honest than saying nothing because the reason did not parse.
+enum AnswerNoticeCode {
+  /// The lookup (round or cost) budget ran out.
+  lookupBudget,
+
+  /// The 120s wall-clock budget ran out.
+  timeBudget,
+
+  /// The provider ignored `toolChoice: 'none'` and its calls were not run.
+  toolCallRefused,
+
+  /// A code this build does not know.
+  unknown;
+
+  static AnswerNoticeCode parse(dynamic raw) => switch (raw) {
+    'lookup_budget' => AnswerNoticeCode.lookupBudget,
+    'time_budget' => AnswerNoticeCode.timeBudget,
+    'tool_call_refused' => AnswerNoticeCode.toolCallRefused,
+    _ => AnswerNoticeCode.unknown,
+  };
+}
+
+/// The turn ran out of something. At most one per turn, after the sources.
+class NoticeEvent extends AssistantEvent {
+  const NoticeEvent({required this.code, required this.message});
+
+  final AnswerNoticeCode code;
+
+  /// The server's own English sentence. Held as a fallback only: the client
+  /// renders its own localised text for every code it knows, because the
+  /// wire's copy is not translated and this notice is read by managers who
+  /// set their phone to Afrikaans.
+  final String message;
 }
 
 class UsageEvent extends AssistantEvent {

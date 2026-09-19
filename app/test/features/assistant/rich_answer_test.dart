@@ -1,93 +1,38 @@
-import 'dart:async';
-
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_palette.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/features/assistant/answer/answer_motion.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/figure/meter.dart';
 import 'package:tradeiq_app/features/assistant/answer/answer_view.dart';
+import 'package:tradeiq_app/features/assistant/answer/ask_turn.dart';
 import 'package:tradeiq_app/features/assistant/answer/web_sources.dart';
 import 'package:tradeiq_app/features/assistant/answer/working_steps.dart';
 import 'package:tradeiq_app/features/assistant/data/assistant_events.dart';
-import 'package:tradeiq_app/features/assistant/data/assistant_repository.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
-import 'package:tradeiq_app/features/assistant/presentation/chat_screen.dart';
-import 'package:tradeiq_app/features/assistant/view_specs/stat_tiles_card.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
 
-import '../../helpers/routed_app.dart';
+import 'ask_harness.dart';
 
-/// A repository whose first turn is driven event by event from the test, so
-/// the screen can be inspected mid-stream. Later turns end at once.
-class LiveRepository implements AssistantRepository {
-  final List<String> sent = [];
-  StreamController<AssistantEvent>? _turn;
-
-  @override
-  Stream<AssistantEvent> chat({
-    required String message,
-    List<ChatHistoryEntry> history = const [],
-    String? conversationId,
-    CancelToken? cancelToken,
-  }) {
-    sent.add(message);
-    if (_turn != null) return Stream.fromIterable(const [DoneEvent()]);
-    _turn = StreamController<AssistantEvent>();
-    return _turn!.stream;
-  }
-
-  void emit(AssistantEvent event) => _turn!.add(event);
-  Future<void> close() => _turn!.close();
-}
-
-/// A clock the test steps by hand.
-class StepClock {
-  DateTime now = DateTime.utc(2026, 9, 1, 9);
-  void advance(int ms) => now = now.add(Duration(milliseconds: ms));
-  DateTime call() => now;
-}
-
+/// The route with one question asked and its turn left open, so the test can
+/// drive the answer event by event. Tall enough that nothing needs scrolling.
 Future<(LiveRepository, StepClock)> pumpLive(
   WidgetTester tester, {
-  ThemeData? theme,
-  bool disableAnimations = false,
+  TiqSkin? skin,
+  bool disableAnimations = true,
 }) async {
-  tester.view.physicalSize = const Size(1400, 2400);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-
   final repository = LiveRepository();
   final clock = StepClock();
-  Widget app = routedApp(
-    const AssistantChatScreen(),
-    theme: theme ?? AppTheme.dark(),
-    overrides: [
-      assistantRepositoryProvider.overrideWithValue(repository),
-      assistantClockProvider.overrideWithValue(clock.call),
-    ],
+  await pumpAsk(
+    tester,
+    repository: repository,
+    clock: clock,
+    skin: skin,
+    size: const Size(360, 2400),
+    disableAnimations: disableAnimations,
+    settle: disableAnimations,
   );
-  if (disableAnimations) {
-    app = MediaQuery(
-      data: const MediaQueryData(disableAnimations: true),
-      child: app,
-    );
-  }
-  await tester.pumpWidget(app);
-  await tester.pumpAndSettle();
-
-  await tester.enterText(find.byType(TextField), 'How did Gauteng do?');
-  await tester.testTextInput.receiveAction(TextInputAction.send);
-  await tester.pump();
+  await ask(tester, 'How did Gauteng do?', settle: false);
   return (repository, clock);
 }
-
-/// Every string a reader can currently see in rich text.
-String screenText(WidgetTester tester) => tester
-    .widgetList<RichText>(find.byType(RichText))
-    .map((w) => w.text.toPlainText())
-    .join('\n');
 
 const _answer = '''Gauteng is **down 12.4%** on last August.
 
@@ -107,56 +52,113 @@ Something a fourth time
 
 void main() {
   group('working steps', () {
-    testWidgets('pending, then done, then failed, then the summary', (
+    testWidgets('running, then done, then failed, then the summary', (
       tester,
     ) async {
       final (repo, clock) = await pumpLive(tester);
+      // Before the first lookup the rail stands in the gap under the
+      // question, header only, so the send never looks dropped.
+      await pumpEvent(tester);
+      expect(find.text('Reading your question'), findsOneWidget);
 
       repo.emit(
         const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
       );
-      await tester.pump();
-      expect(find.text('Sell-in'), findsOneWidget);
-      expect(find.byKey(const ValueKey('step-pending')), findsOneWidget);
-      expect(find.text('Working on it…'), findsOneWidget);
+      await pumpEvent(tester);
+      // The running step carries the word, whatever the dot is doing.
+      expect(find.text('Sell-in · Live'), findsOneWidget);
+      expect(find.text('Looking things up'), findsOneWidget);
 
-      clock.advance(600);
+      clock.advance(const Duration(milliseconds: 600));
       repo.emit(const ToolEndEvent(name: 'getSalesPerformance', ok: true));
-      await tester.pump();
-      expect(find.byKey(const ValueKey('step-done')), findsOneWidget);
-      expect(find.text('0.6s'), findsOneWidget);
+      await pumpEvent(tester);
+      expect(find.text('Sell-in'), findsOneWidget);
+      expect(screenText(tester), contains('0.6'));
 
       repo.emit(const ToolStartEvent(name: 'getStockLevels', pillar: 'stock'));
-      await tester.pump();
-      clock.advance(1200);
+      await pumpEvent(tester);
+      clock.advance(const Duration(milliseconds: 1200));
       repo.emit(const ToolEndEvent(name: 'getStockLevels', ok: false));
-      await tester.pump();
-      expect(find.byKey(const ValueKey('step-failed')), findsOneWidget);
+      await pumpEvent(tester);
       expect(find.text('Stock on shelf — unavailable'), findsOneWidget);
-      expect(find.text('1.2s'), findsOneWidget);
-      // Still streaming: the summary waits for the answer to finish.
-      expect(find.text('Working on it…'), findsOneWidget);
+      expect(screenText(tester), contains('1.2'));
+      // Every tool is done and no token has come: the header says so.
+      expect(find.text('Writing the answer'), findsOneWidget);
 
       repo.emit(const TokenEvent('Down 12%.'));
       repo.emit(const DoneEvent());
       await repo.close();
       await tester.pumpAndSettle();
 
-      expect(find.byType(WorkingSteps), findsOneWidget);
+      // Collapsed to one provenance row when the answer lands.
+      expect(find.byType(WorkingSteps), findsNothing);
       expect(
         find.text('Checked 1 source · 1 unavailable · 1.8s'),
         findsOneWidget,
       );
     });
 
+    testWidgets('a silent step says so at 12s, and offers Stop at 30s', (
+      tester,
+    ) async {
+      final (repo, clock) = await pumpLive(tester);
+      repo.emit(const ToolStartEvent(name: 'getStockLevels', pillar: 'stock'));
+      await pumpEvent(tester);
+      expect(
+        find.byKey(const ValueKey<String>('working-steps-stalled')),
+        findsNothing,
+      );
+
+      // Wall clock from the last event, measured on the phone.
+      clock.advance(const Duration(seconds: 12));
+      await tester.pump(const Duration(seconds: 12));
+      expect(find.text('This one is taking a while'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('working-steps-stop')),
+        findsNothing,
+      );
+
+      clock.advance(const Duration(seconds: 18));
+      await tester.pump(const Duration(seconds: 18));
+      final stop = find.byKey(const ValueKey<String>('working-steps-stop'));
+      expect(stop, findsOneWidget);
+
+      await tester.tap(stop);
+      await tester.pumpAndSettle();
+      // Stop keeps what was written, and is not an error.
+      expect(find.byType(WorkingSteps), findsNothing);
+      expect(screenText(tester), contains('Stopped.'));
+      await repo.close();
+      await disposeAsk(tester);
+    });
+
+    testWidgets('an event resets the silence', (tester) async {
+      final (repo, clock) = await pumpLive(tester);
+      repo.emit(const ToolStartEvent(name: 'getStockLevels', pillar: 'stock'));
+      await pumpEvent(tester);
+      clock.advance(const Duration(seconds: 11));
+      await tester.pump(const Duration(seconds: 11));
+      repo.emit(const ToolEndEvent(name: 'getStockLevels', ok: true));
+      repo.emit(const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'));
+      await pumpEvent(tester);
+      clock.advance(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('This one is taking a while'), findsNothing);
+
+      repo.emit(const DoneEvent());
+      await repo.close();
+      await tester.pumpAndSettle();
+      await disposeAsk(tester);
+    });
+
     testWidgets('the summary of a clean run', (tester) async {
       final (repo, clock) = await pumpLive(tester);
       for (final name in ['getSalesPerformance', 'getStockLevels']) {
         repo.emit(ToolStartEvent(name: name, pillar: 'sales'));
-        await tester.pump();
-        clock.advance(1000);
+        await pumpEvent(tester);
+        clock.advance(const Duration(milliseconds: 1000));
         repo.emit(ToolEndEvent(name: name, ok: true));
-        await tester.pump();
+        await pumpEvent(tester);
       }
       repo.emit(const TokenEvent('Fine.'));
       repo.emit(const DoneEvent());
@@ -250,11 +252,11 @@ void main() {
     testWidgets('a sources event lands under the answer', (tester) async {
       final (repo, _) = await pumpLive(tester);
       repo.emit(const ToolStartEvent(name: 'webSearch', pillar: 'web'));
-      await tester.pump();
-      expect(find.text('Searching the web'), findsOneWidget);
+      await pumpEvent(tester);
+      expect(find.text('Searching the web · Live'), findsOneWidget);
       repo.emit(const ToolEndEvent(name: 'webSearch', ok: true));
       repo.emit(const TokenEvent('Shoprite opened three stores.'));
-      await tester.pump();
+      await pumpEvent(tester);
       expect(find.byType(WebSources), findsNothing);
 
       repo.emit(
@@ -283,8 +285,8 @@ void main() {
       repo.emit(
         const ToolStartEvent(name: 'getEconomicContext', pillar: 'context'),
       );
-      await tester.pump();
-      expect(find.text('Economy'), findsOneWidget);
+      await pumpEvent(tester);
+      expect(find.text('Economy · Live'), findsOneWidget);
       repo.emit(const ToolEndEvent(name: 'getEconomicContext', ok: true));
       repo.emit(const TokenEvent('Food inflation eased to 0.9%.'));
       repo.emit(
@@ -331,7 +333,7 @@ void main() {
     ) async {
       final (repo, _) = await pumpLive(tester);
       repo.emit(const TokenEvent('Gauteng is **down'));
-      await tester.pump();
+      await pumpEvent(tester);
 
       expect(find.byType(StreamingCaret), findsOneWidget);
       // The unclosed marker is hidden, never printed.
@@ -351,11 +353,11 @@ void main() {
     testWidgets('an error removes the caret', (tester) async {
       final (repo, _) = await pumpLive(tester);
       repo.emit(const TokenEvent('Gauteng is'));
-      await tester.pump();
+      await pumpEvent(tester);
       expect(find.byType(StreamingCaret), findsOneWidget);
 
       repo.emit(const ErrorEvent(code: 'x', message: 'The assistant is busy.'));
-      await tester.pump();
+      await pumpEvent(tester);
       expect(find.byType(StreamingCaret), findsNothing);
       await repo.close();
       await tester.pumpAndSettle();
@@ -396,7 +398,7 @@ void main() {
         repo.emit(
           const TokenEvent('Down 12%.\n\n```followups\nShow Soweto outlets'),
         );
-        await tester.pump();
+        await pumpEvent(tester);
 
         expect(find.byType(FollowUpChips), findsNothing);
         expect(screenText(tester), isNot(contains('`')));
@@ -437,8 +439,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.sent.last, 'Which agents cover Soweto?');
-      // It lands in the transcript as the manager's own turn.
-      expect(find.text('Which agents cover Soweto?'), findsOneWidget);
+      // It lands in the transcript as the manager's own turn — identical in
+      // every way to typing it.
+      expect(
+        find.descendant(
+          of: find.byType(QuestionBubble),
+          matching: find.textContaining('Which agents cover Soweto?'),
+        ),
+        findsOneWidget,
+      );
     });
   });
 
@@ -452,10 +461,13 @@ void main() {
       await repo.close();
       await tester.pumpAndSettle();
 
-      final callout = find.byType(InsightCallout);
+      final callout = find.byType(AskCallout);
       expect(callout, findsOneWidget);
-      expect(tester.widget<InsightCallout>(callout).kicker, 'What explains it');
-      expect(find.text('WHAT EXPLAINS IT'), findsOneWidget);
+      expect(tester.widget<AskCallout>(callout).kicker, 'What explains it');
+      // A section rule in sentence case — never an uppercase eyebrow, and
+      // never a warn-washed box that reads as a warning.
+      expect(find.text('What explains it'), findsOneWidget);
+      expect(find.text('WHAT EXPLAINS IT'), findsNothing);
       expect(
         screenText(tester),
         contains('The 500ml was out of stock at 5 outlets.'),
@@ -471,19 +483,18 @@ void main() {
       await repo.close();
       await tester.pumpAndSettle();
 
-      expect(find.byType(InsightCallout), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('insight-callout-kicker')),
-        findsNothing,
-      );
+      expect(find.byType(AskCallout), findsOneWidget);
+      expect(tester.widget<AskCallout>(find.byType(AskCallout)).kicker, isNull);
+      // The rule takes its standing name.
+      expect(find.text('What explains it'), findsOneWidget);
       expect(screenText(tester), contains('Cola ran out at 5 outlets.'));
     });
   });
 
-  testWidgets('cards are laid out by type: tiles, then the rest, then bars', (
+  testWidgets('cards are laid out by type: tiles, then bars, then the rest', (
     tester,
   ) async {
-    final (repo, _) = await pumpLive(tester, theme: AppTheme.light());
+    final (repo, _) = await pumpLive(tester);
     // The server's real order: the tool's own card, then its tiles and bars.
     repo.emit(
       const ArtifactEvent(
@@ -528,7 +539,9 @@ void main() {
         .widgetList<ArtifactView>(find.byType(ArtifactView))
         .map((v) => v.artifact.type)
         .toList();
-    expect(types, ['stat_tiles', 'pillar_metrics', 'ranked_bars']);
+    // The direction's order: the ranking above everything else, so the
+    // headline figures are followed by the list the sentence is about.
+    expect(types, ['stat_tiles', 'ranked_bars', 'pillar_metrics']);
     double top(String type) => tester
         .getTopLeft(
           find.byWidgetPredicate(
@@ -536,8 +549,8 @@ void main() {
           ),
         )
         .dy;
-    expect(top('stat_tiles'), lessThan(top('pillar_metrics')));
-    expect(top('pillar_metrics'), lessThan(top('ranked_bars')));
+    expect(top('stat_tiles'), lessThan(top('ranked_bars')));
+    expect(top('ranked_bars'), lessThan(top('pillar_metrics')));
     expect(find.text('Expand'), findsNothing);
   });
 
@@ -550,10 +563,10 @@ void main() {
     };
 
     Future<void> run(WidgetTester tester, List<AssistantEvent> events) async {
-      final (repo, _) = await pumpLive(tester, theme: AppTheme.light());
+      final (repo, _) = await pumpLive(tester);
       for (final event in events) {
         repo.emit(event);
-        await tester.pump();
+        await pumpEvent(tester);
       }
       repo.emit(const TokenEvent('Stock is tight.'));
       repo.emit(const DoneEvent());
@@ -658,7 +671,7 @@ void main() {
     (tester) async {
       // The norm until the prompt change lands: the model bolds and lists, but
       // writes no headline sentence, callout or follow-ups.
-      final (repo, _) = await pumpLive(tester, theme: AppTheme.light());
+      final (repo, _) = await pumpLive(tester);
       repo.emit(
         const ArtifactEvent(
           id: 'getStockLevels-stat_tiles-1',
@@ -685,7 +698,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.byType(InsightCallout), findsNothing);
+      expect(find.byType(AskCallout), findsNothing);
       expect(find.byType(FollowUpChips), findsNothing);
       final views = tester.widgetList<AnswerBlockView>(
         find.byType(AnswerBlockView),
@@ -708,18 +721,19 @@ void main() {
     },
   );
 
-  testWidgets('a legacy plain reply renders exactly as before', (tester) async {
-    final (repo, _) = await pumpLive(tester, theme: AppTheme.light());
+  testWidgets('a legacy plain reply renders as one selectable run', (
+    tester,
+  ) async {
+    final (repo, _) = await pumpLive(tester);
     repo.emit(const TokenEvent('Tumo is up 6 points.\n\nThat is good.'));
     repo.emit(const DoneEvent());
     await repo.close();
     await tester.pumpAndSettle();
 
-    // One selectable run, in the old style, and none of the new layout.
-    final text = tester.widget<SelectableText>(find.byType(SelectableText));
-    expect(text.data, 'Tumo is up 6 points.\n\nThat is good.');
-    expect(text.style!.fontSize, 13.5);
-    expect(text.style!.color, LumenPalette.light.ink);
+    // One selectable run, and none of the new layout.
+    expect(find.byType(PlainAnswer), findsOneWidget);
+    expect(screenText(tester), contains('Tumo is up 6 points.'));
+    expect(screenText(tester), contains('That is good.'));
     expect(find.byType(RichAnswer), findsNothing);
     expect(find.byType(WorkingSteps), findsNothing);
     expect(find.byType(FollowUpChips), findsNothing);
@@ -748,17 +762,16 @@ void main() {
     );
     repo.emit(const TokenEvent('Gauteng is **down**.\n\n- one'));
     // A single frame: no tween may stand between the data and the screen.
-    await tester.pump();
+    await pumpEvent(tester);
 
-    expect(find.text('48,210'), findsOneWidget);
-    expect(
-      tester
-          .widget<FractionallySizedBox>(
-            find.byKey(const ValueKey('stat-tile-meter-fill')),
-          )
-          .widthFactor,
-      closeTo(0.81, 1e-9),
+    expect(screenText(tester), contains('48,210'));
+    final meter = tester.widget<CustomPaint>(
+      find.descendant(
+        of: find.byType(Meter),
+        matching: find.byType(CustomPaint),
+      ),
     );
+    expect((meter.painter! as MeterPainter).fraction, closeTo(0.81, 1e-9));
     for (final opacity in tester.widgetList<Opacity>(
       find.descendant(
         of: find.byType(RichAnswer),
@@ -773,68 +786,4 @@ void main() {
     await repo.close();
     await tester.pumpAndSettle();
   });
-
-  for (final (name, theme, palette, colors) in [
-    ('light', AppTheme.light(), LumenPalette.light, TiqColors.light),
-    ('night', AppTheme.dark(), LumenPalette.dark, TiqColors.night),
-  ]) {
-    testWidgets('$name: the full answer draws in its Lumen tokens', (
-      tester,
-    ) async {
-      final (repo, clock) = await pumpLive(tester, theme: theme);
-      repo.emit(
-        const ToolStartEvent(name: 'getSalesPerformance', pillar: 'sales'),
-      );
-      await tester.pump();
-      clock.advance(400);
-      repo.emit(const ToolEndEvent(name: 'getSalesPerformance', ok: true));
-      await tester.pump();
-      repo.emit(
-        const ArtifactEvent(
-          id: 'stat-1',
-          type: 'stat_tiles',
-          params: {},
-          data: {
-            'tiles': [
-              {
-                'label': 'Sell-in, units',
-                'value': 48210,
-                'unit': 'units',
-                'delta': {
-                  'value': 12.4,
-                  'unit': 'pct',
-                  'direction': 'down',
-                  'sentiment': 'bad',
-                },
-              },
-            ],
-          },
-        ),
-      );
-      repo.emit(const TokenEvent(_answer));
-      repo.emit(const DoneEvent());
-      await repo.close();
-      await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull);
-      expect(find.byType(StatTilesCard), findsOneWidget);
-      expect(find.text('▼ 12.4%'), findsOneWidget);
-      expect(
-        tester.widget<Text>(find.text('▼ 12.4%')).style!.color,
-        palette.critical,
-      );
-      expect(find.text('Checked 1 source · 0.4s'), findsOneWidget);
-
-      final headline = tester
-          .widgetList<RichText>(find.byType(RichText))
-          .firstWhere((w) => w.text.toPlainText().startsWith('Gauteng is'));
-      expect(headline.text.style!.color, palette.ink);
-      // The callout is washed in the theme's warn.
-      final callout = tester.widget<Container>(
-        find.byKey(const ValueKey('insight-callout')),
-      );
-      final border = (callout.decoration! as BoxDecoration).border! as Border;
-      expect(border.top.color, colors.warn.withValues(alpha: 0.30));
-    });
-  }
 }

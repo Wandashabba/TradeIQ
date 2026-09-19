@@ -379,6 +379,15 @@ class TorchSheetRoute<T> extends PopupRoute<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
+    // A sheet is its own route, above the shell's text style: without this
+    // every word in it inherits MaterialApp's yellow-underlined error style.
+    return DefaultTextStyle(
+      style: skin.text.body.style(color: skin.palette.ink1),
+      child: _page(context),
+    );
+  }
+
+  Widget _page(BuildContext context) {
     final media = MediaQuery.of(context);
     // A sheet route has no Material above it, so without this every Text in
     // it inherits the framework's debug fallback — the red-on-yellow double

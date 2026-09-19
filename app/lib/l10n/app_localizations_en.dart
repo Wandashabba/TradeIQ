@@ -1661,6 +1661,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get visitPinIsWrong => 'The pin is wrong';
 
   @override
+  String get visitPinReportedHeld =>
+      'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.';
+
+  @override
   String get visitNoGpsFixPermission =>
       'Allow location for TradeIQ in your phone’s settings. You can allow it just while using the app.';
 
@@ -1997,6 +2001,661 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sheetClose => 'Close';
 
   @override
+  String get askTitle => 'Ask TradeIQ';
+
+  @override
+  String get askHistoryAction => 'History';
+
+  @override
+  String askHistoryActionCount(int count) {
+    return 'History · $count';
+  }
+
+  @override
+  String get askComposerLabel => 'Ask a question';
+
+  @override
+  String get askComposerHint => 'Team, stock, shelf, competitors';
+
+  @override
+  String get askComposerRephrase => 'Ask again, or rephrase';
+
+  @override
+  String get askSend => 'Send this question';
+
+  @override
+  String get askSendUnavailable => 'Send, unavailable, needs a connection';
+
+  @override
+  String get askSendNothingTyped => 'Send, unavailable, nothing typed yet';
+
+  @override
+  String get askStop => 'Stop the answer';
+
+  @override
+  String get askQuestionSent => 'Question sent';
+
+  @override
+  String get askYourQuestion => 'Your question';
+
+  @override
+  String get askEmptyHeadline => 'Ask about your territory.';
+
+  @override
+  String get askEmptyBody =>
+      'I read your sales, stock, shelf and competitor data and explain what I find. I cannot change anything.';
+
+  @override
+  String get askTryOneOfThese => 'Try one of these';
+
+  @override
+  String get askReadOnlyFootnote =>
+      'Read-only. Nothing you ask here changes your data.';
+
+  @override
+  String get askExampleTeam => 'How has my team been performing this month?';
+
+  @override
+  String get askExampleTeamReads => 'reads visit history and scorecards';
+
+  @override
+  String get askExampleStock => 'Which outlets keep running out of stock?';
+
+  @override
+  String get askExampleStockReads => 'reads stock on shelf, worst first';
+
+  @override
+  String get askExampleShelf => 'What is our share of shelf year to date?';
+
+  @override
+  String get askExampleShelfReads => 'reads shelf audits and photos';
+
+  @override
+  String get askExampleFraud => 'Show me any visits that look suspicious.';
+
+  @override
+  String get askExampleFraudReads => 'reads flagged visits and GPS';
+
+  @override
+  String get askSuggestionsGroup => 'Four example questions';
+
+  @override
+  String askSuggestionSemantic(String question, String reads) {
+    return 'Ask: $question This $reads';
+  }
+
+  @override
+  String get askNotEnabledHeadline => 'Not switched on yet.';
+
+  @override
+  String get askNotEnabledBody =>
+      'Ask TradeIQ is being rolled out gradually — speak to your TradeIQ contact to be included.';
+
+  @override
+  String get askStepsLookingUp => 'Looking things up';
+
+  @override
+  String get askStepsWriting => 'Writing the answer';
+
+  @override
+  String get askStepsStillWorking => 'This one is taking a while';
+
+  @override
+  String get askStepsStarting => 'Reading your question';
+
+  @override
+  String askStepsStillWorkingOn(String label) {
+    return 'Still working on $label.';
+  }
+
+  @override
+  String get askStopShort => 'Stop';
+
+  @override
+  String get askNavFloor => 'Floor';
+
+  @override
+  String get askNavWork => 'Work';
+
+  @override
+  String get askNavAsk => 'Ask';
+
+  @override
+  String get askNavMenu => 'Menu';
+
+  @override
+  String get askStepsLive => 'Live';
+
+  @override
+  String askStepsUnavailable(String label) {
+    return '$label — unavailable';
+  }
+
+  @override
+  String askStepsDidNotFinish(String label) {
+    return '$label — did not finish';
+  }
+
+  @override
+  String askStepsMore(int count) {
+    return '$count more';
+  }
+
+  @override
+  String askStepsChecked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Checked $count sources',
+      one: 'Checked 1 source',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askStepsUnavailableCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unavailable',
+      one: '1 unavailable',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askStepsNoneAnswered => 'No sources answered';
+
+  @override
+  String get askStepsShow => 'show the steps';
+
+  @override
+  String get askStepsHide => 'hide the steps';
+
+  @override
+  String askStepsSemantic(String summary, String action) {
+    return '$summary, $action';
+  }
+
+  @override
+  String askStepProgress(int index, int total, String label) {
+    return 'Step $index of $total, $label';
+  }
+
+  @override
+  String get askCallout => 'What explains it';
+
+  @override
+  String get askSources => 'Sources';
+
+  @override
+  String get askSourcesNothingUsable =>
+      'The web search returned nothing usable.';
+
+  @override
+  String askSourcesGroup(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sources, $count items',
+      one: 'Sources, 1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askSourceSemantic(int index, String domain, String title) {
+    return 'Web source $index, $domain, $title, opens in browser';
+  }
+
+  @override
+  String get askSourceOpensInBrowser => 'opens in browser';
+
+  @override
+  String get askSourceUnreachable =>
+      'Could not open a browser. Long-press to copy the address.';
+
+  @override
+  String get askSourceCopied => 'Address copied';
+
+  @override
+  String askSourceCopiedPreview(String snippet) {
+    return 'Address copied. The page says: $snippet';
+  }
+
+  @override
+  String askShowAllSources(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Show all $count sources',
+      one: 'Show 1 source',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askShowAll(int count) {
+    return 'Show all $count';
+  }
+
+  @override
+  String get askNoticeLookupBudget =>
+      'I ran out of lookups for this question, so this answer may be incomplete.';
+
+  @override
+  String get askNoticeTimeBudget =>
+      'I ran out of time on this question, so this answer may be incomplete.';
+
+  @override
+  String get askNoticeToolCallRefused =>
+      'I stopped short of the lookups I planned, so this answer may be incomplete.';
+
+  @override
+  String get askNoticeGeneral => 'This answer may be incomplete.';
+
+  @override
+  String get askNoticeNarrower => 'Ask a narrower follow-up to go further.';
+
+  @override
+  String askNoticeSemantic(String reason, String advice) {
+    return 'Notice: this answer may be incomplete. $reason $advice';
+  }
+
+  @override
+  String get askFigures => 'Figures for this answer';
+
+  @override
+  String get askWorstFirst => 'Worst first';
+
+  @override
+  String get askOverTime => 'Over time';
+
+  @override
+  String get askUnsupportedView =>
+      'This answer includes a view your app version cannot draw yet. The summary above still applies.';
+
+  @override
+  String get askUnprovenancedFigures =>
+      'Figures are not shown for answers that used the web, because this app version cannot tell which came from outside.';
+
+  @override
+  String get askLoadingFigures => 'Loading figures';
+
+  @override
+  String get askLoading => 'Loading';
+
+  @override
+  String askNotEnoughToPlot(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Not enough data to plot — $count periods returned.',
+      one: 'Not enough data to plot — 1 period returned.',
+      zero: 'Not enough data to plot — nothing returned.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askNoComparisonData(String label) {
+    return 'no data for $label';
+  }
+
+  @override
+  String get askChartSolidLine => 'solid line';
+
+  @override
+  String get askChartDashedLine => 'dashed line';
+
+  @override
+  String askLegend(String entries) {
+    return 'Legend: $entries';
+  }
+
+  @override
+  String askLegendEntry(String name, String channel) {
+    return '$name, $channel';
+  }
+
+  @override
+  String askBarSemantic(String name, String value, int index, int total) {
+    return '$name, $value, position $index of $total';
+  }
+
+  @override
+  String get askBarWorst => 'worst';
+
+  @override
+  String get askOutsideData => 'Outside data';
+
+  @override
+  String askOutsideRead(String date) {
+    return 'read $date';
+  }
+
+  @override
+  String askOutsidePublisher(String publisher, String date) {
+    return '$publisher, read $date. Not TradeIQ data, and not added to any total above.';
+  }
+
+  @override
+  String askOutsideUnnamed(String date) {
+    return 'Read from outside TradeIQ on $date. Not TradeIQ data, and not added to any total above.';
+  }
+
+  @override
+  String askOutsideStale(int days) {
+    return '$days days old';
+  }
+
+  @override
+  String get askOutsideFigure => 'outside figure';
+
+  @override
+  String get askTryAgain => 'Try again';
+
+  @override
+  String get askStopped => 'Stopped.';
+
+  @override
+  String get askStoppedSemantic => 'Stopped. The answer is incomplete.';
+
+  @override
+  String get askAskAgain => 'Ask again';
+
+  @override
+  String get askCopyAnswer => 'Copy this answer';
+
+  @override
+  String get askAnswerCopied => 'Answer copied';
+
+  @override
+  String get askAskAgainAnswer => 'Ask this question again';
+
+  @override
+  String get askFailedTwice =>
+      'This has failed twice. It may be the connection rather than the question.';
+
+  @override
+  String askErrorSemantic(String message) {
+    return 'Error. $message';
+  }
+
+  @override
+  String get askOffline => 'No connection — Ask TradeIQ needs one.';
+
+  @override
+  String get askSessionEnded => 'Your session ended. Sign in to ask again.';
+
+  @override
+  String get askSessionEndedSemantic =>
+      'Your session ended. Sign in to ask again. Your answers are still on screen.';
+
+  @override
+  String get askSignIn => 'Sign in';
+
+  @override
+  String get askHeld => 'Held';
+
+  @override
+  String get askHistoryTitle => 'This conversation';
+
+  @override
+  String askHistorySubtitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Held on this device until you leave the screen. $count questions.',
+      one: 'Held on this device until you leave the screen. 1 question.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String askHistoryLimit(int count) {
+    return 'only the last $count are sent with a new question';
+  }
+
+  @override
+  String get askHistoryEmpty => 'Nothing yet.';
+
+  @override
+  String get askHistoryEmptyBody =>
+      'Your questions will be listed here while you are on this screen.';
+
+  @override
+  String askHistoryRowSemantic(String time, String question) {
+    return 'Asked at $time: $question Go to this answer.';
+  }
+
+  @override
+  String get askNow => 'now';
+
+  @override
+  String get askStartOver => 'Start a new conversation';
+
+  @override
+  String get askStartOverTitle => 'Start a new conversation?';
+
+  @override
+  String askStartOverBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'This one is not saved. The $count questions and their answers go.',
+      one: 'This one is not saved. The 1 question and its answer go.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askCarryOn => 'Carry on';
+
+  @override
+  String get askStartOverConfirm => 'Start over';
+
+  @override
+  String get askStartOverMidTurnTitle => 'A question is still being answered.';
+
+  @override
+  String get askStartOverMidTurnBody => 'Starting over will stop it.';
+
+  @override
+  String get askKeepWaiting => 'Keep waiting';
+
+  @override
+  String get askStopAndStartOver => 'Stop and start over';
+
+  @override
+  String get askShowFullQuestion => 'Show the full question';
+
+  @override
+  String askFollowUpSemantic(String question) {
+    return 'Ask: $question';
+  }
+
+  @override
+  String get askFollowUpDisabled =>
+      'unavailable while the answer is being written';
+
+  @override
+  String askSeconds(String seconds) {
+    return '${seconds}s';
+  }
+
+  @override
+  String askPoints(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'pts',
+      one: 'pt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askAnswer => 'Answer';
+
+  @override
+  String get askOpenFullView => 'Open full view';
+
+  @override
+  String askOpenFullViewOf(String name) {
+    return 'Open the full view of $name';
+  }
+
+  @override
+  String get askQuestionCopied => 'Question copied';
+
+  @override
+  String get askTileNoData => 'Nothing measured in this window';
+
+  @override
+  String get askTileUpdatedTo => 'Updated to';
+
+  @override
+  String get askTileUpdatedFrom => 'from';
+
+  @override
+  String askTileUpdatedAt(String time) {
+    return 'Updated at $time.';
+  }
+
+  @override
+  String askTileWasValue(String value, String time) {
+    return 'Was $value at $time.';
+  }
+
+  @override
+  String get askPillarSales => 'Sales';
+
+  @override
+  String get askPillarStock => 'Stock';
+
+  @override
+  String get askPillarVisibility => 'Visibility';
+
+  @override
+  String get askPillarCompetition => 'Competition';
+
+  @override
+  String get askPillarFigures => 'Pillar figures';
+
+  @override
+  String get askPillarNoFigures => 'No figures were returned for this period.';
+
+  @override
+  String askPillarComparedWith(String label) {
+    return 'Change is measured against $label.';
+  }
+
+  @override
+  String get askMetricOsa => 'On-shelf availability';
+
+  @override
+  String get askMetricShareOfShelf => 'Share of shelf';
+
+  @override
+  String get askMetricVisibility => 'Visibility compliance';
+
+  @override
+  String get askMetricPrice => 'Price compliance';
+
+  @override
+  String get askMetricAttainment => 'Attainment';
+
+  @override
+  String get askMetricRateOfSale => 'Rate of sale';
+
+  @override
+  String get askMetricOutletsWithStockout => 'Outlets with a stockout';
+
+  @override
+  String get askMetricOutOfStockLines => 'Out-of-stock lines';
+
+  @override
+  String get askMetricLinesObserved => 'Lines observed';
+
+  @override
+  String get askMetricCompetitorFacings => 'Competitor facings';
+
+  @override
+  String get askMetricExecutionScore => 'Execution score';
+
+  @override
+  String get askMetricPerfectStore => 'Perfect-store rate';
+
+  @override
+  String get askScorecardTitle => 'Agent scorecard';
+
+  @override
+  String askScorecardScored(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count scored visits',
+      one: '1 scored visit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askScorecardAverage => 'Average score';
+
+  @override
+  String get askScorecardTeam => 'Team average';
+
+  @override
+  String get askScorecardNoTeam =>
+      'No other agent has a scored visit in this period.';
+
+  @override
+  String get askScorecardVisits => 'Visits';
+
+  @override
+  String get askScorecardOutlets => 'Outlets';
+
+  @override
+  String get askScorecardVsTeam => 'vs team';
+
+  @override
+  String get askMapTitle => 'Outlets with stockouts';
+
+  @override
+  String askMapCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count outlets',
+      one: '1 outlet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askMapUnreadable =>
+      'The outlet locations for this answer could not be read. The summary above still applies.';
+
+  @override
+  String askMapPin(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lines',
+      one: '1 line',
+    );
+    return '$name, $_temp0 out of stock';
+  }
+
+  @override
+  String get askMapNotInVeld =>
+      'Maps are not drawn in Veld. The outlets are listed instead.';
+
+  @override
   String get visitPinTooFarToReport =>
       'This is too far to report the pin from here. Ask your manager to correct this store.';
 
@@ -2091,10 +2750,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String visitFlagSheetBody(int meters) {
     return 'You were $meters m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.';
   }
-
-  @override
-  String get visitPinReportedHeld =>
-      'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.';
 
   @override
   String get wordYes => 'Yes';

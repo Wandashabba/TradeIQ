@@ -2708,6 +2708,12 @@ abstract class AppLocalizations {
   /// **'The pin is wrong'**
   String get visitPinIsWrong;
 
+  /// Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.'**
+  String get visitPinReportedHeld;
+
   /// The fix, as its own paragraph, when location permission was denied.
   ///
   /// In en, this message translates to:
@@ -3164,6 +3170,984 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get sheetClose;
 
+  /// The Ask TradeIQ route's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask TradeIQ'**
+  String get askTitle;
+
+  /// Opens the conversation history sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get askHistoryAction;
+
+  /// History with the number of questions in this session.
+  ///
+  /// In en, this message translates to:
+  /// **'History · {count}'**
+  String askHistoryActionCount(int count);
+
+  /// The standing label above the composer trough. It never moves.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask a question'**
+  String get askComposerLabel;
+
+  /// Placeholder inside the empty composer.
+  ///
+  /// In en, this message translates to:
+  /// **'Team, stock, shelf, competitors'**
+  String get askComposerHint;
+
+  /// Replaces the composer label after a failed turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask again, or rephrase'**
+  String get askComposerRephrase;
+
+  /// The composer's commit action.
+  ///
+  /// In en, this message translates to:
+  /// **'Send this question'**
+  String get askSend;
+
+  /// Spoken when Send is disabled offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Send, unavailable, needs a connection'**
+  String get askSendUnavailable;
+
+  /// Spoken when Send is disabled because the trough is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Send, unavailable, nothing typed yet'**
+  String get askSendNothingTyped;
+
+  /// Replaces Send while a turn streams.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the answer'**
+  String get askStop;
+
+  /// Announced when a question is sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Question sent'**
+  String get askQuestionSent;
+
+  /// Semantics label on the question bubble.
+  ///
+  /// In en, this message translates to:
+  /// **'Your question'**
+  String get askYourQuestion;
+
+  /// First-run headline.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about your territory.'**
+  String get askEmptyHeadline;
+
+  /// First-run body — says plainly that the assistant is read-only.
+  ///
+  /// In en, this message translates to:
+  /// **'I read your sales, stock, shelf and competitor data and explain what I find. I cannot change anything.'**
+  String get askEmptyBody;
+
+  /// Section rule above the example questions.
+  ///
+  /// In en, this message translates to:
+  /// **'Try one of these'**
+  String get askTryOneOfThese;
+
+  /// Closing line of the first-run screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only. Nothing you ask here changes your data.'**
+  String get askReadOnlyFootnote;
+
+  /// First-run example question.
+  ///
+  /// In en, this message translates to:
+  /// **'How has my team been performing this month?'**
+  String get askExampleTeam;
+
+  /// What the team example question will actually read.
+  ///
+  /// In en, this message translates to:
+  /// **'reads visit history and scorecards'**
+  String get askExampleTeamReads;
+
+  /// First-run example question.
+  ///
+  /// In en, this message translates to:
+  /// **'Which outlets keep running out of stock?'**
+  String get askExampleStock;
+
+  /// What the stock example question will actually read.
+  ///
+  /// In en, this message translates to:
+  /// **'reads stock on shelf, worst first'**
+  String get askExampleStockReads;
+
+  /// First-run example question.
+  ///
+  /// In en, this message translates to:
+  /// **'What is our share of shelf year to date?'**
+  String get askExampleShelf;
+
+  /// What the shelf example question will actually read.
+  ///
+  /// In en, this message translates to:
+  /// **'reads shelf audits and photos'**
+  String get askExampleShelfReads;
+
+  /// First-run example question.
+  ///
+  /// In en, this message translates to:
+  /// **'Show me any visits that look suspicious.'**
+  String get askExampleFraud;
+
+  /// What the fraud example question will actually read.
+  ///
+  /// In en, this message translates to:
+  /// **'reads flagged visits and GPS'**
+  String get askExampleFraudReads;
+
+  /// Semantics label for the first-run suggestion group.
+  ///
+  /// In en, this message translates to:
+  /// **'Four example questions'**
+  String get askSuggestionsGroup;
+
+  /// Spoken label of a first-run suggestion row; the second line is the teaching.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask: {question} This {reads}'**
+  String askSuggestionSemantic(String question, String reads);
+
+  /// Shown when the tenant is outside the rollout.
+  ///
+  /// In en, this message translates to:
+  /// **'Not switched on yet.'**
+  String get askNotEnabledHeadline;
+
+  /// Names who can actually act, because a client admin cannot switch this on.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask TradeIQ is being rolled out gradually — speak to your TradeIQ contact to be included.'**
+  String get askNotEnabledBody;
+
+  /// The working-steps rail header while tools run.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking things up'**
+  String get askStepsLookingUp;
+
+  /// The rail header once every tool has finished.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing the answer'**
+  String get askStepsWriting;
+
+  /// Shown under a step that has run for more than twelve seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'This one is taking a while'**
+  String get askStepsStillWorking;
+
+  /// The rail header before the first lookup starts: the model is deciding what to look up.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your question'**
+  String get askStepsStarting;
+
+  /// Announced once to a screen reader when a step has been silent for twelve seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Still working on {label}.'**
+  String askStepsStillWorkingOn(String label);
+
+  /// The ghost button offered under the rail after thirty silent seconds. Stopping keeps what is already written.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get askStopShort;
+
+  /// Manager nav slot 1: The Floor, the dashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Floor'**
+  String get askNavFloor;
+
+  /// Manager nav slot 2: alerts and tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get askNavWork;
+
+  /// Manager nav slot 3: Ask TradeIQ.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get askNavAsk;
+
+  /// Manager nav slot 4: everything else.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu'**
+  String get askNavMenu;
+
+  /// The word that carries the live pulse when it is not amber, and under reduce-motion.
+  ///
+  /// In en, this message translates to:
+  /// **'Live'**
+  String get askStepsLive;
+
+  /// A step whose source did not answer.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} — unavailable'**
+  String askStepsUnavailable(String label);
+
+  /// A step still open when the stream ended.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} — did not finish'**
+  String askStepsDidNotFinish(String label);
+
+  /// The collapsed middle of a rail with more than eight steps.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more'**
+  String askStepsMore(int count);
+
+  /// The collapsed provenance row.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Checked 1 source} other{Checked {count} sources}}'**
+  String askStepsChecked(int count);
+
+  /// How many sources did not answer.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 unavailable} other{{count} unavailable}}'**
+  String askStepsUnavailableCount(int count);
+
+  /// Every tool failed — the explanation for a thin answer.
+  ///
+  /// In en, this message translates to:
+  /// **'No sources answered'**
+  String get askStepsNoneAnswered;
+
+  /// The collapsed provenance row's action, spoken.
+  ///
+  /// In en, this message translates to:
+  /// **'show the steps'**
+  String get askStepsShow;
+
+  /// The expanded provenance row's action, spoken.
+  ///
+  /// In en, this message translates to:
+  /// **'hide the steps'**
+  String get askStepsHide;
+
+  /// Spoken label of the provenance row.
+  ///
+  /// In en, this message translates to:
+  /// **'{summary}, {action}'**
+  String askStepsSemantic(String summary, String action);
+
+  /// Announced by the rail's live region as a step changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {index} of {total}, {label}'**
+  String askStepProgress(int index, int total, String label);
+
+  /// The section rule above the answer's one cause.
+  ///
+  /// In en, this message translates to:
+  /// **'What explains it'**
+  String get askCallout;
+
+  /// The section rule above the cited pages.
+  ///
+  /// In en, this message translates to:
+  /// **'Sources'**
+  String get askSources;
+
+  /// Shown when a search ran and cited nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'The web search returned nothing usable.'**
+  String get askSourcesNothingUsable;
+
+  /// Semantics label for the sources group.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Sources, 1 item} other{Sources, {count} items}}'**
+  String askSourcesGroup(int count);
+
+  /// Spoken label of one cited page.
+  ///
+  /// In en, this message translates to:
+  /// **'Web source {index}, {domain}, {title}, opens in browser'**
+  String askSourceSemantic(int index, String domain, String title);
+
+  /// The source row's third line.
+  ///
+  /// In en, this message translates to:
+  /// **'opens in browser'**
+  String get askSourceOpensInBrowser;
+
+  /// Shown on a source row whose launch the platform refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open a browser. Long-press to copy the address.'**
+  String get askSourceUnreachable;
+
+  /// Toast after long-pressing a source row.
+  ///
+  /// In en, this message translates to:
+  /// **'Address copied'**
+  String get askSourceCopied;
+
+  /// Toast after long-pressing a source row whose search result carried a preview. The preview is the page's own words, in plain text.
+  ///
+  /// In en, this message translates to:
+  /// **'Address copied. The page says: {snippet}'**
+  String askSourceCopiedPreview(String snippet);
+
+  /// Expands the cited sources list in place.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Show 1 source} other{Show all {count} sources}}'**
+  String askShowAllSources(int count);
+
+  /// Expands a ranked list in place.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all {count}'**
+  String askShowAll(int count);
+
+  /// The incomplete notice when the lookup budget ran out.
+  ///
+  /// In en, this message translates to:
+  /// **'I ran out of lookups for this question, so this answer may be incomplete.'**
+  String get askNoticeLookupBudget;
+
+  /// The incomplete notice when the time budget ran out.
+  ///
+  /// In en, this message translates to:
+  /// **'I ran out of time on this question, so this answer may be incomplete.'**
+  String get askNoticeTimeBudget;
+
+  /// The incomplete notice when the provider's extra tool calls were refused.
+  ///
+  /// In en, this message translates to:
+  /// **'I stopped short of the lookups I planned, so this answer may be incomplete.'**
+  String get askNoticeToolCallRefused;
+
+  /// The incomplete notice for a reason this build does not know.
+  ///
+  /// In en, this message translates to:
+  /// **'This answer may be incomplete.'**
+  String get askNoticeGeneral;
+
+  /// The incomplete notice's second line.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask a narrower follow-up to go further.'**
+  String get askNoticeNarrower;
+
+  /// Spoken label of the incomplete notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Notice: this answer may be incomplete. {reason} {advice}'**
+  String askNoticeSemantic(String reason, String advice);
+
+  /// Semantics label of the instrument panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Figures for this answer'**
+  String get askFigures;
+
+  /// Block label above the ranked bars.
+  ///
+  /// In en, this message translates to:
+  /// **'Worst first'**
+  String get askWorstFirst;
+
+  /// Block label above the trend chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Over time'**
+  String get askOverTime;
+
+  /// Shown in place of a view spec this build cannot render.
+  ///
+  /// In en, this message translates to:
+  /// **'This answer includes a view your app version cannot draw yet. The summary above still applies.'**
+  String get askUnsupportedView;
+
+  /// Why a web-touched turn's panel was dropped.
+  ///
+  /// In en, this message translates to:
+  /// **'Figures are not shown for answers that used the web, because this app version cannot tell which came from outside.'**
+  String get askUnprovenancedFigures;
+
+  /// Semantics label of the artifact skeleton.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading figures'**
+  String get askLoadingFigures;
+
+  /// Veld has no skeleton — one word instead.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading'**
+  String get askLoading;
+
+  /// Replaces a plot with fewer than two readable points.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Not enough data to plot — nothing returned.} =1{Not enough data to plot — 1 period returned.} other{Not enough data to plot — {count} periods returned.}}'**
+  String askNotEnoughToPlot(int count);
+
+  /// A comparison was asked for and the earlier window had none.
+  ///
+  /// In en, this message translates to:
+  /// **'no data for {label}'**
+  String askNoComparisonData(String label);
+
+  /// The legend names the channel, not the colour.
+  ///
+  /// In en, this message translates to:
+  /// **'solid line'**
+  String get askChartSolidLine;
+
+  /// The legend names the channel, not the colour.
+  ///
+  /// In en, this message translates to:
+  /// **'dashed line'**
+  String get askChartDashedLine;
+
+  /// Spoken before the plot's summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Legend: {entries}'**
+  String askLegend(String entries);
+
+  /// One legend entry, spoken as a name and a stroke pattern.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {channel}'**
+  String askLegendEntry(String name, String channel);
+
+  /// Spoken label of one ranked bar.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {value}, position {index} of {total}'**
+  String askBarSemantic(String name, String value, int index, int total);
+
+  /// Appended to the top ranked bar's spoken label.
+  ///
+  /// In en, this message translates to:
+  /// **'worst'**
+  String get askBarWorst;
+
+  /// The outside-data band's label.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside data'**
+  String get askOutsideData;
+
+  /// When outside data was retrieved.
+  ///
+  /// In en, this message translates to:
+  /// **'read {date}'**
+  String askOutsideRead(String date);
+
+  /// The outside-data band's permanent sentence.
+  ///
+  /// In en, this message translates to:
+  /// **'{publisher}, read {date}. Not TradeIQ data, and not added to any total above.'**
+  String askOutsidePublisher(String publisher, String date);
+
+  /// The outside-data band when the source names no publisher.
+  ///
+  /// In en, this message translates to:
+  /// **'Read from outside TradeIQ on {date}. Not TradeIQ data, and not added to any total above.'**
+  String askOutsideUnnamed(String date);
+
+  /// Appended to the outside-data band when the read date is over a week old.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days old'**
+  String askOutsideStale(int days);
+
+  /// Spoken after the value of an outside figure.
+  ///
+  /// In en, this message translates to:
+  /// **'outside figure'**
+  String get askOutsideFigure;
+
+  /// Re-sends the identical question as a new turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get askTryAgain;
+
+  /// Appended to a turn the manager stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped.'**
+  String get askStopped;
+
+  /// Spoken when a turn is stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped. The answer is incomplete.'**
+  String get askStoppedSemantic;
+
+  /// Re-sends the question that produced this turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask again'**
+  String get askAskAgain;
+
+  /// The copy action beneath a settled answer. A phrase, because an icon button's label is read on its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy this answer'**
+  String get askCopyAnswer;
+
+  /// Toast after copying an answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer copied'**
+  String get askAnswerCopied;
+
+  /// The re-ask action beneath a settled answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask this question again'**
+  String get askAskAgainAnswer;
+
+  /// Shown on the second failure of the same question.
+  ///
+  /// In en, this message translates to:
+  /// **'This has failed twice. It may be the connection rather than the question.'**
+  String get askFailedTwice;
+
+  /// Spoken severity first, then the message.
+  ///
+  /// In en, this message translates to:
+  /// **'Error. {message}'**
+  String askErrorSemantic(String message);
+
+  /// The composer's offline band.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection — Ask TradeIQ needs one.'**
+  String get askOffline;
+
+  /// The composer's session-ended band.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session ended. Sign in to ask again.'**
+  String get askSessionEnded;
+
+  /// The last clause is spoken because a screen reader cannot see the held work behind the band.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session ended. Sign in to ask again. Your answers are still on screen.'**
+  String get askSessionEndedSemantic;
+
+  /// Takes the manager to the auth route and back.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get askSignIn;
+
+  /// The square glyph's label on the offline and session-ended bands — deliberately not a severity.
+  ///
+  /// In en, this message translates to:
+  /// **'Held'**
+  String get askHeld;
+
+  /// The history sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation'**
+  String get askHistoryTitle;
+
+  /// The history sheet says exactly what it is: a session, not an archive.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Held on this device until you leave the screen. 1 question.} other{Held on this device until you leave the screen. {count} questions.}}'**
+  String askHistorySubtitle(int count);
+
+  /// The real history limit, and why a very old follow-up may not land.
+  ///
+  /// In en, this message translates to:
+  /// **'only the last {count} are sent with a new question'**
+  String askHistoryLimit(int count);
+
+  /// The history sheet with no turns.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet.'**
+  String get askHistoryEmpty;
+
+  /// The history sheet's empty explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Your questions will be listed here while you are on this screen.'**
+  String get askHistoryEmptyBody;
+
+  /// Spoken label of a history row.
+  ///
+  /// In en, this message translates to:
+  /// **'Asked at {time}: {question} Go to this answer.'**
+  String askHistoryRowSemantic(String time, String question);
+
+  /// Replaces the time on a turn that is still streaming.
+  ///
+  /// In en, this message translates to:
+  /// **'now'**
+  String get askNow;
+
+  /// The foot of the history sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new conversation'**
+  String get askStartOver;
+
+  /// The start-over decision sheet's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new conversation?'**
+  String get askStartOverTitle;
+
+  /// Names the consequence, specifically.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{This one is not saved. The 1 question and its answer go.} other{This one is not saved. The {count} questions and their answers go.}}'**
+  String askStartOverBody(int count);
+
+  /// The safe action, and the primary: carrying on is the expected next move.
+  ///
+  /// In en, this message translates to:
+  /// **'Carry on'**
+  String get askCarryOn;
+
+  /// The destructive action, never the lit one.
+  ///
+  /// In en, this message translates to:
+  /// **'Start over'**
+  String get askStartOverConfirm;
+
+  /// The start-over sheet while a turn streams.
+  ///
+  /// In en, this message translates to:
+  /// **'A question is still being answered.'**
+  String get askStartOverMidTurnTitle;
+
+  /// The consequence of starting over mid-turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting over will stop it.'**
+  String get askStartOverMidTurnBody;
+
+  /// The safe action while a turn streams.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep waiting'**
+  String get askKeepWaiting;
+
+  /// The destructive action while a turn streams.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop and start over'**
+  String get askStopAndStartOver;
+
+  /// Expands a question bubble clamped at six lines.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the full question'**
+  String get askShowFullQuestion;
+
+  /// Spoken label of a follow-up chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask: {question}'**
+  String askFollowUpSemantic(String question);
+
+  /// Spoken when a follow-up chip is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'unavailable while the answer is being written'**
+  String get askFollowUpDisabled;
+
+  /// A measured step duration, in the rail.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds}s'**
+  String askSeconds(String seconds);
+
+  /// The points unit, as a word beside a figure.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{pt} other{pts}}'**
+  String askPoints(num count);
+
+  /// Announced before an assistant turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer'**
+  String get askAnswer;
+
+  /// The row at the foot of a panel block that leads to the full, table-backed view.
+  ///
+  /// In en, this message translates to:
+  /// **'Open full view'**
+  String get askOpenFullView;
+
+  /// Names the block the expand row belongs to, rather than saying Open full view three times in one panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the full view of {name}'**
+  String askOpenFullViewOf(String name);
+
+  /// Toast after long-pressing a question bubble.
+  ///
+  /// In en, this message translates to:
+  /// **'Question copied'**
+  String get askQuestionCopied;
+
+  /// The sentence under a stat tile whose figure is unknown. Never a zero, never a hidden tile.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing measured in this window'**
+  String get askTileNoData;
+
+  /// Leads the reconciliation line on a figure the server recomputed while it was on screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated to'**
+  String get askTileUpdatedTo;
+
+  /// Joins the reconciliation line to the figure the reader saw first.
+  ///
+  /// In en, this message translates to:
+  /// **'from'**
+  String get askTileUpdatedFrom;
+
+  /// When the figure was recomputed. A fact, never a fault.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated at {time}.'**
+  String askTileUpdatedAt(String time);
+
+  /// A figure that was measured and is now unknown: what it was, and when it stopped being true.
+  ///
+  /// In en, this message translates to:
+  /// **'Was {value} at {time}.'**
+  String askTileWasValue(String value, String time);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales'**
+  String get askPillarSales;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock'**
+  String get askPillarStock;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility'**
+  String get askPillarVisibility;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Competition'**
+  String get askPillarCompetition;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Pillar figures'**
+  String get askPillarFigures;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'No figures were returned for this period.'**
+  String get askPillarNoFigures;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Change is measured against {label}.'**
+  String askPillarComparedWith(String label);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'On-shelf availability'**
+  String get askMetricOsa;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Share of shelf'**
+  String get askMetricShareOfShelf;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Visibility compliance'**
+  String get askMetricVisibility;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Price compliance'**
+  String get askMetricPrice;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Attainment'**
+  String get askMetricAttainment;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate of sale'**
+  String get askMetricRateOfSale;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets with a stockout'**
+  String get askMetricOutletsWithStockout;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Out-of-stock lines'**
+  String get askMetricOutOfStockLines;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Lines observed'**
+  String get askMetricLinesObserved;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Competitor facings'**
+  String get askMetricCompetitorFacings;
+
+  /// A trend chart's title for the execution score metric.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution score'**
+  String get askMetricExecutionScore;
+
+  /// A trend chart's title for the perfect-store rate metric.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect-store rate'**
+  String get askMetricPerfectStore;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent scorecard'**
+  String get askScorecardTitle;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 scored visit} other{{count} scored visits}}'**
+  String askScorecardScored(int count);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Average score'**
+  String get askScorecardAverage;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Team average'**
+  String get askScorecardTeam;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'No other agent has a scored visit in this period.'**
+  String get askScorecardNoTeam;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits'**
+  String get askScorecardVisits;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets'**
+  String get askScorecardOutlets;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'vs team'**
+  String get askScorecardVsTeam;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Outlets with stockouts'**
+  String get askMapTitle;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 outlet} other{{count} outlets}}'**
+  String askMapCount(int count);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'The outlet locations for this answer could not be read. The summary above still applies.'**
+  String get askMapUnreadable;
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {count, plural, =1{1 line} other{{count} lines}} out of stock'**
+  String askMapPin(String name, int count);
+
+  /// Ask TradeIQ answer card.
+  ///
+  /// In en, this message translates to:
+  /// **'Maps are not drawn in Veld. The outlets are listed instead.'**
+  String get askMapNotInVeld;
+
   /// Too-far screen, beyond the distance where a wrong-pin report is accepted. Replaces the pin action.
   ///
   /// In en, this message translates to:
@@ -3319,12 +4303,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.'**
   String visitFlagSheetBody(int meters);
-
-  /// Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does.
-  ///
-  /// In en, this message translates to:
-  /// **'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.'**
-  String get visitPinReportedHeld;
 
   /// The affirmative state word beside a toggle. Never the only signal.
   ///

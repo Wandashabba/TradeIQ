@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/console.dart';
-// Imported directly: console.dart uses DeltaPill but does not re-export it.
-import '../../../core/widgets/delta_pill.dart';
+import '../../../core/design/figure_slot.dart';
+import '../../../core/design/tiq_number.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/figure/eyebrow.dart';
+import '../../../core/widgets/torchlight/mark/delta.dart';
+import '../../../l10n/l10n.dart';
 import '../data/chat_controller.dart';
+import 'stat_tiles_card.dart' show askUnitFor;
 
 /// The `pillar_metrics` spec — a pillar's headline figures, and what they are
 /// up or down against.
@@ -16,11 +17,9 @@ import '../data/chat_controller.dart';
 /// with nothing beside it has reproduced that problem rather than solved it.
 /// When the turn carried a `compareTo`, every metric here wears its movement.
 ///
-/// **Deliberately minimal — the anti-crowding rule.** Headline figures, their
-/// deltas, and one line naming what the comparison is measured against. No
-/// filter chrome and no period picker: Phase 2's Expanded mode is where those
-/// belong, and a wall of near-identical panels is the named failure mode for
-/// generative UI in a chat surface.
+/// A block inside the answer's panel, not a panel of its own: one label, a
+/// ledger of figures in JetBrains Mono through [FigureSlot] — so an Afrikaans
+/// manager reads `88,5%` and a true minus — and one line naming the baseline.
 ///
 /// Reads defensively. The server validates `params` against the spec schema,
 /// but the *shape of the tool result* is not part of that contract — a service
@@ -31,25 +30,6 @@ class PillarMetricsCard extends StatelessWidget {
   const PillarMetricsCard({super.key, required this.artifact});
 
   final ChatArtifact artifact;
-
-  /// Human labels for the figures the pillar services return.
-  ///
-  /// An unlisted key still renders, de-camel-cased — a backend that grows a
-  /// metric before this build ships shows it with a plain name rather than
-  /// hiding a number the user was told about in the narrative above.
-  static const Map<String, String> _labels = {
-    'osaPct': 'On-shelf availability',
-    'onShelfAvailabilityPct': 'On-shelf availability',
-    'shareOfShelfPct': 'Share of shelf',
-    'visibilityCompliancePct': 'Visibility compliance',
-    'priceCompliancePct': 'Price compliance',
-    'attainmentPct': 'Attainment',
-    'rateOfSale': 'Rate of sale',
-    'outletsWithStockout': 'Outlets with a stockout',
-    'outOfStockLines': 'Out-of-stock lines',
-    'linesObserved': 'Lines observed',
-    'competitorFacings': 'Competitor facings',
-  };
 
   /// Keys that are context rather than headline figures.
   ///
@@ -81,15 +61,15 @@ class PillarMetricsCard extends StatelessWidget {
     return value is Map<String, dynamic> ? value : const {};
   }
 
-  String get _pillarTitle {
+  String _pillarTitle(AppLocalizations l10n) {
     final params = artifact.params;
     final pillar = params is Map<String, dynamic> ? params['pillar'] : null;
     return switch (pillar) {
-      'sales' => 'Sales',
-      'stock' => 'Stock',
-      'visibility' => 'Visibility',
-      'competition' => 'Competition',
-      _ => 'Pillar figures',
+      'sales' => l10n.askPillarSales,
+      'stock' => l10n.askPillarStock,
+      'visibility' => l10n.askPillarVisibility,
+      'competition' => l10n.askPillarCompetition,
+      _ => l10n.askPillarFigures,
     };
   }
 
@@ -101,7 +81,9 @@ class PillarMetricsCard extends StatelessWidget {
     final figures = <MapEntry<String, num>>[];
     for (final entry in _data.entries) {
       final value = entry.value;
-      if (value is num && value.isFinite) figures.add(MapEntry(entry.key, value));
+      if (value is num && value.isFinite) {
+        figures.add(MapEntry(entry.key, value));
+      }
     }
     figures.sort((a, b) {
       final aSecondary = _secondary.contains(a.key);
@@ -112,8 +94,25 @@ class PillarMetricsCard extends StatelessWidget {
     return figures;
   }
 
-  static String _label(String key) {
-    final known = _labels[key];
+  /// A human label for a metric key, in the reader's language.
+  ///
+  /// An unlisted key still renders, de-camel-cased — a backend that grows a
+  /// metric before this build ships shows it with a plain name rather than
+  /// hiding a number the user was told about in the narrative above.
+  static String label(AppLocalizations l10n, String key) {
+    final known = switch (key) {
+      'osaPct' || 'onShelfAvailabilityPct' => l10n.askMetricOsa,
+      'shareOfShelfPct' => l10n.askMetricShareOfShelf,
+      'visibilityCompliancePct' => l10n.askMetricVisibility,
+      'priceCompliancePct' => l10n.askMetricPrice,
+      'attainmentPct' => l10n.askMetricAttainment,
+      'rateOfSale' => l10n.askMetricRateOfSale,
+      'outletsWithStockout' => l10n.askMetricOutletsWithStockout,
+      'outOfStockLines' => l10n.askMetricOutOfStockLines,
+      'linesObserved' => l10n.askMetricLinesObserved,
+      'competitorFacings' => l10n.askMetricCompetitorFacings,
+      _ => null,
+    };
     if (known != null) return known;
     // camelCase → "Camel case". Better than showing a raw key.
     final spaced = key.replaceAllMapped(
@@ -123,89 +122,67 @@ class PillarMetricsCard extends StatelessWidget {
     return spaced.isEmpty ? key : spaced[0].toUpperCase() + spaced.substring(1);
   }
 
-  static String _format(String key, num value) {
-    final suffix = _percentSuffixed.contains(key) ? '%' : '';
-    final asDouble = value.toDouble();
-    // Integers stay integers: "24 lines", not "24.0 lines".
-    final body = asDouble == asDouble.roundToDouble() && suffix.isEmpty
-        ? asDouble.round().toString()
-        : asDouble.toStringAsFixed(1);
-    return '$body$suffix';
-  }
+  /// Integers stay integers — "24 lines", not "24.0 lines" — and a rate
+  /// keeps one place.
+  static int decimalsFor(String key, num value) =>
+      !_percentSuffixed.contains(key) && value == value.roundToDouble()
+      ? 0
+      : 1;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final skin = context.skin;
+    final l10n = context.l10n;
     final figures = _figures;
-    final label = _comparison['label'];
+    final baseline = _comparison['label'];
+    final hasBaseline = baseline is String && baseline.isNotEmpty;
 
-    return PanelCard(
-      title: _pillarTitle,
-      subtitle: label is String && label.isNotEmpty ? 'vs $label' : null,
-      child: figures.isEmpty
-          // Honest about an empty answer rather than drawing an empty card.
-          ? Text(
-              'No figures were returned for this period.',
-              style: TextStyle(fontSize: 12.5, color: colors.ink3),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (colors.glass)
-                  ..._glassRows(context.lumen, figures)
-                else
-                  for (final figure in figures)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _FigureRow(
-                        label: _label(figure.key),
-                        value: _format(figure.key, figure.value),
-                        delta: _deltaFor(figure.key),
-                      ),
-                    ),
-                if (label is String && label.isNotEmpty)
-                  Text(
-                    // Says what the movement is against, in words. A pill on its
-                    // own is a number without a baseline.
-                    'Change is measured against $label.',
-                    style: TextStyle(fontSize: 11.5, color: colors.ink3),
-                  ),
-              ],
+    return Column(
+      key: const ValueKey<String>('pillar-metrics'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        // A block label inside the panel — one of the three places an
+        // uppercase eyebrow is legal (unify §1.17).
+        Eyebrow(_pillarTitle(l10n)),
+        SizedBox(height: skin.space.intraBlock),
+        if (figures.isEmpty)
+          // Honest about an empty answer rather than drawing an empty block.
+          Text(
+            l10n.askPillarNoFigures,
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          )
+        else
+          for (var i = 0; i < figures.length; i++)
+            _FigureRow(
+              key: ValueKey<String>('pillar-metric-${figures[i].key}'),
+              label: label(l10n, figures[i].key),
+              value: figures[i].value,
+              percent: _percentSuffixed.contains(figures[i].key),
+              decimals: decimalsFor(figures[i].key, figures[i].value),
+              delta: _deltaFor(figures[i].key),
+              last: i == figures.length - 1,
             ),
+        if (hasBaseline) ...<Widget>[
+          SizedBox(height: skin.space.intraBlock),
+          // Says what the movement is against, in words. A triangle on its
+          // own is a number without a baseline.
+          Text(
+            l10n.askPillarComparedWith(baseline),
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+        ],
+      ],
     );
   }
 
-  /// Glass: the figures as table rows, divided by the pane's white rim rather
-  /// than spaced apart, so a column of numbers reads as one ledger.
-  List<Widget> _glassRows(
-    LumenPalette lumen,
-    List<MapEntry<String, num>> figures,
-  ) => [
-    for (var i = 0; i < figures.length; i++)
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(
-          border: i == 0
-              ? null
-              : Border(top: BorderSide(color: lumen.white(0xB3))),
-        ),
-        child: _FigureRow(
-          label: _label(figures[i].key),
-          value: _format(figures[i].key, figures[i].value),
-          delta: _deltaFor(figures[i].key),
-        ),
-      ),
-    const SizedBox(height: 6),
-  ];
-
-  _Delta? _deltaFor(String key) {
+  _PillarDelta? _deltaFor(String key) {
     final raw = _deltas[key];
     if (raw is! Map<String, dynamic>) return null;
     final absolute = raw['absolute'];
     if (absolute is! num || !absolute.isFinite) return null;
     final pct = raw['pct'];
-    return _Delta(
+    return _PillarDelta(
       absolute: absolute.toDouble(),
       // Null is meaningful, not missing: the server sends it when the baseline
       // was zero, because "up from nothing" has no percentage.
@@ -214,71 +191,121 @@ class PillarMetricsCard extends StatelessWidget {
   }
 }
 
-class _Delta {
-  const _Delta({required this.absolute, required this.pct});
+class _PillarDelta {
+  const _PillarDelta({required this.absolute, required this.pct});
 
   final double absolute;
   final double? pct;
 }
 
 class _FigureRow extends StatelessWidget {
-  const _FigureRow({required this.label, required this.value, this.delta});
+  const _FigureRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.percent,
+    required this.decimals,
+    required this.delta,
+    required this.last,
+  });
 
   final String label;
-  final String value;
-  final _Delta? delta;
+  final num value;
+  final bool percent;
+  final int decimals;
+  final _PillarDelta? delta;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final glass = colors.glass;
-    final lumen = context.lumen;
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final p = skin.palette;
+    final veld = skin.mode == SkinMode.veld;
+    final d = delta;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.5,
-              color: glass ? lumen.ink : colors.ink2,
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: veld ? TiqSpace.s3 : TiqSpace.s2),
+      // A ledger: rows divided by a rule, so a column of numbers reads as one
+      // reading. Hairline between non-tappable rows (unify §1.3).
+      decoration: last
+          ? null
+          : BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: veld ? p.ink1 : p.hairline,
+                  width: veld ? 2 : 1,
+                ),
+              ),
+            ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              style: skin.text.body.style(color: p.ink2),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          value,
-          // Glass sets every figure in JetBrains Mono, so a column of them
-          // aligns by glyph.
-          style: glass
-              ? LumenGlass.figure(size: 15, color: lumen.ink)
-              : TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: colors.ink1,
+          const SizedBox(width: TiqSpace.s3),
+          // The figure and its movement are one group that wraps as a group:
+          // at 2.0x, or in Afrikaans, the movement drops beneath the figure
+          // rather than pushing the row off the panel.
+          Flexible(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: TiqSpace.s2,
+              runSpacing: TiqSpace.s1,
+              children: <Widget>[
+                FigureSlot(
+                  value: value,
+                  role: skin.text.figureS,
+                  unit: percent ? TiqUnit.percent : TiqUnit.none,
+                  decimals: decimals,
+                  textAlign: TextAlign.end,
+                  color: p.ink1,
                 ),
-        ),
-        if (delta != null) ...[
-          const SizedBox(width: 8),
-          DeltaPill(
-            delta: delta!.absolute,
-            tone: delta!.absolute < 0 ? DeltaTone.bad : DeltaTone.good,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            // "n/a" rather than a percentage the server refused to invent.
-            delta!.pct == null ? 'n/a' : '${delta!.pct!.toStringAsFixed(1)}%',
-            style: glass
-                ? LumenGlass.figure(
-                    size: 11.5,
-                    weight: FontWeight.w400,
-                    color: lumen.inkMuted,
-                  )
-                : TextStyle(fontSize: 11.5, color: colors.ink3),
+                if (d != null)
+                  Delta(
+                    compact: true,
+                    data: DeltaData(
+                      direction: d.absolute > 0
+                          ? DeltaDirection.up
+                          : (d.absolute < 0
+                                ? DeltaDirection.down
+                                : DeltaDirection.flat),
+                      // The tool result carries no sentiment, and the sign
+                      // cannot supply one: more stock-outs is up and bad, more
+                      // share of shelf is up and good. Neutral is the honest
+                      // reading until the server says which way is better.
+                      sentiment: TiqSentiment.neutral,
+                      magnitude: d.absolute.abs(),
+                      // A percentage metric moves in points.
+                      unit: percent
+                          ? askUnitFor(l10n, 'pts', d.absolute.abs())
+                          : TiqUnit.none,
+                      decimals: 1,
+                    ),
+                  ),
+                // The relative change beside the absolute one. Absent — never
+                // "0%" and never "n/a" — when the baseline was zero, because
+                // "up from nothing" has no percentage.
+                if (d != null && d.pct != null)
+                  FigureSlot(
+                    value: d.pct,
+                    role: skin.text.monoIdent,
+                    unit: TiqUnit.percent,
+                    decimals: 1,
+                    signed: true,
+                    color: p.ink3,
+                  ),
+              ],
+            ),
           ),
         ],
-      ],
+      ),
     );
   }
 }

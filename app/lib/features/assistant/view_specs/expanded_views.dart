@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/design/tiq_number.dart';
 import '../../../core/format/period_label.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/lumen_glass.dart';
@@ -334,7 +335,10 @@ class _Change extends StatelessWidget {
             // "n/a" rather than a percentage the server refused to invent.
             row.deltaPct == null
                 ? 'n/a'
-                : '${row.deltaPct!.toStringAsFixed(1)}%',
+                : formatChangePct(
+                    row.deltaPct!,
+                    number: TiqNumber.of(context),
+                  ),
             style: colors.glass
                 ? LumenGlass.figure(
                     size: 11.5,

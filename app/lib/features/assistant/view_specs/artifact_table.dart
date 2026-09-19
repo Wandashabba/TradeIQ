@@ -1,3 +1,4 @@
+import '../../../core/design/tiq_number.dart';
 import '../../../core/format/period_label.dart';
 import '../data/artifact_repository.dart';
 import 'rich_figures.dart';
@@ -101,20 +102,28 @@ String figureLabel(String key) {
   return spaced.isEmpty ? key : spaced[0].toUpperCase() + spaced.substring(1);
 }
 
-String formatFigure(String key, num value) {
-  final suffix = _percentSuffixed.contains(key) ? '%' : '';
-  final asDouble = value.toDouble();
-  // Integers stay integers: "24 lines", not "24.0 lines".
-  final body = asDouble == asDouble.roundToDouble() && suffix.isEmpty
-      ? asDouble.round().toString()
-      : asDouble.toStringAsFixed(1);
-  return '$body$suffix';
+/// A pillar figure as table text, through the one formatter.
+///
+/// Integers stay integers — "24 lines", not "24.0 lines" — and a percentage
+/// keeps one place. The table is built without a context (the PDF has none),
+/// so it takes the formatter it is handed; English is the export's language.
+String formatFigure(String key, num value, {TiqNumber number = TiqNumber.en}) {
+  final percent = _percentSuffixed.contains(key);
+  final whole = value == value.roundToDouble();
+  return number.format(
+    value,
+    unit: percent ? TiqUnit.percent : TiqUnit.none,
+    decimals: whole && !percent ? 0 : 1,
+  );
 }
 
-String trimNumber(double v) {
-  final s = v.toStringAsFixed(1);
-  return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
-}
+/// Up to one place, a trailing zero dropped, grouped: `1,284.5`, `62`.
+String trimNumber(double v, {TiqNumber number = TiqNumber.en}) =>
+    number.format(v);
+
+/// A relative change as table text, signed, one place: `+5.8%`, `−40%`.
+String formatChangePct(double pct, {TiqNumber number = TiqNumber.en}) =>
+    number.format(pct, unit: TiqUnit.percent, decimals: 1, signed: true);
 
 Map<String, dynamic> _map(dynamic value) =>
     value is Map<String, dynamic> ? value : const {};
@@ -293,8 +302,8 @@ ArtifactTable _statTilesTable(ArtifactDetail artifact) {
         ArtifactTableRow(
           cells: [
             tile.label,
-            tile.formatted,
-            tile.delta?.text ?? '—',
+            tile.formatted(),
+            tile.delta?.text() ?? '—',
             tile.comparedTo ?? '—',
           ],
         ),

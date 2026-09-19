@@ -76,6 +76,7 @@ class TorchShell extends StatelessWidget {
     this.primary,
     this.secondary,
     this.skinCycle,
+    this.band,
     this.scrollController,
     this.pinned,
   }) : assert(
@@ -110,6 +111,22 @@ class TorchShell extends StatelessWidget {
   /// slot, not here; on every other screen it goes at the leading end of the
   /// thumb zone.
   final Widget? skinCycle;
+
+  /// A pinned region between the scroll view and the bottom region: the Ask
+  /// route's composer, and nothing else so far.
+  ///
+  /// It is **not** a thumb zone and it does not carry a commit action of the
+  /// thumb zone's kind — a composer is where a question is written, and it has
+  /// to stay on screen with the keyboard up, which is exactly when the nav is
+  /// not there. Like the bottom region it is a **sibling** of the scroll view
+  /// rather than an overlay, so its height is whatever its content measures at
+  /// 2.0× and nothing is ever underneath it.
+  ///
+  /// The band is gutter-padded by the shell and clears the software keyboard
+  /// itself: without a `Scaffold` nothing else reads `viewInsets`, and a
+  /// composer behind a keyboard is a composer nobody can see themselves
+  /// typing into.
+  final Widget? band;
 
   final ScrollController? scrollController;
 
@@ -168,8 +185,11 @@ class TorchShell extends StatelessWidget {
     // is how the last row of a list ends up under a nav bar on exactly the
     // devices whose readers need it most.
     final Widget body;
-    final band = pinned;
-    if (band == null) {
+    // Named for what it is: `band` is the field for the region ABOVE the
+    // bottom chrome (the composer), and a local of the same name here left
+    // Ask TradeIQ's composer unrendered on every frame.
+    final pinnedBand = pinned;
+    if (pinnedBand == null) {
       body = ListView(
         controller: scrollController,
         padding: EdgeInsets.fromLTRB(gutter, top, gutter, skin.space.blockGap),
@@ -191,7 +211,7 @@ class TorchShell extends StatelessWidget {
               color: skin.palette.ground,
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: gutter),
-                child: band,
+                child: pinnedBand,
               ),
             ),
           ),
@@ -215,20 +235,37 @@ class TorchShell extends StatelessWidget {
     final falloff =
         profile == TorchShellProfile.console && skin.mode != SkinMode.veld;
 
-    // A Torchlight route has no Scaffold or Material above it, so without this
-    // every Text inherits the framework's debug fallback — a red-on-yellow
-    // double underline, merged into the skin's token styles because they all
-    // inherit. It is not decoration a reader should ever see, and the census
-    // counted it as light wherever it crossed a crimson or Oatmeal word.
-    // Replacing (not merging) the ambient style gives the tokens a clean base.
-    return _Ground(
-      skin: skin,
-      falloff: falloff,
-      child: DefaultTextStyle(
-        style: skin.text.body.style(color: skin.palette.ink1),
+    final keyboard = media.viewInsets.bottom;
+
+    // The route's own text style, beneath everything. A Torchlight route has
+    // no Scaffold or Material above it, and without this every Text inherits
+    // the framework's debug fallback — a red-on-yellow double underline,
+    // merged into the skin's token styles because they all inherit, and
+    // counted by the census as light wherever it crossed a crimson or Oatmeal
+    // word. A role style names its face, size and ink, never its decoration,
+    // so replacing (not merging) the ambient style is what gives the tokens a
+    // clean base.
+    return DefaultTextStyle(
+      style: skin.text.body.style(color: skin.palette.ink1),
+      child: _Ground(
+        skin: skin,
+        falloff: falloff,
         child: Column(
           children: <Widget>[
             Expanded(child: body),
+            if (band != null)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  gutter,
+                  0,
+                  gutter,
+                  // The band is the last thing above the keyboard, so it is the
+                  // band that clears it. When the keyboard is down this is zero
+                  // and the gap to the bottom region is the caller's.
+                  keyboard,
+                ),
+                child: band,
+              ),
             ?bottom,
             SizedBox(height: safeBottom),
           ],
