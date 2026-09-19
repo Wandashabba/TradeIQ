@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/lumen_palette.dart';
-import '../../../core/theme/tiq_colors.dart';
 import '../../../core/widgets/agent_motion.dart';
 
 /// Motion for the answer, after the approved "livelier Ask TradeIQ" mockup.
@@ -111,64 +109,6 @@ class GrowIn extends StatelessWidget {
         curve: answerCurve,
       ),
       builder: (context, t, _) => builder(context, t),
-    );
-  }
-}
-
-/// The text caret at the end of an answer still being written.
-class StreamingCaret extends StatefulWidget {
-  const StreamingCaret({super.key, this.height = 15});
-
-  final double height;
-
-  @override
-  State<StreamingCaret> createState() => _StreamingCaretState();
-}
-
-class _StreamingCaretState extends State<StreamingCaret>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _blink = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // A steady caret under reduced motion: it still says "more is coming".
-    if (reduceMotion(context)) {
-      _blink.stop();
-      _blink.value = 0;
-    } else if (!_blink.isAnimating) {
-      _blink.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _blink.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final color = colors.glass ? context.lumen.accentSolid : colors.brand;
-    return Semantics(
-      label: 'Still writing',
-      child: AnimatedBuilder(
-        animation: _blink,
-        // steps(1): fully on for the first half, fully off for the second.
-        builder: (context, child) =>
-            Opacity(opacity: _blink.value < 0.5 ? 1 : 0, child: child),
-        child: Container(
-          key: const ValueKey('streaming-caret'),
-          width: 2,
-          height: widget.height,
-          margin: const EdgeInsets.only(left: 2),
-          color: color,
-        ),
-      ),
     );
   }
 }

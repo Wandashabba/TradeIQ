@@ -8,6 +8,7 @@ import 'package:tradeiq_app/core/widgets/charts.dart';
 import 'package:tradeiq_app/core/widgets/delta_pill.dart';
 import 'package:tradeiq_app/core/widgets/glass.dart';
 import 'package:tradeiq_app/features/assistant/data/chat_controller.dart';
+import 'package:tradeiq_app/features/assistant/answer/answer_notes.dart';
 import 'package:tradeiq_app/features/assistant/view_specs/view_spec_registry.dart';
 
 Widget wrap(Widget child, {ThemeData? theme}) => MaterialApp(

@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/app_theme.dart';
 import 'package:tradeiq_app/core/theme/lumen_palette.dart';
 import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/features/assistant/answer/answer_motion.dart';
 import 'package:tradeiq_app/features/assistant/answer/answer_view.dart';
 import 'package:tradeiq_app/features/assistant/answer/web_sources.dart';
 import 'package:tradeiq_app/features/assistant/answer/working_steps.dart';
@@ -452,9 +451,9 @@ void main() {
       await repo.close();
       await tester.pumpAndSettle();
 
-      final callout = find.byType(InsightCallout);
+      final callout = find.byType(AskCallout);
       expect(callout, findsOneWidget);
-      expect(tester.widget<InsightCallout>(callout).kicker, 'What explains it');
+      expect(tester.widget<AskCallout>(callout).kicker, 'What explains it');
       expect(find.text('WHAT EXPLAINS IT'), findsOneWidget);
       expect(
         screenText(tester),
@@ -471,7 +470,7 @@ void main() {
       await repo.close();
       await tester.pumpAndSettle();
 
-      expect(find.byType(InsightCallout), findsOneWidget);
+      expect(find.byType(AskCallout), findsOneWidget);
       expect(
         find.byKey(const ValueKey('insight-callout-kicker')),
         findsNothing,
@@ -685,7 +684,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.byType(InsightCallout), findsNothing);
+      expect(find.byType(AskCallout), findsNothing);
       expect(find.byType(FollowUpChips), findsNothing);
       final views = tester.widgetList<AnswerBlockView>(
         find.byType(AnswerBlockView),

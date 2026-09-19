@@ -380,17 +380,29 @@ void main() {
       expect(formatSignedAmount(0, 'pct'), '0%');
     });
 
-    test('the leader is the first item, as the server ordered it', () {
+    test('the focus is the server\'s, and absent means nothing is lit', () {
+      // The old build guessed index 0. #410 put `focusIndex` on the wire: the
+      // server is the only side that knows which way "worst" runs.
       expect(
         RankedBarsData.from(const {
           'items': [
             {'label': 'a', 'value': 3},
             {'label': 'b', 'value': -8},
           ],
-        }).leaderIndex,
-        0,
+          'focusIndex': 1,
+        }).focusIndex,
+        1,
       );
-      expect(RankedBarsData.from(const {'items': []}).leaderIndex, isNull);
+      expect(
+        RankedBarsData.from(const {
+          'items': [
+            {'label': 'a', 'value': 3},
+            {'label': 'b', 'value': -8},
+          ],
+        }).focusIndex,
+        isNull,
+      );
+      expect(RankedBarsData.from(const {'items': []}).focusIndex, isNull);
     });
 
     test('a delta is a positive magnitude; its arrow comes from direction', () {

@@ -104,8 +104,12 @@ class QuestionComposer extends StatelessWidget {
                 maximumLength: maximumQuestion,
                 textInputAction: TextInputAction.send,
                 onChanged: onChanged,
-                onSubmitted: (_) {
-                  if (phase == AskPhase.typing) onSend();
+                // Read the trough, not the phase this closure was built
+                // with: a paste and a Return inside one frame arrive before
+                // the rebuild that would have moved the phase to typing, and
+                // a question the keyboard said was sent must be sent.
+                onSubmitted: (text) {
+                  if (canType && text.trim().isNotEmpty) onSend();
                 },
               ),
             ),
