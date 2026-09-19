@@ -2,6 +2,7 @@ import request from 'supertest';
 import { prisma } from '../../lib/prisma';
 import { httpServer as app } from '../../testHttpServer';
 import { issueToken } from '../auth/auth.service';
+import { PASSWORD_MIN_LENGTH } from '../../lib/passwordPolicy';
 
 describe('users routes', () => {
   let clientId: string;
@@ -78,7 +79,7 @@ describe('users routes', () => {
     const res = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'USERS-new@example.com', password: 'supersecret', role: 'manager' });
+      .send({ email: 'USERS-new@example.com', password: 'a-good-long-passphrase', role: 'manager' });
 
     expect(res.status).toBe(201);
     // Stored (and echoed) in the canonical lower-case form (#351), whatever
@@ -97,7 +98,7 @@ describe('users routes', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         email: 'USERS-named@example.com',
-        password: 'supersecret',
+        password: 'a-good-long-passphrase',
         role: 'field_agent',
         displayName: '  Sipho Ndlovu  ',
       });
@@ -114,7 +115,7 @@ describe('users routes', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         email: 'USERS-blankname@example.com',
-        password: 'supersecret',
+        password: 'a-good-long-passphrase',
         role: 'field_agent',
         displayName: '   ',
       });
@@ -133,7 +134,7 @@ describe('users routes', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         email: `USERS-badname-${typeof displayName}-${Date.now()}@example.com`,
-        password: 'supersecret',
+        password: 'a-good-long-passphrase',
         role: 'field_agent',
         displayName,
       });
@@ -148,7 +149,7 @@ describe('users routes', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
         email: 'USERS-longname@example.com',
-        password: 'supersecret',
+        password: 'a-good-long-passphrase',
         role: 'field_agent',
         displayName: 'y'.repeat(120),
       });
@@ -161,13 +162,13 @@ describe('users routes', () => {
     const first = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'users-dupe@example.com', password: 'supersecret', role: 'field_agent' });
+      .send({ email: 'users-dupe@example.com', password: 'a-good-long-passphrase', role: 'field_agent' });
     expect(first.status).toBe(201);
 
     const res = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'users-dupe@example.com', password: 'supersecret', role: 'field_agent' });
+      .send({ email: 'users-dupe@example.com', password: 'a-good-long-passphrase', role: 'field_agent' });
 
     expect(res.status).toBe(409);
   });
@@ -180,14 +181,14 @@ describe('users routes', () => {
     const first = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'Users-Collide@example.com', password: 'supersecret', role: 'field_agent' });
+      .send({ email: 'Users-Collide@example.com', password: 'a-good-long-passphrase', role: 'field_agent' });
     expect(first.status).toBe(201);
     expect(first.body.email).toBe('users-collide@example.com');
 
     const res = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: '  USERS-COLLIDE@example.com  ', password: 'supersecret', role: 'field_agent' });
+      .send({ email: '  USERS-COLLIDE@example.com  ', password: 'a-good-long-passphrase', role: 'field_agent' });
 
     expect(res.status).toBe(409);
     expect(res.body).toEqual({ error: 'A user with this email already exists' });
@@ -201,7 +202,7 @@ describe('users routes', () => {
     const created = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'Foo@X.com', password: 'supersecret', role: 'field_agent' });
+      .send({ email: 'Foo@X.com', password: 'a-good-long-passphrase', role: 'field_agent' });
 
     expect(created.status).toBe(201);
     expect(created.body.email).toBe('foo@x.com');
@@ -211,7 +212,7 @@ describe('users routes', () => {
 
     const login = await request(app)
       .post('/auth/login')
-      .send({ email: 'foo@x.com', password: 'supersecret' });
+      .send({ email: 'foo@x.com', password: 'a-good-long-passphrase' });
 
     expect(login.status).toBe(200);
     expect(typeof login.body.token).toBe('string');
@@ -222,7 +223,7 @@ describe('users routes', () => {
     const res = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ email: 'USERS-badrole@example.com', password: 'supersecret', role: 'superuser' });
+      .send({ email: 'USERS-badrole@example.com', password: 'a-good-long-passphrase', role: 'superuser' });
 
     expect(res.status).toBe(400);
   });
@@ -236,11 +237,44 @@ describe('users routes', () => {
     expect(res.status).toBe(400);
   });
 
+  // Provisioning and changing must agree on one rule (#400), or an admin mints
+  // an account with a password the agent is then told is unacceptable the first
+  // time they try to change it. The shared rule lives in lib/passwordPolicy.ts.
+  it('applies the shared password rule on create — 11 characters is 400, 12 is 201', async () => {
+    const tooShort = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: 'USERS-eleven@example.com', password: 'elevenchars', role: 'field_agent' });
+    expect(tooShort.status).toBe(400);
+    expect(tooShort.body.error).toContain(`${PASSWORD_MIN_LENGTH} characters`);
+    // The refusal states the rule and never reproduces what was typed.
+    expect(JSON.stringify(tooShort.body)).not.toContain('elevenchars');
+
+    const ok = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: 'USERS-twelve@example.com', password: 'twelvechars!', role: 'field_agent' });
+    expect(ok.status).toBe(201);
+  });
+
+  it('rejects a password that is just the email address, with 400', async () => {
+    const res = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        email: 'USERS-selfpw@example.com',
+        password: 'USERS-selfpw@example.com',
+        role: 'field_agent',
+      });
+
+    expect(res.status).toBe(400);
+  });
+
   it('rejects user creation by a manager with 403', async () => {
     const res = await request(app)
       .post('/users')
       .set('Authorization', `Bearer ${managerToken}`)
-      .send({ email: 'USERS-nope@example.com', password: 'supersecret', role: 'field_agent' });
+      .send({ email: 'USERS-nope@example.com', password: 'a-good-long-passphrase', role: 'field_agent' });
 
     expect(res.status).toBe(403);
   });

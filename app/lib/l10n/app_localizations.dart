@@ -374,12 +374,6 @@ abstract class AppLocalizations {
   /// **'Forgot password?'**
   String get loginForgotPassword;
 
-  /// Snackbar after tapping 'Forgot password?'.
-  ///
-  /// In en, this message translates to:
-  /// **'Password reset is not available yet.'**
-  String get loginPasswordResetUnavailable;
-
   /// Title of the agent’s day screen.
   ///
   /// In en, this message translates to:
@@ -3325,6 +3319,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.'**
   String visitFlagSheetBody(int meters);
+
+  /// Shared error copy for a 429: the server's rate limit. Retrying at once only spends another attempt.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Wait a few minutes, then try again.'**
+  String get errorTooManyAttempts;
+
+  /// Shared error copy for a 426 from the server's minimum-version gate.
+  ///
+  /// In en, this message translates to:
+  /// **'This version of the app is too old. Update TradeIQ to carry on.'**
+  String get errorUpdateRequired;
+
+  /// Help under every new-password field. Mirrors backend/src/lib/passwordPolicy.ts.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 12 characters. Three ordinary words are easy to type and hard to guess.'**
+  String get passwordRuleHelp;
+
+  /// Field error: the new password is under 12 characters (spaces at either end do not count).
+  ///
+  /// In en, this message translates to:
+  /// **'Too short: use at least 12 characters.'**
+  String get passwordTooShort;
+
+  /// Field error: over 72 bytes, bcrypt's ceiling.
+  ///
+  /// In en, this message translates to:
+  /// **'Too long for a password here. Use fewer characters.'**
+  String get passwordTooLong;
+
+  /// Field error.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password cannot be your email address.'**
+  String get passwordIsEmail;
+
+  /// Field error on the confirm field.
+  ///
+  /// In en, this message translates to:
+  /// **'The two new passwords do not match.'**
+  String get passwordMismatch;
+
+  /// Field error when the server refuses the new password (e.g. a common one).
+  ///
+  /// In en, this message translates to:
+  /// **'That password was not accepted. Use at least 12 characters, not your email address and not an obvious phrase.'**
+  String get passwordRejected;
+
+  /// Checkbox that reveals every password field on the screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Show passwords'**
+  String get passwordShow;
+
+  /// Why the primary is disabled: no new password yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a new password'**
+  String get passwordNeedsNew;
+
+  /// Why the primary is disabled: the confirm field is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the new password again'**
+  String get passwordNeedsConfirm;
+
+  /// Headline of an inline failure on the password screens.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password was not changed'**
+  String get passwordFailedTitle;
+
+  /// Said after every password change: the server cannot end other sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Other phones signed in to your account stay signed in until their session ends, up to 12 hours. If a phone is lost, ask your manager to switch the account off.'**
+  String get passwordOtherSessions;
+
+  /// Title of the forgot-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get forgotTitle;
+
+  /// Semantic label of the back button on the forgot-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to sign in'**
+  String get forgotBack;
+
+  /// How the field reset works. There is no email reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your manager for a reset code. They make it in TradeIQ and read it out to you. It works once, for 15 minutes.'**
+  String get forgotIntro;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get forgotEmailLabel;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset code'**
+  String get forgotCodeLabel;
+
+  /// Hint in the reset-code field: its format.
+  ///
+  /// In en, this message translates to:
+  /// **'8 digits'**
+  String get forgotCodeHint;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get forgotNewPasswordLabel;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'New password again'**
+  String get forgotConfirmLabel;
+
+  /// Primary on the forgot-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Set new password'**
+  String get forgotSubmit;
+
+  /// Why the primary is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email first'**
+  String get forgotNeedsEmail;
+
+  /// Why the primary is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the 8-digit code from your manager'**
+  String get forgotNeedsCode;
+
+  /// Headline when the server refuses the code. Deliberately says nothing about whether the account exists.
+  ///
+  /// In en, this message translates to:
+  /// **'That code did not work'**
+  String get forgotCodeRejectedTitle;
+
+  /// Body when the server refuses the code.
+  ///
+  /// In en, this message translates to:
+  /// **'It may be mistyped, used already or older than 15 minutes. Check the email too. Your manager can make a new code.'**
+  String get forgotCodeRejectedBody;
+
+  /// Headline after a successful reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Your password is changed'**
+  String get forgotDoneTitle;
+
+  /// Body after a successful reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your new password.'**
+  String get forgotDoneBody;
+
+  /// Primary after a successful reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to sign in'**
+  String get forgotGoToSignIn;
+
+  /// Title of the change-password screen, and the settings entry that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get changePasswordTitle;
+
+  /// Semantic label of the back button on the change-password screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to settings'**
+  String get changePasswordBack;
+
+  /// Field label.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get changeCurrentLabel;
+
+  /// Why the primary is disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current password'**
+  String get changeNeedsCurrent;
+
+  /// Field error when the server says the current password is wrong.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not your current password.'**
+  String get changeWrongCurrent;
+
+  /// Headline after a successful change.
+  ///
+  /// In en, this message translates to:
+  /// **'Password changed'**
+  String get changeDoneTitle;
+
+  /// Body after a successful change.
+  ///
+  /// In en, this message translates to:
+  /// **'You stay signed in on this phone. Use the new password next time you sign in.'**
+  String get changeDoneBody;
+
+  /// Primary after a successful change.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get changeDone;
+
+  /// Section heading on the settings screen, above Change password.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account'**
+  String get settingsAccountHeading;
+
+  /// Title of the too-old-version screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Update TradeIQ'**
+  String get updateTitle;
+
+  /// Body of the too-old-version screen.
+  ///
+  /// In en, this message translates to:
+  /// **'This version of the app is too old for the server. Install the newest version from where you got TradeIQ, then open it again.'**
+  String get updateBody;
+
+  /// Reassurance on the too-old-version screen. It is true: the screen deletes nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing saved on this phone is deleted by this.'**
+  String get updateNothingLost;
+
+  /// Primary on the too-old-version screen: clears the state and asks the server again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get updateTryAgain;
+
+  /// Which build this is and what the server needs.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has version {current}. Version {minimum} or newer is needed.'**
+  String updateVersions(String current, String minimum);
+
+  /// When the server did not say which version it needs.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has version {current}. A newer version is needed.'**
+  String updateVersionNoMinimum(String current);
 }
 
 class _AppLocalizationsDelegate

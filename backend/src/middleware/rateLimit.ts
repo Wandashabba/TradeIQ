@@ -1,4 +1,5 @@
 import rateLimit from 'express-rate-limit';
+import { normalizeEmail } from '../lib/email';
 import type { AuthedRequest } from './auth';
 
 /**
@@ -85,3 +86,100 @@ export function createAssistantTenantRateLimiter(options?: { windowMs?: number; 
 
 export const assistantUserRateLimiter = createAssistantUserRateLimiter();
 export const assistantTenantRateLimiter = createAssistantTenantRateLimiter();
+
+/**
+ * Password-change and password-reset limiters (#400).
+ *
+ * Each of these guards a different door onto the same thing — setting a
+ * password — and each is keyed on what actually identifies the attacker at that
+ * door.
+ */
+
+/**
+ * `POST /auth/change-password`. Keyed on the authenticated user, because that
+ * is who is guessing their own current password. IP would be wrong twice over:
+ * a field team behind one NAT shares an IP, and an attacker with a stolen token
+ * does not.
+ *
+ * Mount **after** `requireAuth`.
+ */
+export function createChangePasswordRateLimiter(options?: { windowMs?: number; limit?: number }) {
+  return keyedLimiter({
+    windowMs:
+      options?.windowMs ?? Number(process.env.CHANGE_PASSWORD_RATE_WINDOW_MS ?? 15 * 60 * 1000),
+    limit: options?.limit ?? Number(process.env.CHANGE_PASSWORD_RATE_MAX ?? 10),
+    key: (req) => req.user?.userId,
+    message: 'Too many password change attempts, please try again later',
+  });
+}
+
+/**
+ * `POST /users/:id/password-reset-code`. Keyed on the manager generating codes.
+ *
+ * Generous, because the legitimate shape is bursty: a manager at a depot on
+ * Monday morning resets six agents in five minutes. It exists to bound a
+ * compromised manager account minting codes for the whole tenant, not to pace
+ * ordinary work.
+ */
+export function createResetCodeIssueRateLimiter(options?: { windowMs?: number; limit?: number }) {
+  return keyedLimiter({
+    windowMs:
+      options?.windowMs ?? Number(process.env.RESET_CODE_ISSUE_RATE_WINDOW_MS ?? 60 * 60 * 1000),
+    limit: options?.limit ?? Number(process.env.RESET_CODE_ISSUE_RATE_MAX ?? 30),
+    key: (req) => req.user?.userId,
+    message: 'Too many reset codes generated, please try again later',
+  });
+}
+
+/**
+ * `POST /auth/reset-password`, keyed on the email in the body.
+ *
+ * This is the one that bounds guessing at a NAMED account — the attack that
+ * matters, since an attacker who is guessing a code already knows whose account
+ * they want. It runs before any database lookup, so a 429 says nothing about
+ * whether the address exists: unknown and known emails are throttled
+ * identically, and enumeration is not reopened by the limiter.
+ *
+ * It does mean someone who knows an agent's email can keep that agent's reset
+ * window full for 15 minutes. That is a real, accepted cost: the alternative —
+ * no per-account bound — hands an attacker unlimited guesses at an 8-digit code
+ * simply by rotating IP addresses. The code's own `attempts` counter is the
+ * backstop that does not care where the guesses came from.
+ */
+export function createResetRedeemEmailRateLimiter(options?: { windowMs?: number; limit?: number }) {
+  return keyedLimiter({
+    windowMs:
+      options?.windowMs ?? Number(process.env.RESET_REDEEM_EMAIL_RATE_WINDOW_MS ?? 15 * 60 * 1000),
+    limit: options?.limit ?? Number(process.env.RESET_REDEEM_EMAIL_RATE_MAX ?? 8),
+    key: (req) => {
+      const email = (req.body as { email?: unknown } | undefined)?.email;
+      // Normalised, or `Agent@x.com` and `agent@x.com` would be two buckets and
+      // the limit would be worth double to anyone who noticed.
+      return typeof email === 'string' ? `email:${normalizeEmail(email)}` : undefined;
+    },
+    message: 'Too many password reset attempts, please try again later',
+  });
+}
+
+/**
+ * `POST /auth/reset-password`, keyed on IP.
+ *
+ * The companion to the per-email limiter: that one stops a thousand guesses at
+ * one account, this one stops one guess each at a thousand accounts. Looser,
+ * because a whole depot behind one NAT legitimately shares this key.
+ */
+export function createResetRedeemIpRateLimiter(options?: { windowMs?: number; limit?: number }) {
+  return rateLimit({
+    windowMs:
+      options?.windowMs ?? Number(process.env.RESET_REDEEM_IP_RATE_WINDOW_MS ?? 15 * 60 * 1000),
+    limit: options?.limit ?? Number(process.env.RESET_REDEEM_IP_RATE_MAX ?? 60),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many password reset attempts, please try again later' },
+  });
+}
+
+export const changePasswordRateLimiter = createChangePasswordRateLimiter();
+export const resetCodeIssueRateLimiter = createResetCodeIssueRateLimiter();
+export const resetRedeemEmailRateLimiter = createResetRedeemEmailRateLimiter();
+export const resetRedeemIpRateLimiter = createResetRedeemIpRateLimiter();

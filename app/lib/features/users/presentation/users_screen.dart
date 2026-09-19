@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_controller.dart';
 import '../../../core/format/person_label.dart';
@@ -9,6 +11,7 @@ import '../../../core/widgets/console.dart';
 import '../../../core/widgets/manager_scaffold.dart';
 import '../../../core/widgets/worklist.dart';
 import '../data/users_repository.dart';
+import 'user_password_screen.dart';
 
 /// Users as a worklist: who can sign in, in what role, and the one switch that
 /// changes it.
@@ -59,11 +62,7 @@ class UsersScreen extends ConsumerWidget {
                 children: [
                   TriageStrip(
                     counts: [
-                      (
-                        label: 'Active',
-                        count: active,
-                        level: StatusLevel.good,
-                      ),
+                      (label: 'Active', count: active, level: StatusLevel.good),
                       (
                         label: 'Inactive',
                         count: list.length - active,
@@ -72,7 +71,7 @@ class UsersScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _UserList(users: list, canEdit: canEdit),
+                  _UserList(users: list, canEdit: canEdit, actorRole: role),
                 ],
               );
             },
@@ -84,10 +83,17 @@ class UsersScreen extends ConsumerWidget {
 }
 
 class _UserList extends StatelessWidget {
-  const _UserList({required this.users, required this.canEdit});
+  const _UserList({
+    required this.users,
+    required this.canEdit,
+    required this.actorRole,
+  });
 
   final List<AppUser> users;
   final bool canEdit;
+
+  /// Who is looking — decides whose password they may reset.
+  final String? actorRole;
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +110,8 @@ class _UserList extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (final u in users) _UserRow(user: u, canEdit: canEdit),
+                for (final u in users)
+                  _UserRow(user: u, canEdit: canEdit, actorRole: actorRole),
               ],
             ),
     );
@@ -112,9 +119,16 @@ class _UserList extends StatelessWidget {
 }
 
 class _UserRow extends ConsumerWidget {
-  const _UserRow({required this.user, required this.canEdit});
+  const _UserRow({
+    required this.user,
+    required this.canEdit,
+    required this.actorRole,
+  });
 
   final AppUser user;
+
+  /// The signed-in staff member's role.
+  final String? actorRole;
 
   /// Admin-only: the Edit name action and the active switch.
   final bool canEdit;
@@ -149,6 +163,17 @@ class _UserRow extends ConsumerWidget {
       statusLabel: user.active ? 'Active' : 'Inactive',
       resolved: !user.active,
       actions: [
+        // Reset password (#400): an admin for anyone, a manager for field
+        // agents — the same rule the server applies, so the console never
+        // offers a door that answers 403.
+        if (staffMaySetPasswordFor(actorRole, user.role))
+          IconButton(
+            key: ValueKey<String>('reset-password-${user.id}'),
+            tooltip: 'Reset password for ${user.label}',
+            icon: Icon(Icons.lock_reset, color: context.colors.ink2),
+            onPressed: () =>
+                context.push('/users/${user.id}/password', extra: user),
+          ),
         if (canEdit) ...[
           IconButton(
             key: ValueKey<String>('edit-name-${user.id}'),
@@ -189,8 +214,9 @@ class _EditNameDialog extends ConsumerStatefulWidget {
 
 class _EditNameDialogState extends ConsumerState<_EditNameDialog> {
   final _formKey = GlobalKey<FormState>();
-  late final _nameCtrl =
-      TextEditingController(text: widget.user.displayName ?? '');
+  late final _nameCtrl = TextEditingController(
+    text: widget.user.displayName ?? '',
+  );
   bool _saving = false;
   String? _error;
 
@@ -263,7 +289,8 @@ class _EditNameDialogState extends ConsumerState<_EditNameDialog> {
               onFieldSubmitted: (_) => _saving ? null : _save(),
               decoration: const InputDecoration(
                 labelText: 'Name',
-                helperText: 'Leave blank to clear the name; the email is '
+                helperText:
+                    'Leave blank to clear the name; the email is '
                     'shown instead.',
                 helperMaxLines: 2,
                 errorMaxLines: 2,
@@ -321,7 +348,9 @@ class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
   Future<void> _create() async {
     setState(() => _submitting = true);
     try {
-      await ref.read(usersRepositoryProvider).createUser(
+      await ref
+          .read(usersRepositoryProvider)
+          .createUser(
             email: _emailCtrl.text.trim(),
             password: _passwordCtrl.text,
             role: _role,
@@ -334,7 +363,9 @@ class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
       if (mounted) {
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create user: $e')),
+          SnackBar(
+            content: Text('Could not create the user. ${_createFailure(e)}'),
+          ),
         );
       }
     }
@@ -369,7 +400,13 @@ class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
             key: const ValueKey<String>('new-password'),
             controller: _passwordCtrl,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+            // The server's one rule (#400) — creating a user and changing a
+            // password must agree, and the console used to say nothing.
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              helperText: 'At least 12 characters. Three ordinary words work.',
+              helperMaxLines: 2,
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -377,7 +414,10 @@ class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
             initialValue: _role,
             decoration: const InputDecoration(labelText: 'Role'),
             items: const [
-              DropdownMenuItem(value: 'field_agent', child: Text('field_agent')),
+              DropdownMenuItem(
+                value: 'field_agent',
+                child: Text('field_agent'),
+              ),
               DropdownMenuItem(value: 'manager', child: Text('manager')),
               DropdownMenuItem(value: 'admin', child: Text('admin')),
             ],
@@ -394,4 +434,21 @@ class _CreateUserDialogState extends ConsumerState<_CreateUserDialog> {
       ],
     );
   }
+}
+
+/// Why a create failed, in words. A 400 or 409 carries the server's own
+/// sentence — the password rule, a duplicate email — which states the rule and
+/// never echoes what was typed (#400). Anything else gets the shared copy
+/// rather than a raw exception dump.
+String _createFailure(Object error) {
+  if (error is DioException) {
+    final status = error.response?.statusCode;
+    final body = error.response?.data;
+    if ((status == 400 || status == 409) &&
+        body is Map &&
+        body['error'] is String) {
+      return body['error'] as String;
+    }
+  }
+  return humanErrorMessage(error);
 }

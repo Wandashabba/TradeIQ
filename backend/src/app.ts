@@ -48,6 +48,7 @@ import { reportDownloadsRouter } from './modules/reportschedules/reportschedules
 import { salesTargetsRouter } from './modules/salesTargets/salesTargets.routes';
 import { assistantRouter } from './modules/assistant/assistant.routes';
 import { pushRouter } from './modules/push/push.routes';
+import { appVersionGate } from './middleware/appVersion';
 import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
@@ -100,6 +101,12 @@ app.use(express.json({ limit: '12mb' }));
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
+
+// Records `X-App-Version` on every request, and — only when an operator sets
+// MIN_APP_VERSION — refuses builds below the floor with 426 (#400). Unset by
+// default, so this is a no-op until someone deliberately turns it on. Mounted
+// after /health, which is exempt: an ops probe is not an app build.
+app.use(appVersionGate);
 
 app.use('/auth', authRouter);
 app.use('/outlets', outletsRouter);
