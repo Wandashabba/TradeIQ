@@ -22,6 +22,33 @@ import { recordPointsBestEffort, recordVisitSubmitted } from '../gamification/po
  *  The same bound as `Message.clientMessageId` (#308), deliberately. */
 export const MAX_CLIENT_VISIT_ID_LENGTH = 128;
 
+// ── The "the pin is wrong" override (#386) ────────────────────────────────
+/**
+ * The furthest an agent may be from a pin and still claim the PIN is what is
+ * wrong. Per client, read from `Client.kpiThresholds` like every other tunable.
+ */
+export const PIN_DISPUTE_MAX_DISTANCE_M_KEY = 'pinDisputeMaxDistanceM';
+/**
+ * 25 km.
+ *
+ * Deliberately generous, because the failure this exists for is generous: the
+ * issue's own case is a store pinned to a depot 8.4 km away, and a tenant whose
+ * depot sits on the far side of a metro can easily be further. A tight cap here
+ * would recreate the bug it fixes — an agent standing in a real shop, told no,
+ * with nothing to press.
+ *
+ * It is still a bound, and the bound is the point: it separates "the office
+ * pinned this store to the wrong place in this city" from "this phone is in a
+ * different province from the shop it says it is standing in". The second is
+ * not a pin error, and the fraud engine should never be asked to treat it as
+ * one.
+ */
+export const DEFAULT_PIN_DISPUTE_MAX_DISTANCE_M = 25_000;
+// Operator-facing notes on both of these, and on the fraud weight they feed:
+// docs/operations/pin-repair-and-geofence-override.md
+/** Longest note an agent may attach to a pin dispute. */
+export const MAX_PIN_DISPUTE_NOTE_LENGTH = 1000;
+
 export interface CheckInInput {
   outletId: string;
   lat: number;
@@ -46,6 +73,17 @@ export interface CheckInInput {
    * visit honestly is.
    */
   resumed?: boolean;
+  /**
+   * "The pin is wrong" (#386) — the agent's claim that the fence they just
+   * failed is around the wrong place, with the note they typed.
+   *
+   * Absent on every ordinary check-in, which is every check-in that passes the
+   * fence. Present, it does NOT make the geofence pass: the visit is created
+   * with `geofencePass: false` and a `PinDispute` row beside it, so the manager
+   * and the fraud engine both see an override rather than a clean check-in.
+   * See `checkIn` for why it is not a bypass.
+   */
+  pinDispute?: { note?: string };
 }
 
 export interface CheckInResult {
@@ -124,6 +162,110 @@ export async function checkIn(input: CheckInInput): Promise<CheckInResult> {
       passed: geofencePass,
     },
   });
+
+  // ── The override, and why it is not a bypass (#386) ──────────────────────
+  //
+  // A wrongly pinned outlet is permanently un-visitable: the create form took
+  // the phone's position as the only source of an outlet's coordinates, so a
+  // store onboarded at the depot is pinned to the depot, and the agent standing
+  // inside it measures 8.4 km forever. Refusing them is refusing the only
+  // person who can see that the data is wrong.
+  //
+  // Letting them through anyway is the exact control check-in fraud detection
+  // exists to impose, so the override buys its way in:
+  //
+  //  1. It never fakes a pass. `geofencePass` stays FALSE on the visit — the
+  //     value is the measurement, not a permission. Everything downstream that
+  //     reads it (the manager's review, the fraud engine's signals) sees an
+  //     override, not a clean check-in.
+  //  2. It leaves evidence in the same transaction as the visit: where the
+  //     agent actually was, how far that was from the pin — measured here,
+  //     never accepted from the device — and the pin as it read at the time.
+  //  3. It is bounded. Beyond `pinDisputeMaxDistanceM` the claim is refused:
+  //     a pin can be in the wrong part of town, and that is what the default
+  //     allows for generously, but at some distance "the pin is wrong" stops
+  //     being the likeliest explanation for where the phone is.
+  //  4. It cannot be self-granted. Resolving a dispute means moving the pin,
+  //     and PATCH /outlets/:id is manager/admin only.
+  if (!geofencePass && input.pinDispute) {
+    const maxDistanceM = kpiThreshold(
+      (await prisma.client.findUnique({
+        where: { id: input.clientId },
+        select: { kpiThresholds: true },
+      }))?.kpiThresholds,
+      PIN_DISPUTE_MAX_DISTANCE_M_KEY,
+      DEFAULT_PIN_DISPUTE_MAX_DISTANCE_M,
+    );
+    if (distanceM > maxDistanceM) {
+      // The same 422 an ordinary rejection gets, with the reason named. The
+      // attempt row above is already written either way, so a run of these is
+      // visible to the fraud engine exactly as a run of retries is.
+      throw new GeofenceRejectedError(
+        `Check-in is ${Math.round(distanceM)}m from this outlet, beyond the ` +
+          `${maxDistanceM}m limit for reporting a wrong pin. Ask a manager to ` +
+          'correct the outlet instead.',
+      );
+    }
+
+    await prisma.user.update({
+      where: { id: input.agentId },
+      data: { lastLat: input.lat, lastLng: input.lng, lastSeenAt: new Date() },
+    });
+
+    try {
+      // One transaction: the visit and the evidence for why it was allowed
+      // exist together or not at all. A visit created outside the fence with no
+      // dispute row beside it would be an unexplained override, which is worse
+      // than either a refusal or an explained one.
+      const visit = await prisma.$transaction(async (tx) => {
+        const created = await tx.visit.create({
+          data: {
+            outletId: input.outletId,
+            agentId: input.agentId,
+            clientId: input.clientId,
+            checkinTs: input.checkinTs ? new Date(input.checkinTs) : new Date(),
+            checkinLat: input.lat,
+            checkinLng: input.lng,
+            // FALSE. The whole point.
+            geofencePass: false,
+            checkinDistanceM: distanceM,
+            status: 'in_progress',
+            clientVisitId: input.clientVisitId,
+            resumedFromDraft: input.resumed ?? false,
+          },
+        });
+        await tx.pinDispute.create({
+          data: {
+            clientId: input.clientId,
+            outletId: input.outletId,
+            agentId: input.agentId,
+            visitId: created.id,
+            lat: input.lat,
+            lng: input.lng,
+            distanceM,
+            outletLat: outlet.lat,
+            outletLng: outlet.lng,
+            note: input.pinDispute?.note ?? null,
+          },
+        });
+        return created;
+      });
+      return { visit, deduplicated: false };
+    } catch (err) {
+      // Same idempotency race as the ordinary path below.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002' &&
+        input.clientVisitId !== undefined
+      ) {
+        const winner = await findByClientVisitId(input);
+        if (winner) {
+          return { visit: winner, deduplicated: true };
+        }
+      }
+      throw err;
+    }
+  }
 
   if (!geofencePass) {
     throw new GeofenceRejectedError('Check-in location is outside the outlet geofence');
@@ -380,6 +522,30 @@ export interface VisitDetail {
   submittedAtClient: Date | null;
   geofence: { pass: boolean; distanceM: number | null };
   /**
+   * The agent's "the pin is wrong" claim, when this visit was allowed through
+   * the fence on one (#386), else null.
+   *
+   * `pass: false` above is the fact; this is the reason. Without it a reviewer
+   * sees a visit recorded 8.4 km from the store and no way to tell an agent
+   * reporting a depot-pinned outlet from one faking a visit — which is the
+   * whole difference. `outletLat`/`outletLng` are the pin AS IT READ when the
+   * claim was made, so a dispute read after the pin was corrected still shows
+   * what the agent was arguing with.
+   */
+  pinDispute: {
+    id: string;
+    lat: number;
+    lng: number;
+    distanceM: number;
+    outletLat: number;
+    outletLng: number;
+    note: string | null;
+    status: string;
+    resolvedByLabel: string | null;
+    resolvedAt: Date | null;
+    createdAt: Date;
+  } | null;
+  /**
    * True when the agent resumed a saved draft rather than checking in fresh
    * (#379).
    *
@@ -478,6 +644,23 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
       checkinDistanceM: true,
       outlet: { select: { id: true, name: true, code: true, channelType: true } },
       agent: { select: { id: true, email: true } },
+      // The reason behind `geofencePass: false` (#386). Null on every visit
+      // that passed the fence, which is every ordinary visit.
+      pinDispute: {
+        select: {
+          id: true,
+          lat: true,
+          lng: true,
+          distanceM: true,
+          outletLat: true,
+          outletLng: true,
+          note: true,
+          status: true,
+          resolvedByLabel: true,
+          resolvedAt: true,
+          createdAt: true,
+        },
+      },
       scorecard: {
         select: {
           weightedTotal: true,
@@ -641,6 +824,7 @@ export async function getVisitDetail(visitId: string, clientId: string): Promise
     submittedAtClient: visit.submittedAtClient,
     resumedFromDraft: visit.resumedFromDraft,
     geofence: { pass: visit.geofencePass, distanceM: visit.checkinDistanceM },
+    pinDispute: visit.pinDispute,
     score,
     sections: [
       summariseStock(visit.stock, visit._count.stock),

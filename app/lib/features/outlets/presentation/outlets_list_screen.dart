@@ -36,6 +36,7 @@ class OutletsListScreen extends ConsumerWidget {
             style: TextStyle(fontSize: 12, color: context.colors.ink3),
           ),
           const SizedBox(height: 12),
+          const _OpenPinReports(),
           AsyncSection<List<Outlet>>(
             value: outlets,
             label: 'outlets',
@@ -132,6 +133,60 @@ class _OutletRow extends StatelessWidget {
       ),
       level: located ? StatusLevel.good : StatusLevel.warning,
       statusLabel: located ? 'Geocoded' : 'No location',
+      // The way into the repair screen (#386). Until it existed there was
+      // nowhere in the product an outlet's coordinates could be corrected, so
+      // this list was a dead end for the one problem it displays.
+      onTap: () => context.push('/outlets/${outlet.id}'),
+    );
+  }
+}
+
+/// Agents who have reported a pin as wrong and are waiting on somebody (#386).
+///
+/// It sits above the list because each row is an agent currently working
+/// around broken data — a visit already recorded outside the fence, flagged,
+/// waiting for the one person who can correct the number. A queue nobody is
+/// shown is a queue nobody works.
+///
+/// Silent when there are none, and silent when the request fails: a manager
+/// who cannot reach this endpoint still needs the outlets list underneath it.
+class _OpenPinReports extends ConsumerWidget {
+  const _OpenPinReports();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final disputes = ref.watch(openPinDisputesProvider);
+    final open = disputes.value ?? const <PinDispute>[];
+    if (open.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: PanelCard(
+        title: '${open.length} open pin ${open.length == 1 ? 'report' : 'reports'}',
+        subtitle: 'Agents who could not check in where the pin says the store is',
+        padded: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final d in open)
+              WorklistRow(
+                key: ValueKey<String>('pin-report-${d.id}'),
+                title: d.outletName,
+                meta: Text(
+                  '${d.agentLabel} stood '
+                  '${d.distanceM >= 1000 ? '${(d.distanceM / 1000).toStringAsFixed(1)} km' : '${d.distanceM.round()} m'}'
+                  ' away',
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                level: StatusLevel.warning,
+                statusLabel: 'Pin reported',
+                onTap: () => context.push('/outlets/${d.outletId}'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

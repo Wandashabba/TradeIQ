@@ -24,10 +24,11 @@ import '../../../core/widgets/torchlight/sync_status.dart';
 import '../../../l10n/l10n.dart';
 import '../../beatplans/presentation/today_screen.dart' show displayFor;
 import '../../outlets/data/outlets_repository.dart';
-import '../data/pin_report.dart';
+import '../data/photos_repository.dart';
 import '../data/template_section_repository.dart';
 import '../data/visit_progress.dart';
 import '../data/visits_repository.dart';
+import 'pin_dispute_view.dart';
 import 'sections/client_questions_screen.dart';
 import 'sections/s10_scorecard_screen.dart';
 import 'sections/s1_outlet_info_screen.dart';
@@ -100,6 +101,13 @@ class AuditShellScreen extends ConsumerStatefulWidget {
   /// The locating radar's live pulse — rung 6, presence and never progress.
   static const String locatingClaimId = 'check-in-locating';
 
+  /// "Start the visit, flagged" on the wrong-pin report (#386).
+  static const String pinDisputeClaimId = 'pin-dispute-file';
+
+  /// The storefront photo a wrong-pin report carries rides the ordinary photo
+  /// pipeline under this section — the backend's `PIN_DISPUTE_PHOTO_SECTION`.
+  static const String pinDisputePhotoSection = 'pin_dispute';
+
   @override
   ConsumerState<AuditShellScreen> createState() => _AuditShellScreenState();
 }
@@ -117,6 +125,13 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
 
   /// When the last failure happened, for the error-code line.
   DateTime? _failedAt;
+
+  /// The failed check-in the agent is reporting a wrong pin against (#386),
+  /// while the report screen is up. Null everywhere else.
+  CheckInGeofenceFailed? _disputing;
+
+  /// Why the last attempt to start a flagged visit failed, in words.
+  String? _disputeError;
 
   Future<void> _startCheckIn(double outletLat, double outletLng) async {
     // The repository is written not to throw, but this is the one place where
@@ -138,6 +153,11 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       result = CheckInFailed(HumanError.of(error));
     }
     if (!mounted) return;
+    _land(result);
+  }
+
+  /// Everything that follows a check-in result, whichever way it was reached.
+  void _land(CheckInResult result) {
     if (result case CheckInSucceeded(:final visitId)) {
       // Pin the client's audit template to this visit (#122), once, so its
       // questions cannot change mid-visit and reopen without signal.
@@ -175,6 +195,79 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
     _checkInResult = null;
     _attempts += 1;
   });
+
+  void _openDispute(CheckInGeofenceFailed failure) => setState(() {
+    _disputing = failure;
+    _disputeError = null;
+  });
+
+  void _cancelDispute() => setState(() {
+    _disputing = null;
+    _disputeError = null;
+  });
+
+  /// "The pin is wrong" — start the visit outside the fence, flagged, with the
+  /// failed check-in's own position as the evidence (#386).
+  ///
+  /// The photo is queued only once the visit exists, against its local id, so
+  /// it waits in the outbox behind the check-in exactly as a section photo
+  /// does. A photo that fails to queue does not un-start the visit: the
+  /// position and the distance are the evidence, the photo is the extra.
+  Future<void> _fileDispute(PinDisputeFiling filing) async {
+    final failure = _disputing;
+    final lat = failure?.lat;
+    final lng = failure?.lng;
+    if (failure == null || lat == null || lng == null) return;
+    final l10n = context.l10n;
+
+    CheckInResult result;
+    try {
+      result = await ref
+          .read(visitsRepositoryProvider)
+          .checkInDisputingPin(
+            outletId: widget.outletId,
+            lat: lat,
+            lng: lng,
+            distanceMeters: failure.distanceMeters,
+            note: filing.note,
+          );
+    } catch (error) {
+      result = CheckInFailed(HumanError.of(error));
+    }
+    if (!mounted) return;
+
+    if (result is! CheckInSucceeded) {
+      setState(
+        () => _disputeError = switch (result) {
+          CheckInFailed(:final reason) => reason.message(l10n),
+          _ => l10n.visitCheckInFailedTitle,
+        },
+      );
+      return;
+    }
+
+    final photo = filing.photo;
+    if (photo != null) {
+      try {
+        await ref
+            .read(queuedPhotosRepositoryProvider)
+            .queuePhoto(
+              visitDraftId: result.visitId,
+              section: AuditShellScreen.pinDisputePhotoSection,
+              dataUrl: photo.dataUrl,
+              gpsTag: photo.gpsTag,
+              capturedAt: photo.capturedAt,
+            );
+      } catch (error) {
+        debugPrint('Storefront photo not queued for ${result.visitId}: $error');
+      }
+      if (!mounted) return;
+    }
+
+    _disputing = null;
+    _disputeError = null;
+    _land(result);
+  }
 
   Outlet? _findOutlet(List<Outlet> outlets) {
     for (final outlet in outlets) {
@@ -330,28 +423,59 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
           );
         }
 
-        return switch (_checkInResult) {
-          null => _CheckingIn(outlet: outlet),
-          CheckInSucceeded() => _hub(outlet),
-          CheckInGeofenceFailed(:final distanceMeters) => _TooFar(
-            outlet: outlet,
-            distanceMeters: distanceMeters,
-            attempts: _attempts,
-            onRetry: _retry,
-          ),
-          final CheckInLocationUnavailable unavailable => _NoGps(
-            outlet: outlet,
-            message: unavailable.messageIn(l10n),
-            problem: unavailable.problem,
-            onRetry: _retry,
-          ),
-          CheckInFailed(:final reason) => _SomethingElse(
-            outlet: outlet,
-            reason: reason,
-            failedAt: _failedAt,
-            onRetry: _retry,
-          ),
-        };
+        // Each screen of the check-in gets its own subtree. They all wear a
+        // VisitFrame, so without a key Flutter reuses one shell's state across
+        // them — and its scroll offset with it: the report, opened from a
+        // too-far screen scrolled down to its third action, arrived scrolled,
+        // and the hub after it opened with its flags above the fold (#386).
+        final disputing = _disputing;
+        if (disputing != null && _checkInResult is CheckInGeofenceFailed) {
+          return KeyedSubtree(
+            key: const ValueKey<String>('visit-screen-pin-dispute'),
+            child: PinDisputeView(
+              outlet: outlet,
+              failure: disputing,
+              error: _disputeError,
+              onFile: _fileDispute,
+              onCancel: _cancelDispute,
+            ),
+          );
+        }
+
+        final result = _checkInResult;
+        return KeyedSubtree(
+          key: ValueKey<String>(switch (result) {
+            null => 'visit-screen-locating',
+            CheckInOverridden() => 'visit-screen-hub-flagged',
+            CheckInSucceeded() => 'visit-screen-hub',
+            CheckInGeofenceFailed() => 'visit-screen-too-far',
+            CheckInLocationUnavailable() => 'visit-screen-no-gps',
+            CheckInFailed() => 'visit-screen-failed',
+          }),
+          child: switch (result) {
+            null => _CheckingIn(outlet: outlet),
+            CheckInSucceeded() => _hub(outlet),
+            final CheckInGeofenceFailed failure => _TooFar(
+              outlet: outlet,
+              failure: failure,
+              attempts: _attempts,
+              onRetry: _retry,
+              onDisputePin: () => _openDispute(failure),
+            ),
+            final CheckInLocationUnavailable unavailable => _NoGps(
+              outlet: outlet,
+              message: unavailable.messageIn(l10n),
+              problem: unavailable.problem,
+              onRetry: _retry,
+            ),
+            CheckInFailed(:final reason) => _SomethingElse(
+              outlet: outlet,
+              reason: reason,
+              failedAt: _failedAt,
+              onRetry: _retry,
+            ),
+          },
+        );
       },
     );
   }
@@ -411,6 +535,13 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   Widget _hub(Outlet outlet) {
     final visitDraftId = _visitDraftId!;
     final l10n = context.l10n;
+    // A visit started over a wrong pin says so on every hub frame, loading and
+    // failed included. The flags are facts about the visit, not about how well
+    // the hub is reading right now.
+    final result = _checkInResult;
+    final flags = result is CheckInOverridden
+        ? overrideFlagChips(context, result)
+        : const <Widget>[];
     final progressAsync = ref.watch(
       visitProgressProvider((
         visitDraftId: visitDraftId,
@@ -422,6 +553,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       loading: () => VisitFrame(
         phase: 'hub-loading',
         title: outlet.name,
+        flags: flags,
         facts: <String>[?_inStore(l10n, _checkinTs)],
         children: const <Widget>[_HubSkeleton()],
       ),
@@ -431,6 +563,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
       error: (err, _) => VisitFrame(
         phase: 'hub-error',
         title: outlet.name,
+        flags: flags,
         facts: <String>[?_inStore(l10n, _checkinTs)],
         submit: TorchPrimaryButton(
           claimId: AuditShellScreen.submitClaimId,
@@ -462,6 +595,7 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
         return VisitFrame(
           phase: ready ? 'ready' : 'blocked',
           title: outlet.name,
+          flags: flags,
           facts: <String>[?_inStore(l10n, _checkinTs)],
           // ARMED or nothing. A disabled primary declares no claim, so a
           // blocked hub paints zero amber objects — and the census is what
@@ -528,11 +662,16 @@ class VisitFrame extends StatelessWidget {
     this.claimId = AuditShellScreen.submitClaimId,
     this.pulseId,
     this.showSyncChip = true,
+    this.flags = const <Widget>[],
   });
 
   final String phase;
   final String title;
   final List<String> facts;
+
+  /// Flag chips about this visit — out of fence, pin reported (#386) — in the
+  /// header's capped wrap, after the sync chip.
+  final List<Widget> flags;
   final List<Widget> children;
 
   /// The thumb zone's primary, or null on a screen that has none.
@@ -574,9 +713,10 @@ class VisitFrame extends StatelessWidget {
         header: TorchAppHeader(
           title: title,
           facts: facts,
-          flagChips: showSyncChip
-              ? const <Widget>[TorchSyncChip()]
-              : const <Widget>[],
+          flagChips: <Widget>[
+            if (showSyncChip) const TorchSyncChip(),
+            ...flags,
+          ],
         ),
         // Not a tab root, so the cycle sits at the leading end of the thumb
         // zone — on every screen here including the ones with no primary.
@@ -859,26 +999,28 @@ class _CheckingIn extends StatelessWidget {
 
 /// TOO FAR. How far away the agent actually is, and what retrying from the car
 /// park actually costs.
-class _TooFar extends ConsumerWidget {
+class _TooFar extends StatelessWidget {
   const _TooFar({
     required this.outlet,
-    required this.distanceMeters,
+    required this.failure,
     required this.attempts,
     required this.onRetry,
+    required this.onDisputePin,
   });
 
   final Outlet outlet;
-  final double distanceMeters;
+  final CheckInGeofenceFailed failure;
   final int attempts;
   final VoidCallback onRetry;
 
+  /// Opens the wrong-pin report (#386).
+  final VoidCallback onDisputePin;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
-    final metres = distanceMeters.round();
-    final reported =
-        ref.watch(pinReportsProvider).contains(outlet.id);
+    final metres = failure.distanceMeters.round();
 
     return VisitFrame(
       phase: 'too-far',
@@ -930,32 +1072,28 @@ class _TooFar extends ConsumerWidget {
 
         // THE THIRD, QUIETER ACTION (#386). An agent standing at the front
         // door of a shop the app says is 180 m away is telling us something
-        // true. There is nowhere to send it yet, so it is recorded on the
-        // phone and the screen says exactly that — never "we'll look into it".
-        if (reported)
-          Row(
-            key: const ValueKey<String>('pin-reported'),
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const RowMarkTile(mark: RowMark.square),
-              const SizedBox(width: TiqSpace.s3),
-              Expanded(
-                child: Text(
-                  l10n.visitPinReportedHeld,
-                  style: skin.text.body.style(color: skin.palette.ink2),
-                ),
-              ),
-            ],
-          )
-        else
+        // true. It opens the report, which starts the visit OUTSIDE the fence,
+        // flagged, with this failure's position and distance as the evidence
+        // — never a pass. Tertiary on purpose: it must not compete with
+        // walking closer, which is still the right answer most of the time.
+        //
+        // Beyond the distance the server accepts a report at, the action is
+        // replaced by the sentence that says who can fix it. Offering a claim
+        // that will be refused would queue a visit that can never sync.
+        if (failure.canDisputePin)
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TorchTertiaryButton(
               key: const ValueKey<String>('pin-is-wrong'),
               label: l10n.visitPinIsWrong,
-              onPressed: () =>
-                  ref.read(pinReportsProvider.notifier).report(outlet.id),
+              onPressed: onDisputePin,
             ),
+          )
+        else if (failure.lat != null)
+          Text(
+            l10n.visitPinTooFarToReport,
+            key: const ValueKey<String>('pin-too-far-to-report'),
+            style: skin.text.body.style(color: skin.palette.ink2),
           ),
       ],
     );

@@ -153,6 +153,10 @@ void main() {
     await tester.tap(find.text('Hurlingham').last);
     await tester.pumpAndSettle();
 
+    // The form grew editable lat/lng fields (#386), so the button can sit
+    // below the fold at the test viewport's height.
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Create Store'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Create Store'));
     await tester.pumpAndSettle();
 
@@ -178,6 +182,8 @@ void main() {
       'supermarket',
     );
 
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Create Store'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Create Store'));
     await tester.pumpAndSettle();
 
