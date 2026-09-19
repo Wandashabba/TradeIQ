@@ -1,0 +1,24 @@
+# check_in_too_far_veld
+# Regenerate: UPDATE_AGENT_GOLDENS=1 flutter test
+
+skin = veld
+density = veld
+ground = #FFFFFF
+gutter = 24.0
+border.width = 2.0
+shadows = 0
+row.min = 64.0
+target.min = 56.0
+motion = off
+header.trailing = none
+header.chips = 0
+header.height = 118
+nav.pill = absent
+thumb.zone = present
+zone.height = 178
+skin.cycle = thumb-zone
+primary.armed = yes
+primary.blocked.named = no
+primary.height = 64
+rows.onscreen = 0
+amber.objects = 1

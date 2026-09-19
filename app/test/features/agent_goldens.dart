@@ -8,6 +8,7 @@ import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
 import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 
 import '../core/design/amber_golden.dart';
+import 'agent_harness.dart' show scrollAgentTo;
 
 /// TEXT GOLDENS FOR THE TWO MIGRATED AGENT ROUTES.
 ///
@@ -31,9 +32,17 @@ String _hex(Color c) =>
     '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
 /// The facts every agent route declares, measured off the pumped frame.
+///
+/// [bringIntoView], when given, is scrolled to **after** the header has been
+/// measured and before the census. Today needs it: its commit action is just
+/// past the fold on a 360×640 phone and the census counts the composed frame,
+/// but the header is a child of the same one scroll view and scrolling first
+/// unmounts it — which is how three header lines went silently missing from
+/// the first cut of these goldens.
 Future<List<GoldenLine>> measureAgentFrame(
   WidgetTester tester, {
   required TiqSkin skin,
+  Finder? bringIntoView,
 }) async {
   final lines = <GoldenLine>[];
 
@@ -48,6 +57,19 @@ Future<List<GoldenLine>> measureAgentFrame(
   add('row.min', skin.space.rowMinHeight);
   add('target.min', skin.space.tapTarget);
   add('motion', skin.motion.enabled ? 'on' : 'off');
+
+  // The header, at rest — the top of the scroll view is where it lives.
+  final header = find.byType(TorchAppHeader);
+  if (header.evaluate().isNotEmpty) {
+    final h = tester.widget<TorchAppHeader>(header.first);
+    add('header.trailing', h.trailing == null ? 'none' : 'skin-cycle');
+    add('header.chips', h.flagChips.length);
+    add('header.height', tester.getRect(header.first).height.round());
+  }
+
+  if (bringIntoView != null) {
+    await scrollAgentTo(tester, bringIntoView);
+  }
 
   // The bottom region: a tab root has a nav pill and no thumb zone; every
   // other screen has a thumb zone and no nav. The two are alternatives, not
@@ -68,13 +90,6 @@ Future<List<GoldenLine>> measureAgentFrame(
 
   // The skin cycle is on every screen — on a tab root as the header's one
   // trailing icon button, elsewhere at the leading end of the thumb zone.
-  final header = find.byType(TorchAppHeader);
-  if (header.evaluate().isNotEmpty) {
-    final h = tester.widget<TorchAppHeader>(header.first);
-    add('header.trailing', h.trailing == null ? 'none' : 'skin-cycle');
-    add('header.chips', h.flagChips.length);
-    add('header.height', tester.getRect(header.first).height.round());
-  }
   add(
     'skin.cycle',
     find.byType(TorchSkinCycle).evaluate().isEmpty ? 'header' : 'thumb-zone',
@@ -92,7 +107,12 @@ Future<List<GoldenLine>> measureAgentFrame(
     add('primary', 'none');
   }
 
-  add('rows', find.byType(SoftRow).evaluate().length);
+  // Rows ON SCREEN, not rows declared: the body is one lazy scroll view, so
+  // this is a fact about the composed frame at rest. A Veld hub with a taller
+  // header and a taller thumb zone genuinely shows fewer rungs than a Night
+  // one, and that is the kind of thing this file is for. The names and the
+  // order of the whole ladder are `audit_shell_client_questions_test`'s job.
+  add('rows.onscreen', find.byType(SoftRow).evaluate().length);
 
   // The census, on the real pixels of this exact frame.
   final census = await amberCensus(tester);

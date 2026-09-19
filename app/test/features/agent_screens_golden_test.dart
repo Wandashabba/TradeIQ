@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
-import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
@@ -65,17 +64,14 @@ void main() {
             todayRouteProvider.overrideWith((ref) async => _route),
           ],
         );
-        // The census counts the composed frame, so the commit action has to
-        // be in it: on a 360×640 phone the day block puts "Check in here"
-        // just past the fold.
-        await scrollAgentTo(
-          tester,
-          find.byKey(const ValueKey<String>('check-in-next')),
-        );
-
         final lines = await measureAgentFrame(
           tester,
           skin: agentSkinFor(mode),
+          // The census counts the composed frame, so the commit action has to
+          // be in it: on a 360×640 phone the day block puts "Check in here"
+          // just past the fold. The header is measured before this scroll —
+          // it is a child of the same scroll view.
+          bringIntoView: find.byKey(const ValueKey<String>('check-in-next')),
         );
         expectAgentGolden(lines, 'today_${mode.name}');
       });

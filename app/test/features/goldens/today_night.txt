@@ -1,0 +1,25 @@
+# today_night
+# Regenerate: UPDATE_AGENT_GOLDENS=1 flutter test
+
+skin = night
+density = field
+ground = #0B1017
+gutter = 20.0
+border.width = 1.0
+shadows = 0
+row.min = 64.0
+target.min = 48.0
+motion = on
+header.trailing = skin-cycle
+header.chips = 1
+header.height = 138
+nav.pill = present
+thumb.zone = absent
+nav.height = 64
+nav.docked = no
+skin.cycle = header
+primary.armed = yes
+primary.blocked.named = no
+primary.height = 57
+rows.onscreen = 2
+amber.objects = 2
