@@ -382,7 +382,7 @@ export async function redeemResetCode(
 
   const user = await prisma.user.findUnique({
     where: { email: normalizeEmail(input.email) },
-    select: { id: true, clientId: true, active: true },
+    select: { id: true, clientId: true, active: true, role: true },
   });
 
   const candidate = user
@@ -432,7 +432,10 @@ export async function redeemResetCode(
     // the manager as the actor would say they chose the password, which they
     // did not and must not be able to.
     actorId: user.id,
-    actorRole: 'field_agent',
+    // The account's own role. An admin can issue a code for a manager or
+    // another admin, and a ledger that recorded every redeemer as a field
+    // agent would misdescribe exactly the resets that matter most.
+    actorRole: user.role as Role,
     method: 'code_redeemed',
     newPassword: input.newPassword,
     also: async (tx) => {

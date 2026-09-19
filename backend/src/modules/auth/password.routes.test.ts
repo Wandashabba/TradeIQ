@@ -397,6 +397,24 @@ describe('password change and reset (#400)', () => {
       });
       expect(redeemed).not.toBeNull();
       expect(redeemed!.actorId).toBe(agent.id);
+      expect(redeemed!.actorRole).toBe('field_agent');
+    });
+
+    // An admin may issue a code for a manager. The ledger must say a MANAGER
+    // redeemed it — it used to record every redeemer as a field agent.
+    it('records the redeemer\'s own role in the ledger', async () => {
+      const target = await makeUser(clientId, 'manager');
+      const code = await codeFor(admin.token, target.id);
+
+      const res = await request(app)
+        .post('/auth/reset-password')
+        .send({ email: target.email, code, newPassword: NEW_PASSWORD });
+      expect(res.status).toBe(200);
+
+      const redeemed = await prisma.passwordChangeEvent.findFirst({
+        where: { userId: target.id, method: 'code_redeemed' },
+      });
+      expect(redeemed).toMatchObject({ actorId: target.id, actorRole: 'manager' });
     });
 
     it('accepts the code as the manager reads it out, with a space in it', async () => {
