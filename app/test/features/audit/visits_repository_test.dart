@@ -163,44 +163,47 @@ void main() {
           db: db,
           locationService: service,
           syncService: SyncService(db: db, flusher: _NoopFlusher()),
-        ).checkIn(outletId: 'outlet-1', outletLat: -26.2041, outletLng: 28.0473);
+        ).checkIn(
+          outletId: 'outlet-1',
+          outletLat: -26.2041,
+          outletLng: 28.0473,
+        );
 
     test('each location failure maps to its code and copy', () async {
-      final cases =
-          <(LocationResult, CheckInLocationProblem, String, String)>[
-            (
-              LocationDenied(),
-              CheckInLocationProblem.permissionDenied,
-              'Location permission denied',
-              'Toestemming vir ligging is geweier',
-            ),
-            (
-              LocationError(
-                'Location services are disabled',
-                kind: LocationErrorKind.servicesDisabled,
-              ),
-              CheckInLocationProblem.servicesDisabled,
-              'Location services are disabled',
-              'Liggingdienste is afgeskakel',
-            ),
-            (
-              LocationError('late', kind: LocationErrorKind.timedOut),
-              CheckInLocationProblem.timedOut,
-              'Took too long. Check location is on for TradeIQ, then try again.',
-              'Dit het te lank geneem. Maak seker ligging is aan vir TradeIQ, '
-                  'en probeer weer.',
-            ),
-            (
-              LocationError(
-                'Failed to get current location: boom',
-                kind: LocationErrorKind.failed,
-                detail: 'boom',
-              ),
-              CheckInLocationProblem.failed,
-              'Failed to get current location: boom',
-              'Kon nie jou huidige ligging kry nie: boom',
-            ),
-          ];
+      final cases = <(LocationResult, CheckInLocationProblem, String, String)>[
+        (
+          LocationDenied(),
+          CheckInLocationProblem.permissionDenied,
+          'Location permission denied',
+          'Toestemming vir ligging is geweier',
+        ),
+        (
+          LocationError(
+            'Location services are disabled',
+            kind: LocationErrorKind.servicesDisabled,
+          ),
+          CheckInLocationProblem.servicesDisabled,
+          'Location services are disabled',
+          'Liggingdienste is afgeskakel',
+        ),
+        (
+          LocationError('late', kind: LocationErrorKind.timedOut),
+          CheckInLocationProblem.timedOut,
+          'Took too long. Check location is on for TradeIQ, then try again.',
+          'Dit het te lank geneem. Maak seker ligging is aan vir TradeIQ, '
+              'en probeer weer.',
+        ),
+        (
+          LocationError(
+            'Failed to get current location: boom',
+            kind: LocationErrorKind.failed,
+            detail: 'boom',
+          ),
+          CheckInLocationProblem.failed,
+          'Failed to get current location: boom',
+          'Kon nie jou huidige ligging kry nie: boom',
+        ),
+      ];
       for (final (location, problem, english, afrikaans) in cases) {
         final result =
             await checkInWith(_FakeLocationService(location))
@@ -277,63 +280,69 @@ void main() {
     },
   );
 
-  test('a flush that never returns does not hold the agent at the door', () async {
-    final repository = DriftVisitsRepository(
-      db: db,
-      locationService: _FakeLocationService(
-        LocationGranted(-26.20400, 28.0473),
-      ),
-      syncService: SyncService(db: db, flusher: _HangingFlusher()),
-      flushTimeout: const Duration(milliseconds: 20),
-    );
+  test(
+    'a flush that never returns does not hold the agent at the door',
+    () async {
+      final repository = DriftVisitsRepository(
+        db: db,
+        locationService: _FakeLocationService(
+          LocationGranted(-26.20400, 28.0473),
+        ),
+        syncService: SyncService(db: db, flusher: _HangingFlusher()),
+        flushTimeout: const Duration(milliseconds: 20),
+      );
 
-    // The visit is already on disk by the time the flush starts; making the
-    // agent wait for the network to answer before the visit opens is exactly
-    // the spinner this bounds. The outer timeout is what fails the test
-    // rather than hanging it if the bound is missing.
-    final result = await repository
-        .checkIn(
-          outletId: 'outlet-1',
-          outletLat: -26.2041,
-          outletLng: 28.0473,
-        )
-        .timeout(const Duration(seconds: 5));
+      // The visit is already on disk by the time the flush starts; making the
+      // agent wait for the network to answer before the visit opens is exactly
+      // the spinner this bounds. The outer timeout is what fails the test
+      // rather than hanging it if the bound is missing.
+      final result = await repository
+          .checkIn(
+            outletId: 'outlet-1',
+            outletLat: -26.2041,
+            outletLng: 28.0473,
+          )
+          .timeout(const Duration(seconds: 5));
 
-    expect(result, isA<CheckInSucceeded>());
-    final drafts = await db.select(db.visitDrafts).get();
-    expect(drafts, hasLength(1));
-  });
+      expect(result, isA<CheckInSucceeded>());
+      final drafts = await db.select(db.visitDrafts).get();
+      expect(drafts, hasLength(1));
+    },
+  );
 
-  test('a local write that throws surfaces as CheckInFailed, not an exception', () async {
-    // A database whose file cannot be opened at all. This is the class of
-    // failure the check-in screen used to swallow: the future threw, the
-    // post-frame callback that awaited it had no catch, and the agent was
-    // left on the locating radar with no error and no way forward.
-    final unopenable = LocalDb(
-      NativeDatabase(File('/nonexistent-directory/tradeiq_local.sqlite')),
-    );
-    addTearDown(() async {
-      try {
-        await unopenable.close();
-      } catch (_) {
-        // It never opened; closing it is allowed to fail.
-      }
-    });
+  test(
+    'a local write that throws surfaces as CheckInFailed, not an exception',
+    () async {
+      // A database whose file cannot be opened at all. This is the class of
+      // failure the check-in screen used to swallow: the future threw, the
+      // post-frame callback that awaited it had no catch, and the agent was
+      // left on the locating radar with no error and no way forward.
+      final unopenable = LocalDb(
+        NativeDatabase(File('/nonexistent-directory/tradeiq_local.sqlite')),
+      );
+      addTearDown(() async {
+        try {
+          await unopenable.close();
+        } catch (_) {
+          // It never opened; closing it is allowed to fail.
+        }
+      });
 
-    final repository = DriftVisitsRepository(
-      db: unopenable,
-      locationService: _FakeLocationService(
-        LocationGranted(-26.20400, 28.0473),
-      ),
-      syncService: SyncService(db: unopenable, flusher: _NoopFlusher()),
-    );
+      final repository = DriftVisitsRepository(
+        db: unopenable,
+        locationService: _FakeLocationService(
+          LocationGranted(-26.20400, 28.0473),
+        ),
+        syncService: SyncService(db: unopenable, flusher: _NoopFlusher()),
+      );
 
-    final result = await repository.checkIn(
-      outletId: 'outlet-1',
-      outletLat: -26.2041,
-      outletLng: 28.0473,
-    );
+      final result = await repository.checkIn(
+        outletId: 'outlet-1',
+        outletLat: -26.2041,
+        outletLng: 28.0473,
+      );
 
-    expect(result, isA<CheckInFailed>());
-  });
+      expect(result, isA<CheckInFailed>());
+    },
+  );
 }

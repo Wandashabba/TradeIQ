@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tradeiq_app/core/camera/photo_capture_service.dart';
+import 'package:tradeiq_app/core/camera/photo_exposure.dart';
 import 'package:tradeiq_app/core/location/location_service.dart';
 import 'package:tradeiq_app/core/location/photo_geotagger.dart';
 import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
@@ -171,6 +172,28 @@ class GrantedLocation extends LocationService {
   @override
   Future<LocationResult> getPositionIfPermitted() async =>
       LocationGranted(-26.2041, 28.0473, accuracy: 7);
+}
+
+/// The exposure reader, scripted. Decoding an image does not complete on
+/// FakeAsync's clock, so a test says what the frame measured; the real
+/// measurement is `photo_exposure_test.dart`. Null is "could not measure".
+Override scriptedExposure([double? luma]) =>
+    photoExposureProvider.overrideWithValue((String url) async => luma);
+
+/// Take the section's photo the way an agent does: the section's Open camera,
+/// the guided route's camera (or gallery), then Use it on the review step —
+/// a frame is never kept without being looked at.
+Future<void> takeSectionPhoto(
+  WidgetTester tester, {
+  bool gallery = false,
+}) async {
+  await tapInSection(tester, find.byKey(const ValueKey<String>('photo-add')));
+  await tester.tap(
+    find.byKey(ValueKey<String>(gallery ? 'guided-gallery' : 'guided-capture')),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey<String>('guided-use-it')));
+  await tester.pumpAndSettle();
 }
 
 /// A capture service that always succeeds, geotagged, at [shutter].

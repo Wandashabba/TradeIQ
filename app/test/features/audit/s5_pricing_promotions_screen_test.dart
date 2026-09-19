@@ -70,6 +70,7 @@ List<Override> _overrides(
   pricingRepositoryProvider.overrideWithValue(spy),
   if (photos != null) queuedPhotosRepositoryProvider.overrideWithValue(photos),
   photoCaptureServiceProvider.overrideWithValue(fakeCapture()),
+  scriptedExposure(0.5),
 ];
 
 const _screen = S5PricingPromotionsScreen(visitDraftId: 'v1', outletId: 'o1');
@@ -145,7 +146,7 @@ void main() {
       _screen,
       overrides: _overrides(_SpyPricing(), photos: photos),
     );
-    await tapInSection(tester, _key('photo-add'));
+    await takeSectionPhoto(tester);
     await saveSection(tester);
     expect(photos.calls.single['section'], 'pricing');
     await disposeAgentScreen(tester);

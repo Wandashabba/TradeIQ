@@ -84,7 +84,9 @@ List<Override> _overrides({
   List<Sku> skus = const <Sku>[_cola],
   QueuedPhotosRepository? photos,
   PhotoCaptureService? capture,
+  double? luma = 0.5,
 }) => <Override>[
+  scriptedExposure(luma),
   skusRepositoryProvider.overrideWithValue(_Skus(skus)),
   stockRepositoryProvider.overrideWithValue(stock),
   if (photos != null) queuedPhotosRepositoryProvider.overrideWithValue(photos),
@@ -398,10 +400,7 @@ void main() {
         ),
       );
 
-      await tapInSection(
-        tester,
-        find.byKey(const ValueKey<String>('photo-add')),
-      );
+      await takeSectionPhoto(tester);
       expect(
         find.byKey(const ValueKey<String>('photo-preview')),
         findsOneWidget,
@@ -441,15 +440,37 @@ void main() {
         ),
       );
 
-      await tapInSection(
-        tester,
-        find.byKey(const ValueKey<String>('photo-gallery')),
-      );
+      await takeSectionPhoto(tester, gallery: true);
       expect(gateway.sources, <ImageSource>[ImageSource.gallery]);
       await saveSection(tester);
       expect(photos.calls.single['section'], 'stock');
       await disposeAgentScreen(tester);
     });
+  });
+
+  testWidgets('a dark frame is questioned before it is kept, and stays marked '
+      'in the section once kept', (tester) async {
+    final photos = SpyQueuedPhotos();
+    await pumpSection(
+      tester,
+      _screen,
+      overrides: _overrides(
+        stock: _SpyStock(),
+        photos: photos,
+        capture: fakeCapture(),
+        luma: 0.05,
+      ),
+    );
+    await takeSectionPhoto(tester);
+    await scrollAgentTo(
+      tester,
+      find.byKey(const ValueKey<String>('section-photo-dark')),
+    );
+    expect(find.text('Dark — retake?'), findsOneWidget);
+    await saveSection(tester);
+    // Kept, never dropped: during Stage 6 it may be the only evidence.
+    expect(photos.calls, hasLength(1));
+    await disposeAgentScreen(tester);
   });
 
   group('no SKUs', () {

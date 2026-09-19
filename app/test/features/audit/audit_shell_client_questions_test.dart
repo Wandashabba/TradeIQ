@@ -53,8 +53,8 @@ VisitProgress _progress({
   template: template,
 );
 
-TorchPrimaryButton _submit(WidgetTester tester) => tester
-    .widget<TorchPrimaryButton>(
+TorchPrimaryButton _submit(WidgetTester tester) =>
+    tester.widget<TorchPrimaryButton>(
       find.byKey(const ValueKey<String>('submit-visit')),
     );
 
@@ -90,10 +90,9 @@ void main() {
           find.byKey(const ValueKey<String>('section-clientQuestions')),
           findsNothing,
         );
-        expect(
-          _sectionKeys(tester),
-          <String>[for (final s in AuditSection.values) 'section-${s.name}'],
-        );
+        expect(_sectionKeys(tester), <String>[
+          for (final s in AuditSection.values) 'section-${s.name}',
+        ]);
         expect(_submit(tester).onPressed, isNotNull);
       });
 
@@ -126,22 +125,23 @@ void main() {
     });
   }
 
-  testWidgets('unanswered required client questions block the submit, by name', (
-    tester,
-  ) async {
-    await pumpVisit(
-      tester,
-      visits: ScriptedVisits.succeeds(),
-      progress: _progress(
-        template: TemplateSectionProgress.of(_template(), null),
-      ),
-    );
-    final button = _submit(tester);
-    expect(button.onPressed, isNull);
-    // By the client's own name for it — "the section" would be useless in a
-    // shop with the manager waiting.
-    expect(button.blockedReason!.contains('Promo Check'), isTrue);
-  });
+  testWidgets(
+    'unanswered required client questions block the submit, by name',
+    (tester) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        progress: _progress(
+          template: TemplateSectionProgress.of(_template(), null),
+        ),
+      );
+      final button = _submit(tester);
+      expect(button.onPressed, isNull);
+      // By the client's own name for it — "the section" would be useless in a
+      // shop with the manager waiting.
+      expect(button.blockedReason!.contains('Promo Check'), isTrue);
+    },
+  );
 
   testWidgets('answered required questions unblock the submit', (tester) async {
     await pumpVisit(
@@ -216,27 +216,28 @@ void main() {
     expect(find.byType(ClientQuestionsScreen), findsOneWidget);
   });
 
-  testWidgets('Afrikaans: the section’s own words translate, its name does not', (
-    tester,
-  ) async {
-    await pumpVisit(
-      tester,
-      visits: ScriptedVisits.succeeds(),
-      progress: _progress(
-        template: TemplateSectionProgress.of(_template(), null),
-      ),
-      locale: const Locale('af'),
-    );
-    // Our own words are Afrikaans. Asserted at rest, before the scroll: the
-    // hint sits above the ladder and the client's section is the last row but
-    // one, so no single scroll offset has both on screen at 360×640.
-    expect(find.textContaining('Enige volgorde'), findsOneWidget);
+  testWidgets(
+    'Afrikaans: the section’s own words translate, its name does not',
+    (tester) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        progress: _progress(
+          template: TemplateSectionProgress.of(_template(), null),
+        ),
+        locale: const Locale('af'),
+      );
+      // Our own words are Afrikaans. Asserted at rest, before the scroll: the
+      // hint sits above the ladder and the client's section is the last row but
+      // one, so no single scroll offset has both on screen at 360×640.
+      expect(find.textContaining('Enige volgorde'), findsOneWidget);
 
-    await scrollAgentTo(
-      tester,
-      find.byKey(const ValueKey<String>('section-clientQuestions')),
-    );
-    // The client named their own template; we do not translate it.
-    expect(find.text('Promo Check'), findsOneWidget);
-  });
+      await scrollAgentTo(
+        tester,
+        find.byKey(const ValueKey<String>('section-clientQuestions')),
+      );
+      // The client named their own template; we do not translate it.
+      expect(find.text('Promo Check'), findsOneWidget);
+    },
+  );
 }

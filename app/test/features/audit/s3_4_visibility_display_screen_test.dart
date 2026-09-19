@@ -30,6 +30,7 @@ List<Override> _overrides(
   visibilityRepositoryProvider.overrideWithValue(spy),
   if (photos != null) queuedPhotosRepositoryProvider.overrideWithValue(photos),
   photoCaptureServiceProvider.overrideWithValue(fakeCapture()),
+  scriptedExposure(0.5),
 ];
 
 const _screen = S3S4VisibilityDisplayScreen(visitDraftId: 'v1');
@@ -92,7 +93,7 @@ void main() {
       _screen,
       overrides: _overrides(_SpyVisibility(), photos: photos),
     );
-    await tapInSection(tester, _key('photo-add'));
+    await takeSectionPhoto(tester);
     await saveSection(tester);
     expect(photos.calls.single['section'], 'visibility');
     expect(photos.calls.single['visitDraftId'], 'v1');

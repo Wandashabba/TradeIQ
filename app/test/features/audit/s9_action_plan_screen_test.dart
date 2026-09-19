@@ -35,7 +35,7 @@ void main() {
       await pumpSection(tester, _screen, overrides: _overrides(spy));
 
       expect(find.text('No extra tasks yet.'), findsOneWidget);
-    expect(find.text('Priority'), findsOneWidget);
+      expect(find.text('Priority'), findsOneWidget);
       await typeInSection(tester, _key('task-type'), 'Planogram gap');
       await typeInSection(tester, _key('task-fix'), 'Re-face the top shelf');
       await tapInSection(

@@ -6,6 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/camera/photo_capture_service.dart';
+import '../../../../core/widgets/agent_motion.dart' show agentSectionRoute;
+import '../../../../core/widgets/guided_capture_screen.dart';
 import '../../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../../core/widgets/torchlight/row/row.dart';
@@ -63,7 +65,12 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
     return hour < 6 || hour >= 18;
   }
 
-  Future<void> _capture([PhotoSource source = PhotoSource.camera]) async {
+  /// The capture itself is the guided capture route — the framing card, the
+  /// OS camera or the gallery, and the review step that measures the frame and
+  /// asks about a dark one before it is kept. This field owns only what the
+  /// section holds; it never calls the camera directly, so the dark-frame check
+  /// cannot be skipped by capturing from a section.
+  Future<void> _capture() async {
     if (_busy) return;
     setState(() {
       _busy = true;
@@ -71,21 +78,23 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
     });
     final l10n = context.l10n;
     try {
-      final photo = await ref
-          .read(photoCaptureServiceProvider)
-          .capture(source, geotag: true);
+      final photo = await Navigator.of(context).push<CapturedPhoto>(
+        agentSectionRoute(
+          GuidedCaptureScreen(
+            label: widget.label,
+            hint: widget.framingLine ?? l10n.sectionPhotoFraming,
+            geotag: true,
+          ),
+        ),
+      );
       if (!mounted) return;
       setState(() => _busy = false);
       // A cancel returns null — the field keeps whatever it already had, so a
       // backed-out retake loses nothing.
       if (photo != null) widget.onCaptured(photo);
-    } on PhotoTooLargeException {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = l10n.sectionPhotoTooLarge;
-      });
     } catch (error, stack) {
+      // The guided route surfaces capture errors itself; this guards only the
+      // hand-off, so a failure here still reads as a sentence.
       debugPrint('Photo capture failed: $error\n$stack');
       if (!mounted) return;
       setState(() {
@@ -170,19 +179,6 @@ class _SectionPhotoFieldState extends ConsumerState<SectionPhotoField> {
             icon: Icons.photo_camera_outlined,
             busy: _busy,
             onPressed: _busy ? null : _capture,
-          ),
-        ),
-        // The gallery is not a convenience. A cracked camera in a dark aisle
-        // still has to be able to file evidence — the guided capture screen
-        // this field replaced offered it, and a migration does not take a
-        // capability away.
-        const SizedBox(height: TiqSpace.s2),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TorchTertiaryButton(
-            key: const ValueKey<String>('photo-gallery'),
-            label: l10n.captureGalleryButton,
-            onPressed: _busy ? null : () => _capture(PhotoSource.gallery),
           ),
         ),
       ],
@@ -335,6 +331,33 @@ class _CapturedTile extends StatelessWidget {
                 '${l10n.photoFieldCaptured} · $time',
                 style: skin.text.bodyStrong.style(color: skin.palette.ink1),
               ),
+              if (photo.isUnderexposed) ...<Widget>[
+                const SizedBox(height: TiqSpace.s1),
+                // Kept because the agent chose to keep it — during Stage 6 a
+                // dark frame may be the only evidence there is — and marked,
+                // so the fact travels with the photo rather than being
+                // forgotten the moment the capture route pops. A silhouette
+                // and the words, never a hue on its own.
+                Semantics(
+                  label: l10n.captureDarkSemantics,
+                  excludeSemantics: true,
+                  child: Row(
+                    key: const ValueKey<String>('section-photo-dark'),
+                    children: <Widget>[
+                      const RowMarkTile(mark: RowMark.triangle),
+                      const SizedBox(width: TiqSpace.s2),
+                      Flexible(
+                        child: Text(
+                          l10n.captureDarkCaption,
+                          style: skin.text.label.style(
+                            color: skin.palette.ink1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: TiqSpace.s1),
               Text(
                 l10n.sectionPhotoHeld,
