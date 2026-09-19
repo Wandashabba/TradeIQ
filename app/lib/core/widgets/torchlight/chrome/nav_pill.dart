@@ -264,6 +264,10 @@ class _Slot extends StatelessWidget {
       button: true,
       selected: active,
       label: '${slot.semanticLabel ?? slot.label}, tab ${index + 1} of $count',
+      // THE ACTION, not only the flag: `excludeSemantics` drops the
+      // gesture detector's own node, so without `onTap` here this is a
+      // control a screen reader can focus and cannot activate.
+      onTap: () => onSelect(index),
       excludeSemantics: true,
       child: TorchPressable(
         onPressed: () => onSelect(index),

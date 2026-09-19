@@ -58,87 +58,84 @@ class TorchTertiaryButton extends StatelessWidget {
     final target = torchTapTarget(skin);
     final token = torchTextLabelToken(skin);
 
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: busy
+    return TorchPressable(
+      onPressed: enabled ? onPressed : null,
+      // The node lives on the pressable, so `onTap` is the same debounced,
+      // haptic fire the finger gets.
+      semanticsEnabled: enabled,
+      semanticsLabel: busy
           ? '${semanticLabel ?? label}, working'
           : (semanticLabel ?? label),
-      excludeSemantics: true,
-      child: TorchPressable(
-        onPressed: enabled ? onPressed : null,
-        // No fill and no scale: the underline and the weight are the two
-        // channels, which is why this one does not move.
-        pressScale: 1,
-        builder: (context, pressed) {
-          final ink = disabled ? p.inkMute : (destructive ? p.bad : p.ink1);
-          final rule = disabled ? null : (destructive ? p.bad : p.edgeControl);
-          final style = token
-              .style(color: ink)
-              .copyWith(fontWeight: pressed ? FontWeight.w700 : token.weight);
-          return ConstrainedBox(
-            constraints: BoxConstraints(minWidth: target, minHeight: target),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: TiqSpace.s3,
-                vertical: 14,
-              ),
-              child: Center(
-                heightFactor: 1,
-                widthFactor: 1,
-                // `IntrinsicWidth` is what makes the rule exactly as long as
-                // the label, at any text scale and in any language, without
-                // anybody measuring a string.
-                child: IntrinsicWidth(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          if (destructive) ...<Widget>[
-                            Padding(
-                              padding: EdgeInsets.only(top: token.size * 0.25),
-                              child: TorchTriangle(
-                                color: ink,
-                                size: 12,
-                                filled: !disabled,
-                              ),
+      // No fill and no scale: the underline and the weight are the two
+      // channels, which is why this one does not move.
+      pressScale: 1,
+      builder: (context, pressed) {
+        final ink = disabled ? p.inkMute : (destructive ? p.bad : p.ink1);
+        final rule = disabled ? null : (destructive ? p.bad : p.edgeControl);
+        final style = token
+            .style(color: ink)
+            .copyWith(fontWeight: pressed ? FontWeight.w700 : token.weight);
+        return ConstrainedBox(
+          constraints: BoxConstraints(minWidth: target, minHeight: target),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: TiqSpace.s3,
+              vertical: 14,
+            ),
+            child: Center(
+              heightFactor: 1,
+              widthFactor: 1,
+              // `IntrinsicWidth` is what makes the rule exactly as long as
+              // the label, at any text scale and in any language, without
+              // anybody measuring a string.
+              child: IntrinsicWidth(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        if (destructive) ...<Widget>[
+                          Padding(
+                            padding: EdgeInsets.only(top: token.size * 0.25),
+                            child: TorchTriangle(
+                              color: ink,
+                              size: 12,
+                              filled: !disabled,
                             ),
-                            const SizedBox(width: 6),
-                          ] else if (icon != null) ...<Widget>[
-                            Padding(
-                              padding: EdgeInsets.only(top: token.size * 0.1),
-                              child: TorchGlyph(icon, size: 16, color: ink),
-                            ),
-                            const SizedBox(width: 6),
-                          ],
-                          Flexible(
-                            child: busy
-                                ? TorchBusyDots(color: p.ink2, size: 4, gap: 6)
-                                : Text(label, style: style),
                           ),
+                          const SizedBox(width: 6),
+                        ] else if (icon != null) ...<Widget>[
+                          Padding(
+                            padding: EdgeInsets.only(top: token.size * 0.1),
+                            child: TorchGlyph(icon, size: 16, color: ink),
+                          ),
+                          const SizedBox(width: 6),
                         ],
-                      ),
-                      const SizedBox(height: 3),
-                      if (rule != null)
-                        Container(
-                          // 2px in Night and Day, 3px in Veld, and one step
-                          // thicker while it is held.
-                          height:
-                              skin.depth.borderWidth + 1 + (pressed ? 1 : 0),
-                          color: rule,
+                        Flexible(
+                          child: busy
+                              ? TorchBusyDots(color: p.ink2, size: 4, gap: 6)
+                              : Text(label, style: style),
                         ),
-                    ],
-                  ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    if (rule != null)
+                      Container(
+                        // 2px in Night and Day, 3px in Veld, and one step
+                        // thicker while it is held.
+                        height: skin.depth.borderWidth + 1 + (pressed ? 1 : 0),
+                        color: rule,
+                      ),
+                  ],
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

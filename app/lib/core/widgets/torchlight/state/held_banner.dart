@@ -277,6 +277,10 @@ class OfflineHeldBanner extends StatelessWidget {
       label: onTap == null ? word : '$word, $openLabel',
       // The count lives here, read on focus, and NEVER in the live label.
       value: count == null ? null : '$count',
+      // THE ACTION, not only the flag. Without it the labelled node carries no
+      // tap and the tappable descendant carries no label: a banner a screen
+      // reader can read and cannot open.
+      onTap: onTap,
       // It is never dismissible: held work is a standing fact.
       child: onTap == null
           ? band

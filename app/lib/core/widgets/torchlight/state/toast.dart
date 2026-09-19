@@ -203,6 +203,8 @@ class TorchToast extends StatelessWidget {
               Semantics(
                 button: true,
                 label: 'Dismiss',
+                // The action, not only the flag.
+                onTap: onClose,
                 excludeSemantics: true,
                 child: TorchPressable(
                   onPressed: onClose,

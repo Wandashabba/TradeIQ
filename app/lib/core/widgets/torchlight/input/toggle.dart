@@ -173,6 +173,10 @@ class TorchToggle extends StatelessWidget {
       enabled: enabled,
       label: label,
       value: word,
+      // THE ACTION, not only the flag: `excludeSemantics` drops the
+      // gesture detector's own node, so without `onTap` here this is a
+      // control a screen reader can focus and cannot activate.
+      onTap: enabled ? () => onChanged!(!value) : null,
       excludeSemantics: true,
       child: TorchPressable(
         onPressed: enabled ? () => onChanged!(!value) : null,

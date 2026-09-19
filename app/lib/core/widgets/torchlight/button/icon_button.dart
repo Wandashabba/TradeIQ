@@ -81,66 +81,66 @@ class TorchIconButton extends StatelessWidget {
     final press = torchPressSurface(skin);
     final size = glyphSize ?? (skin.mode == SkinMode.veld ? 26 : 24);
 
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      toggled: toggledOn,
-      label: semanticLabel,
-      excludeSemantics: true,
-      child: TorchPressable(
-        onPressed: onPressed,
-        onLongPress: onLongPress,
-        borderRadius: radius,
-        pressScale: torchPressScaleGlyph,
-        builder: (context, pressed) {
-          final Color? fill;
-          final Color ink;
-          final Color? edge;
-          if (!enabled) {
-            fill = null;
-            ink = p.inkMute;
-            edge = null;
-          } else if (toggledOn) {
-            fill = torchAbyssal(skin);
-            ink = torchOnAbyssal(skin);
-            edge = p.edgeControl;
-          } else if (pressed) {
-            fill = press.fill;
-            ink = press.ink;
-            edge = null;
-          } else {
-            fill = null;
-            ink = p.ink1;
-            edge = null;
-          }
+    return TorchPressable(
+      onPressed: onPressed,
+      onLongPress: onLongPress,
+      // The node belongs to the thing that owns the tap. Wrapped around this
+      // instead, with `excludeSemantics: true` and no `onTap`, it announced a
+      // button and dropped the only tap handler beneath it — back, close,
+      // overflow, torch and skin cycle were all readable and unpressable.
+      semanticsLabel: semanticLabel,
+      semanticsEnabled: enabled,
+      semanticsToggled: toggledOn,
+      borderRadius: radius,
+      pressScale: torchPressScaleGlyph,
+      builder: (context, pressed) {
+        final Color? fill;
+        final Color ink;
+        final Color? edge;
+        if (!enabled) {
+          fill = null;
+          ink = p.inkMute;
+          edge = null;
+        } else if (toggledOn) {
+          fill = torchAbyssal(skin);
+          ink = torchOnAbyssal(skin);
+          edge = p.edgeControl;
+        } else if (pressed) {
+          fill = press.fill;
+          ink = press.ink;
+          edge = null;
+        } else {
+          fill = null;
+          ink = p.ink1;
+          edge = null;
+        }
 
-          final word = toggledOn ? stateWord : null;
-          return Container(
-            constraints: BoxConstraints(minWidth: target, minHeight: target),
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: radius,
-              border: edge == null
-                  ? null
-                  : Border.all(color: edge, width: skin.depth.borderWidth),
-            ),
-            padding: word == null
-                ? EdgeInsets.zero
-                : const EdgeInsets.symmetric(horizontal: TiqSpace.s3),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                TorchGlyph(icon, size: size, color: ink),
-                if (word != null) ...<Widget>[
-                  const SizedBox(width: 6),
-                  Text(word, style: skin.text.eyebrow.style(color: ink)),
-                ],
+        final word = toggledOn ? stateWord : null;
+        return Container(
+          constraints: BoxConstraints(minWidth: target, minHeight: target),
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: radius,
+            border: edge == null
+                ? null
+                : Border.all(color: edge, width: skin.depth.borderWidth),
+          ),
+          padding: word == null
+              ? EdgeInsets.zero
+              : const EdgeInsets.symmetric(horizontal: TiqSpace.s3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              TorchGlyph(icon, size: size, color: ink),
+              if (word != null) ...<Widget>[
+                const SizedBox(width: 6),
+                Text(word, style: skin.text.eyebrow.style(color: ink)),
               ],
-            ),
-          );
-        },
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

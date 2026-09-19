@@ -118,6 +118,10 @@ class TorchFilterChip extends StatelessWidget {
       enabled: enabled,
       label:
           semanticsLabel ?? (count == null ? label : '$label, $count results'),
+      // THE ACTION, not only the flag: `excludeSemantics` drops the
+      // gesture detector's own node, so without `onTap` here this is a
+      // control a screen reader can focus and cannot activate.
+      onTap: onSelected,
       excludeSemantics: true,
       child: TorchPressable(
         onPressed: onSelected,

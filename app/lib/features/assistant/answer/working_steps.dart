@@ -87,16 +87,19 @@ String stepsSummary(
   // Every tool failed: that IS the explanation for a thin answer, so it is
   // said rather than counted.
   final parts = <String>[
-    if (ok == 0 && failed > 0) l10n.askStepsNoneAnswered else
+    if (ok == 0 && failed > 0)
+      l10n.askStepsNoneAnswered
+    else
       l10n.askStepsChecked(ok),
     if (failed > 0 && ok > 0) l10n.askStepsUnavailableCount(failed),
   ];
   final elapsed = stepsElapsed(tools);
   if (elapsed != null) {
-    parts.add(l10n.askSeconds(number.format(
-      elapsed.inMilliseconds / 1000,
-      decimals: 1,
-    )));
+    parts.add(
+      l10n.askSeconds(
+        number.format(elapsed.inMilliseconds / 1000, decimals: 1),
+      ),
+    );
   }
   return parts.join(' · ');
 }
@@ -275,9 +278,7 @@ class _WorkingStepsState extends State<WorkingSteps> {
     } else {
       visible.addAll(<int>[0, 1]);
       hidden = tools.length - 7;
-      visible.addAll(
-        List<int>.generate(5, (i) => tools.length - 5 + i),
-      );
+      visible.addAll(List<int>.generate(5, (i) => tools.length - 5 + i));
     }
 
     // Before the first tool — the model is reading the question. The old
@@ -370,7 +371,8 @@ class _WorkingStepsState extends State<WorkingSteps> {
                 visible[v] == (running == -1 ? tools.length - 1 : running))
               stallLine,
           ],
-          if (stall == StallLevel.verySlow && widget.onStop != null) ...<Widget>[
+          if (stall == StallLevel.verySlow &&
+              widget.onStop != null) ...<Widget>[
             const SizedBox(height: TiqSpace.s3),
             TorchSecondaryButton(
               key: const ValueKey<String>('working-steps-stop'),
@@ -428,17 +430,17 @@ class _StepRow extends StatelessWidget {
     return Semantics(
       label: duration == null
           ? text
-          : '$text, ${l10n.askSeconds(TiqNumber.of(context).format(
-              duration.inMilliseconds / 1000,
-              decimals: 1,
-            ))}',
+          : '$text, ${l10n.askSeconds(TiqNumber.of(context).format(duration.inMilliseconds / 1000, decimals: 1))}',
       excludeSemantics: true,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           SizedBox(
             width: labelInset(context),
-            child: Align(alignment: AlignmentDirectional.centerStart, child: dot),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: dot,
+            ),
           ),
           Expanded(
             child: Text(
@@ -641,51 +643,50 @@ class _StepsSummaryRowState extends State<StepsSummaryRow> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Semantics(
-          button: true,
-          expanded: _open,
-          label: l10n.askStepsSemantic(
+        // The node is the pressable's own, so the expander carries `onTap` as
+        // well as `button: true`. Wrapped around it with `excludeSemantics`
+        // and no action, "show the steps" was a sentence, not a control.
+        TorchPressable(
+          onPressed: () => setState(() => _open = !_open),
+          semanticsExpanded: _open,
+          semanticsLabel: l10n.askStepsSemantic(
             summary,
             _open ? l10n.askStepsHide : l10n.askStepsShow,
           ),
-          excludeSemantics: true,
-          child: TorchPressable(
-            onPressed: () => setState(() => _open = !_open),
-            builder: (context, pressed) => Container(
-              constraints: BoxConstraints(minHeight: skin.space.tapTarget),
-              alignment: AlignmentDirectional.centerStart,
-              child: Row(
-                children: <Widget>[
-                  SizedBox(
-                    width: _StepRow.labelInset(context),
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: failures > 0
-                          ? TiqMark(
-                              shape: MarkShape.criticalTriangle,
-                              color: p.badSolid,
-                              size: MarkScale.glyph(context, 9),
-                            )
-                          : _Disc(
-                              size: MarkScale.glyph(context, 8),
-                              colour: p.ink2,
-                            ),
-                    ),
+          builder: (context, pressed) => Container(
+            constraints: BoxConstraints(minHeight: skin.space.tapTarget),
+            alignment: AlignmentDirectional.centerStart,
+            child: Row(
+              children: <Widget>[
+                SizedBox(
+                  width: _StepRow.labelInset(context),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: failures > 0
+                        ? TiqMark(
+                            shape: MarkShape.criticalTriangle,
+                            color: p.badSolid,
+                            size: MarkScale.glyph(context, 9),
+                          )
+                        : _Disc(
+                            size: MarkScale.glyph(context, 8),
+                            colour: p.ink2,
+                          ),
                   ),
-                  Expanded(
-                    child: Text(
-                      summary,
-                      key: const ValueKey<String>('working-steps-summary'),
-                      style: skin.text.label.style(color: p.ink2),
-                    ),
+                ),
+                Expanded(
+                  child: Text(
+                    summary,
+                    key: const ValueKey<String>('working-steps-summary'),
+                    style: skin.text.label.style(color: p.ink2),
                   ),
-                  Icon(
-                    _open ? Icons.expand_less : Icons.expand_more,
-                    size: MarkScale.glyph(context, 16),
-                    color: p.ink3,
-                  ),
-                ],
-              ),
+                ),
+                Icon(
+                  _open ? Icons.expand_less : Icons.expand_more,
+                  size: MarkScale.glyph(context, 16),
+                  color: p.ink3,
+                ),
+              ],
             ),
           ),
         ),

@@ -392,6 +392,10 @@ class _Option<T> extends StatelessWidget {
           ? option.label
           : '${option.label}. ${option.consequence}',
       hint: '${index + 1} of $total',
+      // THE ACTION, not only the flag: `excludeSemantics` drops the gesture
+      // detector's own node, so without `onTap` here this is an option a
+      // screen reader can focus and cannot choose.
+      onTap: onTap,
       excludeSemantics: true,
       child: TorchPressable(
         onPressed: onTap,

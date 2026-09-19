@@ -112,6 +112,14 @@ class TorchPrimaryButton extends StatelessWidget {
 
     final button = TorchPressable(
       onPressed: enabled ? onPressed : null,
+      // The node lives on the pressable, so `onTap` is the same
+      // debounced, haptic fire the finger gets. A `Semantics` wrapped
+      // AROUND this with `excludeSemantics: true` and no `onTap` is a
+      // button a screen reader can read and cannot press.
+      semanticsEnabled: enabled,
+      semanticsLabel: busy
+          ? '${semanticLabel ?? label}, sending'
+          : (semanticLabel ?? label),
       borderRadius: radius,
       // The cost of a double-tapped commit is a duplicate visit, not a
       // duplicate keystroke.
@@ -180,15 +188,7 @@ class TorchPrimaryButton extends StatelessWidget {
       },
     );
 
-    final semantics = Semantics(
-      button: true,
-      enabled: enabled,
-      label: busy
-          ? '${semanticLabel ?? label}, sending'
-          : (semanticLabel ?? label),
-      excludeSemantics: true,
-      child: button,
-    );
+    final semantics = button;
 
     final note = blockedReason;
     if (!disabled || note == null) return semantics;

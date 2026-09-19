@@ -139,6 +139,10 @@ class TorchPressable extends StatefulWidget {
     this.debounce = Duration.zero,
     this.onLongPress,
     this.focusNode,
+    this.semanticsLabel,
+    this.semanticsEnabled,
+    this.semanticsToggled,
+    this.semanticsExpanded,
   });
 
   /// Null disables the control. A disabled control is **never focusable and
@@ -169,6 +173,33 @@ class TorchPressable extends StatefulWidget {
   final VoidCallback? onLongPress;
 
   final FocusNode? focusNode;
+
+  /// THE BUTTON'S NODE, PUBLISHED BY THE THING THAT OWNS THE TAP.
+  ///
+  /// Pass this and the pressable becomes the semantics node: `button: true`,
+  /// the label, and — the part that kept going missing — `onTap` wired to the
+  /// **same [_fire]** the finger goes through, so an activation from TalkBack
+  /// or VoiceOver gets the debounce and the haptic too.
+  ///
+  /// It exists because the alternative kept being written wrong. The shape
+  /// `Semantics(button: true, label: …, excludeSemantics: true, child:
+  /// TorchPressable(onPressed: …))` reads correct and is not: `excludeSemantics`
+  /// drops the descendant `GestureDetector`'s node, and the outer node declares
+  /// a button with **no action on it**. The result announces itself and then
+  /// does nothing when activated — focusable, unactivatable. `SoftRow` found it
+  /// and fixed it in place; every kit button had it, which made every primary
+  /// action in the app inert to assistive tech.
+  ///
+  /// A caller whose node must wrap more than the pressable — a card, a row of
+  /// verbs — keeps its own `Semantics` and passes `onTap` there instead.
+  final String? semanticsLabel;
+
+  /// Announced enabled state, when it differs from `onPressed != null`.
+  final bool? semanticsEnabled;
+
+  final bool? semanticsToggled;
+
+  final bool? semanticsExpanded;
 
   @override
   State<TorchPressable> createState() => _TorchPressableState();
@@ -284,7 +315,7 @@ class _TorchPressableState extends State<TorchPressable> {
       );
     }
 
-    return Focus(
+    final Widget focus = Focus(
       focusNode: widget.focusNode,
       canRequestFocus: enabled,
       skipTraversal: !enabled,
@@ -302,6 +333,22 @@ class _TorchPressableState extends State<TorchPressable> {
         onLongPress: widget.onLongPress,
         child: child,
       ),
+    );
+
+    final label = widget.semanticsLabel;
+    if (label == null) return focus;
+    return Semantics(
+      button: true,
+      enabled: widget.semanticsEnabled ?? enabled,
+      toggled: widget.semanticsToggled,
+      expanded: widget.semanticsExpanded,
+      label: label,
+      // THE ACTION, not only the flag. This is the line whose absence made a
+      // button a label.
+      onTap: enabled ? _fire : null,
+      onLongPress: widget.onLongPress,
+      excludeSemantics: true,
+      child: focus,
     );
   }
 
