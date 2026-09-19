@@ -1999,3 +1999,121 @@ does not scroll: horizontal-scroll discovery fails outdoors.
 * **Toast queue collapsing** ("3 captures held" from three toasts in two
   seconds). The replace-don't-stack rule is implemented; the counted collapse
   needs the outbox's own event stream.
+
+---
+
+## 16. Closing a visit — the gate, the outcome, and capture
+
+The three screens an agent meets on their way out of the shop, and the one
+component that had to change to make the third honest.
+
+### 16.1 What replaces what
+
+| New | Replaces | Amber |
+|---|---|---|
+| `SubmitGateScreen` on `VisitFrame` | the `AgentScaffold` gate, its `PanelCard` task list and the glass checklist | one — the primary, in every phase |
+| `VisitOutcomeScreen` on `VisitFrame` | the washed hero, `ScoreBandBar`, `BenchmarkBar`, the local `_HatchPainter` | one — `Next store`, in every phase |
+| `GuidedCaptureScreen` on `TorchShell` | the `Scaffold` + `AppBar` launch wrapper | one — `Open camera`, then `Use it` |
+| `photo_exposure.dart` (`meanLuma`, `photoExposureProvider`) | a dark photo kept or dropped in silence | none |
+| `seen_score.dart` (`seenScoresProvider`) | *(new)* — the reconciliation line's referent | none |
+
+The score's own hero is `FigureSlot` at `hero.figure` with `hero.figure.compact`
+and `display` behind it, the band is a `SeverityMark` plus the word, the
+dimension rows are `Meter` and `NotMeasured`, and the reconciliation line is the
+component from §13. Nothing here draws a bar or formats a number itself.
+
+### 16.2 The figure is never the severity
+
+The hero is **ink-1 at every band**, including Gap. A severity-coded figure at
+72px is a hue doing a number's job, and it is the one object on the screen large
+enough that its colour reads as the whole message. The band is carried three
+ways instead — a filled circle / half-filled triangle / filled triangle, the
+word (Healthy · Watch · Gap, #408), and `good`/`bad` ink on the word — and all
+three survive greyscale.
+
+The meter's target tick is **ink-1 on all six rows**. The agent spec asked for
+amber on the one dimension the band is about; unify §1.1 deleted
+`TorchClaim.meterTick` and the ruling wins. Six ticks of the same class against
+a budget of one is a repeated fill wearing a different hat, and the tick's
+silhouette — 2dp wide, breaking the track's top edge — is what carries it.
+
+### 16.3 A dark photo is a question, not a verdict
+
+An aisle photographed with the lights off produces a frame nobody can read, and
+the app has two dishonest answers available to it: keep it (a manager finds out
+a week later) or drop it (the agent walks out believing they captured
+something). So the returned bytes are measured — `meanLuma`, Rec. 601, decoded
+at **16×16** because a 12 MP decode on the capture path is an OOM on a 2 GB
+handset — and anything under 18% comes back to the review step edged in
+`comparison` with "Dark — retake?" beneath it.
+
+It is **never auto-rejected**. During Stage 6 it may be the only obtainable
+evidence, and the mark travels with the photo into the section body so the fact
+is not forgotten the moment the capture route pops.
+
+A frame that will not decode measures **null**, and null is not dark. The app
+does not accuse a capture it could not read.
+
+> **`photoExposureProvider` is a test seam, and it is not optional.**
+> `ui.instantiateImageCodec` resolves on the engine's own thread, which
+> `FakeAsync`'s clock never reaches: a widget test that really decoded an image
+> would hang in `pumpAndSettle` with no output — §12.7's drift-`watch()` trap in
+> a different costume. Screen tests override the provider with a scripted luma;
+> `photo_exposure_test.dart` measures the real thing inside `tester.runAsync`.
+> **Every test that drives `PhotoCaptureField` or `GuidedCaptureScreen` must
+> override it**, including the ones on manager screens.
+
+### 16.4 The reconciliation line needs a referent, and the wire has none
+
+"Now scored 71 — it was 84 when you saw it" needs to know what this phone
+displayed the first time. The server knows what it scored, not what was on the
+screen, so `seenScoresProvider` records the number the moment the outcome paints
+it — in `flutter_secure_storage`, beside the pin report (#386), for the reasons
+that file already gives: a drift migration for a per-visit integer nobody
+queries is a schema version for a preference, and a queued item for an endpoint
+that does not exist retries until it is `stuck`.
+
+Two rules make it work rather than cancel itself out:
+
+* **`record` never overwrites.** The first number the agent saw is the referent.
+  Recording the second one would make the line read "now 71 — it was 71" once
+  and then never appear again.
+* **`record` awaits the read.** A write started on the first frame would
+  otherwise land before the disk answered and erase the referent — the exact
+  failure the component exists to prevent, caused by the component.
+
+The screen takes no latch and keeps no copy: it reads the watched map every
+build, and the no-overwrite rule is what keeps the line stable.
+
+### 16.5 Can't confirm is something to raise
+
+Every can't-confirm section gets its own row on the gate, named, with its reason
+in words and "The manager is told · not confirmed" beneath it. The old gate
+listed nothing for them, so a store that refused four counts produced a gate
+printing "this store is in good shape" — which was the cleanest fraud path in
+the app, and #389's other half.
+
+### 16.6 What is not built yet, and why
+
+* **The in-app camera (#405).** Out of scope by the brief. Capture is a framing
+  card, the OS camera and a review step, and the screen does not pretend
+  otherwise.
+* **"Record this as a store I could not work."** The agent spec makes the gate's
+  primary change identity when every required section is can't-confirm, writing
+  a *skipped* visit — a different object to the server and to the fraud module.
+  That is a new write path and a wire change, not an appearance change, so it is
+  not built here. It is also currently unreachable: since #389 the hub blocks
+  the submit while any required section is can't-confirm, so the gate cannot be
+  opened in that state at all.
+* **The held outcome's per-visit outbox rows.** The spec wants "the live outbox
+  rows for THIS visit only". `SyncItem` carries no visit id — `visit_review.dart`
+  gets there by decoding each row's payload — so the held screen carries the
+  header's sync chip and the held banner instead of a per-visit list.
+* **The reconciliation line's "Why?" sheet and its biggest-mover line.** Both
+  need the *previous* dimension scores, and only the total is recorded.
+* **`evidence_thumb.dart`.** It renders inside the manager's alerts and tasks
+  screens, which are still Lumen, and its full-photo view is an `AlertDialog` —
+  which unify §1.7 deletes in favour of a sheet. Both changes belong to the
+  manager surface's migration: a Torchlight sheet opened from a Lumen worklist
+  row is the "Torchlight frame around a Lumen form" this document already warns
+  about, and moving it now would strand it between two systems.
