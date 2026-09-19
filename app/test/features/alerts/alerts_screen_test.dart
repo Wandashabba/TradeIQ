@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tradeiq_app/core/design/tiq_number.dart';
@@ -256,6 +257,70 @@ void main() {
         find.descendant(of: find.byType(StatTile), matching: find.text(emDash)),
         findsNothing,
       );
+      // A measured zero keeps its on-target mark. The next test is the other
+      // half of the law.
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.byType(SeverityMark))
+            .where((m) => m.kind == SeverityMarkKind.onTarget)
+            .length,
+        1,
+      );
+    });
+
+    testWidgets('a cut page withholds the verdict instead of painting a '
+        'green zero', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        // Nothing critical on THIS page. The server sends alerts newest
+        // first, so an older open critical sits unloaded on page 2.
+        alerts: <AlertItem>[
+          _alert(id: 'w1', severity: 'warning'),
+          _alert(id: 'w2', severity: 'warning'),
+        ],
+        nextCursor: 'cursor-2',
+        total: 74,
+      );
+
+      expect(
+        find.descendant(of: find.byType(StatTile), matching: find.text('0')),
+        findsNothing,
+        reason: 'a count over a cut page is not a count of the list',
+      );
+      expect(
+        find.descendant(of: find.byType(StatTile), matching: find.text(emDash)),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('None among the 2 alerts loaded'),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.byType(SeverityMark))
+            .where((m) => m.kind == SeverityMarkKind.onTarget),
+        isEmpty,
+        reason: 'green is a verdict, and nobody measured this one',
+      );
+    });
+
+    testWidgets('a cut page with criticals says how far the count goes', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'c1')],
+        nextCursor: 'cursor-2',
+        total: 74,
+      );
+
+      expect(
+        find.descendant(of: find.byType(StatTile), matching: find.text('1')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('At least this many'), findsOneWidget);
     });
   });
 
@@ -458,6 +523,82 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('stub:/visits/v9'), findsOneWidget);
+    });
+  });
+
+  group('what a screen reader can reach', () {
+    testWidgets('the row verbs are nodes, not only pixels', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a1', visitId: 'v1')],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('ack-a1')),
+      );
+      expect(find.bySemanticsLabel('Acknowledge'), findsOneWidget);
+      expect(find.bySemanticsLabel('View visit'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('the row\'s own tap carries a tap action, not just a flag', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a1')],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      final node = tester.getSemantics(find.byType(SoftRow).first);
+      expect(
+        node.getSemanticsData().hasAction(SemanticsAction.tap),
+        isTrue,
+        reason:
+            'a row a screen reader can focus and cannot activate is a sheet '
+            'nobody can open',
+      );
+      handle.dispose();
+    });
+
+    testWidgets('an acknowledged alert is not marked Held', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a1', acknowledged: true)],
+      );
+
+      await tester.tap(find.byKey(const ValueKey<String>('tab-acknowledged')));
+      await tester.pumpAndSettle();
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      await tester.tap(find.byType(SoftRow).first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TorchSheet), findsOneWidget);
+      expect(
+        find.textContaining('Acknowledged. It stays on the list'),
+        findsOneWidget,
+      );
+      // Held (unify §1.13) is queued work waiting to go out. An acknowledged
+      // alert is not waiting for anything, and the Oatmeal square here reads
+      // as "still to be sent".
+      expect(
+        tester
+            .widgetList<SeverityMark>(find.byType(SeverityMark))
+            .where((m) => m.kind == SeverityMarkKind.held),
+        isEmpty,
+      );
+      expect(
+        tester
+            .widgetList<TiqMark>(find.byType(TiqMark))
+            .where((m) => m.shape == MarkShape.heldSquare),
+        isEmpty,
+      );
     });
   });
 
