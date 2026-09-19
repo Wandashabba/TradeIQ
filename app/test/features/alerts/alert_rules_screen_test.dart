@@ -33,15 +33,21 @@ Future<FakeAlertRulesRepository> _pump(
   WidgetTester tester, {
   List<AlertRule> rules = const <AlertRule>[],
   Object? failure,
+  bool pending = false,
   TiqSkin? skin,
   double textScale = 1.0,
 }) async {
-  final repository = FakeAlertRulesRepository(rules: rules, failure: failure);
+  final repository = FakeAlertRulesRepository(
+    rules: rules,
+    failure: failure,
+    pending: pending,
+  );
   await pumpWorklist(
     tester,
     const AlertRulesScreen(),
     skin: skin,
     textScale: textScale,
+    settle: !pending,
     overrides: <Override>[
       alertRulesRepositoryProvider.overrideWithValue(repository),
     ],
@@ -58,8 +64,12 @@ void main() {
         tester,
         rules: <AlertRule>[
           _rule(),
-          _rule(id: 'r2', name: 'Price drift', metric: 'price_deviation',
-              active: false),
+          _rule(
+            id: 'r2',
+            name: 'Price drift',
+            metric: 'price_deviation',
+            active: false,
+          ),
         ],
       );
 
@@ -424,7 +434,10 @@ void main() {
     ) async {
       await _pump(
         tester,
-        rules: <AlertRule>[_rule(), _rule(id: 'r2', active: false)],
+        rules: <AlertRule>[
+          _rule(),
+          _rule(id: 'r2', active: false),
+        ],
       );
 
       final census = await amberCensus(tester);
@@ -508,8 +521,12 @@ void main() {
       textScale: 2.0,
       rules: <AlertRule>[
         _rule(threshold: 50),
-        _rule(id: 'r2', name: 'Price drift', metric: 'price_deviation',
-            active: false),
+        _rule(
+          id: 'r2',
+          name: 'Price drift',
+          metric: 'price_deviation',
+          active: false,
+        ),
       ],
     );
 
@@ -517,5 +534,80 @@ void main() {
     await scrollWorklistTo(tester, find.byType(SoftRow).first);
     expect(find.byType(SoftRow), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  group('the amber census, every phase in every skin', () {
+    /// Every phase this route can settle in, in every skin, counted.
+    ///
+    /// Alert rules nominates no content amber, so the arithmetic is the same
+    /// everywhere: Night paints the nav's active tab and nothing else; Day and
+    /// Veld paint nothing, because their one rung is the primary commit block
+    /// and a configuration list has none armed.
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      final phases = <String, Future<void> Function(WidgetTester)>{
+        'loaded': (t) => _pump(
+          t,
+          skin: skin,
+          rules: <AlertRule>[
+            _rule(),
+            _rule(id: 'r2', active: false),
+          ],
+        ),
+        'empty': (t) => _pump(t, skin: skin),
+        'loading': (t) async {
+          await _pump(t, skin: skin, pending: true);
+          await t.pump(const Duration(milliseconds: 700));
+        },
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          failure: StateError('SocketException: api.tradeiq.co.za'),
+        ),
+      };
+      for (final phase in phases.entries) {
+        testWidgets('${skin.mode.name}, ${phase.key}: $lit', (tester) async {
+          await phase.value(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'alert-rules',
+            phase: phase.key,
+          );
+          expect(census.objectCount, lit, reason: census.describe());
+        });
+      }
+
+      // The form spends the one grant its skin has on the commit, and the
+      // route beneath has gone out — in Veld the sheet is a full-screen
+      // route, and the count is the same.
+      testWidgets('${skin.mode.name}, form: 1', (tester) async {
+        await _pump(tester, skin: skin, rules: <AlertRule>[_rule()]);
+        await scrollWorklistTo(
+          tester,
+          find.byKey(const ValueKey<String>('add-rule')),
+        );
+        await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
+        await tester.pumpAndSettle();
+        await scrollSheetTo(
+          tester,
+          find.byKey(const ValueKey<String>('create-rule')),
+        );
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'alert-rules/form',
+          phase: 'sheet',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
+    }
   });
 }

@@ -214,10 +214,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(
-          of: find.byType(StatTile),
-          matching: find.text(emDash),
-        ),
+        find.descendant(of: find.byType(StatTile), matching: find.text(emDash)),
         findsNothing,
       );
     });
@@ -333,18 +330,22 @@ void main() {
         outlets: _outlets,
         tasks: <TaskItem>[
           _task(id: 'normal', priority: 'normal', findingType: 'a_normal'),
-          _task(id: 'late', due: _now.subtract(const Duration(days: 1)),
-              findingType: 'b_late'),
+          _task(
+            id: 'late',
+            due: _now.subtract(const Duration(days: 1)),
+            findingType: 'b_late',
+          ),
           _task(id: 'high', priority: 'high', findingType: 'c_high'),
         ],
       );
 
       await scrollWorklistTo(tester, find.byType(SoftRow).first);
       final rows = tester.widgetList<SoftRow>(find.byType(SoftRow)).toList();
-      expect(
-        rows.map((r) => r.title).toList(),
-        <String>['B late', 'C high', 'A normal'],
-      );
+      expect(rows.map((r) => r.title).toList(), <String>[
+        'B late',
+        'C high',
+        'A normal',
+      ]);
     });
   });
 
@@ -371,7 +372,10 @@ void main() {
       await _pump(
         tester,
         outlets: _outlets,
-        tasks: <TaskItem>[_task(), _task(id: 'closed', status: 'closed')],
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 'closed', status: 'closed'),
+        ],
       );
 
       await scrollRailTo(
@@ -417,48 +421,47 @@ void main() {
       expect(find.text('A photo is required.'), findsOneWidget);
     });
 
-    testWidgets(
-      'a real capture carries the gpsTag and a UTC capture time',
-      (tester) async {
-        final location = _FakeLocation(
-          LocationGranted(-26.2041, 28.0473, accuracy: 12),
-        );
-        final harness = await _pump(
-          tester,
-          outlets: _outlets,
-          tasks: <TaskItem>[_task()],
-          location: location,
-        );
+    testWidgets('a real capture carries the gpsTag and a UTC capture time', (
+      tester,
+    ) async {
+      final location = _FakeLocation(
+        LocationGranted(-26.2041, 28.0473, accuracy: 12),
+      );
+      final harness = await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        location: location,
+      );
 
-        await scrollWorklistTo(
-          tester,
-          find.byKey(const ValueKey<String>('close-t-open')),
-        );
-        await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
-        await tester.pumpAndSettle();
-        await tester.tap(
-          find.byKey(const ValueKey<String>('take-closure-photo')),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey<String>('confirm-closure')));
-        await tester.pumpAndSettle();
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('close-t-open')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('close-t-open')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('take-closure-photo')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey<String>('confirm-closure')));
+      await tester.pumpAndSettle();
 
-        expect(harness.photos.uploadCount, 1);
-        expect(harness.photos.uploadedSection, 'task_closure');
-        expect(harness.photos.uploadedVisitId, 'v1');
-        expect(harness.photos.uploadedGpsTag!['lat'], -26.2041);
-        expect(
-          harness.photos.uploadedTimestamp,
-          _shutter.toUtc().toIso8601String(),
-        );
-        expect(harness.tasks.closedId, 't-open');
-        expect(
-          harness.tasks.closedPhotoUrl,
-          'https://cdn.example.com/photo-1.png',
-        );
-        await settleToasts(tester);
-      },
-    );
+      expect(harness.photos.uploadCount, 1);
+      expect(harness.photos.uploadedSection, 'task_closure');
+      expect(harness.photos.uploadedVisitId, 'v1');
+      expect(harness.photos.uploadedGpsTag!['lat'], -26.2041);
+      expect(
+        harness.photos.uploadedTimestamp,
+        _shutter.toUtc().toIso8601String(),
+      );
+      expect(harness.tasks.closedId, 't-open');
+      expect(
+        harness.tasks.closedPhotoUrl,
+        'https://cdn.example.com/photo-1.png',
+      );
+      await settleToasts(tester);
+    });
 
     testWidgets('with no fix the closure still goes ahead, and says so', (
       tester,
@@ -481,10 +484,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('The closure will record without one.'),
-        findsOneWidget,
-      );
+      expect(find.text('The closure will record without one.'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey<String>('confirm-closure')));
       await tester.pumpAndSettle();
@@ -528,10 +528,7 @@ void main() {
       );
 
       await scrollWorklistTo(tester, find.byType(SoftRow).first);
-      expect(
-        find.byKey(const ValueKey<String>('close-t-open')),
-        findsNothing,
-      );
+      expect(find.byKey(const ValueKey<String>('close-t-open')), findsNothing);
     });
   });
 
@@ -585,15 +582,15 @@ void main() {
       await _pump(
         tester,
         outlets: _outlets,
-        tasks: <TaskItem>[_task(), _task(id: 't2', outletId: 'o2')],
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 't2', outletId: 'o2'),
+        ],
         nextCursor: 'cursor-2',
       );
 
       await scrollWorklistTo(tester, find.byType(PaginationFooter));
-      expect(
-        find.text('Showing the first 2. There are more.'),
-        findsOneWidget,
-      );
+      expect(find.text('Showing the first 2. There are more.'), findsOneWidget);
       expect(find.textContaining('Narrow'), findsNothing);
       expect(find.text('The counts above are of these 2.'), findsOneWidget);
     });
@@ -604,7 +601,10 @@ void main() {
       await _pump(
         tester,
         outlets: _outlets,
-        tasks: <TaskItem>[_task(), _task(id: 't2', outletId: 'o2')],
+        tasks: <TaskItem>[
+          _task(),
+          _task(id: 't2', outletId: 'o2'),
+        ],
         nextCursor: 'cursor-2',
         total: 74,
       );
@@ -683,34 +683,33 @@ void main() {
       },
     );
 
-    testWidgets(
-      'with a photograph the sheet spends exactly one: Close task',
-      (tester) async {
-        await _pump(
-          tester,
-          outlets: _outlets,
-          tasks: <TaskItem>[_task()],
-          location: _FakeLocation(LocationGranted(-26.2041, 28.0473)),
-        );
-        await _openClosureSheet(tester, capture: true);
+    testWidgets('with a photograph the sheet spends exactly one: Close task', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        tasks: <TaskItem>[_task()],
+        location: _FakeLocation(LocationGranted(-26.2041, 28.0473)),
+      );
+      await _openClosureSheet(tester, capture: true);
 
-        final census = await amberCensus(tester);
-        expectWithinAmberBudget(
-          census,
-          TiqSkin.night(),
-          route: 'tasks/close-with-photo',
-          phase: 'sheet',
-        );
-        expect(
-          census.objectCount,
-          1,
-          reason:
-              'A sheet is an untabbed route with two Night grants, and it '
-              'spends one — the commit. The nav tab beneath has gone '
-              'out.\n${census.describe()}',
-        );
-      },
-    );
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'tasks/close-with-photo',
+        phase: 'sheet',
+      );
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'A sheet is an untabbed route with two Night grants, and it '
+            'spends one — the commit. The nav tab beneath has gone '
+            'out.\n${census.describe()}',
+      );
+    });
 
     for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
       testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
@@ -769,5 +768,65 @@ void main() {
     await scrollWorklistTo(tester, find.byType(SoftRow).first);
     expect(find.byType(SoftRow), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  group('the amber census, every phase in every skin', () {
+    /// Every phase this route can settle in, in every skin, counted.
+    ///
+    /// The worklists nominate no content amber, so the arithmetic is the same
+    /// everywhere: Night paints the nav's active tab and nothing else; Day and
+    /// Veld paint nothing, because their one rung is the primary commit block
+    /// and a worklist has none armed.
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      final phases = <String, Future<void> Function(WidgetTester)>{
+        'loaded': (t) => _pump(
+          t,
+          skin: skin,
+          outlets: _outlets,
+          tasks: <TaskItem>[
+            _task(due: _now.subtract(const Duration(days: 2))),
+            _task(id: 't2', outletId: 'o2'),
+          ],
+          nextCursor: 'cursor-2',
+          total: 74,
+        ),
+        'empty': (t) => _pump(t, skin: skin, outlets: _outlets),
+        'filtered-empty': (t) async {
+          await _pump(
+            t,
+            skin: skin,
+            outlets: _outlets,
+            tasks: <TaskItem>[_task(status: 'closed')],
+          );
+        },
+        'loading': (t) async {
+          await _pump(t, skin: skin, outlets: _outlets, listPending: true);
+          await t.pump(const Duration(milliseconds: 700));
+        },
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          listFailure: StateError('SocketException: api.tradeiq.co.za'),
+        ),
+      };
+      for (final phase in phases.entries) {
+        testWidgets('${skin.mode.name}, ${phase.key}: $lit', (tester) async {
+          await phase.value(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'tasks',
+            phase: phase.key,
+          );
+          expect(census.objectCount, lit, reason: census.describe());
+        });
+      }
+    }
   });
 }

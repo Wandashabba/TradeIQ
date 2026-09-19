@@ -102,10 +102,7 @@ class _AlertRulesScreenState extends ConsumerState<AlertRulesScreen> {
       loading: () => _frame(
         phase: 'loading',
         children: <Widget>[
-          Skeleton(
-            label: 'alert rules',
-            child: const SkeletonRows(count: 4),
-          ),
+          Skeleton(label: 'alert rules', child: const SkeletonRows(count: 4)),
         ],
       ),
       error: (error, stack) => _frame(
@@ -365,10 +362,7 @@ class _RuleRowState extends ConsumerState<_RuleRow> {
           Text(word, style: skin.text.meta.style(color: metaInk)),
           // The metric is what the evaluator matches on, so it wears the
           // identifier face — a manager can quote it straight back at the API.
-          Text(
-            rule.metric,
-            style: skin.text.monoIdent.style(color: metaInk),
-          ),
+          Text(rule.metric, style: skin.text.monoIdent.style(color: metaInk)),
           if (rule.threshold == null)
             Text(
               'the server’s own threshold',
@@ -456,9 +450,7 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
 
   final TextEditingController _name = TextEditingController();
   late final TextEditingController _threshold = TextEditingController(
-    text: widget.rule?.threshold == null
-        ? ''
-        : _plain(widget.rule!.threshold!),
+    text: widget.rule?.threshold == null ? '' : _plain(widget.rule!.threshold!),
   );
 
   late String _metric = widget.rule?.metric ?? alertRuleMetrics.first;
@@ -599,10 +591,7 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
             const SizedBox(height: TiqSpace.s4),
             TorchErrorRegion(
               name: 'alert rule form',
-              child: ErrorState(
-                scope: ErrorScope.inline,
-                message: _failure!,
-              ),
+              child: ErrorState(scope: ErrorScope.inline, message: _failure!),
             ),
           ],
 
@@ -621,9 +610,7 @@ class _RuleFormSheetState extends ConsumerState<_RuleFormSheet> {
             child: TorchTertiaryButton(
               key: const ValueKey<String>('cancel-rule'),
               label: 'Cancel',
-              onPressed: _submitting
-                  ? null
-                  : () => Navigator.of(context).pop(),
+              onPressed: _submitting ? null : () => Navigator.of(context).pop(),
             ),
           ),
         ],

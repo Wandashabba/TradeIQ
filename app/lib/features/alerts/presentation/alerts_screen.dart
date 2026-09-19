@@ -162,13 +162,16 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
         const SizedBox(height: TiqSpace.s6),
 
         // THE FILTER RAIL — never amber, on any screen, in any skin.
-        TorchBleed(extra: gutter * 2, child: _Filters(
-          tab: _tab,
-          severity: _severity,
-          view: view,
-          onTab: (t) => setState(() => _tab = t),
-          onSeverity: (s) => setState(() => _severity = s),
-        )),
+        TorchBleed(
+          extra: gutter * 2,
+          child: _Filters(
+            tab: _tab,
+            severity: _severity,
+            view: view,
+            onTab: (t) => setState(() => _tab = t),
+            onSeverity: (s) => setState(() => _severity = s),
+          ),
+        ),
         const SizedBox(height: TiqSpace.s6),
 
         // THE SECTION RULE, with the count it is actually showing.
@@ -352,13 +355,15 @@ class _Filters extends StatelessWidget {
           key: const ValueKey<String>('filter-critical'),
           label: 'Critical',
           selected: severity == 'critical',
-          onSelected: () => onSeverity(severity == 'critical' ? null : 'critical'),
+          onSelected: () =>
+              onSeverity(severity == 'critical' ? null : 'critical'),
         ),
         TorchFilterChip(
           key: const ValueKey<String>('filter-warning'),
           label: 'Warning',
           selected: severity == 'warning',
-          onSelected: () => onSeverity(severity == 'warning' ? null : 'warning'),
+          onSelected: () =>
+              onSeverity(severity == 'warning' ? null : 'warning'),
         ),
       ],
     );
@@ -536,9 +541,7 @@ class _AlertRowState extends ConsumerState<_AlertRow>
           alert: alert,
           onAcknowledge: _acknowledge,
         ),
-        separator: widget.last
-            ? SoftRowSeparator.none
-            : SoftRowSeparator.auto,
+        separator: widget.last ? SoftRowSeparator.none : SoftRowSeparator.auto,
         semanticsLabel: <String>[
           alert.severityLabel,
           alert.message,

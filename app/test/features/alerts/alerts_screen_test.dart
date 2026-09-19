@@ -202,7 +202,10 @@ void main() {
       await _pump(
         tester,
         outlets: _outlets,
-        alerts: <AlertItem>[_alert(id: 'a'), _alert(id: 'b', outletId: 'o2')],
+        alerts: <AlertItem>[
+          _alert(id: 'a'),
+          _alert(id: 'b', outletId: 'o2'),
+        ],
       );
 
       await scrollWorklistTo(tester, find.byType(SectionRule));
@@ -243,17 +246,11 @@ void main() {
       // Never suppressed, never an em dash: nought open criticals is a fact.
       expect(find.text('OPEN CRITICAL'), findsOneWidget);
       expect(
-        find.descendant(
-          of: find.byType(StatTile),
-          matching: find.text('0'),
-        ),
+        find.descendant(of: find.byType(StatTile), matching: find.text('0')),
         findsOneWidget,
       );
       expect(
-        find.descendant(
-          of: find.byType(StatTile),
-          matching: find.text(emDash),
-        ),
+        find.descendant(of: find.byType(StatTile), matching: find.text(emDash)),
         findsNothing,
       );
     });
@@ -483,10 +480,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        find.text('OSA_BELOW_50 · Kasi Corner Spaza'),
-        findsOneWidget,
-      );
+      expect(find.text('OSA_BELOW_50 · Kasi Corner Spaza'), findsOneWidget);
     });
 
     testWidgets('the submitting agent is named from the roster', (
@@ -610,15 +604,15 @@ void main() {
       await _pump(
         tester,
         outlets: _outlets,
-        alerts: <AlertItem>[_alert(id: 'a1'), _alert(id: 'a2')],
+        alerts: <AlertItem>[
+          _alert(id: 'a1'),
+          _alert(id: 'a2'),
+        ],
         nextCursor: 'cursor-2',
       );
 
       await scrollWorklistTo(tester, find.byType(PaginationFooter));
-      expect(
-        find.text('Showing the first 2. There are more.'),
-        findsOneWidget,
-      );
+      expect(find.text('Showing the first 2. There are more.'), findsOneWidget);
       // Never a fabricated total: this server did not say how many exist.
       expect(
         find.descendant(
@@ -639,7 +633,10 @@ void main() {
       await _pump(
         tester,
         outlets: _outlets,
-        alerts: <AlertItem>[_alert(id: 'a1'), _alert(id: 'a2')],
+        alerts: <AlertItem>[
+          _alert(id: 'a1'),
+          _alert(id: 'a2'),
+        ],
         nextCursor: 'cursor-2',
         total: 1284,
       );
@@ -673,7 +670,10 @@ void main() {
       await _pump(
         tester,
         outlets: _outlets,
-        alerts: <AlertItem>[_alert(id: 'a1'), _alert(id: 'a2', outletId: 'o2')],
+        alerts: <AlertItem>[
+          _alert(id: 'a1'),
+          _alert(id: 'a2', outletId: 'o2'),
+        ],
       );
 
       final census = await amberCensus(tester);
@@ -727,12 +727,7 @@ void main() {
         );
 
         final census = await amberCensus(tester);
-        expectWithinAmberBudget(
-          census,
-          skin,
-          route: 'alerts',
-          phase: 'loaded',
-        );
+        expectWithinAmberBudget(census, skin, route: 'alerts', phase: 'loaded');
         expect(
           census.objectCount,
           0,
@@ -749,6 +744,66 @@ void main() {
       final census = await amberCensus(tester);
       expect(census.objectCount, 0, reason: census.describe());
     });
+  });
+
+  group('the amber census, every phase in every skin', () {
+    /// Every phase this route can settle in, in every skin, counted.
+    ///
+    /// The worklists nominate no content amber, so the arithmetic is the same
+    /// everywhere: Night paints the nav's active tab and nothing else; Day and
+    /// Veld paint nothing, because their one rung is the primary commit block
+    /// and a worklist has none armed.
+    for (final skin in <TiqSkin>[
+      TiqSkin.night(),
+      TiqSkin.day(),
+      TiqSkin.veld(),
+    ]) {
+      final lit = skin.mode == SkinMode.night ? 1 : 0;
+      final phases = <String, Future<void> Function(WidgetTester)>{
+        'loaded': (t) => _pump(
+          t,
+          skin: skin,
+          outlets: _outlets,
+          alerts: <AlertItem>[
+            _alert(id: 'a1'),
+            _alert(id: 'a2'),
+          ],
+          nextCursor: 'cursor-2',
+          total: 74,
+        ),
+        'empty': (t) => _pump(t, skin: skin, outlets: _outlets),
+        'filtered-empty': (t) async {
+          await _pump(
+            t,
+            skin: skin,
+            outlets: _outlets,
+            alerts: <AlertItem>[_alert(acknowledged: true)],
+          );
+        },
+        'loading': (t) async {
+          await _pump(t, skin: skin, outlets: _outlets, listPending: true);
+          await t.pump(const Duration(milliseconds: 700));
+        },
+        'error': (t) => _pump(
+          t,
+          skin: skin,
+          listFailure: StateError('SocketException: api.tradeiq.co.za'),
+        ),
+      };
+      for (final phase in phases.entries) {
+        testWidgets('${skin.mode.name}, ${phase.key}: $lit', (tester) async {
+          await phase.value(tester);
+          final census = await amberCensus(tester);
+          expectWithinAmberBudget(
+            census,
+            skin,
+            route: 'alerts',
+            phase: phase.key,
+          );
+          expect(census.objectCount, lit, reason: census.describe());
+        });
+      }
+    }
   });
 
   group('2.0x text', () {

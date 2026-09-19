@@ -217,10 +217,17 @@ class FakeAlertsRepository implements AlertsRepository {
 }
 
 class FakeAlertRulesRepository implements AlertRulesRepository {
-  FakeAlertRulesRepository({this.rules = const <AlertRule>[], this.failure});
+  FakeAlertRulesRepository({
+    this.rules = const <AlertRule>[],
+    this.failure,
+    this.pending = false,
+  });
 
   final List<AlertRule> rules;
   final Object? failure;
+
+  /// The list never arrives, so the screen stays in its loading phase.
+  final bool pending;
 
   String? updatedId;
   bool? updatedActive;
@@ -237,6 +244,7 @@ class FakeAlertRulesRepository implements AlertRulesRepository {
   @override
   Future<List<AlertRule>> listRules() async {
     if (failure != null) throw failure!;
+    if (pending) return Completer<List<AlertRule>>().future;
     return rules;
   }
 
@@ -435,9 +443,7 @@ Future<void> pumpWorklist(
             ...overrides,
           ],
           child: MaterialApp.router(
-            theme: ThemeData(
-              extensions: <ThemeExtension<dynamic>>[resolved],
-            ),
+            theme: ThemeData(extensions: <ThemeExtension<dynamic>>[resolved]),
             locale: locale,
             supportedLocales: appSupportedLocales,
             localizationsDelegates: appLocalizationsDelegates,

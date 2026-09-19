@@ -123,7 +123,8 @@ class _AlertDetailSheet extends ConsumerWidget {
                   'Shelf photograph from ${alert.outletName} for '
                   '${alert.message}',
             ),
-            if (_captureTime(visit, alert.evidencePhotoId!) != null) ...<Widget>[
+            if (_captureTime(visit, alert.evidencePhotoId!) !=
+                null) ...<Widget>[
               const SizedBox(height: TiqSpace.s2),
               Text(
                 _stamp(_captureTime(visit, alert.evidencePhotoId!)!),

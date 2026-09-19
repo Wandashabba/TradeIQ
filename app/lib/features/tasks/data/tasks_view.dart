@@ -210,9 +210,8 @@ class TasksView {
     return TasksView(
       nextCursor: nextCursor,
       total: total,
-      rows: <TaskRow>[
-        for (final entry in entries) _rowFor(entry, now, owners),
-      ]..sort(TaskRow.compare),
+      rows: <TaskRow>[for (final entry in entries) _rowFor(entry, now, owners)]
+        ..sort(TaskRow.compare),
     );
   }
 

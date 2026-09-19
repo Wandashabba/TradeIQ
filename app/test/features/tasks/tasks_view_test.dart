@@ -50,11 +50,14 @@ void main() {
       expect(row.slaPhrase, 'Overdue by 1 day');
     });
 
-    test('inside 24 hours the unit becomes hours, which is what is counted', () {
-      final row = _row(_task(due: _now.add(const Duration(hours: 6))));
-      expect(row.slaState, TaskSlaState.dueSoon);
-      expect(row.slaPhrase, 'Due in 6 h');
-    });
+    test(
+      'inside 24 hours the unit becomes hours, which is what is counted',
+      () {
+        final row = _row(_task(due: _now.add(const Duration(hours: 6))));
+        expect(row.slaState, TaskSlaState.dueSoon);
+        expect(row.slaPhrase, 'Due in 6 h');
+      },
+    );
 
     test('further out it is a calendar distance', () {
       final row = _row(_task(due: _now.add(const Duration(days: 3))));
@@ -69,7 +72,9 @@ void main() {
 
     test('closed and verified are states, not deadlines', () {
       expect(
-        _row(_task(status: 'closed', due: _now.subtract(const Duration(days: 9)))).slaPhrase,
+        _row(
+          _task(status: 'closed', due: _now.subtract(const Duration(days: 9))),
+        ).slaPhrase,
         'Closed',
       );
       expect(
@@ -78,20 +83,14 @@ void main() {
       );
     });
 
-    test(
-      'a 23-hour local day does not turn tomorrow into today',
-      () {
-        // The calendar distance is computed at UTC midnight on both ends, so a
-        // spring-forward cannot floor a 23-hour day to zero and label a
-        // tomorrow-due task "Due today".
-        final now = DateTime(2026, 9, 5, 23, 30);
-        final due = DateTime(2026, 9, 6, 22);
-        expect(
-          TasksView.slaPhrase(due, TaskSlaState.open, now),
-          'Due tomorrow',
-        );
-      },
-    );
+    test('a 23-hour local day does not turn tomorrow into today', () {
+      // The calendar distance is computed at UTC midnight on both ends, so a
+      // spring-forward cannot floor a 23-hour day to zero and label a
+      // tomorrow-due task "Due today".
+      final now = DateTime(2026, 9, 5, 23, 30);
+      final due = DateTime(2026, 9, 6, 22);
+      expect(TasksView.slaPhrase(due, TaskSlaState.open, now), 'Due tomorrow');
+    });
   });
 
   group('the bar is the SLA, raised by the priority', () {
@@ -192,7 +191,10 @@ void main() {
     String figure(int n) => '$n';
     final entries = <TaskEntry>[
       TaskEntry(task: _task(), outletName: 'Kasi Corner Spaza'),
-      TaskEntry(task: _task(id: 't2'), outletName: 'Kasi Corner Spaza'),
+      TaskEntry(
+        task: _task(id: 't2'),
+        outletName: 'Kasi Corner Spaza',
+      ),
     ];
 
     test('a page that is the whole list has no footer', () {
