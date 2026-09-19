@@ -4,10 +4,14 @@
 // tokens landed, one entry per file. 477 hardcoded style decisions in 74 of
 // 133 files: 409 bare `TextStyle(`, 38 raw `Color(0x…)` and 30 uses of
 // Material's `Colors.` palette. The submit gate (13) and the visit outcome
-// (24) came off it when the closing screens were migrated, and the manager's
-// worklists — alerts, alert rules and tasks — took 68 more across five files.
-// Ask TradeIQ's answer surface, Today and the audit shell took it to 281 in
-// 45 files.
+// (24) came off it when the closing screens were migrated: 440 in 72 files.
+// The manager's worklists then took it to 372 in 67 files — but only 12 of
+// those 68 are theirs (alerts 5, alert rules 2, tasks 5). The other 56 were
+// STALE entries for `audit_shell_screen` (26) and `today_screen` (30), two
+// files already clean whose rows had never been regenerated out. A ledger
+// that takes credit for somebody else's work is a ledger nobody can read the
+// ratchet off. Later migrations have taken it further; the map below and the
+// total at the foot are what count.
 //
 // The ratchet is one-sided on purpose. A file may not gain a violation and a
 // file that is not listed may not have one at all — that is what stops the

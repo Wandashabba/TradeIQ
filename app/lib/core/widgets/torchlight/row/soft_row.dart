@@ -47,6 +47,20 @@ export 'soft_row_spec.dart';
 /// the rule that kills the amber-dot-on-every-row failure, and
 /// `row_amber_test.dart` counts the pixels rather than trusting the sentence.
 ///
+/// **5. What a row's own verbs cost.** The row is one semantics node: the
+/// label is composed here and everything inside it is excluded, because a
+/// worklist that announces four nodes per row is a worklist nobody can hear.
+/// That exclusion is also how a screen-reader user loses a button — a
+/// `TorchTertiaryButton` dropped into [meta] paints fine and is announced
+/// nowhere. So a row's verbs have two declared homes, and neither of them is
+/// [meta]: [actions], the ghost buttons that sit beneath the text column (the
+/// manager spec's "at 2.0× they stack beneath the reason"), and a
+/// [trailing] marked [trailingIsControl] for a single trailing toggle. Both
+/// keep their own nodes beneath the row's, which is what `Semantics.onTap`
+/// on the row does for the row's own tap — a `GestureDetector` under an
+/// `excludeSemantics` node carries no tap action, so before this the row's
+/// `onTap` was invisible to TalkBack too.
+///
 /// ```dart
 /// SoftRow(
 ///   density: SoftRowDensity.standard,
@@ -70,6 +84,8 @@ class SoftRow extends StatefulWidget {
     this.meta,
     this.leading,
     this.trailing,
+    this.trailingIsControl = false,
+    this.actions,
     this.severity = SoftRowSeverity.none,
     this.severityLabel,
     this.onTap,
@@ -83,6 +99,11 @@ class SoftRow extends StatefulWidget {
          'the same crimson at both levels; the word is the channel that '
          'survives greyscale, deuteranopia, glare and a screen reader, and it '
          'is announced first.',
+       ),
+       assert(
+         !trailingIsControl || trailing != null,
+         'SoftRow: trailingIsControl describes the trailing widget, and there '
+         'is none.',
        );
 
   /// The primary line, `title.m` in ink-1. Wraps to two lines at every text
@@ -111,6 +132,20 @@ class SoftRow extends StatefulWidget {
   /// made by measuring the laid-out trailing, not by looking at the text
   /// scale.
   final Widget? trailing;
+
+  /// True when [trailing] is a control a person operates — the alert rules
+  /// toggle is the one in the product — rather than a figure, a state word or
+  /// a chevron. A control keeps its own semantics node beneath the row's, so
+  /// "Turn Out of stock alert off" is reachable; everything else in the row
+  /// stays excluded, so the row is still one utterance plus its verbs.
+  final bool trailingIsControl;
+
+  /// The row's own verbs, beneath the text column and inset to it: "Close
+  /// with photo", "Verify", "Acknowledge". They keep their semantics nodes
+  /// (see [trailingIsControl]), they stack themselves at 2.0× if they are a
+  /// `Wrap`, and they are never the row's only route to the verb where a
+  /// sheet can carry it too.
+  final Widget? actions;
 
   final SoftRowSeverity severity;
 
@@ -167,7 +202,8 @@ class _SoftRowState extends State<SoftRow> {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final still = MotionBudget.of(context).still;
-    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     final textScale = scaler.scale(1.0).clamp(1.0, 2.0);
     final tappable = widget._tappable;
 
@@ -190,7 +226,13 @@ class _SoftRowState extends State<SoftRow> {
       '${skin.space.tapTarget} target floor.',
     );
 
-    final body = _body(context, skin, spec);
+    // True when something inside the row has to keep a node of its own: a
+    // verb the row's label cannot carry, because a label is not a button.
+    final exposes =
+        widget.actions != null ||
+        (widget.trailingIsControl && widget.trailing != null);
+
+    final body = _body(context, skin, spec, exposes: exposes);
 
     final gesture = tappable || widget.onLongPress != null
         ? GestureDetector(
@@ -209,13 +251,16 @@ class _SoftRowState extends State<SoftRow> {
       button: tappable,
       enabled: widget.enabled,
       label: widget.semanticsLabel ?? _label(),
-      // The actions are declared on the node itself. `excludeSemantics`
-      // drops the gesture detector's own, so without these a screen-reader
-      // user could hear the row and never activate it — the row would be an
-      // announcement of something they cannot reach.
+      // The row's own tap, as an action and not only as a flag. A
+      // `GestureDetector` beneath an excluding node contributes nothing, so a
+      // `button: true` row with no `onTap` here is a row TalkBack can focus
+      // and cannot activate.
       onTap: tappable ? _handleTap : null,
       onLongPress: widget.onLongPress == null ? null : _handleLongPress,
-      excludeSemantics: true,
+      // One node, unless the row carries verbs — then the row's node keeps the
+      // sentence and each verb gets its own node beneath it.
+      excludeSemantics: !exposes,
+      explicitChildNodes: exposes,
       child: gesture,
     );
   }
@@ -229,11 +274,16 @@ class _SoftRowState extends State<SoftRow> {
     widget.subtitle,
   ].whereType<String>().where((s) => s.isNotEmpty).join('. ');
 
-  Widget _body(BuildContext context, TiqSkin skin, SoftRowSpec spec) {
+  Widget _body(
+    BuildContext context,
+    TiqSkin skin,
+    SoftRowSpec spec, {
+    required bool exposes,
+  }) {
     final hasLeading = widget.leading != null;
     final disabledInk = skin.palette.inkMute;
 
-    final text = _TextColumn(
+    final Widget text = _TextColumn(
       title: widget.title,
       truncation: widget.titleTruncation,
       subtitle: widget.subtitle,
@@ -250,6 +300,15 @@ class _SoftRowState extends State<SoftRow> {
         ? widget.trailing
         : (widget.trailing is SoftRowChevron ? null : widget.trailing);
 
+    // Where the row keeps verbs, everything that is *not* a verb is excluded
+    // one level down instead of at the top, so the row still reads as one
+    // sentence and the verbs are still buttons.
+    final textChild = exposes ? ExcludeSemantics(child: text) : text;
+    final trailingChild =
+        exposes && trailing != null && !widget.trailingIsControl
+        ? ExcludeSemantics(child: trailing)
+        : trailing;
+
     final content = _SoftRowContent(
       gap: spec.gap,
       stackedGap: spec.stackedGap,
@@ -259,40 +318,64 @@ class _SoftRowState extends State<SoftRow> {
               spec.titleStyle.size) *
           spec.titleStyle.height,
       textDirection: Directionality.of(context),
-      children: <Widget>[text, ?trailing],
+      children: <Widget>[textChild, ?trailingChild],
     );
 
+    final line = Row(
+      children: <Widget>[
+        // The lane is reserved whether or not a bar is painted. This
+        // `SizedBox` is the alignment rule: content starts at the same inset
+        // on every row, so eleven rows of which three are critical still
+        // read as one column.
+        SizedBox(
+          width: spec.severityLane,
+          height: spec.severity == SoftRowSeverity.none ? 0 : spec.barHeight,
+          child: spec.severity == SoftRowSeverity.none
+              ? null
+              : Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: _SeverityBar(spec: spec),
+                ),
+        ),
+        if (hasLeading) ...<Widget>[
+          SizedBox.square(
+            dimension: spec.leadingExtent,
+            child: exposes
+                ? ExcludeSemantics(child: widget.leading)
+                : widget.leading,
+          ),
+          SizedBox(width: spec.gap),
+        ],
+        Expanded(child: content),
+      ],
+    );
+
+    final actions = widget.actions;
     final inner = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: spec.horizontalPadding,
         vertical: spec.verticalPadding,
       ),
-      child: Row(
-        children: <Widget>[
-          // The lane is reserved whether or not a bar is painted. This
-          // `SizedBox` is the alignment rule: content starts at the same inset
-          // on every row, so eleven rows of which three are critical still
-          // read as one column.
-          SizedBox(
-            width: spec.severityLane,
-            height: spec.severity == SoftRowSeverity.none ? 0 : spec.barHeight,
-            child: spec.severity == SoftRowSeverity.none
-                ? null
-                : Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: _SeverityBar(spec: spec),
+      child: actions == null
+          ? line
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                line,
+                SizedBox(height: spec.stackedGap),
+                // Inset to the text column, so the verbs sit under the reason
+                // they belong to rather than under the severity lane.
+                Padding(
+                  padding: EdgeInsetsDirectional.only(
+                    start:
+                        spec.textInset(hasLeading: hasLeading) -
+                        spec.horizontalPadding,
                   ),
-          ),
-          if (hasLeading) ...<Widget>[
-            SizedBox.square(
-              dimension: spec.leadingExtent,
-              child: widget.leading,
+                  child: actions,
+                ),
+              ],
             ),
-            SizedBox(width: spec.gap),
-          ],
-          Expanded(child: content),
-        ],
-      ),
     );
 
     final decorated = DecoratedBox(
@@ -361,10 +444,7 @@ class _SeverityBar extends StatelessWidget {
           // step is a state the CI contrast walk cannot see.
           border: spec.barStroke == null
               ? null
-              : Border.all(
-                  color: spec.barStroke!,
-                  width: spec.barStrokeWidth,
-                ),
+              : Border.all(color: spec.barStroke!, width: spec.barStrokeWidth),
         ),
       ),
     );
@@ -381,7 +461,8 @@ class SoftRowChevron extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final skin = context.skin;
-    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     final extent = math.min(20.0 * scaler.scale(1.0).clamp(1.0, 2.0), 32.0);
     return SizedBox.square(
       dimension: extent,
@@ -524,7 +605,8 @@ class MiddleTruncatedText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scaler = MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
     final direction = Directionality.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -542,8 +624,12 @@ class MiddleTruncatedText extends StatelessWidget {
     );
   }
 
-  bool _fits(String candidate, double maxWidth, TextScaler scaler,
-      TextDirection direction) {
+  bool _fits(
+    String candidate,
+    double maxWidth,
+    TextScaler scaler,
+    TextDirection direction,
+  ) {
     final painter = TextPainter(
       text: TextSpan(text: candidate, style: style),
       textDirection: direction,
@@ -663,7 +749,6 @@ class _RenderSoftRowContent extends RenderBox
        _minTextWidth = minTextWidth,
        _firstLineExtent = firstLineExtent,
        _textDirection = textDirection;
-
 
   double _gap;
   set gap(double value) {
