@@ -3132,6 +3132,10 @@
   "@meReviewed": {
     "description": "Flag chip word when a manager has ruled on this visit."
   },
+  "mePinReported": "You reported the pin as wrong",
+  "@mePinReported": {
+    "description": "Said on one of the agent's own visits that they started by reporting the outlet's pin as wrong (#386). Their own act, in their words; not a flag and not a verdict."
+  },
   "meOnThisPhone": "{count, plural, =1{1 capture has not sent} other{{count} captures have not sent}}",
   "@meOnThisPhone": {
     "description": "Standalone row above the visit list when work is still held on the device.",

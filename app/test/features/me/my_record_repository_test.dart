@@ -10,6 +10,18 @@ import 'package:tradeiq_app/features/me/data/my_record_repository.dart';
 
 void main() {
   group('a visit off the wire', () {
+    test('carries the agent\'s own pin report', () {
+      final visit = MyVisit.fromJson(<String, dynamic>{
+        'id': 'v2',
+        'checkinTs': '2026-09-17T09:00:00.000Z',
+        'geofencePass': false,
+        'checkinDistanceM': 140,
+        'pinReported': true,
+      });
+      expect(visit.pinReported, isTrue);
+      expect(visit.geofencePass, isFalse);
+    });
+
     test('keeps an unmeasured distance and an unknown dwell as null', () {
       final visit = MyVisit.fromJson(<String, dynamic>{
         'id': 'v1',
@@ -31,6 +43,8 @@ void main() {
 
       expect(visit.checkinDistanceM, isNull);
       expect(visit.dwellMinutes, isNull);
+      // An older server that does not send the field has no pin report.
+      expect(visit.pinReported, isFalse);
       expect(visit.score, isNull);
       expect(visit.submitted, isFalse);
       // A measured zero is a zero and stays one.
@@ -85,24 +99,26 @@ void main() {
       expect(visit.score!.changedSinceSeen, isFalse);
     });
 
-    test('a scorecard with no recorded device figure has nothing to reconcile',
-        () {
-      final visit = MyVisit.fromJson(<String, dynamic>{
-        'id': 'v1',
-        'checkinTs': '2026-09-17T09:00:00.000Z',
-        'geofencePass': true,
-        'status': 'submitted',
-        'score': <String, dynamic>{
-          'weightedTotal': 71,
-          'ratingBand': 'amber',
-          'scoredAt': '2026-09-17T12:00:00.000Z',
-          'seen': null,
-        },
-      });
+    test(
+      'a scorecard with no recorded device figure has nothing to reconcile',
+      () {
+        final visit = MyVisit.fromJson(<String, dynamic>{
+          'id': 'v1',
+          'checkinTs': '2026-09-17T09:00:00.000Z',
+          'geofencePass': true,
+          'status': 'submitted',
+          'score': <String, dynamic>{
+            'weightedTotal': 71,
+            'ratingBand': 'amber',
+            'scoredAt': '2026-09-17T12:00:00.000Z',
+            'seen': null,
+          },
+        });
 
-      expect(visit.score!.seen, isNull);
-      expect(visit.score!.changedSinceSeen, isFalse);
-    });
+        expect(visit.score!.seen, isNull);
+        expect(visit.score!.changedSinceSeen, isFalse);
+      },
+    );
   });
 
   group('which scheme the bar shows', () {

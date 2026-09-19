@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:tradeiq_app/core/location/location_sharing.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
@@ -80,9 +82,7 @@ void main() {
         await pumpMe(
           tester,
           repository: FakeMyRecordRepository(
-            visits: <MyVisit>[
-              visitFixture(geofencePass: false, distance: 140),
-            ],
+            visits: <MyVisit>[visitFixture(geofencePass: false, distance: 140)],
           ),
         );
 
@@ -96,6 +96,43 @@ void main() {
         expect(chip.kind, FlagKind.outOfFence);
       },
     );
+
+    testWidgets(
+      'a visit started by reporting the pin says so, in words, and a screen '
+      'reader hears it with the fence fact',
+      (tester) async {
+        await pumpMe(
+          tester,
+          repository: FakeMyRecordRepository(
+            visits: <MyVisit>[
+              visitFixture(
+                geofencePass: false,
+                distance: 140,
+                pinReported: true,
+              ),
+            ],
+          ),
+        );
+
+        expect(find.text('You reported the pin as wrong'), findsOneWidget);
+        // Their own act, not a flag on them: still exactly one chip.
+        expect(find.byType(FlagChip), findsOneWidget);
+
+        final label = tester
+            .getSemantics(find.byKey(const ValueKey<String>('my-visit-v1')))
+            .label;
+        expect(label, contains('Out of fence, 140 m from the door'));
+        expect(label, contains('You reported the pin as wrong'));
+        expect(label, contains('5 of 7 sections'));
+      },
+    );
+
+    testWidgets('a visit with no pin report says nothing about the pin', (
+      tester,
+    ) async {
+      await pumpMe(tester);
+      expect(find.textContaining('reported the pin'), findsNothing);
+    });
 
     testWidgets('a reviewed visit says so, because it is their record', (
       tester,
@@ -178,7 +215,11 @@ void main() {
         tester,
         repository: FakeMyRecordRepository(
           visits: <MyVisit>[
-            visitFixture(status: 'in_progress', score: null, dwellMinutes: null),
+            visitFixture(
+              status: 'in_progress',
+              score: null,
+              dwellMinutes: null,
+            ),
           ],
         ),
       );
@@ -217,9 +258,7 @@ void main() {
     ) async {
       await pumpMe(
         tester,
-        repository: FakeMyRecordRepository(
-          earnings: earningsFixture(rank: 0),
-        ),
+        repository: FakeMyRecordRepository(earnings: earningsFixture(rank: 0)),
       );
       expect(
         find.text('Not ranked yet — too few agents have points this month.'),
@@ -308,7 +347,9 @@ void main() {
       final bar = find.byKey(const ValueKey<String>('reward-bar'));
       expect(bar, findsOneWidget);
       final label = tester
-          .getSemantics(find.ancestor(of: bar, matching: find.byType(Semantics)).first)
+          .getSemantics(
+            find.ancestor(of: bar, matching: find.byType(Semantics)).first,
+          )
           .label;
       expect(label, contains('14'));
       expect(label, contains('20'));
@@ -394,7 +435,10 @@ void main() {
         );
         expect(find.text('Your visits did not load'), findsOneWidget);
         // The bar survived it.
-        expect(find.byKey(const ValueKey<String>('reward-bar')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey<String>('reward-bar')),
+          findsOneWidget,
+        );
       },
     );
 
@@ -512,9 +556,7 @@ void main() {
       tester,
     ) async {
       await pumpMe(tester);
-      final header = tester.widget<TorchAppHeader>(
-        find.byType(TorchAppHeader),
-      );
+      final header = tester.widget<TorchAppHeader>(find.byType(TorchAppHeader));
       expect(header.trailing, isNotNull);
       expect(header.title, 'Me');
     });
@@ -653,4 +695,70 @@ void main() {
       expect(scope!.allocation.isLit(TorchScope.navActiveTabId), isTrue);
     });
   });
+
+  group('location sharing has an answer here too (#153, POPIA)', () {
+    // Me is an agent tab root like the other three: the controllers behind
+    // the banners only start when something watches them, so a tab without
+    // them drops the notice, the indicator and the pings.
+    testWidgets('sharing on: the standing indicator', (tester) async {
+      await pumpMe(
+        tester,
+        extraOverrides: <Override>[
+          locationSharingControllerProvider.overrideWith(
+            () => _Location(LocationConsent.acknowledged),
+          ),
+        ],
+      );
+      expect(
+        find.byKey(const ValueKey<String>('location-sharing-indicator')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('not asked yet: the notice, whose yes never lights here', (
+      tester,
+    ) async {
+      await pumpMe(
+        tester,
+        extraOverrides: <Override>[
+          locationSharingControllerProvider.overrideWith(() => _Location(null)),
+        ],
+      );
+      expect(
+        find.byKey(const ValueKey<String>('location-notice')),
+        findsOneWidget,
+      );
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'The route does not declare the consent claim, so its yes takes '
+            'its ink form and Night stays at the nav tab alone.',
+      );
+    });
+  });
+}
+
+/// A field agent whose location answer is [consent] (null: not yet asked).
+class _Location extends LocationSharingController {
+  _Location(this.consent);
+
+  final LocationConsent? consent;
+
+  @override
+  LocationSharingState build() => LocationSharingState(
+    isAgent: true,
+    settings: LocationSettings(intervalSeconds: 120, noticeVersion: 'v1')
+        .withDecision(
+          consent == null
+              ? null
+              : LocationDecision(
+                  consent: consent!,
+                  noticeVersion: 'v1',
+                  decidedAt: DateTime(2026, 9, 15),
+                ),
+        ),
+    running: consent == LocationConsent.acknowledged,
+  );
 }

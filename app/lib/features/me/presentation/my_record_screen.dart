@@ -7,6 +7,7 @@ import '../../../core/design/torch_scope.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/agent_location_banners.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../core/widgets/torchlight/marks.dart';
@@ -184,7 +185,9 @@ class MeFrame extends ConsumerWidget {
           activeIndex: navIndex,
           onSelect: (i) => TodayFrame.go(context, i),
         ),
-        children: children,
+        // Whether the agent is being located has an answer on every agent
+        // screen (#153, POPIA) — see AgentLocationBanners.
+        children: <Widget>[const AgentLocationBanners(), ...children],
       ),
     );
   }
@@ -621,13 +624,13 @@ class _VisitRow extends StatelessWidget {
       ),
       trailing: _VisitScore(visit: visit),
       separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
-      semanticsLabel: l10n.meVisitSemantics(
-        visit.outletName,
-        day,
-        dwell,
-        tasks,
-        scoreWords,
-      ),
+      // The row excludes its children's semantics, so the evidence line has
+      // to be in this sentence or a screen reader never hears it — and the
+      // out-of-fence fact is the one this record most owes its agent.
+      semanticsLabel: <String>[
+        l10n.meVisitSemantics(visit.outletName, day, dwell, tasks, scoreWords),
+        ..._VisitEvidence.facts(l10n, visit),
+      ].join('. '),
     );
 
     // The reconciliation line belongs to the visit's record permanently and is
@@ -683,6 +686,23 @@ class _VisitEvidence extends StatelessWidget {
 
   final MyVisit visit;
 
+  /// The same facts in words, in the order they are drawn, for the row's one
+  /// screen-reader sentence.
+  static List<String> facts(AppLocalizations l10n, MyVisit visit) {
+    final distance = visit.checkinDistanceM;
+    return <String>[
+      l10n.meCapturedCount(
+        visit.sectionsCaptured,
+        visit.sectionsTotal,
+        visit.photos,
+      ),
+      if (!visit.geofencePass)
+        '${l10n.meOutOfFence}, ${distance == null ? l10n.meDistanceUnknown : l10n.meDistanceMeters(distance.round())}',
+      if (visit.reviewedVerdict != null) l10n.meReviewed,
+      if (visit.pinReported) l10n.mePinReported,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -718,6 +738,16 @@ class _VisitEvidence extends StatelessWidget {
               if (visit.reviewedVerdict != null)
                 FlagChip(kind: FlagKind.forReview, label: l10n.meReviewed),
             ],
+          ),
+        ],
+        // Their own claim that the pin was wrong (#386), said as what they
+        // did: it is why a visit they were let into still reads out of fence.
+        // Prose, not a chip — it is not a flag on them.
+        if (visit.pinReported) ...<Widget>[
+          const SizedBox(height: TiqSpace.s2),
+          Text(
+            l10n.mePinReported,
+            style: skin.text.meta.style(color: skin.palette.ink3),
           ),
         ],
       ],

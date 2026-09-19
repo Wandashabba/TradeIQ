@@ -96,6 +96,7 @@ class MyVisit {
     this.dwellMinutes,
     this.score,
     this.reviewedVerdict,
+    this.pinReported = false,
     this.local = false,
   });
 
@@ -130,6 +131,11 @@ class MyVisit {
   /// `confirmed` · `dismissed` · `inconclusive` once a reviewer has ruled.
   final String? reviewedVerdict;
 
+  /// The agent started this visit by reporting the outlet's pin as wrong
+  /// (#386). Their own claim, so theirs to see — and the reason a visit they
+  /// were allowed to start still reads out of fence.
+  final bool pinReported;
+
   /// True for a row assembled from this phone's own drafts rather than from
   /// the server. Today's work, before it syncs.
   final bool local;
@@ -154,6 +160,7 @@ class MyVisit {
         ? null
         : MyVisitScore.fromJson(json['score'] as Map<String, dynamic>),
     reviewedVerdict: json['reviewedVerdict'] as String?,
+    pinReported: json['pinReported'] as bool? ?? false,
   );
 }
 
@@ -305,8 +312,7 @@ class DioMyRecordRepository implements MyRecordRepository {
           PointsEntry.fromJson(row as Map<String, dynamic>),
       ],
       schemes: <IncentiveScheme>[
-        for (final row
-            in (schemesBody['data'] as List? ?? const <dynamic>[]))
+        for (final row in (schemesBody['data'] as List? ?? const <dynamic>[]))
           IncentiveScheme.fromJson(row as Map<String, dynamic>),
       ],
     );

@@ -612,6 +612,7 @@
   "meDistanceUnknown": "afstand nie gemeet nie",
   "meOutOfFence": "Buite die heining",
   "meReviewed": "Hersien",
+  "mePinReported": "Jy het die speld as verkeerd aangemeld",
   "meOnThisPhone": "{count, plural, =1{1 vaslegging het nie gestuur nie} other{{count} vasleggings het nie gestuur nie}}",
   "meOnThisPhoneDetail": "Wys wat die bediener bereik het. Vandag se werk verskyn hier sodra dit stuur.",
   "meVisitSemantics": "{outlet}, {day}, {dwell}, {tasks}, {score}",

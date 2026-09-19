@@ -36,6 +36,7 @@ MyVisit visitFixture({
   double? score = 71,
   double? seen,
   String? reviewedVerdict,
+  bool pinReported = false,
 }) => MyVisit(
   id: id,
   outletId: 'o-$id',
@@ -51,6 +52,7 @@ MyVisit visitFixture({
   photos: photos,
   tasksRaised: tasksRaised,
   reviewedVerdict: reviewedVerdict,
+  pinReported: pinReported,
   score: score == null
       ? null
       : MyVisitScore(
@@ -87,35 +89,39 @@ MyEarnings earningsFixture({
     avgScorecard: avgScorecard,
     points: points,
   ),
-  ledger: ledger ?? <PointsEntry>[
-    PointsEntry(
-      id: 'p1',
-      points: 5,
-      reason: 'visit_submitted',
-      sourceType: 'visit',
-      sourceId: 'v1',
-      occurredAt: DateTime(2026, 9, 17, 12),
-      outletName: 'Kasi Corner Spaza',
-    ),
-    PointsEntry(
-      id: 'p2',
-      points: -5,
-      reason: 'visit_reversed',
-      sourceType: 'visit',
-      sourceId: 'v2',
-      occurredAt: DateTime(2026, 9, 16, 12),
-    ),
-  ],
-  schemes: schemes ?? <IncentiveScheme>[
-    const IncentiveScheme(
-      id: 's1',
-      name: 'Twenty stores',
-      metric: 'visits',
-      threshold: 20,
-      rewardPoints: 250,
-      rewardDetail: 'R 250 airtime',
-    ),
-  ],
+  ledger:
+      ledger ??
+      <PointsEntry>[
+        PointsEntry(
+          id: 'p1',
+          points: 5,
+          reason: 'visit_submitted',
+          sourceType: 'visit',
+          sourceId: 'v1',
+          occurredAt: DateTime(2026, 9, 17, 12),
+          outletName: 'Kasi Corner Spaza',
+        ),
+        PointsEntry(
+          id: 'p2',
+          points: -5,
+          reason: 'visit_reversed',
+          sourceType: 'visit',
+          sourceId: 'v2',
+          occurredAt: DateTime(2026, 9, 16, 12),
+        ),
+      ],
+  schemes:
+      schemes ??
+      <IncentiveScheme>[
+        const IncentiveScheme(
+          id: 's1',
+          name: 'Twenty stores',
+          metric: 'visits',
+          threshold: 20,
+          rewardPoints: 250,
+          rewardDetail: 'R 250 airtime',
+        ),
+      ],
 );
 
 /// A repository that answers from memory, or throws.
@@ -186,6 +192,7 @@ Future<void> pumpMe(
   bool settle = true,
   Size size = meTall,
   int runningContests = 0,
+  List<Override> extraOverrides = const <Override>[],
 }) async {
   final database = db ?? agentTestDb();
   await pumpAgentScreen(
@@ -202,6 +209,7 @@ Future<void> pumpMe(
       myRecordRepositoryProvider.overrideWithValue(
         repository ?? FakeMyRecordRepository(),
       ),
+      ...extraOverrides,
     ],
     textScale: textScale,
     locale: locale,

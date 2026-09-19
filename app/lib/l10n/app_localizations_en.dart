@@ -2421,6 +2421,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meReviewed => 'Reviewed';
 
   @override
+  String get mePinReported => 'You reported the pin as wrong';
+
+  @override
   String meOnThisPhone(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

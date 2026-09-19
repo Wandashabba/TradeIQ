@@ -2447,6 +2447,9 @@ class AppLocalizationsAf extends AppLocalizations {
   String get meReviewed => 'Hersien';
 
   @override
+  String get mePinReported => 'Jy het die speld as verkeerd aangemeld';
+
+  @override
   String meOnThisPhone(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -3770,6 +3770,12 @@ abstract class AppLocalizations {
   /// **'Reviewed'**
   String get meReviewed;
 
+  /// Said on one of the agent's own visits that they started by reporting the outlet's pin as wrong (#386). Their own act, in their words; not a flag and not a verdict.
+  ///
+  /// In en, this message translates to:
+  /// **'You reported the pin as wrong'**
+  String get mePinReported;
+
   /// Standalone row above the visit list when work is still held on the device.
   ///
   /// In en, this message translates to:
