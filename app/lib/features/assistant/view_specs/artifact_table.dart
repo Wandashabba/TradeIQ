@@ -293,8 +293,8 @@ ArtifactTable _statTilesTable(ArtifactDetail artifact) {
         ArtifactTableRow(
           cells: [
             tile.label,
-            tile.formatted,
-            tile.delta?.text ?? '—',
+            tile.formatted(),
+            tile.delta?.text() ?? '—',
             tile.comparedTo ?? '—',
           ],
         ),

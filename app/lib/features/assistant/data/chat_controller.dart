@@ -82,7 +82,11 @@ class ChatMessage {
     this.tools = const [],
     this.sources = const [],
     this.error,
+    this.errorCode,
+    this.notice,
     this.streaming = false,
+    this.stopped = false,
+    this.askedAt,
   });
 
   final ChatRole role;
@@ -95,8 +99,30 @@ class ChatMessage {
 
   /// A user-safe message from the server. Rendered instead of prose, not
   /// alongside it — a half-answer followed by an error reads as a bug.
+  ///
+  /// **Already sanitised**: see [sanitiseAssistantError]. The old build
+  /// rendered the wire's string verbatim on the strength of a prose comment
+  /// saying the server guaranteed it was safe, which is the exact path by
+  /// which a 500's exception text reaches a customer's screenshot.
   final String? error;
+
+  /// The wire's `code`, for the block's diagnostic line. `unknown` is not
+  /// shown — it is not a diagnostic, it is the absence of one.
+  final String? errorCode;
+
+  /// The turn ran out of lookups or time (#410). Rendered as a component
+  /// below the answer, never as prose in the model's own voice.
+  final NoticeEvent? notice;
+
   final bool streaming;
+
+  /// The manager pressed Stop. Not an error: the partial answer stays exactly
+  /// as written and one line says it was stopped.
+  final bool stopped;
+
+  /// When the question was asked. The history sheet's left column, and the
+  /// only thing on this surface that needs a wall clock.
+  final DateTime? askedAt;
 
   ChatMessage copyWith({
     String? text,
@@ -104,7 +130,10 @@ class ChatMessage {
     List<ToolActivity>? tools,
     List<WebSource>? sources,
     String? error,
+    String? errorCode,
+    NoticeEvent? notice,
     bool? streaming,
+    bool? stopped,
   }) =>
       ChatMessage(
         role: role,
@@ -113,8 +142,63 @@ class ChatMessage {
         tools: tools ?? this.tools,
         sources: sources ?? this.sources,
         error: error ?? this.error,
+        errorCode: errorCode ?? this.errorCode,
+        notice: notice ?? this.notice,
         streaming: streaming ?? this.streaming,
+        stopped: stopped ?? this.stopped,
+        askedAt: askedAt,
       );
+}
+
+/// What the server appends to an answer a budget cut short.
+///
+/// Shipped on both sides — `BUDGET_NOTICE` in `orchestrator.ts`. The client
+/// lifts it out of the prose so the fact is rendered as the product
+/// explaining itself rather than as the assistant apologising in a trailing
+/// paragraph below its own follow-ups fence.
+const String budgetNoticeProse =
+    'I reached the limit on how many lookups I can make for one question, so '
+    'this answer may be incomplete. Ask a narrower follow-up to go further.';
+
+/// [text] with the server's budget sentence removed.
+///
+/// A no-op when the constant has drifted, which is the point: the notice
+/// block is an upgrade on a fallback and never a dependency. If the strings
+/// stop matching, the sentence stays in the prose and nothing breaks.
+String stripBudgetNotice(String text) {
+  final at = text.indexOf(budgetNoticeProse);
+  if (at == -1) return text;
+  final without =
+      text.substring(0, at) + text.substring(at + budgetNoticeProse.length);
+  return without.trimRight();
+}
+
+/// The most of a server error message that reaches a screen.
+const int assistantErrorMessageCap = 160;
+
+/// What is rendered in place of a message that cannot be trusted on a screen.
+const String assistantErrorFallback = 'Something went wrong on our side.';
+
+/// A server error message, made safe to draw.
+///
+/// Newlines collapse to spaces; anything over [assistantErrorMessageCap]
+/// characters, carrying markup or angle brackets, or shaped like a stack
+/// trace is replaced wholesale and the code row carries the diagnostic
+/// instead. A guarantee written in a prose comment is not a guarantee.
+String sanitiseAssistantError(String raw) {
+  final flat = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (flat.isEmpty) return assistantErrorFallback;
+  if (flat.length > assistantErrorMessageCap) return assistantErrorFallback;
+  if (flat.contains('<') || flat.contains('>')) return assistantErrorFallback;
+  // `at Object.foo (/srv/app.js:12:9)`, `Error: ECONNREFUSED`, `#0 main`.
+  if (RegExp(r'(^|\s)(at\s+\S+\s*\(|#\d+\s|[A-Za-z]+Error:|Exception:)')
+      .hasMatch(flat)) {
+    return assistantErrorFallback;
+  }
+  if (flat.contains('\\') || RegExp(r'/[\w.-]+/[\w.-]+').hasMatch(flat)) {
+    return assistantErrorFallback;
+  }
+  return flat;
 }
 
 class ChatState {
@@ -137,6 +221,12 @@ class ChatState {
 /// conversation rows, and this is the seam that changes.
 class ChatController extends Notifier<ChatState> {
   CancelToken? _cancelToken;
+
+  /// Completes when the live turn ends, however it ends. Held so that Stop
+  /// and leaving the screen both release the `await` inside [send] — a
+  /// cancelled subscription fires neither `onDone` nor `onError`, so without
+  /// this the future a caller awaited would never complete.
+  Completer<void>? _turn;
   StreamSubscription<AssistantEvent>? _subscription;
 
   /// The server's id for this conversation, learned from the first turn.
@@ -176,7 +266,11 @@ class ChatController extends Notifier<ChatState> {
     state = state.copyWith(
       messages: [
         ...state.messages,
-        ChatMessage(role: ChatRole.user, text: trimmed),
+        ChatMessage(
+          role: ChatRole.user,
+          text: trimmed,
+          askedAt: ref.read(assistantClockProvider)(),
+        ),
         const ChatMessage(role: ChatRole.assistant, text: '', streaming: true),
       ],
       sending: true,
@@ -186,6 +280,7 @@ class ChatController extends Notifier<ChatState> {
     _cancelToken = cancelToken;
 
     final completer = Completer<void>();
+    _turn = completer;
     _subscription = ref
         .read(assistantRepositoryProvider)
         .chat(
@@ -305,8 +400,20 @@ class ChatController extends Notifier<ChatState> {
       case SourcesEvent(:final sources):
         // One per turn by contract; a repeat replaces rather than duplicates.
         messages[index] = current.copyWith(sources: sources);
-      case ErrorEvent(:final message):
-        messages[index] = current.copyWith(error: message, streaming: false);
+      case NoticeEvent():
+        // The same fact twice on the wire — once as prose for older builds,
+        // once as a code. This build takes the code and lifts the sentence
+        // out of the text.
+        messages[index] = current.copyWith(
+          notice: event,
+          text: stripBudgetNotice(current.text),
+        );
+      case ErrorEvent(:final code, :final message):
+        messages[index] = current.copyWith(
+          error: sanitiseAssistantError(message),
+          errorCode: code == 'unknown' ? null : code,
+          streaming: false,
+        );
       case UsageEvent():
         // Nothing to render. The cost dashboard reads this server-side; the
         // manager asking about stock does not need a token count.
@@ -329,7 +436,11 @@ class ChatController extends Notifier<ChatState> {
       if (last.streaming) {
         messages[index] = last.copyWith(
           streaming: false,
-          error: last.text.isEmpty && last.error == null
+          stopped: _stopping,
+          // A turn the manager stopped is not a failure and never takes the
+          // error block: half an answer she asked to keep is worth more than
+          // a message that erases it.
+          error: !_stopping && last.text.isEmpty && last.error == null
               ? 'The assistant stopped responding. Please try again.'
               : null,
         );
@@ -338,6 +449,32 @@ class ChatController extends Notifier<ChatState> {
     state = state.copyWith(messages: messages, sending: false);
     _cancelToken = null;
     _subscription = null;
+    _stopping = false;
+    final turn = _turn;
+    _turn = null;
+    if (turn != null && !turn.isCompleted) turn.complete();
+  }
+
+  /// Whether the live turn is being cancelled by the manager rather than by
+  /// the network or by leaving the screen.
+  bool _stopping = false;
+
+  /// STOP. Keeps everything already written and stops paying for the rest.
+  ///
+  /// Distinct from [cancel], which is what leaving the screen does: that turn
+  /// is simply not there when she comes back, because a transcript is a
+  /// session. A stopped turn stays, with its partial answer and one line
+  /// saying it was stopped.
+  void stop() {
+    if (!state.sending) return;
+    _stopping = true;
+    _subscription?.cancel();
+    _subscription = null;
+    if (_cancelToken?.isCancelled == false) {
+      _cancelToken?.cancel('stopped by the manager');
+    }
+    _cancelToken = null;
+    _finish();
   }
 
   void cancel() {
@@ -347,6 +484,9 @@ class ChatController extends Notifier<ChatState> {
       _cancelToken?.cancel('left the conversation');
     }
     _cancelToken = null;
+    final turn = _turn;
+    _turn = null;
+    if (turn != null && !turn.isCompleted) turn.complete();
   }
 
   void clear() {
