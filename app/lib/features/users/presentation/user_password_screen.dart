@@ -81,7 +81,12 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
 
   PasswordProblem? _passwordProblem;
   bool _mismatch = false;
-  String? _failure;
+
+  /// Each failure is shown where its action is — a refused code where the
+  /// code would have appeared, a refused password under its button — never at
+  /// the foot of a list the manager is not looking at.
+  String? _issueFailure;
+  String? _setFailure;
 
   @override
   void initState() {
@@ -126,7 +131,7 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
   Future<void> _issue() async {
     setState(() {
       _issuing = true;
-      _failure = null;
+      _issueFailure = null;
       _code = null;
     });
     try {
@@ -142,13 +147,13 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
       if (!mounted) return;
       setState(() {
         _issuing = false;
-        _failure = _refusalText(e.reason);
+        _issueFailure = _refusalText(e.reason);
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _issuing = false;
-        _failure = humanErrorMessage(e);
+        _issueFailure = humanErrorMessage(e);
       });
     }
   }
@@ -171,7 +176,7 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
     }
     setState(() {
       _setting = true;
-      _failure = null;
+      _setFailure = null;
     });
     try {
       await ref
@@ -191,14 +196,14 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
         if (e.reason == PasswordRefusal.passwordRejected) {
           _passwordProblem = PasswordProblem.rejected;
         } else {
-          _failure = _refusalText(e.reason);
+          _setFailure = _refusalText(e.reason);
         }
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _setting = false;
-        _failure = humanErrorMessage(e);
+        _setFailure = humanErrorMessage(e);
       });
     }
   }
@@ -216,7 +221,8 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
     final who = user?.label ?? 'this user';
     final code = _code;
     final setMissing = _setMissing();
-    final failure = _failure;
+    final issueFailure = _issueFailure;
+    final setFailure = _setFailure;
 
     final primary = code == null
         ? TorchPrimaryButton(
@@ -238,7 +244,7 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
           ? 'issuing'
           : code != null
           ? 'code-shown'
-          : failure != null
+          : issueFailure != null || setFailure != null
           ? 'error'
           : 'ready',
       title: 'Reset password',
@@ -272,6 +278,10 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
               onPressed: _issue,
             ),
           ),
+        ],
+        if (issueFailure != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s5),
+          _Failure(key: const ValueKey<String>('issue-failure'), issueFailure),
         ],
         const SizedBox(height: TiqSpace.s7),
         const SectionRule('In person'),
@@ -319,6 +329,10 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
                 : null,
           ),
         ),
+        if (setFailure != null) ...<Widget>[
+          const SizedBox(height: TiqSpace.s3),
+          _Failure(key: const ValueKey<String>('set-failure'), setFailure),
+        ],
         if (_setDone) ...<Widget>[
           const SizedBox(height: TiqSpace.s3),
           AccountText(
@@ -328,25 +342,29 @@ class _UserPasswordState extends ConsumerState<_UserPassword> {
             'phone off now, switch the account off on the users list.',
           ),
         ],
-        if (failure != null) ...<Widget>[
-          const SizedBox(height: TiqSpace.s5),
-          ErrorState(
-            key: const ValueKey<String>('user-password-failure'),
-            scope: ErrorScope.inline,
-            message: TorchErrorMessage(
-              kind: TorchErrorKind.rejected,
-              headline: 'Nothing was changed',
-              body: failure,
-              offersRetry: false,
-            ),
-          ),
-        ],
         // Keeps the code block clear of the thumb zone when it is the last
         // thing on a short phone.
         SizedBox(height: skin.space.gutter),
       ],
     );
   }
+}
+
+class _Failure extends StatelessWidget {
+  const _Failure(this.body, {super.key});
+
+  final String body;
+
+  @override
+  Widget build(BuildContext context) => ErrorState(
+    scope: ErrorScope.inline,
+    message: TorchErrorMessage(
+      kind: TorchErrorKind.rejected,
+      headline: 'Nothing was changed',
+      body: body,
+      offersRetry: false,
+    ),
+  );
 }
 
 /// The code, as the manager reads it out: two groups of four in the mono
