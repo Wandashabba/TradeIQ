@@ -141,3 +141,16 @@ Future<void> scrollAgentTo(WidgetTester tester, Finder finder) async {
   );
   await tester.pumpAndSettle();
 }
+
+/// Scroll without settling.
+///
+/// `scrollUntilVisible` calls `pumpAndSettle` on every step, which hangs
+/// forever against drift's `watch()` — the same trap [pumpVisitLive] exists
+/// to avoid. This drags a fixed distance and pumps a fixed number of frames,
+/// which is all a lazy `ListView` needs to build the rows below the fold.
+Future<void> dragAgentUp(WidgetTester tester, {double by = 240}) async {
+  await tester.drag(find.byType(Scrollable).first, Offset(0, -by));
+  for (var i = 0; i < 4; i++) {
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+}

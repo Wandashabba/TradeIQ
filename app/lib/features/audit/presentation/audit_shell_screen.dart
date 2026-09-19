@@ -740,11 +740,18 @@ class _SectionRow extends StatelessWidget {
 
     final state = torchStateOf(entry.state);
     final showRequired = entry.required && entry.state != CaptureState.done;
+    // The fallback is the STATE's word, not "Not started": a done section
+    // with no captured count used to read "Stock & availability / Not
+    // started" beside a green tick, which is the row disagreeing with itself.
+    // Only a section that genuinely has not been opened gets the
+    // not-started / optional pair.
     final detail =
         entry.detail ??
-        (entry.required
-            ? l10n.visitSectionNotStarted
-            : l10n.visitSectionOptional);
+        (entry.state == CaptureState.notStarted
+            ? (entry.required
+                  ? l10n.visitSectionNotStarted
+                  : l10n.visitSectionOptional)
+            : SectionStateToken.of(skin, state).word);
 
     return SoftRow(
       key: ValueKey<String>(entry.tileKey),
