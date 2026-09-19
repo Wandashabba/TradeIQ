@@ -1,0 +1,22 @@
+# store_picker_day
+# Regenerate: UPDATE_AGENT_GOLDENS=1 flutter test
+
+skin = day
+density = field
+ground = #EEE9DF
+gutter = 20.0
+border.width = 1.0
+shadows = 3
+row.min = 64.0
+target.min = 48.0
+motion = on
+header.trailing = none
+header.chips = 1
+header.height = 216
+nav.pill = absent
+thumb.zone = present
+zone.height = 152
+skin.cycle = thumb-zone
+primary = none
+rows.onscreen = 0
+amber.objects = 0

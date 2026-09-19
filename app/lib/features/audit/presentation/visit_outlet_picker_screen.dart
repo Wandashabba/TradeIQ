@@ -1,100 +1,214 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/torch_scope.dart';
 import '../../../core/network/human_error.dart';
-import '../../../core/theme/lumen_glass.dart';
-import '../../../core/theme/tiq_colors.dart';
-import '../../../core/widgets/agent_kit.dart';
-import '../../../core/widgets/agent_scaffold.dart';
-import '../../../core/widgets/console.dart' show StatusLevel;
-import '../../../core/widgets/glass.dart';
-import '../../../core/widgets/pill_segment.dart';
-import '../../../core/widgets/worklist.dart';
+import '../../../core/theme/torchlight/agent_skin.dart';
+import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
+import '../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../core/widgets/torchlight/chrome/chrome.dart';
+import '../../../core/widgets/torchlight/input.dart';
+import '../../../core/widgets/torchlight/row/row.dart';
+import '../../../core/widgets/torchlight/section_rule.dart';
+import '../../../core/widgets/torchlight/skin_controls.dart';
+import '../../../core/widgets/torchlight/state.dart';
+import '../../../core/widgets/torchlight/sync_status.dart';
+import '../../../core/widgets/agent_location_banners.dart';
 import '../../../l10n/l10n.dart';
 import '../../outlets/data/outlets_repository.dart';
 
+/// THE STORE PICKER — the way into a visit that is not on today's plan.
+///
+/// ```text
+///   Select an Outlet              [ 12 held on this phone ]
+///   Tap a store to start a visit
+///   ── Which stores ────────────────────────────
+///   ( My territories ✓ ) ( All stores )
+///   7 in your territories · tap All stores to see every shop
+///   ── Stores ──────────────────────────────────
+///   ▏ Kasi Corner Spaza                          ›
+///   ▏ KC-0412
+///   ▏ Sunrise Spaza                              ›
+///   [ ☾ ]  [        Add a store        ]
+/// ```
+///
+/// ## The honesty line stays
+///
+/// The list defaults to the agent's own territories, so it has to **say** so
+/// and say how many it is showing. A narrowed list that looks like the whole
+/// list is how somebody concludes a store is missing from the system and
+/// phones an administrator about a filter. Both scopes are always reachable,
+/// because territory data is imperfect and an agent covering a colleague's
+/// patch must not need an administrator to check in.
+///
+/// ## Amber
+///
+/// Not a tab root — the agent came here to pick one store and leave — so the
+/// nav takes no slot and the thumb zone carries the one commit. "Add a store"
+/// is a **secondary**: creating an outlet is the rare path, and the expected
+/// next move on this screen is tapping a store that already exists. A row is
+/// not a commit action and never lights, so this route paints **zero** amber
+/// objects on every skin, which is the honest reading of a list.
+///
+/// The coordinates the old rows printed under each name are gone. Five decimal
+/// places of latitude is not something an agent reads standing in a doorway,
+/// it went through `toStringAsFixed` in a widget, and the store code is the
+/// identifier that actually appears on paperwork.
 class VisitOutletPickerScreen extends ConsumerWidget {
   const VisitOutletPickerScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return const TorchlightRoute(child: _Picker());
+  }
+}
+
+class _Picker extends ConsumerWidget {
+  const _Picker();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final onlyMine = ref.watch(onlyMyTerritoriesProvider);
     final outlets = ref.watch(assignedOutletsProvider);
-    final l10n = context.l10n;
-    return AgentScaffold(
-      title: l10n.pickerTitle,
-      subtitle: l10n.pickerSubtitle,
-      // The primary action lives in the thumb zone, not floating over the list.
-      bottomAction: AgentButton(
-        label: l10n.pickerAddStore,
-        icon: Icons.add_location_alt_outlined,
-        secondary: true,
-        onPressed: () async {
-          await context.push('/outlets/create');
-          ref.invalidate(assignedOutletsProvider);
-        },
+
+    return outlets.when(
+      loading: () => const _PickerFrame(
+        phase: 'loading',
+        children: <Widget>[_PickerSkeleton()],
       ),
-      body: outlets.when(
-        data: (list) => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 24),
-          children: [
-            // The scope control sits above the stores, keyed off the same
-            // provider the list reads.
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _ScopeControl(
-                onlyMine: onlyMine,
-                count: list.length,
-                onChanged: (value) =>
-                    ref.read(onlyMyTerritoriesProvider.notifier).set(value),
-              ),
+      error: (error, stack) => _PickerFrame(
+        phase: 'error',
+        children: <Widget>[
+          ErrorState(
+            message: TorchErrorMessage(
+              kind: TorchErrorKind.unknown,
+              headline: l10n.pickerLoadErrorTitle,
+              // The app's one voice: a 500 and a parse failure must not read
+              // to an agent as a connectivity problem.
+              body: humanErrorMessage(error, l10n),
+              offersRetry: true,
             ),
-            const SizedBox(height: 12),
-            // Each store is its own console worklist card; the whole row taps
-            // through to the visit — the card IS the start-visit affordance.
-            for (final (i, outlet) in list.indexed)
-              WorklistCascade(
-                index: i,
-                child: WorklistRow(
-                  title: outlet.name,
-                  meta: Text(
-                    '${outlet.code} · '
-                    '${outlet.lat.toStringAsFixed(5)}, '
-                    '${outlet.lng.toStringAsFixed(5)}',
-                  ),
-                  // Every store is the same "go here" — no per-row severity, so
-                  // the row's status channel stays neutral.
-                  level: StatusLevel.neutral,
-                  onTap: () => context.go('/audit/${outlet.id}'),
-                ),
-              ),
+            action: TorchSecondaryButton(
+              key: const ValueKey<String>('retry-outlets'),
+              label: l10n.pickerRetry,
+              onPressed: () => ref.invalidate(assignedOutletsProvider),
+            ),
+          ),
+          const SizedBox(height: TiqSpace.s5),
+          // What the failure did not touch, said at `meta` under the error —
+          // an agent who cannot load the store list is otherwise left
+          // wondering about the captures on the phone.
+          Text(
+            l10n.pickerLoadErrorBody,
+            style: context.skin.text.meta.style(
+              color: context.skin.palette.ink3,
+            ),
+          ),
+        ],
+      ),
+      data: (list) => _PickerFrame(
+        phase: list.isEmpty ? 'empty' : 'loaded',
+        children: <Widget>[
+          SectionRule(l10n.pickerScopeHeading),
+          const SizedBox(height: TiqSpace.s4),
+          _ScopeControl(
+            onlyMine: onlyMine,
+            count: list.length,
+            onChanged: (value) =>
+                ref.read(onlyMyTerritoriesProvider.notifier).set(value),
+          ),
+          const SizedBox(height: TiqSpace.s7),
+          if (list.isEmpty)
+            EmptyState(
+              headline: l10n.pickerEmptyTitle,
+              drawing: EmptyDrawing.shelf,
+              body: onlyMine
+                  ? l10n.pickerEmptyBodyMine
+                  : l10n.pickerEmptyBodyAll,
+            )
+          else ...<Widget>[
+            SectionRule(l10n.pickerStoresHeading, count: list.length),
+            const SizedBox(height: TiqSpace.s4),
+            _OutletList(outlets: list),
           ],
-        ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => _LoadError(
-          error: err,
-          onRetry: () => ref.invalidate(assignedOutletsProvider),
-        ),
+        ],
       ),
     );
   }
 }
 
-/// Says which stores are being shown, and offers the way out of that — as the
-/// console's two-segment pill rather than a 20px switch.
-///
-/// The list defaults to the agent's own territories, so it has to say so —
-/// a filtered list that looks like the whole list is how someone concludes a
-/// store is missing from the system. Both segments are always present, because
-/// territory data is imperfect and an agent covering someone else's patch
-/// needs to reach those stores without finding an administrator first.
-///
-/// Key change (sub5a Task 3): the old `SwitchListTile` carried a single
-/// `only-my-territories` key; a segmented control has two tap targets, so the
-/// keys are per-segment — `scope-mine` / `scope-all` — mirroring the console
-/// range control's `range-<name>` scheme. The only referencing test (the
-/// picker's own) was updated with it.
+/// The frame every state of this route wears.
+class _PickerFrame extends ConsumerWidget {
+  const _PickerFrame({required this.phase, required this.children});
+
+  final String phase;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final skin = context.skin;
+
+    return TorchScope(
+      skin: skin,
+      phase: phase,
+      navRenders: false,
+      tabbedRoute: false,
+      // Nothing on this screen is a commit. The rows are the affordance and a
+      // row never emits light, so the ladder has nothing to hand out.
+      claims: const <TorchClaim>[],
+      child: TorchShell(
+        profile: TorchShellProfile.agent,
+        header: TorchAppHeader(
+          title: l10n.pickerTitle,
+          facts: <String>[l10n.pickerSubtitle],
+          back: TorchIconButton(
+            icon: Icons.arrow_back,
+            // Never "Back": a destination, so a screen reader says where —
+            // and it GOES there. Every way in is a `go('/audit')`, which
+            // replaces the stack, so a `pop()` here had nothing to pop and
+            // stranded the agent on the picker. The old scaffold's back went
+            // to Today; so does this one, and the label says so.
+            semanticLabel: l10n.navToday,
+            onPressed: () => context.go('/today'),
+          ),
+          flagChips: const <Widget>[TorchSyncChip()],
+        ),
+        // Not a tab root, so the skin cycle sits at the leading end of the
+        // thumb zone. Never a screen without it — Veld has to be reachable
+        // from wherever an agent is standing.
+        skinCycle: const AgentSkinCycle(),
+        secondary: TorchSecondaryButton(
+          key: const ValueKey<String>('add-store'),
+          label: l10n.pickerAddStore,
+          icon: Icons.add_location_alt_outlined,
+          onPressed: () async {
+            await context.push('/outlets/create');
+            ref.invalidate(assignedOutletsProvider);
+          },
+        ),
+        children: <Widget>[
+          // The banner form of the sync status (unify §1.14): it renders only
+          // when something genuinely needs the agent, and nothing at all
+          // otherwise. Held work stays a chip in the header — a permanent
+          // 56dp band on every screen spends the fold.
+          const TorchSyncBanner(),
+          // Whether the agent is being located has an answer on every agent
+          // screen (#153, POPIA) — see AgentLocationBanners.
+          const AgentLocationBanners(),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+/// Says which stores are being shown, offers the way out of that, and states
+/// how many it is showing.
 class _ScopeControl extends StatelessWidget {
   const _ScopeControl({
     required this.onlyMine,
@@ -108,106 +222,101 @@ class _ScopeControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final skin = context.skin;
     final l10n = context.l10n;
-    final control = Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            PillSegment(
+      children: <Widget>[
+        TorchFilterRail(
+          semanticsLabel: l10n.pickerScopeHeading,
+          chips: <Widget>[
+            TorchFilterChip(
               key: const ValueKey<String>('scope-mine'),
               label: l10n.pickerScopeMine,
               selected: onlyMine,
-              onTap: () => onChanged(true),
-              expand: true,
-              height: kTapTarget,
+              onSelected: () => onChanged(true),
             ),
-            const SizedBox(width: 8),
-            PillSegment(
+            TorchFilterChip(
               key: const ValueKey<String>('scope-all'),
               label: l10n.pickerScopeAll,
               selected: !onlyMine,
-              onTap: () => onChanged(false),
-              expand: true,
-              height: kTapTarget,
+              onSelected: () => onChanged(false),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        // The honesty line: a narrowed list must announce that it is narrowed,
-        // and where the rest are.
+        const SizedBox(height: TiqSpace.s3),
+        // THE HONESTY LINE. A narrowed list must announce that it is narrowed
+        // and where the rest are — and it says the count, so "nothing here"
+        // and "nothing anywhere" are never the same sentence.
         Text(
           onlyMine
               ? l10n.pickerScopeMineSummary(count)
               : l10n.pickerScopeAllSummary(count),
-          style: TextStyle(fontSize: 12, color: colors.ink3),
+          style: skin.text.meta.style(color: skin.palette.ink3),
         ),
       ],
-    );
-    if (!colors.glass) return control;
-    // Glass: the scope is the list's search bar — one frosted bar above the
-    // tiles, the way the handoff floats a search field over its list.
-    return GlassPane(
-      kind: GlassKind.bar,
-      radius: LumenGlass.radiusHero,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
-      child: control,
     );
   }
 }
 
-/// Loading the outlet list failed. Not a dead end: a restyled state with a
-/// thumb-sized retry, never a raw `Text($err)` dump. The detail routes through
-/// [humanErrorMessage] so this new surface speaks the app's one voice — a 500
-/// or a parse failure must not read to the agent as a connectivity problem.
-class _LoadError extends StatelessWidget {
-  const _LoadError({required this.error, required this.onRetry});
+/// Every store is the same "go here", so no row carries a severity and the
+/// row's status channel stays neutral. The whole row is the start-visit
+/// affordance — there is no second button on it.
+class _OutletList extends StatelessWidget {
+  const _OutletList({required this.outlets});
 
-  final Object error;
-  final VoidCallback onRetry;
+  final List<Outlet> outlets;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.storefront_outlined, size: 34, color: colors.ink3),
-        const SizedBox(height: 14),
-        Text(
-          context.l10n.pickerLoadErrorTitle,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: colors.ink1,
-          ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          humanErrorMessage(error, context.l10n),
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, height: 1.5, color: colors.ink2),
-        ),
-        const SizedBox(height: 20),
-        AgentButton(
-          key: const ValueKey('retry-outlets'),
-          label: context.l10n.pickerRetry,
-          onPressed: onRetry,
-        ),
-      ],
+    final skin = context.skin;
+    final l10n = context.l10n;
+    return TorchBleed(
+      extra: skin.space.gutter * 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          for (final (i, outlet) in outlets.indexed)
+            SoftRow(
+              key: ValueKey<String>('outlet-${outlet.id}'),
+              title: outlet.name,
+              // An outlet name middle-truncates so the branch survives when
+              // the chain does not: "Pick n Pay …Vosloorus".
+              titleTruncation: SoftRowTruncation.middle,
+              subtitle: outlet.code,
+              trailing: const SoftRowChevron(),
+              separator: i == outlets.length - 1
+                  ? SoftRowSeparator.none
+                  : SoftRowSeparator.auto,
+              semanticsLabel: l10n.pickerStartVisitSemantics(
+                outlet.name,
+                outlet.code,
+              ),
+              onTap: () => context.go('/audit/${outlet.id}'),
+            ),
+        ],
+      ),
     );
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: colors.glass
-            // Glass: the failure sits on a pane, not loose on the ground.
-            ? GlassPane(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-                child: content,
-              )
-            : content,
+  }
+}
+
+/// The real geometry, empty.
+class _PickerSkeleton extends StatelessWidget {
+  const _PickerSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    return Skeleton(
+      label: context.l10n.pickerTitle,
+      slowLine: context.l10n.pickerSubtitle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const SkeletonShell(height: 56),
+          SizedBox(height: skin.space.blockGap),
+          const SkeletonRows(count: 6),
+        ],
       ),
     );
   }
