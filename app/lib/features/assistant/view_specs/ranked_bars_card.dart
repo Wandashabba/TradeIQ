@@ -74,10 +74,31 @@ class _RankedBarsCardState extends State<RankedBarsCard> {
               ? data.items.length
               : RankedBarsCard.shownRows);
 
+    final skin = context.skin;
+    final title = data.title;
+    final comparedTo = data.comparedTo;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        // What is being ranked, and over what — the server's words. Without
+        // them a column of sixes and fours is a ranking of nothing.
+        if (title != null) ...<Widget>[
+          Text(
+            title,
+            key: const ValueKey<String>('ranked-bars-title'),
+            style: skin.text.label.style(color: skin.palette.ink1),
+          ),
+          if (comparedTo != null) ...<Widget>[
+            const SizedBox(height: TiqSpace.s1),
+            Text(
+              comparedTo,
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+          ],
+          SizedBox(height: skin.space.intraBlock),
+        ],
         for (var i = 0; i < shown; i++) ...<Widget>[
           if (i > 0) const SizedBox(height: TiqSpace.s2),
           _BarRow(
