@@ -278,7 +278,7 @@ class _ScoredState extends ConsumerState<_Scored> {
           ),
         ],
         const SizedBox(height: TiqSpace.s3),
-        _DeltaLine(outcome: widget.outcome),
+        _DeltaLine(outcome: widget.outcome, shown: total),
         const SizedBox(height: TiqSpace.s7),
         SectionRule(l10n.outcomeHowScored),
         const SizedBox(height: TiqSpace.s5),
@@ -315,19 +315,22 @@ Color _bandInk(TiqSkin skin, RatingBand band) => switch (band) {
 /// UP OR DOWN since this agent's last visit to this store — the only
 /// comparison that is theirs to own.
 class _DeltaLine extends StatelessWidget {
-  const _DeltaLine({required this.outcome});
+  const _DeltaLine({required this.outcome, required this.shown});
 
   final VisitOutcome outcome;
+
+  /// The hero figure exactly as it is printed above this line. The delta is
+  /// worked out from it, never from the raw totals.
+  final int shown;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final skin = context.skin;
-    final points = outcome.delta;
     final previous = outcome.previous;
 
     // No previous visit: a sentence, never a delta beside nothing.
-    if (points == null || previous == null) {
+    if (outcome.delta == null || previous == null) {
       return Text(
         l10n.outcomeFirstScored,
         key: const ValueKey<String>('outcome-first-visit'),
@@ -335,8 +338,14 @@ class _DeltaLine extends StatelessWidget {
       );
     }
 
-    final rounded = points.round();
+    // The three numbers on this line and the hero above it must add up on the
+    // screen. Rounding the raw difference does not: 71.4 against 64.6 is a
+    // hero of 71, a baseline of 65 and a raw 6.8 that rounds to +7, and 71.4
+    // against 71.6 is "71" beside "same as last time (72)". So the delta is
+    // the difference of the two figures as printed, and the flat case is those
+    // two figures being equal.
     final was = previous.weightedTotal.round();
+    final rounded = shown - was;
     final flat = rounded == 0;
 
     return Delta(

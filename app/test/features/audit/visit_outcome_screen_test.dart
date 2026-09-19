@@ -265,6 +265,73 @@ void main() {
       expect(find.textContaining('Same as your last visit here (66)'),
           findsOneWidget);
     });
+
+    // The hero and the baseline are each rounded on their own, so the delta
+    // beside them must be their difference and not the rounded difference of
+    // the raw totals — or the three numbers on the one screen that has to be
+    // believed do not add up.
+    ServerScorecard total(double t) => ServerScorecard(
+      visitId: 'remote-$t',
+      weightedTotal: t,
+      ratingBand: 'amber',
+      dimensionScores: const <String, double>{},
+    );
+
+    testWidgets('71.4 after 64.6 reads 71, +6 and 65 — the raw 6.8 does not '
+        'round the delta to +7', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        outcome: VisitOutcome(score: total(71.4), previous: total(64.6)),
+      );
+      expect(find.text('71'), findsOneWidget, reason: 'the hero');
+      expect(find.textContaining('from your last visit here (65)'),
+          findsOneWidget);
+      expect(find.text('+6'), findsOneWidget, reason: '71 − 65 = 6');
+      expect(find.text('+7'), findsNothing,
+          reason: 'a delta that does not add up to the figures beside it');
+      expect(
+        find.bySemanticsLabel(
+          RegExp(r'Up 6 points from your last visit here \(65\)\.'),
+        ),
+        findsWidgets,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('71.4 after 71.6 reads 71 and down 1 from 72 — never "same '
+        'as" beside two different numbers', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(
+        tester,
+        outcome: VisitOutcome(score: total(71.4), previous: total(71.6)),
+      );
+      expect(find.text('71'), findsOneWidget, reason: 'the hero');
+      expect(find.textContaining('Same as your last visit here'), findsNothing,
+          reason: '71 is not the same as 72');
+      expect(find.textContaining('from your last visit here (72)'),
+          findsOneWidget);
+      expect(
+        find.bySemanticsLabel(
+          RegExp(r'Down 1 point from your last visit here \(72\)\.'),
+        ),
+        findsWidgets,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('71.4 after 70.6 reads 71 and "same as (71)" — a raw 0.8 that '
+        'rounds to +1 is not a move the screen can show', (tester) async {
+      await _pump(
+        tester,
+        outcome: VisitOutcome(score: total(71.4), previous: total(70.6)),
+      );
+      expect(find.text('71'), findsOneWidget, reason: 'the hero');
+      expect(find.textContaining('Same as your last visit here (71)'),
+          findsOneWidget);
+      expect(find.text('+1'), findsNothing,
+          reason: '71 beside 71 is not up a point');
+    });
   });
 
   group('held on the phone', () {
