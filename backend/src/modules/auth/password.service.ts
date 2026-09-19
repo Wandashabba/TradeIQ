@@ -146,6 +146,12 @@ async function applyNewPassword(input: {
 
   await prisma.$transaction(async (tx) => {
     await tx.user.update({ where: { id: input.userId }, data: { passwordHash } });
+    // `also` runs BEFORE the blanket sweep below, not after. Redemption's `also`
+    // spends the one code it just verified and re-asserts `usedAt: null` to
+    // catch a concurrent redemption — and the sweep would have set exactly that
+    // column a line earlier, so every redemption would have "lost the race"
+    // against itself and refused a code it had already accepted.
+    await input.also?.(tx);
     // Any password change invalidates every outstanding code for that account.
     // Otherwise a manager's code issued an hour ago still works against the
     // password the agent has since chosen — which is a live back door held by
@@ -154,7 +160,6 @@ async function applyNewPassword(input: {
       where: { userId: input.userId, usedAt: null },
       data: { usedAt: new Date() },
     });
-    await input.also?.(tx);
     await tx.passwordChangeEvent.create({
       data: {
         clientId: input.clientId,
