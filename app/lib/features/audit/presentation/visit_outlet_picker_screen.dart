@@ -98,7 +98,15 @@ class _Picker extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: TiqSpace.s5),
-          Text(l10n.pickerLoadErrorBody),
+          // What the failure did not touch, said at `meta` under the error —
+          // an agent who cannot load the store list is otherwise left
+          // wondering about the captures on the phone.
+          Text(
+            l10n.pickerLoadErrorBody,
+            style: context.skin.text.meta.style(
+              color: context.skin.palette.ink3,
+            ),
+          ),
         ],
       ),
       data: (list) => _PickerFrame(
@@ -159,9 +167,13 @@ class _PickerFrame extends ConsumerWidget {
           facts: <String>[l10n.pickerSubtitle],
           back: TorchIconButton(
             icon: Icons.arrow_back,
-            // Never "Back": a destination, so a screen reader says where.
+            // Never "Back": a destination, so a screen reader says where —
+            // and it GOES there. Every way in is a `go('/audit')`, which
+            // replaces the stack, so a `pop()` here had nothing to pop and
+            // stranded the agent on the picker. The old scaffold's back went
+            // to Today; so does this one, and the label says so.
             semanticLabel: l10n.navToday,
-            onPressed: () => context.pop(),
+            onPressed: () => context.go('/today'),
           ),
           flagChips: const <Widget>[TorchSyncChip()],
         ),
