@@ -2768,10 +2768,6 @@ class AppLocalizationsAf extends AppLocalizations {
   }
 
   @override
-  String get visitPinReportedHeld =>
-      'Op hierdie foon aangeteken. Dit is nog nêrens gestuur nie — daar is nêrens om dit heen te stuur nie.';
-
-  @override
   String get wordYes => 'Ja';
 
   @override

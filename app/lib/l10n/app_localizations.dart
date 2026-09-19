@@ -4280,12 +4280,6 @@ abstract class AppLocalizations {
   /// **'You were {meters} m from this store’s pin and reported the pin as wrong. Your position and distance went with the visit. Your manager reviews it and can move the pin; the flag stays until they do.'**
   String visitFlagSheetBody(int meters);
 
-  /// Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does.
-  ///
-  /// In en, this message translates to:
-  /// **'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.'**
-  String get visitPinReportedHeld;
-
   /// The affirmative state word beside a toggle. Never the only signal.
   ///
   /// In en, this message translates to:

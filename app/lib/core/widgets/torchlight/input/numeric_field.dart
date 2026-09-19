@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart'
     show
-<<<<<<< HEAD
-=======
-        InputDecoration,
         InputDecorationTheme,
->>>>>>> origin/main
         Material,
         MaterialType,
         TextField,

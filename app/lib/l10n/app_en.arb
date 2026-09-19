@@ -3577,10 +3577,6 @@
     },
     "description": "Body of the sheet explaining the override flags."
   },
-  "visitPinReportedHeld": "Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.",
-  "@visitPinReportedHeld": {
-    "description": "Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does."
-  },
   "wordYes": "Yes",
   "@wordYes": {
     "description": "The affirmative state word beside a toggle. Never the only signal."

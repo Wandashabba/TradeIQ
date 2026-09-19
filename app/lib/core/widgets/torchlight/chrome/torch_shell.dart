@@ -185,8 +185,11 @@ class TorchShell extends StatelessWidget {
     // is how the last row of a list ends up under a nav bar on exactly the
     // devices whose readers need it most.
     final Widget body;
-    final band = pinned;
-    if (band == null) {
+    // Named for what it is: `band` is the field for the region ABOVE the
+    // bottom chrome (the composer), and a local of the same name here left
+    // Ask TradeIQ's composer unrendered on every frame.
+    final pinnedBand = pinned;
+    if (pinnedBand == null) {
       body = ListView(
         controller: scrollController,
         padding: EdgeInsets.fromLTRB(gutter, top, gutter, skin.space.blockGap),
@@ -208,7 +211,7 @@ class TorchShell extends StatelessWidget {
               color: skin.palette.ground,
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: gutter),
-                child: band,
+                child: pinnedBand,
               ),
             ),
           ),
@@ -232,14 +235,16 @@ class TorchShell extends StatelessWidget {
     final falloff =
         profile == TorchShellProfile.console && skin.mode != SkinMode.veld;
 
-<<<<<<< HEAD
     final keyboard = media.viewInsets.bottom;
 
     // The route's own text style, beneath everything. A Torchlight route has
-    // no `Material` ancestor, and without one every `Text` inherits
-    // MaterialApp's error style: a yellow double underline under every word,
-    // in release builds too. A role style names its face, size and ink, never
-    // its decoration, so this is where the decoration is decided — once.
+    // no Scaffold or Material above it, and without this every Text inherits
+    // the framework's debug fallback — a red-on-yellow double underline,
+    // merged into the skin's token styles because they all inherit, and
+    // counted by the census as light wherever it crossed a crimson or Oatmeal
+    // word. A role style names its face, size and ink, never its decoration,
+    // so replacing (not merging) the ambient style is what gives the tokens a
+    // clean base.
     return DefaultTextStyle(
       style: skin.text.body.style(color: skin.palette.ink1),
       child: _Ground(
@@ -261,22 +266,6 @@ class TorchShell extends StatelessWidget {
                 ),
                 child: band,
               ),
-=======
-    // A Torchlight route has no Scaffold or Material above it, so without this
-    // every Text inherits the framework's debug fallback — a red-on-yellow
-    // double underline, merged into the skin's token styles because they all
-    // inherit. It is not decoration a reader should ever see, and the census
-    // counted it as light wherever it crossed a crimson or Oatmeal word.
-    // Replacing (not merging) the ambient style gives the tokens a clean base.
-    return _Ground(
-      skin: skin,
-      falloff: falloff,
-      child: DefaultTextStyle(
-        style: skin.text.body.style(color: skin.palette.ink1),
-        child: Column(
-          children: <Widget>[
-            Expanded(child: body),
->>>>>>> origin/main
             ?bottom,
             SizedBox(height: safeBottom),
           ],
