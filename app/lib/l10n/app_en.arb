@@ -1912,5 +1912,296 @@
   "notificationsFooter": "You can also turn these off in your phone’s settings.",
   "@notificationsFooter": {
     "description": "Footnote under the notification toggles."
+  },
+  "navToday": "Today",
+  "@navToday": {
+    "description": "Nav slot 1 of the agent's floating pill. One or two words — the bar goes icon-only if any label overflows."
+  },
+  "navMyWork": "My work",
+  "@navMyWork": {
+    "description": "Nav slot 2: the agent's outbox."
+  },
+  "navMap": "Map",
+  "@navMap": {
+    "description": "Nav slot 3."
+  },
+  "navMe": "Me",
+  "@navMe": {
+    "description": "Nav slot 4: the agent's own profile and earnings."
+  },
+  "todayRouteEyebrow": "Route",
+  "@todayRouteEyebrow": {
+    "description": "Block label inside the day block on Today. Sentence case; the widget uppercases for display."
+  },
+  "todayStopUpcoming": "To do",
+  "@todayStopUpcoming": {
+    "description": "State word under a later stop's distance on Today. The counterpart of todayStopDoneTag."
+  },
+  "unitMetres": "m",
+  "@unitMetres": {
+    "description": "Unit word after a distance in metres. Set in the surrounding text face beside a monospaced figure."
+  },
+  "unitKilometres": "km",
+  "@unitKilometres": {
+    "description": "Unit word after a distance in kilometres."
+  },
+  "skinDay": "Day",
+  "@skinDay": {
+    "description": "The name of the paper screen, in the skin cycle's spoken label."
+  },
+  "skinNight": "Night",
+  "@skinNight": {
+    "description": "The name of the dark screen, in the skin cycle's spoken label."
+  },
+  "skinVeld": "Veld, the outdoor high-contrast screen",
+  "@skinVeld": {
+    "description": "The name of the outdoor screen, in the skin cycle's spoken label. The explanation is part of the name because a blind user has no other way to learn what Veld is."
+  },
+  "syncChipAllSent": "All sent",
+  "@syncChipAllSent": {
+    "description": "Sync chip when the outbox is empty."
+  },
+  "syncChipAllSentSemantics": "All your work is sent. Double-tap to see it.",
+  "@syncChipAllSentSemantics": {
+    "description": "Screen-reader label for the all-sent sync chip. The state word leads."
+  },
+  "visitClientQuestions": "The client’s questions",
+  "@visitClientQuestions": {
+    "description": "Name of the client-questions row when the client's own template could not be loaded, so its real name is unknown."
+  },
+  "visitReadFailedTitle": "This visit could not be read.",
+  "@visitReadFailedTitle": {
+    "description": "Headline when the visit hub cannot read its own progress."
+  },
+  "visitReadFailedBlock": "The visit’s own progress could not be read, so it cannot be sent yet.",
+  "@visitReadFailedBlock": {
+    "description": "Why the submit is disabled when the hub's progress read failed. Shown above the button."
+  },
+  "visitCantConfirmProducts": "The product list did not load — this section can’t be confirmed.",
+  "@visitCantConfirmProducts": {
+    "description": "Detail line on a section whose state is can't-confirm because the outlet's SKU list failed to load."
+  },
+  "visitCantConfirmTemplate": "The client’s questions did not load — this section can’t be confirmed.",
+  "@visitCantConfirmTemplate": {
+    "description": "Detail line on the client-questions row when its template could not be pinned to the visit."
+  },
+  "visitCheckInEyebrow": "Check-in",
+  "@visitCheckInEyebrow": {
+    "description": "Block label at the top of the check-in failure screens."
+  },
+  "visitTooFarAttemptsRecorded": "Every attempt is recorded with where you were.",
+  "@visitTooFarAttemptsRecorded": {
+    "description": "Note on the too-far screen for the first and second attempt. A fact, with no threat attached — the penalty has not started."
+  },
+  "visitTooFarClose": "You’re close. Try walking to the front door.",
+  "@visitTooFarClose": {
+    "description": "Body line on the too-far screen when the agent is under 80 m away."
+  },
+  "visitTooFarWrongStore": "This looks like the wrong store, or the store’s pin is wrong.",
+  "@visitTooFarWrongStore": {
+    "description": "Body line on the too-far screen when the agent is more than 2 km away."
+  },
+  "visitPinIsWrong": "The pin is wrong",
+  "@visitPinIsWrong": {
+    "description": "A third, quieter action on the too-far screen: the agent is at the shop and the stored coordinates are not."
+  },
+  "visitPinReportedHeld": "Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.",
+  "@visitPinReportedHeld": {
+    "description": "Shown after the agent reports a wrong pin. Deliberately not 'Thanks, we will look into it': the endpoint does not exist and the copy must not pretend it does."
+  },
+  "visitNoGpsFixPermission": "Allow location for TradeIQ in your phone’s settings. You can allow it just while using the app.",
+  "@visitNoGpsFixPermission": {
+    "description": "The fix, as its own paragraph, when location permission was denied."
+  },
+  "visitNoGpsFixServices": "Turn location on in your phone’s settings, then try again.",
+  "@visitNoGpsFixServices": {
+    "description": "The fix when location services are switched off on the device."
+  },
+  "visitNoGpsFixTimedOut": "Step outside or near a window and try again. Your GPS still works in airplane mode — give it a few seconds.",
+  "@visitNoGpsFixTimedOut": {
+    "description": "The fix when the position lookup timed out."
+  },
+  "visitNoGpsFixGeneric": "Step outside or near a window and try again.",
+  "@visitNoGpsFixGeneric": {
+    "description": "The fix when the cause is not one we can name."
+  },
+  "visitCopyCode": "Copy",
+  "@visitCopyCode": {
+    "description": "Button that copies the error code on the check-in failure screen."
+  },
+  "visitCopyCodeSemantics": "Copy the error code",
+  "@visitCopyCodeSemantics": {
+    "description": "Screen-reader label for the Copy button."
+  },
+  "todayRouteSemantics": "Route: {done} of {total} stores done, {left} left.",
+  "@todayRouteSemantics": {
+    "description": "Screen-reader label for the whole day block on Today — one node, not five.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "left": {
+        "type": "int"
+      }
+    }
+  },
+  "todayStopSemantics": "{name}, {code}, {state}. Double-tap to check in here.",
+  "@todayStopSemantics": {
+    "description": "Screen-reader label for one stop row on Today. Ends in its verb.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "code": {
+        "type": "String"
+      },
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "todayDistanceMetresSemantics": "{meters} metres away",
+  "@todayDistanceMetresSemantics": {
+    "description": "Screen-reader label for a distance in metres; the unit is spelled out.",
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "todayDistanceKmSemantics": "{km} kilometres away",
+  "@todayDistanceKmSemantics": {
+    "description": "Screen-reader label for a distance in kilometres; the unit is spelled out.",
+    "placeholders": {
+      "km": {
+        "type": "num"
+      }
+    }
+  },
+  "skinCycleLabel": "Screen: {current}. Double-tap for {next}.",
+  "@skinCycleLabel": {
+    "description": "Screen-reader label for the skin cycle. It names the NEXT state, not this one — a toggle that says only where it is makes a blind user press it to find out.",
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "visitReadinessSemantics": "Captured, {done} of {total}. {blocking} sections still needed.",
+  "@visitReadinessSemantics": {
+    "description": "Screen-reader label for the whole readiness block on the visit hub — one node.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "blocking": {
+        "type": "int"
+      }
+    }
+  },
+  "visitScoreSemantics": "{name}, not yet available. Worked out when the visit sends.",
+  "@visitScoreSemantics": {
+    "description": "Screen-reader label for the score row on the visit hub. It is not focusable as a button — the score is a result, not a form.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "visitSectionSemantics": "{name}. {state}. {detail}",
+  "@visitSectionSemantics": {
+    "description": "Screen-reader label for one section row on the visit hub: the name, then the state word, then the one-line detail.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "state": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "visitTooFarNeedWithin": "You need to be within 50 m. Right now you are {meters} m away.",
+  "@visitTooFarNeedWithin": {
+    "description": "Body line beneath the measured distance on the too-far screen.",
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "visitTooFarSemantics": "Too far from the shop. You are {meters} metres away. You need to be within 50 metres.",
+  "@visitTooFarSemantics": {
+    "description": "Screen-reader label for the measured-distance block; the unit is spelled out.",
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "visitErrorCodeSemantics": "Error code {code}",
+  "@visitErrorCodeSemantics": {
+    "description": "Screen-reader label for the error-code block. The code arrives already spaced out character by character, because a machine code read as a word is a code nobody can repeat down a phone.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "syncChipHeld": "{count, plural, =1{1 held on this phone} other{{count} held on this phone}}",
+  "@syncChipHeld": {
+    "description": "Sync chip when captures are waiting on the phone. Never an error — this is the normal state of field connectivity.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncChipHeldSemantics": "{count, plural, =1{1 capture held on this phone. Double-tap to see your work.} other{{count} captures held on this phone. Double-tap to see your work.}}",
+  "@syncChipHeldSemantics": {
+    "description": "Screen-reader label for the held sync chip.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncChipNeedsYou": "{count, plural, =1{1 needs you} other{{count} need you}}",
+  "@syncChipNeedsYou": {
+    "description": "Sync chip when items in the outbox will not send on their own.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncChipNeedsYouSemantics": "{count, plural, =1{Needs you. 1 capture will not send on its own. Double-tap to see your work.} other{Needs you. {count} captures will not send on their own. Double-tap to see your work.}}",
+  "@syncChipNeedsYouSemantics": {
+    "description": "Screen-reader label for the needs-you sync chip. The state word leads.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "visitCantConfirmCount": "{count, plural, =1{1 section can’t be confirmed} other{{count} sections can’t be confirmed}}",
+  "@visitCantConfirmCount": {
+    "description": "Second line in the readiness block. Counted and named separately from the captured figure: a section nobody could measure is not a section somebody skipped.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

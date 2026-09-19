@@ -1,0 +1,25 @@
+# today_veld
+# Regenerate: UPDATE_AGENT_GOLDENS=1 flutter test
+
+skin = veld
+density = veld
+ground = #FFFFFF
+gutter = 24.0
+border.width = 2.0
+shadows = 0
+row.min = 64.0
+target.min = 56.0
+motion = off
+header.trailing = skin-cycle
+header.chips = 1
+header.height = 214
+nav.pill = present
+thumb.zone = absent
+nav.height = 72
+nav.docked = yes
+skin.cycle = header
+primary.armed = yes
+primary.blocked.named = no
+primary.height = 84
+rows.onscreen = 2
+amber.objects = 1

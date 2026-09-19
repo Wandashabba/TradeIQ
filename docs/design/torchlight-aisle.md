@@ -1256,6 +1256,47 @@ screen gets from its siblings: the flag chips that go in
 `TorchAppHeader.flagChips` (the mark set) and the rows that go in
 `TorchShell.children` (the soft row).
 
+### 12.7 The trap that will cost you an afternoon: drift `watch()` and `pumpAndSettle`
+
+Every agent screen carries the sync chip, and the sync chip watches the outbox.
+Drift's `watch()` **reschedules a zero-duration timer on every tick**, so the
+stream never goes quiet — and `pumpAndSettle` pumps until nothing is scheduled.
+Against a real drift stream it therefore *never returns*. The test does not
+fail; it hangs, with no output and no stack, until the file times out ten
+minutes later. This cost several hours across two workstreams in one day, and
+it is the same bug both times.
+
+**The fix is a provider override, not a longer timeout.** Stub the derived
+provider with a plain stream and let a repository test cover the real query:
+
+```dart
+// test/features/agent_harness.dart — in every agent screen test
+syncStatusProvider.overrideWith((ref) => Stream<SyncStatus>.value(sync)),
+visitProgressProvider.overrideWith((ref, arg) => Stream.value(progress)),
+```
+
+`agentBaseOverrides` does this for `syncStatusProvider`; `pumpVisit` does it for
+`visitProgressProvider` and `visitReviewProvider`. `app_router_test`'s
+`_appWithOverrides` does the same for both. If you add an agent screen that
+watches the database, add its provider to that list before you write a test.
+
+**The second half of it.** A test that is *about* the derivation — #389's
+"a product list that will not load makes the section can't-confirm" — cannot
+stub the provider away. Two more things then apply:
+
+- Never call `pumpAndSettle` (nor `scrollUntilVisible`, which calls it on every
+  step). Pump a fixed number of frames: `pumpVisitLive` and `dragAgentUp` do.
+- **Unmount the tree yourself, and pump with a duration.** Cancelling a drift
+  query stream schedules one last zero-duration timer
+  (`StreamQueryStore.markAsClosed`). flutter_test unmounts the tree for you
+  after the body and then calls `pump()` with *no* duration, which flushes
+  microtasks but never elapses the fake clock — so the timer is still pending
+  when `_verifyInvariants` runs and the test dies on *"A Timer is still pending
+  even after the widget tree was disposed."* Worse, the next test in the file
+  then hangs inside `db.close()`, waiting on a stream store that a dead
+  `FakeAsync` will never drain — so one leaked timer presents as a hang two
+  tests later. End such a test with `await disposeAgentScreen(tester)`.
+
 ---
 
 ## 13. Phase 1 — marks and figures

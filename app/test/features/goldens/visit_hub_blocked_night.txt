@@ -1,0 +1,24 @@
+# visit_hub_blocked_night
+# Regenerate: UPDATE_AGENT_GOLDENS=1 flutter test
+
+skin = night
+density = field
+ground = #0B1017
+gutter = 20.0
+border.width = 1.0
+shadows = 0
+row.min = 64.0
+target.min = 48.0
+motion = on
+header.trailing = none
+header.chips = 1
+header.height = 150
+nav.pill = absent
+thumb.zone = present
+zone.height = 199
+skin.cycle = thumb-zone
+primary.armed = no
+primary.blocked.named = yes
+primary.height = 166
+rows.onscreen = 0
+amber.objects = 0

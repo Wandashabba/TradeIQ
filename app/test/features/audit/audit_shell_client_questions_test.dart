@@ -1,168 +1,68 @@
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/storage/local_db.dart';
-import 'package:tradeiq_app/core/sync/sync_status.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
-import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/features/audit/data/template_section_repository.dart';
 import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
-import 'package:tradeiq_app/features/audit/data/visit_review.dart';
-import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
-import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
 import 'package:tradeiq_app/features/audit/presentation/sections/client_questions_screen.dart';
-import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
-import '../../helpers/routed_app.dart';
+import '../agent_harness.dart';
+import 'visit_harness.dart';
 
 // The client-questions section on the visit hub (#122): shown only for a
-// client with an audit template, gated like the fixed sections.
-
-class _Outlets implements OutletsRepository {
-  @override
-  Future<PaginatedResponse<Outlet>> listOutlets({
-    bool mine = false,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(
-    data: [
-      Outlet(id: 'o1', name: 'Test Outlet', code: 'TO-001', lat: -26.2, lng: 28.04),
-    ],
-    nextCursor: null,
-  );
-
-  @override
-  Future<Outlet> createOutlet({
-    required String name,
-    required String code,
-    required String channelType,
-    required double lat,
-    required double lng,
-    required String territoryId,
-  }) => throw UnimplementedError();
-}
-
-class _Skus implements SkusRepository {
-  @override
-  Future<PaginatedResponse<Sku>> listSkus({
-    required String outletId,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(data: [], nextCursor: null);
-}
-
-class _Visits implements VisitsRepository {
-  @override
-  Future<CheckInResult> checkIn({
-    required String outletId,
-    required double outletLat,
-    required double outletLng,
-  }) async => CheckInSucceeded('visit-1');
-
-  @override
-  Future<void> submitVisit(String visitDraftId) async {}
-}
-
-class _Sections implements TemplateSectionRepository {
-  final pinned = <String>[];
-
-  @override
-  Future<void> pinForVisit(String visitDraftId) async => pinned.add(visitDraftId);
-
-  @override
-  Future<Map<String, Object?>> savedAnswers({
-    required String visitDraftId,
-    required String templateId,
-  }) async => const {};
-
-  @override
-  Future<void> saveAnswers({
-    required String visitDraftId,
-    required ClientTemplate template,
-    required Map<String, Object?> answers,
-  }) async {}
-}
+// client with an audit template, gated exactly like a fixed section, and —
+// new here — rendered as **can't confirm** rather than vanishing when its
+// template could not be pinned (#389).
 
 ClientTemplate _template({bool required = true}) => ClientTemplate(
   templateId: 'tpl-1',
   name: 'Promo Check',
   version: 3,
-  schemaJson: {
-    'sections': [
-      {
+  schemaJson: <String, Object?>{
+    'sections': <Object?>[
+      <String, Object?>{
         'id': 'promo',
         'title': 'Promo stand',
-        'fields': [
-          {'id': 'facings', 'label': 'Promo facings', 'type': 'number', 'required': required},
+        'fields': <Object?>[
+          <String, Object?>{
+            'id': 'facings',
+            'label': 'Promo facings',
+            'type': 'number',
+            'required': required,
+          },
         ],
       },
     ],
   },
 );
 
-const _fixedDone = {
-  AuditSection.stock: SectionState.done,
-  AuditSection.visibility: SectionState.done,
-  AuditSection.pricing: SectionState.done,
-  AuditSection.capability: SectionState.done,
+const _fixedDone = <AuditSection, CaptureState>{
+  AuditSection.stock: CaptureState.done,
+  AuditSection.visibility: CaptureState.done,
+  AuditSection.pricing: CaptureState.done,
+  AuditSection.capability: CaptureState.done,
 };
 
 VisitProgress _progress({
   TemplateSectionProgress? template,
-  Map<AuditSection, SectionState> states = _fixedDone,
-}) => VisitProgress(states: states, details: const {}, template: template);
+  Map<AuditSection, CaptureState> states = _fixedDone,
+}) => VisitProgress(
+  states: states,
+  details: const <AuditSection, String>{},
+  template: template,
+);
 
-Widget _hub(
-  VisitProgress progress, {
-  _Sections? sections,
-  ThemeData? theme,
-  Locale? locale,
-}) {
-  final db = LocalDb(NativeDatabase.memory());
-  addTearDown(db.close);
-  final overrides = <Override>[
-    outletsRepositoryProvider.overrideWithValue(_Outlets()),
-    visitsRepositoryProvider.overrideWithValue(_Visits()),
-    skusRepositoryProvider.overrideWithValue(_Skus()),
-    templateSectionRepositoryProvider.overrideWithValue(sections ?? _Sections()),
-    localDbProvider.overrideWithValue(db),
-    syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
-    visitProgressProvider.overrideWith((ref, arg) => Stream.value(progress)),
-    visitReviewProvider.overrideWith(
-      (ref, arg) => Stream.value(
-        const VisitReview(
-          skusCounted: 0,
-          outOfStock: 0,
-          skusPriced: 0,
-          competitors: 0,
-          photos: 0,
-          willRaise: [],
-        ),
-      ),
-    ),
-  ];
-  return routedApp(
-    const AuditShellScreen(outletId: 'o1'),
-    overrides: overrides,
-    theme: theme,
-    locale: locale,
-  );
-}
+TorchPrimaryButton _submit(WidgetTester tester) => tester
+    .widget<TorchPrimaryButton>(
+      find.byKey(const ValueKey<String>('submit-visit')),
+    );
 
-void _tall(WidgetTester tester) {
-  tester.view.physicalSize = const Size(800, 2200);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-}
-
-AgentButton _submit(WidgetTester tester) =>
-    tester.widget<AgentButton>(find.byKey(const ValueKey('submit-visit')));
-
+/// Every section row on the hub, in order. `SoftRow` takes **no `Material`
+/// ancestor** — no ripple, no elevation, no `InkWell` — so the rows are found
+/// by their own type rather than by the ink the old hub was built from.
 List<String> _sectionKeys(WidgetTester tester) => tester
-    .widgetList<InkWell>(find.byType(InkWell))
+    .widgetList<SoftRow>(find.byType(SoftRow))
     .map((w) => w.key)
     .whereType<ValueKey<String>>()
     .map((k) => k.value)
@@ -170,151 +70,173 @@ List<String> _sectionKeys(WidgetTester tester) => tester
     .toList();
 
 void main() {
-  for (final (name, theme) in [('light', AppTheme.light), ('night', AppTheme.dark)]) {
-    group('$name theme', () {
-      testWidgets('no template: the hub is exactly the fixed audit', (tester) async {
-        _tall(tester);
-        await tester.pumpWidget(_hub(_progress(), theme: theme()));
-        await tester.pumpAndSettle();
+  for (final skin in <SkinMode>[SkinMode.night, SkinMode.day, SkinMode.veld]) {
+    group(skin.name, () {
+      testWidgets('no template: the hub is exactly the fixed audit', (
+        tester,
+      ) async {
+        await pumpVisit(
+          tester,
+          visits: ScriptedVisits.succeeds(),
+          progress: _progress(),
+          skin: skin,
+        );
+        await scrollAgentTo(
+          tester,
+          find.byKey(const ValueKey<String>('section-score')),
+        );
 
-        expect(find.byKey(const ValueKey('section-clientQuestions')), findsNothing);
-        expect(find.textContaining('Client questions'), findsNothing);
-        expect(_sectionKeys(tester), [
-          for (final s in AuditSection.values) 'section-${s.name}',
-        ]);
+        expect(
+          find.byKey(const ValueKey<String>('section-clientQuestions')),
+          findsNothing,
+        );
+        expect(
+          _sectionKeys(tester),
+          <String>[for (final s in AuditSection.values) 'section-${s.name}'],
+        );
         expect(_submit(tester).onPressed, isNotNull);
       });
 
-      testWidgets('a template adds its section before the score, named by the client', (
+      testWidgets('a template adds its section before the score', (
         tester,
       ) async {
-        _tall(tester);
-        await tester.pumpWidget(
-          _hub(
-            _progress(template: TemplateSectionProgress.of(_template(), null)),
-            theme: theme(),
+        await pumpVisit(
+          tester,
+          visits: ScriptedVisits.succeeds(),
+          progress: _progress(
+            template: TemplateSectionProgress.of(_template(), null),
           ),
+          skin: skin,
         );
-        await tester.pumpAndSettle();
+        final row = find.byKey(
+          const ValueKey<String>('section-clientQuestions'),
+        );
+        await scrollAgentTo(tester, row);
 
-        expect(find.byKey(const ValueKey('section-clientQuestions')), findsOneWidget);
+        expect(row, findsOneWidget);
+        // Named by the CLIENT, not by us.
         expect(find.text('Promo Check'), findsOneWidget);
-        expect(find.text('Client questions · Not started'), findsOneWidget);
-        final keys = _sectionKeys(tester);
-        expect(keys.last, 'section-score');
-        expect(keys[keys.length - 2], 'section-clientQuestions');
-        // The 7 fixed captures + the client's section.
-        expect(find.text('/8'), findsOneWidget);
-      });
-
-      testWidgets('unanswered required client questions block the submit, by name', (
-        tester,
-      ) async {
-        _tall(tester);
-        await tester.pumpWidget(
-          _hub(
-            _progress(template: TemplateSectionProgress.of(_template(), const {})),
-            theme: theme(),
-          ),
+        // Last is always the score: it is the result of the others.
+        expect(_sectionKeys(tester).last, 'section-score');
+        expect(
+          _sectionKeys(tester)[_sectionKeys(tester).length - 2],
+          'section-clientQuestions',
         );
-        await tester.pumpAndSettle();
-
-        expect(_submit(tester).onPressed, isNull);
-        expect(find.text('Finish Promo Check to submit'), findsOneWidget);
-      });
-
-      testWidgets('answered required questions unblock the submit', (tester) async {
-        _tall(tester);
-        await tester.pumpWidget(
-          _hub(
-            _progress(
-              template: TemplateSectionProgress.of(_template(), const {'facings': 3}),
-            ),
-            theme: theme(),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(_submit(tester).onPressed, isNotNull);
-        expect(find.text('Client questions · 1 of 1 answered'), findsOneWidget);
-      });
-
-      testWidgets('optional client questions never block', (tester) async {
-        _tall(tester);
-        await tester.pumpWidget(
-          _hub(
-            _progress(
-              template: TemplateSectionProgress.of(_template(required: false), null),
-            ),
-            theme: theme(),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(_submit(tester).onPressed, isNotNull);
-        expect(find.text('Client questions · Optional'), findsOneWidget);
       });
     });
   }
 
-  testWidgets('the fixed sections still block with the template answered', (tester) async {
-    _tall(tester);
-    await tester.pumpWidget(
-      _hub(
-        _progress(
-          states: const {},
-          template: TemplateSectionProgress.of(_template(), const {'facings': 3}),
-        ),
+  testWidgets('unanswered required client questions block the submit, by name', (
+    tester,
+  ) async {
+    await pumpVisit(
+      tester,
+      visits: ScriptedVisits.succeeds(),
+      progress: _progress(
+        template: TemplateSectionProgress.of(_template(), null),
       ),
     );
-    await tester.pumpAndSettle();
+    final button = _submit(tester);
+    expect(button.onPressed, isNull);
+    // By the client's own name for it — "the section" would be useless in a
+    // shop with the manager waiting.
+    expect(button.blockedReason!.contains('Promo Check'), isTrue);
+  });
 
-    expect(_submit(tester).onPressed, isNull);
-    expect(find.textContaining('Promo Check to submit'), findsNothing);
+  testWidgets('answered required questions unblock the submit', (tester) async {
+    await pumpVisit(
+      tester,
+      visits: ScriptedVisits.succeeds(),
+      progress: _progress(
+        template: TemplateSectionProgress.of(_template(), <String, Object?>{
+          'facings': 4,
+        }),
+      ),
+    );
+    expect(_submit(tester).onPressed, isNotNull);
+  });
+
+  testWidgets('optional client questions never block', (tester) async {
+    await pumpVisit(
+      tester,
+      visits: ScriptedVisits.succeeds(),
+      progress: _progress(
+        template: TemplateSectionProgress.of(_template(required: false), null),
+      ),
+    );
+    expect(_submit(tester).onPressed, isNotNull);
+  });
+
+  testWidgets('the fixed sections still block with the template answered', (
+    tester,
+  ) async {
+    await pumpVisit(
+      tester,
+      visits: ScriptedVisits.succeeds(),
+      progress: _progress(
+        states: const <AuditSection, CaptureState>{
+          AuditSection.stock: CaptureState.done,
+        },
+        template: TemplateSectionProgress.of(_template(), <String, Object?>{
+          'facings': 4,
+        }),
+      ),
+    );
+    final button = _submit(tester);
+    expect(button.onPressed, isNull);
+    expect(button.blockedReason!.contains('Visibility & display'), isTrue);
   });
 
   testWidgets('check-in pins the client template to the visit', (tester) async {
-    final sections = _Sections();
-    await tester.pumpWidget(_hub(_progress(), sections: sections));
-    await tester.pumpAndSettle();
-
-    expect(sections.pinned, ['visit-1']);
+    final sections = NoTemplate();
+    await pumpVisit(
+      tester,
+      visits: ScriptedVisits.succeeds(),
+      progress: _progress(),
+      templates: sections,
+    );
+    expect(sections.pinned, <String>['visit-1']);
   });
 
   testWidgets('tapping the section opens the client’s questions full screen', (
     tester,
   ) async {
-    _tall(tester);
-    await tester.pumpWidget(
-      _hub(
-        _progress(template: TemplateSectionProgress.of(_template(), null)),
-        theme: AppTheme.light(),
+    await pumpVisit(
+      tester,
+      visits: ScriptedVisits.succeeds(),
+      progress: _progress(
+        template: TemplateSectionProgress.of(_template(), null),
       ),
     );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('section-clientQuestions')));
+    final row = find.byKey(const ValueKey<String>('section-clientQuestions'));
+    await scrollAgentTo(tester, row);
+    await tester.tap(row);
     await tester.pumpAndSettle();
 
     expect(find.byType(ClientQuestionsScreen), findsOneWidget);
-    expect(find.text('Promo facings'), findsOneWidget);
-    expect(find.text('Save answers'), findsOneWidget);
   });
 
   testWidgets('Afrikaans: the section’s own words translate, its name does not', (
     tester,
   ) async {
-    _tall(tester);
-    await tester.pumpWidget(
-      _hub(
-        _progress(template: TemplateSectionProgress.of(_template(), const {})),
-        locale: const Locale('af'),
+    await pumpVisit(
+      tester,
+      visits: ScriptedVisits.succeeds(),
+      progress: _progress(
+        template: TemplateSectionProgress.of(_template(), null),
       ),
+      locale: const Locale('af'),
     );
-    await tester.pumpAndSettle();
+    // Our own words are Afrikaans. Asserted at rest, before the scroll: the
+    // hint sits above the ladder and the client's section is the last row but
+    // one, so no single scroll offset has both on screen at 360×640.
+    expect(find.textContaining('Enige volgorde'), findsOneWidget);
 
+    await scrollAgentTo(
+      tester,
+      find.byKey(const ValueKey<String>('section-clientQuestions')),
+    );
+    // The client named their own template; we do not translate it.
     expect(find.text('Promo Check'), findsOneWidget);
-    expect(find.text('Kliëntvrae · 0 van 1 beantwoord'), findsOneWidget);
-    expect(find.text('Voltooi Promo Check om in te dien'), findsOneWidget);
   });
 }

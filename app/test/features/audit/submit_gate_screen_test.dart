@@ -19,10 +19,10 @@ import '../../helpers/routed_app.dart';
 /// Four scored sections done — so the gate reads "4 of 7 sections complete".
 const _progress = VisitProgress(
   states: {
-    AuditSection.stock: SectionState.done,
-    AuditSection.visibility: SectionState.done,
-    AuditSection.pricing: SectionState.done,
-    AuditSection.capability: SectionState.done,
+    AuditSection.stock: CaptureState.done,
+    AuditSection.visibility: CaptureState.done,
+    AuditSection.pricing: CaptureState.done,
+    AuditSection.capability: CaptureState.done,
   },
   details: {},
 );

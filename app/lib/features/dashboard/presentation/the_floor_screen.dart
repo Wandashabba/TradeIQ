@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart' show Icons;
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/torch_scope.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/marks.dart';
 import '../../../core/widgets/torchlight/plate/plate.dart';
 import '../../../core/widgets/torchlight/row/row.dart';
@@ -215,7 +215,7 @@ class _Floor extends ConsumerWidget {
       hasPlatePhoto: hasPhoto,
       children: <Widget>[
         // 1. THE PLATE — full-bleed.
-        _Bleed(
+        TorchBleed(
           extra: context.skin.space.gutter * 2,
           child: _FloorPlate(view: view),
         ),
@@ -238,7 +238,7 @@ class _Floor extends ConsumerWidget {
 
         // 4. THE DECISION ROWS — worst first, and out to the edges because a
         //    row owns its own gutter and draws its rule inset to the text.
-        _Bleed(
+        TorchBleed(
           extra: context.skin.space.gutter * 2,
           child: _DecisionList(view: view),
         ),
@@ -594,69 +594,6 @@ class _PlateFor extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Takes a gutter-padded child back out to the screen's edges.
-///
-/// The plate runs full-bleed to the top and both sides; everything below it
-/// hangs off the one gutter line. Rather than un-padding the scroll view for
-/// every other child, exactly one widget opts out — and it reserves the right
-/// height while doing it, so the row below is where the arithmetic says.
-class _Bleed extends SingleChildRenderObjectWidget {
-  const _Bleed({required super.child, required this.extra});
-
-  /// How much width to give back — the gutter on each side, so `2 × gutter`.
-  final double extra;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) => _RenderBleed(extra);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderBleed renderObject) {
-    renderObject.extra = extra;
-  }
-}
-
-/// Lays the child out [extra] logical pixels wider than the slot it was given
-/// and centres it, so it paints out through the gutter on both sides — while
-/// still reporting the child's own height, so the row below it lands where the
-/// arithmetic says.
-///
-/// An `OverflowBox` cannot do this job in a `ListView`: it sizes itself to the
-/// biggest thing its constraints allow, and a list hands its children an
-/// unbounded main axis, so it becomes infinitely tall. Thirty lines of render
-/// object is the honest answer.
-class _RenderBleed extends RenderShiftedBox {
-  _RenderBleed(this._extra) : super(null);
-
-  double _extra;
-
-  set extra(double value) {
-    if (value == _extra) return;
-    _extra = value;
-    markNeedsLayout();
-  }
-
-  @override
-  void performLayout() {
-    final child = this.child;
-    if (child == null) {
-      size = constraints.smallest;
-      return;
-    }
-    final width = constraints.maxWidth + _extra;
-    child.layout(BoxConstraints.tightFor(width: width), parentUsesSize: true);
-    size = constraints.constrain(Size(constraints.maxWidth, child.size.height));
-    (child.parentData! as BoxParentData).offset = Offset(-_extra / 2, 0);
-  }
-
-  @override
-  double computeMinIntrinsicHeight(double width) =>
-      child?.getMinIntrinsicHeight(width + _extra) ?? 0;
-
-  @override
-  double computeMaxIntrinsicHeight(double width) =>
-      child?.getMaxIntrinsicHeight(width + _extra) ?? 0;
 }
 
 class _FloorSkeleton extends StatelessWidget {

@@ -181,6 +181,18 @@ class TorchlightScanner {
     // state and never names a flame token in any skin or state, which is the
     // rule rather than an implementation detail.
     'core/widgets/torchlight/plate/plate.dart',
+    // Phase 1, the agent screens. The sixth emitter, and the only claimant of
+    // rung 6 on this surface:
+    //
+    //   check_in_radar  the leading ring while a GPS fix is being sought —
+    //                   TorchClaim.livePulse. unify §1.1 rules that the pulse
+    //                   means PRESENCE and never progress, and names looking
+    //                   for a fix as one of the four places it is allowed. The
+    //                   trailing ring is chart-neutral and the pin sits inside
+    //                   the lit ring's bounds, so the pair is one object. It
+    //                   goes out on every light ground, where the light source
+    //                   outside is the sun.
+    'core/widgets/torchlight/check_in_radar.dart',
   };
 
   /// Scan [root] (expected to be `lib/`) for amber tokens named outside the

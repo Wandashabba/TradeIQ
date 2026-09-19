@@ -1,786 +1,669 @@
-import 'dart:io';
-
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tradeiq_app/core/auth/session_controller.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/storage/local_db.dart';
-import 'package:tradeiq_app/core/sync/sync_status.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/features/audit/data/template_section_repository.dart';
-import 'package:tradeiq_app/features/audit/data/visit_progress.dart';
-import 'package:tradeiq_app/features/audit/data/visit_review.dart';
-import 'package:tradeiq_app/core/widgets/agent_kit.dart';
-import 'package:tradeiq_app/core/widgets/agent_motion.dart';
-import 'package:tradeiq_app/features/audit/data/skus_repository.dart';
+import 'package:tradeiq_app/core/design/torch_scope.dart';
+import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/check_in_radar.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
 import 'package:tradeiq_app/features/audit/data/visits_repository.dart';
 import 'package:tradeiq_app/features/audit/presentation/audit_shell_screen.dart';
-import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
-import 'package:dio/dio.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
-
-class _FakeOutletsRepository implements OutletsRepository {
-  @override
-  Future<PaginatedResponse<Outlet>> listOutlets({
-    bool mine = false,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(
-    data: [
-      Outlet(
-        id: 'o1',
-        name: 'Test Outlet',
-        code: 'TO-001',
-        lat: -26.2041,
-        lng: 28.0473,
-      ),
-    ],
-    nextCursor: null,
-  );
-
-  @override
-  Future<Outlet> createOutlet({
-    required String name,
-    required String code,
-    required String channelType,
-    required double lat,
-    required double lng,
-    required String territoryId,
-  }) => throw UnimplementedError();
-}
-
-class _FakeSkusRepository implements SkusRepository {
-  @override
-  Future<PaginatedResponse<Sku>> listSkus({
-    required String outletId,
-    int? limit,
-    String? cursor,
-  }) async => const PaginatedResponse(data: [], nextCursor: null);
-}
-
-class _SucceedingVisitsRepository implements VisitsRepository {
-  String? submittedId;
-
-  @override
-  Future<CheckInResult> checkIn({
-    required String outletId,
-    required double outletLat,
-    required double outletLng,
-  }) async => CheckInSucceeded('visit-1');
-
-  @override
-  Future<void> submitVisit(String visitDraftId) async =>
-      submittedId = visitDraftId;
-}
-
-class _GeofenceFailingVisitsRepository implements VisitsRepository {
-  @override
-  Future<CheckInResult> checkIn({
-    required String outletId,
-    required double outletLat,
-    required double outletLng,
-  }) async => CheckInGeofenceFailed(650);
-
-  @override
-  Future<void> submitVisit(String visitDraftId) async {}
-}
-
-class _LocationUnavailableVisitsRepository implements VisitsRepository {
-  @override
-  Future<CheckInResult> checkIn({
-    required String outletId,
-    required double outletLat,
-    required double outletLng,
-  }) async => CheckInLocationUnavailable('Location permission denied');
-
-  @override
-  Future<void> submitVisit(String visitDraftId) async {}
-}
-
-/// A check-in that throws rather than returning a [CheckInResult].
-///
-/// The screen used to await this with no catch, so the failure went to the
-/// console and the agent was left on the locating radar with no error and no
-/// way out. Anything the repository cannot anticipate — a local database that
-/// will not open, a plugin channel error — arrives here.
-class _ThrowingVisitsRepository implements VisitsRepository {
-  @override
-  Future<CheckInResult> checkIn({
-    required String outletId,
-    required double outletLat,
-    required double outletLng,
-  }) async => throw StateError('local database unavailable');
-
-  @override
-  Future<void> submitVisit(String visitDraftId) async {}
-}
-
-// The S10 scorecard section computes from the local DB on build, so the
-// shell tests need a real (in-memory) LocalDb behind the provider.
-/// Nothing captured — the state a visit starts in, so submit is blocked.
-const _nothingDone = VisitProgress(states: {}, details: {});
-
-/// The four scored sections done — the state that unblocks submit.
-const _readyToSubmit = VisitProgress(
-  states: {
-    AuditSection.stock: SectionState.done,
-    AuditSection.visibility: SectionState.done,
-    AuditSection.pricing: SectionState.done,
-    AuditSection.capability: SectionState.done,
-  },
-  details: {},
-);
-
-/// A client with no audit template: the hub these tests describe (#122).
-class _NoTemplateRepository implements TemplateSectionRepository {
-  @override
-  Future<void> pinForVisit(String visitDraftId) async {}
-
-  @override
-  Future<Map<String, Object?>> savedAnswers({
-    required String visitDraftId,
-    required String templateId,
-  }) async => const {};
-
-  @override
-  Future<void> saveAnswers({
-    required String visitDraftId,
-    required ClientTemplate template,
-    required Map<String, Object?> answers,
-  }) async {}
-}
-
-List<Override> _overrides(
-  VisitsRepository visitsRepository,
-  LocalDb db, {
-  VisitProgress progress = _nothingDone,
-}) => [
-  outletsRepositoryProvider.overrideWithValue(_FakeOutletsRepository()),
-  templateSectionRepositoryProvider.overrideWithValue(_NoTemplateRepository()),
-  visitsRepositoryProvider.overrideWithValue(visitsRepository),
-  skusRepositoryProvider.overrideWithValue(_FakeSkusRepository()),
-  localDbProvider.overrideWithValue(db),
-  // Drift's watch() reschedules a zero-duration timer on every tick, so
-  // pumpAndSettle never settles against a real stream. Widget tests stub the
-  // derived providers; visit_progress_test and sync_status_test cover the
-  // real queries against a real database.
-  syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
-  visitProgressProvider.overrideWith((ref, arg) => Stream.value(progress)),
-  // The submit gate reads the outbox too — same rule, same reason.
-  visitReviewProvider.overrideWith(
-    (ref, arg) => Stream.value(
-      const VisitReview(
-        skusCounted: 12,
-        outOfStock: 0,
-        skusPriced: 12,
-        competitors: 0,
-        photos: 0,
-        willRaise: [],
-      ),
-    ),
-  ),
-];
-
-Widget _appWith(
-  VisitsRepository visitsRepository,
-  LocalDb db, {
-  VisitProgress progress = _nothingDone,
-  ThemeData? theme,
-}) {
-  return routedApp(
-    const AuditShellScreen(outletId: 'o1'),
-    overrides: _overrides(visitsRepository, db, progress: progress),
-    theme: theme,
-  );
-}
-
-/// Both themes, each with the palette its assertions read against.
-const _bothThemes = [('light', TiqColors.light), ('dark', TiqColors.night)];
-
-ThemeData _themeFor(String name) =>
-    name == 'light' ? AppTheme.light() : AppTheme.dark();
-
-LocalDb _testDb() {
-  final db = LocalDb(NativeDatabase.memory());
-  addTearDown(db.close);
-  return db;
-}
-
-/// The hub plus the two places a submit can land: the outcome (on confirm) and
-/// the picker (on back out).
-GoRouter _submitRouter() => GoRouter(
-  initialLocation: '/audit/o1',
-  routes: [
-    GoRoute(
-      path: '/audit',
-      builder: (context, state) => const Text('Outlet Picker'),
-    ),
-    GoRoute(
-      path: '/audit/:outletId',
-      builder: (context, state) => const AuditShellScreen(outletId: 'o1'),
-    ),
-    GoRoute(
-      path: '/audit/:outletId/done',
-      builder: (context, state) => const Text('Outcome'),
-    ),
-  ],
-);
+import '../../core/design/amber_golden.dart';
+import '../agent_harness.dart';
+import 'visit_harness.dart';
 
 void main() {
-  testWidgets('shows the audit as a named checklist after a successful check-in', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
-    await tester.pumpAndSettle();
+  group('the visit hub', () {
+    testWidgets('the audit is a named ladder after a successful check-in', (
+      tester,
+    ) async {
+      await pumpVisit(tester, visits: ScriptedVisits.succeeds());
 
-    // The old shell was a Material Stepper built with
-    // `Step(title: SizedBox.shrink())` — nine sections with NO titles. An agent
-    // could not see which section they were on, what was done, or what was left.
-    expect(find.text('Outlet info'), findsOneWidget);
-    expect(find.text('Stock & availability'), findsOneWidget);
-    expect(find.text('Score'), findsOneWidget);
-    expect(find.byKey(const ValueKey('visit-progress')), findsOneWidget);
+      expect(find.text('Kasi Corner Spaza'), findsWidgets);
+
+      // The hint is ABOVE the ladder, not meta at the bottom: the agent needs
+      // it before they start choosing, not after they have finished — so it
+      // is on the first screen and the ladder is the thing you scroll to.
+      final hint = find.textContaining('Any order.');
+      expect(hint, findsOneWidget);
+      expect(
+        tester
+            .getRect(
+              find.byKey(
+                const ValueKey<String>('section-stock'),
+                skipOffstage: false,
+              ),
+            )
+            .top,
+        greaterThan(tester.getRect(hint).bottom),
+        reason: 'the hint must sit above the first rung, not under the last',
+      );
+
+      // The ladder itself: named rungs, each exactly once. On a 360×640 phone
+      // the header, the readiness block and the hint fill the first screen, so
+      // the rungs are one flick down — which is the geometry a real agent has,
+      // and the reason this scrolls rather than pumping a 2000dp viewport.
+      await scrollAgentTo(tester, find.text('Stock & availability'));
+      expect(find.text('Stock & availability'), findsOneWidget);
+      expect(find.text('Pricing & promotions'), findsOneWidget);
+    });
+
+    testWidgets('no tabs — one primary in the thumb zone', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.succeeds());
+      // The owner's decision: mid-visit navigation loses captured work.
+      expect(find.byType(TorchNavPill), findsNothing);
+      expect(find.byType(TorchNavCircle), findsNothing);
+      expect(find.byType(TorchThumbZone), findsOneWidget);
+      // And the skin cycle is at the leading end of it — never a screen
+      // without the skin cycle.
+      expect(find.byType(TorchSkinCycle), findsOneWidget);
+    });
+
+    testWidgets('the readiness block says the fraction and the words', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        progress: readyToSubmit,
+      );
+      final block = find.byKey(const ValueKey<String>('visit-progress'));
+      expect(block, findsOneWidget);
+      expect(
+        find.descendant(of: block, matching: find.text('/7')),
+        findsOneWidget,
+      );
+      expect(find.text('Ready to submit'), findsOneWidget);
+    });
+
+    testWidgets('the score row is a result, not a form', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.succeeds());
+      final row = find.byKey(const ValueKey<String>('section-score'));
+      await scrollAgentTo(tester, row);
+
+      final soft = tester.widget<SoftRow>(row);
+      // Not tappable, no chevron — and NOT at reduced opacity, because
+      // opacity is banned as a state channel and a dimmed row reads as a
+      // disabled one.
+      expect(soft.onTap, isNull);
+      expect(soft.trailing, isNot(isA<SoftRowChevron>()));
+      expect(find.byType(Opacity), findsNothing);
+      expect(
+        find.descendant(of: row, matching: find.byType(RowMarkTile)),
+        findsOneWidget,
+      );
+    });
   });
 
-  testWidgets(
-    'submit is blocked until the required sections are done, and says which',
-    (tester) async {
-      await tester.pumpWidget(
-        _appWith(_SucceedingVisitsRepository(), _testDb()),
-      );
-      await tester.pumpAndSettle();
+  group('a blocked submit names what blocks it', () {
+    testWidgets('by name, and the button is disabled', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.succeeds());
 
-      // Submitting without them lands a visit with a scorecard dimension at zero,
-      // marking the store down for work the agent never did.
-      final button = tester.widget<AgentButton>(
-        find.byKey(const ValueKey('submit-visit')),
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('submit-visit')),
       );
       expect(button.onPressed, isNull);
-      expect(find.textContaining('to submit'), findsWidgets);
-    },
-  );
-
-  testWidgets('shows a blocking error when the check-in fails the geofence', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _appWith(_GeofenceFailingVisitsRepository(), _testDb()),
-    );
-    await tester.pumpAndSettle();
-
-    // The measured distance against the threshold — not a bare "too far".
-    expect(find.textContaining('650'), findsOneWidget);
-    expect(find.text('Stock & availability'), findsNothing);
-  });
-
-  testWidgets('shows a retry action when location is unavailable', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _appWith(_LocationUnavailableVisitsRepository(), _testDb()),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Location permission denied'), findsOneWidget);
-    expect(find.text('Try again'), findsOneWidget);
-  });
-
-  testWidgets('a thrown check-in ends on a failure screen, not the radar', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _appWith(_ThrowingVisitsRepository(), _testDb()),
-    );
-    await tester.pumpAndSettle();
-
-    // The radar is the "we are still looking for you" state. Staying on it
-    // after a failure is the bug: it says the app is working when it has
-    // already given up.
-    expect(find.text('Finding you…'), findsNothing);
-    expect(find.text('Could not start the visit'), findsOneWidget);
-    expect(find.byKey(const ValueKey('checkin-retry')), findsOneWidget);
-  });
-
-  testWidgets('tapping logout clears the session', (tester) async {
-    await tester.pumpWidget(_appWith(_SucceedingVisitsRepository(), _testDb()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.logout));
-    await tester.pump();
-
-    final context = tester.element(find.byType(AuditShellScreen));
-    final container = ProviderScope.containerOf(context);
-    expect(container.read(sessionControllerProvider).value?.role, isNull);
-  });
-
-  testWidgets('submit opens the gate first — it does not submit on one tap', (
-    tester,
-  ) async {
-    final repo = _SucceedingVisitsRepository();
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
-        child: MaterialApp.router(routerConfig: _submitRouter()),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Submit visit'));
-    await tester.tap(find.byKey(const ValueKey('submit-visit')));
-    await tester.pumpAndSettle();
-
-    // Submitting is irreversible and it raises tasks against a real shop. The
-    // hub button opens the review; it does not fire the submission.
-    expect(repo.submittedId, isNull);
-    expect(find.textContaining('cannot change it'), findsOneWidget);
-  });
-
-  testWidgets('confirming at the gate submits and ends on the outcome', (
-    tester,
-  ) async {
-    final repo = _SucceedingVisitsRepository();
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: _overrides(repo, _testDb(), progress: _readyToSubmit),
-        child: MaterialApp.router(routerConfig: _submitRouter()),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Submit visit'));
-    await tester.tap(find.byKey(const ValueKey('submit-visit')));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('confirm-submit')));
-    await tester.pumpAndSettle();
-
-    expect(repo.submittedId, 'visit-1');
-    // The visit ends on its score, not back at a list of outlets.
-    expect(find.text('Outcome'), findsOneWidget);
-  });
-
-  testWidgets(
-    'the check-in timestamp does not drift when you leave a section and come back',
-    (tester) async {
-      await tester.pumpWidget(
-        _appWith(_SucceedingVisitsRepository(), _testDb()),
-      );
-      await tester.pumpAndSettle();
-
-      // The check-in time is evidence: it is half of the dwell measurement the
-      // fraud engine reasons over. It must be stamped once, at check-in, and never
-      // re-derived on a rebuild.
-      await tester.tap(find.byKey(const ValueKey('section-outletInfo')));
-      await tester.pumpAndSettle();
-
-      // Opening a section pushes it full-screen — one thing at a time.
-      expect(find.text('Confirmed at check-in'), findsOneWidget);
-
-      final first = tester
-          .widget<Text>(find.byKey(const ValueKey('checkin-timestamp')))
-          .data;
-
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('section-outletInfo')));
-      await tester.pumpAndSettle();
-
-      final second = tester
-          .widget<Text>(find.byKey(const ValueKey('checkin-timestamp')))
-          .data;
-
-      expect(second, first);
-    },
-  );
-
-  // ── Premium restyle (sub5b1 Task 2) ─────────────────────────────────────
-
-  // The wash/text of the pill carrying [text], read off the RENDERED tree — so
-  // AA is measured on what actually paints. A self-tint regression (critText→
-  // crit, or flattening the wash) collapses this ratio and fails the assert on
-  // its own merits, rather than being caught only by a token-equality check.
-  (Color bg, Color fg) pillColours(WidgetTester tester, Finder text) {
-    final container = find
-        .ancestor(
-          of: text,
-          matching: find.byWidgetPredicate(
-            (w) =>
-                w is Container &&
-                w.decoration is BoxDecoration &&
-                (w.decoration! as BoxDecoration).color != null,
-          ),
-        )
-        .first;
-    final bg =
-        (tester.widget<Container>(container).decoration! as BoxDecoration)
-            .color!;
-    final fg = tester.widget<Text>(text).style!.color!;
-    return (bg, fg);
-  }
-
-  testWidgets(
-    'the progress panel is a glass hero with a big count and status pill',
-    (tester) async {
-      for (final (name, palette) in _bothThemes) {
-        await tester.pumpWidget(
-          _appWith(
-            _SucceedingVisitsRepository(),
-            _testDb(),
-            progress: _readyToSubmit,
-            theme: _themeFor(name),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        if (palette.glass) {
-          // Lumen Glass: the progress sits on a glass pane, not a washed card.
-          expect(
-            find.ancestor(
-              of: find.byKey(const ValueKey('visit-progress')),
-              matching: find.byType(GlassPane),
-            ),
-            findsWidgets,
-            reason: '$name glass pane',
-          );
-        } else {
-          // The flat theme's washed-panel recipe — a heroWash→surface1
-          // gradient under a heroBorder hairline, not a flat surface1 card.
-          final hero = tester.widget<Container>(
-            find
-                .ancestor(
-                  of: find.byKey(const ValueKey('visit-progress')),
-                  matching: find.byWidgetPredicate(
-                    (w) =>
-                        w is Container &&
-                        w.decoration is BoxDecoration &&
-                        (w.decoration! as BoxDecoration).gradient != null,
-                  ),
-                )
-                .first,
-          );
-          final deco = hero.decoration! as BoxDecoration;
-          final grad = deco.gradient! as LinearGradient;
-          expect(grad.colors, [
-            palette.heroWash,
-            palette.surface1,
-          ], reason: '$name hero gradient');
-          expect(
-            (deco.border! as Border).top.color,
-            palette.heroBorder,
-            reason: '$name hero border',
-          );
-        }
-
-        // The count is the biggest thing in the panel — 30–32px ink1.
-        final count = tester.widget<AnimatedCount>(find.byType(AnimatedCount));
-        expect(count.value, 4, reason: '$name four sections done');
+      expect(button.blockedReason, isNotNull);
+      // Every blocker, by name. A dead end in a shop is a phone call to the
+      // office.
+      for (final name in <String>[
+        'Stock & availability',
+        'Visibility & display',
+        'Pricing & promotions',
+        'Team capability',
+      ]) {
         expect(
-          count.style.fontSize,
-          // Glass sets the count at the handoff's 40px.
-          palette.glass ? 40 : inInclusiveRange(30, 32),
-          reason: '$name count size',
-        );
-        expect(count.style.color, palette.ink1, reason: '$name count colour');
-
-        // Unblocked → a good-wash status pill carrying the WORDS. AA is
-        // measured on the RENDERED pair, so a self-tint regression fails here
-        // on its own, not only via the token-equality check below.
-        final (readyBg, readyFg) = pillColours(
-          tester,
-          find.text('Ready to submit'),
-        );
-        final good = LumenStatus.good.swatchOf(palette);
-        expect(
-          readyFg,
-          palette.glass ? good.ink : palette.good,
-          reason: '$name ready pill text',
-        );
-        // Pin the wash itself: flattening the bg (keeping green text) must fail
-        // a test, so the ready state stays visibly distinct from the neutral
-        // chip — good-on-surface2 would still clear AA and hide the loss.
-        expect(
-          readyBg,
-          palette.glass
-              ? Color.alphaBlend(good.tint, palette.surface1)
-              : Color.alphaBlend(
-                  palette.good.withValues(alpha: 0.12),
-                  palette.surface1,
-                ),
-          reason: '$name ready pill wash',
-        );
-        expect(
-          readyBg,
-          isNot(palette.surface2),
-          reason: '$name ready wash differs from the neutral chip',
-        );
-        expect(
-          contrastRatio(readyFg, readyBg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name ready pill AA (rendered pair)',
+          button.blockedReason!.contains(name),
+          isTrue,
+          reason: 'the BarNote must name $name — it got:\n'
+              '${button.blockedReason}',
         );
       }
-    },
-  );
-
-  testWidgets('a blocked visit says how many sections are still required', (
-    tester,
-  ) async {
-    for (final (name, palette) in _bothThemes) {
-      await tester.pumpWidget(
-        _appWith(
-          _SucceedingVisitsRepository(),
-          _testDb(),
-          theme: _themeFor(name),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // The four scored sections are required; none are done in the default
-      // state, so the pill counts them in words — never colour alone.
-      final pill = tester.widget<Text>(find.text('4 still required'));
-      expect(pill.style!.color, palette.ink3, reason: '$name blocked pill');
-    }
-  });
-
-  testWidgets('the checked-in arrival keeps the "In store" honesty subtitle', (
-    tester,
-  ) async {
-    for (final (name, _) in _bothThemes) {
-      await tester.pumpWidget(
-        _appWith(
-          _SucceedingVisitsRepository(),
-          _testDb(),
-          theme: _themeFor(name),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Check-in success stays visible two ways: the dwell subtitle, and the
-      // hub itself being legible (a section is on screen). Neither is removed.
-      expect(
-        find.textContaining('In store'),
-        findsOneWidget,
-        reason: '$name dwell subtitle',
-      );
-      expect(
-        find.text('Stock & availability'),
-        findsOneWidget,
-        reason: '$name hub visible',
-      );
-    }
-  });
-
-  testWidgets(
-    'section rows carry a state mark + word, and REQUIRED pills clear AA',
-    (tester) async {
-      for (final (name, palette) in _bothThemes) {
-        await tester.pumpWidget(
-          _appWith(
-            _SucceedingVisitsRepository(),
-            _testDb(),
-            theme: _themeFor(name),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // The row is a console row: the section name in words, plus a status
-        // line ("Not started") — the state never rides on colour alone.
-        expect(find.byKey(const ValueKey('section-stock')), findsOneWidget);
-        expect(find.text('Stock & availability'), findsOneWidget);
-        expect(find.text('Not started'), findsWidgets);
-
-        // The REQUIRED-to-submit pill carries the words in critText on a crit
-        // wash. AA measured on the rendered pair, so a critText→crit mutation
-        // (raw crit fails AA in dark) fails this assert directly.
-        final (reqBg, reqFg) = pillColours(
-          tester,
-          // Glass tiles say REQ (the whole phrase goes to a screen reader).
-          find.text(palette.glass ? 'REQ' : 'REQUIRED TO SUBMIT').first,
-        );
-        expect(
-          reqFg,
-          palette.glass
-              ? LumenStatus.crit.swatchOf(palette).ink
-              : palette.critText,
-          reason: '$name required pill text',
-        );
-        expect(
-          contrastRatio(reqFg, reqBg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name required pill AA (rendered pair)',
-        );
-      }
-    },
-  );
-
-  testWidgets(
-    'the too-far screen keeps the distance + fraud note, theme-aware',
-    (tester) async {
-      for (final (name, palette) in _bothThemes) {
-        await tester.pumpWidget(
-          _appWith(
-            _GeofenceFailingVisitsRepository(),
-            _testDb(),
-            theme: _themeFor(name),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // The measured distance against the threshold, and the fraud-signal
-        // note, are both honesty signals that must survive the restyle.
-        expect(find.byKey(const ValueKey('checkin-distance')), findsOneWidget);
-        expect(
-          find.textContaining('650 m away'),
-          findsOneWidget,
-          reason: '$name distance copy',
-        );
-        expect(
-          find.textContaining('fraud signal'),
-          findsOneWidget,
-          reason: '$name fraud note',
-        );
-
-        // The distance pill reads in critText on a crit wash — AA measured on
-        // the rendered pair, so a critText→crit mutation fails here directly.
-        final (distBg, distFg) = pillColours(
-          tester,
-          find.textContaining('650 m away'),
-        );
-        expect(
-          distFg,
-          palette.glass
-              ? LumenStatus.crit.swatchOf(palette).ink
-              : palette.critText,
-          reason: '$name distance text',
-        );
-        expect(
-          contrastRatio(distFg, distBg),
-          greaterThanOrEqualTo(4.5),
-          reason: '$name distance pill AA (rendered pair)',
-        );
-      }
-    },
-  );
-
-  test('no non-geometry AppColors. remain in the hub source', () {
-    // Geometry (radii) stays on AppColors; every colour must read from the
-    // ambient theme via context.colors, so both themes render.
-    final src = File(
-      'lib/features/audit/presentation/audit_shell_screen.dart',
-    ).readAsStringSync();
-    final offenders = RegExp(
-      r'AppColors\.(?!radiusPanel|radiusControl)\w+',
-    ).allMatches(src).map((m) => m.group(0)).toSet().toList();
-    expect(offenders, isEmpty, reason: 'use context.colors for: $offenders');
-  });
-
-  group('Afrikaans', () {
-    testWidgets('a check-in failure renders in Afrikaans', (tester) async {
-      await tester.pumpWidget(
-        routedApp(
-          const AuditShellScreen(outletId: 'o1'),
-          overrides: _overrides(_ServicesDisabledVisitsRepository(), _testDb()),
-          locale: const Locale('af'),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Kan nie jou ligging kry nie'), findsOneWidget);
-      expect(find.text('Liggingdienste is afgeskakel'), findsOneWidget);
-      expect(find.text('Location services are disabled'), findsNothing);
     });
 
-    testWidgets('an error message renders in Afrikaans', (tester) async {
-      await tester.pumpWidget(
-        routedApp(
-          const AuditShellScreen(outletId: 'o1'),
-          overrides: _overrides(_OfflineThrowingVisitsRepository(), _testDb()),
-          locale: const Locale('af'),
-        ),
+    testWidgets('the blocking reason is rendered, wrapping, above the button', (
+      tester,
+    ) async {
+      await pumpVisit(tester, visits: ScriptedVisits.succeeds());
+      expect(find.byType(TorchBarNote), findsOneWidget);
+    });
+
+    testWidgets('a ready visit arms the submit', (tester) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        progress: readyToSubmit,
       );
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('submit-visit')),
+      );
+      expect(button.onPressed, isNotNull);
+      expect(button.blockedReason, isNull);
+    });
+
+    testWidgets('submit opens the gate first — it does not submit on one tap', (
+      tester,
+    ) async {
+      final visits = ScriptedVisits.succeeds();
+      await pumpVisit(tester, visits: visits, progress: readyToSubmit);
+
+      await tester.tap(find.byKey(const ValueKey<String>('submit-visit')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Kon nie die besoek begin nie'), findsOneWidget);
+      expect(visits.submittedId, isNull);
+      expect(find.text('Outcome'), findsNothing);
+    });
+
+    testWidgets('a read failure keeps the chrome and refuses to send', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        progress: null,
+        progressThrows: true,
+      );
+      expect(find.text('This visit could not be read.'), findsOneWidget);
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byType(TorchPrimaryButton),
+      );
+      expect(button.onPressed, isNull);
+      expect(button.blockedReason, isNotNull);
+    });
+  });
+
+  group("can't confirm is reachable (#389)", () {
+    testWidgets(
+      'a product list that will not load makes the per-SKU sections '
+      "can't-confirm, not done",
+      (tester) async {
+        // The real derivation, from a real failing repository.
+        await pumpVisitLive(
+          tester,
+          visits: ScriptedVisits.succeeds(),
+          skus: FakeSkus(fail: true),
+        );
+
+        final row = find.byKey(const ValueKey<String>('section-stock'));
+        await dragAgentUp(tester);
+        final glyph = tester.widget<SectionStateGlyph>(
+          find.descendant(of: row, matching: find.byType(SectionStateGlyph)),
+        );
+        expect(glyph.state, SectionState.cantConfirm);
+        expect(
+          find.textContaining('The product list did not load'),
+          findsWidgets,
+        );
+        await disposeAgentScreen(tester);
+      },
+    );
+
+    testWidgets('and the submit is blocked, with the reason named', (
+      tester,
+    ) async {
+      await pumpVisitLive(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        skus: FakeSkus(fail: true),
+      );
+      final button = tester.widget<TorchPrimaryButton>(
+        find.byKey(const ValueKey<String>('submit-visit')),
+      );
+      expect(
+        button.onPressed,
+        isNull,
+        reason:
+            'Before #389 a stock section with no product list reported DONE '
+            'on zero captures, and a visit with nothing in it went through '
+            'the gate printing "This store is clean".',
+      );
+      expect(
+        button.blockedReason!.contains('Stock & availability'),
+        isTrue,
+      );
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('a template pin that fails leaves a row, not a silence', (
+      tester,
+    ) async {
+      await pumpVisitLive(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        templates: NoTemplate(throwsOnPin: true),
+      );
+
+      final row = find.byKey(
+        const ValueKey<String>('section-clientQuestions'),
+      );
+      await dragAgentUp(tester, by: 400);
+      expect(row, findsOneWidget);
+      expect(
+        find.textContaining('The client’s questions did not load'),
+        findsWidgets,
+      );
+      await disposeAgentScreen(tester);
+    });
+
+    testWidgets('the readiness line counts it separately', (tester) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        progress: cantConfirmStock,
+      );
+      // Two facts, not one figure: a section nobody could measure is not a
+      // section somebody skipped.
+      expect(
+        find.text('1 section can’t be confirmed'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('check-in — locating', () {
+    testWidgets('a radar and a real escape, and no primary at all', (
+      tester,
+    ) async {
+      // The check-in never answers, so the screen stays on the radar — the
+      // real thing being a GPS fix in a fridge aisle under a tin roof.
+      await pumpVisit(tester, visits: ScriptedVisits.pending(), settle: false);
+      await tester.pump();
+      expect(find.byType(CheckInRadar), findsOneWidget);
+      expect(find.text('Finding you…'), findsOneWidget);
+      expect(find.byType(TorchPrimaryButton), findsNothing);
+      expect(find.text('Back to route'), findsOneWidget);
+    });
+  });
+
+  group('check-in — too far', () {
+    testWidgets('shows the measured distance as the hero', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.tooFar(180));
+
+      expect(
+        find.byKey(const ValueKey<String>('checkin-distance')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('180'), findsWidgets);
+      expect(find.text('You’re too far away'), findsOneWidget);
+    });
+
+    testWidgets('the distance is a FigureSlot, not a formatted string', (
+      tester,
+    ) async {
+      await pumpVisit(tester, visits: ScriptedVisits.tooFar(180));
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('checkin-distance')),
+          matching: find.byType(FigureSlot),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the first attempt is a fact, not a threat', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.tooFar(180));
+      // The hero is the measured distance; the note about what retrying costs
+      // sits under it and is past the fold on a 360×640 phone. The claim here
+      // is WHICH sentence the screen renders, so both finders read the whole
+      // built frame — and the negative one has to, or it passes on any screen
+      // that simply scrolled the sentence out of sight.
       expect(
         find.text(
-          'Kon nie die bediener bereik nie. Kyk of jy verbinding het en '
-          'probeer weer.',
+          'Every attempt is recorded with where you were.',
+          skipOffstage: false,
         ),
         findsOneWidget,
       );
-      expect(find.textContaining('Could not reach the server'), findsNothing);
+      // The penalty sentence does NOT appear here: the penalty has not
+      // started, and the app must not threaten before it charges.
+      expect(
+        find.textContaining('fraud signal', skipOffstage: false),
+        findsNothing,
+      );
     });
 
-    testWidgets('a visit-progress detail renders in Afrikaans', (tester) async {
-      await tester.pumpWidget(
-        routedApp(
-          const AuditShellScreen(outletId: 'o1'),
-          overrides: _overrides(
-            _SucceedingVisitsRepository(),
-            _testDb(),
-            progress: const VisitProgress(
-              states: {
-                AuditSection.pricing: SectionState.partial,
-                AuditSection.risks: SectionState.done,
-              },
-              // No English lines: the tiles must word the codes themselves.
-              details: {},
-              detailCodes: {
-                AuditSection.pricing: SectionDetail.skusOfTotal(2, 4),
-                AuditSection.risks: SectionDetail.risks(0),
-              },
-            ),
-          ),
-          locale: const Locale('af'),
-        ),
+    testWidgets('the third attempt is where the honest warning arrives', (
+      tester,
+    ) async {
+      final visits = ScriptedVisits.tooFar(180);
+      await pumpVisit(tester, visits: visits);
+
+      for (var i = 0; i < 2; i++) {
+        await tester.tap(find.byKey(const ValueKey<String>('checkin-retry')));
+        await tester.pumpAndSettle();
+      }
+      expect(
+        find.textContaining('fraud signal', skipOffstage: false),
+        findsOneWidget,
       );
+      // Retry must reset the started flag or the post-frame call never fires
+      // again — which is how a retry button that did nothing shipped once.
+      expect(visits.calls, 3);
+    });
+
+    testWidgets('under 80 m it says walk to the door', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.tooFar(60));
+      expect(
+        find.text('You’re close. Try walking to the front door.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('over 2 km it says the pin may be wrong', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.tooFar(4200));
+      expect(
+        find.text(
+          'This looks like the wrong store, or the store’s pin is wrong.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('"The pin is wrong" records locally and says exactly that', (
+      tester,
+    ) async {
+      await pumpVisit(tester, visits: ScriptedVisits.tooFar(180));
+
+      final action = find.byKey(const ValueKey<String>('pin-is-wrong'));
+      await scrollAgentTo(tester, action);
+      await tester.tap(action);
       await tester.pumpAndSettle();
 
-      expect(find.text('2 van 4 SKU’s'), findsOneWidget);
-      expect(find.text('Geen gemerk nie'), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('pin-reported')), findsOneWidget);
+      // Never "thanks, we'll look into it": there is no endpoint, and the
+      // copy must not pretend a server heard it.
+      expect(
+        find.textContaining('It has not been sent anywhere yet'),
+        findsOneWidget,
+      );
+      expect(action, findsNothing);
     });
   });
-}
 
-class _ServicesDisabledVisitsRepository implements VisitsRepository {
-  @override
-  Future<CheckInResult> checkIn({
-    required String outletId,
-    required double outletLat,
-    required double outletLng,
-  }) async => CheckInLocationUnavailable.because(
-    CheckInLocationProblem.servicesDisabled,
-  );
+  group('check-in — no GPS', () {
+    testWidgets('names the cause and the fix as separate paragraphs', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.noGps(
+          CheckInLocationProblem.servicesDisabled,
+        ),
+      );
+      expect(find.text('Can’t find your location'), findsOneWidget);
+      expect(
+        find.text('Turn location on in your phone’s settings, then try again.'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Nothing is lost'),
+        findsOneWidget,
+      );
+    });
 
-  @override
-  Future<void> submitVisit(String visitDraftId) async {}
-}
+    testWidgets('permission denied gets its own fix', (tester) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.noGps(CheckInLocationProblem.permissionDenied),
+      );
+      expect(
+        find.textContaining('You can allow it just while using the app.'),
+        findsOneWidget,
+      );
+    });
 
-/// A check-in that throws a network failure — the shell words it through the
-/// shared error codes.
-class _OfflineThrowingVisitsRepository implements VisitsRepository {
-  @override
-  Future<CheckInResult> checkIn({
-    required String outletId,
-    required double outletLat,
-    required double outletLng,
-  }) async => throw DioException(
-    requestOptions: RequestOptions(path: '/visits'),
-    type: DioExceptionType.connectionError,
-  );
+    testWidgets('a timeout names airplane mode explicitly', (tester) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.noGps(CheckInLocationProblem.timedOut),
+      );
+      expect(find.textContaining('airplane mode'), findsOneWidget);
+    });
 
-  @override
-  Future<void> submitVisit(String visitDraftId) async {}
+    testWidgets('retry actually runs the check-in again', (tester) async {
+      final visits = ScriptedVisits.noGps();
+      await pumpVisit(tester, visits: visits);
+      await tester.tap(find.byKey(const ValueKey<String>('checkin-retry')));
+      await tester.pumpAndSettle();
+      expect(visits.calls, 2);
+    });
+  });
+
+  group('check-in — something else', () {
+    testWidgets('a thrown check-in ends on a failure screen, not the radar', (
+      tester,
+    ) async {
+      await pumpVisit(tester, visits: ScriptedVisits.throwing());
+
+      expect(find.byType(CheckInRadar), findsNothing);
+      expect(find.text('Could not start the visit'), findsOneWidget);
+      expect(
+        find.textContaining('Nothing is lost'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the error code is there to be read down a phone', (
+      tester,
+    ) async {
+      await pumpVisit(tester, visits: ScriptedVisits.throwing());
+      final block = find.byKey(const ValueKey<String>('checkin-error-code'));
+      expect(block, findsOneWidget);
+      expect(
+        find.descendant(of: block, matching: find.text('Copy')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('checkin/'), findsOneWidget);
+    });
+  });
+
+  group('the amber census', () {
+    testWidgets('a BLOCKED hub emits nothing at all', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.succeeds());
+      final census = await amberCensus(tester);
+      expect(
+        census.objectCount,
+        0,
+        reason:
+            'A disabled submit does not declare a claim, so it cannot be '
+            'lit. The hub is a reading screen and is deliberately under '
+            'budget.\n\n${census.describe()}',
+      );
+    });
+
+    for (final skin in agentSkinModes) {
+      testWidgets('an ARMED hub is exactly one — ${skin.name}', (tester) async {
+        await pumpVisit(
+          tester,
+          visits: ScriptedVisits.succeeds(),
+          progress: readyToSubmit,
+          skin: skin,
+        );
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(skin),
+          route: 'visit hub',
+          phase: 'ready',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
+
+      testWidgets('too far is exactly one — ${skin.name}', (tester) async {
+        await pumpVisit(
+          tester,
+          visits: ScriptedVisits.tooFar(180),
+          skin: skin,
+        );
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(skin),
+          route: 'check-in / too far',
+          phase: 'too-far',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
+
+      // The other three check-in phases each declare exactly one claim — the
+      // radar's live pulse, then the retry — and a phase that declares one and
+      // is never counted is a phase the law is not enforced on.
+      testWidgets('locating at rest emits nothing — ${skin.name}', (
+        tester,
+      ) async {
+        // The check-in never answers, so the screen stays on the radar. Its
+        // pulse is presence, never progress, and it is the agent surface's
+        // only `livePulse` claimant.
+        await pumpVisit(
+          tester,
+          visits: ScriptedVisits.pending(),
+          skin: skin,
+          settle: false,
+        );
+        await tester.pump();
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(skin),
+          route: 'check-in / locating',
+          phase: 'locating',
+        );
+        // ZERO, in all three — and that is the design, not a gap. This
+        // harness pins `disableAnimations`, which is also the frame a
+        // reduce-motion reader meets, and reduce-motion removes the rings
+        // entirely: a static pin and the headline carry the whole message.
+        // The rings ARE the object, so with them gone there is nothing lit.
+        //
+        // Night's moving leading ring is therefore the one amber on the agent
+        // surface a pixel census cannot see. Its claim is asserted instead,
+        // below — and a census that pumped mid-animation would be asserting a
+        // frame that depends on which millisecond it sampled.
+        expect(census.objectCount, 0, reason: census.describe());
+      });
+
+      testWidgets('no GPS is exactly one — ${skin.name}', (tester) async {
+        await pumpVisit(tester, visits: ScriptedVisits.noGps(), skin: skin);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(skin),
+          route: 'check-in / no GPS',
+          phase: 'no-gps',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
+
+      testWidgets('a failed check-in is exactly one — ${skin.name}', (
+        tester,
+      ) async {
+        await pumpVisit(tester, visits: ScriptedVisits.throwing(), skin: skin);
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          agentSkinFor(skin),
+          route: 'check-in / something else',
+          phase: 'check-in-failed',
+        );
+        expect(census.objectCount, 1, reason: census.describe());
+      });
+    }
+
+    testWidgets('an untabbed route still spends at most its two', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        progress: readyToSubmit,
+        textScale: 2.0,
+      );
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'visit hub',
+        phase: 'ready @2.0x',
+      );
+    });
+  });
+
+  group('2.0× text', () {
+    testWidgets('the ladder survives and nothing overflows', (tester) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        textScale: 2.0,
+      );
+      expect(tester.takeException(), isNull);
+      await scrollAgentTo(
+        tester,
+        find.byKey(const ValueKey<String>('section-score')),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Afrikaans at 2.0× lays out on the too-far screen', (
+      tester,
+    ) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.tooFar(180),
+        textScale: 2.0,
+        locale: const Locale('af'),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('te ver', findRichText: true), findsWidgets);
+    });
+  });
+
+  group('the claims are declared, not painted', () {
+    testWidgets('a blocked hub declares nothing', (tester) async {
+      await pumpVisit(tester, visits: ScriptedVisits.succeeds());
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byType(TorchShell)),
+      );
+      expect(
+        scope!.allocation.isLit(AuditShellScreen.submitClaimId),
+        isFalse,
+      );
+    });
+
+    testWidgets('an armed hub declares exactly the submit', (tester) async {
+      await pumpVisit(
+        tester,
+        visits: ScriptedVisits.succeeds(),
+        progress: readyToSubmit,
+      );
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byType(TorchShell)),
+      );
+      expect(scope!.allocation.isLit(AuditShellScreen.submitClaimId), isTrue);
+    });
+
+    testWidgets('locating declares the live pulse, and gets it', (
+      tester,
+    ) async {
+      // The one amber on this surface a pixel census cannot see: the ring is
+      // painted only while it moves, and this harness renders resting frames.
+      // The allocator is where it can still be held to account.
+      await pumpVisit(tester, visits: ScriptedVisits.pending(), settle: false);
+      await tester.pump();
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byType(TorchShell)),
+      );
+      expect(
+        scope!.allocation.isLit(AuditShellScreen.locatingClaimId),
+        isTrue,
+      );
+      // And nothing else asks: there is no primary while waiting, and the
+      // zone does not pretend there is.
+      expect(
+        scope.allocation.isLit(AuditShellScreen.retryClaimId),
+        isFalse,
+      );
+    });
+  });
 }

@@ -1,18 +1,21 @@
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tradeiq_app/core/design/torch_scope.dart';
 import 'package:tradeiq_app/core/storage/local_db.dart';
+import 'package:tradeiq_app/core/theme/torchlight/agent_skin.dart';
 import 'package:tradeiq_app/core/sync/sync_status.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/chrome/chrome.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
 import 'package:tradeiq_app/features/beatplans/data/today_route.dart';
 import 'package:tradeiq_app/features/beatplans/presentation/today_screen.dart';
 import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../agent_harness.dart';
 
 const _khumalo = Outlet(
   id: 'o1',
@@ -29,25 +32,14 @@ const _sunrise = Outlet(
   lng: 28.1,
 );
 
-Widget _app(TodayRoute? route, {ThemeData? theme}) {
-  final db = LocalDb(NativeDatabase.memory());
-  addTearDown(db.close);
-
-  return routedApp(
-    const TodayScreen(),
-    theme: theme,
-    overrides: [
-      localDbProvider.overrideWithValue(db),
-      syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.empty)),
-      todayRouteProvider.overrideWith((ref) async => route),
-    ],
-  );
-}
-
-TodayRoute _route({bool located = true, bool complete = false}) => TodayRoute(
+TodayRoute _route({
+  bool located = true,
+  bool complete = false,
+  int extras = 0,
+}) => TodayRoute(
   planName: 'Naledi · Soweto East',
   hasLocation: located,
-  stops: [
+  stops: <RouteStop>[
     RouteStop(
       sequence: 1,
       outlet: _khumalo,
@@ -58,273 +50,542 @@ TodayRoute _route({bool located = true, bool complete = false}) => TodayRoute(
       sequence: 2,
       outlet: _sunrise,
       visited: complete,
-      distanceMeters: located ? 42 : null,
+      distanceMeters: located ? 420 : null,
     ),
+    for (var i = 0; i < extras; i++)
+      RouteStop(
+        sequence: 3 + i,
+        outlet: Outlet(
+          id: 'x$i',
+          name: 'Extra $i',
+          code: 'XX-$i',
+          lat: 0,
+          lng: 0,
+        ),
+        visited: false,
+        distanceMeters: located ? 900.0 + i : null,
+      ),
   ],
 );
 
-void main() {
-  testWidgets('the day is the first thing an agent sees', (tester) async {
-    await tester.pumpWidget(_app(_route()));
-    await tester.pumpAndSettle();
-
-    // Not "which of 400 outlets would you like to audit" — where am I going, and
-    // how much is left.
-    expect(find.text('Khumalo Superette'), findsOneWidget);
-    expect(find.text('Sunrise Spaza'), findsOneWidget);
-    expect(find.textContaining('of 2 stores'), findsOneWidget);
-    expect(find.text('1 left'), findsOneWidget);
-  });
-
-  testWidgets('the next store is marked, and the visited one recedes', (
+Future<void> _pump(
+  WidgetTester tester, {
+  TodayRoute? route,
+  bool error = false,
+  SkinMode skin = SkinMode.night,
+  double textScale = 1.0,
+  Locale locale = const Locale('en'),
+  SyncStatus sync = SyncStatus.empty,
+  LocalDb? db,
+  int runningContests = 0,
+}) async {
+  final database = db ?? agentTestDb();
+  await pumpAgentScreen(
     tester,
-  ) async {
-    await tester.pumpWidget(_app(_route()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('DONE'), findsOneWidget);
-    expect(find.text('NEXT'), findsOneWidget);
-  });
-
-  testWidgets('distance is a walk or a drive, not a number of metres', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_route()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('42 m away'), findsOneWidget);
-    expect(find.text('1.2 km'), findsOneWidget);
-  });
-
-  testWidgets('no location means no distances — not made-up ones', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_route(located: false)));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('m away'), findsNothing);
-    expect(find.textContaining('will not say where it is'), findsOneWidget);
-  });
-
-  testWidgets('no plan is an answer, not a dead end', (tester) async {
-    await tester.pumpWidget(_app(null));
-    await tester.pumpAndSettle();
-
-    // A manager who has not built a beat plan has not built one. The screen says
-    // so, rather than inventing a route out of the outlet list — and it still
-    // lets the agent work.
-    expect(find.text('No route planned for today'), findsOneWidget);
-    expect(find.byKey(const ValueKey('pick-a-store')), findsOneWidget);
-  });
-
-  testWidgets('the plan is not a cage — an unplanned store is one tap away', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_route()));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('visit-another')), findsOneWidget);
-  });
-
-  // ── Premium restyle (sub5a Task 2) ──────────────────────────────────────
-
-  testWidgets('light: the day sits on the dark glass pane', (tester) async {
-    await tester.pumpWidget(_app(_route(), theme: AppTheme.light()));
-    await tester.pumpAndSettle();
-
-    // Lumen Glass puts the day on the product's one heavy pane.
-    final pane = tester.widget<GlassPane>(
-      find
-          .ancestor(
-            of: find.text('Naledi · Soweto East'),
-            matching: find.byType(GlassPane),
-          )
-          .first,
-    );
-    expect(pane.kind, GlassKind.dark);
-  });
-
-  testWidgets('light: the next store is its own card, with the check-in on it', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_route(), theme: AppTheme.light()));
-    await tester.pumpAndSettle();
-
-    final next = find.byKey(const ValueKey('next-stop'));
-    expect(next, findsOneWidget);
-    expect(
-      find.descendant(of: next, matching: find.text('Sunrise Spaza')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: next, matching: find.text('Check in here')),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('dark: the day sits on the same dark glass pane', (tester) async {
-    await tester.pumpWidget(_app(_route(), theme: AppTheme.dark()));
-    await tester.pumpAndSettle();
-
-    // At night the day keeps its heavy pane — no gradient-washed flat hero.
-    final pane = tester.widget<GlassPane>(
-      find
-          .ancestor(
-            of: find.text('Naledi · Soweto East'),
-            matching: find.byType(GlassPane),
-          )
-          .first,
-    );
-    expect(pane.kind, GlassKind.dark);
-  });
-
-  testWidgets('the done-count is the 30–32px w600 white figure on the dark pane', (
-    tester,
-  ) async {
-    for (final (theme, palette) in [
-      (AppTheme.light(), TiqColors.light),
-      (AppTheme.dark(), TiqColors.night),
-    ]) {
-      await tester.pumpWidget(_app(_route(), theme: theme));
-      await tester.pumpAndSettle();
-
-      // doneCount == 1; the sequence badges render a tick (visited) and '2'
-      // (next), so '1' is uniquely the headline count.
-      final count = tester.widget<Text>(find.text('1'));
-      // Both themes are glass: white and w600 on the dark pane.
-      expect(palette.glass, isTrue);
-      expect(count.style?.fontWeight, FontWeight.w600);
-      expect(count.style?.fontSize, inInclusiveRange(30, 32));
-      expect(count.style?.color, Colors.white);
-    }
-  });
-
-  testWidgets('the status is a pill with a word — good wash when complete', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(_route(complete: true), theme: AppTheme.light()),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Route done'), findsOneWidget);
-    // The word rides on the house good/positive wash — meaning in words AND
-    // colour, and a fixed self-contained pair (DeltaPill's good tone) rather
-    // than a self-tint that cannot clear AA. Contrast itself is pinned by the
-    // AA test below.
-    final pill = find.ancestor(
-      of: find.text('Route done'),
-      matching: find.byWidgetPredicate(
-        (w) =>
-            w is Container &&
-            w.decoration is BoxDecoration &&
-            // Glass: an opaque green pill on the dark pane (white 5.3:1).
-            (w.decoration! as BoxDecoration).color == const Color(0xFF1F7A4D),
+    const TodayScreen(),
+    overrides: <Override>[
+      ...agentBaseOverrides(
+        db: database,
+        skin: skin,
+        sync: sync,
+        runningContests: runningContests,
       ),
-    );
-    expect(pill, findsOneWidget);
-  });
+      todayRouteProvider.overrideWith((ref) async {
+        if (error) throw StateError('no signal');
+        return route;
+      }),
+    ],
+    textScale: textScale,
+    locale: locale,
+    extraRoutes: <GoRoute>[
+      GoRoute(path: '/audit', builder: (c, s) => const Text('Outlet picker')),
+      GoRoute(
+        path: '/audit/:outletId',
+        builder: (c, s) => Text('Visit ${s.pathParameters['outletId']}'),
+      ),
+      GoRoute(path: '/my-work', builder: (c, s) => const Text('My work')),
+      // The agent's standings, NOT /contests — that one is manager-only and
+      // an agent sent there lands on a 403.
+      GoRoute(
+        path: '/leaderboard/contests',
+        builder: (c, s) => const Text('Contests view'),
+      ),
+    ],
+  );
+}
 
-  testWidgets('dark: the next store is its own card; a visited stop is a tile '
-      'with its status word', (
-    tester,
-  ) async {
-    // The flat theme's edge-bar cards are gone at night too: the next store is
-    // its own card with the check-in, and the rest are status-tiled rows.
-    await tester.pumpWidget(_app(_route(), theme: AppTheme.dark()));
-    await tester.pumpAndSettle();
+void main() {
+  group('the day, and what is left', () {
+    testWidgets('the day block answers the 06:30 question in one node', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
 
-    final next = find.byKey(const ValueKey('next-stop'));
-    expect(next, findsOneWidget);
-    expect(
-      find.descendant(of: next, matching: find.text('Sunrise Spaza')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: next, matching: find.text('Check in here')),
-      findsOneWidget,
-    );
+      // "4 of 11" in the mockup; here 1 of 2 with 1 left. The figure and its
+      // unit are separate widgets on one baseline, so the assertion is on
+      // both rather than on a glued string.
+      expect(find.text('1'), findsWidgets);
+      expect(find.text(' of 2 stores'), findsOneWidget);
+      expect(find.text('1 left'), findsOneWidget);
 
-    // The visited store is an unblurred tile — a repeated row never pays for
-    // a blur — and its state is a word in the night good ink.
-    final row = tester.widget<GlassPane>(
-      find
-          .ancestor(
-            of: find.text('Khumalo Superette'),
-            matching: find.byType(GlassPane),
-          )
-          .first,
-    );
-    expect(row.kind, GlassKind.tile);
-    expect(row.blur, isFalse);
-    expect(
-      tester.widget<Text>(find.text('DONE')).style?.color,
-      LumenStatus.good.swatchOf(TiqColors.night).ink,
-    );
-    expect(find.text('NEXT'), findsOneWidget);
-  });
+      // One node for a screen reader, ending in the fact and not the bar.
+      expect(
+        tester
+            .getSemantics(find.byType(Meter).first)
+            .label
+            .contains('1 of 2'),
+        isTrue,
+      );
+    });
 
-  // The wash/text of the pill labelled [label], read off the rendered tree —
-  // so a regression to a self-tint (translucent token over its own token,
-  // ratio ≈ 1:1) fails here rather than being papered over by a copied const.
-  (Color bg, Color fg) pillColours(WidgetTester tester, String label) {
-    final text = find.text(label);
-    expect(text, findsOneWidget);
-    final container = find
-        .ancestor(
-          of: text,
-          matching: find.byWidgetPredicate(
-            (w) =>
-                w is Container &&
-                w.decoration is BoxDecoration &&
-                (w.decoration! as BoxDecoration).color != null,
-          ),
-        )
-        .first;
-    final bg =
-        (tester.widget<Container>(container).decoration! as BoxDecoration)
-            .color!;
-    final fg = tester.widget<Text>(text).style!.color!;
-    return (bg, fg);
-  }
+    testWidgets('the next store is its own row, with the check-in on it', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
 
-  // Never-colour-alone (the word) and the AA contrast floor are INDEPENDENT
-  // rules — spec §Screens 1 requires every new pill's text to clear 4.5:1 on
-  // its own ground in BOTH themes. The complete-state pill now carries an
-  // opaque wash, so its own background IS the text's real ground (no gradient
-  // compositing to reason about).
-  void expectAA(WidgetTester tester, String label, String name) {
-    final (bg, fg) = pillColours(tester, label);
-    final ratio = contrastRatio(fg, bg);
-    expect(
-      ratio,
-      greaterThanOrEqualTo(4.5),
-      reason: '$label ($name) is $ratio:1 on its wash',
-    );
-  }
+      final card = find.byKey(const ValueKey<String>('next-stop'));
+      expect(card, findsOneWidget);
+      // The next store is the one that is NOT done.
+      expect(
+        find.descendant(of: card, matching: find.text('Sunrise Spaza')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byKey(const ValueKey<String>('check-in-next')),
+        ),
+        findsOneWidget,
+      );
+    });
 
-  for (final (name, theme) in [
-    ('light', AppTheme.light()),
-    ('dark', AppTheme.dark()),
-  ]) {
-    testWidgets('the in-progress Today pills clear AA — $name', (tester) async {
-      await tester.pumpWidget(_app(_route(), theme: theme));
+    testWidgets('tapping the next-up primary starts the check-in there', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final button = find.byKey(const ValueKey<String>('check-in-next'));
+      await scrollAgentTo(tester, button);
+      await tester.tap(button);
       await tester.pumpAndSettle();
+      expect(find.text('Visit o2'), findsOneWidget);
+    });
 
-      for (final label in ['DONE', 'NEXT', '1 left']) {
-        expectAA(tester, label, name);
+    testWidgets('the plan is not a cage — a later stop is also tappable', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route(extras: 1));
+      final row = find.byKey(const ValueKey<String>('stop-x0'));
+      await scrollAgentTo(tester, row);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(find.text('Visit x0'), findsOneWidget);
+    });
+
+    testWidgets('and an unplanned store is one tap away, as a row', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final row = find.byKey(const ValueKey<String>('visit-another'));
+      await scrollAgentTo(tester, row);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(find.text('Outlet picker'), findsOneWidget);
+    });
+
+    testWidgets('a done stop takes the done silhouette, not a colour', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final row = find.byKey(const ValueKey<String>('stop-o1'));
+      await scrollAgentTo(tester, row);
+      final glyph = tester.widget<SectionStateGlyph>(
+        find.descendant(of: row, matching: find.byType(SectionStateGlyph)),
+      );
+      expect(glyph.state, SectionState.done);
+    });
+  });
+
+  group('distance is a figure or a sentence, never a guess', () {
+    testWidgets('every distance goes through FigureSlot', (tester) async {
+      await _pump(tester, route: _route());
+      // No hand-formatted distance string anywhere: the next-up row's 420 m
+      // is a FigureSlot with a worded unit.
+      final slots = tester.widgetList<FigureSlot>(find.byType(FigureSlot));
+      expect(slots, isNotEmpty);
+      expect(find.textContaining('420'), findsWidgets);
+    });
+
+    testWidgets('no location means no distances — and one line saying why', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route(located: false));
+
+      expect(
+        find.text(
+          'Distances are off — this phone will not say where it is.',
+        ),
+        findsOneWidget,
+      );
+      // Not a wrong number, and not eleven em dashes either: nothing at all.
+      expect(find.textContaining('420'), findsNothing);
+      expect(find.textContaining('1,2 km'), findsNothing);
+    });
+
+    testWidgets('Afrikaans takes the locale decimal mark on a km distance', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        route: TodayRoute(
+          planName: 'Naledi',
+          hasLocation: true,
+          stops: <RouteStop>[
+            const RouteStop(
+              sequence: 1,
+              outlet: _sunrise,
+              visited: false,
+              distanceMeters: 1200,
+            ),
+          ],
+        ),
+        locale: const Locale('af'),
+      );
+      // 1.2 km in English is 1,2 km in Afrikaans, and that is the one
+      // formatter's job rather than the screen's.
+      expect(find.textContaining('1,2'), findsWidgets);
+    });
+  });
+
+  group('the states that are not a route', () {
+    testWidgets('no plan is a fact about the plan, and names the next action', (
+      tester,
+    ) async {
+      await _pump(tester, route: null);
+      expect(find.text('No route planned for today'), findsOneWidget);
+      expect(
+        find.text(
+          'No beat plan for today. You can still pick a store yourself.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Pick a store to visit'), findsOneWidget);
+      // An empty screen has no expected next move strong enough to spend the
+      // budget on: the action is a ghost, never the primary.
+      expect(find.byType(TorchPrimaryButton), findsNothing);
+      expect(find.byType(TorchSecondaryButton), findsOneWidget);
+    });
+
+    testWidgets('an empty plan gets its own sentence', (tester) async {
+      await _pump(
+        tester,
+        route: const TodayRoute(
+          planName: 'Naledi',
+          stops: <RouteStop>[],
+          hasLocation: true,
+        ),
+      );
+      expect(
+        find.text('Today’s beat plan has no stops on it yet.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a load failure keeps the chrome and says what survived', (
+      tester,
+    ) async {
+      await _pump(tester, error: true);
+      expect(find.text('Could not load your route'), findsOneWidget);
+      expect(find.byType(TorchNavPill), findsOneWidget);
+    });
+
+    testWidgets('a finished route drops the Next-up section entirely', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route(complete: true));
+      expect(find.byKey(const ValueKey<String>('next-stop')), findsNothing);
+      expect(find.text('Route done'), findsOneWidget);
+      // ...and the circle arms, because starting a visit somewhere else is
+      // now genuinely the expected next move.
+      final circle = tester.widget<TorchNavCircle>(
+        find.byType(TorchNavCircle),
+      );
+      expect(circle.expected, isTrue);
+    });
+  });
+
+  group('the sync chip', () {
+    testWidgets('held work is a neutral square and a word, never an error', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        route: _route(),
+        sync: SyncStatus(
+          pending: <SyncItem>[
+            SyncItem(
+              id: 1,
+              entityType: 'stock',
+              queuedAt: DateTime.utc(2026, 9, 18),
+              synced: false,
+              attempts: 0,
+            ),
+          ],
+          sent: const <SyncItem>[],
+          needsAttention: const <SyncItem>[],
+        ),
+      );
+      expect(find.text('1 held on this phone'), findsOneWidget);
+      final chip = tester.widget<StatusChip>(
+        find.widgetWithText(StatusChip, '1 held on this phone'),
+      );
+      expect(chip.level, StatusLevel.held);
+    });
+
+    testWidgets('an empty outbox says so', (tester) async {
+      await _pump(tester, route: _route());
+      expect(find.text('All sent'), findsOneWidget);
+    });
+  });
+
+  group('the chrome', () {
+    testWidgets('three nav slots, and the skin cycle is the one trailing icon', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final pill = tester.widget<TorchNavPill>(find.byType(TorchNavPill));
+      // THE DEVIATION, asserted rather than commented. unify §1.2 approved
+      // Today · My work · Map · Me. Neither Map nor Me has a screen — there
+      // is no agent map route and the agent's own record is #383/#384,
+      // unbuilt — and a tab that returns you to the tab you are already on
+      // reads as a broken app. Contests takes the third slot because the
+      // migration would otherwise *remove* a capability: the agent's
+      // standings hung off this app bar (#124), and the header's one trailing
+      // slot now carries the skin cycle. See `TodayFrame.slotsIn`.
+      expect(pill.slots.map((s) => s.label), <String>[
+        'Today',
+        'My work',
+        'Contests',
+      ]);
+      final header = tester.widget<TorchAppHeader>(
+        find.byType(TorchAppHeader),
+      );
+      expect(header.trailing, isNotNull);
+      // A tab root has NO thumb zone: 64dp of nav plus 96dp of thumb zone is
+      // a quarter of a 640dp screen given to chrome.
+      expect(find.byType(TorchThumbZone), findsNothing);
+    });
+
+    testWidgets('every slot but the current one leaves this screen', (
+      tester,
+    ) async {
+      // The rule the three-slot set exists to keep: no slot is a no-op.
+      for (final (index, landing) in <(int, String)>[
+        (1, 'My work'),
+        (2, 'Contests view'),
+      ]) {
+        await _pump(tester, route: _route());
+        tester
+            .widget<TorchNavPill>(find.byType(TorchNavPill))
+            .onSelect(index);
+        await tester.pumpAndSettle();
+        expect(
+          find.text(landing),
+          findsOneWidget,
+          reason: 'slot $index must have a destination of its own',
+        );
+        expect(find.byType(TodayScreen), findsNothing);
       }
     });
 
-    testWidgets('the complete "Route done" pill clears AA — $name', (
+    testWidgets('the Contests slot carries the running count', (tester) async {
+      await _pump(tester, route: _route(), runningContests: 2);
+      expect(
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).slots[2]
+            .badgeCount,
+        2,
+      );
+    });
+
+    testWidgets('a zero is not a badge', (tester) async {
+      await _pump(tester, route: _route());
+      expect(
+        tester.widget<TorchNavPill>(find.byType(TorchNavPill)).slots[2]
+            .badgeCount,
+        isNull,
+        reason: 'nothing running is not news',
+      );
+    });
+
+    testWidgets('the skin cycle names the next state, not this one', (
       tester,
     ) async {
-      await tester.pumpWidget(_app(_route(complete: true), theme: theme));
-      await tester.pumpAndSettle();
-
-      // The pill's own opaque wash IS the text's ground — no gradient below it
-      // to composite through.
-      expectAA(tester, 'Route done', name);
+      await _pump(tester, route: _route(), skin: SkinMode.day);
+      final header = tester.widget<TorchAppHeader>(
+        find.byType(TorchAppHeader),
+      );
+      expect(
+        header.trailing!.semanticLabel,
+        'Screen: Day. Double-tap for Veld, the outdoor high-contrast screen.',
+      );
     });
-  }
+
+  });
+
+  group('2.0× text', () {
+    testWidgets('the structure survives and nothing overflows', (tester) async {
+      await _pump(tester, route: _route(), textScale: 2.0);
+      expect(tester.takeException(), isNull);
+      // Nothing is pinned at 2.0×, so the Next-up row is past the fold on a
+      // 640dp phone — which is the correct outcome, not a failure. What must
+      // survive is that it is still THERE and still whole.
+      await scrollAgentTo(
+        tester,
+        find.byKey(const ValueKey<String>('next-stop')),
+      );
+      expect(find.byKey(const ValueKey<String>('next-stop')), findsOneWidget);
+      expect(find.byType(TorchNavPill), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Afrikaans at 2.0× still lays out', (tester) async {
+      await _pump(
+        tester,
+        route: _route(),
+        textScale: 2.0,
+        locale: const Locale('af'),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('the amber census', () {
+    /// The census counts the COMPOSED FRAME. On a 360×640 phone the day block
+    /// pushes "Check in here" just past the fold, so a test that measured the
+    /// unscrolled frame would be measuring a frame with no commit action in
+    /// it — and would pass for the wrong reason. Scrolling the primary into
+    /// view is what puts the two objects the law is about on one screen.
+    Future<void> showPrimary(WidgetTester tester) => scrollAgentTo(
+      tester,
+      find.byKey(const ValueKey<String>('check-in-next')),
+    );
+
+    testWidgets('Night: two objects — the nav tab and "Check in here"', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      await showPrimary(tester);
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'today',
+        phase: 'loaded',
+      );
+      expect(
+        census.objectCount,
+        2,
+        reason:
+            'The nav pill\'s active tab is object 1 whenever the nav renders, '
+            'and the content\'s one grant on a tabbed route goes to the '
+            'primary commit.\n\n${census.describe()}',
+      );
+    });
+
+    testWidgets('Day: one — the amber block; the tab is Abyssal', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route(), skin: SkinMode.day);
+      await showPrimary(tester);
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.day),
+        route: 'today',
+        phase: 'loaded',
+      );
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('Veld: one — the block; the bar is docked and its tab is ink', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route(), skin: SkinMode.veld);
+      await showPrimary(tester);
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.veld),
+        route: 'today',
+        phase: 'loaded',
+      );
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('a finished route: the circle takes the grant in Night', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route(complete: true));
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'today',
+        phase: 'route-done',
+      );
+      expect(census.objectCount, 2, reason: census.describe());
+    });
+
+    for (final skin in <SkinMode>[SkinMode.day, SkinMode.veld]) {
+      testWidgets(
+        'a finished route on a light ground arms nothing — ${skin.name} is 0',
+        (tester) async {
+          await _pump(tester, route: _route(complete: true), skin: skin);
+          final census = await amberCensus(tester);
+          expect(
+            census.objectCount,
+            0,
+            reason:
+                'On a light ground the ladder has one rung and it is the '
+                'primary commit block. A finished route has no commit, so '
+                'nothing is armed and nothing is lit.\n\n${census.describe()}',
+          );
+        },
+      );
+    }
+
+    testWidgets('an empty route lights nothing it has not earned', (
+      tester,
+    ) async {
+      await _pump(tester, route: null, skin: SkinMode.day);
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 0, reason: census.describe());
+    });
+
+    testWidgets('at 2.0× the count does not change', (tester) async {
+      await _pump(tester, route: _route(), textScale: 2.0);
+      await showPrimary(tester);
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        agentSkinFor(SkinMode.night),
+        route: 'today',
+        phase: 'loaded @2.0x',
+      );
+      expect(census.objectCount, 2, reason: census.describe());
+    });
+  });
+
+  group('the claims are declared, not painted', () {
+    testWidgets('the circle asks and loses while there is a primary', (
+      tester,
+    ) async {
+      await _pump(tester, route: _route());
+      final scope = TorchScope.maybeOf(
+        tester.element(find.byType(TorchNavCircle)),
+      );
+      expect(scope, isNotNull);
+      expect(scope!.allocation.isLit(TodayScreen.checkInClaimId), isTrue);
+      expect(scope.allocation.isLit(TodayScreen.navCircleClaimId), isFalse);
+    });
+  });
 }

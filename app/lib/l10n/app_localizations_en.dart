@@ -1540,4 +1540,217 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notificationsFooter =>
       'You can also turn these off in your phone’s settings.';
+
+  @override
+  String get navToday => 'Today';
+
+  @override
+  String get navMyWork => 'My work';
+
+  @override
+  String get navMap => 'Map';
+
+  @override
+  String get navMe => 'Me';
+
+  @override
+  String get todayRouteEyebrow => 'Route';
+
+  @override
+  String get todayStopUpcoming => 'To do';
+
+  @override
+  String get unitMetres => 'm';
+
+  @override
+  String get unitKilometres => 'km';
+
+  @override
+  String get skinDay => 'Day';
+
+  @override
+  String get skinNight => 'Night';
+
+  @override
+  String get skinVeld => 'Veld, the outdoor high-contrast screen';
+
+  @override
+  String get syncChipAllSent => 'All sent';
+
+  @override
+  String get syncChipAllSentSemantics =>
+      'All your work is sent. Double-tap to see it.';
+
+  @override
+  String get visitClientQuestions => 'The client’s questions';
+
+  @override
+  String get visitReadFailedTitle => 'This visit could not be read.';
+
+  @override
+  String get visitReadFailedBlock =>
+      'The visit’s own progress could not be read, so it cannot be sent yet.';
+
+  @override
+  String get visitCantConfirmProducts =>
+      'The product list did not load — this section can’t be confirmed.';
+
+  @override
+  String get visitCantConfirmTemplate =>
+      'The client’s questions did not load — this section can’t be confirmed.';
+
+  @override
+  String get visitCheckInEyebrow => 'Check-in';
+
+  @override
+  String get visitTooFarAttemptsRecorded =>
+      'Every attempt is recorded with where you were.';
+
+  @override
+  String get visitTooFarClose => 'You’re close. Try walking to the front door.';
+
+  @override
+  String get visitTooFarWrongStore =>
+      'This looks like the wrong store, or the store’s pin is wrong.';
+
+  @override
+  String get visitPinIsWrong => 'The pin is wrong';
+
+  @override
+  String get visitPinReportedHeld =>
+      'Reported on this phone. It has not been sent anywhere yet — there is nowhere to send it.';
+
+  @override
+  String get visitNoGpsFixPermission =>
+      'Allow location for TradeIQ in your phone’s settings. You can allow it just while using the app.';
+
+  @override
+  String get visitNoGpsFixServices =>
+      'Turn location on in your phone’s settings, then try again.';
+
+  @override
+  String get visitNoGpsFixTimedOut =>
+      'Step outside or near a window and try again. Your GPS still works in airplane mode — give it a few seconds.';
+
+  @override
+  String get visitNoGpsFixGeneric =>
+      'Step outside or near a window and try again.';
+
+  @override
+  String get visitCopyCode => 'Copy';
+
+  @override
+  String get visitCopyCodeSemantics => 'Copy the error code';
+
+  @override
+  String todayRouteSemantics(int done, int total, int left) {
+    return 'Route: $done of $total stores done, $left left.';
+  }
+
+  @override
+  String todayStopSemantics(String name, String code, String state) {
+    return '$name, $code, $state. Double-tap to check in here.';
+  }
+
+  @override
+  String todayDistanceMetresSemantics(int meters) {
+    return '$meters metres away';
+  }
+
+  @override
+  String todayDistanceKmSemantics(num km) {
+    return '$km kilometres away';
+  }
+
+  @override
+  String skinCycleLabel(String current, String next) {
+    return 'Screen: $current. Double-tap for $next.';
+  }
+
+  @override
+  String visitReadinessSemantics(int done, int total, int blocking) {
+    return 'Captured, $done of $total. $blocking sections still needed.';
+  }
+
+  @override
+  String visitScoreSemantics(String name) {
+    return '$name, not yet available. Worked out when the visit sends.';
+  }
+
+  @override
+  String visitSectionSemantics(String name, String state, String detail) {
+    return '$name. $state. $detail';
+  }
+
+  @override
+  String visitTooFarNeedWithin(int meters) {
+    return 'You need to be within 50 m. Right now you are $meters m away.';
+  }
+
+  @override
+  String visitTooFarSemantics(int meters) {
+    return 'Too far from the shop. You are $meters metres away. You need to be within 50 metres.';
+  }
+
+  @override
+  String visitErrorCodeSemantics(String code) {
+    return 'Error code $code';
+  }
+
+  @override
+  String syncChipHeld(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count held on this phone',
+      one: '1 held on this phone',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncChipHeldSemantics(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count captures held on this phone. Double-tap to see your work.',
+      one: '1 capture held on this phone. Double-tap to see your work.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncChipNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count need you',
+      one: '1 needs you',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncChipNeedsYouSemantics(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Needs you. $count captures will not send on their own. Double-tap to see your work.',
+      one:
+          'Needs you. 1 capture will not send on its own. Double-tap to see your work.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String visitCantConfirmCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sections can’t be confirmed',
+      one: '1 section can’t be confirmed',
+    );
+    return '$_temp0';
+  }
 }
