@@ -2486,6 +2486,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your session ended. Sign in and this sends itself.';
 
   @override
+  String get outboxHeld => 'Held';
+
+  @override
+  String get outboxHeldUntilSignIn => 'Held until you sign in';
+
+  @override
   String outboxItemId(int id, String type) {
     return 'Capture $id · $type';
   }
@@ -2679,6 +2685,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String updateVersionNoMinimum(String current) {
     return 'This phone has version $current. A newer version is needed.';
   }
+
+  @override
+  String get submitSectionsUnread => 'Could not read which sections are done';
+
+  @override
+  String get submitSectionsUnreadTask => 'Your sections could not be read';
+
+  @override
+  String get submitSectionsUnreadRowLine =>
+      'Something may be missing from this list';
+
+  @override
+  String get submitSectionsUnreadNote =>
+      'A section that could not be confirmed may be missing from this list. Go back and open your sections to check before you submit.';
+
+  @override
+  String submitCapturedUnreadSemantics(String line) {
+    return 'Could not read which sections are done. $line';
+  }
+
+  @override
+  String get outcomePreviousUnknown =>
+      'Your last visit here could not be loaded, so there is nothing to compare this score with.';
+
+  @override
+  String get outboxSeeScore => 'See how it scored';
 
   @override
   String get meTitle => 'Me';

@@ -183,3 +183,70 @@ pg_dump "$PROD_DATABASE_URL" --schema=public --format=custom --no-owner --no-pri
    lifecycle retention, not to a workflow artifact.
 4. **When field data becomes costly to re-collect:** enable PITR (from about
    $100/month plus Small compute). A day of lost visits is a day of agents' work.
+
+## 5. Client IP, and the rate limiters that depend on it
+
+Two limiters are keyed on *where a request came from* rather than on who is
+signed in: `POST /auth/login` (10 per 15 minutes) and the per-IP half of
+`POST /auth/reset-password` (60 per 15 minutes).
+
+Behind Fly's proxy, `req.ip` is **the proxy**, not the caller. Every request the
+app sees arrives from the same address, so both limiters were one fleet-wide
+bucket. For login that is an outage: roughly eleven honest sign-ins across every
+tenant in a quarter of an hour, and the next agent to pick up a shared handset is
+refused. For reset-password it quietly voided the backstop that is supposed to
+stop one attacker guessing once at each of a thousand accounts.
+
+`backend/src/lib/clientIp.ts` resolves the caller instead, from Fly's own
+`Fly-Client-IP` header, and only when `FLY_APP_NAME` is set — a variable Fly
+injects into every Machine and that no request can mint. Off-platform the header
+is ignored outright, so forging it on a laptop buys nothing.
+
+### Do not turn on `trust proxy`
+
+`app.ts` pins `app.set('trust proxy', false)`. Both of the obvious values are
+wrong here, which is why the setting is written out rather than left to default:
+
+| Setting | What Express reads | Why it is wrong on Fly |
+|---|---|---|
+| `1` | the **rightmost** `X-Forwarded-For` entry | Fly documents that entry as "a shared or dedicated IP address assigned to your app" — a constant. Every caller would still share one bucket, while the code looked fixed. |
+| `2` | the **leftmost** entry | That is whatever the client sent. An attacker invents a new address per request and walks past every per-IP limiter in the codebase. Worse than the bug it replaces. |
+| `true` | — | `express-rate-limit` refuses it outright (`ERR_ERL_PERMISSIVE_TRUST_PROXY`). |
+
+Nothing in the codebase reads `req.protocol`, `req.secure` or `req.hostname`, so
+leaving it off costs nothing else. Fly terminates TLS and `force_https`
+redirects at the edge.
+
+### Verifying it on the live app
+
+The repository can prove that the app prefers `Fly-Client-IP` and ignores
+`X-Forwarded-For` (`backend/src/middleware/rateLimit.clientIp.test.ts`). It
+cannot prove what Fly's proxy does with a client-supplied `Fly-Client-IP`,
+because that happens before the request reaches any code here. Fly Proxy sets
+the header on every request it handles, so a client value should not survive —
+check it rather than assume it:
+
+```sh
+# Two sign-in attempts with deliberately bad credentials, one forging the header.
+# Both should answer 401 (not 429), and the forged one must not be able to claim
+# a different bucket than the honest one.
+for i in 1 2 3; do
+  curl -s -o /dev/null -w '%{http_code} ' -X POST \
+    -H 'Content-Type: application/json' \
+    -H 'Fly-Client-IP: 203.0.113.99' \
+    -d '{"email":"nobody@example.invalid","password":"wrong"}' \
+    https://tradeiq-backend.fly.dev/auth/login
+done; echo
+```
+
+Run it once, then again from a different network. If a forged `Fly-Client-IP`
+ever *did* reach the app, the two runs would share no bucket and the per-IP
+limiters would be bypassable by anyone who sent the header. The fix in that case
+is not `trust proxy` — it is to drop the header preference and put a limiter in
+front of Fly (a Fly-level rule, or a proxy that sets the header itself).
+
+Note that the per-account bounds are independent of all of this and do not rely
+on the client IP at all: `POST /auth/reset-password` is also limited per email
+address (8 per 15 minutes), each reset code carries its own `attempts` counter,
+and `POST /auth/change-password` is keyed on the authenticated user. Guessing at
+a *named* account stays bounded even if IP resolution degrades.

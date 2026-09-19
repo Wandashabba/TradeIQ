@@ -218,4 +218,18 @@ void main() {
     );
     expect(s.sessionEnded.map((i) => i.entityType), ['photo']);
   });
+
+  // unify §1.13: session-ended is a HELD state. It sends itself after sign-in,
+  // so it is never counted with the captures that raise a colour.
+  test('a session that ended is held, not stuck', () async {
+    await _queue(db, entityType: 'photo', lastError: 'sync:signedOut');
+    await _queue(db, entityType: 'pricing', lastError: 'sync:rejected:422');
+    await _queue(db, entityType: 'task');
+
+    final s = await read();
+    expect(s.stuck.map((i) => i.entityType), ['pricing']);
+    expect(s.held.map((i) => i.entityType).toSet(), {'photo', 'task'});
+    // Held and stuck partition what is on the phone.
+    expect(s.held.length + s.stuck.length, s.pendingCount);
+  });
 }

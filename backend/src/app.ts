@@ -53,6 +53,26 @@ import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
 
+// OFF, deliberately, and pinned here so it reads as a decision rather than as
+// the default nobody thought about.
+//
+// Turning it on is the obvious answer to "req.ip is Fly's proxy, not the
+// caller" — and it is the wrong one. One trusted hop makes Express read the
+// RIGHTMOST X-Forwarded-For entry, which Fly documents as "a shared or
+// dedicated IP address assigned to your app": a constant, so every per-IP
+// limiter would still share one bucket while looking fixed. Two hops reaches
+// the LEFTMOST entry, which is whatever the client typed, and hands an attacker
+// a fresh key per request.
+//
+// The client IP comes from `Fly-Client-IP` instead, guarded by FLY_APP_NAME.
+// `lib/clientIp.ts` carries the reasoning and the verified header behaviour;
+// docs/operations/deploy-hardening.md §5 has the live check.
+//
+// Nothing here reads `req.protocol`, `req.secure` or `req.hostname`, so leaving
+// this off costs nothing else. Fly terminates TLS and `force_https` redirects
+// at the edge.
+app.set('trust proxy', false);
+
 // Baseline security headers (nosniff, frameguard, HSTS, etc.).
 app.use(helmet());
 
