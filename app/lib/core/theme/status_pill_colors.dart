@@ -12,7 +12,7 @@ typedef StatusPillWash = ({Color bg, Color fg});
 /// exactly why they are hard hexes rather than `context.colors` slots; do not
 /// convert them. Pinned by `test/core/theme/status_pill_colors_test.dart`.
 ///
-/// Every status pill in the app (DeltaPill, SlaPill, StatusBanner's light-mode
+/// Every status pill in the app (DeltaPill, StatusBanner's light-mode
 /// text tints, the beat-plan "route done" chip) references these — the literal
 /// hexes must live here and nowhere else, so they cannot drift.
 @Deprecated(
