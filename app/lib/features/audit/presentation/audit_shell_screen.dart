@@ -12,7 +12,6 @@ import '../../../core/theme/torchlight/agent_skin.dart';
 import '../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../core/widgets/agent_kit.dart';
 import '../../../core/widgets/agent_motion.dart';
-import '../../../core/widgets/agent_scaffold.dart';
 import '../../../core/widgets/torchlight/bleed.dart';
 import '../../../core/widgets/torchlight/button/buttons.dart';
 import '../../../core/widgets/torchlight/check_in_radar.dart';
@@ -215,26 +214,24 @@ class _AuditShellScreenState extends ConsumerState<AuditShellScreen> {
   /// have gone *into* something and can come back out" — exactly the
   /// hub/section relationship. No stagger behind it: the section arrives
   /// whole.
+  ///
+  /// The section owns its own frame now. Every capture screen is a
+  /// [SectionForm], which carries the header, the thumb zone, the skin cycle
+  /// and its own `TorchScope` — so the hub hands it the route and nothing
+  /// else, and there is no wrapper left to disagree with it about a title or a
+  /// bottom region.
   void _openSection(AuditSection section, String visitDraftId) {
     Navigator.of(context).push(
-      agentSectionRoute<void>(
-        _SectionScreen(
-          title: sectionLabel(context.l10n, section),
-          child: _sectionBody(section, visitDraftId),
-        ),
-      ),
+      agentSectionRoute<void>(_sectionBody(section, visitDraftId)),
     );
   }
 
   void _openTemplateSection(ClientTemplate template, String visitDraftId) {
     Navigator.of(context).push(
       agentSectionRoute<void>(
-        _SectionScreen(
-          title: template.name,
-          child: ClientQuestionsScreen(
-            visitDraftId: visitDraftId,
-            template: template,
-          ),
+        ClientQuestionsScreen(
+          visitDraftId: visitDraftId,
+          template: template,
         ),
       ),
     );
@@ -797,37 +794,6 @@ String cantConfirmText(AppLocalizations l10n, CantConfirmReason reason) =>
       CantConfirmReason.clientTemplateUnavailable =>
         l10n.visitCantConfirmTemplate,
     };
-
-/// A section, full screen, with its own way back to the hub.
-///
-/// Still [AgentScaffold], deliberately: the section forms are the stock
-/// counter, the photo capture and the trough inputs, and all three are Phase 2
-/// components another workstream owns. A Torchlight frame around a Lumen form
-/// is worse than either, so the frame moves when the fields do.
-class _SectionScreen extends StatelessWidget {
-  const _SectionScreen({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return AgentScaffold(
-      title: title,
-      subtitle: l10n.visitSectionSavesAsYouGo,
-      onBack: () => Navigator.of(context).pop(),
-      bottomAction: AgentButton(
-        label: l10n.visitSectionDoneBack,
-        onPressed: () => Navigator.of(context).pop(),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: child,
-      ),
-    );
-  }
-}
 
 // ── Check-in states ────────────────────────────────────────────────────────
 

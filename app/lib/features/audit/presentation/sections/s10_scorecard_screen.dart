@@ -1,20 +1,33 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show Icons;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/rating_band.dart';
-import '../../../../core/theme/lumen_glass.dart';
-import '../../../../core/theme/lumen_palette.dart';
-import '../../../../core/theme/tiq_colors.dart';
-import '../../../../core/widgets/agent_kit.dart';
-import '../../../../core/widgets/console.dart';
-import '../../../../core/widgets/lumen_kit.dart';
+import '../../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../../core/widgets/torchlight/marks.dart';
+import '../../../../core/widgets/torchlight/row/row.dart';
+import '../../../../core/widgets/torchlight/state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/scorecard_service.dart';
+import 'section_form.dart';
 
-/// S10 — Execution Scorecard: the offline scorecard computed on-device from
-/// the queued captures (ADR 0005), shown before the agent leaves the outlet.
-/// The score is computed and read-only — the agent cannot edit it here.
-/// Finalizing queues a marker so the server recomputes authoritatively.
+/// S10 — THE SCORECARD. The offline score computed on-device from the queued
+/// captures (ADR 0005), read before the agent leaves the outlet.
+///
+/// ## It is never shown as final
+///
+/// unify §1.20 is blunt about this: the agent app does not guess. The figure
+/// here is what *this phone* worked out from what *this phone* has, and the
+/// sentence under it says so in words rather than through a marker — the
+/// `ProvisionalMarker` is a console component for server-stamped figures, and
+/// borrowing it here would dress a local arithmetic up as a server verdict.
+///
+/// A dimension with nothing behind it renders an **em dash, a falling hatch
+/// and a reason** — never a zero. "You scored nothing" and "nobody measured
+/// this" are different sentences about a shop.
+///
+/// **Amber:** one object, `Finalize`, and only until it has been queued.
 class S10ScorecardScreen extends ConsumerStatefulWidget {
   const S10ScorecardScreen({super.key, required this.visitDraftId});
 
@@ -25,7 +38,7 @@ class S10ScorecardScreen extends ConsumerStatefulWidget {
 }
 
 class _S10State extends ConsumerState<S10ScorecardScreen> {
-  static const _dimensionKeys = [
+  static const _dimensionKeys = <String>[
     'availability',
     'visibility',
     'display',
@@ -57,6 +70,7 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
 
   void _refresh() {
     setState(() {
+      _finalized = false;
       _scorecard = ref
           .read(scorecardServiceProvider)
           .computeForVisit(widget.visitDraftId);
@@ -72,138 +86,75 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final l10n = context.l10n;
     return FutureBuilder<LocalScorecard>(
       future: _scorecard,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(14),
-            child: Text(
-              l10n.s10ComputeFailed,
-              style: TextStyle(fontSize: 13, color: colors.crit),
-            ),
+          return SectionForm(
+            title: l10n.visitSectionScore,
+            phase: 'score-error',
+            children: <Widget>[
+              ErrorState(
+                scope: ErrorScope.inline,
+                message: TorchErrorMessage(
+                  kind: TorchErrorKind.unknown,
+                  headline: l10n.s10ComputeFailed,
+                  body: l10n.visitCheckInFailedNothingLost,
+                  offersRetry: true,
+                ),
+                action: TorchSecondaryButton(
+                  label: l10n.s10Refresh,
+                  icon: Icons.refresh,
+                  onPressed: _refresh,
+                ),
+              ),
+            ],
           );
         }
         final scorecard = snapshot.data;
         if (scorecard == null) {
-          return const Center(child: CircularProgressIndicator());
+          return SectionForm(
+            title: l10n.visitSectionScore,
+            phase: 'score-loading',
+            children: const <Widget>[SkeletonRows(count: 6)],
+          );
         }
         final band = RatingBand.ofWire(scorecard.ratingBand);
-        final total = Text(
-          scorecard.weightedTotal.toStringAsFixed(1),
-          key: const ValueKey('score-total'),
-          style: colors.glass
-              ? LumenGlass.figure(size: 34, color: context.lumen.ink)
-              : TextStyle(
-                  fontSize: 34,
-                  height: 1,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -1,
-                  color: colors.ink1,
-                ),
-        );
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // No inline screen header: the shared section wrapper already
-            // titles this "Score" (matches the other seven sections).
-            PanelCard(
-              title: l10n.s10DimensionScores,
-              padded: false,
-              child: Column(
-                children: [
-                  for (final (i, key) in _dimensionKeys.indexed)
-                    _DimensionRow(
-                      dimensionKey: key,
-                      label: _dimensionLabel(l10n, key),
-                      score: scorecard.dimensionScores[key],
-                      // An absent dimension is UNKNOWN, not zero — e.g.
-                      // competitive in an outlet where no competitor was on
-                      // shelf to measure against. Printing 0 would read as
-                      // "you scored nothing".
-                      value: scorecard.dimensionScores.containsKey(key)
-                          ? scorecard.dimensionScores[key]!
-                                .toStringAsFixed(0)
-                          : '—',
-                      isLast: i == _dimensionKeys.length - 1,
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            PanelCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (colors.glass)
-                              // Glass pairs the label with the band, in the
-                              // same words and marks every other band surface
-                              // uses — never the pill's own compliance
-                              // vocabulary, which would disagree with the
-                              // readout beside it.
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 4,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  SectionLabel(l10n.s10WeightedTotal),
-                                  LumenStatusPill(
-                                    status: band.status,
-                                    label: band.markedWord(l10n),
-                                  ),
-                                ],
-                              )
-                            else
-                              SectionLabel(l10n.s10WeightedTotal),
-                            const SizedBox(height: 6),
-                            total,
-                          ],
-                        ),
-                      ),
-                      _BandReadout(
-                        key: const ValueKey('score-band'),
-                        band: band,
-                      ),
-                    ],
-                  ),
-                  if (colors.glass) ...[
-                    const SizedBox(height: 14),
-                    // The total against the Healthy line it is banded by.
-                    BenchmarkBar(
-                      value: scorecard.weightedTotal,
-                      target: _healthyFrom,
-                      status: band.status,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            AgentButton(label: l10n.s10Finalize, onPressed: _finalize),
-            const SizedBox(height: 10),
-            AgentButton(
+
+        return SectionForm(
+          title: l10n.visitSectionScore,
+          phase: 'score',
+          dirty: !_finalized,
+          onSave: _finalize,
+          saveLabel: l10n.s10Finalize,
+          saveAndBackLabel: l10n.s10Finalize,
+          savedLine: l10n.s10Queued,
+          readOnlyActions: <Widget>[
+            TorchSecondaryButton(
+              key: const ValueKey<String>('score-refresh'),
               label: l10n.s10Refresh,
               icon: Icons.refresh,
-              secondary: true,
               onPressed: _refresh,
             ),
-            if (_finalized)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  l10n.s10Queued,
-                  style: TextStyle(fontSize: 13, color: colors.ink2),
-                ),
-              ),
+          ],
+          children: <Widget>[
+            _ScoreHero(total: scorecard.weightedTotal, band: band),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (final (i, key) in _dimensionKeys.indexed)
+                  _DimensionRow(
+                    dimensionKey: key,
+                    label: _dimensionLabel(l10n, key),
+                    // An absent dimension is UNKNOWN, not zero — competitive
+                    // in an outlet with no competitor on shelf to measure
+                    // against. Printing 0 would read as "you scored nothing".
+                    score: scorecard.dimensionScores[key],
+                    last: i == _dimensionKeys.length - 1,
+                  ),
+              ],
+            ),
           ],
         );
       },
@@ -211,119 +162,86 @@ class _S10State extends ConsumerState<S10ScorecardScreen> {
   }
 }
 
-/// The on-device banding (scorecard_service.dart): the `green` band from 80,
-/// the `amber` band from 60, `red` below — wire values, shown as Healthy /
-/// Watch / Gap. The glass bars tick at the Healthy line and take their status
-/// from the same cut-offs, so a bar never disagrees with the band word.
-const double _healthyFrom = 80;
-const double _watchFrom = 60;
+/// The weighted total, the band in words, and the sentence that keeps it from
+/// reading as a verdict.
+class _ScoreHero extends StatelessWidget {
+  const _ScoreHero({required this.total, required this.band});
 
-/// A dimension's own figure, which is banded on the same cut-offs as the total
-/// but is not a rating band: it gets no word and no mark, so it keeps the
-/// three-step status scale.
-LumenStatus _scoreStatus(double? score) => score == null
-    ? LumenStatus.none
-    : score >= _healthyFrom
-    ? LumenStatus.good
-    : score >= _watchFrom
-    ? LumenStatus.warn
-    : LumenStatus.crit;
-
-/// One dimension's score, as a tabular row on the console line — label on the
-/// left, figure on the right. Glass adds the figure's benchmark bar beneath.
-class _DimensionRow extends StatelessWidget {
-  const _DimensionRow({
-    required this.dimensionKey,
-    required this.label,
-    required this.score,
-    required this.value,
-    required this.isLast,
-  });
-
-  final String dimensionKey;
-  final String label;
-
-  /// The raw score behind [value]; null when the dimension was not measured.
-  final double? score;
-  final String value;
-  final bool isLast;
+  final double total;
+  final RatingBand band;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (colors.glass) return _glass(context);
+    final skin = context.skin;
+    final l10n = context.l10n;
+    // The chip already draws a silhouette, so the word travels on its own
+    // here — `markedWord` would put two marks beside one band.
+    final word = band.word(l10n);
+    final level = switch (band) {
+      RatingBand.healthy => StatusLevel.onTarget,
+      RatingBand.watch => StatusLevel.watch,
+      RatingBand.gap => StatusLevel.critical,
+    };
     return Container(
-      key: ValueKey('score-$dimensionKey'),
-      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      key: const ValueKey<String>('score-total'),
+      padding: const EdgeInsets.all(TiqSpace.s4),
       decoration: BoxDecoration(
-        border: isLast ? null : Border(bottom: BorderSide(color: colors.line)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 13, color: colors.ink2)),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: colors.ink1,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// The figure in mono, in its status ink, over a bar ticked at the green
-  /// line. Unmeasured keeps an empty track with no tick and reads "—".
-  Widget _glass(BuildContext context) {
-    final colors = context.colors;
-    final lumen = context.lumen;
-    final score = this.score;
-    final status = _scoreStatus(score);
-    return Container(
-      key: ValueKey('score-$dimensionKey'),
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 13),
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(bottom: BorderSide(color: lumen.white(0xB3))),
+        color: skin.palette.surface,
+        borderRadius: BorderRadius.circular(skin.radii.panel),
+        border: Border.all(
+          color: skin.palette.edgeStructure,
+          width: skin.depth.borderWidth,
+        ),
+        boxShadow: skin.depth.shadows,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500,
-                    color: lumen.ink,
-                  ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Eyebrow(l10n.s10WeightedTotal),
+          const SizedBox(height: TiqSpace.s3),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: TiqSpace.s3,
+            runSpacing: TiqSpace.s2,
+            children: <Widget>[
+              FigureSlot(
+                value: total,
+                role: skin.text.heroFigureCompact,
+                fit: <TiqTypeToken>[
+                  skin.text.heroFigureCompact,
+                  skin.text.display,
+                  skin.text.figureL,
+                ],
+                decimals: 1,
+                semanticsLabel: l10n.s10ScoreSemantics(
+                  total.toStringAsFixed(1),
+                  word,
                 ),
               ),
-              Text(
-                value,
-                style: LumenGlass.figure(
-                  color: score == null
-                      ? lumen.inkMuted
-                      : status.swatchOf(colors).ink,
+              Padding(
+                padding: const EdgeInsets.only(bottom: TiqSpace.s1),
+                child: StatusChip(
+                  key: const ValueKey<String>('score-band'),
+                  level: level,
+                  label: word,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          BenchmarkBar(
-            value: score ?? 0,
-            target: score == null ? null : _healthyFrom,
-            status: status,
-            height: 6,
+          const SizedBox(height: TiqSpace.s4),
+          Meter(
+            value: total,
+            target: 80,
+            semanticsValue: l10n.s10ScoreSemantics(
+              total.toStringAsFixed(1),
+              word,
+            ),
+          ),
+          const SizedBox(height: TiqSpace.s4),
+          // The whole reason this screen is not a verdict.
+          Text(
+            l10n.s10NotFinal,
+            style: skin.text.meta.style(color: skin.palette.ink3),
           ),
         ],
       ),
@@ -331,51 +249,48 @@ class _DimensionRow extends StatelessWidget {
   }
 }
 
-/// The rating band as its mark plus its spelled-out word — never colour alone,
-/// and never a mark alone. The word's colour clears AA text contrast: Watch and
-/// Gap carry [TiqColors.critText] (the mark colour `crit` fails 4.5:1 as text),
-/// matching the console's rule that meaning surviving greyscale must also stay
-/// readable.
-class _BandReadout extends StatelessWidget {
-  const _BandReadout({super.key, required this.band});
+/// One dimension: the name, its figure, and a meter ticked at the Healthy
+/// line. Unmeasured keeps its row and states its reason.
+class _DimensionRow extends StatelessWidget {
+  const _DimensionRow({
+    required this.dimensionKey,
+    required this.label,
+    required this.score,
+    required this.last,
+  });
 
-  final RatingBand band;
+  final String dimensionKey;
+  final String label;
+
+  /// Null when the dimension was not measured on this visit.
+  final double? score;
+  final bool last;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    // Word and mark are shared with the visit outcome screen's readout.
-    final label = band.markedWord(context.l10n);
-    if (colors.glass) return _glass(colors, label);
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: band.inkOn(colors),
-      ),
-    );
-  }
-
-  /// Glass: the mark and word on an OPAQUE status wash, in the swatch's ink —
-  /// which clears AA on that wash by itself.
-  Widget _glass(TiqColors colors, String label) {
-    final sw = band.status.swatchOf(colors);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(sw.tint, colors.surface1),
-        borderRadius: BorderRadius.circular(LumenGlass.radiusChip),
-        border: Border.all(color: sw.rim),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          color: sw.ink,
-        ),
-      ),
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final value = score;
+    return SoftRow(
+      key: ValueKey<String>('score-$dimensionKey'),
+      title: label,
+      trailing: value == null
+          ? Text(
+              emDash,
+              style: skin.text.figureM.style(color: skin.palette.ink3),
+            )
+          : FigureSlot(
+              value: value,
+              role: skin.text.figureM,
+              decimals: 0,
+            ),
+      meta: value == null
+          ? NotMeasured(reason: l10n.s10NotMeasured)
+          : Meter(value: value, target: 80),
+      separator: last ? SoftRowSeparator.none : SoftRowSeparator.auto,
+      semanticsLabel: value == null
+          ? '$label. ${l10n.s10NotMeasured}'
+          : '$label. ${value.toStringAsFixed(0)}',
     );
   }
 }

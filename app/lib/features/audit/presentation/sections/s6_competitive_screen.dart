@@ -1,19 +1,23 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/lumen_glass.dart';
-import '../../../../core/theme/lumen_palette.dart';
-import '../../../../core/theme/tiq_colors.dart';
-import '../../../../core/widgets/agent_kit.dart';
-import '../../../../core/widgets/console.dart';
-import '../../../../core/widgets/glass.dart';
-import '../../../../core/widgets/lumen_kit.dart';
+import '../../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../../core/widgets/torchlight/input.dart';
+import '../../../../core/widgets/torchlight/marks.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/competitive_repository.dart';
+import '../../data/visit_progress.dart';
+import 'section_form.dart';
 
-/// S6 — Competitive Intelligence capture: a dynamic list of competitor
-/// observations (SKU, price, POSM type, promoter presence). On save the
-/// entries are queued for sync (POST /competitive).
+/// S6 — COMPETITIVE. A dynamic list of competitor observations: what the rival
+/// is selling, at what price, on what POSM, over how much shelf.
+///
+/// The list is the repeating card set from the section grammar — never a
+/// bespoke card — and an empty one is a real outcome, not a gap: an outlet
+/// with no competitor on shelf is the finding, and the section is not required
+/// to submit.
+///
+/// **Amber:** one object, the inline Save, once something has changed.
 class S6CompetitiveScreen extends ConsumerStatefulWidget {
   const S6CompetitiveScreen({super.key, required this.visitDraftId});
 
@@ -23,183 +27,138 @@ class S6CompetitiveScreen extends ConsumerStatefulWidget {
   ConsumerState<S6CompetitiveScreen> createState() => _S6State();
 }
 
+class _S6Entry {
+  _S6Entry()
+    : sku = TextEditingController(),
+      price = TextEditingController(),
+      posm = TextEditingController(),
+      facings = TextEditingController(text: '1');
+
+  final TextEditingController sku;
+  final TextEditingController price;
+  final TextEditingController posm;
+  final TextEditingController facings;
+  bool promoter = false;
+
+  void dispose() {
+    sku.dispose();
+    price.dispose();
+    posm.dispose();
+    facings.dispose();
+  }
+}
+
 class _S6State extends ConsumerState<S6CompetitiveScreen> {
-  final _skus = <TextEditingController>[];
-  final _prices = <TextEditingController>[];
-  final _posmTypes = <TextEditingController>[];
-  final _facings = <TextEditingController>[];
-  final _promoters = <bool>[];
-  bool _saved = false;
+  final _entries = <_S6Entry>[];
+  bool _dirty = false;
 
   @override
   void dispose() {
-    for (final c in [..._skus, ..._prices, ..._posmTypes, ..._facings]) {
-      c.dispose();
+    for (final entry in _entries) {
+      entry.dispose();
     }
     super.dispose();
   }
 
-  void _addCompetitor() {
-    setState(() {
-      _skus.add(TextEditingController());
-      _prices.add(TextEditingController());
-      _posmTypes.add(TextEditingController());
-      _facings.add(TextEditingController(text: '1'));
-      _promoters.add(false);
-    });
-  }
+  void _touch(VoidCallback change) => setState(() {
+    change();
+    _dirty = true;
+  });
 
   Future<void> _save() async {
     // Rows without a competitor SKU name are skipped.
     final entries = <CompetitiveEntry>[
-      for (var i = 0; i < _skus.length; i++)
-        if (_skus[i].text.trim().isNotEmpty)
+      for (final entry in _entries)
+        if (entry.sku.text.trim().isNotEmpty)
           CompetitiveEntry(
-            competitorSku: _skus[i].text.trim(),
-            competitorPrice: double.tryParse(_prices[i].text) ?? 0.0,
-            competitorPosmType: _posmTypes[i].text.trim(),
-            competitorPromoterPresent: _promoters[i],
+            competitorSku: entry.sku.text.trim(),
+            competitorPrice: double.tryParse(entry.price.text) ?? 0.0,
+            competitorPosmType: entry.posm.text.trim(),
+            competitorPromoterPresent: entry.promoter,
             // Facings is what makes share-of-shelf a real ratio rather than a
             // count of how many rows the agent typed (#93). A blank box means
             // "at least one" — never zero, which would erase the competitor.
-            facingsCount: int.tryParse(_facings[i].text.trim()) ?? 1,
+            facingsCount: int.tryParse(entry.facings.text.trim()) ?? 1,
           ),
     ];
 
     await ref
         .read(competitiveRepositoryProvider)
         .saveCompetitive(visitDraftId: widget.visitDraftId, entries: entries);
-    if (mounted) setState(() => _saved = true);
+    if (mounted) setState(() => _dirty = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final l10n = context.l10n;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < _skus.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _CompetitorCard(
-              index: i,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AgentField(
+
+    return SectionForm(
+      title: l10n.visitSectionCompetitive,
+      phase: 'competitive',
+      dirty: _dirty,
+      onSave: _save,
+      savedLine: l10n.s6Saved,
+      skip: SectionSkipTarget(widget.visitDraftId, AuditSection.competitive),
+      children: <Widget>[
+        SectionEntries(
+          entryName: l10n.visitSectionCompetitive,
+          addLabel: l10n.s6AddButton,
+          emptyLine: l10n.s6NoCompetitors,
+          onAdd: () => _touch(() => _entries.add(_S6Entry())),
+          onRemove: (i) => _touch(() => _entries.removeAt(i).dispose()),
+          entries: <Widget>[
+            for (final (i, entry) in _entries.indexed)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  TorchTextField(
+                    key: ValueKey<String>('comp-sku-$i'),
                     label: l10n.s6SkuLabel,
-                    child: TextField(
-                      key: ValueKey('comp-sku-$i'),
-                      controller: _skus[i],
-                      decoration: InputDecoration(hintText: l10n.s6SkuHint),
-                    ),
+                    controller: entry.sku,
+                    hint: l10n.s6SkuHint,
+                    onChanged: (_) => _touch(() {}),
                   ),
-                  AgentField(
+                  const SizedBox(height: TiqSpace.s4),
+                  TorchNumericField(
+                    key: ValueKey<String>('comp-price-$i'),
                     label: l10n.s6PriceLabel,
-                    child: TextField(
-                      key: ValueKey('comp-price-$i'),
-                      controller: _prices[i],
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(hintText: '0.00'),
-                    ),
+                    controller: entry.price,
+                    unit: TiqUnit.currency,
+                    decimals: 2,
+                    minimum: 0,
+                    onChanged: (_) => _touch(() {}),
                   ),
-                  AgentField(
+                  const SizedBox(height: TiqSpace.s4),
+                  TorchTextField(
+                    key: ValueKey<String>('comp-posm-$i'),
                     label: l10n.s6PosmLabel,
-                    child: TextField(
-                      key: ValueKey('comp-posm-$i'),
-                      controller: _posmTypes[i],
-                      decoration: InputDecoration(hintText: l10n.s6PosmHint),
-                    ),
+                    controller: entry.posm,
+                    hint: l10n.s6PosmHint,
+                    onChanged: (_) => _touch(() {}),
                   ),
-                  AgentField(
+                  const SizedBox(height: TiqSpace.s4),
+                  TorchNumericField(
+                    key: ValueKey<String>('comp-facings-$i'),
                     label: l10n.s6FacingsLabel,
+                    controller: entry.facings,
                     help: l10n.s6FacingsHelp,
-                    child: TextField(
-                      key: ValueKey('comp-facings-$i'),
-                      controller: _facings[i],
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(hintText: '1'),
-                    ),
+                    minimum: 1,
+                    onChanged: (_) => _touch(() {}),
                   ),
-                  AgentToggle(
+                  const SizedBox(height: TiqSpace.s4),
+                  TorchToggle(
+                    key: ValueKey<String>('comp-promoter-$i'),
                     label: l10n.s6PromoterLabel,
-                    value: _promoters[i],
-                    onChanged: (v) => setState(() => _promoters[i] = v),
+                    value: entry.promoter,
+                    onWord: l10n.wordYes,
+                    offWord: l10n.wordNo,
+                    onChanged: (v) => _touch(() => entry.promoter = v),
                   ),
                 ],
               ),
-            ),
-          ),
-        AgentButton(
-          key: const ValueKey('add-competitor'),
-          label: l10n.s6AddButton,
-          icon: Icons.add,
-          secondary: true,
-          onPressed: _addCompetitor,
+          ],
         ),
-        const SizedBox(height: 12),
-        AgentButton(label: l10n.s6SaveButton, onPressed: _save),
-        if (_saved)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              l10n.s6Saved,
-              style: TextStyle(color: colors.ink2),
-            ),
-          ),
       ],
-    );
-  }
-}
-
-/// One competitor observation. Glass: a no-blur tile (they repeat) headed by
-/// its sequence number in a status tile — a count, so it is set in mono.
-class _CompetitorCard extends StatelessWidget {
-  const _CompetitorCard({required this.index, required this.child});
-
-  final int index;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final title = context.l10n.s6CompetitorTitle(index + 1);
-    if (!colors.glass) return PanelCard(title: title, child: child);
-    return GlassPane(
-      kind: GlassKind.tile,
-      blur: false,
-      radius: LumenGlass.radiusCard,
-      padding: const EdgeInsets.fromLTRB(15, 14, 15, 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              StatusTile(
-                status: LumenStatus.none,
-                glyph: '${index + 1}',
-                size: 26,
-                radius: 8,
-                mono: true,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: context.lumen.ink,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
     );
   }
 }

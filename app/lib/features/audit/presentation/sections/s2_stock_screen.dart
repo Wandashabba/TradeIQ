@@ -1,21 +1,39 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/camera/photo_capture_service.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/lumen_glass.dart';
-import '../../../../core/theme/tiq_colors.dart';
-import '../../../../core/widgets/agent_kit.dart';
-import '../../../../core/widgets/console.dart';
-import '../../../../core/widgets/glass.dart';
-import '../../../../core/widgets/photo_capture_field.dart';
+import '../../../../core/theme/torchlight/tiq_skin.dart';
+import '../../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../../core/widgets/torchlight/input.dart';
+import '../../../../core/widgets/torchlight/marks.dart';
+import '../../../../core/widgets/torchlight/state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/photos_repository.dart';
 import '../../data/skus_repository.dart';
 import '../../data/stock_repository.dart';
+import '../../data/visit_progress.dart';
+import 'section_form.dart';
+import 'section_photo.dart';
 
-/// S2 — Stock & Availability capture. One row per client SKU; on save the
-/// entries are persisted locally and queued for sync (POST /stock).
+/// S2 — STOCK & AVAILABILITY. Counting a shelf one-handed, in a dark aisle,
+/// where an out-of-stock is the most valuable thing the agent can record — and
+/// where a product nobody looked at is never reported as empty.
+///
+/// ## The count that is not zero
+///
+/// An uncounted SKU travels as **null** (#389, and the server takes it since
+/// #410). This used to be `?? 0`, and that expression is the bug: a shelf the
+/// agent had not walked to yet was submitted as an empty one, raising a
+/// stock-out task and dragging on-shelf availability down for a SKU nobody had
+/// looked at. `CountStepper` carries the same distinction in the control —
+/// *not counted* is an em dash and the word, never a zero — and the summary
+/// rule states how many are still to go.
+///
+/// ## Amber
+///
+/// One object, and only when there is something to commit: the inline Save.
+/// Zero is a finding and the finding is a bar, a silhouette and two sentences
+/// — never a light.
 class S2StockScreen extends ConsumerWidget {
   const S2StockScreen({
     super.key,
@@ -28,20 +46,54 @@ class S2StockScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final skus = ref.watch(skusListProvider(outletId));
     return skus.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) =>
-          Center(child: Text(context.l10n.s2LoadFailed('$err'))),
-      data: (list) => _StockForm(visitDraftId: visitDraftId, skus: list),
+      loading: () => SectionForm(
+        title: l10n.visitSectionStock,
+        phase: 'stock-loading',
+        children: const <Widget>[SkeletonRows(count: 4, rowHeight: 120)],
+      ),
+      // The product list is what this section is about, so a list that did not
+      // load is not an empty section — it is a section the app cannot
+      // establish, and the hub already renders it as can't-confirm (#389).
+      error: (err, _) => SectionForm(
+        title: l10n.visitSectionStock,
+        phase: 'stock-error',
+        children: <Widget>[
+          ErrorState(
+            scope: ErrorScope.inline,
+            message: TorchErrorMessage(
+              kind: TorchErrorKind.unknown,
+              headline: l10n.s2LoadFailed('$err'),
+              body: l10n.visitCantConfirmProducts,
+              offersRetry: true,
+            ),
+            action: TorchSecondaryButton(
+              label: l10n.visitRetry,
+              onPressed: () => ref.invalidate(skusListProvider(outletId)),
+            ),
+          ),
+        ],
+      ),
+      data: (list) => _StockForm(
+        visitDraftId: visitDraftId,
+        outletId: outletId,
+        skus: list,
+      ),
     );
   }
 }
 
 class _StockForm extends ConsumerStatefulWidget {
-  const _StockForm({required this.visitDraftId, required this.skus});
+  const _StockForm({
+    required this.visitDraftId,
+    required this.outletId,
+    required this.skus,
+  });
 
   final String visitDraftId;
+  final String outletId;
   final List<Sku> skus;
 
   @override
@@ -49,12 +101,12 @@ class _StockForm extends ConsumerStatefulWidget {
 }
 
 class _StockFormState extends ConsumerState<_StockForm> {
-  /// The count on the shelf — the one thing here the agent can actually observe,
-  /// and the one that raises a stockout task. Null means "not counted yet",
-  /// which is a different thing from zero.
+  /// The count on the shelf — the one thing here the agent can actually
+  /// observe, and the one that raises a stockout task. Null means "not counted
+  /// yet", which is a different thing from zero.
   final _units = <String, int?>{};
   final _lastStockin = <String, DateTime>{};
-  bool _saved = false;
+  bool _dirty = false;
 
   /// The optional shelf photo (#310). A count has no position of its own; a
   /// geotagged photo taken while counting is what places it for
@@ -70,18 +122,22 @@ class _StockFormState extends ConsumerState<_StockForm> {
     }
   }
 
+  void _touch(VoidCallback change) => setState(() {
+    change();
+    _dirty = true;
+  });
+
+  int get _counted => _units.values.where((v) => v != null).length;
+  int get _outOfStock => _units.values.where((v) => v == 0).length;
+  int get _toGo => widget.skus.length - _counted;
+
   Future<void> _save() async {
     final entries = widget.skus.map((sku) {
       return StockEntry(
         skuId: sku.id,
-        // An uncounted SKU travels as null, not 0 (#389).
-        //
-        // This used to be `?? 0`, and that expression is the bug: a shelf the
-        // agent had not walked to yet was submitted as an empty one, raising a
-        // stock-out task and dragging on-shelf availability down for a SKU
-        // nobody had looked at. The hub still refuses to submit a visit with
-        // uncounted SKUs — but a half-finished save must not accuse the store
-        // in the meantime.
+        // An uncounted SKU travels as null, not 0 (#389/#410). A part-finished
+        // count must never accuse a store of being out of stock on products
+        // the agent has not reached.
         unitsAvailable: _units[sku.id],
         lastStockinDate: _lastStockin[sku.id]!,
       );
@@ -105,19 +161,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
       // Queued once. A second Save re-sends the counts, not a duplicate photo.
       _photo = null;
     }
-    if (mounted) setState(() => _saved = true);
-  }
-
-  /// Tap the number to type it. A shelf can hold sixty units, and nobody taps
-  /// "+" sixty times — the +/- is for adjusting, this is for entering.
-  Future<void> _typeCount(Sku sku) async {
-    final entered = await showDialog<int>(
-      context: context,
-      builder: (_) => _CountInputDialog(sku: sku, initial: _units[sku.id]),
-    );
-    if (entered != null && mounted) {
-      setState(() => _units[sku.id] = entered);
-    }
+    if (mounted) setState(() => _dirty = false);
   }
 
   /// "selling ~4/day · 12 days cover" — read-only server context, not agent
@@ -137,206 +181,102 @@ class _StockFormState extends ConsumerState<_StockForm> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final l10n = context.l10n;
+
     if (widget.skus.isEmpty) {
-      return Center(child: Text(l10n.s2NoSkus));
+      return SectionForm(
+        title: l10n.visitSectionStock,
+        phase: 'stock-empty',
+        skip: SectionSkipTarget(widget.visitDraftId, AuditSection.stock),
+        children: <Widget>[
+          EmptyState(
+            scope: EmptyScope.inPanel,
+            headline: l10n.s2NoSkus,
+          ),
+        ],
+      );
     }
-    // No section header here — the shared section wrapper already titles this
-    // "Stock & availability".
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final sku in widget.skus)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: _SkuCard(
-              zero: _units[sku.id] == 0,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          sku.name,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: colors.ink1,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        l10n.s2Rrp(sku.rrp.toStringAsFixed(2)),
-                        style: TextStyle(fontSize: 12, color: colors.ink3),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _contextLine(l10n, sku),
-                    key: ValueKey('context-${sku.id}'),
-                    style: TextStyle(fontSize: 12, color: colors.ink3),
-                  ),
-                  const SizedBox(height: 10),
-                  CountStepper(
-                    key: ValueKey('units-${sku.id}'),
-                    value: _units[sku.id],
-                    zeroIsFinding: true,
-                    onChanged: (v) => setState(() => _units[sku.id] = v),
-                    onEdit: () => _typeCount(sku),
-                  ),
-                  if (_units[sku.id] == 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: colors.glass
-                          ? const _OutOfStockNote()
-                          : Row(
-                        children: [
-                          // The icon keeps raw crit (a glyph paired with the
-                          // word); the WORDS take the AA-safe critText, which
-                          // clears 4.5:1 on the card's surface1 in both themes —
-                          // raw crit as text fails AA in dark.
-                          Icon(
-                            Icons.warning_amber_outlined,
-                            size: 15,
-                            color: colors.crit,
-                          ),
-                          const SizedBox(width: 7),
-                          Expanded(
-                            child: Text(
-                              l10n.s2OutOfStockRaisesTask,
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: colors.critText,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+
+    return SectionForm(
+      title: l10n.visitSectionStock,
+      phase: 'stock',
+      dirty: _dirty,
+      onSave: _save,
+      savedLine: l10n.s2StockSaved,
+      skip: SectionSkipTarget(widget.visitDraftId, AuditSection.stock),
+      photo: SectionPhotoField(
+        label: l10n.s34PhotoLabel,
+        photo: _photo,
+        onCaptured: (photo) => _touch(() => _photo = photo),
+      ),
+      children: <Widget>[
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _SummaryRule(
+              counted: _counted,
+              outOfStock: _outOfStock,
+              toGo: _toGo,
+              total: widget.skus.length,
+            ),
+            for (final (i, sku) in widget.skus.indexed)
+              _SkuBlock(
+                sku: sku,
+                value: _units[sku.id],
+                contextLine: _contextLine(l10n, sku),
+                first: i == 0,
+                onChanged: (v) => _touch(() => _units[sku.id] = v),
               ),
-            ),
-          ),
-        const SizedBox(height: 16),
-        PhotoCaptureField(
-          label: l10n.s34PhotoLabel,
-          geotag: true,
-          onPhotoCaptured: (photo) => setState(() => _photo = photo),
+          ],
         ),
-        const SizedBox(height: 12),
-        // The inline save is the ONLY thing that persists this section — the
-        // wrapper's "Done" button just pops back to the hub. It must stay.
-        AgentButton(label: l10n.s2SaveStock, onPressed: _save),
-        if (_saved)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              l10n.s2StockSaved,
-              style: TextStyle(fontSize: 13, color: colors.ink2),
-            ),
-          ),
       ],
     );
   }
 }
 
-/// Owns its own controller, so the field is never disposed while the dialog is
-/// still animating away.
-class _CountInputDialog extends StatefulWidget {
-  const _CountInputDialog({required this.sku, required this.initial});
+/// "4 counted · 1 out of stock · 8 to go". A rule, not a card, and a live
+/// region: it is the only place the agent can see what a Save would record.
+class _SummaryRule extends StatelessWidget {
+  const _SummaryRule({
+    required this.counted,
+    required this.outOfStock,
+    required this.toGo,
+    required this.total,
+  });
 
-  final Sku sku;
-  final int? initial;
-
-  @override
-  State<_CountInputDialog> createState() => _CountInputDialogState();
-}
-
-class _CountInputDialogState extends State<_CountInputDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initial?.toString() ?? '',
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final int counted;
+  final int outOfStock;
+  final int toGo;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Dialog(
-      backgroundColor: colors.surface1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppColors.radiusPanel),
-        side: BorderSide(color: colors.line),
-      ),
+    final skin = context.skin;
+    final l10n = context.l10n;
+    return Semantics(
+      liveRegion: true,
+      label: l10n.s2CountedOf(counted, total),
+      excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        key: const ValueKey<String>('stock-summary'),
+        padding: const EdgeInsets.only(bottom: TiqSpace.s4),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: <Widget>[
             Text(
-              widget.sku.name,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colors.ink1,
+              l10n.s2Summary(counted, outOfStock, toGo),
+              style: skin.text.bodyStrong.style(color: skin.palette.ink1),
+            ),
+            if (toGo > 0) ...<Widget>[
+              const SizedBox(height: TiqSpace.s1),
+              // What a Save would record, said before it is pressed. Null is a
+              // first-class count now (#410), and the sentence is what stops
+              // an agent believing a part-finished save accuses the store.
+              Text(
+                l10n.s2PartCounted(toGo),
+                style: skin.text.meta.style(color: skin.palette.ink3),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              key: ValueKey('units-input-${widget.sku.id}'),
-              controller: _controller,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              style: TextStyle(fontSize: 16, color: colors.ink1),
-              decoration: InputDecoration(
-                labelText: context.l10n.s2UnitsOnShelf,
-                labelStyle: TextStyle(color: colors.ink3),
-                isDense: true,
-                filled: true,
-                fillColor: colors.surface2,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppColors.radiusControl),
-                  borderSide: BorderSide(color: colors.lineStrong),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppColors.radiusControl),
-                  borderSide: BorderSide(color: colors.brand),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: AgentButton(
-                    label: context.l10n.s2Cancel,
-                    secondary: true,
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: AgentButton(
-                    key: ValueKey('units-confirm-${widget.sku.id}'),
-                    label: context.l10n.s2Set,
-                    onPressed: () => Navigator.of(
-                      context,
-                    ).pop(int.tryParse(_controller.text.trim())),
-                  ),
-                ),
-              ],
-            ),
+            ],
           ],
         ),
       ),
@@ -344,81 +284,123 @@ class _CountInputDialogState extends State<_CountInputDialog> {
   }
 }
 
-/// One SKU's card. Glass: a no-blur tile (it repeats down the list) whose rim
-/// turns crit on an out-of-stock, so the finding reads from arm's length.
-class _SkuCard extends StatelessWidget {
-  const _SkuCard({required this.zero, required this.child});
+/// ONE SKU: the name and its recommended price, the server's context, and the
+/// stepper. Separated by a real rule rather than wrapped in a card — twelve
+/// rounded boxes down a phone is the uniform-cards failure, and the rule is
+/// what the row grammar uses everywhere else.
+class _SkuBlock extends StatelessWidget {
+  const _SkuBlock({
+    required this.sku,
+    required this.value,
+    required this.contextLine,
+    required this.first,
+    required this.onChanged,
+  });
 
-  final bool zero;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (!colors.glass) return PanelCard(child: child);
-    return GlassPane(
-      kind: GlassKind.tile,
-      blur: false,
-      radius: LumenGlass.radiusCard,
-      rimColor: zero ? LumenStatus.crit.swatchOf(colors).rim : null,
-      padding: const EdgeInsets.all(15),
-      child: child,
-    );
-  }
-}
-
-/// Zero is the finding, not an empty box: it raises a task, and the note says
-/// why that matters. An opaque crit wash so the words clear AA on their own.
-class _OutOfStockNote extends StatelessWidget {
-  const _OutOfStockNote();
+  final Sku sku;
+  final int? value;
+  final String contextLine;
+  final bool first;
+  final ValueChanged<int?> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final crit = LumenStatus.crit.swatchOf(colors);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(crit.tint, colors.surface1),
-        borderRadius: BorderRadius.circular(LumenGlass.radiusIconTile),
-        border: Border.all(color: crit.rim),
+    final skin = context.skin;
+    final l10n = context.l10n;
+    final finding = value == 0;
+    final barWidth = skin.mode == SkinMode.veld ? 4.0 : 3.0;
+
+    final block = Padding(
+      padding: EdgeInsetsDirectional.fromSTEB(
+        finding ? barWidth + TiqSpace.s3 : 0,
+        TiqSpace.s4,
+        0,
+        TiqSpace.s4,
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(
-              Icons.warning_amber_outlined,
-              size: 15,
-              color: colors.crit,
-            ),
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  sku.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: skin.text.titleM.style(color: skin.palette.ink1),
+                ),
+              ),
+              const SizedBox(width: TiqSpace.s3),
+              // Through the locale formatter, never `toStringAsFixed`: R and
+              // the decimal separator are the locale's business.
+              FigureSlot(
+                key: ValueKey<String>('rrp-${sku.id}'),
+                value: sku.rrp,
+                role: skin.text.figureS,
+                decimals: 2,
+                unit: TiqUnit.currency,
+                color: skin.palette.ink3,
+                semanticsLabel: l10n.s2Rrp(sku.rrp.toStringAsFixed(2)),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  context.l10n.s2OutOfStockRaisesTask,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: crit.ink,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  context.l10n.s2ShoppersSwitch,
-                  style: TextStyle(fontSize: 11, height: 1.45, color: crit.ink),
-                ),
-              ],
-            ),
+          const SizedBox(height: TiqSpace.s1),
+          Text(
+            contextLine,
+            key: ValueKey<String>('context-${sku.id}'),
+            style: skin.text.meta.style(color: skin.palette.ink3),
+          ),
+          const SizedBox(height: TiqSpace.s3),
+          CountStepper(
+            key: ValueKey<String>('units-${sku.id}'),
+            label: l10n.s2UnitsOnShelf,
+            value: value,
+            onChanged: onChanged,
+            zeroIsFinding: true,
+            findingWord: l10n.s2OutOfStockWord,
+            findingLine: l10n.s2OutOfStockRaisesTask,
+            notCountedLine: l10n.s2NotCounted,
+            help: finding ? l10n.s2ShoppersSwitch : null,
+            decreaseLabel: l10n.s2OneFewer,
+            increaseLabel: l10n.s2OneMore,
+            typeLabel: l10n.s2TypeCount,
+            cancelLabel: l10n.s2Cancel,
+            setLabel: l10n.s2Set,
           ),
         ],
       ),
     );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (!first)
+          Container(
+            height: skin.depth.borderWidth,
+            color: skin.palette.edgeStructure,
+          ),
+        if (!finding)
+          block
+        else
+          // The severity bar is an OVERLAY, never a stretch child of a Row
+          // inside an `IntrinsicHeight`: `FigureSlot` measures itself with a
+          // `LayoutBuilder`, and a `LayoutBuilder` cannot answer an intrinsic
+          // query — which took the whole too-far screen down once already.
+          Stack(
+            key: ValueKey<String>('finding-${sku.id}'),
+            children: <Widget>[
+              block,
+              PositionedDirectional(
+                top: 0,
+                bottom: 0,
+                start: 0,
+                width: barWidth,
+                child: ColoredBox(color: skin.palette.bad),
+              ),
+            ],
+          ),
+      ],
+    );
   }
 }
-

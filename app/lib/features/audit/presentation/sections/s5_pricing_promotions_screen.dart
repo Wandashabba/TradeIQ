@@ -1,22 +1,27 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/camera/photo_capture_service.dart';
-import '../../../../core/theme/lumen_glass.dart';
-import '../../../../core/theme/lumen_palette.dart';
-import '../../../../core/theme/tiq_colors.dart';
-import '../../../../core/widgets/agent_kit.dart';
-import '../../../../core/widgets/console.dart';
-import '../../../../core/widgets/glass.dart';
-import '../../../../core/widgets/photo_capture_field.dart';
+import '../../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../../core/widgets/torchlight/input.dart';
+import '../../../../core/widgets/torchlight/marks.dart';
+import '../../../../core/widgets/torchlight/state.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/photos_repository.dart';
 import '../../data/pricing_repository.dart';
 import '../../data/skus_repository.dart';
+import '../../data/visit_progress.dart';
+import 'section_form.dart';
+import 'section_photo.dart';
 
-/// S5 — Pricing & Promotions capture. One row per client SKU (actual price,
-/// promo active, comms rating); on save the entries are queued for sync
-/// (POST /pricing).
+/// S5 — PRICING & PROMOTIONS. One group per client SKU: the price on the
+/// shelf, whether a promotion is running, and how the comms read.
+///
+/// A SKU with no price typed is **not sent** — an untouched line is not a
+/// price of zero, and the same distinction the stock section makes about
+/// counts applies here.
+///
+/// **Amber:** one object, the inline Save, once something has changed.
 class S5PricingPromotionsScreen extends ConsumerWidget {
   const S5PricingPromotionsScreen({
     super.key,
@@ -29,12 +34,37 @@ class S5PricingPromotionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final skus = ref.watch(skusListProvider(outletId));
     return skus.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) =>
-          Center(child: Text(context.l10n.s5LoadError('$err'))),
-      data: (list) => _PricingForm(visitDraftId: visitDraftId, skus: list),
+      loading: () => SectionForm(
+        title: l10n.visitSectionPricing,
+        phase: 'pricing-loading',
+        children: const <Widget>[SkeletonRows(count: 4, rowHeight: 120)],
+      ),
+      error: (err, _) => SectionForm(
+        title: l10n.visitSectionPricing,
+        phase: 'pricing-error',
+        children: <Widget>[
+          ErrorState(
+            scope: ErrorScope.inline,
+            message: TorchErrorMessage(
+              kind: TorchErrorKind.unknown,
+              headline: l10n.s5LoadError('$err'),
+              body: l10n.visitCantConfirmProducts,
+              offersRetry: true,
+            ),
+            action: TorchSecondaryButton(
+              label: l10n.visitRetry,
+              onPressed: () => ref.invalidate(skusListProvider(outletId)),
+            ),
+          ),
+        ],
+      ),
+      data: (list) => _PricingForm(
+        visitDraftId: visitDraftId,
+        skus: list,
+      ),
     );
   }
 }
@@ -53,7 +83,7 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
   final _price = <String, TextEditingController>{};
   final _comms = <String, TextEditingController>{};
   final _promo = <String, bool>{};
-  bool _saved = false;
+  bool _dirty = false;
   CapturedPhoto? _photo;
 
   @override
@@ -68,11 +98,16 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
 
   @override
   void dispose() {
-    for (final c in [..._price.values, ..._comms.values]) {
+    for (final c in <TextEditingController>[..._price.values, ..._comms.values]) {
       c.dispose();
     }
     super.dispose();
   }
+
+  void _touch(VoidCallback change) => setState(() {
+    change();
+    _dirty = true;
+  });
 
   Future<void> _save() async {
     // Untouched SKUs (no price entered) are skipped.
@@ -84,7 +119,7 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
             priceActual: double.tryParse(_price[sku.id]!.text) ?? 0.0,
             promoActive: _promo[sku.id] ?? false,
             // Manual promo-materials checklist is a follow-up; empty for now.
-            promoMaterialsDetected: const {},
+            promoMaterialsDetected: const <String, bool>{},
             commsRating: int.tryParse(_comms[sku.id]!.text) ?? 0,
           ),
         )
@@ -109,121 +144,77 @@ class _PricingFormState extends ConsumerState<_PricingForm> {
             gpsTag: photo.gpsTag,
             capturedAt: photo.capturedAt,
           );
+      _photo = null;
     }
 
-    if (mounted) setState(() => _saved = true);
-  }
-
-  // Comms rating stays a numeric field, not a ChoiceRow: it is a 1–5 scale, and
-  // the kit's ChoiceRow is built for two or three big choices, not five.
-  Widget _numField(String label, Key key, TextEditingController controller) {
-    return AgentField(
-      label: label,
-      child: TextField(
-        key: key,
-        controller: controller,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(hintText: '0'),
-      ),
-    );
+    if (mounted) setState(() => _dirty = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final l10n = context.l10n;
+
     if (widget.skus.isEmpty) {
-      return Center(child: Text(l10n.s5NoSkus));
+      return SectionForm(
+        title: l10n.visitSectionPricing,
+        phase: 'pricing-empty',
+        skip: SectionSkipTarget(widget.visitDraftId, AuditSection.pricing),
+        children: <Widget>[
+          EmptyState(scope: EmptyScope.inPanel, headline: l10n.s5NoSkus),
+        ],
+      );
     }
-    // No section header here — the shared section wrapper already titles this
-    // "Pricing & promotions".
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+
+    return SectionForm(
+      title: l10n.visitSectionPricing,
+      phase: 'pricing',
+      dirty: _dirty,
+      onSave: _save,
+      savedLine: l10n.s5Saved,
+      skip: SectionSkipTarget(widget.visitDraftId, AuditSection.pricing),
+      photo: SectionPhotoField(
+        label: l10n.s5PhotoLabel,
+        framingLine: l10n.s5PhotoHelper,
+        photo: _photo,
+        onCaptured: (photo) => _touch(() => _photo = photo),
+      ),
+      children: <Widget>[
         for (final sku in widget.skus)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: _SkuCard(
-              title: sku.name,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _numField(
-                    l10n.s5ActualPriceLabel,
-                    ValueKey('price-${sku.id}'),
-                    _price[sku.id]!,
-                  ),
-                  AgentToggle(
-                    key: ValueKey('promo-${sku.id}'),
-                    label: l10n.s5PromoActiveLabel,
-                    value: _promo[sku.id] ?? false,
-                    onChanged: (v) => setState(() => _promo[sku.id] = v),
-                  ),
-                  const SizedBox(height: 12),
-                  _numField(
-                    l10n.s5CommsRatingLabel,
-                    ValueKey('comms-${sku.id}'),
-                    _comms[sku.id]!,
-                  ),
-                ],
+          SectionFieldGroup(
+            title: sku.name,
+            children: <Widget>[
+              TorchNumericField(
+                key: ValueKey<String>('price-${sku.id}'),
+                label: l10n.s5ActualPriceLabel,
+                controller: _price[sku.id]!,
+                unit: TiqUnit.currency,
+                decimals: 2,
+                help: l10n.s2Rrp(sku.rrp.toStringAsFixed(2)),
+                minimum: 0,
+                onChanged: (_) => _touch(() {}),
               ),
-            ),
-          ),
-        const SizedBox(height: 16),
-        PhotoCaptureField(
-          label: l10n.s5PhotoLabel,
-          helperText: l10n.s5PhotoHelper,
-          geotag: true,
-          onPhotoCaptured: (photo) => setState(() => _photo = photo),
-        ),
-        const SizedBox(height: 12),
-        AgentButton(label: l10n.s5SaveButton, onPressed: _save),
-        if (_saved)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              l10n.s5Saved,
-              style: TextStyle(fontSize: 13, color: colors.ink2),
-            ),
+              TorchToggle(
+                key: ValueKey<String>('promo-${sku.id}'),
+                label: l10n.s5PromoActiveLabel,
+                value: _promo[sku.id] ?? false,
+                onWord: l10n.wordYes,
+                offWord: l10n.wordNo,
+                onChanged: (v) => _touch(() => _promo[sku.id] = v),
+              ),
+              // Comms rating stays a numeric field, not a choice row: it is a
+              // 1–5 scale, and a choice row is built for two to four big
+              // choices, not five.
+              TorchNumericField(
+                key: ValueKey<String>('comms-${sku.id}'),
+                label: l10n.s5CommsRatingLabel,
+                controller: _comms[sku.id]!,
+                minimum: 0,
+                maximum: 5,
+                onChanged: (_) => _touch(() {}),
+              ),
+            ],
           ),
       ],
-    );
-  }
-}
-
-/// One SKU's pricing. Glass: a no-blur tile (it repeats down the list) headed
-/// by the SKU name, like the stock section's cards.
-class _SkuCard extends StatelessWidget {
-  const _SkuCard({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    if (!colors.glass) return PanelCard(title: title, child: child);
-    return GlassPane(
-      kind: GlassKind.tile,
-      blur: false,
-      radius: LumenGlass.radiusCard,
-      // AgentField pads its own bottom, so the tile's bottom is trimmed.
-      padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: context.lumen.ink,
-            ),
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
     );
   }
 }

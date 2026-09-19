@@ -1,16 +1,15 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/lumen_glass.dart';
-import '../../../../core/theme/tiq_colors.dart';
-import '../../../../core/widgets/agent_kit.dart';
-import '../../../../core/widgets/glass.dart';
+import '../../../../core/widgets/torchlight/input.dart';
 import '../../../../l10n/l10n.dart';
 import '../../data/capability_repository.dart';
+import 'section_form.dart';
 
-/// S7 — Sales Capability capture: confirmed staff headcount, rep training
-/// status, and quiz score. On save the capture is queued for sync
-/// (POST /capability).
+/// S7 — TEAM CAPABILITY. Confirmed staff headcount, rep training status, and
+/// the quiz score. On save the capture is queued for sync (`POST /capability`).
+///
+/// **Amber:** one object, the inline Save, once something has changed.
 class S7CapabilityScreen extends ConsumerStatefulWidget {
   const S7CapabilityScreen({super.key, required this.visitDraftId});
 
@@ -21,16 +20,16 @@ class S7CapabilityScreen extends ConsumerStatefulWidget {
 }
 
 class _S7State extends ConsumerState<S7CapabilityScreen> {
-  static const _trainingKeys = [
+  static const _trainingKeys = <String>[
     'productKnowledge',
     'merchandising',
     'posSystems',
   ];
 
-  final _training = {for (final key in _trainingKeys) key: false};
+  final _training = <String, bool>{for (final key in _trainingKeys) key: false};
   final _headcount = TextEditingController();
   final _quiz = TextEditingController();
-  bool _saved = false;
+  bool _dirty = false;
 
   @override
   void dispose() {
@@ -38,6 +37,11 @@ class _S7State extends ConsumerState<S7CapabilityScreen> {
     _quiz.dispose();
     super.dispose();
   }
+
+  void _touch(VoidCallback change) => setState(() {
+    change();
+    _dirty = true;
+  });
 
   Future<void> _save() async {
     await ref
@@ -50,105 +54,67 @@ class _S7State extends ConsumerState<S7CapabilityScreen> {
             quizScore: int.tryParse(_quiz.text) ?? 0,
           ),
         );
-    if (mounted) setState(() => _saved = true);
+    if (mounted) setState(() => _dirty = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final l10n = context.l10n;
-    final trainingOptions = {
+    final trainingOptions = <String, String>{
       'productKnowledge': l10n.s7TrainingProductKnowledge,
       'merchandising': l10n.s7TrainingMerchandising,
       'posSystems': l10n.s7TrainingPosSystems,
     };
-    final headcount = AgentField(
-      label: l10n.s7HeadcountLabel,
-      child: TextField(
-        key: const ValueKey('headcount'),
-        controller: _headcount,
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(hintText: l10n.s7HeadcountHint),
-      ),
-    );
-    final training = <Widget>[
-      Text(
-        l10n.s7TrainingLabel,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          color: colors.ink2,
-        ),
-      ),
-      const SizedBox(height: 7),
-      for (final entry in trainingOptions.entries)
-        AgentCheck(
-          key: ValueKey('training-${entry.key}'),
-          label: entry.value,
-          value: _training[entry.key] ?? false,
-          onChanged: (v) => setState(() => _training[entry.key] = v),
-        ),
-    ];
-    final quiz = AgentField(
-      label: l10n.s7QuizLabel,
-      child: TextField(
-        key: const ValueKey('quiz'),
-        controller: _quiz,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(hintText: '0-100'),
-      ),
-    );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (colors.glass) ...[
-          // Glass: each question on its own no-blur tile. AgentField pads its
-          // own bottom, so a field tile trims its padding back to match.
-          _Tile(bottom: 0, children: [headcount]),
-          const SizedBox(height: 10),
-          _Tile(bottom: 8, children: training),
-          const SizedBox(height: 10),
-          _Tile(bottom: 0, children: [quiz]),
-          const SizedBox(height: 16),
-        ] else ...[
-          headcount,
-          ...training,
-          const SizedBox(height: 16),
-          quiz,
-        ],
-        AgentButton(label: l10n.s7SaveButton, onPressed: _save),
-        if (_saved)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              l10n.s7Saved,
-              style: TextStyle(color: colors.ink2),
+    return SectionForm(
+      title: l10n.visitSectionCapability,
+      phase: 'capability',
+      dirty: _dirty,
+      onSave: _save,
+      savedLine: l10n.s7Saved,
+      children: <Widget>[
+        SectionFieldGroup(
+          children: <Widget>[
+            TorchNumericField(
+              key: const ValueKey<String>('headcount'),
+              label: l10n.s7HeadcountLabel,
+              controller: _headcount,
+              help: l10n.s7HeadcountHint,
+              minimum: 0,
+              onChanged: (_) => _touch(() {}),
             ),
-          ),
+          ],
+        ),
+        SectionFieldGroup(
+          title: l10n.s7TrainingLabel,
+          children: <Widget>[
+            TorchCheckboxGroup(
+              label: l10n.s7TrainingLabel,
+              children: <Widget>[
+                for (final entry in trainingOptions.entries)
+                  TorchCheckbox(
+                    key: ValueKey<String>('training-${entry.key}'),
+                    label: entry.value,
+                    value: _training[entry.key] ?? false,
+                    onChanged: (v) => _touch(() => _training[entry.key] = v),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        SectionFieldGroup(
+          children: <Widget>[
+            TorchNumericField(
+              key: const ValueKey<String>('quiz'),
+              label: l10n.s7QuizLabel,
+              controller: _quiz,
+              minimum: 0,
+              maximum: 100,
+              onChanged: (_) => _touch(() {}),
+            ),
+          ],
+        ),
       ],
-    );
-  }
-}
-
-/// One question group as a no-blur glass tile (the section scrolls).
-class _Tile extends StatelessWidget {
-  const _Tile({required this.children, this.bottom = 14});
-
-  final List<Widget> children;
-  final double bottom;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassPane(
-      kind: GlassKind.tile,
-      blur: false,
-      radius: LumenGlass.radiusCard,
-      padding: EdgeInsets.fromLTRB(16, 14, 16, bottom),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
     );
   }
 }
