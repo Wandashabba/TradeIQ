@@ -4640,6 +4640,18 @@ abstract class AppLocalizations {
   /// **'Not measured on this visit'**
   String get s10NotMeasured;
 
+  /// The hero when no dimension was measured. An em dash and this sentence, never a zero in the Gap band.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has been captured on this visit yet, so there is no score to work out.'**
+  String get s10NothingCaptured;
+
+  /// The scorecard hero read aloud when nothing was measured.
+  ///
+  /// In en, this message translates to:
+  /// **'No weighted total yet. Nothing has been captured on this visit.'**
+  String get s10NoScoreSemantics;
+
   /// The scorecard hero read aloud.
   ///
   /// In en, this message translates to:

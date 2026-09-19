@@ -5,6 +5,7 @@ import '../../../../core/design/tiq_number.dart' show TiqNumber;
 import '../../../../core/camera/photo_capture_service.dart';
 import '../../../../core/theme/torchlight/tiq_skin.dart';
 import '../../../../core/widgets/torchlight/button/buttons.dart';
+import '../../../../core/widgets/torchlight/chrome/chrome.dart';
 import '../../../../core/widgets/torchlight/input.dart';
 import '../../../../core/widgets/torchlight/marks.dart';
 import '../../../../core/widgets/torchlight/state.dart';
@@ -236,6 +237,9 @@ class _StockFormState extends ConsumerState<_StockForm> {
 
     final total = widget.skus.length;
     final savedCounted = _savedCounted;
+    final onJump = total > jumpThreshold && _toGo > 0
+        ? _jumpToFirstUncounted
+        : null;
     return SectionForm(
       title: l10n.visitSectionStock,
       phase: 'stock',
@@ -253,9 +257,7 @@ class _StockFormState extends ConsumerState<_StockForm> {
         outOfStock: _outOfStock,
         toGo: _toGo,
         total: total,
-        onJump: total > jumpThreshold && _toGo > 0
-            ? _jumpToFirstUncounted
-            : null,
+        onJump: onJump,
       ),
       skip: SectionSkipTarget(widget.visitDraftId, AuditSection.stock),
       photo: SectionPhotoField(
@@ -264,6 +266,9 @@ class _StockFormState extends ConsumerState<_StockForm> {
         onCaptured: (photo) => _touch(() => _photo = photo),
       ),
       children: <Widget>[
+        // What the band gives up when it collapses, first in the body: still
+        // above the fold on arrival, and it scrolls like everything else.
+        _SummaryDetail(toGo: _toGo, onJump: onJump),
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
@@ -283,10 +288,50 @@ class _StockFormState extends ConsumerState<_StockForm> {
   }
 }
 
+/// Whether the pinned band keeps only its counted line, handing the
+/// not-counted sentence and the jump ghost to the top of the body.
+///
+/// The band's three stacked things measured 187dp at 1.0× on a 360×640 phone,
+/// 296dp at 1.4× — 46%, already past what unify §4 allows anything holding a
+/// place at the top of a route — and 543dp at 2.0×, 85% of the screen given to
+/// a summary of a shelf that was no longer on it. [TorchShell.pinnedBandFraction]
+/// is the backstop; this is the band fitting inside it by construction, which
+/// is how the header's own 40% is kept true.
+///
+/// **Veld collapses at every scale.** Its type is a size up, its targets are
+/// 56dp and its rules are 2px: measured, its full band is 258dp before the
+/// reader's font setting is touched at all, which is over the ceiling already.
+/// The glare skin is built, not declared, and this is one of the places that
+/// costs something — the band keeps the one line that has to be true at a
+/// glance, and the sentence and the jump land first in the body, ahead of the
+/// first product rather than somewhere down a 60-SKU shelf.
+///
+/// Both halves read this: the band drops what it will not keep, and
+/// [_SummaryDetail] picks up exactly what the band dropped. It is asked in the
+/// widgets rather than in `_StockFormState.build`, because the skin is
+/// re-rooted by `TorchlightRoute` *inside* `SectionForm` and is not knowable
+/// above it.
+bool _bandCollapsed(BuildContext context) =>
+    context.skin.mode == SkinMode.veld ||
+    MediaQuery.textScalerOf(context).scale(_bandScaleProbe) >
+        _bandScaleProbe * _bandCollapseAbove;
+
+/// Above this text scale the band collapses.
+const double _bandCollapseAbove = 1.3;
+
+/// A font size to run the reader's scaler over: `TextScaler` scales sizes, not
+/// factors, so the factor is read back rather than assumed.
+const double _bandScaleProbe = 10;
+
 /// "4 counted · 1 out of stock · 8 to go". A rule, not a card, and a live
 /// region: it is the only place the agent can see what a Save would record.
 /// Pinned beneath the header with a hairline under it; past twelve products
 /// with any still uncounted it carries a ghost that jumps to the first.
+///
+/// When [_bandCollapsed] says so, the counted line travels alone and
+/// [_SummaryDetail] carries the sentence and the ghost at the top of the body.
+/// The spoken label does not change: a screen reader hears the count and what
+/// is still to go as one sentence either way.
 class _SummaryRule extends StatelessWidget {
   const _SummaryRule({
     required this.counted,
@@ -306,9 +351,18 @@ class _SummaryRule extends StatelessWidget {
   Widget build(BuildContext context) {
     final skin = context.skin;
     final l10n = context.l10n;
-    final jump = onJump;
+    // Collapsed, the band keeps the counted line alone. The spoken label is
+    // unchanged either way: a screen reader hears the count and what is still
+    // to go as one sentence, wherever the words are drawn.
+    final collapsed = _bandCollapsed(context);
+    final jump = collapsed ? null : onJump;
+    final sentence = !collapsed;
     return Column(
       key: const ValueKey<String>('stock-summary'),
+      // The shell caps the band at 40% of the screen, which means the incoming
+      // constraints are BOUNDED — without this the rule stretches to fill the
+      // whole cap instead of being as tall as its words.
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         const SizedBox(height: TiqSpace.s2),
@@ -325,7 +379,7 @@ class _SummaryRule extends StatelessWidget {
                 l10n.s2Summary(counted, outOfStock, toGo),
                 style: skin.text.bodyStrong.style(color: skin.palette.ink1),
               ),
-              if (toGo > 0) ...<Widget>[
+              if (sentence && toGo > 0) ...<Widget>[
                 const SizedBox(height: TiqSpace.s1),
                 // What a Save would record, said before it is pressed. Null is
                 // a first-class count now (#410), and the sentence is what
@@ -355,6 +409,47 @@ class _SummaryRule extends StatelessWidget {
           height: skin.depth.borderWidth,
           color: skin.palette.edgeStructure,
         ),
+      ],
+    );
+  }
+}
+
+/// What the band hands to the body at large type: the not-counted sentence and
+/// the jump. The same words and the same key, drawn in the one place they
+/// still fit — the band is already spoken as a live region, so this carries no
+/// semantics of its own and the sentence is never announced twice.
+class _SummaryDetail extends StatelessWidget {
+  const _SummaryDetail({required this.toGo, this.onJump});
+
+  final int toGo;
+  final VoidCallback? onJump;
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = context.skin;
+    final l10n = context.l10n;
+    // Exactly what the band dropped, and nothing when it dropped nothing.
+    if (!_bandCollapsed(context)) return const SizedBox.shrink();
+    final jump = onJump;
+    if (toGo <= 0 && jump == null) return const SizedBox.shrink();
+    return Column(
+      key: const ValueKey<String>('stock-summary-detail'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (toGo > 0)
+          ExcludeSemantics(
+            child: Text(
+              l10n.s2PartCounted(toGo),
+              style: skin.text.meta.style(color: skin.palette.ink3),
+            ),
+          ),
+        if (jump != null)
+          TorchTertiaryButton(
+            key: const ValueKey<String>('stock-jump-uncounted'),
+            label: l10n.s2JumpToUncounted,
+            onPressed: jump,
+          ),
+        const SizedBox(height: TiqSpace.s4),
       ],
     );
   }

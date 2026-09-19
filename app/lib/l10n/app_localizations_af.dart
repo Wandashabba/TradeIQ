@@ -2982,6 +2982,14 @@ class AppLocalizationsAf extends AppLocalizations {
   String get s10NotMeasured => 'Nie op hierdie besoek gemeet nie';
 
   @override
+  String get s10NothingCaptured =>
+      'Niks is nog op hierdie besoek vasgelê nie, so daar is geen telling om uit te werk nie.';
+
+  @override
+  String get s10NoScoreSemantics =>
+      'Nog geen geweegde totaal nie. Niks is op hierdie besoek vasgelê nie.';
+
+  @override
   String s10ScoreSemantics(String score, String band) {
     return 'Geweegde totaal $score uit 100, $band';
   }
