@@ -1688,10 +1688,6 @@ class AppLocalizationsAf extends AppLocalizations {
   String get visitPinIsWrong => 'Die speld is verkeerd';
 
   @override
-  String get visitPinReportedHeld =>
-      'Op hierdie foon aangeteken. Dit is nog nêrens gestuur nie — daar is nêrens om dit heen te stuur nie.';
-
-  @override
   String get visitNoGpsFixPermission =>
       'Laat ligging vir TradeIQ toe in jou foon se instellings. Jy kan dit net toelaat terwyl jy die program gebruik.';
 
@@ -2029,6 +2025,106 @@ class AppLocalizationsAf extends AppLocalizations {
 
   @override
   String get sheetClose => 'Maak toe';
+
+  @override
+  String get visitPinTooFarToReport =>
+      'Dit is te ver om die speld van hier af aan te meld. Vra jou bestuurder om hierdie winkel reg te stel.';
+
+  @override
+  String get pinDisputeEyebrow => 'Die speld is verkeerd';
+
+  @override
+  String get pinDisputeTitle => 'Meld die speld aan en begin die besoek';
+
+  @override
+  String get pinDisputeEvidenceEyebrow => 'Saam met jou verslag gestuur';
+
+  @override
+  String get pinDisputeDistanceLine =>
+      'van waar die app hierdie winkel het, pas nou gemeet';
+
+  @override
+  String pinDisputeDistanceSemantics(int meters) {
+    return 'Jy is $meters meter van waar die app hierdie winkel het.';
+  }
+
+  @override
+  String get pinDisputePositionLine =>
+      'Waar jy staan, soos jou foon dit aangeteken het';
+
+  @override
+  String get pinDisputePhotoLine => 'Jou foto van die winkelfront';
+
+  @override
+  String get pinDisputeExplain =>
+      'Die besoek begin buite die heining en bly gevlag. Jou bestuurder sien waar jy was en kan die speld skuif. Jy kan nie self die vlag verwyder nie.';
+
+  @override
+  String get pinDisputeNoteLabel => 'Wat is fout met die speld? (opsioneel)';
+
+  @override
+  String get pinDisputeNoteHint =>
+      'bv. die speld is by die depot, die winkel is in Hoofweg';
+
+  @override
+  String get pinDisputeAddPhoto => 'Voeg ’n foto van die winkelfront by';
+
+  @override
+  String get pinDisputeRetakePhoto => 'Neem die foto weer';
+
+  @override
+  String get pinDisputePhotoAdded =>
+      'Winkelfront-foto bygevoeg. Dit word saam met die besoek gestuur.';
+
+  @override
+  String get pinDisputePhotoLabel => 'Winkelfront';
+
+  @override
+  String get pinDisputePhotoHint =>
+      'Staan ver genoeg terug om die winkelnaam en die deur in een foto te kry.';
+
+  @override
+  String get pinDisputeSubmit => 'Begin die besoek, gevlag';
+
+  @override
+  String get pinDisputeBack => 'Terug na die afstand';
+
+  @override
+  String pinDisputeFailed(String reason) {
+    return 'Die besoek kon nie begin nie: $reason';
+  }
+
+  @override
+  String get visitFlagOutOfFence => 'Buite heining';
+
+  @override
+  String visitFlagMetres(int meters) {
+    return '$meters m';
+  }
+
+  @override
+  String visitFlagOutOfFenceSemantics(int meters) {
+    return 'Buite heining, $meters meter. Dubbeltik vir besonderhede.';
+  }
+
+  @override
+  String get visitFlagPinReported => 'Speld aangemeld';
+
+  @override
+  String get visitFlagPinReportedSemantics =>
+      'Speld aangemeld, vir jou bestuurder om na te gaan. Dubbeltik vir besonderhede.';
+
+  @override
+  String get visitFlagSheetTitle => 'Buite die heining ingeteken';
+
+  @override
+  String visitFlagSheetBody(int meters) {
+    return 'Jy was $meters m van hierdie winkel se speld af en het die speld as verkeerd aangemeld. Jou posisie en afstand is saam met die besoek gestuur. Jou bestuurder gaan dit na en kan die speld skuif; die vlag bly totdat hulle dit doen.';
+  }
+
+  @override
+  String get visitPinReportedHeld =>
+      'Op hierdie foon aangeteken. Dit is nog nêrens gestuur nie — daar is nêrens om dit heen te stuur nie.';
 
   @override
   String get meTitle => 'Ek';

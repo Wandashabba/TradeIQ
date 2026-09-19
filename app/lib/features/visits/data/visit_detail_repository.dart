@@ -197,7 +197,13 @@ class VisitDetail {
     required this.riskScore,
     required this.signals,
     this.templateResponses = const [],
+    this.pinDispute,
   });
+
+  /// The reason behind a `geofencePass: false` (#386): the agent said the
+  /// outlet's pin is wrong and started the visit outside the fence. Null on
+  /// every visit that passed the fence, and on an older server.
+  final VisitPinDispute? pinDispute;
 
   final String id;
 
@@ -270,8 +276,41 @@ class VisitDetail {
         for (final r in (json['templateResponses'] as List? ?? const []))
           VisitTemplateAnswers.fromJson(r as Map<String, dynamic>),
       ],
+      pinDispute: json['pinDispute'] is Map<String, dynamic>
+          ? VisitPinDispute.fromJson(json['pinDispute'] as Map<String, dynamic>)
+          : null,
     );
   }
+}
+
+/// "The pin is wrong", as the visit carries it (#386).
+class VisitPinDispute {
+  const VisitPinDispute({
+    required this.id,
+    required this.distanceM,
+    required this.status,
+    this.note,
+    this.resolvedByLabel,
+  });
+
+  final String id;
+
+  /// Measured by the server from the agent's position to the pin as it read
+  /// at the time — never a number the device supplied.
+  final double distanceM;
+
+  /// `open` | `applied` | `rejected`.
+  final String status;
+  final String? note;
+  final String? resolvedByLabel;
+
+  factory VisitPinDispute.fromJson(Map<String, dynamic> json) => VisitPinDispute(
+    id: json['id'] as String,
+    distanceM: (json['distanceM'] as num).toDouble(),
+    status: json['status'] as String? ?? 'open',
+    note: json['note'] as String?,
+    resolvedByLabel: json['resolvedByLabel'] as String?,
+  );
 }
 
 /// The visit does not exist, or belongs to another tenant: the server answers

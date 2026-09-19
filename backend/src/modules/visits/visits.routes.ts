@@ -4,6 +4,7 @@ import { requireRole } from '../../middleware/roleGuard';
 import { parsePagination } from '../../lib/pagination';
 import {
   MAX_CLIENT_VISIT_ID_LENGTH,
+  MAX_PIN_DISPUTE_NOTE_LENGTH,
   checkIn,
   getVisitDetail,
   listMyVisits,
@@ -41,13 +42,14 @@ const CLIENT_VISIT_ID_RE = /^[A-Za-z0-9._:-]+$/;
 // bodies are a visit with an `id`, so an older client — which sends no key and
 // only reads `id` — is unaffected in either direction.
 visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, res) => {
-  const { outletId, lat, lng, checkinTs, clientVisitId, resumed } = req.body as {
+  const { outletId, lat, lng, checkinTs, clientVisitId, resumed, pinDispute } = req.body as {
     outletId?: string;
     lat?: number;
     lng?: number;
     checkinTs?: string;
     clientVisitId?: unknown;
     resumed?: unknown;
+    pinDispute?: unknown;
   };
 
   if (!outletId || lat === undefined || lng === undefined) {
@@ -75,6 +77,37 @@ visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
     return;
   }
 
+  // "The pin is wrong" (#386). Omitted by every older app build and by every
+  // ordinary check-in, so nothing about this route's existing behaviour moves.
+  //
+  // Validated here rather than coerced: a client that sends `pinDispute: true`
+  // meaning "yes, dispute it" must be told, not silently answered with an
+  // ordinary rejection it will read as the app being broken.
+  let pinDisputeInput: { note?: string } | undefined;
+  if (pinDispute !== undefined) {
+    if (typeof pinDispute !== 'object' || pinDispute === null || Array.isArray(pinDispute)) {
+      res.status(400).json({
+        error: 'pinDispute must be an object ({ note?: string }) when given',
+      });
+      return;
+    }
+    const { note } = pinDispute as { note?: unknown };
+    if (
+      note !== undefined &&
+      note !== null &&
+      (typeof note !== 'string' || note.trim().length > MAX_PIN_DISPUTE_NOTE_LENGTH)
+    ) {
+      res.status(400).json({
+        error: `pinDispute.note must be a string of at most ${MAX_PIN_DISPUTE_NOTE_LENGTH} characters`,
+      });
+      return;
+    }
+    const trimmed = typeof note === 'string' ? note.trim() : '';
+    // Trimmed to nothing is nothing: the row says null rather than claiming
+    // there is a note when the agent typed only whitespace.
+    pinDisputeInput = { note: trimmed.length > 0 ? trimmed : undefined };
+  }
+
   const { visit, deduplicated } = await checkIn({
     outletId,
     lat,
@@ -82,6 +115,7 @@ visitsRouter.post('/', requireRole('field_agent'), async (req: AuthedRequest, re
     checkinTs,
     clientVisitId: clientVisitId as string | undefined,
     resumed: resumed as boolean | undefined,
+    pinDispute: pinDisputeInput,
     clientId: req.user!.clientId,
     agentId: req.user!.userId,
   });

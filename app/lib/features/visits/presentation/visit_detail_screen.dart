@@ -366,6 +366,25 @@ class _Header extends StatelessWidget {
                   label: detail.geofencePass ? 'Inside fence' : 'Outside fence',
                 ),
               ),
+              // Outside the fence BECAUSE the agent said the pin is wrong
+              // (#386). Without this a reviewer cannot tell a depot-pinned
+              // outlet from a faked visit, and that is the whole difference.
+              if (detail.pinDispute case final dispute?)
+                _Fact(
+                  key: const ValueKey('visit-pin-dispute'),
+                  label: 'Pin',
+                  value: 'Agent reported it wrong',
+                  note: [
+                    switch (dispute.status) {
+                      'applied' => 'Pin moved'
+                          '${dispute.resolvedByLabel == null ? '' : ' by ${dispute.resolvedByLabel}'}',
+                      'rejected' => 'Pin kept'
+                          '${dispute.resolvedByLabel == null ? '' : ' by ${dispute.resolvedByLabel}'}',
+                      _ => 'Waiting for review',
+                    },
+                    if (dispute.note case final note?) '"$note"',
+                  ].join(' · '),
+                ),
             ],
           ),
         ],
@@ -376,6 +395,7 @@ class _Header extends StatelessWidget {
 
 class _Fact extends StatelessWidget {
   const _Fact({
+    super.key,
     required this.label,
     required this.value,
     this.note,
