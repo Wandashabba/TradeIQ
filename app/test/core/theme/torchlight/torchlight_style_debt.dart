@@ -18,8 +18,6 @@
 const Map<String, int> torchlightStyleDebt = <String, int>{
   'agents/presentation/agent_trail_screen.dart': 20,
   'agents/presentation/live_location_layer.dart': 13,
-  'alerts/presentation/alert_rules_screen.dart': 2,
-  'alerts/presentation/alerts_screen.dart': 5,
   'assistant/answer/answer_view.dart': 5,
   'assistant/answer/web_sources.dart': 2,
   'assistant/answer/working_steps.dart': 1,
@@ -33,7 +31,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'assistant/view_specs/ranked_bars_card.dart': 2,
   'assistant/view_specs/stat_tiles_card.dart': 1,
   'assistant/view_specs/view_spec_registry.dart': 2,
-  'audit/presentation/audit_shell_screen.dart': 26,
   'audit/presentation/my_work_screen.dart': 6,
   'audit/presentation/sections/client_questions_screen.dart': 3,
   'audit/presentation/sections/s10_scorecard_screen.dart': 8,
@@ -52,7 +49,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'auth/presentation/login_screen.dart': 13,
   'beatplans/presentation/beat_plan_form_screen.dart': 5,
   'beatplans/presentation/beatplans_screen.dart': 2,
-  'beatplans/presentation/today_screen.dart': 30,
   'campaigns/presentation/campaign_form_screen.dart': 4,
   'campaigns/presentation/campaign_return_view.dart': 3,
   'campaigns/presentation/campaigns_screen.dart': 1,
@@ -80,7 +76,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'reports/presentation/report_schedules_screen.dart': 1,
   'sales_targets/presentation/sales_attainment_panel.dart': 3,
   'sales_targets/presentation/sales_targets_screen.dart': 11,
-  'tasks/presentation/tasks_screen.dart': 5,
   'templates/presentation/dynamic_template_form.dart': 4,
   'templates/presentation/templates_screen.dart': 3,
   'territories/presentation/territories_screen.dart': 2,
@@ -94,4 +89,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 477;
+const int torchlightStyleDebtTotal = 409;

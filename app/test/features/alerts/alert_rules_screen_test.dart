@@ -1,346 +1,521 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/button/buttons.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alert_rules_screen.dart';
 
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../worklist_harness.dart';
 
-// Newest first, as GET /alerts/rules returns them.
-const _oos = AlertRule(
-  id: 'r-oos',
-  name: 'Out of stock',
-  metric: 'out_of_stock',
-  severity: 'critical',
-  active: true,
+AlertRule _rule({
+  String id = 'r1',
+  String name = 'Out of stock alert',
+  String metric = 'out_of_stock',
+  String severity = 'critical',
+  bool active = true,
+  double? threshold,
+}) => AlertRule(
+  id: id,
+  name: name,
+  metric: metric,
+  severity: severity,
+  active: active,
+  threshold: threshold,
 );
 
-const _price = AlertRule(
-  id: 'r-price',
-  name: 'Price deviation',
-  metric: 'price_deviation',
-  severity: 'warning',
-  active: true,
-  threshold: 10,
-);
-
-const _paused = AlertRule(
-  id: 'r-score',
-  name: 'Low scorecard',
-  metric: 'low_scorecard',
-  severity: 'normal',
-  active: false,
-  threshold: 60,
-);
-
-class _FakeAlertRulesRepository implements AlertRulesRepository {
-  _FakeAlertRulesRepository([this.rules = const [_oos, _price, _paused]]);
-
-  final List<AlertRule> rules;
-
-  ({String name, String metric, double? threshold, String? severity})? created;
-  ({String id, bool? active, double? threshold, String? severity})? updated;
-
-  @override
-  Future<List<AlertRule>> listRules() async => rules;
-
-  @override
-  Future<AlertRule> createRule({
-    required String name,
-    required String metric,
-    double? threshold,
-    String? severity,
-  }) async {
-    created = (
-      name: name,
-      metric: metric,
-      threshold: threshold,
-      severity: severity,
-    );
-    return AlertRule(
-      id: 'r-new',
-      name: name,
-      metric: metric,
-      severity: severity ?? 'normal',
-      active: true,
-      threshold: threshold,
-    );
-  }
-
-  @override
-  Future<AlertRule> updateRule(
-    String id, {
-    bool? active,
-    double? threshold,
-    String? severity,
-  }) async {
-    updated = (
-      id: id,
-      active: active,
-      threshold: threshold,
-      severity: severity,
-    );
-    final existing = rules.firstWhere((r) => r.id == id);
-    return AlertRule(
-      id: id,
-      name: existing.name,
-      metric: existing.metric,
-      severity: severity ?? existing.severity,
-      active: active ?? existing.active,
-      threshold: threshold ?? existing.threshold,
-    );
-  }
+Future<FakeAlertRulesRepository> _pump(
+  WidgetTester tester, {
+  List<AlertRule> rules = const <AlertRule>[],
+  Object? failure,
+  TiqSkin? skin,
+  double textScale = 1.0,
+}) async {
+  final repository = FakeAlertRulesRepository(rules: rules, failure: failure);
+  await pumpWorklist(
+    tester,
+    const AlertRulesScreen(),
+    skin: skin,
+    textScale: textScale,
+    overrides: <Override>[
+      alertRulesRepositoryProvider.overrideWithValue(repository),
+    ],
+  );
+  return repository;
 }
 
-class _ThrowingAlertRulesRepository implements AlertRulesRepository {
-  @override
-  Future<List<AlertRule>> listRules() async => throw Exception('boom');
+void main() {
+  group('the list', () {
+    testWidgets('active and off are two sections, and both always render', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rules: <AlertRule>[
+          _rule(),
+          _rule(id: 'r2', name: 'Price drift', metric: 'price_deviation',
+              active: false),
+        ],
+      );
 
-  @override
-  Future<AlertRule> createRule({
-    required String name,
-    required String metric,
-    double? threshold,
-    String? severity,
-  }) async =>
-      throw Exception('boom');
+      await scrollWorklistTo(tester, find.byType(SectionRule).first);
+      final rules = tester
+          .widgetList<SectionRule>(find.byType(SectionRule))
+          .toList();
+      expect(rules.map((r) => r.name).toList(), <String>['Active', 'Off']);
+      expect(rules.first.count, 1);
+      expect(rules.last.count, 1);
+    });
 
-  @override
-  Future<AlertRule> updateRule(
-    String id, {
-    bool? active,
-    double? threshold,
-    String? severity,
-  }) async =>
-      throw Exception('boom');
-}
+    testWidgets('a section with nothing in it still says so', (tester) async {
+      await _pump(tester, rules: <AlertRule>[_rule()]);
 
-Widget _app(AlertRulesRepository repo, {ThemeData? theme}) => routedApp(
-      const AlertRulesScreen(),
-      theme: theme,
-      overrides: [
-        alertRulesRepositoryProvider.overrideWithValue(repo),
+      await scrollWorklistTo(tester, find.text('Nothing is switched off.'));
+      expect(find.text('Nothing is switched off.'), findsOneWidget);
+    });
+
+    testWidgets('the condition is a sentence and the metric wears mono', (
+      tester,
+    ) async {
+      await _pump(tester, rules: <AlertRule>[_rule(threshold: 50)]);
+
+      await scrollWorklistTo(tester, find.text('out_of_stock'));
+      final skin = TiqSkin.night();
+      final metric = tester.widget<Text>(find.text('out_of_stock'));
+      expect(metric.style!.fontFamily, skin.text.monoIdent.family);
+      expect(
+        find.text('Fires when a product is found out of stock on a visit.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('severity is a mark and a word, never the row colour', (
+      tester,
+    ) async {
+      await _pump(tester, rules: <AlertRule>[_rule(severity: 'warning')]);
+
+      await scrollWorklistTo(tester, find.text('Watch'));
+      expect(find.text('Watch'), findsOneWidget);
+      final row = tester.widget<SoftRow>(find.byType(SoftRow).first);
+      // The row itself carries no severity bar: a configured severity is a
+      // fact about future alerts, not a verdict about this row.
+      expect(row.severity, SoftRowSeverity.none);
+    });
+
+    testWidgets('no threshold says whose default it is, never a null', (
+      tester,
+    ) async {
+      await _pump(tester, rules: <AlertRule>[_rule()]);
+
+      await scrollWorklistTo(tester, find.text('the server’s own threshold'));
+      expect(find.text('the server’s own threshold'), findsOneWidget);
+    });
+
+    testWidgets('a threshold is a figure, and 60 is never 60.0', (
+      tester,
+    ) async {
+      await _pump(tester, rules: <AlertRule>[_rule(threshold: 60)]);
+
+      await scrollWorklistTo(tester, find.text('60'));
+      expect(find.text('60'), findsOneWidget);
+      expect(find.text('60.0'), findsNothing);
+    });
+
+    testWidgets('a second active rule on a metric is called out', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rules: <AlertRule>[
+          _rule(id: 'new'),
+          _rule(id: 'old', name: 'Older out of stock'),
+        ],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.text('· shadowed by a newer active rule'),
+      );
+      expect(find.text('· shadowed by a newer active rule'), findsOneWidget);
+    });
+
+    testWidgets('the metric rail narrows the list', (tester) async {
+      await _pump(
+        tester,
+        rules: <AlertRule>[
+          _rule(),
+          _rule(id: 'r2', name: 'Price drift', metric: 'price_deviation'),
+        ],
+      );
+
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-metric-price_deviation')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('filter-metric-price_deviation')),
+      );
+      await tester.pumpAndSettle();
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byType(SoftRow), findsOneWidget);
+      expect(find.text('Price drift'), findsOneWidget);
+    });
+  });
+
+  group('turning a rule on and off', () {
+    testWidgets('off patches active: false with its id', (tester) async {
+      final repository = await _pump(tester, rules: <AlertRule>[_rule()]);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('toggle-r1')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('toggle-r1')));
+      await tester.pumpAndSettle();
+
+      expect(repository.updatedId, 'r1');
+      expect(repository.updatedActive, isFalse);
+    });
+
+    testWidgets('on patches active: true', (tester) async {
+      final repository = await _pump(
+        tester,
+        rules: <AlertRule>[_rule(active: false)],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('toggle-r1')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('toggle-r1')));
+      await tester.pumpAndSettle();
+
+      expect(repository.updatedActive, isTrue);
+    });
+
+    testWidgets('the state is a word and a glyph, not a fill alone', (
+      tester,
+    ) async {
+      await _pump(tester, rules: <AlertRule>[_rule()]);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('toggle-r1')),
+      );
+      // The toggled-on icon button is an Abyssal block plus the word ON, and
+      // its label names where the press GOES, not where it is.
+      expect(find.text('On'), findsOneWidget);
+      final button = tester.widget<TorchIconButton>(
+        find.byKey(const ValueKey<String>('toggle-r1')),
+      );
+      expect(button.toggledOn, isTrue);
+      expect(button.stateWord, 'On');
+      expect(button.semanticLabel, 'Turn Out of stock alert off');
+    });
+  });
+
+  group('the form sheet', () {
+    testWidgets('creating sends the name, metric, severity and threshold', (
+      tester,
+    ) async {
+      final repository = await _pump(tester, rules: <AlertRule>[_rule()]);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('add-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('new-rule-name')),
+        'Price band breach',
+      );
+      await tester.tap(
+        find.descendant(
+          of: find.byType(TorchSheet),
+          matching: find.text('Price deviation'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(TorchSheet),
+          matching: find.text('Warning'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('rule-threshold')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('rule-threshold')),
+        '12',
+      );
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('create-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('create-rule')));
+      await tester.pumpAndSettle();
+
+      expect(repository.createdName, 'Price band breach');
+      expect(repository.createdMetric, 'price_deviation');
+      expect(repository.createdSeverity, 'warning');
+      expect(repository.createdThreshold, 12);
+    });
+
+    testWidgets('a rule cannot be created without a name', (tester) async {
+      final repository = await _pump(tester);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('add-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
+      await tester.pumpAndSettle();
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('create-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('create-rule')));
+      await tester.pumpAndSettle();
+
+      expect(repository.createCount, 0);
+      await scrollSheetTo(tester, find.text('A rule needs a name.'));
+      expect(find.text('A rule needs a name.'), findsOneWidget);
+    });
+
+    testWidgets('the numeric trough refuses letters at the keyboard', (
+      tester,
+    ) async {
+      await _pump(tester);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('add-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
+      await tester.pumpAndSettle();
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('rule-threshold')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('rule-threshold')),
+        'abc',
+      );
+      await tester.pumpAndSettle();
+
+      // Digits, a true minus and both separators, and nothing else: the
+      // locale decides how a value is written back, never what a thumb may
+      // type. A threshold that was never a number never reaches the request.
+      expect(find.text('abc'), findsNothing);
+    });
+
+    testWidgets('a threshold that will not parse is refused before the '
+        'request', (tester) async {
+      final repository = await _pump(tester);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('add-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('new-rule-name')),
+        'Anything',
+      );
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('rule-threshold')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('rule-threshold')),
+        '1.2.3',
+      );
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('create-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('create-rule')));
+      await tester.pumpAndSettle();
+
+      expect(repository.createCount, 0);
+      await scrollSheetTo(tester, find.text('A threshold is a number.'));
+      expect(find.text('A threshold is a number.'), findsOneWidget);
+    });
+
+    testWidgets('the row opens the editor, which patches severity and '
+        'threshold', (tester) async {
+      final repository = await _pump(
+        tester,
+        rules: <AlertRule>[_rule(threshold: 50)],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      await tester.tap(find.byType(SoftRow).first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TorchSheet), findsOneWidget);
+      // There is no name field on an edit: the API cannot rename a rule.
+      expect(find.byKey(const ValueKey<String>('new-rule-name')), findsNothing);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('rule-threshold')),
+        '40',
+      );
+      await tester.tap(
+        find.descendant(
+          of: find.byType(TorchSheet),
+          matching: find.text('Normal'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('save-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('save-rule')));
+      await tester.pumpAndSettle();
+
+      expect(repository.updatedId, 'r1');
+      expect(repository.updatedThreshold, 40);
+      expect(repository.updatedSeverity, 'normal');
+      // Severity always goes, so the PATCH is never an empty body.
+      expect(repository.updatedActive, isNull);
+    });
+  });
+
+  group('the settled states', () {
+    testWidgets('nothing configured is a designed state', (tester) async {
+      await _pump(tester);
+
+      expect(find.text('No rules yet.'), findsOneWidget);
+      expect(
+        find.text('Alerts only exist because a rule says so.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a failure is sanitised and offers one retry', (tester) async {
+      await _pump(
+        tester,
+        failure: StateError('SocketException: api.tradeiq.co.za'),
+      );
+
+      expect(find.byType(ErrorState), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      expect(find.byKey(const ValueKey<String>('rules-retry')), findsOneWidget);
+    });
+  });
+
+  group('the amber census', () {
+    testWidgets('Night paints exactly one lit object: the nav tab', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        rules: <AlertRule>[_rule(), _rule(id: 'r2', active: false)],
+      );
+
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'alert-rules',
+        phase: 'loaded',
+      );
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'A configuration list has nothing happening in it, so it '
+            'nominates nothing.\n${census.describe()}',
+      );
+    });
+
+    testWidgets('Night, empty, still paints exactly the nav tab', (
+      tester,
+    ) async {
+      await _pump(tester);
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('the form sheet spends one on its commit', (tester) async {
+      await _pump(tester, rules: <AlertRule>[_rule()]);
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey<String>('add-rule')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
+      await tester.pumpAndSettle();
+      // The commit is at the foot of a form that outgrows the sheet's
+      // ceiling, and a light nobody can see is not a light.
+      await scrollSheetTo(
+        tester,
+        find.byKey(const ValueKey<String>('create-rule')),
+      );
+
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'alert-rules/form',
+        phase: 'sheet',
+      );
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'The commit is armed from the start — a create form can always be '
+            'submitted and answered — and the nav tab beneath has gone '
+            'out.\n${census.describe()}',
+      );
+    });
+
+    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+      testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
+        await _pump(tester, skin: skin, rules: <AlertRule>[_rule()]);
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'alert-rules',
+          phase: 'loaded',
+        );
+        expect(census.objectCount, 0, reason: census.describe());
+      });
+    }
+  });
+
+  testWidgets('2.0x text: the structure survives and nothing overflows', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      textScale: 2.0,
+      rules: <AlertRule>[
+        _rule(threshold: 50),
+        _rule(id: 'r2', name: 'Price drift', metric: 'price_deviation',
+            active: false),
       ],
     );
 
-void main() {
-  testWidgets('light: the rules are no-blur glass tiles in a glass panel', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(_FakeAlertRulesRepository(), theme: AppTheme.light()),
-    );
-    await tester.pumpAndSettle();
-
-    final panes = tester
-        .widgetList<GlassPane>(
-          find.ancestor(
-            of: find.text('Low scorecard'),
-            matching: find.byType(GlassPane),
-          ),
-        )
-        .toList();
-    expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
-    expect(panes.any((p) => p.kind == GlassKind.panel), isTrue);
-    // A paused rule still says so in words on glass.
-    expect(find.text('INACTIVE'), findsOneWidget);
-  });
-
-  testWidgets('lists every rule, active and paused alike', (tester) async {
-    await tester.pumpWidget(_app(_FakeAlertRulesRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Out of stock'), findsOneWidget);
-    expect(find.text('Price deviation'), findsOneWidget);
-    // A paused rule is still config — it stays on the page, dimmed, not hidden.
-    expect(find.text('Low scorecard'), findsOneWidget);
-  });
-
-  testWidgets('state is a word, not just a colour', (tester) async {
-    await tester.pumpWidget(_app(_FakeAlertRulesRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('ACTIVE'), findsNWidgets(2));
-    expect(find.text('INACTIVE'), findsOneWidget);
-  });
-
-  testWidgets('a rule shows its metric, severity and threshold', (tester) async {
-    await tester.pumpWidget(_app(_FakeAlertRulesRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('price_deviation'), findsOneWidget);
-    expect(find.text('Severity warning'), findsOneWidget);
-    // Whole thresholds read as integers, and a rule without one says nothing
-    // rather than inventing a zero.
-    expect(find.text('Threshold 10'), findsOneWidget);
-    expect(find.textContaining('Threshold', findRichText: true), findsNWidgets(2));
-  });
-
-  testWidgets('the metric filter narrows the list', (tester) async {
-    await tester.pumpWidget(_app(_FakeAlertRulesRepository()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('filter-metric')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Price deviation').last);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Price deviation'), findsWidgets);
-    expect(find.text('Out of stock'), findsNothing);
-  });
-
-  testWidgets('toggling a rule off patches active: false with its id', (
-    tester,
-  ) async {
-    final repo = _FakeAlertRulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('toggle-r-oos')));
-    await tester.pumpAndSettle();
-
-    expect(repo.updated?.id, 'r-oos');
-    expect(repo.updated?.active, false);
-  });
-
-  testWidgets('toggling a paused rule back on patches active: true', (
-    tester,
-  ) async {
-    final repo = _FakeAlertRulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('toggle-r-score')));
-    await tester.pumpAndSettle();
-
-    expect(repo.updated?.id, 'r-score');
-    expect(repo.updated?.active, true);
-  });
-
-  testWidgets('creating a rule sends the name, metric, severity and threshold',
-      (tester) async {
-    final repo = _FakeAlertRulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('new-rule-name')),
-      'Shelf gaps',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('new-rule-threshold')),
-      '15',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('create-rule')));
-    await tester.pumpAndSettle();
-
-    expect(repo.created?.name, 'Shelf gaps');
-    // The dialog defaults to the first metric in the backend's allow-list.
-    expect(repo.created?.metric, 'out_of_stock');
-    expect(repo.created?.threshold, 15);
-    expect(repo.created?.severity, 'normal');
-  });
-
-  testWidgets('a rule cannot be created without a name', (tester) async {
-    final repo = _FakeAlertRulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey<String>('create-rule')));
-    await tester.pumpAndSettle();
-
-    // The API 400s on an empty name; the dialog says so rather than round-trip.
-    expect(repo.created, isNull);
-    expect(find.text('Name is required'), findsOneWidget);
-  });
-
-  testWidgets('a non-numeric threshold is refused before the request', (
-    tester,
-  ) async {
-    final repo = _FakeAlertRulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('add-rule')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('new-rule-name')),
-      'Bad threshold',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('new-rule-threshold')),
-      'ten',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('create-rule')));
-    await tester.pumpAndSettle();
-
-    expect(repo.created, isNull);
-    expect(find.text('Threshold must be a number'), findsOneWidget);
-  });
-
-  testWidgets('editing a rule patches its threshold and severity', (
-    tester,
-  ) async {
-    final repo = _FakeAlertRulesRepository();
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('edit-r-price')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('edit-rule-threshold')),
-      '25',
-    );
-    await tester.tap(find.byKey(const ValueKey<String>('save-rule')));
-    await tester.pumpAndSettle();
-
-    expect(repo.updated?.id, 'r-price');
-    expect(repo.updated?.threshold, 25);
-    // Severity always rides along, so the PATCH is never an empty body.
-    expect(repo.updated?.severity, 'warning');
-    expect(repo.updated?.active, isNull);
-  });
-
-  testWidgets('a second active rule on a metric is called out as shadowed', (
-    tester,
-  ) async {
-    // The evaluator only honours the newest active rule per metric. A manager
-    // who adds a second one must be told it will never fire.
-    const newer = AlertRule(
-      id: 'r-oos-new',
-      name: 'Out of stock (strict)',
-      metric: 'out_of_stock',
-      severity: 'critical',
-      active: true,
-    );
-    final repo = _FakeAlertRulesRepository(const [newer, _oos, _paused]);
-
-    await tester.pumpWidget(_app(repo));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Shadowed by a newer active rule'), findsOneWidget);
-  });
-
-  testWidgets('says so when there is nothing configured yet', (tester) async {
-    await tester.pumpWidget(_app(_FakeAlertRulesRepository(const [])));
-    await tester.pumpAndSettle();
-
-    expect(find.text('No rules configured'), findsOneWidget);
-  });
-
-  testWidgets('shows an error message when the list fails to load', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_ThrowingAlertRulesRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Failed to load alert rules'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await scrollWorklistTo(tester, find.byType(SoftRow).first);
+    expect(find.byType(SoftRow), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }

@@ -374,26 +374,22 @@ class _RuleRowState extends ConsumerState<_RuleRow> {
               'the server’s own threshold',
               style: skin.text.meta.style(color: metaInk),
             )
-          else
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  'threshold ',
-                  style: skin.text.meta.style(color: metaInk),
-                ),
-                FigureSlot(
-                  value: rule.threshold,
-                  role: skin.text.figureS,
-                  // The metric's precision, not the value's: a threshold of 60
-                  // is "60", never "60.0".
-                  decimals: rule.threshold! == rule.threshold!.roundToDouble()
-                      ? 0
-                      : 1,
-                  color: metaInk,
-                ),
-              ],
+          else ...<Widget>[
+            // Two `Wrap` children rather than a `Row`, so at 2.0× the word and
+            // the figure break onto separate lines instead of a fixed-width
+            // pair running off the text column.
+            Text('threshold', style: skin.text.meta.style(color: metaInk)),
+            FigureSlot(
+              value: rule.threshold,
+              role: skin.text.figureS,
+              // The metric's precision, not the value's: a threshold of 60 is
+              // "60", never "60.0".
+              decimals: rule.threshold! == rule.threshold!.roundToDouble()
+                  ? 0
+                  : 1,
+              color: metaInk,
             ),
+          ],
           if (widget.shadowed)
             Text(
               '· shadowed by a newer active rule',

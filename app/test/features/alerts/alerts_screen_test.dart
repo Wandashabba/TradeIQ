@@ -1,803 +1,640 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tradeiq_app/core/brand_media.dart';
-import 'package:tradeiq_app/core/network/paginated_response.dart';
-import 'package:tradeiq_app/core/theme/app_theme.dart';
-import 'package:tradeiq_app/core/theme/lumen_glass.dart';
-import 'package:tradeiq_app/core/theme/tiq_colors.dart';
-import 'package:tradeiq_app/core/widgets/evidence_thumb.dart';
-import 'package:tradeiq_app/core/widgets/glass.dart';
-import 'package:tradeiq_app/core/widgets/worklist.dart';
+import 'package:tradeiq_app/core/theme/torchlight/tiq_skin.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/input.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/marks.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/row/row.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/section_rule.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/sheet.dart';
+import 'package:tradeiq_app/core/widgets/torchlight/state.dart';
 import 'package:tradeiq_app/features/alerts/data/alerts_repository.dart';
 import 'package:tradeiq_app/features/alerts/presentation/alerts_screen.dart';
 import 'package:tradeiq_app/features/audit/data/photos_repository.dart';
+import 'package:tradeiq_app/features/outlets/data/outlets_repository.dart';
 
-import '../../core/theme/tiq_colors_test.dart' show contrastRatio;
-import '../../helpers/routed_app.dart';
+import '../../core/design/amber_golden.dart';
+import '../worklist_harness.dart';
 
-const _unacknowledged = AlertItem(
-  id: 'a-open',
-  metric: 'stock',
-  message: 'SKU 42 out of stock',
-  severity: 'critical',
-  acknowledged: false,
-  outletId: 'o1',
+AlertItem _alert({
+  String id = 'a1',
+  String severity = 'critical',
+  String message = 'Out of stock since Tuesday',
+  String metric = 'out_of_stock',
+  String? outletId = 'o1',
+  String? visitId,
+  String? photoId,
+  bool acknowledged = false,
+  DateTime? createdAt,
+}) => AlertItem(
+  id: id,
+  metric: metric,
+  message: message,
+  severity: severity,
+  acknowledged: acknowledged,
+  outletId: outletId,
+  visitId: visitId,
+  evidencePhotoId: photoId,
+  createdAt: createdAt ?? DateTime.utc(2026, 9, 18, 6),
 );
 
-const _acknowledged = AlertItem(
-  id: 'a-done',
-  metric: 'price',
-  message: 'Shelf price mismatch',
-  severity: 'warning',
-  acknowledged: true,
-  outletId: 'o2',
-);
+final List<Outlet> _outlets = <Outlet>[
+  outlet('o1', 'Kasi Corner Spaza'),
+  outlet('o2', 'Shoprite Klipspruit Mall'),
+];
 
-/// Unacked, with a linked visit that has a shelf photo — the thumb case.
-const _evidenced = AlertItem(
-  id: 'a-photo',
-  metric: 'stock',
-  message: 'Shelf gap on aisle 3',
-  severity: 'warning',
-  acknowledged: false,
-  outletId: 'o3',
-  visitId: 'v1',
-  evidencePhotoId: 'p1',
-);
-
-/// A real, decodable image for the evidence thumb (1×1 transparent PNG).
-final _pngBytes = Uint8List.fromList(const <int>[
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, //
-  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, //
-  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, //
-  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, //
-  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, //
-  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
-]);
-
-AlertItem _acked(AlertItem a) => AlertItem(
-  id: a.id,
-  metric: a.metric,
-  message: a.message,
-  severity: a.severity,
-  acknowledged: true,
-  visitId: a.visitId,
-  outletId: a.outletId,
-  evidencePhotoId: a.evidencePhotoId,
-);
-
-/// Stateful fake: acknowledging mutates the list the next fetch returns, so
-/// the screen's invalidate-after-ack round trip is observable. [ackDelay]
-/// keeps the acknowledge future in flight — the collapse animation must win
-/// the race against it.
-class _FakeAlertsRepository implements AlertsRepository {
-  _FakeAlertsRepository({
-    List<AlertItem>? alerts,
-    this.ackDelay = Duration.zero,
-  }) : _alerts = List.of(alerts ?? const [_unacknowledged, _acknowledged]);
-
-  final Duration ackDelay;
-  final List<AlertItem> _alerts;
-  String? acknowledgedId;
-  int ackCalls = 0;
-
-  @override
-  Future<PaginatedResponse<AlertItem>> listAlerts({
-    bool? acknowledged,
-    String? severity,
-  }) async => PaginatedResponse(data: List.of(_alerts), nextCursor: null);
-
-  @override
-  Future<AlertItem> acknowledge(String id) async {
-    ackCalls++;
-    if (ackDelay > Duration.zero) {
-      await Future<void>.delayed(ackDelay);
-    }
-    acknowledgedId = id;
-    final i = _alerts.indexWhere((a) => a.id == id);
-    final updated = _acked(_alerts[i]);
-    _alerts[i] = updated;
-    return updated;
-  }
-}
-
-class _ThrowingAlertsRepository implements AlertsRepository {
-  @override
-  Future<PaginatedResponse<AlertItem>> listAlerts({
-    bool? acknowledged,
-    String? severity,
-  }) async => throw Exception('boom');
-
-  @override
-  Future<AlertItem> acknowledge(String id) async => throw Exception('boom');
-}
-
-/// The list loads, but acknowledging fails — the honesty path: the row must
-/// come back, never silently vanish while still unacknowledged server-side.
-/// [ackDelay] keeps the failure in flight long enough for the row to be
-/// disposed underneath it (the mid-flight-dispose tests).
-class _AckFailsRepository implements AlertsRepository {
-  _AckFailsRepository({this.ackDelay = Duration.zero});
-
-  final Duration ackDelay;
-
-  @override
-  Future<PaginatedResponse<AlertItem>> listAlerts({
-    bool? acknowledged,
-    String? severity,
-  }) async => const PaginatedResponse(
-    data: [_unacknowledged, _acknowledged],
-    nextCursor: null,
+Future<FakeAlertsRepository> _pump(
+  WidgetTester tester, {
+  List<AlertItem> alerts = const <AlertItem>[],
+  List<Outlet> outlets = const <Outlet>[],
+  String? nextCursor,
+  Object? listFailure,
+  Object? ackFailure,
+  bool listPending = false,
+  TiqSkin? skin,
+  double textScale = 1.0,
+  Size size = const Size(360, 720),
+}) async {
+  final repository = FakeAlertsRepository(
+    alerts: alerts,
+    nextCursor: nextCursor,
+    listFailure: listFailure,
+    ackFailure: ackFailure,
+    listPending: listPending,
   );
-
-  @override
-  Future<AlertItem> acknowledge(String id) async {
-    if (ackDelay > Duration.zero) {
-      await Future<void>.delayed(ackDelay);
-    }
-    throw Exception('ack rejected');
-  }
+  await pumpWorklist(
+    tester,
+    const AlertsScreen(),
+    skin: skin,
+    size: size,
+    settle: !listPending,
+    textScale: textScale,
+    overrides: <Override>[
+      alertsRepositoryProvider.overrideWithValue(repository),
+      outletsRepositoryProvider.overrideWithValue(
+        FakeOutletsRepository(outlets),
+      ),
+      photosRepositoryProvider.overrideWithValue(
+        FakePhotosRepository(bytes: pngBytes),
+      ),
+    ],
+  );
+  return repository;
 }
-
-class _FakePhotosRepository implements PhotosRepository {
-  @override
-  Future<PhotoUploadResult> uploadPhoto({
-    required String visitId,
-    required String section,
-    required String dataUrl,
-    required Map<String, dynamic> gpsTag,
-    required String timestamp,
-  }) async =>
-      const PhotoUploadResult(id: 'photo-1', url: 'data:image/png;base64,');
-
-  @override
-  Future<Uint8List> thumbnailBytes(String photoId) async => _pngBytes;
-
-  @override
-  Future<List<VisitPhoto>> listPhotos(String visitId) async => const [];
-
-  @override
-  Future<String> uploadMessageAttachment(String dataUrl) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<Uint8List> imageBytes(String photoId) async =>
-      throw UnimplementedError();
-}
-
-Widget _app(AlertsRepository repo, {ThemeData? theme}) => routedApp(
-  const AlertsScreen(),
-  theme: theme,
-  overrides: [
-    alertsRepositoryProvider.overrideWithValue(repo),
-    photosRepositoryProvider.overrideWithValue(_FakePhotosRepository()),
-  ],
-);
 
 void main() {
-  group('Lumen Glass (light)', () {
-    testWidgets('rows are glass tiles and the selected tab rides a pill', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _app(_FakeAlertsRepository(), theme: AppTheme.light()),
+  group('the worklist', () {
+    testWidgets('opens on the open alerts, worst first', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[
+          _alert(
+            id: 'watch',
+            severity: 'warning',
+            message: 'Price above the published band',
+            outletId: 'o2',
+            createdAt: DateTime.utc(2026, 9, 18, 12),
+          ),
+          _alert(id: 'crit'),
+          _alert(id: 'done', acknowledged: true, message: 'Old one'),
+        ],
       );
-      await tester.pumpAndSettle();
 
-      // A row repeats down the list, so its pane is a no-blur tile.
-      final panes = tester.widgetList<GlassPane>(
-        find.ancestor(
-          of: find.text('SKU 42 out of stock'),
-          matching: find.byType(GlassPane),
-        ),
-      );
-      expect(panes.any((p) => p.kind == GlassKind.tile && !p.blur), isTrue);
-
-      // The selected segment is lifted onto a pill; the rest are bare words.
-      GlassPane? pillOf(String tab) {
-        final f = find.descendant(
-          of: find.byKey(ValueKey(tab)),
-          matching: find.byType(GlassPane),
-        );
-        return f.evaluate().isEmpty ? null : tester.widget<GlassPane>(f);
-      }
-
-      expect(pillOf('tab-_Tab.open')?.kind, GlassKind.pill);
-      expect(pillOf('tab-_Tab.all'), isNull);
-
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-      await tester.pumpAndSettle();
-      expect(pillOf('tab-_Tab.all')?.kind, GlassKind.pill);
-      expect(pillOf('tab-_Tab.open'), isNull);
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      final rows = tester.widgetList<SoftRow>(find.byType(SoftRow)).toList();
+      // Acknowledged rows are filtered out of Open entirely.
+      expect(rows.length, 2);
+      expect(rows.first.title, 'Out of stock since Tuesday');
+      expect(rows.first.severity, SoftRowSeverity.critical);
+      expect(rows.last.severity, SoftRowSeverity.watch);
     });
 
-    testWidgets('the ✓ ACKED word clears 4.5:1 through the row fade', (
+    testWidgets('a row names the outlet, never its database id', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _app(_FakeAlertsRepository(), theme: AppTheme.light()),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-      await tester.pumpAndSettle();
+      await _pump(tester, outlets: _outlets, alerts: <AlertItem>[_alert()]);
 
-      const t = TiqColors.light;
-      final pill = tester.widget<Container>(
-        find.byKey(const ValueKey('acked-pill')),
-      );
-      final ground = (pill.decoration! as BoxDecoration).color!;
-      // Opaque, so the maths below is the colour actually on screen.
-      expect(ground.a, 1.0);
-      final label = tester.widget<Text>(find.text('✓ ACKED'));
-      expect(label.style!.fontFamily, LumenGlass.mono);
+      await scrollWorklistTo(tester, find.text('Kasi Corner Spaza'));
+      expect(find.text('Kasi Corner Spaza'), findsOneWidget);
+      // #399/#400: the row before this one printed `Outlet o1`.
+      expect(find.textContaining('Outlet o1'), findsNothing);
+    });
 
-      // The whole card fades toward the pane it sits on — words and ground.
-      final fade = WorklistRow.resolvedOpacityOf(t);
-      expect(
-        contrastRatio(
-          Color.lerp(t.surface1, label.style!.color, fade)!,
-          Color.lerp(t.surface1, ground, fade)!,
-        ),
-        greaterThanOrEqualTo(4.5),
+    testWidgets('severity is a bar AND a word, never the hue alone', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets, alerts: <AlertItem>[_alert()]);
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      final row = tester.widget<SoftRow>(find.byType(SoftRow).first);
+      expect(row.severity, SoftRowSeverity.critical);
+      expect(row.severityLabel, 'Critical');
+      expect(row.semanticsLabel, startsWith('Critical.'));
+    });
+
+    testWidgets('the rule that fired is on the row, in the identifier face', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(metric: 'OSA_BELOW_50')],
       );
+
+      await scrollWorklistTo(tester, find.text('OSA_BELOW_50'));
+      final skin = TiqSkin.night();
+      final text = tester.widget<Text>(find.text('OSA_BELOW_50'));
+      expect(text.style!.fontFamily, skin.text.monoIdent.family);
+    });
+
+    testWidgets('the section rule carries the count it is showing', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a'), _alert(id: 'b', outletId: 'o2')],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SectionRule));
+      final rule = tester.widget<SectionRule>(find.byType(SectionRule));
+      expect(rule.name, 'Open');
+      expect(rule.count, 2);
     });
   });
 
-  testWidgets('opens on the triage list — what is still open', (tester) async {
-    await tester.pumpWidget(_app(_FakeAlertsRepository()));
-    await tester.pumpAndSettle();
-
-    // The worklist defaults to Open: a manager lands on what still needs doing,
-    // not on a mixed pile. The acknowledged alert is one tab away, not gone.
-    expect(find.text('SKU 42 out of stock'), findsOneWidget);
-    expect(find.text('Shelf price mismatch'), findsNothing);
-  });
-
-  testWidgets('the All tab reveals acknowledged alerts', (tester) async {
-    await tester.pumpWidget(_app(_FakeAlertsRepository()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('SKU 42 out of stock'), findsOneWidget);
-    expect(find.text('Shelf price mismatch'), findsOneWidget);
-  });
-
-  testWidgets('triage counts summarise the list before you read it', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_FakeAlertsRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('triage-critical')), findsOneWidget);
-    expect(find.byKey(const ValueKey('triage-warning')), findsOneWidget);
-    expect(find.byKey(const ValueKey('triage-acknowledged')), findsOneWidget);
-  });
-
-  testWidgets('shows an error message when the list fails to load', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_ThrowingAlertsRepository()));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Failed to load alerts'), findsOneWidget);
-  });
-
-  group('acked rows', () {
-    testWidgets('wear the muted ✓ ACKED pill — words, never colour alone', (
+  group('the lead indicator', () {
+    testWidgets('leads with open criticals and subordinates the rest', (
       tester,
     ) async {
-      await tester.pumpWidget(_app(_FakeAlertsRepository()));
-      await tester.pumpAndSettle();
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[
+          _alert(id: 'c1'),
+          _alert(id: 'c2', outletId: 'o2'),
+          _alert(id: 'w1', severity: 'warning'),
+          _alert(id: 'ack', acknowledged: true),
+        ],
+      );
 
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-      await tester.pumpAndSettle();
+      expect(find.text('OPEN CRITICAL'), findsOneWidget);
+      expect(find.text('1 warnings · 1 acknowledged'), findsOneWidget);
+    });
 
-      // Exactly one pill — on the acked row, not the open one.
-      expect(find.text('✓ ACKED'), findsOneWidget);
+    testWidgets('a measured zero renders 0 and keeps its place', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'w1', severity: 'warning')],
+      );
+
+      // Never suppressed, never an em dash: nought open criticals is a fact.
+      expect(find.text('OPEN CRITICAL'), findsOneWidget);
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('alert-a-done')),
-          matching: find.text('✓ ACKED'),
-        ),
-        findsOneWidget,
-      );
-
-      // The muted wash: surface2 under ink2 — the SlaPill "chrome" family,
-      // never a status colour (acked is a state, not a verdict).
-      final pill = tester.widget<Container>(
-        find.byKey(const ValueKey('acked-pill')),
-      );
-      expect(
-        (pill.decoration! as BoxDecoration).color,
-        TiqColors.dark.surface2,
-      );
-      final label = tester.widget<Text>(find.text('✓ ACKED'));
-      expect(label.style!.color, TiqColors.dark.ink2);
-    });
-
-    testWidgets('fade back, but the title still clears 4.5:1 on the card', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_app(_FakeAlertsRepository()));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-      await tester.pumpAndSettle();
-
-      // The acked row IS faded (WorklistRow's resolved dim), the open row not.
-      final ackedGate = tester.widget<Opacity>(
-        find
-            .ancestor(
-              of: find.text('Shelf price mismatch'),
-              matching: find.byType(Opacity),
-            )
-            .first,
-      );
-      final openGate = tester.widget<Opacity>(
-        find
-            .ancestor(
-              of: find.text('SKU 42 out of stock'),
-              matching: find.byType(Opacity),
-            )
-            .first,
-      );
-      expect(ackedGate.opacity, lessThan(1));
-      expect(openGate.opacity, 1);
-
-      // Honesty maths, both palettes: the Opacity wraps the WHOLE card, and
-      // the card (surface1) sits on a PanelCard that is also surface1 — so
-      // the composited ground stays surface1 and the composited title is
-      // ink1 blended toward surface1 by the fade. That blend must still
-      // read: ≥4.5:1. (At the shipped 0.6 this is ~6.2:1 dark, ~4.7:1
-      // light — which is why 0.6 was kept rather than raised.)
-      for (final t in [TiqColors.dark, TiqColors.light]) {
-        // Each palette at its OWN resolved fade: glass fades less (0.7) than
-        // the flat theme (0.6) precisely so this blend still reads.
-        final compositedTitle = Color.lerp(
-          t.surface1,
-          t.ink1,
-          WorklistRow.resolvedOpacityOf(t),
-        )!;
-        expect(
-          contrastRatio(compositedTitle, t.surface1),
-          greaterThanOrEqualTo(4.5),
-          reason:
-              'faded acked title must stay readable on ${t == TiqColors.dark ? 'dark' : 'light'}',
-        );
-      }
-    });
-
-    testWidgets('offer no actions; open rows offer only Acknowledge', (
-      tester,
-    ) async {
-      await tester.pumpWidget(_app(_FakeAlertsRepository()));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey<String>('ack-a-open')), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('ack-a-done')), findsNothing);
-
-      // Neither row carries a visitId, so neither offers "View visit" (#208):
-      // the action exists only where there is a visit to open.
-      expect(find.text('View visit'), findsNothing);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('alert-a-open')),
-          matching: find.byType(RowAction),
+          of: find.byType(StatTile),
+          matching: find.text('0'),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('alert-a-done')),
-          matching: find.byType(RowAction),
+          of: find.byType(StatTile),
+          matching: find.text(emDash),
         ),
         findsNothing,
       );
     });
   });
 
-  group('ack-collapse', () {
-    testWidgets('acknowledging calls acknowledge with the row id', (
+  group('the filter rail', () {
+    testWidgets('is never amber and carries the selection in three channels', (
       tester,
     ) async {
-      final repo = _FakeAlertsRepository();
-      await tester.pumpWidget(_app(repo));
-      await tester.pumpAndSettle();
+      await _pump(tester, outlets: _outlets, alerts: <AlertItem>[_alert()]);
 
-      await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
-      await tester.pumpAndSettle();
-
-      expect(repo.acknowledgedId, 'a-open');
+      final chips = tester
+          .widgetList<TorchFilterChip>(find.byType(TorchFilterChip))
+          .toList();
+      final open = chips.firstWhere((c) => c.label == 'Open');
+      expect(open.selected, isTrue);
+      expect(open.count, 1);
     });
 
-    testWidgets('the row animates closed BEFORE the ack lands, then the '
-        'refresh omits it', (tester) async {
-      // The acknowledge round trip takes 400ms; the collapse runs on
-      // Motion.base (260ms — "a row settling"). The row must be visually
-      // gone while the request is still in flight — the animation is the
-      // receipt, not the refresh.
-      final repo = _FakeAlertsRepository(
-        ackDelay: const Duration(milliseconds: 400),
+    testWidgets('Acknowledged reveals the rows Open hides', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[
+          _alert(id: 'ack', acknowledged: true, message: 'Already seen'),
+        ],
       );
-      await tester.pumpWidget(_app(repo));
+
+      expect(find.byType(SoftRow), findsNothing);
+      await tester.tap(find.byKey(const ValueKey<String>('tab-acknowledged')));
       await tester.pumpAndSettle();
 
-      final collapse = find.byKey(const ValueKey('collapse-a-open'));
-      final full = tester.getSize(collapse).height;
-      expect(full, greaterThan(0));
-
-      await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      // Mid-flight: genuinely animating, not snapping.
-      final mid = tester.getSize(collapse).height;
-      expect(mid, greaterThan(0));
-      expect(mid, lessThan(full));
-
-      await tester.pump(const Duration(milliseconds: 130));
-      // t≈230ms: still settling — this discriminates Motion.base (260ms)
-      // from the faster tokens; a 200ms-or-less collapse would already be
-      // flat here.
-      expect(tester.getSize(collapse).height, greaterThan(0));
-
-      await tester.pump(const Duration(milliseconds: 50));
-      // t≈280ms: collapsed to nothing while acknowledge is still pending.
-      expect(tester.getSize(collapse).height, 0);
-      expect(repo.acknowledgedId, isNull);
-
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pumpAndSettle();
-      expect(repo.acknowledgedId, 'a-open');
-      // The refreshed Open list omits the row for real.
-      expect(find.text('SKU 42 out of stock'), findsNothing);
+      await scrollWorklistTo(tester, find.text('Already seen'));
+      expect(find.text('Already seen'), findsOneWidget);
+      // Still listed, and it says so in words rather than vanishing.
+      expect(find.textContaining('acknowledged'), findsWidgets);
     });
 
-    testWidgets('a second tap during the collapse fires no duplicate PATCH', (
+    testWidgets('a severity chip narrows the list without refetching', (
       tester,
     ) async {
-      // The server's ack is idempotent, so a double PATCH is benign there —
-      // but a double failure would stack SnackBars, and a receipt should
-      // only be issued once. Both taps land in the same frame, before the
-      // collapse has painted, so the second is a genuine mid-flight repeat.
-      final repo = _FakeAlertsRepository(
-        ackDelay: const Duration(milliseconds: 400),
+      final repository = await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[
+          _alert(id: 'c'),
+          _alert(id: 'w', severity: 'warning', message: 'Price drift'),
+        ],
       );
-      await tester.pumpWidget(_app(repo));
+
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-warning')),
+      );
+      await tester.tap(find.byKey(const ValueKey<String>('filter-warning')));
       await tester.pumpAndSettle();
 
-      final ack = find.byKey(const ValueKey<String>('ack-a-open'));
-      await tester.tap(ack);
-      await tester.tap(ack);
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pumpAndSettle();
-
-      expect(repo.ackCalls, 1);
-      expect(find.text('SKU 42 out of stock'), findsNothing);
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byType(SoftRow), findsOneWidget);
+      expect(find.text('Price drift'), findsOneWidget);
+      // Filtering is client-side over the loaded page, so the list does not
+      // flash and the server is not asked again.
+      expect(repository.acknowledged, isEmpty);
     });
 
-    testWidgets('reduced motion: the row is removed instantly, no animation '
-        'frames', (tester) async {
-      tester.platformDispatcher.accessibilityFeaturesTestValue =
-          const FakeAccessibilityFeatures(disableAnimations: true);
-      addTearDown(
-        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
-      );
-
-      final repo = _FakeAlertsRepository(
-        ackDelay: const Duration(milliseconds: 300),
-      );
-      await tester.pumpWidget(_app(repo));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
-      await tester.pump();
-
-      // Gone on the very next frame: a Motion.base tween would still be at
-      // ~full height here, so instant zero IS the proof of no animation
-      // frames.
-      // (No global hasRunningAnimations check — the tapped button's own ink
-      // ripple is a Material animation outside this widget's control.)
-      expect(
-        tester.getSize(find.byKey(const ValueKey('collapse-a-open'))).height,
-        0,
-      );
-      await tester.pump(const Duration(milliseconds: 50));
-      expect(
-        tester.getSize(find.byKey(const ValueKey('collapse-a-open'))).height,
-        0,
-      );
-
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
-      expect(find.text('SKU 42 out of stock'), findsNothing);
-    });
-
-    testWidgets(
-      'on the All tab an acked row stands back up — never an invisible '
-      'zero-height card',
-      (tester) async {
-        // The Open tab hides the collapse's other half: there the refresh
-        // REMOVES the acked row, so a row wrongly stuck at zero height would
-        // never be caught. On the All tab the refresh re-delivers the SAME
-        // row as acknowledged — the collapse was the transition's receipt,
-        // not the state's, so the row must stand back up (faded + pilled),
-        // not persist as an invisible card the triage strip still counts.
-        //
-        // (No reduced-motion twin: the re-expand is an unconditional instant
-        // value jump — there is no motion branch in it to exercise, since
-        // animating a data-refresh re-appearance would be decoration.)
-        final repo = _FakeAlertsRepository(alerts: const [_unacknowledged]);
-        await tester.pumpWidget(_app(repo));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-        await tester.pumpAndSettle();
-
-        final collapse = find.byKey(const ValueKey('collapse-a-open'));
-        expect(tester.getSize(collapse).height, greaterThan(0));
-
-        await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
-        await tester.pumpAndSettle();
-
-        expect(repo.acknowledgedId, 'a-open');
-        // Height is the discriminating assert: at zero the texts below would
-        // still be found in the (clipped) tree.
-        expect(tester.getSize(collapse).height, greaterThan(0));
-        expect(find.text('SKU 42 out of stock'), findsOneWidget);
-        expect(find.text('✓ ACKED'), findsOneWidget);
-        expect(find.byKey(const ValueKey<String>('ack-a-open')), findsNothing);
-      },
-    );
-
-    testWidgets('a failed acknowledge brings the row back and says so', (
+    testWidgets('a filter that hides everything names the way back', (
       tester,
     ) async {
-      // Honesty rule: an alert that is still unacknowledged server-side must
-      // never silently vanish from the worklist.
-      await tester.pumpWidget(_app(_AckFailsRepository()));
-      await tester.pumpAndSettle();
-
-      final collapse = find.byKey(const ValueKey('collapse-a-open'));
-      final full = tester.getSize(collapse).height;
-
-      await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
-      await tester.pumpAndSettle();
-
-      // The row is back at full height, still actionable — and the failure
-      // has a face.
-      expect(find.text('SKU 42 out of stock'), findsOneWidget);
-      expect(tester.getSize(collapse).height, full);
-      expect(find.byKey(const ValueKey<String>('ack-a-open')), findsOneWidget);
-      expect(find.byType(SnackBar), findsOneWidget);
-      expect(find.textContaining('Failed to acknowledge'), findsOneWidget);
-
-      // Let the SnackBar's dismiss timer run out so the test ends clean.
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('a row disposed mid-flight lands its ack without crashing', (
-      tester,
-    ) async {
-      // The manager taps Acknowledge, then switches tab while the PATCH is
-      // in flight. The Acknowledged tab filters the still-unacked row out of
-      // the list, disposing its State under the pending future — the success
-      // continuation must notice (mounted guard) rather than invalidate
-      // through a dead ref.
-      final repo = _FakeAlertsRepository(
-        ackDelay: const Duration(milliseconds: 300),
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'c')],
       );
-      await tester.pumpWidget(_app(repo));
-      await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.acknowledged')));
-      await tester.pump();
-      // The row is gone from the tree; the ack timer has not fired yet.
-      expect(find.byKey(const ValueKey('collapse-a-open')), findsNothing);
-      expect(repo.acknowledgedId, isNull);
-
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pumpAndSettle();
-
-      // The PATCH still landed server-side; the dead row just stayed quiet.
-      expect(repo.acknowledgedId, 'a-open');
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('a row disposed mid-flight swallows its ack FAILURE without '
-        'crashing', (tester) async {
-      // Same dispose-under-a-pending-future shape, failure arm: the catch
-      // must notice the row is gone rather than un-collapse a disposed
-      // controller or raise a SnackBar through a defunct element. No error
-      // surface is owed here — the row it concerns no longer exists.
-      await tester.pumpWidget(
-        _app(_AckFailsRepository(ackDelay: const Duration(milliseconds: 300))),
+      await scrollRailTo(
+        tester,
+        find.byKey(const ValueKey<String>('filter-warning')),
       );
+      await tester.tap(find.byKey(const ValueKey<String>('filter-warning')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey<String>('ack-a-open')));
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.acknowledged')));
-      await tester.pump();
-      expect(find.byKey(const ValueKey('collapse-a-open')), findsNothing);
+      await scrollWorklistTo(tester, find.byType(EmptyState));
+      expect(find.byType(EmptyState), findsOneWidget);
+      expect(find.text('Clear the filter to see the rest.'), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.byKey(const ValueKey<String>('clear-filters')));
       await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull);
-      expect(find.byType(SnackBar), findsNothing);
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byType(SoftRow), findsOneWidget);
     });
   });
 
-  group('evidence thumbnails', () {
-    testWidgets('an alert with evidence shows the thumb in the worklist slot', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _app(_FakeAlertsRepository(alerts: const [_evidenced, _acknowledged])),
+  group('acknowledging', () {
+    testWidgets('patches the alert by id', (tester) async {
+      final repository = await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a7')],
       );
+
+      await scrollWorklistTo(tester, find.byKey(const ValueKey('ack-a7')));
+      await tester.tap(find.byKey(const ValueKey('ack-a7')));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('evidence-thumb-p1')), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('worklist-thumb')),
-          matching: find.byType(EvidenceThumb),
-        ),
-        findsOneWidget,
-      );
+      expect(repository.acknowledged, <String>['a7']);
     });
 
-    testWidgets('no evidencePhotoId → no thumb, nothing reserved', (
+    testWidgets('a second tap mid-collapse fires no duplicate PATCH', (
       tester,
     ) async {
-      await tester.pumpWidget(_app(_FakeAlertsRepository()));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-      await tester.pumpAndSettle();
-
-      // Both rows on screen, zero thumb slots: absence, not placeholder.
-      expect(find.text('SKU 42 out of stock'), findsOneWidget);
-      expect(find.text('Shelf price mismatch'), findsOneWidget);
-      expect(find.byKey(const ValueKey('worklist-thumb')), findsNothing);
-      expect(find.byType(EvidenceThumb), findsNothing);
-    });
-  });
-
-  group('view visit (#208)', () {
-    /// The alerts screen under a router that also knows the visit route, so a
-    /// tap can be followed to where it lands.
-    Widget navApp(AlertsRepository repo) => ProviderScope(
-      overrides: [
-        alertsRepositoryProvider.overrideWithValue(repo),
-        photosRepositoryProvider.overrideWithValue(_FakePhotosRepository()),
-      ],
-      child: MaterialApp.router(
-        routerConfig: GoRouter(
-          initialLocation: '/alerts',
-          routes: [
-            GoRoute(
-              path: '/alerts',
-              builder: (context, state) => const AlertsScreen(),
-            ),
-            GoRoute(
-              path: '/visits/:id',
-              builder: (context, state) =>
-                  Text('visit detail ${state.pathParameters['id']}'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    testWidgets('a row with a visit offers View visit beside Acknowledge', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _app(
-          _FakeAlertsRepository(alerts: const [_evidenced, _unacknowledged]),
-        ),
+      final repository = await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a7')],
       );
-      await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey<String>('view-visit-a-photo')),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey<String>('ack-a-photo')), findsOneWidget);
-      // The visitless row gets no link.
-      expect(
-        find.byKey(const ValueKey<String>('view-visit-a-open')),
-        findsNothing,
-      );
-      expect(find.text('View visit'), findsOneWidget);
-    });
-
-    testWidgets('an acknowledged row keeps View visit, loses Acknowledge', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _app(_FakeAlertsRepository(alerts: [_acked(_evidenced)])),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const ValueKey<String>('view-visit-a-photo')),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey<String>('ack-a-photo')), findsNothing);
-    });
-
-    testWidgets('tapping it opens that visit, and back returns to alerts', (
-      tester,
-    ) async {
-      final repo = _FakeAlertsRepository(alerts: const [_evidenced]);
-      await tester.pumpWidget(navApp(repo));
-      await tester.pumpAndSettle();
-
+      await scrollWorklistTo(tester, find.byKey(const ValueKey('ack-a7')));
+      await tester.tap(find.byKey(const ValueKey('ack-a7')));
+      await tester.pump(const Duration(milliseconds: 20));
       await tester.tap(
-        find.byKey(const ValueKey<String>('view-visit-a-photo')),
+        find.byKey(const ValueKey('ack-a7')),
+        warnIfMissed: false,
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('visit detail v1'), findsOneWidget);
-      // Opening a visit is not acknowledging its alert.
-      expect(repo.ackCalls, 0);
+      expect(repository.acknowledged, <String>['a7']);
+    });
 
-      // Pushed, not replaced: popping lands back on the worklist.
-      final router = GoRouter.of(tester.element(find.text('visit detail v1')));
-      expect(router.canPop(), isTrue);
-      router.pop();
+    testWidgets('a failure brings the row back and says so', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a7')],
+        ackFailure: StateError('no'),
+      );
+
+      await scrollWorklistTo(tester, find.byKey(const ValueKey('ack-a7')));
+      await tester.tap(find.byKey(const ValueKey('ack-a7')));
       await tester.pumpAndSettle();
-      expect(find.text('Shelf gap on aisle 3'), findsOneWidget);
+
+      // An unacknowledged alert never silently vanishes.
+      expect(find.byType(SoftRow), findsOneWidget);
+      expect(
+        find.text('That alert was not acknowledged. It is still open.'),
+        findsOneWidget,
+      );
+      await settleToasts(tester);
     });
   });
 
-  testWidgets('rows enter through the worklist cascade', (tester) async {
-    await tester.pumpWidget(_app(_FakeAlertsRepository()));
-    await tester.pumpAndSettle();
+  group('evidence and the visit link', () {
+    testWidgets('a photo on a visit shows the thumbnail', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(photoId: 'p1', visitId: 'v1')],
+      );
 
-    await tester.tap(find.byKey(const ValueKey('tab-_Tab.all')));
-    await tester.pumpAndSettle();
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byType(Image), findsWidgets);
+    });
 
-    expect(find.byType(WorklistCascade), findsNWidgets(2));
-  });
+    testWidgets('no photo means no thumbnail and nothing reserved', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(visitId: 'v1')],
+      );
 
-  testWidgets(
-    'an empty triage list says so in words, wired to the noAlerts slot — '
-    'and stays imageless while that slot is null',
-    (tester) async {
-      await tester.pumpWidget(_app(_FakeAlertsRepository(alerts: const [])));
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      final row = tester.widget<SoftRow>(find.byType(SoftRow).first);
+      expect(row.trailing, isNull);
+    });
+
+    testWidgets('an alert with no visit offers no View visit at all', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a7')],
+      );
+
+      await scrollWorklistTo(tester, find.byKey(const ValueKey('ack-a7')));
+      expect(find.byKey(const ValueKey('view-visit-a7')), findsNothing);
+    });
+
+    testWidgets('a row with a visit opens it', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a7', visitId: 'v9')],
+      );
+
+      await scrollWorklistTo(
+        tester,
+        find.byKey(const ValueKey('view-visit-a7')),
+      );
+      await tester.tap(find.byKey(const ValueKey('view-visit-a7')));
       await tester.pumpAndSettle();
 
-      final empty = find.byType(EmptyState);
-      expect(empty, findsOneWidget);
-      expect(find.text('Nothing to triage'), findsOneWidget);
-      // The screen passes ITS BrandMedia slot — today null, so no image
-      // renders and the state is exactly the pre-illustration layout.
+      expect(find.text('stub:/visits/v9'), findsOneWidget);
+    });
+  });
+
+  group('the detail sheet', () {
+    testWidgets('the row opens it, and it leads with the severity', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a7', metric: 'OSA_BELOW_50')],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      await tester.tap(find.byType(SoftRow).first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TorchSheet), findsOneWidget);
       expect(
-        tester.widget<EmptyState>(empty).illustration,
-        BrandMedia.noAlerts,
+        find.descendant(
+          of: find.byType(TorchSheet),
+          matching: find.text('Critical'),
+        ),
+        findsOneWidget,
       );
       expect(
-        find.descendant(of: empty, matching: find.byType(Image)),
+        find.text('OSA_BELOW_50 · Kasi Corner Spaza'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a sheet with no visit offers no Open the visit', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a7')],
+      );
+
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      await tester.tap(find.byType(SoftRow).first);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('sheet-open-visit')),
         findsNothing,
       );
-    },
-  );
+      expect(
+        find.byKey(const ValueKey<String>('sheet-acknowledge')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('the settled states', () {
+    testWidgets('empty is a designed state, not a centred "No data"', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets);
+
+      expect(find.text('Nothing to triage.'), findsOneWidget);
+      expect(
+        find.text('Alerts appear here when a rule fires on a submitted visit.'),
+        findsOneWidget,
+      );
+      // The section still renders: a section that vanishes when empty makes a
+      // manager think the feature is gone.
+      expect(find.byType(SectionRule), findsOneWidget);
+    });
+
+    testWidgets('a failure is sanitised and offers one retry', (tester) async {
+      await _pump(
+        tester,
+        listFailure: StateError(
+          'SocketException: Failed host lookup: api.tradeiq.co.za',
+        ),
+      );
+
+      expect(find.byType(ErrorState), findsOneWidget);
+      expect(find.textContaining('api.tradeiq.co.za'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('alerts-retry')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a cut list says so, and never invents a total', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a1'), _alert(id: 'a2')],
+        nextCursor: 'cursor-2',
+      );
+
+      await scrollWorklistTo(tester, find.byType(PaginationFooter));
+      expect(
+        find.text('Showing the first 2. There are more.'),
+        findsOneWidget,
+      );
+      // Never a fabricated total: the API has never said how many rows exist.
+      expect(
+        find.descendant(
+          of: find.byType(PaginationFooter),
+          matching: find.textContaining(' of '),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('one page renders no footer at all', (tester) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a1')],
+      );
+
+      expect(find.byType(PaginationFooter), findsNothing);
+    });
+  });
+
+  group('the amber census', () {
+    testWidgets('Night paints exactly one lit object: the nav tab', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        outlets: _outlets,
+        alerts: <AlertItem>[_alert(id: 'a1'), _alert(id: 'a2', outletId: 'o2')],
+      );
+
+      final census = await amberCensus(tester);
+      expectWithinAmberBudget(
+        census,
+        TiqSkin.night(),
+        route: 'alerts',
+        phase: 'loaded',
+      );
+      expect(
+        census.objectCount,
+        1,
+        reason:
+            'Alerts nominates no content amber: the lead figure is crimson, '
+            'the filter chip is lifted, the section rule has no colour, and '
+            'the severity bars are severity.\n${census.describe()}',
+      );
+    });
+
+    testWidgets('Night, empty, still paints exactly the nav tab', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets);
+
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    testWidgets('Night, loading, still paints exactly the nav tab', (
+      tester,
+    ) async {
+      await _pump(tester, outlets: _outlets, listPending: true);
+      // Past the 600ms threshold, so the skeleton and its travelling rule are
+      // both on screen. The rule is Oatmeal: a skeleton is loading, not live,
+      // and an amber pulse on a placeholder tells a manager that a blank is
+      // real-time data.
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(find.byType(Skeleton), findsOneWidget);
+
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 1, reason: census.describe());
+    });
+
+    for (final skin in <TiqSkin>[TiqSkin.day(), TiqSkin.veld()]) {
+      testWidgets('${skin.mode.name} paints no amber at all', (tester) async {
+        await _pump(
+          tester,
+          skin: skin,
+          outlets: _outlets,
+          alerts: <AlertItem>[_alert()],
+        );
+
+        final census = await amberCensus(tester);
+        expectWithinAmberBudget(
+          census,
+          skin,
+          route: 'alerts',
+          phase: 'loaded',
+        );
+        expect(
+          census.objectCount,
+          0,
+          reason:
+              'On a light ground the ladder has one rung — the primary commit '
+              'block — and a worklist has no primary. The nav tab is an '
+              'Abyssal block.\n${census.describe()}',
+        );
+      });
+    }
+
+    testWidgets('Day, empty, paints no amber', (tester) async {
+      await _pump(tester, skin: TiqSkin.day(), outlets: _outlets);
+      final census = await amberCensus(tester);
+      expect(census.objectCount, 0, reason: census.describe());
+    });
+  });
+
+  group('2.0x text', () {
+    testWidgets('the structure survives and nothing overflows', (tester) async {
+      await _pump(
+        tester,
+        textScale: 2.0,
+        outlets: _outlets,
+        alerts: <AlertItem>[
+          _alert(id: 'a1'),
+          _alert(id: 'a2', severity: 'warning', outletId: 'o2'),
+        ],
+      );
+
+      expect(tester.takeException(), isNull);
+      await scrollWorklistTo(tester, find.byType(SectionRule));
+      await scrollWorklistTo(tester, find.byType(SoftRow).first);
+      expect(find.byType(SoftRow), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }
