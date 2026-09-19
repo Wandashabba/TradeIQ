@@ -69,7 +69,12 @@ class PointsEntry {
   /// Where it happened, when the source can still be resolved.
   final String? outletName;
 
-  /// The reason in words.
+  /// The reason in words, **in English**.
+  ///
+  /// The manager console is English-only, so this is the right thing there.
+  /// It is not the right thing on a translated screen: use `meReasonLabel` in
+  /// `my_record_screen.dart`, which maps the same three wire values through
+  /// the ARB and falls back to this for a reason it does not know.
   String get reasonLabel => switch (reason) {
         'visit_submitted' => 'Visit submitted',
         'task_closed' => 'Task closed',

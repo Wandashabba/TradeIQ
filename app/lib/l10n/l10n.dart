@@ -91,11 +91,3 @@ String formatDayShort(BuildContext context, DateTime date) {
   }
 }
 
-/// "September" — the window a points ledger and an incentive scheme run over.
-String formatMonthHeading(BuildContext context, DateTime date) {
-  try {
-    return DateFormat('MMMM', context.l10n.localeName).format(date);
-  } on Exception {
-    return DateFormat('MMMM', 'en_US').format(date);
-  }
-}
