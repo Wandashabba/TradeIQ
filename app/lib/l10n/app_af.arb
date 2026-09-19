@@ -623,5 +623,10 @@
   "updateNothingLost": "Niks wat op hierdie foon gestoor is, word hierdeur uitgevee nie.",
   "updateTryAgain": "Probeer weer",
   "updateVersions": "Hierdie foon het weergawe {current}. Weergawe {minimum} of nuwer is nodig.",
-  "updateVersionNoMinimum": "Hierdie foon het weergawe {current}. ’n Nuwer weergawe is nodig."
+  "updateVersionNoMinimum": "Hierdie foon het weergawe {current}. ’n Nuwer weergawe is nodig.",
+  "submitSectionsUnread": "Kon nie lees watter afdelings klaar is nie",
+  "submitSectionsUnreadTask": "Jou afdelings kon nie gelees word nie",
+  "submitSectionsUnreadRowLine": "Iets ontbreek dalk op hierdie lys",
+  "submitSectionsUnreadNote": "’n Afdeling wat nie bevestig kon word nie, ontbreek dalk op hierdie lys. Gaan terug en maak jou afdelings oop om seker te maak voordat jy indien.",
+  "submitCapturedUnreadSemantics": "Kon nie lees watter afdelings klaar is nie. {line}"
 }

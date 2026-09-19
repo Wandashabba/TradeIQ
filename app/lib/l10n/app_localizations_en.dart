@@ -2425,4 +2425,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String updateVersionNoMinimum(String current) {
     return 'This phone has version $current. A newer version is needed.';
   }
+
+  @override
+  String get submitSectionsUnread => 'Could not read which sections are done';
+
+  @override
+  String get submitSectionsUnreadTask => 'Your sections could not be read';
+
+  @override
+  String get submitSectionsUnreadRowLine =>
+      'Something may be missing from this list';
+
+  @override
+  String get submitSectionsUnreadNote =>
+      'A section that could not be confirmed may be missing from this list. Go back and open your sections to check before you submit.';
+
+  @override
+  String submitCapturedUnreadSemantics(String line) {
+    return 'Could not read which sections are done. $line';
+  }
 }

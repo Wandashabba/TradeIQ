@@ -2451,4 +2451,24 @@ class AppLocalizationsAf extends AppLocalizations {
   String updateVersionNoMinimum(String current) {
     return 'Hierdie foon het weergawe $current. ’n Nuwer weergawe is nodig.';
   }
+
+  @override
+  String get submitSectionsUnread =>
+      'Kon nie lees watter afdelings klaar is nie';
+
+  @override
+  String get submitSectionsUnreadTask =>
+      'Jou afdelings kon nie gelees word nie';
+
+  @override
+  String get submitSectionsUnreadRowLine => 'Iets ontbreek dalk op hierdie lys';
+
+  @override
+  String get submitSectionsUnreadNote =>
+      '’n Afdeling wat nie bevestig kon word nie, ontbreek dalk op hierdie lys. Gaan terug en maak jou afdelings oop om seker te maak voordat jy indien.';
+
+  @override
+  String submitCapturedUnreadSemantics(String line) {
+    return 'Kon nie lees watter afdelings klaar is nie. $line';
+  }
 }
