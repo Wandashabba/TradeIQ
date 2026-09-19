@@ -33,18 +33,7 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'assistant/view_specs/ranked_bars_card.dart': 2,
   'assistant/view_specs/stat_tiles_card.dart': 1,
   'assistant/view_specs/view_spec_registry.dart': 2,
-  'audit/presentation/audit_shell_screen.dart': 26,
   'audit/presentation/my_work_screen.dart': 6,
-  'audit/presentation/sections/client_questions_screen.dart': 3,
-  'audit/presentation/sections/s10_scorecard_screen.dart': 8,
-  'audit/presentation/sections/s1_outlet_info_screen.dart': 5,
-  'audit/presentation/sections/s2_stock_screen.dart': 10,
-  'audit/presentation/sections/s3_4_visibility_display_screen.dart': 1,
-  'audit/presentation/sections/s5_pricing_promotions_screen.dart': 2,
-  'audit/presentation/sections/s6_competitive_screen.dart': 2,
-  'audit/presentation/sections/s7_capability_screen.dart': 2,
-  'audit/presentation/sections/s8_risks_screen.dart': 4,
-  'audit/presentation/sections/s9_action_plan_screen.dart': 3,
   'audit/presentation/submit_gate_screen.dart': 13,
   'audit/presentation/visit_outcome_screen.dart': 24,
   'audit/presentation/visit_outlet_picker_screen.dart': 3,
@@ -52,7 +41,6 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'auth/presentation/login_screen.dart': 13,
   'beatplans/presentation/beat_plan_form_screen.dart': 5,
   'beatplans/presentation/beatplans_screen.dart': 2,
-  'beatplans/presentation/today_screen.dart': 30,
   'campaigns/presentation/campaign_form_screen.dart': 4,
   'campaigns/presentation/campaign_return_view.dart': 3,
   'campaigns/presentation/campaigns_screen.dart': 1,
@@ -81,7 +69,7 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
   'sales_targets/presentation/sales_attainment_panel.dart': 3,
   'sales_targets/presentation/sales_targets_screen.dart': 11,
   'tasks/presentation/tasks_screen.dart': 5,
-  'templates/presentation/dynamic_template_form.dart': 4,
+  'templates/presentation/dynamic_template_form.dart': 1,
   'templates/presentation/templates_screen.dart': 3,
   'territories/presentation/territories_screen.dart': 2,
   'territories/presentation/territory_form_screen.dart': 1,
@@ -94,4 +82,4 @@ const Map<String, int> torchlightStyleDebt = <String, int>{
 
 /// The totals the ledger above adds up to, asserted separately so a
 /// find-and-replace that quietly rewrites the whole map still trips.
-const int torchlightStyleDebtTotal = 477;
+const int torchlightStyleDebtTotal = 378;
