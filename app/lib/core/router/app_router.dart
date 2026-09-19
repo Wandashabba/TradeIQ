@@ -10,7 +10,10 @@ import '../../features/audit/presentation/visit_outcome_screen.dart';
 import '../../features/audit/presentation/visit_outlet_picker_screen.dart';
 import '../../features/beatplans/presentation/today_screen.dart';
 import '../../features/auth/presentation/landing_screen.dart';
+import '../../features/auth/presentation/change_password_screen.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/update_required_screen.dart';
 import '../../features/dashboard/presentation/dashboard_shell_screen.dart';
 import '../../features/dashboard/presentation/the_floor_screen.dart';
 import '../../features/outlets/presentation/create_outlet_screen.dart';
@@ -32,6 +35,8 @@ import '../../features/fraud/presentation/fraud_screen.dart';
 import '../../features/reports/presentation/report_schedules_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/collaboration/presentation/messages_screen.dart';
+import '../../features/users/data/users_repository.dart';
+import '../../features/users/presentation/user_password_screen.dart';
 import '../../features/users/presentation/users_screen.dart';
 import '../../features/incentives/presentation/incentives_screen.dart';
 import '../../features/webhooks/presentation/webhooks_screen.dart';
@@ -46,6 +51,7 @@ import '../../features/assistant/presentation/artifact_screen.dart';
 import '../../features/assistant/presentation/assistant_gate.dart';
 import '../../features/notifications/presentation/notification_preferences_screen.dart';
 import '../auth/session_controller.dart';
+import '../network/app_version.dart';
 import 'manager_page.dart';
 import 'session_refresh_listenable.dart';
 
@@ -55,6 +61,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: ref.read(sessionRefreshListenableProvider),
     redirect: (context, state) {
       final location = state.matchedLocation;
+      // The server has refused this build (#400). Before everything, the
+      // splash included: nothing else in the app can talk to the server, and a
+      // screen that errors on every request would be the wrong story. Set only
+      // by a 426 carrying `code: app_update_required`; cleared by the screen's
+      // "Try again".
+      if (appUpdateRequired.value != null) {
+        return location == '/update-required' ? null : '/update-required';
+      }
+      if (location == '/update-required') return '/';
+
       // The splash ('/') owns its own navigation: it holds for max(5s,
       // session-restore) as a deliberate brand moment (premium-ui spec) and
       // then routes by role itself. Redirecting here would cut the hold short.
@@ -62,7 +78,12 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final session = ref.read(sessionControllerProvider).value;
       final isLoggedIn = session?.role != null;
-      final isPublicRoute = location == '/' || location == '/login';
+      // /forgot-password is public because the whole point is that its
+      // person cannot sign in (#400).
+      final isPublicRoute =
+          location == '/' ||
+          location == '/login' ||
+          location == '/forgot-password';
 
       if (!isLoggedIn) {
         return isPublicRoute ? null : '/login';
@@ -125,8 +146,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Managing contests and their full standings (/contests/:id) is
       // supervisory: every /contests API but /contests/current is manager-only.
       final isContestsSubroute = loc.startsWith('/contests/');
+      // Resetting someone else's password (/users/:id/password) is staff
+      // work, like /users itself (#400).
+      final isUsersSubroute = loc.startsWith('/users/');
       if (role == 'field_agent' &&
           (managerOnly.contains(loc) ||
+              isUsersSubroute ||
               isTemplatesSubroute ||
               isVisitReview ||
               isAgentPointsHistory ||
@@ -321,6 +346,32 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/users',
         pageBuilder: (context, state) => managerPage(const UsersScreen()),
+      ),
+      // A manager resets someone's password (#400). The user rides along as
+      // `extra` from the list; on a cold start the screen looks them up.
+      GoRoute(
+        path: '/users/:id/password',
+        builder: (context, state) => UserPasswordScreen(
+          userId: state.pathParameters['id']!,
+          user: state.extra is AppUser ? state.extra! as AppUser : null,
+        ),
+      ),
+      // The account screens (#400): redeem a manager's code while signed out,
+      // change your own password while signed in, and the one screen a build
+      // the server has refused can show.
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => ForgotPasswordScreen(
+          initialEmail: state.extra is String ? state.extra! as String : null,
+        ),
+      ),
+      GoRoute(
+        path: '/account/password',
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: '/update-required',
+        builder: (context, state) => const UpdateRequiredScreen(),
       ),
       GoRoute(
         path: '/incentives',

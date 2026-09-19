@@ -155,6 +155,7 @@ class _AgentNotificationPreferences extends ConsumerWidget {
               secondary: true,
               onPressed: () => ref.invalidate(notificationPreferencesProvider),
             ),
+            const _AgentAccountEntry(),
           ],
         ),
         data: (value) => ListView(
@@ -190,6 +191,7 @@ class _AgentNotificationPreferences extends ConsumerWidget {
                     : context.colors.ink3,
               ),
             ),
+            const _AgentAccountEntry(),
           ],
         ),
       ),
@@ -286,6 +288,62 @@ class _ManagerNotificationPreferences extends ConsumerWidget {
                 ),
               ),
             ),
+          ),
+          // Outside the preferences' async section, so a failed load of the
+          // toggles never hides the way to change a password (#400).
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: PanelCard(
+                title: 'Your account',
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('account-change-password'),
+                    icon: const Icon(Icons.password_outlined, size: 18),
+                    label: const Text('Change password'),
+                    onPressed: () => context.push('/account/password'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The way to the change-password screen (#400), on both of the agent's
+/// branches — loaded and failed — so a preferences load that fails never hides
+/// it.
+class _AgentAccountEntry extends StatelessWidget {
+  const _AgentAccountEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              l10n.settingsAccountHeading,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          const SizedBox(height: 8),
+          AgentButton(
+            key: const ValueKey('account-change-password'),
+            label: l10n.changePasswordTitle,
+            icon: Icons.password_outlined,
+            secondary: true,
+            onPressed: () => context.push('/account/password'),
           ),
         ],
       ),

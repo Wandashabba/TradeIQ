@@ -137,6 +137,28 @@ export async function comparePassword(plain: string, hash: string): Promise<bool
 // and preventing email enumeration via timing side-channels.
 const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8gr5J8Xj3GVj0mLKfsYnZ5ZUq0/UZK';
 
+/**
+ * Compares a secret against a hash that may not exist, in constant-ish time.
+ *
+ * The decoy comparison above was written for login and then needed again, twice
+ * over, by password reset (#400): "this email matches nobody" and "this account
+ * has no live reset code" must both cost the same as the cases that do, or the
+ * clock answers the question the response body refuses to.
+ *
+ * Extracted rather than copied, because a second hand-rolled copy is how one of
+ * the three call sites quietly loses the property later.
+ *
+ * Always returns false when `hash` is missing — the bcrypt work is the point,
+ * the result is not.
+ */
+export async function compareAgainstOptionalHash(
+  plain: string,
+  hash: string | null | undefined,
+): Promise<boolean> {
+  const matched = await comparePassword(plain, hash ?? DUMMY_HASH);
+  return hash ? matched : false;
+}
+
 export async function authenticateUser(email: string, password: string) {
   // Normalised BEFORE the lookup (#351), so that a phone keyboard's
   // auto-capitalised "Agent@…" — or a paste that carried whitespace — finds
@@ -148,7 +170,7 @@ export async function authenticateUser(email: string, password: string) {
     where: { email: normalizeEmail(email) },
     omit: { passwordHash: false },
   });
-  const passwordValid = await comparePassword(password, user?.passwordHash ?? DUMMY_HASH);
+  const passwordValid = await compareAgainstOptionalHash(password, user?.passwordHash);
   // Deactivated accounts are rejected as if the credentials were bad — the
   // bcrypt comparison above has already run, so timing stays indistinguishable
   // and we never reveal that the account exists but is disabled.

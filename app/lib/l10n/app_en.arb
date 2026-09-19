@@ -221,10 +221,6 @@
   "@loginForgotPassword": {
     "description": "Sign-in forgot-password link."
   },
-  "loginPasswordResetUnavailable": "Password reset is not available yet.",
-  "@loginPasswordResetUnavailable": {
-    "description": "Snackbar after tapping 'Forgot password?'."
-  },
   "todayTitle": "Today",
   "@todayTitle": {
     "description": "Title of the agent’s day screen."
@@ -2942,6 +2938,195 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "errorTooManyAttempts": "Too many attempts. Wait a few minutes, then try again.",
+  "@errorTooManyAttempts": {
+    "description": "Shared error copy for a 429: the server's rate limit. Retrying at once only spends another attempt."
+  },
+  "errorUpdateRequired": "This version of the app is too old. Update TradeIQ to carry on.",
+  "@errorUpdateRequired": {
+    "description": "Shared error copy for a 426 from the server's minimum-version gate."
+  },
+  "passwordRuleHelp": "At least 12 characters. Three ordinary words are easy to type and hard to guess.",
+  "@passwordRuleHelp": {
+    "description": "Help under every new-password field. Mirrors backend/src/lib/passwordPolicy.ts."
+  },
+  "passwordTooShort": "Too short: use at least 12 characters.",
+  "@passwordTooShort": {
+    "description": "Field error: the new password is under 12 characters (spaces at either end do not count)."
+  },
+  "passwordTooLong": "Too long for a password here. Use fewer characters.",
+  "@passwordTooLong": {
+    "description": "Field error: over 72 bytes, bcrypt's ceiling."
+  },
+  "passwordIsEmail": "Your password cannot be your email address.",
+  "@passwordIsEmail": {
+    "description": "Field error."
+  },
+  "passwordMismatch": "The two new passwords do not match.",
+  "@passwordMismatch": {
+    "description": "Field error on the confirm field."
+  },
+  "passwordRejected": "That password was not accepted. Use at least 12 characters, not your email address and not an obvious phrase.",
+  "@passwordRejected": {
+    "description": "Field error when the server refuses the new password (e.g. a common one)."
+  },
+  "passwordShow": "Show passwords",
+  "@passwordShow": {
+    "description": "Checkbox that reveals every password field on the screen."
+  },
+  "passwordNeedsNew": "Choose a new password",
+  "@passwordNeedsNew": {
+    "description": "Why the primary is disabled: no new password yet."
+  },
+  "passwordNeedsConfirm": "Type the new password again",
+  "@passwordNeedsConfirm": {
+    "description": "Why the primary is disabled: the confirm field is empty."
+  },
+  "passwordFailedTitle": "Your password was not changed",
+  "@passwordFailedTitle": {
+    "description": "Headline of an inline failure on the password screens."
+  },
+  "passwordOtherSessions": "Other phones signed in to your account stay signed in until their session ends, up to 12 hours. If a phone is lost, ask your manager to switch the account off.",
+  "@passwordOtherSessions": {
+    "description": "Said after every password change: the server cannot end other sessions."
+  },
+  "forgotTitle": "Reset your password",
+  "@forgotTitle": {
+    "description": "Title of the forgot-password screen."
+  },
+  "forgotBack": "Back to sign in",
+  "@forgotBack": {
+    "description": "Semantic label of the back button on the forgot-password screen."
+  },
+  "forgotIntro": "Ask your manager for a reset code. They make it in TradeIQ and read it out to you. It works once, for 15 minutes.",
+  "@forgotIntro": {
+    "description": "How the field reset works. There is no email reset."
+  },
+  "forgotEmailLabel": "Email",
+  "@forgotEmailLabel": {
+    "description": "Field label."
+  },
+  "forgotCodeLabel": "Reset code",
+  "@forgotCodeLabel": {
+    "description": "Field label."
+  },
+  "forgotCodeHint": "8 digits",
+  "@forgotCodeHint": {
+    "description": "Hint in the reset-code field: its format."
+  },
+  "forgotNewPasswordLabel": "New password",
+  "@forgotNewPasswordLabel": {
+    "description": "Field label."
+  },
+  "forgotConfirmLabel": "New password again",
+  "@forgotConfirmLabel": {
+    "description": "Field label."
+  },
+  "forgotSubmit": "Set new password",
+  "@forgotSubmit": {
+    "description": "Primary on the forgot-password screen."
+  },
+  "forgotNeedsEmail": "Enter your email first",
+  "@forgotNeedsEmail": {
+    "description": "Why the primary is disabled."
+  },
+  "forgotNeedsCode": "Enter the 8-digit code from your manager",
+  "@forgotNeedsCode": {
+    "description": "Why the primary is disabled."
+  },
+  "forgotCodeRejectedTitle": "That code did not work",
+  "@forgotCodeRejectedTitle": {
+    "description": "Headline when the server refuses the code. Deliberately says nothing about whether the account exists."
+  },
+  "forgotCodeRejectedBody": "It may be mistyped, used already or older than 15 minutes. Check the email too. Your manager can make a new code.",
+  "@forgotCodeRejectedBody": {
+    "description": "Body when the server refuses the code."
+  },
+  "forgotDoneTitle": "Your password is changed",
+  "@forgotDoneTitle": {
+    "description": "Headline after a successful reset."
+  },
+  "forgotDoneBody": "Sign in with your new password.",
+  "@forgotDoneBody": {
+    "description": "Body after a successful reset."
+  },
+  "forgotGoToSignIn": "Go to sign in",
+  "@forgotGoToSignIn": {
+    "description": "Primary after a successful reset."
+  },
+  "changePasswordTitle": "Change password",
+  "@changePasswordTitle": {
+    "description": "Title of the change-password screen, and the settings entry that opens it."
+  },
+  "changePasswordBack": "Back to settings",
+  "@changePasswordBack": {
+    "description": "Semantic label of the back button on the change-password screen."
+  },
+  "changeCurrentLabel": "Current password",
+  "@changeCurrentLabel": {
+    "description": "Field label."
+  },
+  "changeNeedsCurrent": "Enter your current password",
+  "@changeNeedsCurrent": {
+    "description": "Why the primary is disabled."
+  },
+  "changeWrongCurrent": "That is not your current password.",
+  "@changeWrongCurrent": {
+    "description": "Field error when the server says the current password is wrong."
+  },
+  "changeDoneTitle": "Password changed",
+  "@changeDoneTitle": {
+    "description": "Headline after a successful change."
+  },
+  "changeDoneBody": "You stay signed in on this phone. Use the new password next time you sign in.",
+  "@changeDoneBody": {
+    "description": "Body after a successful change."
+  },
+  "changeDone": "Done",
+  "@changeDone": {
+    "description": "Primary after a successful change."
+  },
+  "settingsAccountHeading": "Your account",
+  "@settingsAccountHeading": {
+    "description": "Section heading on the settings screen, above Change password."
+  },
+  "updateTitle": "Update TradeIQ",
+  "@updateTitle": {
+    "description": "Title of the too-old-version screen."
+  },
+  "updateBody": "This version of the app is too old for the server. Install the newest version from where you got TradeIQ, then open it again.",
+  "@updateBody": {
+    "description": "Body of the too-old-version screen."
+  },
+  "updateNothingLost": "Nothing saved on this phone is deleted by this.",
+  "@updateNothingLost": {
+    "description": "Reassurance on the too-old-version screen. It is true: the screen deletes nothing."
+  },
+  "updateTryAgain": "Try again",
+  "@updateTryAgain": {
+    "description": "Primary on the too-old-version screen: clears the state and asks the server again."
+  },
+  "updateVersions": "This phone has version {current}. Version {minimum} or newer is needed.",
+  "@updateVersions": {
+    "description": "Which build this is and what the server needs.",
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "minimum": {
+        "type": "String"
+      }
+    }
+  },
+  "updateVersionNoMinimum": "This phone has version {current}. A newer version is needed.",
+  "@updateVersionNoMinimum": {
+    "description": "When the server did not say which version it needs.",
+    "placeholders": {
+      "current": {
+        "type": "String"
       }
     }
   }
