@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '../../middleware/errorHandler';
 import { buildPage } from '../../lib/pagination';
 import { personLabel } from '../../lib/personName';
+import { scoreAndStoreVisitFraud } from '../fraud/fraud.service';
 
 /**
  * An outlet's lifecycle state (#386).
@@ -16,6 +17,24 @@ export type OutletStatus = (typeof OUTLET_STATUSES)[number];
 
 /** How many failed check-in attempts an outlet's detail screen shows as evidence. */
 export const OUTLET_ATTEMPT_EVIDENCE_LIMIT = 20;
+
+/**
+ * The worst reported accuracy, in metres, a check-in fix may have and still be
+ * adoptable as an outlet's pin (#386 follow-up).
+ *
+ * "Use their position" is not a note in a log. It moves the fence: from then
+ * on, that coordinate is where the shop is, and check-ins from there pass
+ * cleanly. A fix the device itself reports as good to ±500m cannot be used to
+ * say where a shop's door is — it can be a block away, which is the bug this
+ * whole feature exists to repair, reintroduced by the repair.
+ *
+ * 100m is a building and its pavement. A fix worse than that is refused, and
+ * the manager is told to use the map or the coordinates instead; a fix that
+ * reports NO accuracy is allowed, because an older handset that sends nothing
+ * must not lock a manager out of fixing a pin — it is shown as unknown rather
+ * than as fine.
+ */
+export const MAX_ADOPTABLE_FIX_ACCURACY_M = 100;
 
 export interface CreateOutletInput {
   name: string;
@@ -153,6 +172,14 @@ export interface OutletDetail {
     lat: number;
     lng: number;
     distanceM: number;
+    /**
+     * What the device said about this fix: reported accuracy in metres, and
+     * whether the platform called it mocked. Null means the device did not
+     * say. A manager pressing "use their position" is adopting this
+     * coordinate as the outlet's pin, and these decide whether they may.
+     */
+    accuracyM: number | null;
+    isMocked: boolean | null;
     createdAt: Date;
   }>;
   /** Agents' explicit "the pin is wrong" claims, newest first. */
@@ -166,6 +193,14 @@ export interface OutletDetail {
     after: Prisma.JsonValue;
     pinSource: string | null;
     disputeId: string | null;
+    /**
+     * For `pinSource: 'agent_position'`, WHICH attempt the coordinates came
+     * from and WHOSE. Without them the ledger said only that a pin had been
+     * moved to a position some phone once claimed. Null on every earlier row
+     * and on any change that did not adopt an attempt.
+     */
+    fromAttemptId: string | null;
+    fromAgentId: string | null;
     createdAt: Date;
   }>;
 }
@@ -185,6 +220,18 @@ export interface PinDisputeView {
   outletLat: number;
   outletLng: number;
   note: string | null;
+  /**
+   * What the device said about the fix behind this claim: its reported
+   * horizontal accuracy in metres, and whether the platform called it a mock
+   * location. Null means the device did not say — which is not the same as
+   * "fine", and the console says so in words.
+   *
+   * A manager adopting this position onto the outlet's pin is moving the
+   * boundary of who may check in there, on one phone's word. These two are
+   * what makes that decision readable instead of a row of decimals.
+   */
+  accuracyM: number | null;
+  isMocked: boolean | null;
   status: string;
   resolvedById: string | null;
   resolvedByLabel: string | null;
@@ -195,8 +242,29 @@ export interface PinDisputeView {
    * Photo metadata for the storefront evidence the agent attached — never the
    * bytes. The app uploads it against the visit under section
    * `pin_dispute`; see PIN_DISPUTE_PHOTO_SECTION.
+   *
+   * `timestamp` is the DEVICE clock and `gpsTag` is what the device reported;
+   * both are the agent's own account of the photo. `createdAt` is when THIS
+   * SERVER received it and `source` is how it was obtained, and those two are
+   * the ones a reviewer can lean on. A view that showed only the first pair
+   * let a picture picked from the gallery at home arrive stamped with a fresh
+   * time and a matching home position, and read as a storefront photo.
    */
-  photos: Array<{ id: string; url: string; timestamp: Date; gpsTag: Prisma.JsonValue }>;
+  photos: Array<{
+    id: string;
+    url: string;
+    timestamp: Date;
+    gpsTag: Prisma.JsonValue;
+    createdAt: Date;
+    source: string | null;
+  }>;
+  /**
+   * True when the agent who filed this claim is the ONLY agent who has ever
+   * visited this outlet — so there is nobody whose visits would contradict a
+   * pin moved onto their position. Not a refusal, a warning: a genuinely new
+   * store has exactly one visitor too.
+   */
+  agentIsOnlyVisitor: boolean;
 }
 
 /**
@@ -222,6 +290,8 @@ function disputeView(row: {
   outletLat: number;
   outletLng: number;
   note: string | null;
+  accuracyM: number | null;
+  isMocked: boolean | null;
   status: string;
   resolvedById: string | null;
   resolvedByLabel: string | null;
@@ -230,8 +300,17 @@ function disputeView(row: {
   createdAt: Date;
   agent: { displayName: string | null; email: string };
   outlet: { name: string; code: string };
-  visit: { photos: Array<{ id: string; url: string; timestamp: Date; gpsTag: Prisma.JsonValue }> };
-}): PinDisputeView {
+  visit: {
+    photos: Array<{
+      id: string;
+      url: string;
+      timestamp: Date;
+      gpsTag: Prisma.JsonValue;
+      createdAt: Date;
+      source: string | null;
+    }>;
+  };
+}, soleVisitorByOutlet: ReadonlyMap<string, string | null> = new Map()): PinDisputeView {
   return {
     id: row.id,
     outletId: row.outletId,
@@ -246,6 +325,8 @@ function disputeView(row: {
     outletLat: row.outletLat,
     outletLng: row.outletLng,
     note: row.note,
+    accuracyM: row.accuracyM,
+    isMocked: row.isMocked,
     status: row.status,
     resolvedById: row.resolvedById,
     resolvedByLabel: row.resolvedByLabel,
@@ -253,7 +334,41 @@ function disputeView(row: {
     resolvedAt: row.resolvedAt,
     createdAt: row.createdAt,
     photos: row.visit.photos,
+    agentIsOnlyVisitor: soleVisitorByOutlet.get(row.outletId) === row.agentId,
   };
+}
+
+/**
+ * For each of these outlets: the one agent who has ever visited it, or null
+ * when nobody or more than one has.
+ *
+ * "Use their position" moves an outlet's pin onto a coordinate one agent's
+ * phone reported. When that agent is also the only person who has ever worked
+ * the outlet, nobody else's visits can contradict the new pin — the agent has
+ * effectively told the system where the shop is and then been the only one
+ * measured against it. That is not proof of anything (a store visited once is
+ * also a store visited once), so it is surfaced as a warning on the claim and
+ * never as a refusal.
+ *
+ * One grouped read for the whole page, tenant-scoped.
+ */
+async function soleVisitorByOutlet(
+  clientId: string,
+  outletIds: string[],
+): Promise<Map<string, string | null>> {
+  const sole = new Map<string, string | null>();
+  if (outletIds.length === 0) {
+    return sole;
+  }
+  const pairs = await prisma.visit.groupBy({
+    by: ['outletId', 'agentId'],
+    where: { clientId, outletId: { in: [...new Set(outletIds)] } },
+  });
+  for (const pair of pairs) {
+    // First agent seen for an outlet wins the slot; a second one empties it.
+    sole.set(pair.outletId, sole.has(pair.outletId) ? null : pair.agentId);
+  }
+  return sole;
 }
 
 const disputeInclude = {
@@ -263,7 +378,17 @@ const disputeInclude = {
     select: {
       photos: {
         where: { section: PIN_DISPUTE_PHOTO_SECTION },
-        select: { id: true, url: true, timestamp: true, gpsTag: true },
+        // createdAt and source as well as the device's own account of the
+        // photo: the manager needs the server's receipt time and whether it
+        // came from the camera, not only what the phone claimed.
+        select: {
+          id: true,
+          url: true,
+          timestamp: true,
+          gpsTag: true,
+          createdAt: true,
+          source: true,
+        },
         orderBy: { timestamp: 'asc' as const },
       },
     },
@@ -284,7 +409,7 @@ export async function getOutletDetail(outletId: string, clientId: string): Promi
     throw new NotFoundError('Outlet not found');
   }
 
-  const [failedAttempts, disputes, changes] = await Promise.all([
+  const [failedAttempts, disputes, changes, soleVisitors] = await Promise.all([
     prisma.checkInAttempt.findMany({
       // clientId as well as outletId: belt and braces, so a mistyped id can
       // never reach across tenants even though the outlet above is scoped.
@@ -304,6 +429,7 @@ export async function getOutletDetail(outletId: string, clientId: string): Promi
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: OUTLET_ATTEMPT_EVIDENCE_LIMIT,
     }),
+    soleVisitorByOutlet(clientId, [outletId]),
   ]);
 
   return {
@@ -326,9 +452,11 @@ export async function getOutletDetail(outletId: string, clientId: string): Promi
       lat: a.lat,
       lng: a.lng,
       distanceM: a.distanceM,
+      accuracyM: a.accuracyM,
+      isMocked: a.isMocked,
       createdAt: a.createdAt,
     })),
-    disputes: disputes.map(disputeView),
+    disputes: disputes.map((d) => disputeView(d, soleVisitors)),
     changes: changes.map((c) => ({
       id: c.id,
       userId: c.userId,
@@ -337,6 +465,8 @@ export async function getOutletDetail(outletId: string, clientId: string): Promi
       after: c.after,
       pinSource: c.pinSource,
       disputeId: c.disputeId,
+      fromAttemptId: c.fromAttemptId,
+      fromAgentId: c.fromAgentId,
       createdAt: c.createdAt,
     })),
   };
@@ -390,19 +520,38 @@ export async function updateOutlet(input: UpdateOutletInput) {
   let lng = input.lng;
   let pinSource: string | null = lat !== undefined ? 'manual' : null;
 
+  let fromAgentId: string | null = null;
   if (input.fromAttemptId !== undefined) {
     const attempt = await prisma.checkInAttempt.findFirst({
       where: { id: input.fromAttemptId, clientId: input.clientId, outletId: input.outletId },
-      select: { lat: true, lng: true },
+      select: { lat: true, lng: true, agentId: true, accuracyM: true, isMocked: true },
     });
     if (!attempt) {
       // Scoped to the tenant AND to this outlet: an attempt id from another
       // client, or from a different store, must not be usable to move this pin.
       throw new NotFoundError('No check-in attempt with that id at this outlet');
     }
+    // A position the platform itself called fake cannot become the place a
+    // shop is. Refused rather than warned about: a manager cannot be asked to
+    // tell a spoofed coordinate from a real one by reading decimals, and the
+    // manual lat/lng path is still open for a pin they can place themselves.
+    if (attempt.isMocked === true) {
+      throw new ValidationError(
+        'That position was reported by the device as a mock location and cannot become this ' +
+          "outlet's pin. Set the coordinates yourself, or ask the agent to check in again.",
+      );
+    }
+    if (attempt.accuracyM !== null && attempt.accuracyM > MAX_ADOPTABLE_FIX_ACCURACY_M) {
+      throw new ValidationError(
+        `That position was only accurate to ${Math.round(attempt.accuracyM)}m, beyond the ` +
+          `${MAX_ADOPTABLE_FIX_ACCURACY_M}m limit for setting an outlet's pin. Set the ` +
+          'coordinates yourself, or ask the agent to check in again with a better fix.',
+      );
+    }
     lat = attempt.lat;
     lng = attempt.lng;
     pinSource = 'agent_position';
+    fromAgentId = attempt.agentId;
   }
 
   let dispute: { id: string; status: string } | null = null;
@@ -480,6 +629,11 @@ export async function updateOutlet(input: UpdateOutletInput) {
           after: after as Prisma.InputJsonValue,
           pinSource: movedPin ? pinSource : null,
           disputeId: dispute?.id ?? null,
+          // Whose position, and which reading of it. `agent_position` alone
+          // recorded that a pin had moved to somewhere a phone once claimed,
+          // with no way afterwards to ask whose phone or to re-read the fix.
+          fromAttemptId: movedPin ? (input.fromAttemptId ?? null) : null,
+          fromAgentId: movedPin ? fromAgentId : null,
         },
       });
     }
@@ -517,6 +671,38 @@ export async function updateOutlet(input: UpdateOutletInput) {
     return [row, closed] as const;
   });
 
+  // ── The ruling has to reach the VISIT (#386 follow-up) ──────────────────
+  //
+  // Rejecting a claim is a manager saying, in the one place the product asks
+  // them to, that the pin stands and therefore the agent was not at the shop.
+  // Until now that changed nothing outside the pin_disputes row: the visit kept
+  // its score of 30, stayed out of /fraud/flagged, stayed submitted and kept
+  // its points. The finding and the visit it was about lived in different
+  // halves of the product.
+  //
+  // Re-scoring here is what joins them. geofence_override_rejected is weighted
+  // above the review threshold, so the re-score is what puts the visit in the
+  // flagged queue; an APPLIED claim is re-scored by the same call, and is the
+  // reason this is not `if (rejected)` — a manager agreeing that the pin was
+  // wrong should not leave a stale score sitting on the agent's record either.
+  //
+  // Best-effort and after the transaction, deliberately. The manager's ruling
+  // is recorded either way: a scoring failure must not roll back a decision a
+  // person already made, and the nightly rescore (fraudRescore.ts) sweeps up
+  // anything missed. It is awaited so the score is current by the time the
+  // response is read.
+  if (resolvedDispute) {
+    try {
+      await scoreAndStoreVisitFraud(resolvedDispute.visitId, input.clientId);
+    } catch (err) {
+      console.error(
+        `Re-scoring visit ${resolvedDispute.visitId} after its pin dispute was ` +
+          `${resolvedDispute.status} failed:`,
+        err,
+      );
+    }
+  }
+
   return {
     outlet: updated,
     dispute: resolvedDispute ? disputeView(resolvedDispute) : null,
@@ -552,5 +738,12 @@ export async function listPinDisputes(input: ListPinDisputesInput) {
     include: disputeInclude,
   });
   const page = buildPage(rows, limit);
-  return { data: page.data.map(disputeView), nextCursor: page.nextCursor };
+  const soleVisitors = await soleVisitorByOutlet(
+    clientId,
+    page.data.map((row) => row.outletId),
+  );
+  return {
+    data: page.data.map((row) => disputeView(row, soleVisitors)),
+    nextCursor: page.nextCursor,
+  };
 }
