@@ -1813,6 +1813,9 @@ class AppLocalizationsAf extends AppLocalizations {
       'Jou werk is steeds op hierdie foon. Niks is verlore nie.';
 
   @override
+  String get myWorkRetry => 'Probeer weer';
+
+  @override
   String get outboxWaiting => 'Wag';
 
   @override

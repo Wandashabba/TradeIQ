@@ -52,9 +52,8 @@ String outboxSentence(
   OutboxState.queued => l10n.outboxWaitingSentence,
   OutboxState.sending => l10n.outboxSendingSentence,
   OutboxState.sent => l10n.outboxSentSentence,
-  OutboxState.retrying ||
-  OutboxState.stuck ||
-  OutboxState.waitingForVisit => item.problemIn(l10n) ?? l10n.outboxWaitingSentence,
+  OutboxState.retrying || OutboxState.stuck || OutboxState.waitingForVisit =>
+    item.problemIn(l10n) ?? l10n.outboxWaitingSentence,
 };
 
 /// "queued 07:58", "last tried 14:20", "sent 08:04".

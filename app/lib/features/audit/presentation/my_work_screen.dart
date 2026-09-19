@@ -110,9 +110,16 @@ class _MyWork extends ConsumerWidget {
               kind: TorchErrorKind.unknown,
               headline: l10n.myWorkLoadErrorTitle,
               body: l10n.myWorkLoadErrorBody,
-              offersRetry: false,
+              offersRetry: true,
             ),
             drawing: EmptyDrawing.envelope,
+            // A read of a table on this phone that failed once is worth one
+            // more read. A secondary, never the amber: it is not a commit.
+            action: TorchSecondaryButton(
+              key: const ValueKey<String>('retry-work'),
+              label: l10n.myWorkRetry,
+              onPressed: () => ref.invalidate(syncStatusProvider),
+            ),
           ),
           const _Footer(),
         ],
@@ -124,11 +131,7 @@ class _MyWork extends ConsumerWidget {
 
 /// The frame every state of this route wears.
 class _MyWorkFrame extends ConsumerWidget {
-  const _MyWorkFrame({
-    required this.phase,
-    required this.children,
-    this.armed,
-  });
+  const _MyWorkFrame({required this.phase, required this.children, this.armed});
 
   final String phase;
 
@@ -149,9 +152,7 @@ class _MyWorkFrame extends ConsumerWidget {
       phase: phase,
       navRenders: TorchShell.navWillRender(context, hasNav: true),
       tabbedRoute: true,
-      claims: <TorchClaim>[
-        if (armed != null) TorchClaim.primaryCommit(armed!),
-      ],
+      claims: <TorchClaim>[if (armed != null) TorchClaim.primaryCommit(armed!)],
       child: TorchShell(
         profile: TorchShellProfile.agent,
         header: TorchAppHeader(
@@ -201,19 +202,27 @@ class _MyWorkFrame extends ConsumerWidget {
 }
 
 /// The queue itself, in three groups.
-class _Queue extends ConsumerWidget {
+class _Queue extends ConsumerStatefulWidget {
   const _Queue({required this.status});
 
   final SyncStatus status;
 
-  /// How many sent captures the list shows before it stops. Beyond this the
-  /// footer states the cap rather than the list quietly ending — a truncated
-  /// list that does not say it is truncated is how an agent concludes a
-  /// capture was lost.
+  /// How many sent captures the list shows before it stops, and how many more
+  /// each "Show older" adds. Beyond this the footer states the cap rather than
+  /// the list quietly ending — a truncated list that does not say it is
+  /// truncated is how an agent concludes a capture was lost.
   static const int sentCap = 20;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Queue> createState() => _QueueState();
+}
+
+class _QueueState extends ConsumerState<_Queue> {
+  int _sentShown = _Queue.sentCap;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = widget.status;
     final l10n = context.l10n;
     final skin = context.skin;
     final sending = ref.watch(syncingProvider) && status.pending.isNotEmpty;
@@ -265,7 +274,7 @@ class _Queue extends ConsumerWidget {
       // A group with nothing in it prints no rule. An empty "Needs you" is a
       // heading about nothing and reads as a section that failed to load.
       if (items.isEmpty) return const SizedBox.shrink();
-      final shown = capped ? items.take(sentCap).toList() : items;
+      final shown = capped ? items.take(_sentShown).toList() : items;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -289,6 +298,11 @@ class _Queue extends ConsumerWidget {
             const SizedBox(height: TiqSpace.s4),
             PaginationFooter(
               summary: l10n.myWorkSentCapped(shown.length, items.length),
+              action: TorchTertiaryButton(
+                key: const ValueKey<String>('show-older'),
+                label: l10n.myWorkShowOlder,
+                onPressed: () => setState(() => _sentShown += _Queue.sentCap),
+              ),
             ),
           ],
           SizedBox(height: skin.space.blockGap),
@@ -344,7 +358,12 @@ class _Summary extends ConsumerWidget {
     final skin = context.skin;
     final l10n = context.l10n;
 
-    final (MarkShape shape, Color ink, String title, String subtitle) = switch ((
+    final (
+      MarkShape shape,
+      Color ink,
+      String title,
+      String subtitle,
+    ) = switch ((
       status.needsAttention.isNotEmpty,
       sending,
       status.pending.isNotEmpty,
@@ -386,81 +405,81 @@ class _Summary extends ConsumerWidget {
     };
 
     return Container(
-        key: const ValueKey<String>('work-summary'),
-        padding: const EdgeInsets.all(TiqSpace.s4),
-        decoration: BoxDecoration(
-          color: skin.palette.surface,
-          borderRadius: BorderRadius.circular(skin.radii.panel),
-          border: Border.all(
-            color: skin.palette.edgeStructure,
-            width: skin.depth.borderWidth,
+      key: const ValueKey<String>('work-summary'),
+      padding: const EdgeInsets.all(TiqSpace.s4),
+      decoration: BoxDecoration(
+        color: skin.palette.surface,
+        borderRadius: BorderRadius.circular(skin.radii.panel),
+        border: Border.all(
+          color: skin.palette.edgeStructure,
+          width: skin.depth.borderWidth,
+        ),
+        boxShadow: skin.depth.shadows,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // The state is ONE node for a screen reader, and it leads with the
+          // state word. The button below is a second, separate node — a
+          // summary that swallowed its own action would announce "12 items
+          // held on this phone, Send now" as a single sentence.
+          Semantics(
+            container: true,
+            label: '$title. $subtitle',
+            excludeSemantics: true,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: TiqSpace.s1),
+                  child: TiqMark(
+                    shape: shape,
+                    color: ink,
+                    size: MarkScale.glyph(context, 16),
+                  ),
+                ),
+                const SizedBox(width: TiqSpace.s3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        title,
+                        style: skin.text.bodyStrong.style(
+                          color: skin.palette.ink1,
+                        ),
+                      ),
+                      const SizedBox(height: TiqSpace.s1),
+                      Text(
+                        subtitle,
+                        style: skin.text.meta.style(color: skin.palette.ink3),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          boxShadow: skin.depth.shadows,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // The state is ONE node for a screen reader, and it leads with the
-            // state word. The button below is a second, separate node — a
-            // summary that swallowed its own action would announce "12 items
-            // held on this phone, Send now" as a single sentence.
-            Semantics(
-              container: true,
-              label: '$title. $subtitle',
-              excludeSemantics: true,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.only(top: TiqSpace.s1),
-                    child: TiqMark(
-                      shape: shape,
-                      color: ink,
-                      size: MarkScale.glyph(context, 16),
-                    ),
-                  ),
-                  const SizedBox(width: TiqSpace.s3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          title,
-                          style: skin.text.bodyStrong.style(
-                            color: skin.palette.ink1,
-                          ),
-                        ),
-                        const SizedBox(height: TiqSpace.s1),
-                        Text(
-                          subtitle,
-                          style: skin.text.meta.style(color: skin.palette.ink3),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: TiqSpace.s4),
-            // "Send now" lives here, with the thing it acts on. My work is a
-            // tab root and tab roots have no thumb zone (unify §1.2), and the
-            // button belongs beside the queue anyway.
-            TorchPrimaryButton(
-              key: const ValueKey<String>('send-now'),
-              claimId: MyWorkScreen.sendNowClaimId,
-              label: l10n.myWorkSendNow,
-              icon: Icons.upload_outlined,
-              busy: sending,
-              blockedReason: status.pending.isEmpty
-                  ? l10n.myWorkSendNowBlocked
-                  : null,
-              onPressed: status.pending.isEmpty || sending
-                  ? null
-                  : () => ref.read(syncNowProvider)(),
-            ),
-          ],
-        ),
-      );
+          const SizedBox(height: TiqSpace.s4),
+          // "Send now" lives here, with the thing it acts on. My work is a
+          // tab root and tab roots have no thumb zone (unify §1.2), and the
+          // button belongs beside the queue anyway.
+          TorchPrimaryButton(
+            key: const ValueKey<String>('send-now'),
+            claimId: MyWorkScreen.sendNowClaimId,
+            label: l10n.myWorkSendNow,
+            icon: Icons.upload_outlined,
+            busy: sending,
+            blockedReason: status.pending.isEmpty
+                ? l10n.myWorkSendNowBlocked
+                : null,
+            onPressed: status.pending.isEmpty || sending
+                ? null
+                : () => ref.read(syncNowProvider)(),
+          ),
+        ],
+      ),
+    );
   }
 }
 

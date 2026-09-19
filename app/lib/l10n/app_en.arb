@@ -2249,6 +2249,10 @@
   "@myWorkLoadErrorBody": {
     "description": "Body of the My work load-error state. The outbox failing to READ is not the outbox failing to hold."
   },
+  "myWorkRetry": "Try again",
+  "@myWorkRetry": {
+    "description": "Reads the outbox again after a failed read. The captures themselves were never in doubt — only the reading of them."
+  },
   "outboxWaiting": "Waiting",
   "@outboxWaiting": {
     "description": "Outbox row state word: queued, waiting for signal. Never an error."

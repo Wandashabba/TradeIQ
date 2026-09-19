@@ -2840,6 +2840,12 @@ abstract class AppLocalizations {
   /// **'Your work is still on this phone. Nothing is lost.'**
   String get myWorkLoadErrorBody;
 
+  /// Reads the outbox again after a failed read. The captures themselves were never in doubt — only the reading of them.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get myWorkRetry;
+
   /// Outbox row state word: queued, waiting for signal. Never an error.
   ///
   /// In en, this message translates to:

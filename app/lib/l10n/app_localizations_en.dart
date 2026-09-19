@@ -1792,6 +1792,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your work is still on this phone. Nothing is lost.';
 
   @override
+  String get myWorkRetry => 'Try again';
+
+  @override
   String get outboxWaiting => 'Waiting';
 
   @override

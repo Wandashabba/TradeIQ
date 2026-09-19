@@ -457,6 +457,7 @@
   "myWorkSentCapped": "Wys die {shown} mees onlangs gestuurdes van {total}",
   "myWorkEmptyBody": "Alles wat jy in ’n winkel vaslê, verskyn hier totdat die bediener dit het.",
   "myWorkLoadErrorBody": "Jou werk is steeds op hierdie foon. Niks is verlore nie.",
+  "myWorkRetry": "Probeer weer",
   "outboxWaiting": "Wag",
   "outboxSending": "Stuur tans",
   "outboxRetrying": "Probeer weer",
